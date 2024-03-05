@@ -9,7 +9,8 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
             publisher_actor,
             status_condition_actor::StatusConditionActor,
-            subscriber_actor, topic_actor,
+            subscriber_actor::{self, SubscriberActor},
+            topic_actor,
         },
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
@@ -38,6 +39,8 @@ use super::{
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
     status_condition_address: ActorAddress<StatusConditionActor>,
+    builtin_subscriber_address: ActorAddress<SubscriberActor>,
+    builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
     runtime_handle: tokio::runtime::Handle,
 }
@@ -46,12 +49,16 @@ impl DomainParticipantAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
+        builtin_subscriber_address: ActorAddress<SubscriberActor>,
+        builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
             participant_address,
             status_condition_address,
+            builtin_subscriber_address,
+            builtin_subscriber_status_condition_address,
             domain_id,
             runtime_handle,
         }
@@ -449,19 +456,12 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
-    pub async fn get_builtin_subscriber(&self) -> DdsResult<SubscriberAsync> {
-        let builtin_subscriber = self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
-            .await?;
-        let subscriber_status_condition = builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
-            .await?;
-        Ok(SubscriberAsync::new(
-            builtin_subscriber,
-            subscriber_status_condition,
+    pub fn get_builtin_subscriber(&self) -> SubscriberAsync {
+        SubscriberAsync::new(
+            self.builtin_subscriber_address.clone(),
+            self.builtin_subscriber_status_condition_address.clone(),
             self.clone(),
-        ))
+        )
     }
 
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).

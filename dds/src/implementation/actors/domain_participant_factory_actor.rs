@@ -32,7 +32,9 @@ use crate::{
     },
 };
 
-use super::domain_participant_listener_actor::DomainParticipantListenerAsyncDyn;
+use super::{
+    domain_participant_listener_actor::DomainParticipantListenerAsyncDyn, subscriber_actor,
+};
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -195,9 +197,17 @@ impl DomainParticipantFactoryActor {
         let status_condition = participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
             .await?;
+        let builtin_subscriber = participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+            .await?;
+        let builtin_subscriber_status_condition_address = builtin_subscriber
+            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+            .await?;
         let participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition.clone(),
+            builtin_subscriber,
+            builtin_subscriber_status_condition_address,
             domain_id,
             runtime_handle.clone(),
         );

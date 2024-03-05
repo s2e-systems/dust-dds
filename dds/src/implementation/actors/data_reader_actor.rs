@@ -329,13 +329,14 @@ impl DataReaderActor {
         &self,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         (subscriber_listener_address, subscriber_listener_mask): &(
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        subscriber_status_condition
+        subscriber
+            .get_statuscondition()
+            .address()
             .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
                 StatusKind::DataOnReaders,
             ))
@@ -383,7 +384,6 @@ impl DataReaderActor {
         reception_timestamp: Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
             ActorAddress<DomainParticipantListenerActor>,
@@ -428,7 +428,6 @@ impl DataReaderActor {
                                     change,
                                     data_reader_address,
                                     subscriber,
-                                    subscriber_status_condition,
                                     subscriber_mask_listener,
                                     participant_mask_listener,
                                 )
@@ -466,7 +465,6 @@ impl DataReaderActor {
                                     change,
                                     data_reader_address,
                                     subscriber,
-                                    subscriber_status_condition,
                                     subscriber_mask_listener,
                                     participant_mask_listener,
                                 )
@@ -507,7 +505,6 @@ impl DataReaderActor {
                     change,
                     data_reader_address,
                     subscriber,
-                    subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
@@ -530,7 +527,6 @@ impl DataReaderActor {
         reception_timestamp: Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
             ActorAddress<DomainParticipantListenerActor>,
@@ -556,7 +552,6 @@ impl DataReaderActor {
                     reception_timestamp,
                     data_reader_address,
                     subscriber,
-                    subscriber_status_condition,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
@@ -738,7 +733,6 @@ impl DataReaderActor {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
@@ -856,7 +850,7 @@ impl DataReaderActor {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
+
     async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -1005,13 +999,11 @@ impl DataReaderActor {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_status_condition: &ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
             ActorAddress<DomainParticipantListenerActor>,
@@ -1102,13 +1094,8 @@ impl DataReaderActor {
                         .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
                 }
 
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber,
-                    subscriber_status_condition,
-                    subscriber_mask_listener,
-                )
-                .await?;
+                self.on_data_available(data_reader_address, subscriber, subscriber_mask_listener)
+                    .await?;
             }
         }
 
@@ -1839,7 +1826,6 @@ impl DataReaderActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
@@ -1883,7 +1869,6 @@ impl DataReaderActor {
         reception_timestamp: Time,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_status_condition: ActorAddress<StatusConditionActor>,
         subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
@@ -1915,7 +1900,6 @@ impl DataReaderActor {
                         reception_timestamp,
                         &data_reader_address,
                         &subscriber,
-                        &subscriber_status_condition,
                         &subscriber_mask_listener,
                         &participant_mask_listener,
                     )
@@ -1930,7 +1914,6 @@ impl DataReaderActor {
                         reception_timestamp,
                         &data_reader_address,
                         &subscriber,
-                        &subscriber_status_condition,
                         &subscriber_mask_listener,
                         &participant_mask_listener,
                     )

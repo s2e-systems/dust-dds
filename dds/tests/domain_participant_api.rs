@@ -570,7 +570,7 @@ fn builtin_reader_access() {
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
-    let builtin_subscriber = participant.get_builtin_subscriber().unwrap();
+    let builtin_subscriber = participant.get_builtin_subscriber();
 
     assert!(builtin_subscriber
         .lookup_datareader::<ParticipantBuiltinTopicData>("DCPSParticipant")
@@ -684,7 +684,7 @@ fn get_discovery_data_from_builtin_reader() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let builtin_subscriber = participant.get_builtin_subscriber().unwrap();
+    let builtin_subscriber = participant.get_builtin_subscriber();
 
     let participants_reader = builtin_subscriber
         .lookup_datareader::<ParticipantBuiltinTopicData>("DCPSParticipant")

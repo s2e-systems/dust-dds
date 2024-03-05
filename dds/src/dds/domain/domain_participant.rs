@@ -252,11 +252,8 @@ impl DomainParticipant {
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     #[tracing::instrument(skip(self))]
-    pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_builtin_subscriber())
-            .map(Subscriber::new)
+    pub fn get_builtin_subscriber(&self) -> Subscriber {
+        Subscriber::new(self.participant_async.get_builtin_subscriber())
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

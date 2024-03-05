@@ -5,6 +5,7 @@ use crate::{
         actors::{
             domain_participant_actor,
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+            subscriber_actor,
         },
         utils::actor::Actor,
     },
@@ -66,9 +67,17 @@ impl DomainParticipantFactoryAsync {
         let status_condition = participant_address
             .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
             .await?;
+        let builtin_subscriber = participant_address
+            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+            .await?;
+        let builtin_subscriber_status_condition_address = builtin_subscriber
+            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+            .await?;
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
+            builtin_subscriber,
+            builtin_subscriber_status_condition_address,
             domain_id,
             self.runtime_handle.clone(),
         );
@@ -110,9 +119,17 @@ impl DomainParticipantFactoryAsync {
             let status_condition = dp
                 .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
                 .await?;
+            let builtin_subscriber = dp
+                .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+                .await?;
+            let builtin_subscriber_status_condition_address = builtin_subscriber
+                .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
+                .await?;
             Ok(Some(DomainParticipantAsync::new(
                 dp,
                 status_condition,
+                builtin_subscriber,
+                builtin_subscriber_status_condition_address,
                 domain_id,
                 self.runtime_handle.clone(),
             )))
