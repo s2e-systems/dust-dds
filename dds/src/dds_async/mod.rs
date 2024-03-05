@@ -12,6 +12,8 @@ pub mod data_writer_listener;
 pub mod domain_participant;
 /// Classes related to the async domain participant factory.
 pub mod domain_participant_factory;
+/// Classes related to the async domain participant listener.
+pub mod domain_participant_listener;
 /// Classes related to the async publisher.
 pub mod publisher;
 /// Classes related to the async publisher listener.

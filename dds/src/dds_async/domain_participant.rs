@@ -2,10 +2,7 @@ use std::time::Instant;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{
-        domain_participant_factory::{DomainId, DomainParticipantFactory},
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_factory::{DomainId, DomainParticipantFactory},
     implementation::{
         actors::{
             data_reader_actor, data_writer_actor,
@@ -30,9 +27,9 @@ use crate::{
 };
 
 use super::{
-    condition::StatusConditionAsync, publisher::PublisherAsync,
-    publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
-    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
+    publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
+    subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
     topic_listener::TopicListenerAsync,
 };
 
@@ -789,7 +786,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address

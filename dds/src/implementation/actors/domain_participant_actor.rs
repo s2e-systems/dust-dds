@@ -4,10 +4,7 @@ use tracing::warn;
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dds_async::domain_participant::DomainParticipantAsync,
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_factory::DomainId,
     implementation::{
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
@@ -83,7 +80,9 @@ use std::{
 use super::{
     data_reader_actor,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_listener_actor::DomainParticipantListenerActor,
+    domain_participant_listener_actor::{
+        DomainParticipantListenerActor, DomainParticipantListenerAsyncDyn,
+    },
     publisher_actor::{self, PublisherActor},
     publisher_listener_actor::PublisherListenerAsyncDyn,
     status_condition_actor::StatusConditionActor,
@@ -251,7 +250,7 @@ impl DomainParticipantActor {
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
         udp_transport_write: Arc<UdpTransportWrite>,
-        listener: Box<dyn DomainParticipantListener + Send>,
+        listener: Box<dyn DomainParticipantListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -1368,7 +1367,7 @@ impl DomainParticipantActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn DomainParticipantListener + Send>,
+        listener: Box<dyn DomainParticipantListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {

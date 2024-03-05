@@ -542,9 +542,10 @@ impl DomainParticipant {
         a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.set_listener(a_listener, mask))
+        self.participant_async.runtime_handle().block_on(
+            self.participant_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
