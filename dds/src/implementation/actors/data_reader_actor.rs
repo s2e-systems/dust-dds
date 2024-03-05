@@ -733,7 +733,6 @@ impl DataReaderActor {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
@@ -851,7 +850,7 @@ impl DataReaderActor {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
+
     async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -1000,7 +999,6 @@ impl DataReaderActor {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
@@ -1828,7 +1826,6 @@ impl DataReaderActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,

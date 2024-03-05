@@ -740,7 +740,6 @@ impl DataWriterActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
