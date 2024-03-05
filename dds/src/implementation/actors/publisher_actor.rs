@@ -29,14 +29,13 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time, DURATION_ZERO},
     },
-    publication::publisher_listener::PublisherListener,
 };
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_listener_actor::PublisherListenerActor,
+    publisher_listener_actor::{PublisherListenerActor, PublisherListenerAsyncDyn},
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
@@ -57,7 +56,7 @@ impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn PublisherListener + Send>,
+        listener: Box<dyn PublisherListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -369,7 +368,7 @@ impl PublisherActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn PublisherListener + Send>,
+        listener: Box<dyn PublisherListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {

@@ -31,15 +31,15 @@ impl DataWriterListenerActor {
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_offered_incompatible_qos(
+        self.listener
+            .trigger_on_offered_incompatible_qos(
                 writer_address,
                 status_condition_address,
                 publisher,
                 topic,
                 status,
             )
-        });
+            .await
     }
 
     async fn trigger_on_publication_matched(
@@ -50,14 +50,14 @@ impl DataWriterListenerActor {
         topic: TopicAsync,
         status: PublicationMatchedStatus,
     ) {
-        tokio::task::block_in_place(|| {
-            self.listener.trigger_on_publication_matched(
+        self.listener
+            .trigger_on_publication_matched(
                 writer_address,
                 status_condition_address,
                 publisher,
                 topic,
                 status,
             )
-        });
+            .await
     }
 }

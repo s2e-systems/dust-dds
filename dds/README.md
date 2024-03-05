@@ -99,6 +99,9 @@ The subscriber side can be implemented as:
         }
     }
 ```
+## Sync and Async API
+
+Dust DDS provides both a "sync" and an "async" API to allow integrating DDS in the largest number of applications with maximum performance. In general, the first option should be to use the sync API and make use of the DDS specified functionality such as listeners for event based programs. However, when implementing applications that already make use of async then the async API must be used. In particular, when using a Tokio runtime, using the Sync API will result in a panic due to blocking calls.
 
 ## Release schedule
 

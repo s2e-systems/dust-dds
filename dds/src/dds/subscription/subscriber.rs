@@ -1,6 +1,7 @@
 use crate::{
     dds_async::subscriber::SubscriberAsync,
     domain::domain_participant::DomainParticipant,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -65,7 +66,7 @@ impl Subscriber {
             .block_on(self.subscriber_async.create_datareader::<Foo>(
                 a_topic.topic_async(),
                 qos,
-                a_listener,
+                ListenerSyncToAsync::new(a_listener),
                 mask,
             ))
             .map(DataReader::new)
@@ -211,9 +212,10 @@ impl Subscriber {
         a_listener: impl SubscriberListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.subscriber_async
-            .runtime_handle()
-            .block_on(self.subscriber_async.set_listener(a_listener, mask))
+        self.subscriber_async.runtime_handle().block_on(
+            self.subscriber_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

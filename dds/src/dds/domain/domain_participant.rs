@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dds_async::domain_participant::DomainParticipantAsync,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -72,10 +73,11 @@ impl DomainParticipant {
     ) -> DdsResult<Publisher> {
         self.participant_async
             .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .create_publisher(qos, a_listener, mask),
-            )
+            .block_on(self.participant_async.create_publisher(
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(Publisher::new)
     }
 
@@ -111,10 +113,11 @@ impl DomainParticipant {
     ) -> DdsResult<Subscriber> {
         self.participant_async
             .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .create_subscriber(qos, a_listener, mask),
-            )
+            .block_on(self.participant_async.create_subscriber(
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(Subscriber::new)
     }
 
@@ -153,10 +156,13 @@ impl DomainParticipant {
     {
         self.participant_async
             .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .create_topic::<Foo>(topic_name, type_name, qos, a_listener, mask),
-            )
+            .block_on(self.participant_async.create_topic::<Foo>(
+                topic_name,
+                type_name,
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(Topic::new)
     }
 
@@ -177,7 +183,7 @@ impl DomainParticipant {
                 topic_name,
                 type_name,
                 qos,
-                a_listener,
+                ListenerSyncToAsync::new(a_listener),
                 mask,
                 dynamic_type_representation,
             ))
@@ -536,9 +542,10 @@ impl DomainParticipant {
         a_listener: impl DomainParticipantListener + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.set_listener(a_listener, mask))
+        self.participant_async.runtime_handle().block_on(
+            self.participant_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

@@ -7,7 +7,7 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
-    subscriber_listener_actor::SubscriberListenerActor,
+    subscriber_listener_actor::{SubscriberListenerActor, SubscriberListenerAsyncDyn},
     topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
 };
@@ -40,7 +40,6 @@ use crate::{
         status::StatusKind,
         time::{Time, DURATION_ZERO},
     },
-    subscription::subscriber_listener::SubscriberListener,
 };
 
 pub struct SubscriberActor {
@@ -59,7 +58,7 @@ impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn SubscriberListener + Send>,
+        listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -382,7 +381,7 @@ impl SubscriberActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn SubscriberListener + Send>,
+        listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {

@@ -1,9 +1,6 @@
 use crate::{
     configuration::DustDdsConfiguration,
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_factory::DomainId,
     implementation::{
         actors::{
             domain_participant_actor,
@@ -18,7 +15,10 @@ use crate::{
     },
 };
 
-use super::domain_participant::DomainParticipantAsync;
+use super::{
+    domain_participant::DomainParticipantAsync,
+    domain_participant_listener::DomainParticipantListenerAsync,
+};
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
@@ -47,7 +47,7 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let listener = Box::new(a_listener);

@@ -15,7 +15,10 @@ use crate::{
     },
 };
 
-use super::status_condition_actor::{self, StatusConditionActor};
+use super::{
+    status_condition_actor::{self, StatusConditionActor},
+    topic_listener_actor::{TopicListenerActor, TopicListenerAsyncDyn},
+};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -38,6 +41,7 @@ pub struct TopicActor {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
+    _listener: Actor<TopicListenerActor>,
 }
 
 impl TopicActor {
@@ -46,9 +50,11 @@ impl TopicActor {
         qos: TopicQos,
         type_name: String,
         topic_name: &str,
+        listener: Box<dyn TopicListenerAsyncDyn + Send>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(TopicListenerActor::new(listener), handle);
         Self {
             guid,
             qos,
@@ -57,6 +63,7 @@ impl TopicActor {
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition,
+            _listener: listener,
         }
     }
 }

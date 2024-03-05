@@ -1,6 +1,13 @@
 use std::marker::PhantomData;
 
 use crate::{
+    dds_async::{
+        data_reader_listener::DataReaderListenerAsync,
+        data_writer_listener::DataWriterListenerAsync,
+        domain_participant_listener::DomainParticipantListenerAsync,
+        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        topic_listener::TopicListenerAsync,
+    },
     domain::domain_participant_listener::DomainParticipantListener,
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
@@ -38,5 +45,18 @@ impl<Foo> DataReaderListener for NoOpListener<Foo> {
 }
 
 impl<Foo> DataWriterListener for NoOpListener<Foo> {
+    type Foo = Foo;
+}
+
+impl DomainParticipantListenerAsync for NoOpListener {}
+impl PublisherListenerAsync for NoOpListener {}
+impl SubscriberListenerAsync for NoOpListener {}
+impl TopicListenerAsync for NoOpListener {}
+
+impl<Foo> DataReaderListenerAsync for NoOpListener<Foo> {
+    type Foo = Foo;
+}
+
+impl<Foo> DataWriterListenerAsync for NoOpListener<Foo> {
     type Foo = Foo;
 }

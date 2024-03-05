@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dds_async::data_writer::DataWriterAsync,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -458,9 +459,10 @@ impl<Foo> DataWriter<Foo> {
         a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.writer_async
-            .runtime_handle()
-            .block_on(self.writer_async.set_listener(a_listener, mask))
+        self.writer_async.runtime_handle().block_on(
+            self.writer_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 }
 

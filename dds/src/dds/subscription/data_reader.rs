@@ -1,7 +1,9 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dds_async::data_reader::DataReaderAsync,
-    implementation::rtps::messages::submessage_elements::Data,
+    implementation::{
+        rtps::messages::submessage_elements::Data, utils::sync_listener::ListenerSyncToAsync,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -557,9 +559,10 @@ impl<Foo> DataReader<Foo> {
         a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.set_listener(a_listener, mask))
+        self.reader_async.runtime_handle().block_on(
+            self.reader_async
+                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+        )
     }
 }
 

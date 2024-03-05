@@ -2,10 +2,7 @@ use std::time::Instant;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{
-        domain_participant_factory::{DomainId, DomainParticipantFactory},
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_factory::{DomainId, DomainParticipantFactory},
     implementation::{
         actors::{
             data_reader_actor, data_writer_actor,
@@ -24,17 +21,16 @@ use crate::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
     },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
-    topic_definition::{
-        topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface},
+    topic_definition::type_support::{
+        DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
     },
 };
 
 use super::{
-    condition::StatusConditionAsync, publisher::PublisherAsync, subscriber::SubscriberAsync,
-    topic::TopicAsync,
+    condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
+    publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
+    subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    topic_listener::TopicListenerAsync,
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
@@ -76,7 +72,7 @@ impl DomainParticipantAsync {
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: impl PublisherListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let publisher_address = self
@@ -137,7 +133,7 @@ impl DomainParticipantAsync {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: impl SubscriberListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let subscriber_address = self
@@ -204,7 +200,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync>
     where
@@ -223,7 +219,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListenerAsync + Send + 'static,
         mask: &[StatusKind],
         dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
     ) -> DdsResult<TopicAsync> {
@@ -790,7 +786,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address

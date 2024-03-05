@@ -3,6 +3,7 @@ use crate::{
     configuration::DustDdsConfiguration,
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_listener::DomainParticipantListener,
+    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         error::DdsResult,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
@@ -47,10 +48,12 @@ impl DomainParticipantFactory {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         self.runtime
-            .block_on(
-                self.participant_factory_async
-                    .create_participant(domain_id, qos, a_listener, mask),
-            )
+            .block_on(self.participant_factory_async.create_participant(
+                domain_id,
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(DomainParticipant::new)
     }
 

@@ -13,4 +13,5 @@ pub mod status_condition_actor;
 pub mod subscriber_actor;
 pub mod subscriber_listener_actor;
 pub mod topic_actor;
+pub mod topic_listener_actor;
 pub mod type_support_actor;
