@@ -68,12 +68,9 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::{
-        topic_listener::TopicListener,
-        type_support::{
-            deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
-            DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
-        },
+    topic_definition::type_support::{
+        deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
+        DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
     },
 };
 
@@ -93,6 +90,7 @@ use super::{
     subscriber_actor,
     subscriber_listener_actor::SubscriberListenerAsyncDyn,
     topic_actor,
+    topic_listener_actor::TopicListenerAsyncDyn,
     type_support_actor::{self, TypeSupportActor},
 };
 
@@ -268,6 +266,7 @@ impl DomainParticipantActor {
                 TopicQos::default(),
                 "SpdpDiscoveredParticipantData".to_string(),
                 DCPS_PARTICIPANT,
+                Box::new(NoOpListener::new()),
                 handle,
             ),
             handle,
@@ -281,6 +280,7 @@ impl DomainParticipantActor {
                 TopicQos::default(),
                 "DiscoveredTopicData".to_string(),
                 DCPS_TOPIC,
+                Box::new(NoOpListener::new()),
                 handle,
             ),
             handle,
@@ -294,6 +294,7 @@ impl DomainParticipantActor {
                 TopicQos::default(),
                 "DiscoveredWriterData".to_string(),
                 DCPS_PUBLICATION,
+                Box::new(NoOpListener::new()),
                 handle,
             ),
             handle,
@@ -307,6 +308,7 @@ impl DomainParticipantActor {
                 TopicQos::default(),
                 "DiscoveredReaderData".to_string(),
                 DCPS_SUBSCRIPTION,
+                Box::new(NoOpListener::new()),
                 handle,
             ),
             handle,
@@ -759,7 +761,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        _a_listener: Box<dyn TopicListener + Send>,
+        a_listener: Box<dyn TopicListenerAsyncDyn + Send>,
         _mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<TopicActor> {
@@ -771,7 +773,14 @@ impl DomainParticipantActor {
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        let topic = TopicActor::new(guid, qos, type_name, &topic_name, &runtime_handle);
+        let topic = TopicActor::new(
+            guid,
+            qos,
+            type_name,
+            &topic_name,
+            a_listener,
+            &runtime_handle,
+        );
 
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
             Actor::spawn(topic, &runtime_handle);

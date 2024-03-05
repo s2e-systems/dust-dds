@@ -24,9 +24,8 @@ use crate::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
     },
-    topic_definition::{
-        topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface},
+    topic_definition::type_support::{
+        DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
     },
 };
 
@@ -34,6 +33,7 @@ use super::{
     condition::StatusConditionAsync, publisher::PublisherAsync,
     publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
     subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    topic_listener::TopicListenerAsync,
 };
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
@@ -203,7 +203,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListenerAsync + Send + 'static,
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync>
     where
@@ -222,7 +222,7 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: impl TopicListenerAsync + Send + 'static,
         mask: &[StatusKind],
         dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
     ) -> DdsResult<TopicAsync> {

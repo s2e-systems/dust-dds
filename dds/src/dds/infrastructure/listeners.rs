@@ -4,7 +4,7 @@ use crate::{
     dds_async::{
         data_reader_listener::DataReaderListenerAsync,
         data_writer_listener::DataWriterListenerAsync, publisher_listener::PublisherListenerAsync,
-        subscriber_listener::SubscriberListenerAsync,
+        subscriber_listener::SubscriberListenerAsync, topic_listener::TopicListenerAsync,
     },
     domain::domain_participant_listener::DomainParticipantListener,
     publication::{
@@ -48,6 +48,7 @@ impl<Foo> DataWriterListener for NoOpListener<Foo> {
 
 impl PublisherListenerAsync for NoOpListener {}
 impl SubscriberListenerAsync for NoOpListener {}
+impl TopicListenerAsync for NoOpListener {}
 
 impl<Foo> DataReaderListenerAsync for NoOpListener<Foo> {
     type Foo = Foo;

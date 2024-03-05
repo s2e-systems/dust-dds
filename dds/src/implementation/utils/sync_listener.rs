@@ -5,13 +5,14 @@ use crate::{
         data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync,
         data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync,
         publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync,
+        subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+        topic_listener::TopicListenerAsync,
     },
     infrastructure::status::{
-        LivelinessChangedStatus, LivelinessLostStatus, OfferedDeadlineMissedStatus,
-        OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
-        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-        SubscriptionMatchedStatus,
+        InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+        SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     publication::{
         data_writer::{AnyDataWriter, DataWriter},
@@ -24,6 +25,7 @@ use crate::{
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
+    topic_definition::{topic::Topic, topic_listener::TopicListener},
 };
 
 pub(crate) struct ListenerSyncToAsync<T>(T);
@@ -146,6 +148,20 @@ where
         status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_sample_lost(the_reader, status));
+        async {}
+    }
+}
+
+impl<T> TopicListenerAsync for ListenerSyncToAsync<T>
+where
+    T: TopicListener,
+{
+    fn on_inconsistent_topic(
+        &mut self,
+        the_topic: TopicAsync,
+        status: InconsistentTopicStatus,
+    ) -> impl Future<Output = ()> + Send {
+        tokio::task::block_in_place(|| self.0.on_inconsistent_topic(Topic::new(the_topic), status));
         async {}
     }
 }

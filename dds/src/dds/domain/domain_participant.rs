@@ -156,10 +156,13 @@ impl DomainParticipant {
     {
         self.participant_async
             .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .create_topic::<Foo>(topic_name, type_name, qos, a_listener, mask),
-            )
+            .block_on(self.participant_async.create_topic::<Foo>(
+                topic_name,
+                type_name,
+                qos,
+                ListenerSyncToAsync::new(a_listener),
+                mask,
+            ))
             .map(Topic::new)
     }
 
@@ -180,7 +183,7 @@ impl DomainParticipant {
                 topic_name,
                 type_name,
                 qos,
-                a_listener,
+                ListenerSyncToAsync::new(a_listener),
                 mask,
                 dynamic_type_representation,
             ))
