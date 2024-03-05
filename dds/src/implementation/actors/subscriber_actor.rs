@@ -302,7 +302,6 @@ impl SubscriberActor {
                         self.status_condition.address(),
                         participant.clone(),
                     ),
-                    self.status_condition.address().clone(),
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
