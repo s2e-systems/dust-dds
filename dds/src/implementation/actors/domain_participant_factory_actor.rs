@@ -80,17 +80,11 @@ impl DomainParticipantFactoryActor {
         let interface_address_list =
             get_interface_address_list(self.configuration.interface_name());
 
-        let host_id = if let Ok(mac_address) = get_mac_address() {
-            [mac_address[2], mac_address[3], mac_address[4], mac_address[5]]
+        let host_id = if let Some(interface) = interface_address_list.first() {
+            [interface[12], interface[13], interface[14], interface[15]]
         } else {
-            if let Some(interface) = interface_address_list.first() {
-                let ip_addr = [interface[12], interface[13], interface[14], interface[15]];
-                warn!("Host ID failed to determine from MAC address, used IP address instead: {:?}", ip_addr);
-                ip_addr
-            } else {
-                warn!("Host ID failed to determine from MAC address, use 0 instead");
-                [0; 4]
-            }
+            warn!("Host ID failed to determine from MAC address, use 0 instead");
+            [0; 4]
         };
 
         let app_id = std::process::id().to_ne_bytes();
@@ -436,28 +430,6 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             })
         })
         .collect()
-}
-
-fn get_mac_address() -> DdsResult<[u8; 6]> {
-    let mut mac_address_octets = [0_u8; 6];
-    if let Ok(network_interface_list) = NetworkInterface::show() {
-        if let Some(mac_address) = network_interface_list
-            .into_iter()
-            .filter_map(|i| i.mac_addr)
-            .find(|m| m != "00:00:00:00:00:00" && m != "00-00-00-00-00-00")
-        {
-            for (index, octet_str) in mac_address
-                .split(|c| c == ':' || c == '-')
-                .take(6)
-                .enumerate()
-            {
-                if let Ok(v) = u8::from_str_radix(octet_str, 16) {
-                    mac_address_octets[index] = v;
-                }
-            }
-        }
-    };
-    Ok(mac_address_octets)
 }
 
 fn get_multicast_socket(
