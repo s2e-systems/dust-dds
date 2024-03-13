@@ -75,24 +75,34 @@ impl DomainParticipantFactoryActor {
             QosKind::Specific(q) => q,
         };
 
-        let mac_address = NetworkInterface::show()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter_map(|i| i.mac_addr)
-            .find(|m| m != "00:00:00:00:00:00")
-            .expect("Could not find any mac address");
-        let mut mac_address_octets = [0u8; 6];
-        for (index, octet_str) in mac_address.split(|c| c == ':' || c == '-').enumerate() {
-            mac_address_octets[index] =
-                u8::from_str_radix(octet_str, 16).expect("All octet strings should be valid");
-        }
+        let random_address = &status_kind as *const Vec<StatusKind>;
+        let mut host_id = (random_address as u32).to_ne_bytes();
+
+        if let Ok(network_interface_list) = NetworkInterface::show() {
+            if let Some(mac_address) = network_interface_list
+                .into_iter()
+                .filter_map(|i| i.mac_addr)
+                .find(|m| m != "00:00:00:00:00:00")
+            {
+                for (index, octet_str) in mac_address
+                    .split(|c| c == ':' || c == '-')
+                    .skip(2)
+                    .take(4)
+                    .enumerate()
+                {
+                    if let Ok(v) = u8::from_str_radix(octet_str, 16) {
+                        host_id[index] = v;
+                    }
+                }
+            }
+        };
 
         let app_id = std::process::id().to_ne_bytes();
         let instance_id = self.get_unique_participant_id().to_ne_bytes();
 
         #[rustfmt::skip]
         let guid_prefix = [
-            mac_address_octets[2],  mac_address_octets[3], mac_address_octets[4], mac_address_octets[5], // Host ID
+            host_id[0],  host_id[1], host_id[2], host_id[3], // Host ID
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ];
