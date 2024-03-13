@@ -10,6 +10,7 @@ use std::{
 use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
+use tracing::warn;
 
 use crate::{
     configuration::DustDdsConfiguration,
@@ -60,6 +61,7 @@ impl DomainParticipantFactoryActor {
     }
 }
 
+
 #[actor_interface]
 impl DomainParticipantFactoryActor {
     async fn create_participant(
@@ -75,25 +77,19 @@ impl DomainParticipantFactoryActor {
             QosKind::Specific(q) => q,
         };
 
-        let random_address = &status_kind as *const Vec<StatusKind>;
-        let mut host_id = (random_address as u32).to_ne_bytes();
+        let interface_address_list =
+            get_interface_address_list(self.configuration.interface_name());
 
-        if let Ok(network_interface_list) = NetworkInterface::show() {
-            if let Some(mac_address) = network_interface_list
-                .into_iter()
-                .filter_map(|i| i.mac_addr)
-                .find(|m| m != "00:00:00:00:00:00")
-            {
-                for (index, octet_str) in mac_address
-                    .split(|c| c == ':' || c == '-')
-                    .skip(2)
-                    .take(4)
-                    .enumerate()
-                {
-                    if let Ok(v) = u8::from_str_radix(octet_str, 16) {
-                        host_id[index] = v;
-                    }
-                }
+        let host_id = if let Ok(mac_address) = get_mac_address() {
+            [mac_address[2], mac_address[3], mac_address[4], mac_address[5]]
+        } else {
+            if let Some(interface) = interface_address_list.first() {
+                let ip_addr = [interface[12], interface[13], interface[14], interface[15]];
+                warn!("Host ID failed to determine from MAC address, used IP address instead: {:?}", ip_addr);
+                ip_addr
+            } else {
+                warn!("Host ID failed to determine from MAC address, use 0 instead");
+                [0; 4]
             }
         };
 
@@ -106,9 +102,6 @@ impl DomainParticipantFactoryActor {
             app_id[0], app_id[1], app_id[2], app_id[3], // App ID
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ];
-
-        let interface_address_list =
-            get_interface_address_list(self.configuration.interface_name());
 
         let default_unicast_socket =
             socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None).map_err(
@@ -443,6 +436,28 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             })
         })
         .collect()
+}
+
+fn get_mac_address() -> DdsResult<[u8; 6]> {
+    let mut mac_address_octets = [0_u8; 6];
+    if let Ok(network_interface_list) = NetworkInterface::show() {
+        if let Some(mac_address) = network_interface_list
+            .into_iter()
+            .filter_map(|i| i.mac_addr)
+            .find(|m| m != "00:00:00:00:00:00" && m != "00-00-00-00-00-00")
+        {
+            for (index, octet_str) in mac_address
+                .split(|c| c == ':' || c == '-')
+                .take(6)
+                .enumerate()
+            {
+                if let Ok(v) = u8::from_str_radix(octet_str, 16) {
+                    mac_address_octets[index] = v;
+                }
+            }
+        }
+    };
+    Ok(mac_address_octets)
 }
 
 fn get_multicast_socket(
