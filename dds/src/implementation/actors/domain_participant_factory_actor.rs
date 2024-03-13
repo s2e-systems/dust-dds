@@ -83,7 +83,7 @@ impl DomainParticipantFactoryActor {
         let host_id = if let Some(interface) = interface_address_list.first() {
             [interface[12], interface[13], interface[14], interface[15]]
         } else {
-            warn!("Host ID failed to determine from MAC address, use 0 instead");
+            warn!("Failed to get Host ID from IP address, use 0 instead");
             [0; 4]
         };
 
