@@ -1,17 +1,6 @@
-use std::{
-    collections::HashMap,
-    net::{Ipv4Addr, SocketAddr},
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc, OnceLock,
-    },
+use super::{
+    domain_participant_listener_actor::DomainParticipantListenerAsyncDyn, subscriber_actor,
 };
-
-use dust_dds_derive::actor_interface;
-use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use socket2::Socket;
-use tracing::warn;
-
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::domain_participant::DomainParticipantAsync,
@@ -19,10 +8,11 @@ use crate::{
     implementation::{
         actors::domain_participant_actor::{self, DomainParticipantActor},
         rtps::{
+            messages::overall_structure::RtpsMessageRead,
             participant::RtpsParticipant,
             types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
-        rtps_udp_psm::udp_transport::{UdpTransportRead, UdpTransportWrite},
+        rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
@@ -32,10 +22,18 @@ use crate::{
         status::StatusKind,
     },
 };
-
-use super::{
-    domain_participant_listener_actor::DomainParticipantListenerAsyncDyn, subscriber_actor,
+use dust_dds_derive::actor_interface;
+use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+use socket2::Socket;
+use std::{
+    collections::HashMap,
+    net::{Ipv4Addr, SocketAddr},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, OnceLock,
+    },
 };
+use tracing::warn;
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -61,6 +59,16 @@ impl DomainParticipantFactoryActor {
     }
 }
 
+pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsMessageRead> {
+    let mut buf = vec![0; 65507];
+    let (bytes, _) = socket.recv_from(&mut buf).await?;
+    buf.truncate(bytes);
+    if bytes > 0 {
+        Ok(RtpsMessageRead::new(Arc::from(buf.into_boxed_slice())))
+    } else {
+        Err(DdsError::NoData)
+    }
+}
 
 #[actor_interface]
 impl DomainParticipantFactoryActor {
@@ -212,81 +220,41 @@ impl DomainParticipantFactoryActor {
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
         runtime_handle.spawn(async move {
-            let mut metatraffic_multicast_transport = UdpTransportRead::new(
-                get_multicast_socket(
-                    DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                    port_builtin_multicast(domain_id),
-                )
-                .expect("Should not fail to open socket"),
-            );
-
-            while let Some((_locator, message)) = metatraffic_multicast_transport.read().await {
-                let r = participant_address_clone
-                    .send_mail_and_await_reply(
-                        domain_participant_actor::process_metatraffic_rtps_message::new(
-                            message,
-                            participant_clone.clone(),
-                        ),
-                    )
-                    .await;
-                if r.is_err() {
-                    break;
-                }
-
-                let r = participant_address_clone
-                    .send_mail_and_await_reply(
-                        domain_participant_actor::process_builtin_discovery::new(
-                            participant_clone.clone(),
-                        ),
-                    )
-                    .await;
-                if r.is_err() {
-                    break;
-                }
-                let r = participant_address_clone
-                    .send_mail(domain_participant_actor::send_message::new())
-                    .await;
-                if r.is_err() {
-                    break;
-                }
-            }
-        });
-
-        let participant_address_clone = participant_address.clone();
-        let participant_clone = participant.clone();
-        runtime_handle.spawn(async move {
-            let mut metatraffic_unicast_transport = UdpTransportRead::new(
-                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
-                    .expect("Should not fail to open metatraffic unicast transport socket"),
-            );
-
-            while let Some((_locator, message)) = metatraffic_unicast_transport.read().await {
-                let r: DdsResult<()> = async {
-                    participant_address_clone
+            let mut socket = get_multicast_socket(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                port_builtin_multicast(domain_id),
+            )
+            .expect("Should not fail to open socket");
+            loop {
+                if let Ok(message) = read_message(&mut socket).await {
+                    let r = participant_address_clone
                         .send_mail_and_await_reply(
                             domain_participant_actor::process_metatraffic_rtps_message::new(
                                 message,
                                 participant_clone.clone(),
                             ),
                         )
-                        .await??;
-                    participant_address_clone
+                        .await;
+                    if r.is_err() {
+                        break;
+                    }
+
+                    let r = participant_address_clone
                         .send_mail_and_await_reply(
                             domain_participant_actor::process_builtin_discovery::new(
                                 participant_clone.clone(),
                             ),
                         )
-                        .await?;
-
-                    participant_address_clone
+                        .await;
+                    if r.is_err() {
+                        break;
+                    }
+                    let r = participant_address_clone
                         .send_mail(domain_participant_actor::send_message::new())
-                        .await?;
-                    Ok(())
-                }
-                .await;
-
-                if r.is_err() {
-                    break;
+                        .await;
+                    if r.is_err() {
+                        break;
+                    }
                 }
             }
         });
@@ -294,23 +262,61 @@ impl DomainParticipantFactoryActor {
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
         runtime_handle.spawn(async move {
-            let mut default_unicast_transport = UdpTransportRead::new(
-                tokio::net::UdpSocket::from_std(default_unicast_socket)
-                    .expect("Should not fail to open default unicast socket"),
-            );
+            let mut socket = tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
+                .expect("Should not fail to open default unicast socket");
+            loop {
+                if let Ok(message) = read_message(&mut socket).await {
+                    let r: DdsResult<()> = async {
+                        participant_address_clone
+                            .send_mail_and_await_reply(
+                                domain_participant_actor::process_metatraffic_rtps_message::new(
+                                    message,
+                                    participant_clone.clone(),
+                                ),
+                            )
+                            .await??;
+                        participant_address_clone
+                            .send_mail_and_await_reply(
+                                domain_participant_actor::process_builtin_discovery::new(
+                                    participant_clone.clone(),
+                                ),
+                            )
+                            .await?;
 
-            while let Some((_locator, message)) = default_unicast_transport.read().await {
-                let r = participant_address_clone
-                    .send_mail(
-                        domain_participant_actor::process_user_defined_rtps_message::new(
-                            message,
-                            participant_clone.clone(),
-                        ),
-                    )
+                        participant_address_clone
+                            .send_mail(domain_participant_actor::send_message::new())
+                            .await?;
+                        Ok(())
+                    }
                     .await;
 
-                if r.is_err() {
-                    break;
+                    if r.is_err() {
+                        break;
+                    }
+                }
+            }
+        });
+
+        let participant_address_clone = participant_address.clone();
+        let participant_clone = participant.clone();
+        runtime_handle.spawn(async move {
+            let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
+                .expect("Should not fail to open default unicast socket");
+
+            loop {
+                if let Ok(message) = read_message(&mut socket).await {
+                    let r = participant_address_clone
+                        .send_mail(
+                            domain_participant_actor::process_user_defined_rtps_message::new(
+                                message,
+                                participant_clone.clone(),
+                            ),
+                        )
+                        .await;
+
+                    if r.is_err() {
+                        break;
+                    }
                 }
             }
         });
