@@ -1,12 +1,15 @@
-use crate::implementation::rtps::{
-    messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::SubmessageElement,
+            types::SubmessageKind,
         },
-        submessage_elements::SubmessageElement,
-        types::SubmessageKind,
+        types::GuidPrefix,
     },
-    types::GuidPrefix,
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +24,12 @@ impl SubmessageHeader for InfoDestinationSubmessageRead<'_> {
 }
 
 impl<'a> InfoDestinationSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 16 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
@@ -81,12 +88,12 @@ mod tests {
     #[test]
     fn deserialize_info_destination() {
         #[rustfmt::skip]
-        let submessage = InfoDestinationSubmessageRead::new(&[
+        let submessage = InfoDestinationSubmessageRead::from_bytes(&[
             0x0e, 0b_0000_0001, 12, 0, // Submessage header
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
-        ]);
+        ]).unwrap();
 
         let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
         assert_eq!(expected_guid_prefix, submessage.guid_prefix());

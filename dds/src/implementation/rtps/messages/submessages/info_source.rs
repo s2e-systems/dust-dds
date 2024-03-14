@@ -1,12 +1,15 @@
-use crate::implementation::rtps::{
-    messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::SubmessageElement,
+            types::SubmessageKind,
         },
-        submessage_elements::SubmessageElement,
-        types::SubmessageKind,
+        types::{GuidPrefix, ProtocolVersion, VendorId},
     },
-    types::{GuidPrefix, ProtocolVersion, VendorId},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +24,12 @@ impl SubmessageHeader for InfoSourceSubmessageRead<'_> {
 }
 
 impl<'a> InfoSourceSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 24 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
     }
 
     pub fn protocol_version(&self) -> ProtocolVersion {
@@ -102,14 +109,14 @@ mod tests {
     #[test]
     fn deserialize_info_source() {
         #[rustfmt::skip]
-        let submessage = InfoSourceSubmessageRead::new(&[
+        let submessage = InfoSourceSubmessageRead::from_bytes(&[
             0x0c, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 0, 0, // unused
             1, 0, 0, 0, //protocol_version | vendor_id
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
-        ]);
+        ]).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;

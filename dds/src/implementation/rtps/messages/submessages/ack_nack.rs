@@ -1,12 +1,15 @@
-use crate::implementation::rtps::{
-    messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::{SequenceNumberSet, SubmessageElement},
+            types::{Count, SubmessageFlag, SubmessageKind},
         },
-        submessage_elements::{SequenceNumberSet, SubmessageElement},
-        types::{Count, SubmessageFlag, SubmessageKind},
+        types::EntityId,
     },
-    types::EntityId,
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +24,12 @@ impl SubmessageHeader for AckNackSubmessageRead<'_> {
 }
 
 impl<'a> AckNackSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 28 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
     }
 
     pub fn _final_flag(&self) -> bool {
@@ -124,7 +131,7 @@ mod tests {
     #[test]
     fn deserialize_acknack() {
         #[rustfmt::skip]
-        let submessage = AckNackSubmessageRead::new(&[
+        let submessage = AckNackSubmessageRead::from_bytes(&[
                 0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -132,7 +139,7 @@ mod tests {
                10, 0, 0, 0, // reader_sn_state.base
                 0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
                 2, 0, 0, 0, // count
-        ]);
+        ]).unwrap();
 
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);

@@ -1,12 +1,15 @@
-use crate::implementation::rtps::{
-    messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::{FragmentNumberSet, SubmessageElement},
+            types::{Count, SubmessageKind},
         },
-        submessage_elements::{FragmentNumberSet, SubmessageElement},
-        types::{Count, SubmessageKind},
+        types::{EntityId, SequenceNumber},
     },
-    types::{EntityId, SequenceNumber},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +24,12 @@ impl SubmessageHeader for NackFragSubmessageRead<'_> {
 }
 
 impl<'a> NackFragSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 32 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
     }
 
     pub fn reader_id(&self) -> EntityId {
@@ -117,7 +124,7 @@ mod tests {
     #[test]
     fn deserialize_nack_frag() {
         #[rustfmt::skip]
-        let submessage = NackFragSubmessageRead::new(&[
+        let submessage = NackFragSubmessageRead::from_bytes(&[
             0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -126,7 +133,7 @@ mod tests {
            10, 0, 0, 0, // fragmentNumberState.base
             0, 0, 0, 0, // fragmentNumberState.numBits
             6, 0, 0, 0, // count
-        ]);
+        ]).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

@@ -1,12 +1,15 @@
-use crate::implementation::rtps::{
-    messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::SubmessageElement,
+            types::{Count, SubmessageFlag, SubmessageKind},
         },
-        submessage_elements::SubmessageElement,
-        types::{Count, SubmessageFlag, SubmessageKind},
+        types::{EntityId, SequenceNumber},
     },
-    types::{EntityId, SequenceNumber},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +24,12 @@ impl SubmessageHeader for HeartbeatSubmessageRead<'_> {
 }
 
 impl<'a> HeartbeatSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 32 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
     }
 
     pub fn final_flag(&self) -> bool {
@@ -150,7 +157,7 @@ mod tests {
         let expected_last_sn = SequenceNumber::from(7);
         let expected_count = 2;
         #[rustfmt::skip]
-        let submessage = HeartbeatSubmessageRead::new(&[
+        let submessage = HeartbeatSubmessageRead::from_bytes(&[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -159,7 +166,7 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]);
+        ]).unwrap();
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());

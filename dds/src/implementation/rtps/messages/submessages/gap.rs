@@ -1,12 +1,15 @@
-use crate::implementation::rtps::{
-    messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+            },
+            submessage_elements::{SequenceNumberSet, SubmessageElement},
+            types::SubmessageKind,
         },
-        submessage_elements::{SequenceNumberSet, SubmessageElement},
-        types::SubmessageKind,
+        types::{EntityId, SequenceNumber},
     },
-    types::{EntityId, SequenceNumber},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +24,12 @@ impl SubmessageHeader for GapSubmessageRead<'_> {
 }
 
 impl<'a> GapSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 32 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
     }
 
     pub fn _reader_id(&self) -> EntityId {
@@ -115,7 +122,7 @@ mod tests {
         let expected_gap_start = SequenceNumber::from(5);
         let expected_gap_list = SequenceNumberSet::new(SequenceNumber::from(10), []);
         #[rustfmt::skip]
-        let submessage = GapSubmessageRead::new(&[
+        let submessage = GapSubmessageRead::from_bytes(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -124,7 +131,7 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-        ]);
+        ]).unwrap();
         assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());
