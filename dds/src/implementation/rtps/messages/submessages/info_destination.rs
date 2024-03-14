@@ -24,7 +24,7 @@ impl SubmessageHeader for InfoDestinationSubmessageRead<'_> {
 }
 
 impl<'a> InfoDestinationSubmessageRead<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 16 {
             Ok(Self { data })
         } else {
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn deserialize_info_destination() {
         #[rustfmt::skip]
-        let submessage = InfoDestinationSubmessageRead::from_bytes(&[
+        let submessage = InfoDestinationSubmessageRead::try_from_bytes(&[
             0x0e, 0b_0000_0001, 12, 0, // Submessage header
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix

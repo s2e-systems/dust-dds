@@ -21,7 +21,7 @@ impl SubmessageHeader for InfoReplySubmessageRead<'_> {
 }
 
 impl<'a> InfoReplySubmessageRead<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 16 {
             Ok(Self { data })
         } else {
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn deserialize_info_reply() {
         #[rustfmt::skip]
-        let submessage = InfoReplySubmessageRead::from_bytes(&[
+        let submessage = InfoReplySubmessageRead::try_from_bytes(&[
             0x0f, 0b_0000_0001, 28, 0, // Submessage header
             1, 0, 0, 0, //numLocators
             11, 0, 0, 0, //kind
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn deserialize_info_reply_with_multicast() {
         #[rustfmt::skip]
-        let submessage = InfoReplySubmessageRead::from_bytes(&[
+        let submessage = InfoReplySubmessageRead::try_from_bytes(&[
             0x0f, 0b_0000_0011, 56, 0, // Submessage header
             0, 0, 0, 0, //numLocators
             2, 0, 0, 0, //numLocators

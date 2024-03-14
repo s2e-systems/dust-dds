@@ -24,7 +24,7 @@ impl SubmessageHeader for AckNackSubmessageRead<'_> {
 }
 
 impl<'a> AckNackSubmessageRead<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 28 {
             Ok(Self { data })
         } else {
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn deserialize_acknack() {
         #[rustfmt::skip]
-        let submessage = AckNackSubmessageRead::from_bytes(&[
+        let submessage = AckNackSubmessageRead::try_from_bytes(&[
                 0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]

@@ -30,7 +30,7 @@ impl SubmessageHeader for DataSubmessageRead {
 }
 
 impl DataSubmessageRead {
-    pub fn from_bytes(value: ArcSlice) -> DdsResult<Self> {
+    pub fn try_from_bytes(value: ArcSlice) -> DdsResult<Self> {
         if value.len() >= 24 {
             Ok(Self { data: value })
         } else {
@@ -402,7 +402,7 @@ mod tests {
         let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::from_bytes(ArcSlice::from(vec![
+        let data_submessage = DataSubmessageRead::try_from_bytes(ArcSlice::from(vec![
             0x15, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -431,7 +431,7 @@ mod tests {
         let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::from_bytes(ArcSlice::from(vec![
+        let data_submessage = DataSubmessageRead::try_from_bytes(ArcSlice::from(vec![
             0x15, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -453,7 +453,7 @@ mod tests {
         let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::from_bytes(ArcSlice::from(vec![
+        let data_submessage = DataSubmessageRead::try_from_bytes(ArcSlice::from(vec![
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -479,7 +479,7 @@ mod tests {
         let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
-        let data_submessage = DataSubmessageRead::from_bytes(ArcSlice::from(vec![
+        let data_submessage = DataSubmessageRead::try_from_bytes(ArcSlice::from(vec![
             0x15, 0b_0000_0111, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]

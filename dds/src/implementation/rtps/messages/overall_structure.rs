@@ -146,29 +146,29 @@ impl RtpsMessageRead {
 
             let submessage =
                 match submessage_id {
-                    ACKNACK => AckNackSubmessageRead::from_bytes(submessage_data)
+                    ACKNACK => AckNackSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::AckNack),
-                    DATA => DataSubmessageRead::from_bytes(submessage_arc_slice)
+                    DATA => DataSubmessageRead::try_from_bytes(submessage_arc_slice)
                         .map(RtpsSubmessageReadKind::Data),
-                    DATA_FRAG => DataFragSubmessageRead::from_bytes(submessage_arc_slice)
+                    DATA_FRAG => DataFragSubmessageRead::try_from_bytes(submessage_arc_slice)
                         .map(RtpsSubmessageReadKind::DataFrag),
-                    GAP => GapSubmessageRead::from_bytes(submessage_data)
+                    GAP => GapSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::Gap),
-                    HEARTBEAT => HeartbeatSubmessageRead::from_bytes(submessage_data)
+                    HEARTBEAT => HeartbeatSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::Heartbeat),
-                    HEARTBEAT_FRAG => HeartbeatFragSubmessageRead::from_bytes(submessage_data)
+                    HEARTBEAT_FRAG => HeartbeatFragSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::HeartbeatFrag),
-                    INFO_DST => InfoDestinationSubmessageRead::from_bytes(submessage_data)
+                    INFO_DST => InfoDestinationSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::InfoDestination),
-                    INFO_REPLY => InfoReplySubmessageRead::from_bytes(submessage_data)
+                    INFO_REPLY => InfoReplySubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::InfoReply),
-                    INFO_SRC => InfoSourceSubmessageRead::from_bytes(submessage_data)
+                    INFO_SRC => InfoSourceSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::InfoSource),
-                    INFO_TS => InfoTimestampSubmessageRead::from_bytes(submessage_data)
+                    INFO_TS => InfoTimestampSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::InfoTimestamp),
-                    NACK_FRAG => NackFragSubmessageRead::from_bytes(submessage_data)
+                    NACK_FRAG => NackFragSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::NackFrag),
-                    PAD => PadSubmessageRead::from_bytes(submessage_data)
+                    PAD => PadSubmessageRead::try_from_bytes(submessage_data)
                         .map(RtpsSubmessageReadKind::Pad),
                     _ => {
                         offset += submessage_length;
@@ -538,7 +538,7 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::from_bytes(
+        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::try_from_bytes(
             ArcSlice::from(vec![0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -552,7 +552,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ])).unwrap());
         #[rustfmt::skip]
-        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::from_bytes(&[
+        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::try_from_bytes(&[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -601,7 +601,7 @@ mod tests {
     #[test]
     fn deserialize_rtps_message_unknown_submessage() {
         #[rustfmt::skip]
-        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::from_bytes(ArcSlice::from(vec![
+        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::try_from_bytes(ArcSlice::from(vec![
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]

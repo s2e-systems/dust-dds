@@ -21,7 +21,7 @@ impl SubmessageHeader for PadSubmessageRead<'_> {
 }
 
 impl<'a> PadSubmessageRead<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 4 {
             Ok(Self { data })
         } else {
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn deserialize_pad() {
         #[rustfmt::skip]
-        let submessage = PadSubmessageRead::from_bytes(&[
+        let submessage = PadSubmessageRead::try_from_bytes(&[
             0x01, 0b_0000_0001, 0, 0, // Submessage header
         ]).unwrap();
         let expected_endianness_flag = true;

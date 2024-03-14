@@ -24,7 +24,7 @@ impl SubmessageHeader for HeartbeatSubmessageRead<'_> {
 }
 
 impl<'a> HeartbeatSubmessageRead<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 32 {
             Ok(Self { data })
         } else {
@@ -157,7 +157,7 @@ mod tests {
         let expected_last_sn = SequenceNumber::from(7);
         let expected_count = 2;
         #[rustfmt::skip]
-        let submessage = HeartbeatSubmessageRead::from_bytes(&[
+        let submessage = HeartbeatSubmessageRead::try_from_bytes(&[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]

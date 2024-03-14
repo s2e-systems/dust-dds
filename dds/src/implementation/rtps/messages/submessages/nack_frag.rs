@@ -24,7 +24,7 @@ impl SubmessageHeader for NackFragSubmessageRead<'_> {
 }
 
 impl<'a> NackFragSubmessageRead<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 32 {
             Ok(Self { data })
         } else {
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn deserialize_nack_frag() {
         #[rustfmt::skip]
-        let submessage = NackFragSubmessageRead::from_bytes(&[
+        let submessage = NackFragSubmessageRead::try_from_bytes(&[
             0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
