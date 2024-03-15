@@ -33,7 +33,7 @@ use std::{
         Arc, OnceLock,
     },
 };
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -227,7 +227,7 @@ impl DomainParticipantFactoryActor {
             port_builtin_multicast(domain_id),
             &interface_address_list,
         )
-        .map_err(|_| DdsError::PreconditionNotMet("Failed to open socket".to_string()))?;
+        .map_err(|_| DdsError::Error("Failed to open socket".to_string()))?;
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
@@ -267,9 +267,7 @@ impl DomainParticipantFactoryActor {
         let participant_clone = participant.clone();
         let mut socket =
             tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
-                DdsError::PreconditionNotMet(
-                    "Failed to open metattrafic unicast socket".to_string(),
-                )
+                DdsError::Error("Failed to open metattrafic unicast socket".to_string())
             })?;
         runtime_handle.spawn(async move {
             loop {
@@ -307,9 +305,8 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
-        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket).map_err(|_| {
-            DdsError::PreconditionNotMet("Failed to open default unicast socket".to_string())
-        })?;
+        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
+            .map_err(|_| DdsError::Error("Failed to open default unicast socket".to_string()))?;
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
@@ -467,7 +464,15 @@ fn get_multicast_socket(
     );
     for interface_addr in interface_address_list {
         match interface_addr {
-            Addr::V4(a) => socket.join_multicast_v4(&addr, &a.ip)?,
+            Addr::V4(a) => {
+                let r = socket.join_multicast_v4(&addr, &a.ip);
+                if let Err(e) = r {
+                    info!(
+                        "Failed to join multicast group on address {} with error {}",
+                        a.ip, e
+                    )
+                }
+            }
             Addr::V6(_) => (),
         }
     }
