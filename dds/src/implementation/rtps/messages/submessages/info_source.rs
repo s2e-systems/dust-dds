@@ -28,7 +28,7 @@ impl<'a> InfoSourceSubmessageRead<'a> {
         if data.len() >= 24 {
             Ok(Self { data })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("InfoSource submessage invalid".to_string()))
         }
     }
 

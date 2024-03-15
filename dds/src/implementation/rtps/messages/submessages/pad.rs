@@ -25,7 +25,7 @@ impl<'a> PadSubmessageRead<'a> {
         if data.len() >= 4 {
             Ok(Self { data })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("Pad submessage invalid".to_string()))
         }
     }
 }

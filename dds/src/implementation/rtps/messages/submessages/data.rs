@@ -34,7 +34,7 @@ impl DataSubmessageRead {
         if value.len() >= 24 {
             Ok(Self { data: value })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("Data submessage invalid".to_string()))
         }
     }
 

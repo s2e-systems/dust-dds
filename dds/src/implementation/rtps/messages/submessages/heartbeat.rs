@@ -28,7 +28,7 @@ impl<'a> HeartbeatSubmessageRead<'a> {
         if data.len() >= 32 {
             Ok(Self { data })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("Heartbeat submessage invalid".to_string()))
         }
     }
 

@@ -28,7 +28,7 @@ impl<'a> AckNackSubmessageRead<'a> {
         if data.len() >= 28 {
             Ok(Self { data })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("AckNack submessage invalid".to_string()))
         }
     }
 

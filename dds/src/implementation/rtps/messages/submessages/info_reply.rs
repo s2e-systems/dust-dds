@@ -25,7 +25,7 @@ impl<'a> InfoReplySubmessageRead<'a> {
         if data.len() >= 16 {
             Ok(Self { data })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("InfoReply submessage invalid".to_string()))
         }
     }
 

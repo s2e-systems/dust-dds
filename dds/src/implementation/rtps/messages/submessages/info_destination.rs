@@ -28,7 +28,7 @@ impl<'a> InfoDestinationSubmessageRead<'a> {
         if data.len() >= 16 {
             Ok(Self { data })
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("InfoDestination submessage invalid".to_string()))
         }
     }
 
