@@ -7,7 +7,7 @@ use crate::{
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{Endianness, EntityId},
+        types::EntityId,
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -15,7 +15,6 @@ use crate::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessageRead<'a> {
     data: &'a [u8],
-    entity_id: EntityId,
 }
 
 impl SubmessageHeader for AckNackSubmessageRead<'_> {
@@ -27,8 +26,7 @@ impl SubmessageHeader for AckNackSubmessageRead<'_> {
 impl<'a> AckNackSubmessageRead<'a> {
     pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
         if data.len() >= 28 {
-            let entity_id = EntityId::try_from_bytes(&data[4..], Endianness::LittleEndian)?;
-            Ok(Self { data, entity_id })
+            Ok(Self { data })
         } else {
             Err(DdsError::Error("AckNack submessage invalid".to_string()))
         }

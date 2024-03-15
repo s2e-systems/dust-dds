@@ -1,4 +1,4 @@
-use crate::{infrastructure::error::{DdsError, DdsResult}, serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize}};
+use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
 
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;
@@ -131,26 +131,12 @@ pub struct EntityId {
     entity_kind: Octet,
 }
 
-pub enum Endianness {
-    BigEndian,
-    LittleEndian,
-}
-
 impl EntityId {
     pub const fn new(entity_key: OctetArray3, entity_kind: Octet) -> Self {
         Self {
             entity_key,
             entity_kind,
         }
-    }
-
-    pub fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<Self> {
-        if data.len() > 0 {
-            Ok(Self::new([data[0], data[1], data[2]], data[3]))
-        } else {
-            Err(DdsError::Error("".to_string()))
-        }
-
     }
 
     pub const fn entity_key(&self) -> OctetArray3 {
