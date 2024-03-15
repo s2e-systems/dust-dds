@@ -1,17 +1,21 @@
 use std::io::BufRead;
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::{
-        messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::{
+        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+        rtps::{
+            messages::{
+                overall_structure::{
+                    RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead,
+                    SubmessageHeaderWrite,
+                },
+                submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
+                types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
             },
-            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
-            types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
+            types::{EntityId, SequenceNumber},
         },
-        types::{EntityId, SequenceNumber},
     },
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -26,8 +30,12 @@ impl SubmessageHeader for DataFragSubmessageRead {
 }
 
 impl DataFragSubmessageRead {
-    pub fn new(data: ArcSlice) -> Self {
-        Self { data }
+    pub fn try_from_bytes(data: ArcSlice) -> DdsResult<Self> {
+        if data.len() >= 36 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("DataFrag submessage invalid".to_string()))
+        }
     }
 
     fn octets_to_inline_qos(&self) -> u16 {
@@ -286,7 +294,7 @@ mod tests {
     #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
         #[rustfmt::skip]
-        let submessage = DataFragSubmessageRead::new(vec![
+        let submessage = DataFragSubmessageRead::try_from_bytes(vec![
             0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
             0, 0, 28, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -296,7 +304,7 @@ mod tests {
             2, 0, 0, 0, // fragmentStartingNum
             3, 0, 5, 0, // fragmentsInSubmessage | fragmentSize
             4, 0, 0, 0, // sampleSize
-        ].into());
+        ].into()).unwrap();
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
@@ -337,7 +345,7 @@ mod tests {
     #[test]
     fn deserialize_with_inline_qos_with_serialized_payload() {
         #[rustfmt::skip]
-        let submessage = DataFragSubmessageRead::new(vec![
+        let submessage = DataFragSubmessageRead::try_from_bytes(vec![
             0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
             0, 0, 28, 0, // extraFlags | octetsToInlineQos
             1, 2, 3, 4, // readerId
@@ -351,7 +359,7 @@ mod tests {
             71, 72, 73, 74, // inlineQos: value[length]
             1, 0, 0, 0, // inlineQos: Sentinel
             1, 2, 3, 0, // serializedPayload
-        ].into());
+        ].into()).unwrap();
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;

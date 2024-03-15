@@ -1,9 +1,12 @@
-use crate::implementation::rtps::messages::{
-    overall_structure::{
-        RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+use crate::{
+    implementation::rtps::messages::{
+        overall_structure::{
+            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+        },
+        submessage_elements::SubmessageElement,
+        types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
     },
-    submessage_elements::SubmessageElement,
-    types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,8 +21,12 @@ impl SubmessageHeader for InfoTimestampSubmessageRead<'_> {
 }
 
 impl<'a> InfoTimestampSubmessageRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+        if data.len() >= 4 {
+            Ok(Self { data })
+        } else {
+            Err(DdsError::Error("InfoTimestamp submessage invalid".to_string()))
+        }
     }
 
     pub fn invalidate_flag(&self) -> bool {
@@ -109,11 +116,11 @@ mod tests {
     #[test]
     fn deserialize_info_timestamp_valid_time() {
         #[rustfmt::skip]
-        let submessage = InfoTimestampSubmessageRead::new(&[
+        let submessage = InfoTimestampSubmessageRead::try_from_bytes(&[
             0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
             4, 0, 0, 0, // Time
             0, 0, 0, 0, // Time
-        ]);
+        ]).unwrap();
 
         let expected_invalidate_flag = false;
         let expected_timestamp = Time::new(4, 0);
@@ -125,9 +132,9 @@ mod tests {
     #[test]
     fn deserialize_info_timestamp_invalid_time() {
         #[rustfmt::skip]
-        let submessage = InfoTimestampSubmessageRead::new(&[
+        let submessage = InfoTimestampSubmessageRead::try_from_bytes(&[
             0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
-        ]);
+        ]).unwrap();
 
         let expected_invalidate_flag = true;
         let expected_timestamp = TIME_INVALID;
