@@ -128,6 +128,9 @@ pub enum Endianness {
     LittleEndian,
 }
 
+pub trait TryFromBytes : Sized {
+    fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<Self>;
+}
 
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
@@ -140,19 +143,21 @@ pub struct EntityId {
     entity_kind: Octet,
 }
 
+impl TryFromBytes for EntityId {
+    fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<EntityId> {
+        if data.len() > 3 {
+            Ok(Self::new([data[0], data[1], data[2]], data[3]))
+        } else {
+            Err(DdsError::Error("".to_string()))
+        }
+    }
+}
+
 impl EntityId {
     pub const fn new(entity_key: OctetArray3, entity_kind: Octet) -> Self {
         Self {
             entity_key,
             entity_kind,
-        }
-    }
-
-    pub fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<Self> {
-        if data.len() > 3 {
-            Ok(Self::new([data[0], data[1], data[2]], data[3]))
-        } else {
-            Err(DdsError::Error("".to_string()))
         }
     }
 

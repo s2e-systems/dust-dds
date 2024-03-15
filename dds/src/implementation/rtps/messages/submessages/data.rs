@@ -12,7 +12,7 @@ use crate::{
                 submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
                 types::{SubmessageFlag, SubmessageKind},
             },
-            types::{Endianness, EntityId, SequenceNumber},
+            types::{Endianness, EntityId, SequenceNumber, TryFromBytes},
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -20,8 +20,8 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessageRead {
-    data: ArcSlice,
     reader_id: EntityId,
+    data: ArcSlice,
 }
 
 impl SubmessageHeader for DataSubmessageRead {
