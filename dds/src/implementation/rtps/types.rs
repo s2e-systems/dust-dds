@@ -5,7 +5,11 @@ use crate::{
 
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use network_interface::Addr;
+use std::{
+    net::IpAddr,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -345,6 +349,38 @@ impl Locator {
     }
     pub const fn address(&self) -> [Octet; 16] {
         self.address
+    }
+
+    pub fn from_ip_and_port(ip_addr: &Addr, port: u32) -> Self {
+        match ip_addr.ip() {
+            IpAddr::V4(a) => Self {
+                kind: LOCATOR_KIND_UDP_V4,
+                port,
+                address: [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    a.octets()[0],
+                    a.octets()[1],
+                    a.octets()[2],
+                    a.octets()[3],
+                ],
+            },
+            IpAddr::V6(a) => Self {
+                kind: LOCATOR_KIND_UDP_V6,
+                port,
+                address: a.octets(),
+            },
+        }
     }
 }
 
