@@ -1,5 +1,5 @@
 [workspace]
 
-members = ["dds", "dds_derive", "dds_gen", "interoperability_tests", "shapes_demo"]
+members = ["dds", "dds_derive", "dds_gen", "interoperability_tests", "shapes_demo", "shapes_demo/android"]
 default-members = ["dds", "dds_derive", "dds_gen"]
 resolver = "2"
