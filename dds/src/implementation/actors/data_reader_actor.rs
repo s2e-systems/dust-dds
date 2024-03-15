@@ -614,8 +614,6 @@ impl DataReaderActor {
                                 heartbeat_frag_submessage.count(),
                             );
                         }
-
-                        // todo!()
                     }
                 }
                 RtpsReaderKind::Stateless(_) => (),
