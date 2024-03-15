@@ -1,4 +1,7 @@
-use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
+use crate::{
+    infrastructure::error::{DdsError, DdsResult},
+    serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
+};
 
 use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use byteorder::ByteOrder;
@@ -120,6 +123,12 @@ impl From<Guid> for [u8; 16] {
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
+pub enum Endianness {
+    BigEndian,
+    LittleEndian,
+}
+
+
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
@@ -136,6 +145,14 @@ impl EntityId {
         Self {
             entity_key,
             entity_kind,
+        }
+    }
+
+    pub fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<Self> {
+        if data.len() > 3 {
+            Ok(Self::new([data[0], data[1], data[2]], data[3]))
+        } else {
+            Err(DdsError::Error("".to_string()))
         }
     }
 

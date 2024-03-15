@@ -12,7 +12,7 @@ use crate::{
                 submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
                 types::{SubmessageFlag, SubmessageKind},
             },
-            types::{EntityId, SequenceNumber},
+            types::{Endianness, EntityId, SequenceNumber},
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -21,6 +21,7 @@ use crate::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessageRead {
     data: ArcSlice,
+    reader_id: EntityId,
 }
 
 impl SubmessageHeader for DataSubmessageRead {
@@ -30,9 +31,10 @@ impl SubmessageHeader for DataSubmessageRead {
 }
 
 impl DataSubmessageRead {
-    pub fn try_from_bytes(value: ArcSlice) -> DdsResult<Self> {
-        if value.len() >= 24 {
-            Ok(Self { data: value })
+    pub fn try_from_bytes(data: ArcSlice) -> DdsResult<Self> {
+        if data.len() >= 24 {
+            let reader_id = EntityId::try_from_bytes(&data[8..], Endianness::LittleEndian)?;
+            Ok(Self { data, reader_id })
         } else {
             Err(DdsError::Error("Data submessage invalid".to_string()))
         }
@@ -69,6 +71,7 @@ impl DataSubmessageRead {
 
         Self {
             data: ArcSlice::from(data),
+            reader_id
         }
     }
 
