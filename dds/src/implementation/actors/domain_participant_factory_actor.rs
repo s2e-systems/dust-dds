@@ -219,12 +219,12 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
+        let mut socket = get_multicast_socket(
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+            port_builtin_multicast(domain_id),
+        )
+        .map_err(|_| DdsError::PreconditionNotMet("Failed to open socket".to_string()))?;
         runtime_handle.spawn(async move {
-            let mut socket = get_multicast_socket(
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                port_builtin_multicast(domain_id),
-            )
-            .expect("Should not fail to open socket");
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
@@ -261,9 +261,13 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
+        let mut socket =
+            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
+                DdsError::PreconditionNotMet(
+                    "Failed to open metattrafic unicast socket".to_string(),
+                )
+            })?;
         runtime_handle.spawn(async move {
-            let mut socket = tokio::net::UdpSocket::from_std(metattrafic_unicast_socket)
-                .expect("Should not fail to open default unicast socket");
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r: DdsResult<()> = async {
@@ -299,10 +303,10 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
+        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket).map_err(|_| {
+            DdsError::PreconditionNotMet("Failed to open default unicast socket".to_string())
+        })?;
         runtime_handle.spawn(async move {
-            let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
-                .expect("Should not fail to open default unicast socket");
-
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
