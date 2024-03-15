@@ -1,43 +1,9 @@
 use crate::implementation::rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
+    messages::overall_structure::RtpsMessageWrite,
     types::{Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
 };
-
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use std::{
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
-    sync::Arc,
-};
-
-pub struct UdpTransportRead {
-    socket: tokio::net::UdpSocket,
-}
-
-impl UdpTransportRead {
-    pub fn new(socket: tokio::net::UdpSocket) -> Self {
-        Self { socket }
-    }
-
-    pub async fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        let mut buf = vec![0; 65507];
-
-        match self.socket.recv_from(&mut buf).await {
-            Ok((bytes, source_address)) => {
-                buf.truncate(bytes);
-
-                let message = RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()));
-
-                if bytes > 0 {
-                    let udp_locator: UdpLocator = source_address.into();
-                    Some((udp_locator.0, message))
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
-        }
-    }
-}
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 pub struct UdpTransportWrite {
     socket: std::net::UdpSocket,
@@ -109,27 +75,6 @@ impl ToSocketAddrs for UdpLocator {
     }
 }
 
-impl From<SocketAddr> for UdpLocator {
-    fn from(socket_addr: SocketAddr) -> Self {
-        match socket_addr {
-            SocketAddr::V4(socket_addr) => {
-                let port = socket_addr.port() as u32;
-                let address = socket_addr.ip().octets();
-                let locator = Locator::new(
-                    LOCATOR_KIND_UDP_V4,
-                    port,
-                    [
-                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, address[0], address[1], address[2],
-                        address[3],
-                    ],
-                );
-                UdpLocator(locator)
-            }
-            SocketAddr::V6(_) => todo!(),
-        }
-    }
-}
-
 impl UdpLocator {
     fn is_multicast(&self) -> bool {
         let locator_address = self.0.address();
@@ -144,57 +89,5 @@ impl UdpLocator {
             LOCATOR_KIND_UDP_V6 => Ipv6Addr::from(locator_address).is_multicast(),
             _ => false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use crate::implementation::rtps::types::LOCATOR_INVALID;
-
-    use super::*;
-
-    #[test]
-    fn udpv4_locator_conversion_address1() {
-        let locator = Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            7400,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-        );
-
-        let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap();
-        let expected_socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
-        assert_eq!(socket_addrs.next(), Some(expected_socket_addr));
-    }
-
-    #[test]
-    fn udpv4_locator_conversion_address2() {
-        let locator = Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            7500,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25],
-        );
-
-        let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap();
-        let expected_socket_addr = SocketAddr::from_str("192.168.1.25:7500").unwrap();
-        assert_eq!(socket_addrs.next(), Some(expected_socket_addr));
-    }
-
-    #[test]
-    fn locator_conversion_invalid_locator() {
-        assert!(UdpLocator(LOCATOR_INVALID).to_socket_addrs().is_err())
-    }
-
-    #[test]
-    fn socket_addr_to_locator_conversion() {
-        let socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
-        let locator = UdpLocator::from(socket_addr).0;
-        assert_eq!(locator.kind(), LOCATOR_KIND_UDP_V4);
-        assert_eq!(locator.port(), 7400);
-        assert_eq!(
-            locator.address(),
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]
-        );
     }
 }
