@@ -172,6 +172,17 @@ jobs:
             echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
             cmp subscriber_1.out subscriber_2.out
 
+  shapes_demo_build_and_lint:
+    docker:
+      - image: cimg/rust:1.76.0
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: |
+            cargo build --package dust_dds_shapes_demo
+            cargo clippy --package dust_dds_shapes_demo -- -D warnings
+
 workflows:
   build_docker_image_and_run_tests:
     when: << pipeline.parameters.build_docker_image >>
@@ -184,6 +195,7 @@ workflows:
           requires:
             - build_and_push_docker_image
       - multi_machine_tests
+      - shapes_demo_build_and_lint
   run_tests:
     when:
       not: << pipeline.parameters.build_docker_image >>
@@ -193,3 +205,4 @@ workflows:
       - clippy
       - interoperability_tests
       - multi_machine_tests
+      - shapes_demo_build_and_lint
