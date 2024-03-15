@@ -222,6 +222,7 @@ impl DomainParticipantFactoryActor {
         let mut socket = get_multicast_socket(
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             port_builtin_multicast(domain_id),
+            &interface_address_list,
         )
         .map_err(|_| DdsError::PreconditionNotMet("Failed to open socket".to_string()))?;
         runtime_handle.spawn(async move {
@@ -445,6 +446,7 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
     port: u16,
+    interface_address_list: &[LocatorAddress],
 ) -> std::io::Result<tokio::net::UdpSocket> {
     let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
@@ -465,7 +467,18 @@ fn get_multicast_socket(
         multicast_address[14],
         multicast_address[15],
     );
-    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
+    for interface_addr in interface_address_list {
+        socket.join_multicast_v4(
+            &addr,
+            &Ipv4Addr::new(
+                interface_addr[12],
+                interface_addr[13],
+                interface_addr[14],
+                interface_addr[15],
+            ),
+        )?;
+    }
+
     socket.set_multicast_loop_v4(true)?;
 
     tokio::net::UdpSocket::from_std(socket.into())
