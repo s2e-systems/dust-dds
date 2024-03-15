@@ -1,4 +1,5 @@
 [workspace]
 
-members = ["dds", "dds_derive", "dds_gen", "interoperability_tests"]
+members = ["dds", "dds_derive", "dds_gen", "interoperability_tests", "shapes_demo"]
+default_members = ["dds", "dds_derive", "dds_gen"]
 resolver = "2"

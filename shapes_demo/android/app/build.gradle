@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.3"
+}
+
+tasks.configureEach { task ->
+    if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+        task.dependsOn 'cargoBuild'
+    }
+}
+
+android {
+    namespace 'com.s2e_systems.dustddsshapesdemo'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.s2e_systems.dustddsshapesdemo"
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
+    cargo {
+        module = "../"
+        targets = ["x86", "x86_64", "arm", "arm64"]
+        libname = "shapes_demo_app"
+    }
+}
+
+dependencies {
+}
