@@ -106,7 +106,7 @@ jobs:
       - run:
           name: FastDDS publisher interoperability test
           command: |
-            cargo run --bin dust_dds_subscriber &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
             pid=$!
             build/fast_dds/FastDdsPublisher
             wait $pid
@@ -115,12 +115,12 @@ jobs:
           command: |
             build/fast_dds/FastDdsSubscriber &
             pid=$!
-            cargo run --bin dust_dds_publisher
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
           name: Cyclone publisher interoperability test
           command: |
-            cargo run --bin dust_dds_subscriber &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
             pid=$!
             build/cyclone_dds/CycloneDdsPublisher
             wait $pid
@@ -129,21 +129,21 @@ jobs:
           command: |
             build/cyclone_dds/CycloneDdsSubscriber &
             pid=$!
-            cargo run --bin dust_dds_publisher
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
           name: Big data publisher interoperability test
           command: |
             build/cyclone_dds/CycloneDdsBigDataSubscriber &
             pid=$!
-            cargo run --bin dust_dds_big_data_publisher
+            cargo run --package dust_dds_interoperability --bin dust_dds_big_data_publisher
             wait $pid
       - run:
           name: Big data subscriber interoperability test
           command: |
             build/cyclone_dds/CycloneDdsBigDataPublisher &
             pid=$!
-            cargo run --bin dust_dds_big_data_subscriber
+            cargo run --package dust_dds_interoperability --bin dust_dds_big_data_subscriber
             wait $pid
 
   multi_machine_tests:
@@ -155,8 +155,8 @@ jobs:
       - run:
           name: Build executables
           command: |
-            cargo build --bin multiple_subscriber_test_subscriber
-            cargo build --bin multiple_subscriber_test_publisher
+            cargo build --package dust_dds_interoperability --bin multiple_subscriber_test_subscriber
+            cargo build --package dust_dds_interoperability --bin multiple_subscriber_test_publisher
       - run:
           name: Run 2 subscribers with different IPs
           command: |
