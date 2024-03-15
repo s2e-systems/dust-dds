@@ -27,7 +27,7 @@ use crate::{
                 types::Count,
             },
             participant::RtpsParticipant,
-            reader::RtpsReader,
+            reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
@@ -2311,11 +2311,11 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
     )
 }
 
-fn create_builtin_stateless_reader(guid: Guid) -> RtpsReader {
+fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    RtpsReader::new(
+    RtpsReaderKind::Stateless(RtpsStatelessReader::new(RtpsReader::new(
         RtpsEndpoint::new(
             guid,
             TopicKind::WithKey,
@@ -2325,10 +2325,10 @@ fn create_builtin_stateless_reader(guid: Guid) -> RtpsReader {
         DURATION_ZERO,
         DURATION_ZERO,
         false,
-    )
+    )))
 }
 
-fn create_builtin_stateful_reader(guid: Guid) -> RtpsReader {
+fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
     let topic_kind = TopicKind::WithKey;
     let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
     let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
@@ -2336,7 +2336,7 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReader {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    RtpsReader::new(
+    RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
         RtpsEndpoint::new(
             guid,
             topic_kind,
@@ -2346,5 +2346,5 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReader {
         heartbeat_response_delay,
         heartbeat_suppression_duration,
         expects_inline_qos,
-    )
+    )))
 }

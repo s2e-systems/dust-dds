@@ -36,7 +36,7 @@ use crate::{
                     heartbeat_frag::HeartbeatFragSubmessageRead,
                 },
             },
-            reader::RtpsReader,
+            reader::RtpsReaderKind,
             reader_history_cache::{InstanceState, RtpsReaderCacheChange},
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
@@ -75,7 +75,6 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_listener_actor::{self, DataReaderListenerActor, DataReaderListenerOperation},
-    domain_participant_actor::ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     status_condition_actor::{self, StatusConditionActor},
     subscriber_listener_actor::{self, SubscriberListenerActor},
@@ -242,8 +241,7 @@ struct IndexedSample {
 }
 
 pub struct DataReaderActor {
-    rtps_reader: RtpsReader,
-    matched_writers: Vec<RtpsWriterProxy>,
+    rtps_reader: RtpsReaderKind,
     changes: Vec<RtpsReaderCacheChange>,
     qos: DataReaderQos,
     topic_address: ActorAddress<TopicActor>,
@@ -270,7 +268,7 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        rtps_reader: RtpsReader,
+        rtps_reader: RtpsReaderKind,
         type_name: String,
         topic_name: String,
         qos: DataReaderQos,
@@ -285,7 +283,6 @@ impl DataReaderActor {
 
         DataReaderActor {
             rtps_reader,
-            matched_writers: Vec::new(),
             changes: Vec::new(),
             type_name,
             topic_name,
@@ -393,125 +390,124 @@ impl DataReaderActor {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
         let message_reader_id = data_submessage.reader_id();
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == writer_guid)
-        {
-            //Stateful reader behavior
-            match self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number >= expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-                        if sequence_number > expected_seq_num {
-                            writer_proxy.lost_changes_update(sequence_number);
-                            self.on_sample_lost(
-                                data_reader_address,
-                                subscriber,
-                                subscriber_mask_listener,
-                                participant_mask_listener,
-                            )
-                            .await?;
-                        }
-                        match self.convert_received_data_to_cache_change(
-                            writer_guid,
-                            data_submessage.key_flag(),
-                            data_submessage.inline_qos(),
-                            data_submessage.serialized_payload(),
-                            source_timestamp,
-                            reception_timestamp,
-                            type_support,
-                        ) {
-                            Ok(change) => {
-                                self.add_change(
-                                    change,
-                                    data_reader_address,
-                                    subscriber,
-                                    subscriber_mask_listener,
-                                    participant_mask_listener,
-                                )
-                                .await?;
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => {
+                if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                    //Stateful reader behavior
+                    match self.qos.reliability.kind {
+                        ReliabilityQosPolicyKind::BestEffort => {
+                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                            if sequence_number >= expected_seq_num {
+                                writer_proxy.received_change_set(sequence_number);
+                                if sequence_number > expected_seq_num {
+                                    writer_proxy.lost_changes_update(sequence_number);
+                                    self.on_sample_lost(
+                                        data_reader_address,
+                                        subscriber,
+                                        subscriber_mask_listener,
+                                        participant_mask_listener,
+                                    )
+                                    .await?;
+                                }
+                                match self.convert_received_data_to_cache_change(
+                                                writer_guid,
+                                                data_submessage.key_flag(),
+                                                data_submessage.inline_qos(),
+                                                data_submessage.serialized_payload(),
+                                                source_timestamp,
+                                                reception_timestamp,
+                                                type_support,
+                                            ) {
+                                                Ok(change) => {
+                                                    self.add_change(
+                                                        change,
+                                                        data_reader_address,
+                                                        subscriber,
+                                                        subscriber_mask_listener,
+                                                        participant_mask_listener,
+                                                    )
+                                                    .await?;
+                                                }
+                                                Err(e) => debug!(
+                                                    "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                                     Message writer ID: {writer_id:?}
+                                                     Message reader ID: {reader_id:?}
+                                                     Data submessage payload: {payload:?}",
+                                                    guid = self.rtps_reader.guid(),
+                                                    err = e,
+                                                    writer_id = data_submessage.writer_id(),
+                                                    reader_id = data_submessage.reader_id(),
+                                                    payload = data_submessage.serialized_payload(),
+                                                ),
+                                            }
                             }
-                            Err(e) => debug!(
-                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
-                                 Message writer ID: {writer_id:?}
-                                 Message reader ID: {reader_id:?}
-                                 Data submessage payload: {payload:?}",
-                                guid = self.rtps_reader.guid(),
-                                err = e,
-                                writer_id = data_submessage.writer_id(),
-                                reader_id = data_submessage.reader_id(),
-                                payload = data_submessage.serialized_payload(),
-                            ),
                         }
-                    }
-                }
-                ReliabilityQosPolicyKind::Reliable => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number == expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-                        match self.convert_received_data_to_cache_change(
-                            writer_guid,
-                            data_submessage.key_flag(),
-                            data_submessage.inline_qos(),
-                            data_submessage.serialized_payload(),
-                            source_timestamp,
-                            reception_timestamp,
-                            type_support,
-                        ) {
-                            Ok(change) => {
-                                self.add_change(
-                                    change,
-                                    data_reader_address,
-                                    subscriber,
-                                    subscriber_mask_listener,
-                                    participant_mask_listener,
-                                )
-                                .await?;
+                        ReliabilityQosPolicyKind::Reliable => {
+                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                            if sequence_number == expected_seq_num {
+                                writer_proxy.received_change_set(sequence_number);
+                                match self.convert_received_data_to_cache_change(
+                                                writer_guid,
+                                                data_submessage.key_flag(),
+                                                data_submessage.inline_qos(),
+                                                data_submessage.serialized_payload(),
+                                                source_timestamp,
+                                                reception_timestamp,
+                                                type_support,
+                                            ) {
+                                                Ok(change) => {
+                                                    self.add_change(
+                                                        change,
+                                                        data_reader_address,
+                                                        subscriber,
+                                                        subscriber_mask_listener,
+                                                        participant_mask_listener,
+                                                    )
+                                                    .await?;
+                                                }
+                                                Err(e) => debug!(
+                                                    "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
+                                                     Message writer ID: {writer_id:?}
+                                                     Message reader ID: {reader_id:?}
+                                                     Data submessage payload: {payload:?}",
+                                                    guid = self.rtps_reader.guid(),
+                                                    err = e,
+                                                    writer_id = data_submessage.writer_id(),
+                                                    reader_id = data_submessage.reader_id(),
+                                                    payload = data_submessage.serialized_payload(),
+                                                ),
+                                            }
                             }
-                            Err(e) => debug!(
-                                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.
-                                 Message writer ID: {writer_id:?}
-                                 Message reader ID: {reader_id:?}
-                                 Data submessage payload: {payload:?}",
-                                guid = self.rtps_reader.guid(),
-                                err = e,
-                                writer_id = data_submessage.writer_id(),
-                                reader_id = data_submessage.reader_id(),
-                                payload = data_submessage.serialized_payload(),
-                            ),
                         }
                     }
                 }
             }
-        } else if message_reader_id == ENTITYID_UNKNOWN
-            || (message_reader_id == self.rtps_reader.guid().entity_id()
-                && message_reader_id == ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER)
-        // Additional condition only for discovery interoperability with FastDDS
-        {
-            // Stateless reader behavior. We add the change if the data is correct. No error is printed
-            // because all readers would get changes marked with ENTITYID_UNKNOWN
-            if let Ok(change) = self.convert_received_data_to_cache_change(
-                writer_guid,
-                data_submessage.key_flag(),
-                data_submessage.inline_qos(),
-                data_submessage.serialized_payload(),
-                source_timestamp,
-                reception_timestamp,
-                type_support,
-            ) {
-                self.add_change(
-                    change,
-                    data_reader_address,
-                    subscriber,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
+            RtpsReaderKind::Stateless(r) => {
+                if message_reader_id == ENTITYID_UNKNOWN
+                    || message_reader_id == r.guid().entity_id()
+                {
+                    // Stateless reader behavior. We add the change if the data is correct. No error is printed
+                    // because all readers would get changes marked with ENTITYID_UNKNOWN
+                    if let Ok(change) = self.convert_received_data_to_cache_change(
+                        writer_guid,
+                        data_submessage.key_flag(),
+                        data_submessage.inline_qos(),
+                        data_submessage.serialized_payload(),
+                        source_timestamp,
+                        reception_timestamp,
+                        type_support,
+                    ) {
+                        self.add_change(
+                            change,
+                            data_reader_address,
+                            subscriber,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                }
             }
-        } else {
-            // Do nothing
         }
 
         Ok(())
@@ -536,28 +532,31 @@ impl DataReaderActor {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
 
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|wp| wp.remote_writer_guid() == writer_guid)
-        {
-            writer_proxy.push_data_frag(data_frag_submessage.clone());
-            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
-            {
-                self.on_data_submessage_received(
-                    &data_submessage,
-                    type_support,
-                    source_guid_prefix,
-                    source_timestamp,
-                    reception_timestamp,
-                    data_reader_address,
-                    subscriber,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
-                )
-                .await?;
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => {
+                if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                    writer_proxy.push_data_frag(data_frag_submessage.clone());
+                    if let Some(data_submessage) =
+                        writer_proxy.reconstruct_data_from_frag(sequence_number)
+                    {
+                        self.on_data_submessage_received(
+                            &data_submessage,
+                            type_support,
+                            source_guid_prefix,
+                            source_timestamp,
+                            reception_timestamp,
+                            data_reader_address,
+                            subscriber,
+                            subscriber_mask_listener,
+                            participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                }
             }
+            RtpsReaderKind::Stateless(_) => (),
         }
+
         Ok(())
     }
 
@@ -569,26 +568,30 @@ impl DataReaderActor {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
 
-            if let Some(writer_proxy) = self
-                .matched_writers
-                .iter_mut()
-                .find(|x| x.remote_writer_guid() == writer_guid)
-            {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
-                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
+            match &mut self.rtps_reader {
+                RtpsReaderKind::Stateful(r) => {
+                    if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                        if writer_proxy.last_received_heartbeat_count()
+                            < heartbeat_submessage.count()
+                        {
+                            writer_proxy
+                                .set_last_received_heartbeat_count(heartbeat_submessage.count());
 
-                    writer_proxy.set_must_send_acknacks(
-                        !heartbeat_submessage.final_flag()
-                            || (!heartbeat_submessage.liveliness_flag()
-                                && !writer_proxy.missing_changes().count() == 0),
-                    );
+                            writer_proxy.set_must_send_acknacks(
+                                !heartbeat_submessage.final_flag()
+                                    || (!heartbeat_submessage.liveliness_flag()
+                                        && !writer_proxy.missing_changes().count() == 0),
+                            );
 
-                    if !heartbeat_submessage.final_flag() {
-                        writer_proxy.set_must_send_acknacks(true);
+                            if !heartbeat_submessage.final_flag() {
+                                writer_proxy.set_must_send_acknacks(true);
+                            }
+                            writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                            writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+                        }
                     }
-                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
-                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
                 }
+                RtpsReaderKind::Stateless(_) => (),
             }
         }
     }
@@ -601,18 +604,19 @@ impl DataReaderActor {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
 
-            if let Some(writer_proxy) = self
-                .matched_writers
-                .iter_mut()
-                .find(|x| x.remote_writer_guid() == writer_guid)
-            {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count()
-                {
-                    writer_proxy
-                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
+            match &mut self.rtps_reader {
+                RtpsReaderKind::Stateful(r) => {
+                    if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                        if writer_proxy.last_received_heartbeat_count()
+                            < heartbeat_frag_submessage.count()
+                        {
+                            writer_proxy.set_last_received_heartbeat_frag_count(
+                                heartbeat_frag_submessage.count(),
+                            );
+                        }
+                    }
                 }
-
-                // todo!()
+                RtpsReaderKind::Stateless(_) => (),
             }
         }
     }
@@ -662,20 +666,21 @@ impl DataReaderActor {
         source_guid_prefix: GuidPrefix,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|x| x.remote_writer_guid() == writer_guid)
-        {
-            for seq_num in
-                i64::from(gap_submessage.gap_start())..i64::from(gap_submessage.gap_list().base())
-            {
-                writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
-            }
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => {
+                if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                    for seq_num in i64::from(gap_submessage.gap_start())
+                        ..i64::from(gap_submessage.gap_list().base())
+                    {
+                        writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
+                    }
 
-            for seq_num in gap_submessage.gap_list().set() {
-                writer_proxy.irrelevant_change_set(seq_num)
+                    for seq_num in gap_submessage.gap_list().set() {
+                        writer_proxy.irrelevant_change_set(seq_num)
+                    }
+                }
             }
+            RtpsReaderKind::Stateless(_) => (),
         }
     }
 
@@ -849,7 +854,6 @@ impl DataReaderActor {
 
         Ok(())
     }
-
 
     async fn on_requested_incompatible_qos(
         &mut self,
@@ -1523,10 +1527,10 @@ impl DataReaderActor {
             DurabilityQosPolicyKind::TransientLocal => Ok(()),
         }?;
 
-        Ok(!self
-            .matched_writers
-            .iter()
-            .any(|p| !p.is_historical_data_received()))
+        match &self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => Ok(r.is_historical_data_received()),
+            RtpsReaderKind::Stateless(_) => Ok(true),
+        }
     }
 
     async fn as_discovered_reader_data(
@@ -1594,11 +1598,6 @@ impl DataReaderActor {
 
     async fn get_qos(&self) -> DataReaderQos {
         self.qos.clone()
-    }
-
-    async fn matched_writer_remove(&mut self, a_writer_guid: Guid) {
-        self.matched_writers
-            .retain(|x| x.remote_writer_guid() != a_writer_guid)
     }
 
     async fn get_matched_publication_data(
@@ -1700,12 +1699,9 @@ impl DataReaderActor {
     }
 
     async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        if !self
-            .matched_writers
-            .iter()
-            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
-        {
-            self.matched_writers.push(a_writer_proxy);
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => r.matched_writer_add(a_writer_proxy),
+            RtpsReaderKind::Stateless(_) => (),
         }
     }
 
@@ -1779,12 +1775,9 @@ impl DataReaderActor {
                         .remote_group_entity_id(),
                 );
 
-                if !self
-                    .matched_writers
-                    .iter()
-                    .any(|x| x.remote_writer_guid() == writer_proxy.remote_writer_guid())
-                {
-                    self.matched_writers.push(writer_proxy);
+                match &mut self.rtps_reader {
+                    RtpsReaderKind::Stateful(r) => r.matched_writer_add(writer_proxy),
+                    RtpsReaderKind::Stateless(_) => (),
                 }
 
                 let insert_matched_publication_result = self
@@ -1841,7 +1834,10 @@ impl DataReaderActor {
             .matched_publication_list
             .remove(&discovered_writer_handle);
         if let Some(w) = matched_publication {
-            self.matched_writer_remove(w.key().value.into()).await;
+            match &mut self.rtps_reader {
+                RtpsReaderKind::Stateful(r) => r.matched_writer_remove(w.key().value.into()),
+                RtpsReaderKind::Stateless(_) => (),
+            }
 
             self.on_subscription_matched(
                 discovered_writer_handle,
@@ -1946,8 +1942,9 @@ impl DataReaderActor {
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
     ) {
-        for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => r.send_message(header, udp_transport_write),
+            RtpsReaderKind::Stateless(_) => (),
         }
     }
 

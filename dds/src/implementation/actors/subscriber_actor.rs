@@ -23,7 +23,7 @@ use crate::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-            reader::RtpsReader,
+            reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
             types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
                 USER_DEFINED_READER_WITH_KEY,
@@ -129,7 +129,7 @@ impl SubscriberActor {
             false => TopicKind::NoKey,
         };
 
-        let rtps_reader = RtpsReader::new(
+        let rtps_reader = RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
             RtpsEndpoint::new(
                 guid,
                 topic_kind,
@@ -139,7 +139,7 @@ impl SubscriberActor {
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        );
+        )));
 
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new(
