@@ -1,9 +1,14 @@
+use std::sync::Arc;
+
 use super::{
     endpoint::RtpsEndpoint,
+    messages::overall_structure::RtpsMessageHeader,
     types::{Guid, Locator},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::infrastructure::time::Duration;
+use crate::{
+    implementation::rtps_udp_psm::udp_transport::UdpTransportWrite, infrastructure::time::Duration,
+};
 
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,
@@ -41,18 +46,22 @@ impl RtpsReader {
 }
 
 pub struct RtpsStatelessReader {
-    pub rtps_reader: RtpsReader,
+    rtps_reader: RtpsReader,
 }
 
 impl RtpsStatelessReader {
     pub fn new(rtps_reader: RtpsReader) -> Self {
         Self { rtps_reader }
     }
+
+    pub fn guid(&self) -> Guid {
+        self.rtps_reader.guid()
+    }
 }
 
 pub struct RtpsStatefulReader {
-    pub rtps_reader: RtpsReader,
-    pub matched_writers: Vec<RtpsWriterProxy>,
+    rtps_reader: RtpsReader,
+    matched_writers: Vec<RtpsWriterProxy>,
 }
 
 impl RtpsStatefulReader {
@@ -60,6 +69,47 @@ impl RtpsStatefulReader {
         Self {
             rtps_reader,
             matched_writers: Vec::new(),
+        }
+    }
+
+    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
+        if !self
+            .matched_writers
+            .iter()
+            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
+        {
+            self.matched_writers.push(a_writer_proxy);
+        }
+    }
+
+    pub fn matched_writer_remove(&mut self, writer_proxy_guid: Guid) {
+        self.matched_writers
+            .retain(|x| x.remote_writer_guid() != writer_proxy_guid)
+    }
+
+    pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {
+        self.matched_writers
+            .iter_mut()
+            .find(|x| x.remote_writer_guid() == a_writer_guid)
+    }
+}
+
+// The methods in this impl block are not defined by the standard
+impl RtpsStatefulReader {
+    pub fn is_historical_data_received(&self) -> bool {
+        !self
+            .matched_writers
+            .iter()
+            .any(|p| !p.is_historical_data_received())
+    }
+
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        udp_transport_write: Arc<UdpTransportWrite>,
+    ) {
+        for writer_proxy in self.matched_writers.iter_mut() {
+            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
         }
     }
 }

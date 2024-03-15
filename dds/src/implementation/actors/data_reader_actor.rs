@@ -392,11 +392,7 @@ impl DataReaderActor {
         let message_reader_id = data_submessage.reader_id();
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => {
-                if let Some(writer_proxy) = r
-                    .matched_writers
-                    .iter_mut()
-                    .find(|wp| wp.remote_writer_guid() == writer_guid)
-                {
+                if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
                     //Stateful reader behavior
                     match self.qos.reliability.kind {
                         ReliabilityQosPolicyKind::BestEffort => {
@@ -488,7 +484,7 @@ impl DataReaderActor {
             }
             RtpsReaderKind::Stateless(r) => {
                 if message_reader_id == ENTITYID_UNKNOWN
-                    || message_reader_id == r.rtps_reader.guid().entity_id()
+                    || message_reader_id == r.guid().entity_id()
                 {
                     // Stateless reader behavior. We add the change if the data is correct. No error is printed
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
@@ -538,11 +534,7 @@ impl DataReaderActor {
 
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => {
-                if let Some(writer_proxy) = r
-                    .matched_writers
-                    .iter_mut()
-                    .find(|wp| wp.remote_writer_guid() == writer_guid)
-                {
+                if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
                     writer_proxy.push_data_frag(data_frag_submessage.clone());
                     if let Some(data_submessage) =
                         writer_proxy.reconstruct_data_from_frag(sequence_number)
@@ -578,11 +570,7 @@ impl DataReaderActor {
 
             match &mut self.rtps_reader {
                 RtpsReaderKind::Stateful(r) => {
-                    if let Some(writer_proxy) = r
-                        .matched_writers
-                        .iter_mut()
-                        .find(|x| x.remote_writer_guid() == writer_guid)
-                    {
+                    if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
                         if writer_proxy.last_received_heartbeat_count()
                             < heartbeat_submessage.count()
                         {
@@ -618,11 +606,7 @@ impl DataReaderActor {
 
             match &mut self.rtps_reader {
                 RtpsReaderKind::Stateful(r) => {
-                    if let Some(writer_proxy) = r
-                        .matched_writers
-                        .iter_mut()
-                        .find(|x| x.remote_writer_guid() == writer_guid)
-                    {
+                    if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
                         if writer_proxy.last_received_heartbeat_count()
                             < heartbeat_frag_submessage.count()
                         {
@@ -686,11 +670,7 @@ impl DataReaderActor {
         let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => {
-                if let Some(writer_proxy) = r
-                    .matched_writers
-                    .iter_mut()
-                    .find(|x| x.remote_writer_guid() == writer_guid)
-                {
+                if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
                     for seq_num in i64::from(gap_submessage.gap_start())
                         ..i64::from(gap_submessage.gap_list().base())
                     {
@@ -1550,10 +1530,7 @@ impl DataReaderActor {
         }?;
 
         match &self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => Ok(!r
-                .matched_writers
-                .iter()
-                .any(|p| !p.is_historical_data_received())),
+            RtpsReaderKind::Stateful(r) => Ok(r.is_historical_data_received()),
             RtpsReaderKind::Stateless(_) => Ok(true),
         }
     }
@@ -1725,15 +1702,7 @@ impl DataReaderActor {
 
     async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
         match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => {
-                if !r
-                    .matched_writers
-                    .iter()
-                    .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
-                {
-                    r.matched_writers.push(a_writer_proxy);
-                }
-            }
+            RtpsReaderKind::Stateful(r) => r.matched_writer_add(a_writer_proxy),
             RtpsReaderKind::Stateless(_) => (),
         }
     }
@@ -1809,15 +1778,7 @@ impl DataReaderActor {
                 );
 
                 match &mut self.rtps_reader {
-                    RtpsReaderKind::Stateful(r) => {
-                        if !r
-                            .matched_writers
-                            .iter()
-                            .any(|x| x.remote_writer_guid() == writer_proxy.remote_writer_guid())
-                        {
-                            r.matched_writers.push(writer_proxy);
-                        }
-                    }
+                    RtpsReaderKind::Stateful(r) => r.matched_writer_add(writer_proxy),
                     RtpsReaderKind::Stateless(_) => (),
                 }
 
@@ -1876,9 +1837,7 @@ impl DataReaderActor {
             .remove(&discovered_writer_handle);
         if let Some(w) = matched_publication {
             match &mut self.rtps_reader {
-                RtpsReaderKind::Stateful(r) => r
-                    .matched_writers
-                    .retain(|x| x.remote_writer_guid() != w.key().value.into()),
+                RtpsReaderKind::Stateful(r) => r.matched_writer_remove(w.key().value.into()),
                 RtpsReaderKind::Stateless(_) => (),
             }
 
@@ -1985,14 +1944,8 @@ impl DataReaderActor {
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
     ) {
-        let guid = self.rtps_reader.guid();
         match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => {
-                for writer_proxy in r.matched_writers.iter_mut() {
-                    writer_proxy.send_message(&guid, header, &udp_transport_write)
-                }
-            }
-
+            RtpsReaderKind::Stateful(r) => r.send_message(header, udp_transport_write),
             RtpsReaderKind::Stateless(_) => (),
         }
     }
