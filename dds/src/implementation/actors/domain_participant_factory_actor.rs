@@ -27,13 +27,13 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
     collections::HashMap,
-    net::{Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{
         atomic::{AtomicU32, Ordering},
         Arc, OnceLock,
     },
 };
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -89,7 +89,10 @@ impl DomainParticipantFactoryActor {
             get_interface_address_list(self.configuration.interface_name());
 
         let host_id = if let Some(interface) = interface_address_list.first() {
-            [interface[12], interface[13], interface[14], interface[15]]
+            match interface.ip() {
+                IpAddr::V4(a) => a.octets(),
+                IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
+            }
         } else {
             warn!("Failed to get Host ID from IP address, use 0 instead");
             [0; 4]
@@ -134,7 +137,7 @@ impl DomainParticipantFactoryActor {
 
         let default_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
-            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
+            .map(|a| Locator::from_ip_and_port(a, user_defined_unicast_locator_port))
             .collect();
 
         let default_multicast_locator_list = vec![];
@@ -155,7 +158,7 @@ impl DomainParticipantFactoryActor {
             .into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
-            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
+            .map(|a| Locator::from_ip_and_port(a, metattrafic_unicast_locator_port))
             .collect();
 
         let metatraffic_multicast_locator_list = vec![Locator::new(
@@ -222,8 +225,9 @@ impl DomainParticipantFactoryActor {
         let mut socket = get_multicast_socket(
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             port_builtin_multicast(domain_id),
+            &interface_address_list,
         )
-        .map_err(|_| DdsError::PreconditionNotMet("Failed to open socket".to_string()))?;
+        .map_err(|_| DdsError::Error("Failed to open socket".to_string()))?;
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
@@ -263,9 +267,7 @@ impl DomainParticipantFactoryActor {
         let participant_clone = participant.clone();
         let mut socket =
             tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
-                DdsError::PreconditionNotMet(
-                    "Failed to open metattrafic unicast socket".to_string(),
-                )
+                DdsError::Error("Failed to open metattrafic unicast socket".to_string())
             })?;
         runtime_handle.spawn(async move {
             loop {
@@ -303,9 +305,8 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
-        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket).map_err(|_| {
-            DdsError::PreconditionNotMet("Failed to open default unicast socket".to_string())
-        })?;
+        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
+            .map_err(|_| DdsError::Error("Failed to open default unicast socket".to_string()))?;
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
@@ -416,7 +417,7 @@ fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
 
-fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAddress> {
+fn get_interface_address_list(interface_name: Option<&String>) -> Vec<Addr> {
     NetworkInterface::show()
         .expect("Could not scan interfaces")
         .into_iter()
@@ -428,15 +429,10 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             }
         })
         .flat_map(|i| {
-            i.addr.into_iter().filter_map(|a| match a {
+            i.addr.into_iter().filter(|a| match a {
                 #[rustfmt::skip]
-                Addr::V4(v4) if !v4.ip.is_loopback() => Some(
-                    [0, 0, 0, 0,
-                        0, 0, 0, 0,
-                        0, 0, 0, 0,
-                        v4.ip.octets()[0], v4.ip.octets()[1], v4.ip.octets()[2], v4.ip.octets()[3]]
-                    ),
-                _ => None,
+                Addr::V4(v4) if !v4.ip.is_loopback() => true,
+                _ => false,
             })
         })
         .collect()
@@ -445,6 +441,7 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
     port: u16,
+    interface_address_list: &[Addr],
 ) -> std::io::Result<tokio::net::UdpSocket> {
     let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
@@ -465,7 +462,21 @@ fn get_multicast_socket(
         multicast_address[14],
         multicast_address[15],
     );
-    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
+    for interface_addr in interface_address_list {
+        match interface_addr {
+            Addr::V4(a) => {
+                let r = socket.join_multicast_v4(&addr, &a.ip);
+                if let Err(e) = r {
+                    info!(
+                        "Failed to join multicast group on address {} with error {}",
+                        a.ip, e
+                    )
+                }
+            }
+            Addr::V6(_) => (),
+        }
+    }
+
     socket.set_multicast_loop_v4(true)?;
 
     tokio::net::UdpSocket::from_std(socket.into())
