@@ -1,0 +1,22 @@
+[package]
+name = "shapes_demo_app"
+version = "0.1.0"
+authors = [
+	"Joao Rebelo <jrebelo@s2e-systems.com>",
+	"Stefan Kimmer <skimmer@s2e-systems.com>",
+]
+license = "Apache-2.0"
+edition = "2021"
+description = "Dust DDS Shapes Demo"
+
+[lib]
+path = "app/src/lib.rs"
+crate_type = ["cdylib"]
+
+[dependencies]
+dust_dds_shapes_demo = { path = "../" }
+
+eframe = "0.26"
+log = "0.4"
+winit = { version = "0.29", features = [ "android-native-activity" ] }
+android_logger = "0.13.1"
