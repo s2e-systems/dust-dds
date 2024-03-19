@@ -1,10 +1,9 @@
+use super::messages::overall_structure::{WriteBytes, WriteEndianness};
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
     serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
 };
-
-use super::messages::overall_structure::{FromBytes, WriteBytes, WriteEndianness};
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use byteorder::ByteOrder;
 use network_interface::Addr;
 use std::{
     net::IpAddr,
@@ -255,7 +254,6 @@ impl TryFromBytes for i16 {
     }
 }
 
-
 pub trait FromBytesE {
     fn from_bytes_e(data: &[u8], endianness: &Endianness) -> Self;
 }
@@ -314,7 +312,9 @@ impl TryFromBytes for SequenceNumber {
             let value = ((high as i64) << 32) + low as i64;
             Ok(SequenceNumber::from(value))
         } else {
-            Err(DdsError::Error("SequenceNumber not enough data".to_string()))
+            Err(DdsError::Error(
+                "SequenceNumber not enough data".to_string(),
+            ))
         }
     }
 }

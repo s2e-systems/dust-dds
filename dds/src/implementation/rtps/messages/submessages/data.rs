@@ -1,20 +1,13 @@
-use byteorder::ReadBytesExt;
-
 use crate::{
-    implementation::{
-        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-        payload_serializer_deserializer::endianness,
-        rtps::{
-            messages::{
-                overall_structure::{
-                    RtpsMap, RtpsSubmessageWriteKind, Submessage, SubmessageHeader,
-                    SubmessageHeaderRead, SubmessageHeaderWrite, WriteBytes,
-                },
-                submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
-                types::{SubmessageFlag, SubmessageKind},
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
-            types::{Endianness, EntityId, FromBytesE, SequenceNumber, TryFromBytes},
+            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
+            types::{SubmessageFlag, SubmessageKind},
         },
+        types::{Endianness, EntityId, FromBytesE, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -108,7 +101,7 @@ impl DataSubmessageRead {
         }
     }
 
-    pub fn inline_qos_flag(&self) -> bool {
+    pub fn _inline_qos_flag(&self) -> bool {
         self.inline_qos_flag
     }
 
@@ -405,7 +398,7 @@ mod tests {
             5, 0, 0, 0, // writerSN: low
         ])).unwrap();
 
-        assert_eq!(inline_qos_flag, data_submessage.inline_qos_flag());
+        assert_eq!(inline_qos_flag, data_submessage._inline_qos_flag());
         assert_eq!(data_flag, data_submessage._data_flag());
         assert_eq!(key_flag, data_submessage.key_flag());
         assert_eq!(&reader_id, data_submessage.reader_id());

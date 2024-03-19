@@ -12,7 +12,7 @@ use crate::{
                 submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
                 types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
             },
-            types::{EntityId, SequenceNumber},
+            types::{Endianness, EntityId, SequenceNumber},
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -109,7 +109,12 @@ impl DataFragSubmessageRead {
 
     pub fn inline_qos(&self) -> ParameterList {
         if self.inline_qos_flag() {
-            self.map(&self.data[self.octets_to_inline_qos() as usize + 8..])
+            ParameterList::try_from_arc_slice(
+                self.data
+                    .sub_slice_from(self.octets_to_inline_qos() as usize + 8..),
+                &Endianness::LittleEndian,
+            )
+            .unwrap()
         } else {
             ParameterList::empty()
         }
@@ -371,7 +376,8 @@ mod tests {
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 8;
         let expected_fragment_size = 5;
-        let expected_inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
+        let expected_inline_qos =
+            ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
         let expected_serialized_payload = Data::new(vec![1, 2, 3, 0].into());
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());

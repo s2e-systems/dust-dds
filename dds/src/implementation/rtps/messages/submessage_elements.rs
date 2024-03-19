@@ -301,37 +301,6 @@ impl ParameterList {
     }
 }
 
-impl FromBytes for Parameter {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let parameter_id = E::read_i16(&v[0..]);
-        let length = E::read_i16(&v[2..]);
-        let value = if parameter_id == PID_SENTINEL {
-            &[]
-        } else {
-            &v[4..length as usize + 4]
-        };
-
-        Self::new(parameter_id, ArcSlice::from(value.to_vec()))
-    }
-}
-
-impl FromBytes for ParameterList {
-    fn from_bytes<E: byteorder::ByteOrder>(mut v: &[u8]) -> Self {
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-
-        let mut parameter = vec![];
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_i = Parameter::from_bytes::<E>(v);
-            if parameter_i.parameter_id() == PID_SENTINEL {
-                break;
-            } else {
-                v.consume(parameter_i.length() as usize + 4);
-                parameter.push(parameter_i);
-            }
-        }
-        Self::new(parameter)
-    }
-}
 
 impl WriteBytes for Parameter {
     fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
@@ -1056,7 +1025,7 @@ mod tests {
 
         let expected =
             ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected.into())]);
-        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
+        let result = ParameterList::try_from_arc_slice(vec![
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -1065,7 +1034,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01, // Parameter value
             0x01, 0x01, 0x01, 0x01, // Parameter value
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]);
+        ].into(), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -1095,7 +1064,7 @@ mod tests {
             Parameter::new(0x32, parameter_value_expected2.into()),
         ]);
         #[rustfmt::skip]
-        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
+        let result = ParameterList::try_from_arc_slice(vec![
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -1111,7 +1080,7 @@ mod tests {
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]);
+        ].into(), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 }

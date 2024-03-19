@@ -28,7 +28,7 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{Endianness, GuidPrefix, ProtocolVersion, VendorId},
+        types::{GuidPrefix, ProtocolVersion, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -385,13 +385,6 @@ impl<'a> SubmessageHeaderRead<'a> {
             flags_byte & 0b_0100_0000 != 0,
             flags_byte & 0b_1000_0000 != 0,
         ]
-    }
-
-    pub fn endianness_flag(&self) -> &Endianness {
-        match self.flags()[0] {
-            true => &Endianness::LittleEndian,
-            false => &Endianness::BigEndian,
-        }
     }
 }
 
