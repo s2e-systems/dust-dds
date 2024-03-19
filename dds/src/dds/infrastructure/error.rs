@@ -1,3 +1,5 @@
+use std::array::TryFromSliceError;
+
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;
 
@@ -37,6 +39,12 @@ pub enum DdsError {
 
 impl From<std::io::Error> for DdsError {
     fn from(value: std::io::Error) -> Self {
+        DdsError::Error(value.to_string())
+    }
+}
+
+impl From<TryFromSliceError> for DdsError {
+    fn from(value: TryFromSliceError) -> Self {
         DdsError::Error(value.to_string())
     }
 }

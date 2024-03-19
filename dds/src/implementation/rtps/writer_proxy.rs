@@ -113,8 +113,8 @@ impl RtpsWriterProxy {
                     reader_id,
                     writer_id,
                     writer_sn,
-                    &inline_qos,
-                    &Data::new(ArcSlice::from(data)),
+                    inline_qos,
+                    Data::new(ArcSlice::from(data)),
                 ))
             } else {
                 None

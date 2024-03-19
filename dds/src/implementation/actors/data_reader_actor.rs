@@ -387,7 +387,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
+        let writer_guid = Guid::new(source_guid_prefix, *data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
         let message_reader_id = data_submessage.reader_id();
         match &mut self.rtps_reader {
@@ -412,8 +412,8 @@ impl DataReaderActor {
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
                                                 data_submessage.key_flag(),
-                                                data_submessage.inline_qos(),
-                                                data_submessage.serialized_payload(),
+                                                data_submessage.inline_qos().clone(),
+                                                data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
                                                 type_support,
@@ -449,8 +449,8 @@ impl DataReaderActor {
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
                                                 data_submessage.key_flag(),
-                                                data_submessage.inline_qos(),
-                                                data_submessage.serialized_payload(),
+                                                data_submessage.inline_qos().clone(),
+                                                data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
                                                 type_support,
@@ -483,16 +483,16 @@ impl DataReaderActor {
                 }
             }
             RtpsReaderKind::Stateless(r) => {
-                if message_reader_id == ENTITYID_UNKNOWN
-                    || message_reader_id == r.guid().entity_id()
+                if message_reader_id == &ENTITYID_UNKNOWN
+                    || message_reader_id == &r.guid().entity_id()
                 {
                     // Stateless reader behavior. We add the change if the data is correct. No error is printed
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
                     if let Ok(change) = self.convert_received_data_to_cache_change(
                         writer_guid,
                         data_submessage.key_flag(),
-                        data_submessage.inline_qos(),
-                        data_submessage.serialized_payload(),
+                        data_submessage.inline_qos().clone(),
+                        data_submessage.serialized_payload().clone(),
                         source_timestamp,
                         reception_timestamp,
                         type_support,

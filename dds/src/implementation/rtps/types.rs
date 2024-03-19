@@ -3,8 +3,8 @@ use crate::{
     serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
 };
 
-use super::messages::overall_structure::{WriteBytes, WriteEndianness};
-use byteorder::ByteOrder;
+use super::messages::overall_structure::{FromBytes, WriteBytes, WriteEndianness};
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use network_interface::Addr;
 use std::{
     net::IpAddr,
@@ -132,8 +132,17 @@ pub enum Endianness {
     LittleEndian,
 }
 
-pub trait TryFromBytes : Sized {
-    fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<Self>;
+impl Endianness {
+    pub fn from_flags(byte: u8) -> Self {
+        match byte & 0b_0000_0001 != 0 {
+            true => Endianness::LittleEndian,
+            false => Endianness::BigEndian,
+        }
+    }
+}
+
+pub trait TryFromBytes: Sized {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self>;
 }
 
 /// EntityId_t
@@ -148,11 +157,11 @@ pub struct EntityId {
 }
 
 impl TryFromBytes for EntityId {
-    fn try_from_bytes(data: &[u8], _endianness: Endianness) -> DdsResult<EntityId> {
+    fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<EntityId> {
         if data.len() > 3 {
             Ok(Self::new([data[0], data[1], data[2]], data[3]))
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(DdsError::Error("EntityId not enough bytes".to_string()))
         }
     }
 }
@@ -235,6 +244,80 @@ pub struct SequenceNumber {
 
 #[allow(dead_code)]
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber::new(-1, 0);
+
+impl TryFromBytes for i16 {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let bytes = data.try_into()?;
+        Ok(match endianness {
+            Endianness::BigEndian => i16::from_be_bytes(bytes),
+            Endianness::LittleEndian => i16::from_le_bytes(bytes),
+        })
+    }
+}
+
+
+pub trait FromBytesE {
+    fn from_bytes_e(data: &[u8], endianness: &Endianness) -> Self;
+}
+impl FromBytesE for i16 {
+    fn from_bytes_e(data: &[u8], endianness: &Endianness) -> Self {
+        let bytes = [data[0], data[1]];
+        match endianness {
+            Endianness::BigEndian => i16::from_be_bytes(bytes),
+            Endianness::LittleEndian => i16::from_le_bytes(bytes),
+        }
+    }
+}
+impl FromBytesE for u16 {
+    fn from_bytes_e(data: &[u8], endianness: &Endianness) -> Self {
+        let bytes = [data[0], data[1]];
+        match endianness {
+            Endianness::BigEndian => u16::from_be_bytes(bytes),
+            Endianness::LittleEndian => u16::from_le_bytes(bytes),
+        }
+    }
+}
+
+impl TryFromBytes for u16 {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let bytes: [u8; 2] = data[..2].try_into()?;
+        Ok(match endianness {
+            Endianness::BigEndian => u16::from_be_bytes(bytes),
+            Endianness::LittleEndian => u16::from_le_bytes(bytes),
+        })
+    }
+}
+impl FromBytesE for i32 {
+    fn from_bytes_e(data: &[u8], endianness: &Endianness) -> Self {
+        let bytes = [data[0], data[1], data[2], data[3]];
+        match endianness {
+            Endianness::BigEndian => i32::from_be_bytes(bytes),
+            Endianness::LittleEndian => i32::from_le_bytes(bytes),
+        }
+    }
+}
+impl TryFromBytes for i32 {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let bytes = data.try_into()?;
+        Ok(match endianness {
+            Endianness::BigEndian => i32::from_be_bytes(bytes),
+            Endianness::LittleEndian => i32::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryFromBytes for SequenceNumber {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() >= 8 {
+            let high = i32::from_bytes_e(&data[0..], endianness);
+            let low = i32::from_bytes_e(&data[4..], endianness);
+            let value = ((high as i64) << 32) + low as i64;
+            Ok(SequenceNumber::from(value))
+        } else {
+            Err(DdsError::Error("SequenceNumber not enough data".to_string()))
+        }
+    }
+}
 
 impl SequenceNumber {
     pub const fn new(high: Long, low: UnsignedLong) -> Self {

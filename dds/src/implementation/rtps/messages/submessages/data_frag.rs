@@ -118,7 +118,7 @@ impl DataFragSubmessageRead {
     pub fn serialized_payload(&self) -> Data {
         Data::new(
             self.data
-                .sub_slice(8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..),
+                .sub_slice_from(8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..),
         )
     }
 }
@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
-        let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
         let serialized_payload = Data::new(vec![1, 2, 3].into());
         let submessage = RtpsSubmessageWriteKind::DataFrag(DataFragSubmessageWrite::new(
             true,
@@ -371,7 +371,7 @@ mod tests {
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 8;
         let expected_fragment_size = 5;
-        let expected_inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74])]);
+        let expected_inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
         let expected_serialized_payload = Data::new(vec![1, 2, 3, 0].into());
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());

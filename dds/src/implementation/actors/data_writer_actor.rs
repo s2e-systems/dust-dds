@@ -22,7 +22,7 @@ use crate::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
                     RtpsSubmessageWriteKind,
                 },
-                submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
+                submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
                     info_destination::InfoDestinationSubmessageWrite,
@@ -413,7 +413,7 @@ impl DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            serialized_status_info,
+            ArcSlice::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -462,7 +462,7 @@ impl DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            serialized_status_info,
+            ArcSlice::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
