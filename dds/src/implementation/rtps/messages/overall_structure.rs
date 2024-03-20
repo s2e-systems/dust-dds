@@ -217,7 +217,7 @@ impl RtpsMessageWrite {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind<'a> {
-    AckNack(AckNackSubmessageRead<'a>),
+    AckNack(AckNackSubmessageRead),
     Data(DataSubmessageRead),
     DataFrag(DataFragSubmessageRead),
     Gap(GapSubmessageRead<'a>),

@@ -9,7 +9,7 @@ use crate::{
             messages::types::{Count, FragmentNumber},
             types::{
                 Endianness, EntityId, FromBytesE, GuidPrefix, Locator, ProtocolVersion,
-                SequenceNumber, VendorId,
+                SequenceNumber, TryFromBytes, VendorId,
             },
         },
     },
@@ -17,7 +17,7 @@ use crate::{
 };
 use std::{
     io::BufRead,
-    ops::{Deref, Index, Range, RangeFrom, RangeTo},
+    ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };
 ///
@@ -127,6 +127,35 @@ impl SequenceNumberSet {
         SequenceNumberSetIterator {
             set: self,
             index: 0,
+        }
+    }
+
+    pub fn try_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() >= 12 {
+            let high = i32::from_bytes_e(&data[0..], endianness);
+            let low = i32::from_bytes_e(&data[4..], endianness);
+            let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
+
+            let num_bits = u32::from_bytes_e(&data[8..], endianness);
+            let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+            let mut bitmap = [0; 8];
+
+            // let mut buf = &data[12..];
+            data.consume(12);
+            for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+                *bitmap_i = i32::try_from_bytes(data, endianness)?;
+                data.consume(4);
+            }
+
+            Ok(Self {
+                base,
+                num_bits,
+                bitmap,
+            })
+        } else {
+            Err(DdsError::Error(
+                "SequenceNumberSet not enough data".to_string(),
+            ))
         }
     }
 }
@@ -301,7 +330,6 @@ impl ParameterList {
     }
 }
 
-
 impl WriteBytes for Parameter {
     fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
         let padding_len = match self.value().len() % 4 {
@@ -338,18 +366,9 @@ pub struct ArcSlice {
     range: Range<usize>,
 }
 
-impl Deref for ArcSlice {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.data[self.range.clone()]
-    }
-}
-
 impl std::fmt::Debug for ArcSlice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.as_ref().fmt(f)
-        // f.debug_struct("ArcSlice").field("data", &self.data).field("range", &self.range).finish()
     }
 }
 
@@ -436,26 +455,6 @@ impl From<Arc<[u8]>> for ArcSlice {
     }
 }
 
-impl From<&[u8]> for ArcSlice {
-    fn from(value: &[u8]) -> Self {
-        let range = 0..value.len();
-        Self {
-            data: value.into(),
-            range,
-        }
-    }
-}
-
-impl<const N: usize> From<[u8; N]> for ArcSlice {
-    fn from(value: [u8; N]) -> Self {
-        let range = 0..value.len();
-        Self {
-            data: value.into(),
-            range,
-        }
-    }
-}
-
 impl From<Vec<u8>> for ArcSlice {
     fn from(value: Vec<u8>) -> Self {
         let range = 0..value.len();
@@ -515,7 +514,7 @@ impl FromBytes for GuidPrefix {
 impl FromBytes for SequenceNumber {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let high = E::read_i32(&v[0..]);
-        let low = E::read_i32(&v[4..]);
+        let low = E::read_u32(&v[4..]);
         let value = ((high as i64) << 32) + low as i64;
         SequenceNumber::from(value)
     }
@@ -807,19 +806,61 @@ mod tests {
     }
 
     #[test]
+    fn serialize_sequence_number() {
+        let sequence_number = SequenceNumber::from(i64::MAX);
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(sequence_number), vec![
+            0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+            0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
+        ]);
+    }
+
+    #[test]
     fn deserialize_sequence_number() {
         let expected = SequenceNumber::from(7);
         assert_eq!(
             expected,
+            SequenceNumber::try_from_bytes(
+                &[
+                    0, 0, 0, 0, // high (long)
+                    7, 0, 0, 0, // low (unsigned long)
+                ],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn deserialize_sequence_number_largest_old() {
+        let expected = SequenceNumber::from(i64::MAX);
+        assert_eq!(
+            expected,
             SequenceNumber::from_bytes::<byteorder::LittleEndian>(&[
-                0, 0, 0, 0, // high (long)
-                7, 0, 0, 0, // low (unsigned long)
+                0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+                0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
             ])
         );
     }
 
     #[test]
-    fn serialize_sequence_number_max_gap() {
+    fn deserialize_sequence_number_largest() {
+        let expected = SequenceNumber::from(i64::MAX);
+        assert_eq!(
+            expected,
+            SequenceNumber::try_from_bytes(
+                &[
+                    0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+                    0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
+                ],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn serialize_sequence_number_set_max_gap() {
         let sequence_number_set = SequenceNumberSet::new(
             SequenceNumber::from(2),
             [SequenceNumber::from(2), SequenceNumber::from(257)],
@@ -838,6 +879,34 @@ mod tests {
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
             0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
         ]);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_empty() {
+        let expected = SequenceNumberSet::new(SequenceNumber::from(2), []);
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (unsigned long)
+        ][..], &Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_with_gaps() {
+        let expected = SequenceNumberSet::new(
+            SequenceNumber::from(7),
+            [SequenceNumber::from(9), SequenceNumber::from(11)],
+        );
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            7, 0, 0, 0, // bitmapBase: low (unsigned long)
+            5, 0, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0010_1000, // bitmap[0] (long)
+        ][..], &Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, result);
     }
 
     #[test]
@@ -860,6 +929,19 @@ mod tests {
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
             0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
         ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_faulty_num_bitmaps() {
+        let expected = SequenceNumberSet::new(SequenceNumber::from(2), []);
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+        ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -988,7 +1070,8 @@ mod tests {
             ]
             .into(),
             &Endianness::LittleEndian,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(result, expected);
     }
 
@@ -1008,7 +1091,8 @@ mod tests {
             ]
             .into(),
             &Endianness::LittleEndian,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(expected, result);
     }
 
@@ -1025,16 +1109,21 @@ mod tests {
 
         let expected =
             ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected.into())]);
-        let result = ParameterList::try_from_arc_slice(vec![
-            0x32, 0x00, 24, 0x00, // Parameter ID | length
-            0x01, 0x00, 0x00, 0x00, // Parameter value
-            0x01, 0x00, 0x00, 0x00, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ].into(), &Endianness::LittleEndian).unwrap();
+        let result = ParameterList::try_from_arc_slice(
+            vec![
+                0x32, 0x00, 24, 0x00, // Parameter ID | length
+                0x01, 0x00, 0x00, 0x00, // Parameter value
+                0x01, 0x00, 0x00, 0x00, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+            ]
+            .into(),
+            &Endianness::LittleEndian,
+        )
+        .unwrap();
         assert_eq!(expected, result);
     }
 

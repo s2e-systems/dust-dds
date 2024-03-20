@@ -278,11 +278,14 @@ impl FromBytesE for u16 {
 
 impl TryFromBytes for u16 {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let bytes: [u8; 2] = data[..2].try_into()?;
+        if data.len() >= 2 {
+        let bytes = [data[0], data[1]];
         Ok(match endianness {
             Endianness::BigEndian => u16::from_be_bytes(bytes),
             Endianness::LittleEndian => u16::from_le_bytes(bytes),
-        })
+        })}else {
+            Err(DdsError::Error("u16 not enough data".to_string()))
+        }
     }
 }
 impl FromBytesE for i32 {
@@ -296,11 +299,37 @@ impl FromBytesE for i32 {
 }
 impl TryFromBytes for i32 {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let bytes = data.try_into()?;
-        Ok(match endianness {
-            Endianness::BigEndian => i32::from_be_bytes(bytes),
-            Endianness::LittleEndian => i32::from_le_bytes(bytes),
-        })
+        if data.len() >= 4 {
+            let bytes = [data[0], data[1], data[2], data[3]];
+            Ok(match endianness {
+                Endianness::BigEndian => i32::from_be_bytes(bytes),
+                Endianness::LittleEndian => i32::from_le_bytes(bytes),
+            })
+        } else {
+            Err(DdsError::Error("i32 not enough data".to_string()))
+        }
+    }
+}
+impl FromBytesE for u32 {
+    fn from_bytes_e(data: &[u8], endianness: &Endianness) -> Self {
+        let bytes = [data[0], data[1], data[2], data[3]];
+        match endianness {
+            Endianness::BigEndian => u32::from_be_bytes(bytes),
+            Endianness::LittleEndian => u32::from_le_bytes(bytes),
+        }
+    }
+}
+impl TryFromBytes for u32 {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() >= 4 {
+            let bytes = [data[0], data[1], data[2], data[3]];
+            Ok(match endianness {
+                Endianness::BigEndian => u32::from_be_bytes(bytes),
+                Endianness::LittleEndian => u32::from_le_bytes(bytes),
+            })
+        } else {
+            Err(DdsError::Error("u32 not enough data".to_string()))
+        }
     }
 }
 
@@ -308,7 +337,7 @@ impl TryFromBytes for SequenceNumber {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
         if data.len() >= 8 {
             let high = i32::from_bytes_e(&data[0..], endianness);
-            let low = i32::from_bytes_e(&data[4..], endianness);
+            let low = u32::from_bytes_e(&data[4..], endianness);
             let value = ((high as i64) << 32) + low as i64;
             Ok(SequenceNumber::from(value))
         } else {

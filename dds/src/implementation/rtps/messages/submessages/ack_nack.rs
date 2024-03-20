@@ -2,54 +2,68 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+                Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
             },
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::EntityId,
+        types::{Endianness, EntityId, TryFromBytes, FromBytesE},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct AckNackSubmessageRead {
+    final_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
 }
 
-impl SubmessageHeader for AckNackSubmessageRead<'_> {
+impl SubmessageHeader for AckNackSubmessageRead {
     fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
+        //SubmessageHeaderRead::new(self.data)
+        todo!()
     }
 }
 
-impl<'a> AckNackSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl AckNackSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 28 {
-            Ok(Self { data })
+            let flags = data[1];
+            let endianness = &Endianness::from_flags(flags);
+            let mut buf = &data[12..];
+            Ok(Self {
+                final_flag: flags & 0b_0000_0010 != 0,
+                reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
+                reader_sn_state: SequenceNumberSet::try_from_bytes(&mut buf, endianness)?,
+                count: Count::from_bytes_e(&mut buf, endianness),
+            })
         } else {
             Err(DdsError::Error("AckNack submessage invalid".to_string()))
         }
     }
 
     pub fn _final_flag(&self) -> bool {
-        self.submessage_header().flags()[1]
+        self.final_flag
     }
 
-    pub fn reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
     }
 
-    pub fn _writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+    pub fn _writer_id(&self) -> &EntityId {
+        &self.writer_id
     }
 
-    pub fn reader_sn_state(&self) -> SequenceNumberSet {
-        self.map(&self.data[12..])
+    pub fn reader_sn_state(&self) -> &SequenceNumberSet {
+        &self.reader_sn_state
     }
 
     pub fn count(&self) -> Count {
-        self.map(&self.data[self.data.len() - 4..])
+        self.count
     }
 }
 
@@ -148,9 +162,9 @@ mod tests {
         let expected_count = 2;
 
         assert_eq!(expected_final_flag, submessage._final_flag());
-        assert_eq!(expected_reader_id, submessage.reader_id());
-        assert_eq!(expected_writer_id, submessage._writer_id());
-        assert_eq!(expected_reader_sn_state, submessage.reader_sn_state());
+        assert_eq!(&expected_reader_id, submessage.reader_id());
+        assert_eq!(&expected_writer_id, submessage._writer_id());
+        assert_eq!(&expected_reader_sn_state, submessage.reader_sn_state());
         assert_eq!(expected_count, submessage.count());
     }
 }

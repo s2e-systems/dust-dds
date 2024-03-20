@@ -834,7 +834,7 @@ impl DataWriterActor {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+            let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
 
             if let Some(reader_proxy) = self
                 .matched_readers
