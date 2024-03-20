@@ -1,130 +1,121 @@
-use std::io::BufRead;
-
 use crate::{
-    implementation::{
-        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-        rtps::{
-            messages::{
-                overall_structure::{
-                    RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead,
-                    SubmessageHeaderWrite,
-                },
-                submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
-                types::{FragmentNumber, ParameterId, SubmessageFlag, SubmessageKind},
-            },
-            types::{Endianness, EntityId, SequenceNumber},
+    implementation::rtps::{
+        messages::{
+            overall_structure::{Submessage, SubmessageHeaderWrite},
+            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
+            types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
+        types::{Endianness, EntityId, FromBytesE, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessageRead {
-    data: ArcSlice,
-}
-
-impl SubmessageHeader for DataFragSubmessageRead {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data.as_slice())
-    }
+    inline_qos_flag: bool,
+    non_standard_payload_flag: SubmessageFlag,
+    key_flag: bool,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    fragment_starting_num: FragmentNumber,
+    fragments_in_submessage: u16,
+    fragment_size: u16,
+    data_size: u32,
+    inline_qos: ParameterList,
+    serialized_payload: Data,
 }
 
 impl DataFragSubmessageRead {
     pub fn try_from_bytes(data: ArcSlice) -> DdsResult<Self> {
         if data.len() >= 36 {
-            Ok(Self { data })
+            let flags = data[1];
+            let endianness = &Endianness::from_flags(flags);
+            let inline_qos_flag = flags & 0b_0000_0010 != 0;
+            let key_flag = flags & 0b_0000_0100 != 0;
+            let non_standard_payload_flag = flags & 0b_0000_1000 != 0;
+
+            let octets_to_inline_qos = u16::from_bytes_e(&data[6..], endianness) as usize + 8;
+
+            let inline_qos = if inline_qos_flag {
+                ParameterList::try_from_arc_slice(
+                    data.sub_slice_from(octets_to_inline_qos..),
+                    endianness,
+                )?
+            } else {
+                ParameterList::empty()
+            };
+            let octects_inline_qos = if inline_qos_flag {
+                inline_qos.number_of_bytes() + 4 /* sentinel */
+            } else {
+                0
+            };
+
+            Ok(Self {
+                inline_qos_flag,
+                non_standard_payload_flag,
+                key_flag,
+                reader_id: EntityId::try_from_bytes(&data[8..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[12..], endianness)?,
+                writer_sn: SequenceNumber::try_from_bytes(&data[16..], endianness)?,
+                fragment_starting_num: FragmentNumber::try_from_bytes(&data[24..], endianness)?,
+                fragments_in_submessage: u16::try_from_bytes(&data[28..], endianness)?,
+                fragment_size: u16::try_from_bytes(&data[30..], endianness)?,
+                data_size: u32::try_from_bytes(&data[32..], endianness)?,
+                inline_qos,
+                serialized_payload: Data::new(data.sub_slice_from(octects_inline_qos + octets_to_inline_qos..)),
+            })
         } else {
             Err(DdsError::Error("DataFrag submessage invalid".to_string()))
         }
     }
 
-    fn octets_to_inline_qos(&self) -> u16 {
-        self.map(&self.data[6..])
-    }
-
-    fn inline_qos_len(&self) -> usize {
-        if self.inline_qos_flag() {
-            let mut parameter_list_buf = &self.data[8 + self.octets_to_inline_qos() as usize..];
-            let parameter_list_buf_length = parameter_list_buf.len();
-            loop {
-                let pid: ParameterId = self.map(parameter_list_buf);
-                parameter_list_buf.consume(2);
-                let length: i16 = self.map(parameter_list_buf);
-                parameter_list_buf.consume(2);
-                if pid == PID_SENTINEL {
-                    break;
-                } else {
-                    parameter_list_buf.consume(length as usize);
-                }
-            }
-            parameter_list_buf_length - parameter_list_buf.len()
-        } else {
-            0
-        }
-    }
-
-    pub fn _endianness_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0001) != 0
-    }
-
     pub fn inline_qos_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0010) != 0
+        self.inline_qos_flag
     }
 
     pub fn key_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_0100) != 0
+        self.key_flag
     }
 
     pub fn _non_standard_payload_flag(&self) -> bool {
-        (self.data[1] & 0b_0000_1000) != 0
+        self.non_standard_payload_flag
     }
 
     pub fn reader_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+        self.reader_id
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.map(&self.data[12..])
+        self.writer_id
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
-        self.map(&self.data[16..])
+        self.writer_sn
     }
 
     pub fn fragment_starting_num(&self) -> FragmentNumber {
-        self.map(&self.data[24..])
+        self.fragment_starting_num
     }
 
     pub fn fragments_in_submessage(&self) -> u16 {
-        self.map(&self.data[28..])
+        self.fragments_in_submessage
     }
 
     pub fn fragment_size(&self) -> u16 {
-        self.map(&self.data[30..])
+        self.fragment_size
     }
 
     pub fn data_size(&self) -> u32 {
-        self.map(&self.data[32..])
+        self.data_size
     }
 
-    pub fn inline_qos(&self) -> ParameterList {
-        if self.inline_qos_flag() {
-            ParameterList::try_from_arc_slice(
-                self.data
-                    .sub_slice_from(self.octets_to_inline_qos() as usize + 8..),
-                &Endianness::LittleEndian,
-            )
-            .unwrap()
-        } else {
-            ParameterList::empty()
-        }
+    pub fn inline_qos(&self) -> &ParameterList {
+        &self.inline_qos
     }
 
-    pub fn serialized_payload(&self) -> Data {
-        Data::new(
-            self.data
-                .sub_slice_from(8 + self.octets_to_inline_qos() as usize + self.inline_qos_len()..),
-        )
+    pub fn serialized_payload(&self) -> &Data {
+        &self.serialized_payload
     }
 }
 
@@ -343,8 +334,8 @@ mod tests {
         );
         assert_eq!(expected_data_size, submessage.data_size());
         assert_eq!(expected_fragment_size, submessage.fragment_size());
-        assert_eq!(expected_inline_qos, submessage.inline_qos());
-        assert_eq!(expected_serialized_payload, submessage.serialized_payload());
+        assert_eq!(&expected_inline_qos, submessage.inline_qos());
+        assert_eq!(&expected_serialized_payload, submessage.serialized_payload());
     }
 
     #[test]
@@ -399,7 +390,7 @@ mod tests {
         );
         assert_eq!(expected_data_size, submessage.data_size());
         assert_eq!(expected_fragment_size, submessage.fragment_size());
-        assert_eq!(expected_inline_qos, submessage.inline_qos());
-        assert_eq!(expected_serialized_payload, submessage.serialized_payload());
+        assert_eq!(&expected_inline_qos, submessage.inline_qos());
+        assert_eq!(&expected_serialized_payload, submessage.serialized_payload());
     }
 }

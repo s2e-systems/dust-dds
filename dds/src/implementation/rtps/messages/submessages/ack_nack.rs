@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{
-                Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+                Submessage, SubmessageHeaderWrite,
             },
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
@@ -21,13 +21,6 @@ pub struct AckNackSubmessageRead {
     count: Count,
 }
 
-impl SubmessageHeader for AckNackSubmessageRead {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        //SubmessageHeaderRead::new(self.data)
-        todo!()
-    }
-}
-
 impl AckNackSubmessageRead {
     pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 28 {
@@ -39,7 +32,7 @@ impl AckNackSubmessageRead {
                 reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
                 writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
                 reader_sn_state: SequenceNumberSet::try_from_bytes(&mut buf, endianness)?,
-                count: Count::from_bytes_e(&mut buf, endianness),
+                count: Count::from_bytes_e(buf, endianness),
             })
         } else {
             Err(DdsError::Error("AckNack submessage invalid".to_string()))

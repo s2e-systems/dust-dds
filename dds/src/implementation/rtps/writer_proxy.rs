@@ -99,7 +99,7 @@ impl RtpsWriterProxy {
                 let writer_id = self.remote_writer_guid.entity_id();
                 let reader_id = frag_seq_num_list[0].reader_id();
                 let writer_sn = seq_num;
-                let inline_qos = frag_seq_num_list[0].inline_qos();
+                let inline_qos = frag_seq_num_list[0].inline_qos().clone();
                 let mut data = Vec::new();
                 for frag in frag_seq_num_list {
                     data.append(&mut frag.serialized_payload().as_ref().to_vec());

@@ -17,6 +17,7 @@ pub struct DataSubmessageRead {
     inline_qos_flag: bool,
     data_flag: bool,
     key_flag: bool,
+    non_standard_payload_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
@@ -38,6 +39,7 @@ impl DataSubmessageRead {
             let inline_qos_flag = flags & 0b_0000_0010 != 0;
             let data_flag = flags & 0b_0000_0100 != 0;
             let key_flag = flags & 0b_0000_1000 != 0;
+            let non_standard_payload_flag = flags & 0b_0001_0000 != 0;
 
             let octets_to_inline_qos = u16::from_bytes_e(&data[6..], endianness) as usize + 8;
 
@@ -64,6 +66,7 @@ impl DataSubmessageRead {
                 inline_qos_flag,
                 data_flag,
                 key_flag,
+                non_standard_payload_flag,
                 reader_id: EntityId::try_from_bytes(&data[8..], endianness)?,
                 writer_id: EntityId::try_from_bytes(&data[12..], endianness)?,
                 writer_sn: SequenceNumber::try_from_bytes(&data[16..], endianness)?,
@@ -82,7 +85,7 @@ impl DataSubmessageRead {
         inline_qos_flag: SubmessageFlag,
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
-        _non_standard_payload_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
@@ -93,6 +96,7 @@ impl DataSubmessageRead {
             inline_qos_flag,
             data_flag,
             key_flag,
+            non_standard_payload_flag,
             reader_id,
             writer_id,
             writer_sn,
@@ -111,6 +115,10 @@ impl DataSubmessageRead {
 
     pub fn key_flag(&self) -> bool {
         self.key_flag
+    }
+
+    pub fn _non_standard_payload_flag(&self) -> bool {
+        self.non_standard_payload_flag
     }
 
     pub fn reader_id(&self) -> &EntityId {
