@@ -1,9 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderWrite},
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
@@ -23,12 +21,6 @@ pub struct DataSubmessageRead {
     writer_sn: SequenceNumber,
     inline_qos: ParameterList,
     serialized_payload: Data,
-}
-
-impl SubmessageHeader for DataSubmessageRead {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.serialized_payload.as_ref())
-    }
 }
 
 impl DataSubmessageRead {

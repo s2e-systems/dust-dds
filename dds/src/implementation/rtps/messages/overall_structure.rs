@@ -61,26 +61,6 @@ fn write_submessage_bytes<'a>(
     submessage_header.write_bytes(header) + len
 }
 
-pub trait FromBytes {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self;
-}
-
-pub trait SubmessageHeader {
-    fn submessage_header(&self) -> SubmessageHeaderRead;
-}
-
-pub trait RtpsMap: SubmessageHeader {
-    fn map<T: FromBytes>(&self, data: &[u8]) -> T {
-        if self.submessage_header()._flags()[0] {
-            T::from_bytes::<byteorder::LittleEndian>(data)
-        } else {
-            T::from_bytes::<byteorder::BigEndian>(data)
-        }
-    }
-}
-
-impl<T: SubmessageHeader> RtpsMap for T {}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
     data: Arc<[u8]>,
@@ -360,31 +340,6 @@ impl WriteBytes for SubmessageHeaderWrite {
         flags.write_bytes(&mut buf[1..]);
         self.submessage_length.write_bytes(&mut buf[2..]);
         4
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct SubmessageHeaderRead<'a> {
-    data: &'a [u8],
-}
-
-impl<'a> SubmessageHeaderRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
-    }
-
-    pub fn _flags(&self) -> [SubmessageFlag; 8] {
-        let flags_byte = self.data[1];
-        [
-            flags_byte & 0b_0000_0001 != 0,
-            flags_byte & 0b_0000_0010 != 0,
-            flags_byte & 0b_0000_0100 != 0,
-            flags_byte & 0b_0000_1000 != 0,
-            flags_byte & 0b_0001_0000 != 0,
-            flags_byte & 0b_0010_0000 != 0,
-            flags_byte & 0b_0100_0000 != 0,
-            flags_byte & 0b_1000_0000 != 0,
-        ]
     }
 }
 

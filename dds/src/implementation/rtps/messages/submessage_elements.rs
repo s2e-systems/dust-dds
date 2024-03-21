@@ -1,5 +1,5 @@
 use super::{
-    overall_structure::{FromBytes, WriteBytes},
+    overall_structure::WriteBytes,
     types::{ParameterId, Time},
 };
 use crate::{
@@ -538,88 +538,6 @@ impl WriteBytes for &Data {
     }
 }
 
-impl FromBytes for EntityId {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new([v[0], v[1], v[2]], v[3])
-    }
-}
-
-impl FromBytes for GuidPrefix {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        [
-            v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
-        ]
-    }
-}
-
-impl FromBytes for SequenceNumber {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let high = E::read_i32(&v[0..]);
-        let low = E::read_u32(&v[4..]);
-        let value = ((high as i64) << 32) + low as i64;
-        SequenceNumber::from(value)
-    }
-}
-
-impl FromBytes for Count {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_i32(v)
-    }
-}
-
-impl FromBytes for SequenceNumberSet {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let high = E::read_i32(&v[0..]);
-        let low = E::read_i32(&v[4..]);
-        let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
-
-        let num_bits = E::read_u32(&v[8..]);
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-        let mut bitmap = [0; 8];
-        let mut buf = &v[12..];
-        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = E::read_i32(buf);
-            buf.consume(4);
-        }
-
-        SequenceNumberSet {
-            base,
-            num_bits,
-            bitmap,
-        }
-    }
-}
-
-impl FromBytes for u16 {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_u16(v)
-    }
-}
-
-impl FromBytes for i16 {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_i16(v)
-    }
-}
-
-impl FromBytes for u32 {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_u32(v)
-    }
-}
-
-impl FromBytes for Locator {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let kind = E::read_i32(&v[0..]);
-        let port = E::read_u32(&v[4..]);
-        let address = [
-            v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
-            v[20], v[21], v[22], v[23],
-        ];
-        Self::new(kind, port, address)
-    }
-}
-
 impl TryFromBytes for Locator {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
         let kind = i32::try_from_bytes(&data[0..], endianness)?;
@@ -629,61 +547,6 @@ impl TryFromBytes for Locator {
             data[17], data[18], data[19], data[20], data[21], data[22], data[23],
         ];
         Ok(Self::new(kind, port, address))
-    }
-}
-
-impl FromBytes for LocatorList {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let num_locators = E::read_u32(v);
-        let mut buf = &v[4..];
-        let mut locator_list = Vec::new();
-        for _ in 0..num_locators {
-            locator_list.push(Locator::from_bytes::<E>(buf));
-            buf.consume(24)
-        }
-        Self::new(locator_list)
-    }
-}
-
-impl FromBytes for ProtocolVersion {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(v[0], v[1])
-    }
-}
-
-impl FromBytes for VendorId {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        [v[0], v[1]]
-    }
-}
-
-impl FromBytes for Time {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let seconds = E::read_u32(&v[0..]);
-        let fractions = E::read_u32(&v[4..]);
-        Self::new(seconds, fractions)
-    }
-}
-
-impl FromBytes for FragmentNumberSet {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let base = E::read_u32(&v[0..]);
-        let num_bits = E::read_u32(&v[4..]);
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-        let mut bitmap = [0; 8];
-        let mut buf = &v[8..];
-        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = E::read_i32(buf);
-            buf.consume(4);
-        }
-
-        let mut set = Vec::with_capacity(256);
-        for delta_n in 0..num_bits as usize {
-            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(base + delta_n as u32);
-            }
-        }
-        Self::new(base, set)
     }
 }
 
@@ -801,9 +664,13 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            FragmentNumber::try_from_bytes(&[
+            FragmentNumber::try_from_bytes(
+                &[
                 7, 0, 0, 0, // (unsigned long)
-            ], &Endianness::LittleEndian).unwrap()
+            ],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
         );
     }
 
