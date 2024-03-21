@@ -26,6 +26,7 @@ use crate::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
         rtps::{
+            self,
             message_receiver::MessageReceiver,
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
@@ -65,7 +66,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::{DurationKind, Time},
+        time::DurationKind,
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -377,8 +378,8 @@ impl DataReaderActor {
         data_submessage: &DataSubmessageRead,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        source_timestamp: Option<rtps::messages::types::Time>,
+        reception_timestamp: rtps::messages::types::Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
@@ -519,8 +520,8 @@ impl DataReaderActor {
         data_frag_submessage: &DataFragSubmessageRead,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        source_timestamp: Option<rtps::messages::types::Time>,
+        reception_timestamp: rtps::messages::types::Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
@@ -926,8 +927,8 @@ impl DataReaderActor {
         key_flag: bool,
         inline_qos: ParameterList,
         data: Data,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        source_timestamp: Option<rtps::messages::types::Time>,
+        reception_timestamp: rtps::messages::types::Time,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<RtpsReaderCacheChange> {
         let change_kind = if key_flag {
@@ -1232,7 +1233,7 @@ impl DataReaderActor {
                 sample_rank: 0,     // To be filled up after collection is created
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
-                source_timestamp: cache_change.source_timestamp,
+                source_timestamp: cache_change.source_timestamp.map(Into::into),
                 instance_handle: cache_change.instance_handle,
                 publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
@@ -1862,7 +1863,7 @@ impl DataReaderActor {
     async fn process_rtps_message(
         &mut self,
         message: RtpsMessageRead,
-        reception_timestamp: Time,
+        reception_timestamp: rtps::messages::types::Time,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
         subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),

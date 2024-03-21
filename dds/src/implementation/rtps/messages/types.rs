@@ -1,5 +1,7 @@
+use crate::infrastructure::{self, time::Duration};
+
 use super::overall_structure::WriteBytes;
-use std::io::Read;
+use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages
@@ -103,7 +105,7 @@ impl WriteBytes for SubmessageKind {
 /// The following values are reserved by the protocol:
 /// TIME_ZERO, TIME_INVALID, TIME_INFINITE
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Time {
     seconds: UnsignedLong,
     fraction: UnsignedLong,
@@ -132,6 +134,30 @@ pub const TIME_INFINITE: Time = Time::new(0xffffffff, 0xfffffffe);
 impl WriteBytes for Time {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.seconds.write_bytes(&mut buf[0..]) + self.fraction.write_bytes(&mut buf[4..])
+    }
+}
+
+impl From<infrastructure::time::Time> for Time {
+    fn from(value: infrastructure::time::Time) -> Self {
+        let seconds = value.sec() as u32;
+        let fraction = ((value.nanosec() as u64 * 2u64.pow(32)) / 1_000_000_000) as u32;
+        Self { seconds, fraction }
+    }
+}
+
+impl From<Time> for infrastructure::time::Time {
+    fn from(value: Time) -> Self {
+        let sec = value.seconds as i32;
+        let nanosec = (value.fraction as u64 * 1_000_000_000 / 2u64.pow(32)) as u32;
+        infrastructure::time::Time::new(sec, nanosec)
+    }
+}
+
+impl Sub<Time> for Time {
+    type Output = Duration;
+
+    fn sub(self, rhs: Time) -> Self::Output {
+        infrastructure::time::Time::from(self) - infrastructure::time::Time::from(rhs)
     }
 }
 
