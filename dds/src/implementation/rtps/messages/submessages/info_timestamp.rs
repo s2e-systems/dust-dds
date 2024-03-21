@@ -1,44 +1,51 @@
 use crate::{
-    implementation::rtps::messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+    implementation::rtps::{
+        messages::{
+            overall_structure::{
+                Submessage, SubmessageHeaderWrite,
+            },
+            submessage_elements::SubmessageElement,
+            types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
         },
-        submessage_elements::SubmessageElement,
-        types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
+        types::Endianness,
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoTimestampSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct InfoTimestampSubmessageRead {
+    invalidate_flag: SubmessageFlag,
+    timestamp: Time,
 }
 
-impl SubmessageHeader for InfoTimestampSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> InfoTimestampSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl InfoTimestampSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 4 {
-            Ok(Self { data })
+            let flags = data[1];
+            let endianness = &Endianness::from_flags(flags);
+            let invalidate_flag = flags & 0b_0000_0010 != 0;
+            let timestamp = if invalidate_flag {
+                TIME_INVALID
+            } else {
+                Time::try_from_bytes(&mut &data[4..], endianness)?
+            };
+            Ok(Self {
+                invalidate_flag,
+                timestamp,
+            })
         } else {
-            Err(DdsError::Error("InfoTimestamp submessage invalid".to_string()))
+            Err(DdsError::Error(
+                "InfoTimestamp submessage invalid".to_string(),
+            ))
         }
     }
 
     pub fn invalidate_flag(&self) -> bool {
-        self.submessage_header().flags()[1]
+        self.invalidate_flag
     }
 
     pub fn timestamp(&self) -> Time {
-        if self.invalidate_flag() {
-            TIME_INVALID
-        } else {
-            self.map(&self.data[4..])
-        }
+        self.timestamp
     }
 }
 #[derive(Debug, PartialEq, Eq)]

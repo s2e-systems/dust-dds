@@ -2,50 +2,53 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+                Submessage, SubmessageHeaderWrite,
             },
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::SubmessageKind,
         },
-        types::{EntityId, SequenceNumber},
+        types::{Endianness, EntityId, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct GapSubmessageRead {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    gap_start: SequenceNumber,
+    gap_list: SequenceNumberSet,
 }
 
-impl SubmessageHeader for GapSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> GapSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl GapSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 32 {
-            Ok(Self { data })
+            let endianness = &Endianness::from_flags(data[1]);
+            Ok(Self {
+                reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
+                gap_start: SequenceNumber::try_from_bytes(&data[12..], endianness)?,
+                gap_list: SequenceNumberSet::try_from_bytes(&mut &data[20..], endianness)?,
+            })
         } else {
             Err(DdsError::Error("Gap submessage invalid".to_string()))
         }
     }
 
     pub fn _reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+        self.reader_id
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+        self.writer_id
     }
 
     pub fn gap_start(&self) -> SequenceNumber {
-        self.map(&self.data[12..])
+        self.gap_start
     }
 
-    pub fn gap_list(&self) -> SequenceNumberSet {
-        self.map(&self.data[20..])
+    pub fn gap_list(&self) -> &SequenceNumberSet {
+        &self.gap_list
     }
 }
 
@@ -135,6 +138,6 @@ mod tests {
         assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());
-        assert_eq!(expected_gap_list, submessage.gap_list());
+        assert_eq!(&expected_gap_list, submessage.gap_list());
     }
 }

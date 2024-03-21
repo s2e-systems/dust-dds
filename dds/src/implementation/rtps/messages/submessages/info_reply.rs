@@ -1,50 +1,55 @@
 use crate::{
-    implementation::rtps::messages::{
-        overall_structure::{
-            RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
+    implementation::rtps::{
+        messages::{
+            overall_structure::{Submessage, SubmessageHeaderWrite},
+            submessage_elements::{LocatorList, SubmessageElement},
+            types::{SubmessageFlag, SubmessageKind},
         },
-        submessage_elements::{LocatorList, SubmessageElement},
-        types::{SubmessageFlag, SubmessageKind},
+        types::Endianness,
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoReplySubmessageRead<'a> {
-    data: &'a [u8],
+pub struct InfoReplySubmessageRead {
+    multicast_flag: SubmessageFlag,
+    unicast_locator_list: LocatorList,
+    multicast_locator_list: LocatorList,
 }
 
-impl SubmessageHeader for InfoReplySubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> InfoReplySubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl InfoReplySubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 16 {
-            Ok(Self { data })
+            let flags = data[1];
+            let endianness = &Endianness::from_flags(flags);
+            let mut buf = &data[4..];
+            let multicast_flag = flags & 0b_0000_0010 != 0;
+            let unicast_locator_list = LocatorList::try_from_bytes(&mut buf, endianness)?;
+            let multicast_locator_list = if multicast_flag {
+                LocatorList::try_from_bytes(&mut buf, endianness)?
+            } else {
+                LocatorList::new(vec![])
+            };
+            Ok(Self {
+                multicast_flag,
+                unicast_locator_list,
+                multicast_locator_list,
+            })
         } else {
             Err(DdsError::Error("InfoReply submessage invalid".to_string()))
         }
     }
 
     pub fn _multicast_flag(&self) -> bool {
-        self.submessage_header().flags()[1]
+        self.multicast_flag
     }
 
-    pub fn _unicast_locator_list(&self) -> LocatorList {
-        self.map(&self.data[4..])
+    pub fn _unicast_locator_list(&self) -> &LocatorList {
+        &self.unicast_locator_list
     }
 
-    pub fn _multicast_locator_list(&self) -> LocatorList {
-        if self._multicast_flag() {
-            let num_locators: u32 = self.map(&self.data[4..]);
-            let octets_to_multicat_loctor_list = num_locators as usize * 24 + 8;
-            self.map(&self.data[octets_to_multicat_loctor_list..])
-        } else {
-            LocatorList::new(vec![])
-        }
+    pub fn _multicast_locator_list(&self) -> &LocatorList {
+        &self.multicast_locator_list
     }
 }
 
@@ -133,11 +138,11 @@ mod tests {
 
         assert_eq!(expected_multicast_flag, submessage._multicast_flag());
         assert_eq!(
-            expected_unicast_locator_list,
+            &expected_unicast_locator_list,
             submessage._unicast_locator_list()
         );
         assert_eq!(
-            expected_multicast_locator_list,
+            &expected_multicast_locator_list,
             submessage._multicast_locator_list()
         );
     }
@@ -157,23 +162,24 @@ mod tests {
             1, 1, 1, 1, //address
             11, 0, 0, 0, //kind
             12, 0, 0, 0, //port
-            1, 1, 1, 1, //address
-            1, 1, 1, 1, //address
-            1, 1, 1, 1, //address
-            1, 1, 1, 1, //address
+            2, 2, 2, 2, //address
+            2, 2, 2, 2, //address
+            2, 2, 2, 2, //address
+            2, 2, 2, 2, //address
         ]).unwrap();
-        let locator = Locator::new(11, 12, [1; 16]);
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(11, 12, [2; 16]);
         let expected_multicast_flag = true;
         let expected_unicast_locator_list = LocatorList::new(vec![]);
-        let expected_multicast_locator_list = LocatorList::new(vec![locator, locator]);
+        let expected_multicast_locator_list = LocatorList::new(vec![locator1, locator2]);
 
         assert_eq!(expected_multicast_flag, submessage._multicast_flag());
         assert_eq!(
-            expected_unicast_locator_list,
+            &expected_unicast_locator_list,
             submessage._unicast_locator_list()
         );
         assert_eq!(
-            expected_multicast_locator_list,
+            &expected_multicast_locator_list,
             submessage._multicast_locator_list()
         );
     }

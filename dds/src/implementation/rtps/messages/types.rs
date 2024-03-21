@@ -1,5 +1,9 @@
 use super::overall_structure::WriteBytes;
-use std::io::Read;
+use crate::{
+    implementation::rtps::types::{Endianness, TryFromBytes},
+    infrastructure::error::{DdsError, DdsResult},
+};
+use std::io::{BufRead, Read};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages
@@ -120,6 +124,19 @@ impl Time {
 
     pub fn fraction(&self) -> UnsignedLong {
         self.fraction
+    }
+
+    pub fn try_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() >= 8 {
+            let seconds = UnsignedLong::try_from_bytes(data, endianness)?;
+            let fraction = UnsignedLong::try_from_bytes(&data[4..], endianness)?;
+            data.consume(8);
+            Ok(Self { seconds, fraction })
+        } else {
+            Err(DdsError::Error(
+                "ProtocolVersion not enough data".to_string(),
+            ))
+        }
     }
 }
 

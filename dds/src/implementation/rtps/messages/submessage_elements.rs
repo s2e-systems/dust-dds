@@ -189,6 +189,36 @@ impl FragmentNumberSet {
             set: set.into_iter().collect(),
         }
     }
+
+    pub fn try_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() >= 12 {
+            let base = FragmentNumber::from_bytes_e(data, endianness);
+            data.consume(4);
+
+            let num_bits = u32::from_bytes_e(data, endianness);
+            let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+            let mut bitmap = [0; 8];
+
+            data.consume(4);
+            for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+                *bitmap_i = i32::try_from_bytes(data, endianness)?;
+                data.consume(4);
+            }
+
+            let mut set = Vec::with_capacity(256);
+            for delta_n in 0..num_bits as usize {
+                if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32))
+                {
+                    set.push(base + delta_n as u32);
+                }
+            }
+            Ok(Self::new(base, set))
+        } else {
+            Err(DdsError::Error(
+                "FragmentNumberSet not enough data".to_string(),
+            ))
+        }
+    }
 }
 
 impl WriteBytes for FragmentNumberSet {
@@ -228,6 +258,17 @@ impl LocatorList {
 
     pub fn value(&self) -> &[Locator] {
         self.value.as_ref()
+    }
+
+    pub fn try_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let num_locators = u32::try_from_bytes(data, endianness)?;
+        data.consume(4);
+        let mut locator_list = Vec::new();
+        for _ in 0..num_locators {
+            locator_list.push(Locator::try_from_bytes(data, endianness)?);
+            data.consume(24)
+        }
+        Ok(Self::new(locator_list))
     }
 }
 
@@ -579,6 +620,18 @@ impl FromBytes for Locator {
     }
 }
 
+impl TryFromBytes for Locator {
+    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let kind = i32::try_from_bytes(&data[0..], endianness)?;
+        let port = u32::try_from_bytes(&data[4..], endianness)?;
+        let address = [
+            data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15], data[16],
+            data[17], data[18], data[19], data[20], data[21], data[22], data[23],
+        ];
+        Ok(Self::new(kind, port, address))
+    }
+}
+
 impl FromBytes for LocatorList {
     fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
         let num_locators = E::read_u32(v);
@@ -760,7 +813,7 @@ mod tests {
             set: vec![2, 257],
         };
         #[rustfmt::skip]
-        let result = FragmentNumberSet::from_bytes::<byteorder::LittleEndian>(&[
+        let result = FragmentNumberSet::try_from_bytes(&mut &[
             2, 0, 0, 0, // bitmapBase: (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
@@ -772,7 +825,7 @@ mod tests {
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
             0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
 
-        ]);
+        ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -836,10 +889,13 @@ mod tests {
         let expected = SequenceNumber::from(i64::MAX);
         assert_eq!(
             expected,
-            SequenceNumber::from_bytes::<byteorder::LittleEndian>(&[
-                0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
-                0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
-            ])
+            SequenceNumber::from_bytes(
+                &[
+                    0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+                    0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
+                ],
+                &Endianness::LittleEndian
+            )
         );
     }
 

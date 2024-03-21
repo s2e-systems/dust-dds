@@ -1,8 +1,6 @@
 use crate::{
     implementation::rtps::messages::{
-        overall_structure::{
-            Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-        },
+        overall_structure::{Submessage, SubmessageHeaderWrite},
         submessage_elements::SubmessageElement,
         types::SubmessageKind,
     },
@@ -10,20 +8,12 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PadSubmessageRead<'a> {
-    data: &'a [u8],
-}
+pub struct PadSubmessageRead {}
 
-impl SubmessageHeader for PadSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> PadSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl PadSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 4 {
-            Ok(Self { data })
+            Ok(Self {})
         } else {
             Err(DdsError::Error("Pad submessage invalid".to_string()))
         }
@@ -78,11 +68,7 @@ mod tests {
         #[rustfmt::skip]
         let submessage = PadSubmessageRead::try_from_bytes(&[
             0x01, 0b_0000_0001, 0, 0, // Submessage header
-        ]).unwrap();
-        let expected_endianness_flag = true;
-        assert_eq!(
-            expected_endianness_flag,
-            submessage.submessage_header().flags()[0]
-        );
+        ]);
+        assert!(submessage.is_ok())
     }
 }

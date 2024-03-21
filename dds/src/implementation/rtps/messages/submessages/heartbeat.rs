@@ -1,63 +1,71 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber},
+        types::{Endianness, EntityId, FromBytesE, SequenceNumber},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct HeartbeatSubmessageRead {
+    final_flag: SubmessageFlag,
+    liveliness_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    count: Count,
 }
 
-impl SubmessageHeader for HeartbeatSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> HeartbeatSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl HeartbeatSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
+        let flags = data[1];
+        let endianness = &Endianness::from_flags(flags);
         if data.len() >= 32 {
-            Ok(Self { data })
+            Ok(Self {
+                final_flag: flags & 0b_0000_0010 != 0,
+                liveliness_flag: flags & 0b_0000_0100 != 0,
+                reader_id: EntityId::from_bytes(&data[4..]),
+                writer_id: EntityId::from_bytes(&data[8..]),
+                first_sn: SequenceNumber::from_bytes(&data[12..], endianness),
+                last_sn: SequenceNumber::from_bytes(&data[20..], endianness),
+                count: Count::from_bytes_e(&data[28..], endianness),
+            })
         } else {
             Err(DdsError::Error("Heartbeat submessage invalid".to_string()))
         }
     }
 
     pub fn final_flag(&self) -> bool {
-        self.submessage_header().flags()[1]
+        self.final_flag
     }
 
     pub fn liveliness_flag(&self) -> bool {
-        self.submessage_header().flags()[2]
+        self.liveliness_flag
     }
 
     pub fn _reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+        self.reader_id
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+        self.writer_id
     }
 
     pub fn first_sn(&self) -> SequenceNumber {
-        self.map(&self.data[12..])
+        self.first_sn
     }
 
     pub fn last_sn(&self) -> SequenceNumber {
-        self.map(&self.data[20..])
+        self.last_sn
     }
 
     pub fn count(&self) -> Count {
-        self.map(&self.data[28..])
+        self.count
     }
 }
 #[derive(Debug, PartialEq, Eq)]

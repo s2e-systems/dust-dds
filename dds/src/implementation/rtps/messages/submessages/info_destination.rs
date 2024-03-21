@@ -1,39 +1,36 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::GuidPrefix,
+        types::{Endianness, GuidPrefix, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoDestinationSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct InfoDestinationSubmessageRead {
+    guid_prefix: GuidPrefix,
 }
 
-impl SubmessageHeader for InfoDestinationSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> InfoDestinationSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl InfoDestinationSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 16 {
-            Ok(Self { data })
+            let endianness = &Endianness::from_flags(data[1]);
+            Ok(Self {
+                guid_prefix: GuidPrefix::try_from_bytes(&data[4..], endianness)?,
+            })
         } else {
-            Err(DdsError::Error("InfoDestination submessage invalid".to_string()))
+            Err(DdsError::Error(
+                "InfoDestination submessage invalid".to_string(),
+            ))
         }
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.map(&self.data[4..])
+        self.guid_prefix
     }
 }
 #[derive(Debug, PartialEq, Eq)]

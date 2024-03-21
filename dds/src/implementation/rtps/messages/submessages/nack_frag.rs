@@ -1,55 +1,60 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderWrite},
             submessage_elements::{FragmentNumberSet, SubmessageElement},
             types::{Count, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber},
+        types::{Endianness, EntityId, FromBytesE, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct NackFragSubmessageRead {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    fragment_number_state: FragmentNumberSet,
+    count: Count,
 }
 
-impl SubmessageHeader for NackFragSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> NackFragSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl NackFragSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 32 {
-            Ok(Self { data })
+            let flags = data[1];
+            let endianness = &Endianness::from_flags(flags);
+            let mut buf = &data[20..];
+            Ok(Self {
+                reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
+                writer_sn: SequenceNumber::try_from_bytes(&data[12..], endianness)?,
+                fragment_number_state: FragmentNumberSet::try_from_bytes(&mut buf, endianness)?,
+                count: Count::from_bytes_e(buf, endianness),
+            })
         } else {
             Err(DdsError::Error("NackFrag submessage invalid".to_string()))
         }
     }
 
     pub fn reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+        self.reader_id
     }
 
     pub fn _writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+        self.writer_id
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
-        self.map(&self.data[12..])
+        self.writer_sn
     }
 
-    pub fn _fragment_number_state(&self) -> FragmentNumberSet {
-        self.map(&self.data[20..])
+    pub fn _fragment_number_state(&self) -> &FragmentNumberSet {
+        &self.fragment_number_state
     }
 
     pub fn count(&self) -> Count {
-        self.map(&self.data[self.data.len() - 4..])
+        self.count
     }
 }
 
@@ -145,7 +150,7 @@ mod tests {
         assert_eq!(expected_writer_id, submessage._writer_id());
         assert_eq!(expected_writer_sn, submessage.writer_sn());
         assert_eq!(
-            expected_fragment_number_state,
+            &expected_fragment_number_state,
             submessage._fragment_number_state()
         );
         assert_eq!(expected_count, submessage.count());

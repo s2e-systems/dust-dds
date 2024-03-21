@@ -1,47 +1,48 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{Endianness, GuidPrefix, ProtocolVersion, TryFromBytes, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct InfoSourceSubmessageRead {
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
 }
 
-impl SubmessageHeader for InfoSourceSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> InfoSourceSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl InfoSourceSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 24 {
-            Ok(Self { data })
+            let flags = data[1];
+            let endianness = &Endianness::from_flags(flags);
+            let mut data = &data[8..];
+            Ok(Self {
+                protocol_version: ProtocolVersion::try_from_bytes(&mut data, endianness)?,
+                vendor_id: VendorId::try_from_bytes(data, endianness)?,
+                guid_prefix: GuidPrefix::try_from_bytes(&data[2..], endianness)?,
+            })
         } else {
             Err(DdsError::Error("InfoSource submessage invalid".to_string()))
         }
     }
 
     pub fn protocol_version(&self) -> ProtocolVersion {
-        self.map(&self.data[8..])
+        self.protocol_version
     }
 
     pub fn vendor_id(&self) -> VendorId {
-        self.map(&self.data[10..])
+        self.vendor_id
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.map(&self.data[12..])
+        self.guid_prefix
     }
 }
 

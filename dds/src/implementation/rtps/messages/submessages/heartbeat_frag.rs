@@ -1,55 +1,60 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, FragmentNumber, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber},
+        types::{Endianness, EntityId, SequenceNumber, FromBytesE},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatFragSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct HeartbeatFragSubmessageRead {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    last_fragment_num: FragmentNumber,
+    count: Count,
 }
 
-impl SubmessageHeader for HeartbeatFragSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> HeartbeatFragSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
+impl HeartbeatFragSubmessageRead {
+    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
         if data.len() >= 28 {
-            Ok(Self { data })
+            let endianness = &Endianness::from_flags(data[1]);
+            Ok(Self {
+                reader_id: EntityId::from_bytes(&data[4..]),
+                writer_id: EntityId::from_bytes(&data[8..]),
+                writer_sn: SequenceNumber::from_bytes(&data[12..], endianness),
+                last_fragment_num: u32::from_bytes_e(&data[20..], endianness),
+                count: Count::from_bytes_e(&data[24..], endianness),
+            })
         } else {
-            Err(DdsError::Error("HeartbeatFrag submessage invalid".to_string()))
+            Err(DdsError::Error(
+                "HeartbeatFrag submessage invalid".to_string(),
+            ))
         }
     }
 
     pub fn _reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+        self.reader_id
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+        self.writer_id
     }
 
     pub fn _writer_sn(&self) -> SequenceNumber {
-        self.map(&self.data[12..])
+        self.writer_sn
     }
 
     pub fn _last_fragment_num(&self) -> FragmentNumber {
-        self.map(&self.data[20..])
+        self.last_fragment_num
     }
 
     pub fn count(&self) -> Count {
-        self.map(&self.data[24..])
+        self.count
     }
 }
 

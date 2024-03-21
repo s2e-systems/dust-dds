@@ -6,6 +6,7 @@ use crate::{
 use byteorder::ByteOrder;
 use network_interface::Addr;
 use std::{
+    io::BufRead,
     net::IpAddr,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
@@ -131,6 +132,19 @@ pub enum Endianness {
     LittleEndian,
 }
 
+impl TryFromBytes for GuidPrefix {
+    fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() > 11 {
+            Ok([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
+                data[9], data[10], data[11],
+            ])
+        } else {
+            Err(DdsError::Error("GuidPrefix not enough data".to_string()))
+        }
+    }
+}
+
 impl Endianness {
     pub fn from_flags(byte: u8) -> Self {
         match byte & 0b_0000_0001 != 0 {
@@ -179,6 +193,10 @@ impl EntityId {
 
     pub const fn entity_kind(&self) -> Octet {
         self.entity_kind
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Self {
+        Self::new([data[0], data[1], data[2]], data[3])
     }
 }
 
@@ -279,11 +297,12 @@ impl FromBytesE for u16 {
 impl TryFromBytes for u16 {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
         if data.len() >= 2 {
-        let bytes = [data[0], data[1]];
-        Ok(match endianness {
-            Endianness::BigEndian => u16::from_be_bytes(bytes),
-            Endianness::LittleEndian => u16::from_le_bytes(bytes),
-        })}else {
+            let bytes = [data[0], data[1]];
+            Ok(match endianness {
+                Endianness::BigEndian => u16::from_be_bytes(bytes),
+                Endianness::LittleEndian => u16::from_le_bytes(bytes),
+            })
+        } else {
             Err(DdsError::Error("u16 not enough data".to_string()))
         }
     }
@@ -351,6 +370,12 @@ impl TryFromBytes for SequenceNumber {
 impl SequenceNumber {
     pub const fn new(high: Long, low: UnsignedLong) -> Self {
         Self { high, low }
+    }
+
+    pub fn from_bytes(data: &[u8], endianness: &Endianness) -> Self {
+        let high = i32::from_bytes_e(&data[0..], endianness);
+        let low = u32::from_bytes_e(&data[4..], endianness);
+        Self::new(high, low)
     }
 }
 impl From<SequenceNumber> for i64 {
@@ -586,12 +611,35 @@ impl ProtocolVersion {
     pub const fn _minor(&self) -> Octet {
         self.minor
     }
+
+    pub fn try_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() > 1 {
+            let major = data[0];
+            let minor = data[1];
+            data.consume(2);
+            Ok(ProtocolVersion { major, minor })
+        } else {
+            Err(DdsError::Error(
+                "ProtocolVersion not enough data".to_string(),
+            ))
+        }
+    }
 }
 
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
 pub type VendorId = [Octet; 2];
+
+impl TryFromBytes for VendorId {
+    fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() > 1 {
+            Ok([data[0], data[1]])
+        } else {
+            Err(DdsError::Error("GuidPrefix not enough data".to_string()))
+        }
+    }
+}
 
 #[allow(dead_code)]
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];

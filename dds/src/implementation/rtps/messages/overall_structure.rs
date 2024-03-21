@@ -71,7 +71,7 @@ pub trait SubmessageHeader {
 
 pub trait RtpsMap: SubmessageHeader {
     fn map<T: FromBytes>(&self, data: &[u8]) -> T {
-        if self.submessage_header().flags()[0] {
+        if self.submessage_header()._flags()[0] {
             T::from_bytes::<byteorder::LittleEndian>(data)
         } else {
             T::from_bytes::<byteorder::BigEndian>(data)
@@ -216,19 +216,19 @@ impl RtpsMessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum RtpsSubmessageReadKind<'a> {
+pub enum RtpsSubmessageReadKind {
     AckNack(AckNackSubmessageRead),
     Data(DataSubmessageRead),
     DataFrag(DataFragSubmessageRead),
-    Gap(GapSubmessageRead<'a>),
-    Heartbeat(HeartbeatSubmessageRead<'a>),
-    HeartbeatFrag(HeartbeatFragSubmessageRead<'a>),
-    InfoDestination(InfoDestinationSubmessageRead<'a>),
-    InfoReply(InfoReplySubmessageRead<'a>),
-    InfoSource(InfoSourceSubmessageRead<'a>),
-    InfoTimestamp(InfoTimestampSubmessageRead<'a>),
-    NackFrag(NackFragSubmessageRead<'a>),
-    Pad(PadSubmessageRead<'a>),
+    Gap(GapSubmessageRead),
+    Heartbeat(HeartbeatSubmessageRead),
+    HeartbeatFrag(HeartbeatFragSubmessageRead),
+    InfoDestination(InfoDestinationSubmessageRead),
+    InfoReply(InfoReplySubmessageRead),
+    InfoSource(InfoSourceSubmessageRead),
+    InfoTimestamp(InfoTimestampSubmessageRead),
+    NackFrag(NackFragSubmessageRead),
+    Pad(PadSubmessageRead),
 }
 
 #[allow(dead_code)]
@@ -373,7 +373,7 @@ impl<'a> SubmessageHeaderRead<'a> {
         Self { data }
     }
 
-    pub fn flags(&self) -> [SubmessageFlag; 8] {
+    pub fn _flags(&self) -> [SubmessageFlag; 8] {
         let flags_byte = self.data[1];
         [
             flags_byte & 0b_0000_0001 != 0,
