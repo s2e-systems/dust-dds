@@ -764,9 +764,11 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            Count::from_bytes::<byteorder::LittleEndian>(&[
-            7, 0, 0,0 , //value (long)
-        ])
+            Count::from_bytes_e(
+                &[7, 0, 0, 0 , //value (long)
+                ],
+                &Endianness::LittleEndian
+            )
         );
     }
 
@@ -776,7 +778,7 @@ mod tests {
         let locator_2 = Locator::new(2, 2, [3; 16]);
         let expected = LocatorList::new(vec![locator_1, locator_2]);
         #[rustfmt::skip]
-        let result = LocatorList::from_bytes::<byteorder::LittleEndian>(&[
+        let result = LocatorList::try_from_bytes(&mut &[
             2, 0, 0, 0,  // numLocators (unsigned long)
             1, 0, 0, 0, // kind (long)
             2, 0, 0, 0, // port (unsigned long)
@@ -790,8 +792,7 @@ mod tests {
             3, 3, 3, 3, // address (octet[16])
             3, 3, 3, 3, // address (octet[16])
             3, 3, 3, 3, // address (octet[16])
-
-        ]);
+        ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -800,9 +801,9 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            FragmentNumber::from_bytes::<byteorder::LittleEndian>(&[
+            FragmentNumber::try_from_bytes(&[
                 7, 0, 0, 0, // (unsigned long)
-            ])
+            ], &Endianness::LittleEndian).unwrap()
         );
     }
 
@@ -833,11 +834,11 @@ mod tests {
     fn deserialize_guid_prefix() {
         let expected = [1; 12];
         #[rustfmt::skip]
-        assert_eq!(expected, GuidPrefix::from_bytes::<byteorder::LittleEndian>(&[
+        assert_eq!(expected, GuidPrefix::try_from_bytes(&[
             1, 1, 1, 1,
             1, 1, 1, 1,
             1, 1, 1, 1,
-        ]));
+        ], &Endianness::LittleEndian).unwrap());
     }
 
     #[test]
@@ -845,7 +846,7 @@ mod tests {
         let expected = ProtocolVersion::new(2, 3);
         assert_eq!(
             expected,
-            ProtocolVersion::from_bytes::<byteorder::LittleEndian>(&[2, 3])
+            ProtocolVersion::try_from_bytes(&mut &[2, 3][..], &Endianness::LittleEndian).unwrap()
         );
     }
 
@@ -854,7 +855,7 @@ mod tests {
         let expected = [1, 2];
         assert_eq!(
             expected,
-            VendorId::from_bytes::<byteorder::LittleEndian>(&[1, 2,])
+            VendorId::try_from_bytes(&[1, 2,], &Endianness::LittleEndian).unwrap()
         );
     }
 
