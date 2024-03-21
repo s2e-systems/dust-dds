@@ -48,6 +48,7 @@ use crate::{
         },
     },
     infrastructure::{
+        self,
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -421,7 +422,7 @@ impl DataWriterActor {
             instance_serialized_key,
             inline_qos,
             handle,
-            timestamp,
+            timestamp.into(),
         );
 
         self.add_change(change);
@@ -470,7 +471,7 @@ impl DataWriterActor {
             instance_serialized_key,
             inline_qos,
             handle,
-            timestamp,
+            timestamp.into(),
         );
 
         self.add_change(change);
@@ -569,7 +570,7 @@ impl DataWriterActor {
         serialized_data: Vec<u8>,
         instance_handle: InstanceHandle,
         _handle: Option<InstanceHandle>,
-        timestamp: Time,
+        timestamp: infrastructure::time::Time,
     ) -> DdsResult<()> {
         let handle = self
             .register_instance_w_timestamp(instance_handle, timestamp)
@@ -580,7 +581,7 @@ impl DataWriterActor {
             serialized_data,
             ParameterList::empty(),
             handle,
-            timestamp,
+            timestamp.into(),
         );
 
         self.add_change(change);
@@ -824,8 +825,9 @@ impl DataWriterActor {
 impl DataWriterActor {
     fn remove_stale_changes(&mut self, now: Time) {
         let timespan_duration = self.qos.lifespan.duration;
-        self.writer_cache
-            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
+        self.writer_cache.remove_change(|cc| {
+            DurationKind::Finite(now - cc.timestamp().into()) > timespan_duration
+        });
     }
 
     fn on_acknack_submessage_received(
@@ -880,13 +882,7 @@ impl DataWriterActor {
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
                             let info_ts_submessage = RtpsSubmessageWriteKind::InfoTimestamp(
-                                InfoTimestampSubmessageWrite::new(
-                                    false,
-                                    crate::implementation::rtps::messages::types::Time::new(
-                                        cache_change.timestamp().sec() as u32,
-                                        cache_change.timestamp().nanosec(),
-                                    ),
-                                ),
+                                InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                             );
                             let data_submessage = RtpsSubmessageWriteKind::Data(
                                 cache_change.as_data_submessage(ENTITYID_UNKNOWN),
@@ -1202,14 +1198,9 @@ fn send_message_to_reader_proxy_best_effort(
                         ),
                     );
 
-                    let info_timestamp =
-                        RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-                            false,
-                            crate::implementation::rtps::messages::types::Time::new(
-                                cache_change.timestamp().sec() as u32,
-                                cache_change.timestamp().nanosec(),
-                            ),
-                        ));
+                    let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                        InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
+                    );
 
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
@@ -1223,14 +1214,9 @@ fn send_message_to_reader_proxy_best_effort(
                     InfoDestinationSubmessageWrite::new(reader_proxy.remote_reader_guid().prefix()),
                 );
 
-                let info_timestamp =
-                    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-                        false,
-                        crate::implementation::rtps::messages::types::Time::new(
-                            cache_change.timestamp().sec() as u32,
-                            cache_change.timestamp().nanosec(),
-                        ),
-                    ));
+                let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                    InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
+                );
 
                 let data_submessage = RtpsSubmessageWriteKind::Data(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
@@ -1371,14 +1357,9 @@ fn send_change_message_reader_proxy_reliable(
                         ),
                     );
 
-                    let info_timestamp =
-                        RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-                            false,
-                            crate::implementation::rtps::messages::types::Time::new(
-                                cache_change.timestamp().sec() as u32,
-                                cache_change.timestamp().nanosec(),
-                            ),
-                        ));
+                    let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                        InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
+                    );
 
                     let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
@@ -1392,14 +1373,9 @@ fn send_change_message_reader_proxy_reliable(
                     InfoDestinationSubmessageWrite::new(reader_proxy.remote_reader_guid().prefix()),
                 );
 
-                let info_timestamp =
-                    RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-                        false,
-                        crate::implementation::rtps::messages::types::Time::new(
-                            cache_change.timestamp().sec() as u32,
-                            cache_change.timestamp().nanosec(),
-                        ),
-                    ));
+                let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
+                    InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
+                );
 
                 let data_submessage = RtpsSubmessageWriteKind::Data(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),

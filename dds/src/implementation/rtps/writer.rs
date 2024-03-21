@@ -1,11 +1,11 @@
-use crate::infrastructure::{
-    instance::InstanceHandle,
-    time::{Duration, Time},
-};
+use crate::infrastructure::{instance::InstanceHandle, time::Duration};
 
 use super::{
     endpoint::RtpsEndpoint,
-    messages::submessage_elements::{Data, ParameterList},
+    messages::{
+        self,
+        submessage_elements::{Data, ParameterList},
+    },
     types::{ChangeKind, Guid, Locator, SequenceNumber},
     writer_history_cache::RtpsWriterCacheChange,
 };
@@ -70,7 +70,7 @@ impl RtpsWriter {
         data: Vec<u8>,
         inline_qos: ParameterList,
         handle: InstanceHandle,
-        timestamp: Time,
+        timestamp: messages::types::Time,
     ) -> RtpsWriterCacheChange {
         self.last_change_sequence_number += 1;
         RtpsWriterCacheChange::new(

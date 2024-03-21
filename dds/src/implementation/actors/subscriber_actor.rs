@@ -20,6 +20,7 @@ use crate::{
         },
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
+            self,
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -38,7 +39,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
-        time::{Time, DURATION_ZERO},
+        time::DURATION_ZERO,
     },
 };
 
@@ -279,7 +280,7 @@ impl SubscriberActor {
     async fn process_rtps_message(
         &self,
         message: RtpsMessageRead,
-        reception_timestamp: Time,
+        reception_timestamp: rtps::messages::types::Time,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant: DomainParticipantAsync,
         participant_mask_listener: (
