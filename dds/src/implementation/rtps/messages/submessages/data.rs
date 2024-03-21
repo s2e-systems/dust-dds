@@ -35,25 +35,22 @@ impl DataSubmessageRead {
 
             let octets_to_inline_qos = u16::from_bytes_e(&data[6..], endianness) as usize + 8;
 
+            let mut inline_qos_data = data.sub_slice_from(octets_to_inline_qos..);
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_from_arc_slice(
-                    data.sub_slice_from(octets_to_inline_qos..),
+                ParameterList::try_read_from_arc_slice(
+                    &mut inline_qos_data,
                     endianness,
                 )?
             } else {
                 ParameterList::empty()
             };
-            let octects_inline_qos = if inline_qos_flag {
-                inline_qos.number_of_bytes() + 4 /* sentinel */
-            } else {
-                0
-            };
 
             let serialized_payload = if data_flag || key_flag {
-                Data::new(data.sub_slice_from(octects_inline_qos + octets_to_inline_qos..))
+                Data::new(inline_qos_data)
             } else {
                 Data::empty()
             };
+
             Ok(Self {
                 inline_qos_flag,
                 data_flag,

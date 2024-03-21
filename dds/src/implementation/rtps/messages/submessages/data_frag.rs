@@ -37,33 +37,36 @@ impl DataFragSubmessageRead {
 
             let octets_to_inline_qos = u16::from_bytes_e(&data[6..], endianness) as usize + 8;
 
+            let reader_id = EntityId::try_from_bytes(&data[8..], endianness)?;
+            let writer_id = EntityId::try_from_bytes(&data[12..], endianness)?;
+            let writer_sn = SequenceNumber::try_from_bytes(&data[16..], endianness)?;
+            let fragment_starting_num = FragmentNumber::try_from_bytes(&data[24..], endianness)?;
+            let fragments_in_submessage = u16::try_from_bytes(&data[28..], endianness)?;
+            let fragment_size = u16::try_from_bytes(&data[30..], endianness)?;
+            let data_size = u32::try_from_bytes(&data[32..], endianness)?;
+
+            let mut inline_qos_data = data.sub_slice_from(octets_to_inline_qos..);
+
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_from_arc_slice(
-                    data.sub_slice_from(octets_to_inline_qos..),
-                    endianness,
-                )?
+                ParameterList::try_read_from_arc_slice(&mut inline_qos_data, endianness)?
             } else {
                 ParameterList::empty()
             };
-            let octects_inline_qos = if inline_qos_flag {
-                inline_qos.number_of_bytes() + 4 /* sentinel */
-            } else {
-                0
-            };
+            let serialized_payload = Data::new(inline_qos_data);
 
             Ok(Self {
                 inline_qos_flag,
                 non_standard_payload_flag,
                 key_flag,
-                reader_id: EntityId::try_from_bytes(&data[8..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[12..], endianness)?,
-                writer_sn: SequenceNumber::try_from_bytes(&data[16..], endianness)?,
-                fragment_starting_num: FragmentNumber::try_from_bytes(&data[24..], endianness)?,
-                fragments_in_submessage: u16::try_from_bytes(&data[28..], endianness)?,
-                fragment_size: u16::try_from_bytes(&data[30..], endianness)?,
-                data_size: u32::try_from_bytes(&data[32..], endianness)?,
+                reader_id,
+                writer_id,
+                writer_sn,
+                fragment_starting_num,
+                fragments_in_submessage,
+                fragment_size,
+                data_size,
                 inline_qos,
-                serialized_payload: Data::new(data.sub_slice_from(octects_inline_qos + octets_to_inline_qos..)),
+                serialized_payload,
             })
         } else {
             Err(DdsError::Error("DataFrag submessage invalid".to_string()))
@@ -335,7 +338,10 @@ mod tests {
         assert_eq!(expected_data_size, submessage.data_size());
         assert_eq!(expected_fragment_size, submessage.fragment_size());
         assert_eq!(&expected_inline_qos, submessage.inline_qos());
-        assert_eq!(&expected_serialized_payload, submessage.serialized_payload());
+        assert_eq!(
+            &expected_serialized_payload,
+            submessage.serialized_payload()
+        );
     }
 
     #[test]
@@ -391,6 +397,9 @@ mod tests {
         assert_eq!(expected_data_size, submessage.data_size());
         assert_eq!(expected_fragment_size, submessage.fragment_size());
         assert_eq!(&expected_inline_qos, submessage.inline_qos());
-        assert_eq!(&expected_serialized_payload, submessage.serialized_payload());
+        assert_eq!(
+            &expected_serialized_payload,
+            submessage.serialized_payload()
+        );
     }
 }
