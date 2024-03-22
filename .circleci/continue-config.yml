@@ -118,6 +118,20 @@ jobs:
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
+          name: FastDDS publisher dispose interoperability test
+          command: |
+            build/fast_dds/FastDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
+          name: FastDDS subscriber dispose interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose
+            pid=$!
+            build/fast_dds/FastDdsPublisherDispose &
+            wait $pid
+      - run:
           name: Cyclone publisher interoperability test
           command: |
             cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
@@ -132,18 +146,32 @@ jobs:
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
-          name: Big data publisher interoperability test
+          name: Cyclone Big data publisher interoperability test
           command: |
             build/cyclone_dds/CycloneDdsBigDataSubscriber &
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_big_data_publisher
             wait $pid
       - run:
-          name: Big data subscriber interoperability test
+          name: Cyclone Big data subscriber interoperability test
           command: |
             build/cyclone_dds/CycloneDdsBigDataPublisher &
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_big_data_subscriber
+            wait $pid
+      - run:
+          name: Cyclone publisher dispose interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
+          name: Cyclone subscriber dispose interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherDispose &
             wait $pid
 
   multi_machine_tests:
