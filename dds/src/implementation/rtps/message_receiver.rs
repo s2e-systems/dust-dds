@@ -1,10 +1,9 @@
-use crate::{
-    implementation::rtps::{
-        messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-        types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
-    },
-    infrastructure::time::{Time, TIME_INVALID},
+use crate::implementation::rtps::{
+    messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+    types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
 };
+
+use super::messages::{self, types::TIME_INVALID};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -14,7 +13,7 @@ pub struct MessageReceiver {
     _unicast_reply_locator_list: Vec<Locator>,
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
-    timestamp: Time,
+    timestamp: messages::types::Time,
     submessages: std::vec::IntoIter<RtpsSubmessageReadKind>,
 }
 
@@ -44,8 +43,7 @@ impl Iterator for MessageReceiver {
                 RtpsSubmessageReadKind::InfoTimestamp(m) => {
                     if !m.invalidate_flag() {
                         self.have_timestamp = true;
-                        self.timestamp =
-                            Time::new(m.timestamp().seconds() as i32, m.timestamp().fraction());
+                        self.timestamp = m.timestamp();
                     } else {
                         self.have_timestamp = false;
                         self.timestamp = TIME_INVALID;
@@ -97,7 +95,7 @@ impl MessageReceiver {
         self._multicast_reply_locator_list.as_ref()
     }
 
-    pub fn source_timestamp(&self) -> Option<Time> {
+    pub fn source_timestamp(&self) -> Option<messages::types::Time> {
         if self.have_timestamp {
             Some(self.timestamp)
         } else {

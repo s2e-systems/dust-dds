@@ -26,6 +26,7 @@ use crate::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
         rtps::{
+            self,
             message_receiver::MessageReceiver,
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
@@ -65,7 +66,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::{DurationKind, Time},
+        time::DurationKind,
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -377,8 +378,8 @@ impl DataReaderActor {
         data_submessage: &DataSubmessageRead,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        source_timestamp: Option<rtps::messages::types::Time>,
+        reception_timestamp: rtps::messages::types::Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
@@ -387,7 +388,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let writer_guid = Guid::new(source_guid_prefix, *data_submessage.writer_id());
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
         let message_reader_id = data_submessage.reader_id();
         match &mut self.rtps_reader {
@@ -411,7 +412,6 @@ impl DataReaderActor {
                                 }
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.key_flag(),
                                                 data_submessage.inline_qos().clone(),
                                                 data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
@@ -448,7 +448,6 @@ impl DataReaderActor {
                                 writer_proxy.received_change_set(sequence_number);
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.key_flag(),
                                                 data_submessage.inline_qos().clone(),
                                                 data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
@@ -483,14 +482,13 @@ impl DataReaderActor {
                 }
             }
             RtpsReaderKind::Stateless(r) => {
-                if message_reader_id == &ENTITYID_UNKNOWN
-                    || message_reader_id == &r.guid().entity_id()
+                if message_reader_id == ENTITYID_UNKNOWN
+                    || message_reader_id == r.guid().entity_id()
                 {
                     // Stateless reader behavior. We add the change if the data is correct. No error is printed
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
                     if let Ok(change) = self.convert_received_data_to_cache_change(
                         writer_guid,
-                        data_submessage.key_flag(),
                         data_submessage.inline_qos().clone(),
                         data_submessage.serialized_payload().clone(),
                         source_timestamp,
@@ -519,8 +517,8 @@ impl DataReaderActor {
         data_frag_submessage: &DataFragSubmessageRead,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        source_timestamp: Option<rtps::messages::types::Time>,
+        reception_timestamp: rtps::messages::types::Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
@@ -923,35 +921,25 @@ impl DataReaderActor {
     fn convert_received_data_to_cache_change(
         &mut self,
         writer_guid: Guid,
-        key_flag: bool,
         inline_qos: ParameterList,
         data: Data,
-        source_timestamp: Option<Time>,
-        reception_timestamp: Time,
+        source_timestamp: Option<rtps::messages::types::Time>,
+        reception_timestamp: rtps::messages::types::Time,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<RtpsReaderCacheChange> {
-        let change_kind = if key_flag {
-            if let Some(p) = inline_qos
-                .parameter()
-                .iter()
-                .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-            {
-                let mut deserializer =
-                    ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
-                let status_info: StatusInfo =
-                    CdrDeserialize::deserialize(&mut deserializer).unwrap();
-                match status_info {
-                    STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                    STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                    STATUS_INFO_DISPOSED_UNREGISTERED => {
-                        Ok(ChangeKind::NotAliveDisposedUnregistered)
-                    }
-                    _ => Err(DdsError::Error("Unknown status info value".to_string())),
-                }
-            } else {
-                Err(DdsError::Error(
-                    "Missing mandatory StatusInfo parameter in parameter list".to_string(),
-                ))
+        let change_kind = if let Some(p) = inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            let mut deserializer =
+                ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
+            let status_info: StatusInfo = CdrDeserialize::deserialize(&mut deserializer).unwrap();
+            match status_info {
+                STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
+                _ => Err(DdsError::Error("Unknown status info value".to_string())),
             }
         } else {
             Ok(ChangeKind::Alive)
@@ -1232,7 +1220,7 @@ impl DataReaderActor {
                 sample_rank: 0,     // To be filled up after collection is created
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
-                source_timestamp: cache_change.source_timestamp,
+                source_timestamp: cache_change.source_timestamp.map(Into::into),
                 instance_handle: cache_change.instance_handle,
                 publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
@@ -1862,7 +1850,7 @@ impl DataReaderActor {
     async fn process_rtps_message(
         &mut self,
         message: RtpsMessageRead,
-        reception_timestamp: Time,
+        reception_timestamp: rtps::messages::types::Time,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
         subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),

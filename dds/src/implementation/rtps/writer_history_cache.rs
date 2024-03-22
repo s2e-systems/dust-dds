@@ -1,5 +1,6 @@
 use super::{
     messages::{
+        self,
         submessage_elements::{Data, ParameterList},
         submessages::{data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite},
     },
@@ -8,7 +9,6 @@ use super::{
 use crate::infrastructure::{
     instance::InstanceHandle,
     qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-    time::Time,
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -17,7 +17,7 @@ pub struct RtpsWriterCacheChange {
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
-    timestamp: Time,
+    timestamp: messages::types::Time,
     data_value: Vec<Data>,
     inline_qos: ParameterList,
 }
@@ -134,7 +134,7 @@ impl RtpsWriterCacheChange {
         writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        timestamp: Time,
+        timestamp: messages::types::Time,
         data_value: Vec<Data>,
         inline_qos: ParameterList,
     ) -> Self {
@@ -163,7 +163,7 @@ impl RtpsWriterCacheChange {
         self.sequence_number
     }
 
-    pub fn timestamp(&self) -> Time {
+    pub fn timestamp(&self) -> messages::types::Time {
         self.timestamp
     }
 
@@ -241,10 +241,9 @@ impl WriterHistoryCache {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        implementation::rtps::types::GUID_UNKNOWN,
-        infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
-    };
+    use tests::messages::types::TIME_INVALID;
+
+    use crate::{implementation::rtps::types::GUID_UNKNOWN, infrastructure::instance::HANDLE_NIL};
 
     use super::*;
 

@@ -104,7 +104,7 @@ impl DataSubmessageRead {
         self.data_flag
     }
 
-    pub fn key_flag(&self) -> bool {
+    pub fn _key_flag(&self) -> bool {
         self.key_flag
     }
 
@@ -112,12 +112,12 @@ impl DataSubmessageRead {
         self.non_standard_payload_flag
     }
 
-    pub fn reader_id(&self) -> &EntityId {
-        &self.reader_id
+    pub fn reader_id(&self) -> EntityId {
+        self.reader_id
     }
 
-    pub fn writer_id(&self) -> &EntityId {
-        &self.writer_id
+    pub fn writer_id(&self) -> EntityId {
+        self.writer_id
     }
 
     pub fn writer_sn(&self) -> SequenceNumber {
@@ -402,9 +402,9 @@ mod tests {
 
         assert_eq!(inline_qos_flag, data_submessage._inline_qos_flag());
         assert_eq!(data_flag, data_submessage._data_flag());
-        assert_eq!(key_flag, data_submessage.key_flag());
-        assert_eq!(&reader_id, data_submessage.reader_id());
-        assert_eq!(&writer_id, data_submessage.writer_id());
+        assert_eq!(key_flag, data_submessage._key_flag());
+        assert_eq!(reader_id, data_submessage.reader_id());
+        assert_eq!(writer_id, data_submessage.writer_id());
         assert_eq!(writer_sn, data_submessage.writer_sn());
         assert_eq!(&inline_qos, data_submessage.inline_qos());
         assert_eq!(&serialized_payload, data_submessage.serialized_payload());

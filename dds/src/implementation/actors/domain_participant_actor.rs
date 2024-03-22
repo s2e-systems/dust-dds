@@ -3,6 +3,7 @@ use tracing::warn;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dds::infrastructure,
     dds_async::domain_participant::DomainParticipantAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
@@ -60,7 +61,7 @@ use crate::{
             ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
         },
         status::StatusKind,
-        time::{Duration, DurationKind, Time, DURATION_ZERO},
+        time::{Duration, DurationKind, DURATION_ZERO},
     },
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
@@ -1117,12 +1118,12 @@ impl DomainParticipantActor {
         self.status_kind.clone()
     }
 
-    async fn get_current_time(&self) -> Time {
+    async fn get_current_time(&self) -> infrastructure::time::Time {
         let now_system_time = SystemTime::now();
         let unix_time = now_system_time
             .duration_since(UNIX_EPOCH)
             .expect("Clock time is before Unix epoch start");
-        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+        infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     async fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
@@ -1179,7 +1180,7 @@ impl DomainParticipantActor {
             rtps_message = ?message,
             "Received metatraffic RTPS message"
         );
-        let reception_timestamp = self.get_current_time().await;
+        let reception_timestamp = self.get_current_time().await.into();
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber
             .send_mail_and_await_reply(subscriber_actor::process_rtps_message::new(
@@ -1213,7 +1214,7 @@ impl DomainParticipantActor {
             user_defined_subscriber_address
                 .send_mail(subscriber_actor::process_rtps_message::new(
                     message.clone(),
-                    self.get_current_time().await,
+                    self.get_current_time().await.into(),
                     user_defined_subscriber_address.clone(),
                     participant.clone(),
                     participant_mask_listener.clone(),
@@ -1453,18 +1454,25 @@ impl DomainParticipantActor {
                 .await
                 .expect("Can not fail to send mail to builtin reader")
             {
-                for (spdp_data_sample, _) in spdp_data_sample_list {
-                    match SpdpDiscoveredParticipantData::deserialize_data(
-                        spdp_data_sample.expect("Should contain data").as_ref(),
-                    ) {
-                        Ok(discovered_participant_data) => {
-                            self.process_discovered_participant_data(discovered_participant_data)
+                for (spdp_data_sample, spdp_sample_info) in spdp_data_sample_list {
+                    if let Some(spdp_data) = spdp_data_sample.as_ref() {
+                        match SpdpDiscoveredParticipantData::deserialize_data(spdp_data.as_ref()) {
+                            Ok(discovered_participant_data) => {
+                                self.process_discovered_participant_data(
+                                    discovered_participant_data,
+                                )
                                 .await
+                            }
+                            Err(e) => warn!(
+                                "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
+                                e
+                            ),
                         }
-                        Err(e) => warn!(
-                            "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
-                            e
-                        ),
+                    } else {
+                        warn!(
+                            "Received empty sample on spdp. Sample info: {:?}",
+                            spdp_sample_info
+                        )
                     }
                 }
             }
