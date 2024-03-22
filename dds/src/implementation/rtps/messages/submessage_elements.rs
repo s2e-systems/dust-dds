@@ -8,8 +8,8 @@ use crate::{
         rtps::{
             messages::types::{Count, FragmentNumber},
             types::{
-                Endianness, EntityId, FromBytes, GuidPrefix, Locator, ProtocolVersion,
-                SequenceNumber, TryFromBytes, TryReadFromBytes, VendorId,
+                Endianness, EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber,
+                TryFromBytes, TryReadFromBytes, VendorId,
             },
         },
     },
@@ -133,31 +133,21 @@ impl SequenceNumberSet {
 
 impl TryReadFromBytes for SequenceNumberSet {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 12 {
-            let high = i32::from_bytes(&data[0..], endianness);
-            let low = i32::from_bytes(&data[4..], endianness);
-            let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
+        let high = i32::try_read_from_bytes(data, endianness)?;
+        let low = i32::try_read_from_bytes(data, endianness)?;
+        let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
 
-            let num_bits = u32::from_bytes(&data[8..], endianness);
-            let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-            let mut bitmap = [0; 8];
-
-            data.consume(12);
-            for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-                *bitmap_i = i32::try_from_bytes(data, endianness)?;
-                data.consume(4);
-            }
-
-            Ok(Self {
-                base,
-                num_bits,
-                bitmap,
-            })
-        } else {
-            Err(DdsError::Error(
-                "SequenceNumberSet not enough data".to_string(),
-            ))
+        let num_bits = u32::try_read_from_bytes(data, endianness)?;
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let mut bitmap = [0; 8];
+        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+            *bitmap_i = i32::try_read_from_bytes(data, endianness)?;
         }
+        Ok(Self {
+            base,
+            num_bits,
+            bitmap,
+        })
     }
 }
 
@@ -192,33 +182,22 @@ impl FragmentNumberSet {
     }
 
     pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 12 {
-            let base = FragmentNumber::from_bytes(data, endianness);
-            data.consume(4);
+        let base = FragmentNumber::try_read_from_bytes(data, endianness)?;
+        let num_bits = u32::try_read_from_bytes(data, endianness)?;
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let mut bitmap = [0; 8];
 
-            let num_bits = u32::from_bytes(data, endianness);
-            let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-            let mut bitmap = [0; 8];
-
-            data.consume(4);
-            for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-                *bitmap_i = i32::try_from_bytes(data, endianness)?;
-                data.consume(4);
-            }
-
-            let mut set = Vec::with_capacity(256);
-            for delta_n in 0..num_bits as usize {
-                if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32))
-                {
-                    set.push(base + delta_n as u32);
-                }
-            }
-            Ok(Self::new(base, set))
-        } else {
-            Err(DdsError::Error(
-                "FragmentNumberSet not enough data".to_string(),
-            ))
+        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+            *bitmap_i = i32::try_read_from_bytes(data, endianness)?;
         }
+
+        let mut set = Vec::with_capacity(256);
+        for delta_n in 0..num_bits as usize {
+            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
+                set.push(base + delta_n as u32);
+            }
+        }
+        Ok(Self::new(base, set))
     }
 }
 
@@ -314,27 +293,25 @@ impl Parameter {
     }
 
     fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 4 {
-            let parameter_id = i16::from_bytes(&data[0..], endianness);
-            let length = i16::from_bytes(&data[2..], endianness);
-            data.consume(4);
-            if parameter_id != PID_SENTINEL && length % 4 != 0 {
-                return Err(DdsError::Error(
-                    "Parameter length not multiple of 4".to_string(),
-                ));
-            }
-            let value = if parameter_id == PID_SENTINEL {
-                ArcSlice::empty()
-            } else {
-                let value = data.sub_slice(0..length as usize)?;
-                data.consume(length as usize);
-                value
-            };
-
-            Ok(Self::new(parameter_id, value))
-        } else {
-            Err(DdsError::Error("Parameter not enough data".to_string()))
+        let mut slice = data.as_ref();
+        let len = slice.len();
+        let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
+        let length = i16::try_read_from_bytes(&mut slice, endianness)?;
+        data.consume(len - slice.len());
+        if parameter_id != PID_SENTINEL && length % 4 != 0 {
+            return Err(DdsError::Error(
+                "Parameter length not multiple of 4".to_string(),
+            ));
         }
+        let value = if parameter_id == PID_SENTINEL {
+            ArcSlice::empty()
+        } else {
+            let value = data.sub_slice(0..length as usize)?;
+            data.consume(length as usize);
+            value
+        };
+
+        Ok(Self::new(parameter_id, value))
     }
 }
 
@@ -667,11 +644,11 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            Count::from_bytes(
-                &[7, 0, 0, 0 , //value (long)
-                ],
+            Count::try_read_from_bytes(
+                &mut &[7, 0, 0, 0 , //value (long)
+                ][..],
                 &Endianness::LittleEndian
-            )
+            ).unwrap()
         );
     }
 
@@ -753,7 +730,7 @@ mod tests {
         let expected = ProtocolVersion::new(2, 3);
         assert_eq!(
             expected,
-            ProtocolVersion::from_bytes(&[2, 3], &Endianness::LittleEndian)
+            ProtocolVersion::try_read_from_bytes(&mut &[2, 3][..], &Endianness::LittleEndian).unwrap()
         );
     }
 
@@ -762,7 +739,7 @@ mod tests {
         let expected = [1, 2];
         assert_eq!(
             expected,
-            VendorId::from_bytes(&[1, 2,], &Endianness::LittleEndian)
+            VendorId::try_read_from_bytes(&mut &[1, 2][..], &Endianness::LittleEndian).unwrap()
         );
     }
 
@@ -781,11 +758,11 @@ mod tests {
         let expected = SequenceNumber::from(7);
         assert_eq!(
             expected,
-            SequenceNumber::try_from_bytes(
-                &[
+            SequenceNumber::try_read_from_bytes(
+                &mut &[
                     0, 0, 0, 0, // high (long)
                     7, 0, 0, 0, // low (unsigned long)
-                ],
+                ][..],
                 &Endianness::LittleEndian
             )
             .unwrap()
@@ -797,13 +774,13 @@ mod tests {
         let expected = SequenceNumber::from(i64::MAX);
         assert_eq!(
             expected,
-            SequenceNumber::from_bytes(
-                &[
+            SequenceNumber::try_read_from_bytes(
+                &mut &[
                     0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
                     0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
-                ],
+                ][..],
                 &Endianness::LittleEndian
-            )
+            ).unwrap()
         );
     }
 
@@ -812,11 +789,11 @@ mod tests {
         let expected = SequenceNumber::from(i64::MAX);
         assert_eq!(
             expected,
-            SequenceNumber::try_from_bytes(
-                &[
+            SequenceNumber::try_read_from_bytes(
+                &mut &[
                     0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
                     0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
-                ],
+                ][..],
                 &Endianness::LittleEndian
             )
             .unwrap()

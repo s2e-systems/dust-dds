@@ -5,7 +5,7 @@ use crate::{
 };
 use network_interface::Addr;
 use std::{
-    io::{BufRead, Read, Write},
+    io::{Read, Write},
     net::IpAddr,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
@@ -128,14 +128,7 @@ pub enum Endianness {
     BigEndian,
     LittleEndian,
 }
-impl FromBytes for GuidPrefix {
-    fn from_bytes(data: &[u8], _endianness: &Endianness) -> Self {
-        [
-            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
-            data[9], data[10], data[11],
-        ]
-    }
-}
+
 impl TryFromBytes for GuidPrefix {
     fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<Self> {
         if data.len() > 11 {
@@ -301,38 +294,6 @@ impl TryFromBytes for i16 {
     }
 }
 
-pub trait FromBytes {
-    fn from_bytes(data: &[u8], endianness: &Endianness) -> Self;
-}
-impl FromBytes for i16 {
-    fn from_bytes(data: &[u8], endianness: &Endianness) -> Self {
-        let bytes = [data[0], data[1]];
-        match endianness {
-            Endianness::BigEndian => i16::from_be_bytes(bytes),
-            Endianness::LittleEndian => i16::from_le_bytes(bytes),
-        }
-    }
-}
-impl FromBytes for u16 {
-    fn from_bytes(data: &[u8], endianness: &Endianness) -> Self {
-        let bytes = [data[0], data[1]];
-        match endianness {
-            Endianness::BigEndian => u16::from_be_bytes(bytes),
-            Endianness::LittleEndian => u16::from_le_bytes(bytes),
-        }
-    }
-}
-impl TryReadFromBytes for u16 {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let mut bytes = [0; 2];
-        data.read_exact(&mut bytes)?;
-        Ok(match endianness {
-            Endianness::BigEndian => u16::from_be_bytes(bytes),
-            Endianness::LittleEndian => u16::from_le_bytes(bytes),
-        })
-    }
-}
-
 impl TryFromBytes for u16 {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
         if data.len() >= 2 {
@@ -346,15 +307,7 @@ impl TryFromBytes for u16 {
         }
     }
 }
-impl FromBytes for i32 {
-    fn from_bytes(data: &[u8], endianness: &Endianness) -> Self {
-        let bytes = [data[0], data[1], data[2], data[3]];
-        match endianness {
-            Endianness::BigEndian => i32::from_be_bytes(bytes),
-            Endianness::LittleEndian => i32::from_le_bytes(bytes),
-        }
-    }
-}
+
 impl TryFromBytes for i32 {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
         if data.len() >= 4 {
@@ -368,15 +321,7 @@ impl TryFromBytes for i32 {
         }
     }
 }
-impl FromBytes for u32 {
-    fn from_bytes(data: &[u8], endianness: &Endianness) -> Self {
-        let bytes = [data[0], data[1], data[2], data[3]];
-        match endianness {
-            Endianness::BigEndian => u32::from_be_bytes(bytes),
-            Endianness::LittleEndian => u32::from_le_bytes(bytes),
-        }
-    }
-}
+
 impl TryFromBytes for u32 {
     fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
         if data.len() >= 4 {
@@ -391,46 +336,18 @@ impl TryFromBytes for u32 {
     }
 }
 
-impl TryFromBytes for SequenceNumber {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 8 {
-            let high = i32::from_bytes(&data[0..], endianness);
-            let low = u32::from_bytes(&data[4..], endianness);
-            let value = ((high as i64) << 32) + low as i64;
-            Ok(SequenceNumber::from(value))
-        } else {
-            Err(DdsError::Error(
-                "SequenceNumber not enough data".to_string(),
-            ))
-        }
-    }
-}
-
 impl TryReadFromBytes for SequenceNumber {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 8 {
-            let high = i32::from_bytes(&data[0..], endianness);
-            let low = u32::from_bytes(&data[4..], endianness);
-            let value = ((high as i64) << 32) + low as i64;
-            data.consume(8);
-            Ok(SequenceNumber::from(value))
-        } else {
-            Err(DdsError::Error(
-                "SequenceNumber not enough data".to_string(),
-            ))
-        }
+        let high = i32::try_read_from_bytes(data, endianness)?;
+        let low = u32::try_read_from_bytes(data, endianness)?;
+        let value = ((high as i64) << 32) + low as i64;
+        Ok(SequenceNumber::from(value))
     }
 }
 
 impl SequenceNumber {
     pub const fn new(high: Long, low: UnsignedLong) -> Self {
         Self { high, low }
-    }
-
-    pub fn from_bytes(data: &[u8], endianness: &Endianness) -> Self {
-        let high = i32::from_bytes(&data[0..], endianness);
-        let low = u32::from_bytes(&data[4..], endianness);
-        Self::new(high, low)
     }
 }
 impl From<SequenceNumber> for i64 {
@@ -631,14 +548,6 @@ pub struct ProtocolVersion {
     bytes: [u8; 2],
 }
 
-impl FromBytes for ProtocolVersion {
-    fn from_bytes(data: &[u8], _endianness: &Endianness) -> Self {
-        Self {
-            bytes: [data[0], data[1]],
-        }
-    }
-}
-
 impl TryReadFromBytes for ProtocolVersion {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
         let mut bytes = [0; 2];
@@ -671,7 +580,9 @@ pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
 
 impl ProtocolVersion {
     pub const fn new(major: Octet, minor: Octet) -> Self {
-        Self { bytes: [major, minor] }
+        Self {
+            bytes: [major, minor],
+        }
     }
     pub const fn _major(&self) -> Octet {
         self.bytes[0]
@@ -701,12 +612,6 @@ impl TryReadFromBytes for VendorId {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(bytes)
-    }
-}
-
-impl FromBytes for VendorId {
-    fn from_bytes(data: &[u8], _endianness: &Endianness) -> Self {
-        [data[0], data[1]]
     }
 }
 

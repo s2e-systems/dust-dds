@@ -28,7 +28,7 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{Endianness, FromBytes, GuidPrefix, ProtocolVersion, VendorId},
+        types::{Endianness, GuidPrefix, ProtocolVersion, VendorId, TryReadFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -93,7 +93,7 @@ impl SubmessageHeaderRead {
                 true => Endianness::LittleEndian,
                 false => Endianness::BigEndian,
             };
-            let submessage_length = u16::from_bytes(&data[2..], &endianness);
+            let submessage_length = u16::try_read_from_bytes(&mut &data[2..], &endianness)?;
             data.consume(4);
             Ok(Self {
                 submessage_id,

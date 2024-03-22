@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytes, SequenceNumber, TryFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -31,30 +31,31 @@ impl DataFragSubmessageRead {
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
     ) -> DdsResult<Self> {
+        let mut slice = data.as_ref();
         if data.len() >= 32 {
             let endianness = submessage_header.endianness();
             let inline_qos_flag = submessage_header.flags()[1];
             let key_flag = submessage_header.flags()[2];
             let non_standard_payload_flag = submessage_header.flags()[3];
 
-            let octets_to_inline_qos = u16::from_bytes(&data[2..], endianness) as usize + 4;
+            let _extra_flags = u16::try_read_from_bytes(&mut slice, endianness)?;
+            let octets_to_inline_qos = u16::try_read_from_bytes(&mut slice, endianness)? as usize + 4;
+            let reader_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
+            let writer_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
+            let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
+            let fragment_starting_num = FragmentNumber::try_read_from_bytes(&mut slice, endianness)?;
+            let fragments_in_submessage = u16::try_read_from_bytes(&mut slice, endianness)?;
+            let fragment_size = u16::try_read_from_bytes(&mut slice, endianness)?;
+            let data_size = u32::try_read_from_bytes(&mut slice, endianness)?;
 
-            let reader_id = EntityId::try_from_bytes(&data[4..], endianness)?;
-            let writer_id = EntityId::try_from_bytes(&data[8..], endianness)?;
-            let writer_sn = SequenceNumber::try_from_bytes(&data[12..], endianness)?;
-            let fragment_starting_num = FragmentNumber::try_from_bytes(&data[20..], endianness)?;
-            let fragments_in_submessage = u16::try_from_bytes(&data[24..], endianness)?;
-            let fragment_size = u16::try_from_bytes(&data[26..], endianness)?;
-            let data_size = u32::try_from_bytes(&data[28..], endianness)?;
-
-            let mut inline_qos_data = data.sub_slice_from(octets_to_inline_qos..);
+            let mut data_starting_at_inline_qos = data.sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
 
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_read_from_arc_slice(&mut inline_qos_data, endianness)?
+                ParameterList::try_read_from_arc_slice(&mut data_starting_at_inline_qos, endianness)?
             } else {
                 ParameterList::empty()
             };
-            let serialized_payload = Data::new(inline_qos_data);
+            let serialized_payload = Data::new(data_starting_at_inline_qos);
 
             Ok(Self {
                 inline_qos_flag,
