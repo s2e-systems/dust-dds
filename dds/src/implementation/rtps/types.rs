@@ -1,6 +1,6 @@
 use super::messages::overall_structure::WriteBytes;
 use crate::{
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
     serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
 };
 use network_interface::Addr;
@@ -129,19 +129,6 @@ pub enum Endianness {
     LittleEndian,
 }
 
-impl TryFromBytes for GuidPrefix {
-    fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() > 11 {
-            Ok([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
-                data[9], data[10], data[11],
-            ])
-        } else {
-            Err(DdsError::Error("GuidPrefix not enough data".to_string()))
-        }
-    }
-}
-
 impl TryReadFromBytes for GuidPrefix {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
         let mut guid_prefix = [0; 12];
@@ -161,10 +148,6 @@ impl Endianness {
 
 pub trait TryReadFromBytes: Sized {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;
-}
-
-pub trait TryFromBytes: Sized {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self>;
 }
 
 /// EntityId_t
@@ -209,16 +192,6 @@ impl TryReadFromBytes for EntityId {
             entity_key,
             entity_kind: entity_kind[0],
         })
-    }
-}
-
-impl TryFromBytes for EntityId {
-    fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<EntityId> {
-        if data.len() > 3 {
-            Ok(Self::new([data[0], data[1], data[2]], data[3]))
-        } else {
-            Err(DdsError::Error("EntityId not enough bytes".to_string()))
-        }
     }
 }
 
@@ -283,58 +256,6 @@ pub struct SequenceNumber {
 
 #[allow(dead_code)]
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber::new(-1, 0);
-
-impl TryFromBytes for i16 {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let bytes = data.try_into()?;
-        Ok(match endianness {
-            Endianness::BigEndian => i16::from_be_bytes(bytes),
-            Endianness::LittleEndian => i16::from_le_bytes(bytes),
-        })
-    }
-}
-
-impl TryFromBytes for u16 {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 2 {
-            let bytes = [data[0], data[1]];
-            Ok(match endianness {
-                Endianness::BigEndian => u16::from_be_bytes(bytes),
-                Endianness::LittleEndian => u16::from_le_bytes(bytes),
-            })
-        } else {
-            Err(DdsError::Error("u16 not enough data".to_string()))
-        }
-    }
-}
-
-impl TryFromBytes for i32 {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 4 {
-            let bytes = [data[0], data[1], data[2], data[3]];
-            Ok(match endianness {
-                Endianness::BigEndian => i32::from_be_bytes(bytes),
-                Endianness::LittleEndian => i32::from_le_bytes(bytes),
-            })
-        } else {
-            Err(DdsError::Error("i32 not enough data".to_string()))
-        }
-    }
-}
-
-impl TryFromBytes for u32 {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() >= 4 {
-            let bytes = [data[0], data[1], data[2], data[3]];
-            Ok(match endianness {
-                Endianness::BigEndian => u32::from_be_bytes(bytes),
-                Endianness::LittleEndian => u32::from_le_bytes(bytes),
-            })
-        } else {
-            Err(DdsError::Error("u32 not enough data".to_string()))
-        }
-    }
-}
 
 impl TryReadFromBytes for SequenceNumber {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
@@ -423,6 +344,16 @@ impl WriteBytes for Locator {
         self.port.write_bytes(&mut buf[4..]);
         self.address.write_bytes(&mut buf[8..]);
         24
+    }
+}
+
+impl TryReadFromBytes for Locator {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let kind = i32::try_read_from_bytes(data, endianness)?;
+        let port = u32::try_read_from_bytes(data, endianness)?;
+        let mut address = [0; 16];
+        data.read_exact(&mut address)?;
+        Ok(Self::new(kind, port, address))
     }
 }
 
@@ -596,16 +527,6 @@ impl ProtocolVersion {
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
 pub type VendorId = [Octet; 2];
-
-impl TryFromBytes for VendorId {
-    fn try_from_bytes(data: &[u8], _endianness: &Endianness) -> DdsResult<Self> {
-        if data.len() > 1 {
-            Ok([data[0], data[1]])
-        } else {
-            Err(DdsError::Error("GuidPrefix not enough data".to_string()))
-        }
-    }
-}
 
 impl TryReadFromBytes for VendorId {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {

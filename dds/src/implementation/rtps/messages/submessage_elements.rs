@@ -9,14 +9,13 @@ use crate::{
             messages::types::{Count, FragmentNumber},
             types::{
                 Endianness, EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber,
-                TryFromBytes, TryReadFromBytes, VendorId,
+                TryReadFromBytes, VendorId,
             },
         },
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 use std::{
-    io::BufRead,
     ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };
@@ -243,12 +242,10 @@ impl LocatorList {
 
 impl TryReadFromBytes for LocatorList {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let num_locators = u32::try_from_bytes(data, endianness)?;
-        data.consume(4);
+        let num_locators = u32::try_read_from_bytes(data, endianness)?;
         let mut locator_list = Vec::new();
         for _ in 0..num_locators {
-            locator_list.push(Locator::try_from_bytes(data, endianness)?);
-            data.consume(24)
+            locator_list.push(Locator::try_read_from_bytes(data, endianness)?);
         }
         Ok(Self::new(locator_list))
     }
@@ -546,18 +543,6 @@ impl WriteBytes for &Data {
     }
 }
 
-impl TryFromBytes for Locator {
-    fn try_from_bytes(data: &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let kind = i32::try_from_bytes(&data[0..], endianness)?;
-        let port = u32::try_from_bytes(&data[4..], endianness)?;
-        let address = [
-            data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15], data[16],
-            data[17], data[18], data[19], data[20], data[21], data[22], data[23],
-        ];
-        Ok(Self::new(kind, port, address))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -648,7 +633,8 @@ mod tests {
                 &mut &[7, 0, 0, 0 , //value (long)
                 ][..],
                 &Endianness::LittleEndian
-            ).unwrap()
+            )
+            .unwrap()
         );
     }
 
@@ -681,10 +667,10 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            FragmentNumber::try_from_bytes(
-                &[
+            FragmentNumber::try_read_from_bytes(
+                &mut &[
                 7, 0, 0, 0, // (unsigned long)
-            ],
+            ][..],
                 &Endianness::LittleEndian
             )
             .unwrap()
@@ -718,11 +704,11 @@ mod tests {
     fn deserialize_guid_prefix() {
         let expected = [1; 12];
         #[rustfmt::skip]
-        assert_eq!(expected, GuidPrefix::try_from_bytes(&[
+        assert_eq!(expected, GuidPrefix::try_read_from_bytes(&mut &[
             1, 1, 1, 1,
             1, 1, 1, 1,
             1, 1, 1, 1,
-        ], &Endianness::LittleEndian).unwrap());
+        ][..], &Endianness::LittleEndian).unwrap());
     }
 
     #[test]
@@ -730,7 +716,8 @@ mod tests {
         let expected = ProtocolVersion::new(2, 3);
         assert_eq!(
             expected,
-            ProtocolVersion::try_read_from_bytes(&mut &[2, 3][..], &Endianness::LittleEndian).unwrap()
+            ProtocolVersion::try_read_from_bytes(&mut &[2, 3][..], &Endianness::LittleEndian)
+                .unwrap()
         );
     }
 
@@ -780,7 +767,8 @@ mod tests {
                     0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
                 ][..],
                 &Endianness::LittleEndian
-            ).unwrap()
+            )
+            .unwrap()
         );
     }
 
