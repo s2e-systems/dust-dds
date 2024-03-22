@@ -39,6 +39,15 @@ target_link_libraries(CycloneDdsBigDataPublisher PRIVATE
   BigDataGeneratedIdl
 )
 
+
+add_executable(CycloneDdsSubscriberDispose
+  cyclone_dds_subscriber_dispose.c
+)
+target_link_libraries(CycloneDdsSubscriberDispose PRIVATE
+  CycloneDDS::ddsc
+  DisposeDataGeneratedIdl
+)
+
 add_executable(CycloneDdsPublisherDispose
   cyclone_dds_publisher_dispose.c
 )

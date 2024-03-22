@@ -87,6 +87,8 @@ fn main() {
         InstanceStateKind::NotAliveDisposed,
     );
 
+    println!("Received disposed instance state");
+
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));
 }
