@@ -7,6 +7,8 @@ set (CMAKE_CXX_STANDARD 11)
 
 set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx PROPERTIES GENERATED TRUE)
 set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx PROPERTIES GENERATED TRUE)
+set_source_files_properties(${CMAKE_BINARY_DIR}/idl/DisposeData.cxx PROPERTIES GENERATED TRUE)
+set_source_files_properties(${CMAKE_BINARY_DIR}/idl/DisposeDataPubSubTypes.cxx PROPERTIES GENERATED TRUE)
 
 add_executable(FastDdsPublisher
   fast_dds_publisher.cpp
