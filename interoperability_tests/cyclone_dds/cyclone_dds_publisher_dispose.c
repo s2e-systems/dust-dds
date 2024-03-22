@@ -79,5 +79,5 @@ int main(int argc, char *argv[])
 	}
 
 	// Sleep to allow sending acknowledgements
-	dds_sleepfor(DDS_SECS(10));
+	dds_sleepfor(DDS_SECS(5));
 }
