@@ -32,9 +32,8 @@ use crate::{
     },
     infrastructure::error::{DdsError, DdsResult},
 };
-use std::{io::BufRead, marker::PhantomData, sync::Arc};
+use std::{io::BufRead, sync::Arc};
 
-pub(in crate::implementation::rtps) type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
 
 pub trait Submessage<'a> {
@@ -69,6 +68,13 @@ pub struct SubmessageHeaderRead {
 }
 
 impl SubmessageHeaderRead {
+    pub fn try_read_from_arc_slice(data: &mut ArcSlice) -> DdsResult<Self> {
+        let mut data_slice = data.as_ref();
+        let this = Self::try_read_from_bytes(&mut data_slice)?;
+        data.consume(4);
+        Ok(this)
+    }
+
     pub fn try_read_from_bytes(data: &mut &[u8]) -> DdsResult<Self> {
         if data.len() >= 4 {
             let submessage_id = data[0];
@@ -161,11 +167,8 @@ impl RtpsMessageRead {
             if data.len() < 4 {
                 break;
             }
-            let mut data_slice = data.as_ref();
-            if let Ok(submessage_header) =
-                SubmessageHeaderRead::try_read_from_bytes(&mut data_slice)
+            if let Ok(submessage_header) = SubmessageHeaderRead::try_read_from_arc_slice(&mut data)
             {
-                data.consume(4);
                 let submessage_length = submessage_header.submessage_length() as usize;
                 if data.len() < submessage_length {
                     break;
@@ -384,21 +387,12 @@ impl SubmessageHeaderWrite {
     }
 }
 
-struct EndiannessFlag<E> {
-    endianness: PhantomData<E>,
-}
-impl EndiannessFlag<byteorder::LittleEndian> {
-    fn get() -> bool {
-        true
-    }
-}
-
 impl WriteBytes for SubmessageHeaderWrite {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
         let flags = [
-            EndiannessFlag::<WriteEndianness>::get(),
+            true,
             self.flags[0],
             self.flags[1],
             self.flags[2],
@@ -530,8 +524,6 @@ mod tests {
         let rtps_message = RtpsMessageRead::new(data).unwrap();
         assert_eq!(rtps_message.submessages(), vec![]);
     }
-
-
 
     #[test]
     fn deserialize_rtps_message() {

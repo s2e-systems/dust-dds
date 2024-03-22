@@ -1,12 +1,11 @@
-use super::messages::overall_structure::{WriteBytes, WriteEndianness};
+use super::messages::overall_structure::WriteBytes;
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
     serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
 };
-use byteorder::ByteOrder;
 use network_interface::Addr;
 use std::{
-    io::BufRead,
+    io::{BufRead, Write},
     net::IpAddr,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
@@ -20,35 +19,33 @@ type Octet = u8;
 type Long = i32;
 type UnsignedLong = u32;
 
+const MSG: &'static str = "buf overflow";
+
 impl WriteBytes for Long {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i32(buf, *self);
-        4
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(i32::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
 impl WriteBytes for UnsignedLong {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u32(buf, *self);
-        4
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(u32::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
 impl WriteBytes for u16 {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u16(buf, *self);
-        2
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(u16::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
 impl WriteBytes for i16 {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i16(buf, *self);
-        2
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(i16::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
