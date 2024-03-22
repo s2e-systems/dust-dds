@@ -88,5 +88,5 @@ fn main() {
     println!("Received disposed instance state");
 
     // Sleep to allow sending acknowledgements
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }
