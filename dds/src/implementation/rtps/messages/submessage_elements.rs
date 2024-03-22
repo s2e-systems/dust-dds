@@ -586,6 +586,15 @@ mod tests {
     };
 
     #[test]
+    fn arc_slice_sub_slice() {
+        let data = ArcSlice::from([0, 1, 2, 3, 4, 5]);
+        let sub_data = data.sub_slice(1..5).unwrap();
+        assert_eq!(&sub_data[0..], &[1,2,3,4]);
+        let sub_sub_data = sub_data.sub_slice(1..3).unwrap();
+        assert_eq!(&sub_sub_data[0..], &[2,3]);
+    }
+
+    #[test]
     fn sequence_number_set_methods() {
         let base = SequenceNumber::from(100);
         let set = [

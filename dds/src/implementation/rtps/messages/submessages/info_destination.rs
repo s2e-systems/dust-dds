@@ -64,9 +64,8 @@ impl<'a> Submessage<'a> for InfoDestinationSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
-            submessage_elements::ArcSlice,
+        messages::overall_structure::{
+            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
         },
         types::GUIDPREFIX_UNKNOWN,
     };
@@ -98,8 +97,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            InfoDestinationSubmessageRead::try_from_bytes(&submessage_header, data)
-                .unwrap();
+            InfoDestinationSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
         assert_eq!(expected_guid_prefix, submessage.guid_prefix());

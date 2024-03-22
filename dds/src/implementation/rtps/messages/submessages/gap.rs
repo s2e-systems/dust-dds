@@ -91,9 +91,8 @@ impl<'a> Submessage<'a> for GapSubmessageWrite<'a> {
 #[cfg(test)]
 mod tests {
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
-            submessage_elements::ArcSlice,
+        messages::overall_structure::{
+            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };

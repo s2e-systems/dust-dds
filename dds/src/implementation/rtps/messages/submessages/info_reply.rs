@@ -90,9 +90,8 @@ impl<'a> Submessage<'a> for InfoReplySubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
-            submessage_elements::ArcSlice,
+        messages::overall_structure::{
+            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
         },
         types::Locator,
     };
@@ -133,8 +132,7 @@ mod tests {
             1, 1, 1, 1, //address
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let locator = Locator::new(11, 12, [1; 16]);
         let expected_multicast_flag = false;
         let expected_unicast_locator_list = LocatorList::new(vec![locator]);
@@ -172,8 +170,7 @@ mod tests {
             2, 2, 2, 2, //address
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(11, 12, [2; 16]);
         let expected_multicast_flag = true;

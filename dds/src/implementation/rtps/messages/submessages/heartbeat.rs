@@ -164,7 +164,7 @@ mod tests {
         let expected_last_sn = SequenceNumber::from(7);
         let expected_count = 2;
         #[rustfmt::skip]
-        let data = &[
+        let mut data = &[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -173,9 +173,9 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ];
-        let submessage_header = SubmessageHeaderRead::try_from_bytes(data).unwrap();
-        let submessage = HeartbeatSubmessageRead::try_from_bytes(&submessage_header, &data[4..]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage = HeartbeatSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());

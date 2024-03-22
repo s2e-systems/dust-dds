@@ -42,10 +42,11 @@ impl DataSubmessageRead {
             let writer_sn =
                 SequenceNumber::try_from_bytes(&data[12..], submessage_header.endianness())?;
 
-            let mut inline_qos_data = data.sub_slice_from(octets_to_inline_qos..);
+            let mut data_starting_at_inline_qos = data
+                .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
             let inline_qos = if inline_qos_flag {
                 ParameterList::try_read_from_arc_slice(
-                    &mut inline_qos_data,
+                    &mut data_starting_at_inline_qos,
                     submessage_header.endianness(),
                 )?
             } else {
@@ -53,7 +54,7 @@ impl DataSubmessageRead {
             };
 
             let serialized_payload = if data_flag || key_flag {
-                Data::new(inline_qos_data)
+                Data::new(data_starting_at_inline_qos)
             } else {
                 Data::empty()
             };
@@ -429,6 +430,7 @@ mod tests {
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
             1, 2, 3, 4, // SerializedPayload
+            123, 123, 123 // Following data
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage =
@@ -479,7 +481,7 @@ mod tests {
 
         #[rustfmt::skip]
         let mut data = &[
-            0x15, 0b_0000_0111, 40, 0, // Submessage header
+            0x15, 0b_0000_0111, 44, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -511,7 +513,7 @@ mod tests {
         ]);
         #[rustfmt::skip]
         let mut data = &[
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0x15, 0b_0000_0011, 44, 0, // Submessage header
             123, 123, 20, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]

@@ -101,9 +101,8 @@ impl<'a> Submessage<'a> for NackFragSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
-            submessage_elements::ArcSlice,
+        messages::overall_structure::{
+            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
@@ -145,8 +144,7 @@ mod tests {
             6, 0, 0, 0, // count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            NackFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = NackFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

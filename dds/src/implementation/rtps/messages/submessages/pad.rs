@@ -48,9 +48,8 @@ impl<'a> Submessage<'a> for PadSubmessageWrite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::{
-        overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
-        submessage_elements::ArcSlice,
+    use crate::implementation::rtps::messages::overall_structure::{
+        into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
     };
 
     #[test]

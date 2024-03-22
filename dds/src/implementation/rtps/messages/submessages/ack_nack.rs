@@ -106,10 +106,7 @@ impl<'a> Submessage<'a> for AckNackSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
-            submessage_elements::ArcSlice,
-        },
+        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
         types::{SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
