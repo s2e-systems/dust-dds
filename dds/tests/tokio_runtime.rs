@@ -30,7 +30,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
 
     let participant_factory = DomainParticipantFactoryAsync::new(tokio::runtime::Handle::current());
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .await
         .unwrap();
     let topic = participant

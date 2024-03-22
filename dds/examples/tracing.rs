@@ -36,7 +36,7 @@ fn main() {
     let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant

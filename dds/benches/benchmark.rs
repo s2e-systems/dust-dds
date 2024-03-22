@@ -26,7 +26,7 @@ struct KeyedData {
 pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<KeyedData>(
@@ -70,7 +70,7 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<KeyedData>(
@@ -132,7 +132,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<KeyedData>(
@@ -219,7 +219,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     let domain_id = 203;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<LargeKeyedData>(

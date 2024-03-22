@@ -25,7 +25,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -76,10 +76,10 @@ fn main() {
         .unwrap();
 
     if samples[0].sample_info().instance_state != InstanceStateKind::NotAliveDisposed {
-    wait_set.wait(Duration::new(30, 0)).unwrap();
+        wait_set.wait(Duration::new(30, 0)).unwrap();
         samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
+            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
     }
 
     assert_eq!(

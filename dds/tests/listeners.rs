@@ -68,7 +68,7 @@ fn deadline_missed_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(Box::new(participant_listener)),
             &[StatusKind::RequestedDeadlineMissed],
         )
         .unwrap();
@@ -175,7 +175,7 @@ fn sample_rejected_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(Box::new(participant_listener)),
             &[StatusKind::SampleRejected],
         )
         .unwrap();
@@ -292,7 +292,7 @@ fn subscription_matched_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(Box::new(participant_listener)),
             &[StatusKind::SubscriptionMatched],
         )
         .unwrap();
@@ -387,7 +387,7 @@ fn requested_incompatible_qos_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(Box::new(participant_listener)),
             &[StatusKind::RequestedIncompatibleQos],
         )
         .unwrap();
@@ -482,7 +482,7 @@ fn publication_matched_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(Box::new(participant_listener)),
             &[StatusKind::PublicationMatched],
         )
         .unwrap();
@@ -578,7 +578,7 @@ fn offered_incompatible_qos_listener() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            participant_listener,
+            Some(Box::new(participant_listener)),
             &[StatusKind::OfferedIncompatibleQos],
         )
         .unwrap();
@@ -665,7 +665,7 @@ fn on_data_available_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -753,7 +753,7 @@ fn data_on_readers_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -857,7 +857,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -958,7 +958,7 @@ fn participant_deadline_missed_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1060,7 +1060,7 @@ fn participant_sample_rejected_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1175,7 +1175,7 @@ fn participant_subscription_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1266,7 +1266,7 @@ fn participant_requested_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1356,7 +1356,7 @@ fn publisher_publication_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1450,7 +1450,7 @@ fn publisher_offered_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1544,7 +1544,7 @@ fn subscriber_deadline_missed_listener() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1648,7 +1648,7 @@ fn subscriber_sample_rejected_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1763,7 +1763,7 @@ fn subscriber_subscription_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1857,7 +1857,7 @@ fn subscriber_requested_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -1952,7 +1952,7 @@ fn data_writer_publication_matched_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -2045,7 +2045,7 @@ fn data_writer_offered_incompatible_qos_listener() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -2144,7 +2144,7 @@ fn non_sync_listener_should_be_accepted() {
         .create_participant(
             domain_id,
             QosKind::Default,
-            NonSyncListener::new(),
+            Some(Box::new(NonSyncListener::new())),
             NO_STATUS,
         )
         .unwrap();

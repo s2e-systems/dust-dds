@@ -32,7 +32,7 @@ fn foo_with_lifetime_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -127,7 +127,7 @@ fn foo_with_non_consecutive_key_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -272,7 +272,7 @@ fn foo_with_specialized_type_support_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -374,7 +374,7 @@ fn foo_enumerator_should_read_and_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant

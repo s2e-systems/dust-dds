@@ -128,7 +128,7 @@ impl Default for ShapesDemoApp {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
         let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
             .unwrap();
         let publisher = participant
             .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)

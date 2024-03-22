@@ -38,115 +38,185 @@ impl<T> ListenerSyncToAsync<T> {
     }
 }
 
-impl<T> DomainParticipantListenerAsync for ListenerSyncToAsync<T>
-where
-    T: DomainParticipantListener,
-{
+impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send> {
     fn on_inconsistent_topic(
         &mut self,
         the_topic: TopicAsync,
         status: InconsistentTopicStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_inconsistent_topic(Topic::new(the_topic), status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_inconsistent_topic(
+                self.as_mut(),
+                Topic::new(the_topic),
+                status,
+            )
+        });
+        Box::pin(async {})
     }
 
-    fn on_liveliness_lost(
-        &mut self,
-        the_writer: &dyn AnyDataWriter,
+    fn on_liveliness_lost<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
         status: LivelinessLostStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_liveliness_lost(the_writer, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_liveliness_lost(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
     }
 
-    fn on_offered_deadline_missed(
-        &mut self,
-        the_writer: &dyn AnyDataWriter,
+    fn on_offered_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
         status: OfferedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_offered_deadline_missed(the_writer, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_offered_deadline_missed(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
     }
 
-    fn on_offered_incompatible_qos(
-        &mut self,
-        the_writer: &dyn AnyDataWriter,
+    fn on_offered_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
         status: OfferedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_offered_incompatible_qos(the_writer, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_offered_incompatible_qos(
+                self.as_mut(),
+                the_writer,
+                status,
+            )
+        });
+        Box::pin(async {})
     }
 
-    fn on_sample_lost(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_sample_lost<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: SampleLostStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_sample_lost(the_reader, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_sample_lost(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
     }
 
-    fn on_data_available(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_data_available(the_reader));
-        async {}
+    fn on_data_available<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_data_available(self.as_mut(), the_reader)
+        });
+        Box::pin(async {})
     }
 
-    fn on_sample_rejected(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_sample_rejected<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: SampleRejectedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_sample_rejected(the_reader, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_sample_rejected(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
     }
 
-    fn on_liveliness_changed(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_liveliness_changed<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: LivelinessChangedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_liveliness_changed(the_reader, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_liveliness_changed(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
     }
 
-    fn on_requested_deadline_missed(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_requested_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: RequestedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_requested_deadline_missed(the_reader, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_requested_deadline_missed(
+                self.as_mut(),
+                the_reader,
+                status,
+            )
+        });
+        Box::pin(async {})
     }
 
-    fn on_requested_incompatible_qos(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_requested_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: RequestedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_requested_incompatible_qos(the_reader, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_requested_incompatible_qos(
+                self.as_mut(),
+                the_reader,
+                status,
+            )
+        });
+        Box::pin(async {})
     }
 
-    fn on_publication_matched(
-        &mut self,
-        the_writer: &dyn AnyDataWriter,
+    fn on_publication_matched<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
         status: PublicationMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_publication_matched(the_writer, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_publication_matched(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
     }
 
-    fn on_subscription_matched(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_subscription_matched<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: SubscriptionMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        tokio::task::block_in_place(|| self.0.on_subscription_matched(the_reader, status));
-        async {}
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_subscription_matched(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
     }
 }
 

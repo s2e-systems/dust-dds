@@ -786,12 +786,12 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
             .send_mail_and_await_reply(domain_participant_actor::set_listener::new(
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.runtime_handle.clone(),
             ))

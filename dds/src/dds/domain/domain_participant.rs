@@ -1,6 +1,9 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dds_async::domain_participant::DomainParticipantAsync,
+    dds_async::{
+        domain_participant::DomainParticipantAsync,
+        domain_participant_listener::DomainParticipantListenerAsync,
+    },
     implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
@@ -536,13 +539,18 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.participant_async.runtime_handle().block_on(
-            self.participant_async
-                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
-        )
+        self.participant_async
+            .runtime_handle()
+            .block_on(
+                self.participant_async.set_listener(
+                    a_listener
+                        .map::<Box<dyn DomainParticipantListenerAsync + Send>, _>(|b| Box::new(b)),
+                    mask,
+                ),
+            )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
