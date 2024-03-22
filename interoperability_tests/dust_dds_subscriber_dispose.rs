@@ -71,17 +71,14 @@ fn main() {
         .unwrap();
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
-    let mut samples = reader
+    reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    // Try to get a second sample in case instance not yet disposed
-    if samples[0].sample_info().instance_state != InstanceStateKind::NotAliveDisposed {
-        wait_set.wait(Duration::new(30, 0)).unwrap();
-        samples = reader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap();
-    }
+    wait_set.wait(Duration::new(30, 0)).unwrap();
+    let samples = reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
 
     assert_eq!(
         samples[0].sample_info().instance_state,

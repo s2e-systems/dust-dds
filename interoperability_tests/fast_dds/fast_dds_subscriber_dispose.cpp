@@ -55,21 +55,17 @@ int main(int argc, char *argv[])
 	{
 		throw std::runtime_error{"take_next_sample failed with"};
 	}
-	if info
-		.instance_state != InstanceStateKind::NOT_ALIVE_DISPOSED_INSTANCE_STATE
-		{
 
-			ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastrtps::Duration_t{30, 0});
-			if (ret_wait_data != ReturnCode_t::RETCODE_OK)
-			{
-				throw std::runtime_error{"No data available on time"};
-			}
+	ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastrtps::Duration_t{30, 0});
+	if (ret_wait_data != ReturnCode_t::RETCODE_OK)
+	{
+		throw std::runtime_error{"No data available on time"};
+	}
 
-			if (reader->take_next_sample(&sample, &info) != ReturnCode_t::RETCODE_OK)
-			{
-				throw std::runtime_error{"take_next_sample failed with"};
-			}
-		}
+	if (reader->take_next_sample(&sample, &info) != ReturnCode_t::RETCODE_OK)
+	{
+		throw std::runtime_error{"take_next_sample failed with"};
+	}
 
 	if (info.instance_state != InstanceStateKind::NOT_ALIVE_DISPOSED_INSTANCE_STATE)
 	{
