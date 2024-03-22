@@ -1,6 +1,6 @@
 use super::overall_structure::WriteBytes;
 use crate::{
-    implementation::rtps::types::{Endianness, TryFromBytes},
+    implementation::rtps::types::{Endianness, TryFromBytes, TryReadFromBytes},
     infrastructure::error::{DdsError, DdsResult},
 };
 use std::io::{BufRead, Read};
@@ -12,6 +12,28 @@ type Octet = u8;
 type Long = i32;
 type UnsignedLong = u32;
 type Short = i16;
+
+impl TryReadFromBytes for Long {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 4];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => i32::from_be_bytes(bytes),
+            Endianness::LittleEndian => i32::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for UnsignedLong {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 4];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => u32::from_be_bytes(bytes),
+            Endianness::LittleEndian => u32::from_le_bytes(bytes),
+        })
+    }
+}
 
 /// ProtocolId_t
 /// Enumeration used to identify the protocol.

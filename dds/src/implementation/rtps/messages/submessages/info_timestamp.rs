@@ -16,13 +16,13 @@ pub struct InfoTimestampSubmessageRead {
 impl InfoTimestampSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
         let invalidate_flag = submessage_header.flags()[1];
         let timestamp = if invalidate_flag {
             TIME_INVALID
         } else {
-            Time::try_read_from_bytes(&mut &data[0..], submessage_header.endianness())?
+            Time::try_read_from_bytes(&mut data, submessage_header.endianness())?
         };
         Ok(Self {
             invalidate_flag,

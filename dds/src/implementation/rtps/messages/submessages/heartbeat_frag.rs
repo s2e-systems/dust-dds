@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::{Count, FragmentNumber, SubmessageKind},
         },
-        types::{EntityId, FromBytes, SequenceNumber},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -22,22 +22,16 @@ pub struct HeartbeatFragSubmessageRead {
 impl HeartbeatFragSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 24 {
-            let endianness = submessage_header.endianness();
-            Ok(Self {
-                reader_id: EntityId::from_bytes(&data[0..]),
-                writer_id: EntityId::from_bytes(&data[4..]),
-                writer_sn: SequenceNumber::from_bytes(&data[8..], endianness),
-                last_fragment_num: FragmentNumber::from_bytes(&data[16..], endianness),
-                count: Count::from_bytes(&data[20..], endianness),
-            })
-        } else {
-            Err(DdsError::Error(
-                "HeartbeatFrag submessage invalid".to_string(),
-            ))
-        }
+        let endianness = submessage_header.endianness();
+        Ok(Self {
+            reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_sn: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            last_fragment_num: FragmentNumber::try_read_from_bytes(&mut data, endianness)?,
+            count: Count::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn _reader_id(&self) -> EntityId {

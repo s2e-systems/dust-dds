@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::{FragmentNumberSet, SubmessageElement},
             types::{Count, SubmessageKind},
         },
-        types::{EntityId, FromBytes, SequenceNumber, TryFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -22,21 +22,16 @@ pub struct NackFragSubmessageRead {
 impl NackFragSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 28 {
-            let endianness = submessage_header.endianness();
-            let mut buf = &data[16..];
-            Ok(Self {
-                reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
-                writer_sn: SequenceNumber::try_from_bytes(&data[8..], endianness)?,
-                fragment_number_state: FragmentNumberSet::try_read_from_bytes(&mut buf, endianness)?,
-                count: Count::from_bytes(buf, endianness),
-            })
-        } else {
-            Err(DdsError::Error("NackFrag submessage invalid".to_string()))
-        }
+        let endianness = submessage_header.endianness();
+        Ok(Self {
+            reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_sn: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            fragment_number_state: FragmentNumberSet::try_read_from_bytes(&mut data, endianness)?,
+            count: Count::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn reader_id(&self) -> EntityId {

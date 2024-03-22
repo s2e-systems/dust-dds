@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytes, TryReadFromBytes},
+        types::{EntityId, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -22,21 +22,16 @@ pub struct AckNackSubmessageRead {
 impl AckNackSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 24 {
             let endianness = submessage_header.endianness();
-            let mut buf = &data[8..];
             Ok(Self {
                 final_flag: submessage_header.flags()[1],
-                reader_id: EntityId::from_bytes(&data[0..]),
-                writer_id: EntityId::from_bytes(&data[4..]),
-                reader_sn_state: SequenceNumberSet::try_read_from_bytes(&mut buf, endianness)?,
-                count: Count::from_bytes(buf, endianness),
+                reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+                writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+                reader_sn_state: SequenceNumberSet::try_read_from_bytes(&mut data, endianness)?,
+                count: Count::try_read_from_bytes(&mut data, endianness)?,
             })
-        } else {
-            Err(DdsError::Error("AckNack submessage invalid".to_string()))
-        }
     }
 
     pub fn _final_flag(&self) -> bool {

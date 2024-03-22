@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytes, SequenceNumber},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -22,21 +22,20 @@ pub struct HeartbeatSubmessageRead {
 }
 
 impl HeartbeatSubmessageRead {
-    pub fn try_from_bytes(submessage_header: &SubmessageHeaderRead, data: &[u8]) -> DdsResult<Self> {
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        mut data: &[u8],
+    ) -> DdsResult<Self> {
         let endianness = submessage_header.endianness();
-        if data.len() >= 28 {
-            Ok(Self {
-                final_flag: submessage_header.flags()[1],
-                liveliness_flag: submessage_header.flags()[2],
-                reader_id: EntityId::from_bytes(&data[0..]),
-                writer_id: EntityId::from_bytes(&data[4..]),
-                first_sn: SequenceNumber::from_bytes(&data[8..], endianness),
-                last_sn: SequenceNumber::from_bytes(&data[16..], endianness),
-                count: Count::from_bytes(&data[24..], endianness),
-            })
-        } else {
-            Err(DdsError::Error("Heartbeat submessage invalid".to_string()))
-        }
+        Ok(Self {
+            final_flag: submessage_header.flags()[1],
+            liveliness_flag: submessage_header.flags()[2],
+            reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            first_sn: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            last_sn: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            count: Count::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn final_flag(&self) -> bool {

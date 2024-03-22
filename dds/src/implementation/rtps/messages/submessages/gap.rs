@@ -7,7 +7,7 @@ use crate::{
         },
         types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,19 +21,15 @@ pub struct GapSubmessageRead {
 impl GapSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 28 {
-            let endianness = submessage_header.endianness();
-            Ok(Self {
-                reader_id: EntityId::from_bytes(&data[0..]),
-                writer_id: EntityId::from_bytes(&data[4..]),
-                gap_start: SequenceNumber::from_bytes(&data[8..], endianness),
-                gap_list: SequenceNumberSet::try_read_from_bytes(&mut &data[16..], endianness)?,
-            })
-        } else {
-            Err(DdsError::Error("Gap submessage invalid".to_string()))
-        }
+        let endianness = submessage_header.endianness();
+        Ok(Self {
+            reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            gap_start: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            gap_list: SequenceNumberSet::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn _reader_id(&self) -> EntityId {

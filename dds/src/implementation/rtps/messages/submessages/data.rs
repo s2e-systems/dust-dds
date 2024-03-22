@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytes, SequenceNumber},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,52 +28,47 @@ impl DataSubmessageRead {
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
     ) -> DdsResult<Self> {
-        if data.len() >= 20 {
-            let inline_qos_flag = submessage_header.flags()[1];
-            let data_flag = submessage_header.flags()[2];
-            let key_flag = submessage_header.flags()[3];
-            let non_standard_payload_flag = submessage_header.flags()[4];
+        let mut slice = data.as_ref();
+        let endianness = submessage_header.endianness();
+        let inline_qos_flag = submessage_header.flags()[1];
+        let data_flag = submessage_header.flags()[2];
+        let key_flag = submessage_header.flags()[3];
+        let non_standard_payload_flag = submessage_header.flags()[4];
 
-            let octets_to_inline_qos =
-                u16::from_bytes(&data[2..], submessage_header.endianness()) as usize + 4;
+        let _extra_flags = u16::try_read_from_bytes(&mut slice, endianness)?;
+        let octets_to_inline_qos = u16::try_read_from_bytes(&mut slice, endianness)? as usize + 4;
+        let reader_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
+        let writer_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
+        let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
 
-            let reader_id = EntityId::from_bytes(&data[4..]);
-            let writer_id = EntityId::from_bytes(&data[8..]);
-            let writer_sn = SequenceNumber::from_bytes(&data[12..], submessage_header.endianness());
-
-            let mut data_starting_at_inline_qos = data
-                .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
-            let inline_qos = if inline_qos_flag {
-                ParameterList::try_read_from_arc_slice(
-                    &mut data_starting_at_inline_qos,
-                    submessage_header.endianness(),
-                )?
-            } else {
-                ParameterList::empty()
-            };
-
-            let serialized_payload = if data_flag || key_flag {
-                Data::new(data_starting_at_inline_qos)
-            } else {
-                Data::empty()
-            };
-
-            Ok(Self {
-                inline_qos_flag,
-                data_flag,
-                key_flag,
-                non_standard_payload_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                inline_qos,
-                serialized_payload,
-            })
+        let mut data_starting_at_inline_qos =
+            data.sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
+        let inline_qos = if inline_qos_flag {
+            ParameterList::try_read_from_arc_slice(
+                &mut data_starting_at_inline_qos,
+                submessage_header.endianness(),
+            )?
         } else {
-            Err(DdsError::Error(
-                "Data submessage not enough data".to_string(),
-            ))
-        }
+            ParameterList::empty()
+        };
+
+        let serialized_payload = if data_flag || key_flag {
+            Data::new(data_starting_at_inline_qos)
+        } else {
+            Data::empty()
+        };
+
+        Ok(Self {
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        })
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -5,7 +5,7 @@ use crate::{
 };
 use network_interface::Addr;
 use std::{
-    io::{Read, Write},
+    io::{BufRead, Read, Write},
     net::IpAddr,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
@@ -16,7 +16,7 @@ use std::{
 ///
 
 type Octet = u8;
-type Long = i32;
+pub type Long = i32;
 type UnsignedLong = u32;
 
 const MSG: &str = "write_bytes: not enough data in buffer";
@@ -406,6 +406,22 @@ impl TryFromBytes for SequenceNumber {
     }
 }
 
+impl TryReadFromBytes for SequenceNumber {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        if data.len() >= 8 {
+            let high = i32::from_bytes(&data[0..], endianness);
+            let low = u32::from_bytes(&data[4..], endianness);
+            let value = ((high as i64) << 32) + low as i64;
+            data.consume(8);
+            Ok(SequenceNumber::from(value))
+        } else {
+            Err(DdsError::Error(
+                "SequenceNumber not enough data".to_string(),
+            ))
+        }
+    }
+}
+
 impl SequenceNumber {
     pub const fn new(high: Long, low: UnsignedLong) -> Self {
         Self { high, low }
@@ -612,25 +628,29 @@ pub enum ReliabilityKind {
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
 #[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize)]
 pub struct ProtocolVersion {
-    major: Octet,
-    minor: Octet,
+    bytes: [u8; 2],
 }
 
 impl FromBytes for ProtocolVersion {
     fn from_bytes(data: &[u8], _endianness: &Endianness) -> Self {
         Self {
-            major: data[0],
-            minor: data[1],
+            bytes: [data[0], data[1]],
         }
+    }
+}
+
+impl TryReadFromBytes for ProtocolVersion {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(Self { bytes })
     }
 }
 
 impl WriteBytes for ProtocolVersion {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[0] = self.major;
-        buf[1] = self.minor;
-        2
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(&self.bytes).expect(MSG)
     }
 }
 
@@ -651,13 +671,13 @@ pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
 
 impl ProtocolVersion {
     pub const fn new(major: Octet, minor: Octet) -> Self {
-        Self { major, minor }
+        Self { bytes: [major, minor] }
     }
     pub const fn _major(&self) -> Octet {
-        self.major
+        self.bytes[0]
     }
     pub const fn _minor(&self) -> Octet {
-        self.minor
+        self.bytes[1]
     }
 }
 
@@ -673,6 +693,14 @@ impl TryFromBytes for VendorId {
         } else {
             Err(DdsError::Error("GuidPrefix not enough data".to_string()))
         }
+    }
+}
+
+impl TryReadFromBytes for VendorId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(bytes)
     }
 }
 

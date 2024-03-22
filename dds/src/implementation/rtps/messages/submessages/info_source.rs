@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{FromBytes, GuidPrefix, ProtocolVersion, VendorId},
+        types::{GuidPrefix, Long, ProtocolVersion, TryReadFromBytes, VendorId},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -20,18 +20,15 @@ pub struct InfoSourceSubmessageRead {
 impl InfoSourceSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 20 {
-            let endianness = submessage_header.endianness();
-            Ok(Self {
-                protocol_version: ProtocolVersion::from_bytes(&data[4..], endianness),
-                vendor_id: VendorId::from_bytes(&data[6..], endianness),
-                guid_prefix: GuidPrefix::from_bytes(&data[8..], endianness),
-            })
-        } else {
-            Err(DdsError::Error("InfoSource submessage invalid".to_string()))
-        }
+        let endianness = submessage_header.endianness();
+        let _unused = Long::try_read_from_bytes(&mut data, endianness)?;
+        Ok(Self {
+            protocol_version: ProtocolVersion::try_read_from_bytes(&mut data, endianness)?,
+            vendor_id: VendorId::try_read_from_bytes(&mut data, endianness)?,
+            guid_prefix: GuidPrefix::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn protocol_version(&self) -> ProtocolVersion {
