@@ -22,7 +22,7 @@ impl InfoTimestampSubmessageRead {
         let timestamp = if invalidate_flag {
             TIME_INVALID
         } else {
-            Time::try_from_bytes(&mut &data[0..], submessage_header.endianness())?
+            Time::try_read_from_bytes(&mut &data[0..], submessage_header.endianness())?
         };
         Ok(Self {
             invalidate_flag,

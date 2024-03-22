@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytesE, SequenceNumber, TryFromBytes},
+        types::{EntityId, FromBytes, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -37,7 +37,7 @@ impl DataFragSubmessageRead {
             let key_flag = submessage_header.flags()[2];
             let non_standard_payload_flag = submessage_header.flags()[3];
 
-            let octets_to_inline_qos = u16::from_bytes_e(&data[2..], endianness) as usize + 4;
+            let octets_to_inline_qos = u16::from_bytes(&data[2..], endianness) as usize + 4;
 
             let reader_id = EntityId::try_from_bytes(&data[4..], endianness)?;
             let writer_id = EntityId::try_from_bytes(&data[8..], endianness)?;

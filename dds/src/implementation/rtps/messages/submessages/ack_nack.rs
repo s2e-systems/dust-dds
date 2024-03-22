@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytesE, TryFromBytes},
+        types::{EntityId, FromBytes, TryReadFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -29,10 +29,10 @@ impl AckNackSubmessageRead {
             let mut buf = &data[8..];
             Ok(Self {
                 final_flag: submessage_header.flags()[1],
-                reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
-                reader_sn_state: SequenceNumberSet::try_from_bytes(&mut buf, endianness)?,
-                count: Count::from_bytes_e(buf, endianness),
+                reader_id: EntityId::from_bytes(&data[0..]),
+                writer_id: EntityId::from_bytes(&data[4..]),
+                reader_sn_state: SequenceNumberSet::try_read_from_bytes(&mut buf, endianness)?,
+                count: Count::from_bytes(buf, endianness),
             })
         } else {
             Err(DdsError::Error("AckNack submessage invalid".to_string()))

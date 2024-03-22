@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{GuidPrefix, ProtocolVersion, TryFromBytes, VendorId},
+        types::{FromBytes, GuidPrefix, ProtocolVersion, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -24,11 +24,10 @@ impl InfoSourceSubmessageRead {
     ) -> DdsResult<Self> {
         if data.len() >= 20 {
             let endianness = submessage_header.endianness();
-            let mut data = &data[4..];
             Ok(Self {
-                protocol_version: ProtocolVersion::try_from_bytes(&mut data, endianness)?,
-                vendor_id: VendorId::try_from_bytes(data, endianness)?,
-                guid_prefix: GuidPrefix::try_from_bytes(&data[2..], endianness)?,
+                protocol_version: ProtocolVersion::from_bytes(&data[4..], endianness),
+                vendor_id: VendorId::from_bytes(&data[6..], endianness),
+                guid_prefix: GuidPrefix::from_bytes(&data[8..], endianness),
             })
         } else {
             Err(DdsError::Error("InfoSource submessage invalid".to_string()))
@@ -124,7 +123,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            InfoSourceSubmessageRead::try_from_bytes(&&submessage_header, data).unwrap();
+            InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;

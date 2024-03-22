@@ -126,7 +126,7 @@ impl Time {
         self.fraction
     }
 
-    pub fn try_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
         if data.len() >= 8 {
             let seconds = UnsignedLong::try_from_bytes(data, endianness)?;
             let fraction = UnsignedLong::try_from_bytes(&data[4..], endianness)?;

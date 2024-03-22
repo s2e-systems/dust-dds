@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::{Count, FragmentNumber, SubmessageKind},
         },
-        types::{EntityId, FromBytesE, SequenceNumber},
+        types::{EntityId, FromBytes, SequenceNumber},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -30,8 +30,8 @@ impl HeartbeatFragSubmessageRead {
                 reader_id: EntityId::from_bytes(&data[0..]),
                 writer_id: EntityId::from_bytes(&data[4..]),
                 writer_sn: SequenceNumber::from_bytes(&data[8..], endianness),
-                last_fragment_num: u32::from_bytes_e(&data[16..], endianness),
-                count: Count::from_bytes_e(&data[20..], endianness),
+                last_fragment_num: FragmentNumber::from_bytes(&data[16..], endianness),
+                count: Count::from_bytes(&data[20..], endianness),
             })
         } else {
             Err(DdsError::Error(

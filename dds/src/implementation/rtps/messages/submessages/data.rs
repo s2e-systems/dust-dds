@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytesE, SequenceNumber, TryFromBytes},
+        types::{EntityId, FromBytes, SequenceNumber},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -35,12 +35,11 @@ impl DataSubmessageRead {
             let non_standard_payload_flag = submessage_header.flags()[4];
 
             let octets_to_inline_qos =
-                u16::from_bytes_e(&data[2..], submessage_header.endianness()) as usize + 4;
+                u16::from_bytes(&data[2..], submessage_header.endianness()) as usize + 4;
 
-            let reader_id = EntityId::try_from_bytes(&data[4..], submessage_header.endianness())?;
-            let writer_id = EntityId::try_from_bytes(&data[8..], submessage_header.endianness())?;
-            let writer_sn =
-                SequenceNumber::try_from_bytes(&data[12..], submessage_header.endianness())?;
+            let reader_id = EntityId::from_bytes(&data[4..]);
+            let writer_id = EntityId::from_bytes(&data[8..]);
+            let writer_sn = SequenceNumber::from_bytes(&data[12..], submessage_header.endianness());
 
             let mut data_starting_at_inline_qos = data
                 .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;

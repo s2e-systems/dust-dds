@@ -5,9 +5,9 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{GuidPrefix, TryFromBytes},
+        types::{GuidPrefix, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,17 +18,14 @@ pub struct InfoDestinationSubmessageRead {
 impl InfoDestinationSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 12 {
-            Ok(Self {
-                guid_prefix: GuidPrefix::try_from_bytes(data, submessage_header.endianness())?,
-            })
-        } else {
-            Err(DdsError::Error(
-                "InfoDestination submessage invalid".to_string(),
-            ))
-        }
+        Ok(Self {
+            guid_prefix: GuidPrefix::try_read_from_bytes(
+                &mut data,
+                submessage_header.endianness(),
+            )?,
+        })
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {

@@ -1,10 +1,13 @@
 use crate::{
-    implementation::rtps::messages::{
-        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-        submessage_elements::{LocatorList, SubmessageElement},
-        types::{SubmessageFlag, SubmessageKind},
+    implementation::rtps::{
+        messages::{
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            submessage_elements::{LocatorList, SubmessageElement},
+            types::{SubmessageFlag, SubmessageKind},
+        },
+        types::TryReadFromBytes,
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -19,23 +22,19 @@ impl InfoReplySubmessageRead {
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
     ) -> DdsResult<Self> {
-        if data.len() >= 12 {
-            let endianness = submessage_header.endianness();
-            let multicast_flag = submessage_header.flags()[1];
-            let unicast_locator_list = LocatorList::try_from_bytes(&mut data, endianness)?;
-            let multicast_locator_list = if multicast_flag {
-                LocatorList::try_from_bytes(&mut data, endianness)?
-            } else {
-                LocatorList::new(vec![])
-            };
-            Ok(Self {
-                multicast_flag,
-                unicast_locator_list,
-                multicast_locator_list,
-            })
+        let endianness = submessage_header.endianness();
+        let multicast_flag = submessage_header.flags()[1];
+        let unicast_locator_list = LocatorList::try_read_from_bytes(&mut data, endianness)?;
+        let multicast_locator_list = if multicast_flag {
+            LocatorList::try_read_from_bytes(&mut data, endianness)?
         } else {
-            Err(DdsError::Error("InfoReply submessage invalid".to_string()))
-        }
+            LocatorList::new(vec![])
+        };
+        Ok(Self {
+            multicast_flag,
+            unicast_locator_list,
+            multicast_locator_list,
+        })
     }
 
     pub fn _multicast_flag(&self) -> bool {

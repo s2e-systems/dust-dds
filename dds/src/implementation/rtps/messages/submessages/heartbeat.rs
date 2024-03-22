@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, FromBytesE, SequenceNumber},
+        types::{EntityId, FromBytes, SequenceNumber},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -32,7 +32,7 @@ impl HeartbeatSubmessageRead {
                 writer_id: EntityId::from_bytes(&data[4..]),
                 first_sn: SequenceNumber::from_bytes(&data[8..], endianness),
                 last_sn: SequenceNumber::from_bytes(&data[16..], endianness),
-                count: Count::from_bytes_e(&data[24..], endianness),
+                count: Count::from_bytes(&data[24..], endianness),
             })
         } else {
             Err(DdsError::Error("Heartbeat submessage invalid".to_string()))

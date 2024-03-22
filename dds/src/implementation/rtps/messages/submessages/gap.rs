@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::SubmessageKind,
         },
-        types::{EntityId, SequenceNumber, TryFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -26,10 +26,10 @@ impl GapSubmessageRead {
         if data.len() >= 28 {
             let endianness = submessage_header.endianness();
             Ok(Self {
-                reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
-                gap_start: SequenceNumber::try_from_bytes(&data[8..], endianness)?,
-                gap_list: SequenceNumberSet::try_from_bytes(&mut &data[16..], endianness)?,
+                reader_id: EntityId::from_bytes(&data[0..]),
+                writer_id: EntityId::from_bytes(&data[4..]),
+                gap_start: SequenceNumber::from_bytes(&data[8..], endianness),
+                gap_list: SequenceNumberSet::try_read_from_bytes(&mut &data[16..], endianness)?,
             })
         } else {
             Err(DdsError::Error("Gap submessage invalid".to_string()))

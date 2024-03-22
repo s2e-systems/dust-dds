@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{FragmentNumberSet, SubmessageElement},
             types::{Count, SubmessageKind},
         },
-        types::{EntityId, FromBytesE, SequenceNumber, TryFromBytes},
+        types::{EntityId, FromBytes, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -31,8 +31,8 @@ impl NackFragSubmessageRead {
                 reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
                 writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
                 writer_sn: SequenceNumber::try_from_bytes(&data[8..], endianness)?,
-                fragment_number_state: FragmentNumberSet::try_from_bytes(&mut buf, endianness)?,
-                count: Count::from_bytes_e(buf, endianness),
+                fragment_number_state: FragmentNumberSet::try_read_from_bytes(&mut buf, endianness)?,
+                count: Count::from_bytes(buf, endianness),
             })
         } else {
             Err(DdsError::Error("NackFrag submessage invalid".to_string()))
