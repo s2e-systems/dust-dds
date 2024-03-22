@@ -1,13 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{Endianness, EntityId, TryFromBytes, FromBytesE},
+        types::{EntityId, FromBytesE, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -22,15 +20,17 @@ pub struct AckNackSubmessageRead {
 }
 
 impl AckNackSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 28 {
-            let flags = data[1];
-            let endianness = &Endianness::from_flags(flags);
-            let mut buf = &data[12..];
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        data: &[u8],
+    ) -> DdsResult<Self> {
+        if data.len() >= 24 {
+            let endianness = submessage_header.endianness();
+            let mut buf = &data[8..];
             Ok(Self {
-                final_flag: flags & 0b_0000_0010 != 0,
-                reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
+                final_flag: submessage_header.flags()[1],
+                reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
                 reader_sn_state: SequenceNumberSet::try_from_bytes(&mut buf, endianness)?,
                 count: Count::from_bytes_e(buf, endianness),
             })
@@ -106,7 +106,10 @@ impl<'a> Submessage<'a> for AckNackSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::{
+            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+            submessage_elements::ArcSlice,
+        },
         types::{SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -138,16 +141,18 @@ mod tests {
     #[test]
     fn deserialize_acknack() {
         #[rustfmt::skip]
-        let submessage = AckNackSubmessageRead::try_from_bytes(&[
-                0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
-                1, 2, 3, 4, // readerId: value[4]
-                6, 7, 8, 9, // writerId: value[4]
-                0, 0, 0, 0, // reader_sn_state.base
-               10, 0, 0, 0, // reader_sn_state.base
-                0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
-                2, 0, 0, 0, // count
-        ]).unwrap();
-
+        let mut data = &[
+            0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // reader_sn_state.base
+           10, 0, 0, 0, // reader_sn_state.base
+            0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
+            2, 0, 0, 0, // count
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            AckNackSubmessageRead::try_from_bytes(&submessage_header, data.as_ref()).unwrap();
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

@@ -1,13 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::SubmessageKind,
         },
-        types::{Endianness, EntityId, SequenceNumber, TryFromBytes},
+        types::{EntityId, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -21,14 +19,17 @@ pub struct GapSubmessageRead {
 }
 
 impl GapSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 32 {
-            let endianness = &Endianness::from_flags(data[1]);
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        data: &[u8],
+    ) -> DdsResult<Self> {
+        if data.len() >= 28 {
+            let endianness = submessage_header.endianness();
             Ok(Self {
-                reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
-                gap_start: SequenceNumber::try_from_bytes(&data[12..], endianness)?,
-                gap_list: SequenceNumberSet::try_from_bytes(&mut &data[20..], endianness)?,
+                reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
+                gap_start: SequenceNumber::try_from_bytes(&data[8..], endianness)?,
+                gap_list: SequenceNumberSet::try_from_bytes(&mut &data[16..], endianness)?,
             })
         } else {
             Err(DdsError::Error("Gap submessage invalid".to_string()))
@@ -90,7 +91,10 @@ impl<'a> Submessage<'a> for GapSubmessageWrite<'a> {
 #[cfg(test)]
 mod tests {
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::{
+            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
+            submessage_elements::ArcSlice,
+        },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -125,7 +129,7 @@ mod tests {
         let expected_gap_start = SequenceNumber::from(5);
         let expected_gap_list = SequenceNumberSet::new(SequenceNumber::from(10), []);
         #[rustfmt::skip]
-        let submessage = GapSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x08, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -134,7 +138,10 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            GapSubmessageRead::try_from_bytes(&&submessage_header, data.as_ref()).unwrap();
         assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());

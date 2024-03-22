@@ -1,15 +1,10 @@
 use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderWrite,
-            },
-            submessage_elements::SubmessageElement,
-            types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
-        },
-        types::Endianness,
+    implementation::rtps::messages::{
+        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+        submessage_elements::SubmessageElement,
+        types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -19,25 +14,20 @@ pub struct InfoTimestampSubmessageRead {
 }
 
 impl InfoTimestampSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 4 {
-            let flags = data[1];
-            let endianness = &Endianness::from_flags(flags);
-            let invalidate_flag = flags & 0b_0000_0010 != 0;
-            let timestamp = if invalidate_flag {
-                TIME_INVALID
-            } else {
-                Time::try_from_bytes(&mut &data[4..], endianness)?
-            };
-            Ok(Self {
-                invalidate_flag,
-                timestamp,
-            })
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        data: &[u8],
+    ) -> DdsResult<Self> {
+        let invalidate_flag = submessage_header.flags()[1];
+        let timestamp = if invalidate_flag {
+            TIME_INVALID
         } else {
-            Err(DdsError::Error(
-                "InfoTimestamp submessage invalid".to_string(),
-            ))
-        }
+            Time::try_from_bytes(&mut &data[0..], submessage_header.endianness())?
+        };
+        Ok(Self {
+            invalidate_flag,
+            timestamp,
+        })
     }
 
     pub fn invalidate_flag(&self) -> bool {
@@ -88,8 +78,9 @@ impl<'a> Submessage<'a> for InfoTimestampSubmessageWrite<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::{
-        into_bytes_vec, RtpsSubmessageWriteKind,
+    use crate::implementation::rtps::messages::{
+        overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
+        submessage_elements::ArcSlice,
     };
 
     #[test]
@@ -123,11 +114,14 @@ mod tests {
     #[test]
     fn deserialize_info_timestamp_valid_time() {
         #[rustfmt::skip]
-        let submessage = InfoTimestampSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
             4, 0, 0, 0, // Time
             0, 0, 0, 0, // Time
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_invalidate_flag = false;
         let expected_timestamp = Time::new(4, 0);
@@ -139,9 +133,12 @@ mod tests {
     #[test]
     fn deserialize_info_timestamp_invalid_time() {
         #[rustfmt::skip]
-        let submessage = InfoTimestampSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_invalidate_flag = true;
         let expected_timestamp = TIME_INVALID;

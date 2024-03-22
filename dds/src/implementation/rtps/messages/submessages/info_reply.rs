@@ -1,11 +1,8 @@
 use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{Submessage, SubmessageHeaderWrite},
-            submessage_elements::{LocatorList, SubmessageElement},
-            types::{SubmessageFlag, SubmessageKind},
-        },
-        types::Endianness,
+    implementation::rtps::messages::{
+        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+        submessage_elements::{LocatorList, SubmessageElement},
+        types::{SubmessageFlag, SubmessageKind},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -18,15 +15,16 @@ pub struct InfoReplySubmessageRead {
 }
 
 impl InfoReplySubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 16 {
-            let flags = data[1];
-            let endianness = &Endianness::from_flags(flags);
-            let mut buf = &data[4..];
-            let multicast_flag = flags & 0b_0000_0010 != 0;
-            let unicast_locator_list = LocatorList::try_from_bytes(&mut buf, endianness)?;
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        mut data: &[u8],
+    ) -> DdsResult<Self> {
+        if data.len() >= 12 {
+            let endianness = submessage_header.endianness();
+            let multicast_flag = submessage_header.flags()[1];
+            let unicast_locator_list = LocatorList::try_from_bytes(&mut data, endianness)?;
             let multicast_locator_list = if multicast_flag {
-                LocatorList::try_from_bytes(&mut buf, endianness)?
+                LocatorList::try_from_bytes(&mut data, endianness)?
             } else {
                 LocatorList::new(vec![])
             };
@@ -92,7 +90,10 @@ impl<'a> Submessage<'a> for InfoReplySubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::{
+            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
+            submessage_elements::ArcSlice,
+        },
         types::Locator,
     };
 
@@ -121,7 +122,7 @@ mod tests {
     #[test]
     fn deserialize_info_reply() {
         #[rustfmt::skip]
-        let submessage = InfoReplySubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x0f, 0b_0000_0001, 28, 0, // Submessage header
             1, 0, 0, 0, //numLocators
             11, 0, 0, 0, //kind
@@ -130,7 +131,10 @@ mod tests {
             1, 1, 1, 1, //address
             1, 1, 1, 1, //address
             1, 1, 1, 1, //address
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let locator = Locator::new(11, 12, [1; 16]);
         let expected_multicast_flag = false;
         let expected_unicast_locator_list = LocatorList::new(vec![locator]);
@@ -150,7 +154,7 @@ mod tests {
     #[test]
     fn deserialize_info_reply_with_multicast() {
         #[rustfmt::skip]
-        let submessage = InfoReplySubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x0f, 0b_0000_0011, 56, 0, // Submessage header
             0, 0, 0, 0, //numLocators
             2, 0, 0, 0, //numLocators
@@ -166,7 +170,10 @@ mod tests {
             2, 2, 2, 2, //address
             2, 2, 2, 2, //address
             2, 2, 2, 2, //address
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(11, 12, [2; 16]);
         let expected_multicast_flag = true;

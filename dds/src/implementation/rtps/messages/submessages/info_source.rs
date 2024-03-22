@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{Endianness, GuidPrefix, ProtocolVersion, TryFromBytes, VendorId},
+        types::{GuidPrefix, ProtocolVersion, TryFromBytes, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -18,11 +18,13 @@ pub struct InfoSourceSubmessageRead {
 }
 
 impl InfoSourceSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 24 {
-            let flags = data[1];
-            let endianness = &Endianness::from_flags(flags);
-            let mut data = &data[8..];
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        data: &[u8],
+    ) -> DdsResult<Self> {
+        if data.len() >= 20 {
+            let endianness = submessage_header.endianness();
+            let mut data = &data[4..];
             Ok(Self {
                 protocol_version: ProtocolVersion::try_from_bytes(&mut data, endianness)?,
                 vendor_id: VendorId::try_from_bytes(data, endianness)?,
@@ -84,7 +86,10 @@ impl<'a> Submessage<'a> for InfoSourceSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::{
+            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
+            submessage_elements::ArcSlice,
+        },
         types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
     };
 
@@ -110,14 +115,17 @@ mod tests {
     #[test]
     fn deserialize_info_source() {
         #[rustfmt::skip]
-        let submessage = InfoSourceSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x0c, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 0, 0, // unused
             1, 0, 0, 0, //protocol_version | vendor_id
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoSourceSubmessageRead::try_from_bytes(&&submessage_header, data).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;

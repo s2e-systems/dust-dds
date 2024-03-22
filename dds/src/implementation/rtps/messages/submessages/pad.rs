@@ -1,22 +1,21 @@
 use crate::{
     implementation::rtps::messages::{
-        overall_structure::{Submessage, SubmessageHeaderWrite},
+        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
         submessage_elements::SubmessageElement,
         types::SubmessageKind,
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PadSubmessageRead {}
 
 impl PadSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 4 {
-            Ok(Self {})
-        } else {
-            Err(DdsError::Error("Pad submessage invalid".to_string()))
-        }
+    pub fn try_from_bytes(
+        _submessage_header: &SubmessageHeaderRead,
+        _data: &[u8],
+    ) -> DdsResult<Self> {
+        Ok(Self {})
     }
 }
 
@@ -49,8 +48,9 @@ impl<'a> Submessage<'a> for PadSubmessageWrite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::{
-        into_bytes_vec, RtpsSubmessageWriteKind,
+    use crate::implementation::rtps::messages::{
+        overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
+        submessage_elements::ArcSlice,
     };
 
     #[test]
@@ -66,9 +66,12 @@ mod tests {
     #[test]
     fn deserialize_pad() {
         #[rustfmt::skip]
-        let submessage = PadSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x01, 0b_0000_0001, 0, 0, // Submessage header
-        ]);
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage = PadSubmessageRead::try_from_bytes(&submessage_header, data);
+
         assert!(submessage.is_ok())
     }
 }

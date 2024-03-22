@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{FragmentNumberSet, SubmessageElement},
             types::{Count, SubmessageKind},
         },
-        types::{Endianness, EntityId, FromBytesE, SequenceNumber, TryFromBytes},
+        types::{EntityId, FromBytesE, SequenceNumber, TryFromBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -20,15 +20,17 @@ pub struct NackFragSubmessageRead {
 }
 
 impl NackFragSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        if data.len() >= 32 {
-            let flags = data[1];
-            let endianness = &Endianness::from_flags(flags);
-            let mut buf = &data[20..];
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        data: &[u8],
+    ) -> DdsResult<Self> {
+        if data.len() >= 28 {
+            let endianness = submessage_header.endianness();
+            let mut buf = &data[16..];
             Ok(Self {
-                reader_id: EntityId::try_from_bytes(&data[4..], endianness)?,
-                writer_id: EntityId::try_from_bytes(&data[8..], endianness)?,
-                writer_sn: SequenceNumber::try_from_bytes(&data[12..], endianness)?,
+                reader_id: EntityId::try_from_bytes(&data[0..], endianness)?,
+                writer_id: EntityId::try_from_bytes(&data[4..], endianness)?,
+                writer_sn: SequenceNumber::try_from_bytes(&data[8..], endianness)?,
                 fragment_number_state: FragmentNumberSet::try_from_bytes(&mut buf, endianness)?,
                 count: Count::from_bytes_e(buf, endianness),
             })
@@ -99,7 +101,10 @@ impl<'a> Submessage<'a> for NackFragSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::{
+            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead},
+            submessage_elements::ArcSlice,
+        },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -129,7 +134,7 @@ mod tests {
     #[test]
     fn deserialize_nack_frag() {
         #[rustfmt::skip]
-        let submessage = NackFragSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -138,7 +143,10 @@ mod tests {
            10, 0, 0, 0, // fragmentNumberState.base
             0, 0, 0, 0, // fragmentNumberState.numBits
             6, 0, 0, 0, // count
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            NackFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

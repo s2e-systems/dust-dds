@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{Endianness, EntityId, FromBytesE, SequenceNumber},
+        types::{EntityId, FromBytesE, SequenceNumber},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -22,18 +22,17 @@ pub struct HeartbeatSubmessageRead {
 }
 
 impl HeartbeatSubmessageRead {
-    pub fn try_from_bytes(data: &[u8]) -> DdsResult<Self> {
-        let flags = data[1];
-        let endianness = &Endianness::from_flags(flags);
-        if data.len() >= 32 {
+    pub fn try_from_bytes(submessage_header: &SubmessageHeaderRead, data: &[u8]) -> DdsResult<Self> {
+        let endianness = submessage_header.endianness();
+        if data.len() >= 28 {
             Ok(Self {
-                final_flag: flags & 0b_0000_0010 != 0,
-                liveliness_flag: flags & 0b_0000_0100 != 0,
-                reader_id: EntityId::from_bytes(&data[4..]),
-                writer_id: EntityId::from_bytes(&data[8..]),
-                first_sn: SequenceNumber::from_bytes(&data[12..], endianness),
-                last_sn: SequenceNumber::from_bytes(&data[20..], endianness),
-                count: Count::from_bytes_e(&data[28..], endianness),
+                final_flag: submessage_header.flags()[1],
+                liveliness_flag: submessage_header.flags()[2],
+                reader_id: EntityId::from_bytes(&data[0..]),
+                writer_id: EntityId::from_bytes(&data[4..]),
+                first_sn: SequenceNumber::from_bytes(&data[8..], endianness),
+                last_sn: SequenceNumber::from_bytes(&data[16..], endianness),
+                count: Count::from_bytes_e(&data[24..], endianness),
             })
         } else {
             Err(DdsError::Error("Heartbeat submessage invalid".to_string()))
@@ -165,7 +164,7 @@ mod tests {
         let expected_last_sn = SequenceNumber::from(7);
         let expected_count = 2;
         #[rustfmt::skip]
-        let submessage = HeartbeatSubmessageRead::try_from_bytes(&[
+        let data = &[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -174,7 +173,9 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]).unwrap();
+        ];
+        let submessage_header = SubmessageHeaderRead::try_from_bytes(data).unwrap();
+        let submessage = HeartbeatSubmessageRead::try_from_bytes(&submessage_header, &data[4..]).unwrap();
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());
