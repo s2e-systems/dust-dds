@@ -55,6 +55,13 @@ int main(int argc, char *argv[])
 
 	DisposeDataType msg = {"Very Long Name", 1};
 	dds_write(data_writer, &msg);
+
+	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));
+	if (rc != DDS_RETCODE_OK)
+	{
+		DDS_FATAL("dds_wait_for_acks: %s\n", dds_strretcode(-rc));
+	}
+
 	dds_dispose(data_writer, &msg);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));
