@@ -45,8 +45,14 @@ int main(int argc, char *argv[])
 	auto handle = writer->register_instance(&dispose_msg);
 
 	writer->write(&dispose_msg);
-	writer->dispose(&dispose_msg, handle);
 	auto ret_ack = writer->wait_for_acknowledgments(eprosima::fastrtps::Duration_t{30, 0});
+	if (ret_ack != ReturnCode_t::RETCODE_OK)
+	{
+		throw std::runtime_error{"Acknowledgements for write did not arrive in time"};
+	}
+
+	writer->dispose(&dispose_msg, handle);
+	ret_ack = writer->wait_for_acknowledgments(eprosima::fastrtps::Duration_t{30, 0});
 	if (ret_ack != ReturnCode_t::RETCODE_OK)
 	{
 		throw std::runtime_error{"Acknowledgements for dispose did not arrive in time"};

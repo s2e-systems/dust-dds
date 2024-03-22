@@ -71,6 +71,11 @@ fn main() {
         .unwrap();
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
+    reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    wait_set.wait(Duration::new(30, 0)).unwrap();
     let samples = reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
