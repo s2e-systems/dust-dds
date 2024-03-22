@@ -80,22 +80,6 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
 	}
 
-	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));
-	if (rc == 0)
-	{
-		DDS_FATAL("dds_waitset_wait: timeout: No data received");
-	}
-	if (rc != wsresultsize)
-	{
-		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
-	}
-
-	rc = dds_read(data_reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
-	if (rc < 0)
-	{
-		DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
-	}
-
 	if ((rc > 0) && (infos[0].instance_state != DDS_IST_NOT_ALIVE_DISPOSED))
 	{
 		DDS_FATAL("instance not disposed %s\n", infos[0].instance_state);

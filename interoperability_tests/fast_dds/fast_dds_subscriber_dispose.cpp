@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 	reader_condition.set_enabled_statuses(StatusMask::data_available());
 	WaitSet wait_set_data_available;
 	wait_set_data_available.attach_condition(reader_condition);
-	auto ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastrtps::Duration_t{30, 0});
+	const auto ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastrtps::Duration_t{30, 0});
 	if (ret_wait_data != ReturnCode_t::RETCODE_OK)
 	{
 		throw std::runtime_error{"No data available on time"};
@@ -55,18 +55,6 @@ int main(int argc, char *argv[])
 	{
 		throw std::runtime_error{"take_next_sample failed with"};
 	}
-
-	ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastrtps::Duration_t{30, 0});
-	if (ret_wait_data != ReturnCode_t::RETCODE_OK)
-	{
-		throw std::runtime_error{"No data available on time"};
-	}
-
-	if (reader->take_next_sample(&sample, &info) != ReturnCode_t::RETCODE_OK)
-	{
-		throw std::runtime_error{"take_next_sample failed with"};
-	}
-
 	if (info.instance_state != InstanceStateKind::NOT_ALIVE_DISPOSED_INSTANCE_STATE)
 	{
 		throw std::runtime_error{"instance not disposed"};

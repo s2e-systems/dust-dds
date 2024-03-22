@@ -73,11 +73,6 @@ fn main() {
         value: 1,
     };
     writer.write(&dispose_msg, None).unwrap();
-
-    writer
-        .wait_for_acknowledgments(Duration::new(30, 0))
-        .unwrap();
-
     writer.dispose(&dispose_msg, None).unwrap();
 
     writer
