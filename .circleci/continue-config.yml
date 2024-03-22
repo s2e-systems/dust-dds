@@ -128,9 +128,9 @@ jobs:
       - run:
           name: FastDDS subscriber dispose interoperability test
           command: |
-            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose
             pid=$!
-            build/fast_dds/FastDdsPublisherDispose
+            build/fast_dds/FastDdsPublisherDispose &
             wait $pid
       - run:
           name: Cyclone publisher interoperability test
@@ -170,9 +170,9 @@ jobs:
       - run:
           name: Cyclone subscriber dispose interoperability test
           command: |
-            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose
             pid=$!
-            build/cyclone_dds/CycloneDdsPublisherDispose
+            build/cyclone_dds/CycloneDdsPublisherDispose &
             wait $pid
 
   multi_machine_tests:
