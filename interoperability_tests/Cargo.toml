@@ -49,3 +49,7 @@ path = "publisher_multi_machine.rs"
 [[bin]]
 name = "dust_dds_subscriber_dispose"
 path = "dust_dds_subscriber_dispose.rs"
+
+[[bin]]
+name = "dust_dds_publisher_dispose"
+path = "dust_dds_publisher_dispose.rs"

@@ -41,3 +41,14 @@ target_link_libraries(FastDdsPublisherDispose PRIVATE
   fastcdr
 )
 target_include_directories(FastDdsPublisherDispose PRIVATE ${CMAKE_BINARY_DIR}/idl)
+
+add_executable(FastDdsSubscriberDispose
+  fast_dds_subscriber_dispose.cpp
+  ${CMAKE_BINARY_DIR}/idl/DisposeData.cxx
+  ${CMAKE_BINARY_DIR}/idl/DisposeDataPubSubTypes.cxx
+)
+target_link_libraries(FastDdsSubscriberDispose PRIVATE
+  fastrtps
+  fastcdr
+)
+target_include_directories(FastDdsSubscriberDispose PRIVATE ${CMAKE_BINARY_DIR}/idl)
