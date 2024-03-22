@@ -1,4 +1,4 @@
-#include "HelloWorldPubSubTypes.h"
+#include "DisposeDataPubSubTypes.h"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
@@ -16,12 +16,12 @@ using namespace eprosima::fastdds::dds;
 
 int main(int argc, char *argv[])
 {
-	const std::string topic_name = "HelloWorld";
+	const std::string topic_name = "DisposeData";
 
 	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
-	TypeSupport hello_world_type{new HelloWorldTypePubSubType()};
-	hello_world_type.register_type(participant);
-	auto topic = participant->create_topic(topic_name, "HelloWorldType", TOPIC_QOS_DEFAULT);
+	TypeSupport dispose_data_type{new DisposeDataTypePubSubType()};
+	dispose_data_type.register_type(participant);
+	auto topic = participant->create_topic(topic_name, "DisposeDataType", TOPIC_QOS_DEFAULT);
 	auto publisher = participant->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
 
 	DataWriterQos qos;
@@ -39,20 +39,14 @@ int main(int argc, char *argv[])
 		throw std::runtime_error{"Subscription not matched"};
 	}
 
-	HelloWorldType hello;
-	hello.id(3);
-	hello.msg('h');
-	auto handle = writer->register_instance(&hello);
-	writer->write(&hello);
+	DisposeDataType dispose_msg;
+	dispose_msg.name("Very Long Name");
+	dispose_msg.value(1);
+	auto handle = writer->register_instance(&dispose_msg);
 
+	writer->write(&dispose_msg);
+	writer->dispose(&dispose_msg, handle);
 	auto ret_ack = writer->wait_for_acknowledgments(eprosima::fastrtps::Duration_t{30, 0});
-	if (ret_ack != ReturnCode_t::RETCODE_OK)
-	{
-		throw std::runtime_error{"Acknowledgements did not arrive in time"};
-	}
-
-	writer->dispose(&hello, &handle);
-	ret_ack = writer->wait_for_acknowledgments(eprosima::fastrtps::Duration_t{30, 0});
 	if (ret_ack != ReturnCode_t::RETCODE_OK)
 	{
 		throw std::runtime_error{"Acknowledgements for dispose did not arrive in time"};

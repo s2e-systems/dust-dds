@@ -33,8 +33,8 @@ target_include_directories(FastDdsSubscriber PRIVATE ${CMAKE_BINARY_DIR}/idl)
 
 add_executable(FastDdsPublisherDispose
   fast_dds_publisher_dispose.cpp
-  ${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx
-  ${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx
+  ${CMAKE_BINARY_DIR}/idl/DisposeData.cxx
+  ${CMAKE_BINARY_DIR}/idl/DisposeDataPubSubTypes.cxx
 )
 target_link_libraries(FastDdsPublisherDispose PRIVATE
   fastrtps

@@ -1,0 +1,6 @@
+
+struct DisposeDataType
+{
+	@key string name;
+	octet value;
+};

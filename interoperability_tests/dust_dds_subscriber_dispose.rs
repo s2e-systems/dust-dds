@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listeners::NoOpListener,
@@ -11,23 +12,31 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    subscription::sample_info::{
+        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+    },
 };
 
-mod hello_world {
-    include!("target/idl/hello_world.rs");
+mod dispose_data {
+    include!("target/idl/dispose_data.rs");
 }
 
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
-
+    let configuration = DustDdsConfigurationBuilder::new()
+        .interface_name(Some("Ethernet".to_string()))
+        .build()
+        .unwrap();
+    participant_factory
+        .set_configuration(configuration)
+        .unwrap();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .find_topic::<hello_world::HelloWorldType>("HelloWorld", Duration::new(120, 0))
+        .find_topic::<dispose_data::DisposeDataType>("DisposeData", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -45,7 +54,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<hello_world::HelloWorldType>(
+        .create_datareader::<dispose_data::DisposeDataType>(
             &topic,
             QosKind::Specific(reader_qos),
             NoOpListener::new(),
@@ -69,14 +78,9 @@ fn main() {
         .unwrap();
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
-
     let samples = reader
-        .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
-
-    let hello_world = samples[0].data().unwrap();
-    println!("Received: {:?}", hello_world);
 
     assert_eq!(
         samples[0].sample_info().instance_state,

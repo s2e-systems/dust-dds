@@ -110,7 +110,7 @@ impl DataSubmessageRead {
         self.submessage_header().flags()[2]
     }
 
-    pub fn key_flag(&self) -> bool {
+    pub fn _key_flag(&self) -> bool {
         self.submessage_header().flags()[3]
     }
 
@@ -413,7 +413,7 @@ mod tests {
 
         assert_eq!(inline_qos_flag, data_submessage.inline_qos_flag());
         assert_eq!(data_flag, data_submessage._data_flag());
-        assert_eq!(key_flag, data_submessage.key_flag());
+        assert_eq!(key_flag, data_submessage._key_flag());
         assert_eq!(
             non_standard_payload_flag,
             data_submessage._non_standard_payload_flag()
