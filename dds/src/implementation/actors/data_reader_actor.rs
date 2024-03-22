@@ -412,8 +412,8 @@ impl DataReaderActor {
                                 }
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.inline_qos(),
-                                                data_submessage.serialized_payload(),
+                                                data_submessage.inline_qos().clone(),
+                                                data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
                                                 type_support,
@@ -448,8 +448,8 @@ impl DataReaderActor {
                                 writer_proxy.received_change_set(sequence_number);
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.inline_qos(),
-                                                data_submessage.serialized_payload(),
+                                                data_submessage.inline_qos().clone(),
+                                                data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
                                                 type_support,
@@ -489,8 +489,8 @@ impl DataReaderActor {
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
                     if let Ok(change) = self.convert_received_data_to_cache_change(
                         writer_guid,
-                        data_submessage.inline_qos(),
-                        data_submessage.serialized_payload(),
+                        data_submessage.inline_qos().clone(),
+                        data_submessage.serialized_payload().clone(),
                         source_timestamp,
                         reception_timestamp,
                         type_support,

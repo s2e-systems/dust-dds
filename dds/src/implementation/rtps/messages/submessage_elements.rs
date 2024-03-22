@@ -1,16 +1,21 @@
 use super::{
-    overall_structure::{FromBytes, WriteBytes},
+    overall_structure::WriteBytes,
     types::{ParameterId, Time},
 };
-use crate::implementation::{
-    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::{
-        messages::types::{Count, FragmentNumber},
-        types::{EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId},
+use crate::{
+    implementation::{
+        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+        rtps::{
+            messages::types::{Count, FragmentNumber},
+            types::{
+                Endianness, EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber,
+                TryReadFromBytes, VendorId,
+            },
+        },
     },
+    infrastructure::error::{DdsError, DdsResult},
 };
 use std::{
-    io::BufRead,
     ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };
@@ -125,6 +130,26 @@ impl SequenceNumberSet {
     }
 }
 
+impl TryReadFromBytes for SequenceNumberSet {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let high = i32::try_read_from_bytes(data, endianness)?;
+        let low = i32::try_read_from_bytes(data, endianness)?;
+        let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
+
+        let num_bits = u32::try_read_from_bytes(data, endianness)?;
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let mut bitmap = [0; 8];
+        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+            *bitmap_i = i32::try_read_from_bytes(data, endianness)?;
+        }
+        Ok(Self {
+            base,
+            num_bits,
+            bitmap,
+        })
+    }
+}
+
 impl WriteBytes for SequenceNumberSet {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -153,6 +178,25 @@ impl FragmentNumberSet {
             base,
             set: set.into_iter().collect(),
         }
+    }
+
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let base = FragmentNumber::try_read_from_bytes(data, endianness)?;
+        let num_bits = u32::try_read_from_bytes(data, endianness)?;
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+        let mut bitmap = [0; 8];
+
+        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+            *bitmap_i = i32::try_read_from_bytes(data, endianness)?;
+        }
+
+        let mut set = Vec::with_capacity(256);
+        for delta_n in 0..num_bits as usize {
+            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
+                set.push(base + delta_n as u32);
+            }
+        }
+        Ok(Self::new(base, set))
     }
 }
 
@@ -196,6 +240,17 @@ impl LocatorList {
     }
 }
 
+impl TryReadFromBytes for LocatorList {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let num_locators = u32::try_read_from_bytes(data, endianness)?;
+        let mut locator_list = Vec::new();
+        for _ in 0..num_locators {
+            locator_list.push(Locator::try_read_from_bytes(data, endianness)?);
+        }
+        Ok(Self::new(locator_list))
+    }
+}
+
 impl WriteBytes for LocatorList {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let num_locators = self.value().len() as u32;
@@ -211,11 +266,11 @@ impl WriteBytes for LocatorList {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
     parameter_id: ParameterId,
-    value: Vec<u8>,
+    value: ArcSlice,
 }
 
 impl Parameter {
-    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
+    pub fn new(parameter_id: ParameterId, value: ArcSlice) -> Self {
         Self {
             parameter_id,
             value,
@@ -233,9 +288,31 @@ impl Parameter {
     pub fn length(&self) -> i16 {
         self.value.len() as i16
     }
+
+    fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> DdsResult<Self> {
+        let mut slice = data.as_ref();
+        let len = slice.len();
+        let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
+        let length = i16::try_read_from_bytes(&mut slice, endianness)?;
+        data.consume(len - slice.len());
+        if parameter_id != PID_SENTINEL && length % 4 != 0 {
+            return Err(DdsError::Error(
+                "Parameter length not multiple of 4".to_string(),
+            ));
+        }
+        let value = if parameter_id == PID_SENTINEL {
+            ArcSlice::empty()
+        } else {
+            let value = data.sub_slice(0..length as usize)?;
+            data.consume(length as usize);
+            value
+        };
+
+        Ok(Self::new(parameter_id, value))
+    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParameterList {
     parameter: Vec<Parameter>,
 }
@@ -252,37 +329,27 @@ impl ParameterList {
     pub fn parameter(&self) -> &[Parameter] {
         self.parameter.as_ref()
     }
-}
 
-impl FromBytes for Parameter {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let parameter_id = E::read_i16(&v[0..]);
-        let length = E::read_i16(&v[2..]);
-        let value = if parameter_id == PID_SENTINEL {
-            &[]
-        } else {
-            &v[4..length as usize + 4]
-        };
-
-        Self::new(parameter_id, value.to_vec())
-    }
-}
-
-impl FromBytes for ParameterList {
-    fn from_bytes<E: byteorder::ByteOrder>(mut v: &[u8]) -> Self {
+    pub fn try_read_from_arc_slice(
+        data: &mut ArcSlice,
+        endianness: &Endianness,
+    ) -> DdsResult<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i = Parameter::from_bytes::<E>(v);
+            let parameter_i = Parameter::try_read_from_arc_slice(data, endianness)?;
             if parameter_i.parameter_id() == PID_SENTINEL {
                 break;
             } else {
-                v.consume(parameter_i.length() as usize + 4);
                 parameter.push(parameter_i);
             }
         }
-        Self::new(parameter)
+        Ok(Self { parameter })
+    }
+
+    pub fn number_of_bytes(&self) -> usize {
+        self.parameter.iter().map(|p| p.length() as usize + 4).sum()
     }
 }
 
@@ -316,15 +383,28 @@ impl WriteBytes for &ParameterList {
     }
 }
 
-#[derive(Debug, Eq, Clone)]
+#[derive(Eq, Clone)]
 pub struct ArcSlice {
     data: Arc<[u8]>,
     range: Range<usize>,
 }
 
+impl std::fmt::Debug for ArcSlice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
+
 impl ArcSlice {
     pub fn new(data: Arc<[u8]>, range: Range<usize>) -> Self {
         Self { data, range }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            data: Arc::new([]),
+            range: Default::default(),
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -335,11 +415,26 @@ impl ArcSlice {
         &self.data[self.range.clone()]
     }
 
-    pub fn sub_slice(&self, range: RangeFrom<usize>) -> ArcSlice {
+    pub fn sub_slice_from(&self, range: RangeFrom<usize>) -> ArcSlice {
         ArcSlice {
             data: self.data.clone(),
             range: range.start + self.range.start..self.range.end,
         }
+    }
+
+    pub fn sub_slice(&self, range: Range<usize>) -> DdsResult<ArcSlice> {
+        if self.data.len() >= self.range.start + range.end {
+            Ok(ArcSlice {
+                data: self.data.clone(),
+                range: range.start + self.range.start..self.range.start + range.end,
+            })
+        } else {
+            Err(DdsError::Error("ArcSlice not enough data".to_string()))
+        }
+    }
+
+    pub fn consume(&mut self, amt: usize) {
+        self.range.start += amt;
     }
 }
 
@@ -380,6 +475,25 @@ impl Index<usize> for ArcSlice {
     }
 }
 
+impl From<&[u8]> for ArcSlice {
+    fn from(data: &[u8]) -> Self {
+        let range = 0..data.len();
+        Self {
+            data: data.into(),
+            range,
+        }
+    }
+}
+impl<const N: usize> From<[u8; N]> for ArcSlice {
+    fn from(data: [u8; N]) -> Self {
+        let range = 0..data.len();
+        Self {
+            data: data.into(),
+            range,
+        }
+    }
+}
+
 impl From<Arc<[u8]>> for ArcSlice {
     fn from(data: Arc<[u8]>) -> Self {
         let range = 0..data.len();
@@ -407,6 +521,10 @@ impl Data {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
+    pub fn empty() -> Self {
+        Self(ArcSlice::empty())
+    }
 }
 
 impl AsRef<[u8]> for Data {
@@ -425,149 +543,21 @@ impl WriteBytes for &Data {
     }
 }
 
-impl FromBytes for EntityId {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new([v[0], v[1], v[2]], v[3])
-    }
-}
-
-impl FromBytes for GuidPrefix {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        [
-            v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
-        ]
-    }
-}
-
-impl FromBytes for SequenceNumber {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let high = E::read_i32(&v[0..]);
-        let low = E::read_i32(&v[4..]);
-        let value = ((high as i64) << 32) + low as i64;
-        SequenceNumber::from(value)
-    }
-}
-
-impl FromBytes for Count {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_i32(v)
-    }
-}
-
-impl FromBytes for SequenceNumberSet {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let high = E::read_i32(&v[0..]);
-        let low = E::read_i32(&v[4..]);
-        let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
-
-        let num_bits = E::read_u32(&v[8..]);
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-        let mut bitmap = [0; 8];
-        let mut buf = &v[12..];
-        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = E::read_i32(buf);
-            buf.consume(4);
-        }
-
-        SequenceNumberSet {
-            base,
-            num_bits,
-            bitmap,
-        }
-    }
-}
-
-impl FromBytes for u16 {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_u16(v)
-    }
-}
-
-impl FromBytes for i16 {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_i16(v)
-    }
-}
-
-impl FromBytes for u32 {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        E::read_u32(v)
-    }
-}
-
-impl FromBytes for Locator {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let kind = E::read_i32(&v[0..]);
-        let port = E::read_u32(&v[4..]);
-        let address = [
-            v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], v[18], v[19],
-            v[20], v[21], v[22], v[23],
-        ];
-        Self::new(kind, port, address)
-    }
-}
-
-impl FromBytes for LocatorList {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let num_locators = E::read_u32(v);
-        let mut buf = &v[4..];
-        let mut locator_list = Vec::new();
-        for _ in 0..num_locators {
-            locator_list.push(Locator::from_bytes::<E>(buf));
-            buf.consume(24)
-        }
-        Self::new(locator_list)
-    }
-}
-
-impl FromBytes for ProtocolVersion {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        Self::new(v[0], v[1])
-    }
-}
-
-impl FromBytes for VendorId {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        [v[0], v[1]]
-    }
-}
-
-impl FromBytes for Time {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let seconds = E::read_u32(&v[0..]);
-        let fractions = E::read_u32(&v[4..]);
-        Self::new(seconds, fractions)
-    }
-}
-
-impl FromBytes for FragmentNumberSet {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self {
-        let base = E::read_u32(&v[0..]);
-        let num_bits = E::read_u32(&v[4..]);
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-        let mut bitmap = [0; 8];
-        let mut buf = &v[8..];
-        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = E::read_i32(buf);
-            buf.consume(4);
-        }
-
-        let mut set = Vec::with_capacity(256);
-        for delta_n in 0..num_bits as usize {
-            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(base + delta_n as u32);
-            }
-        }
-        Self::new(base, set)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::into_bytes_vec, types::Locator,
     };
+
+    #[test]
+    fn arc_slice_sub_slice() {
+        let data = ArcSlice::from([0, 1, 2, 3, 4, 5]);
+        let sub_data = data.sub_slice(1..5).unwrap();
+        assert_eq!(&sub_data[0..], &[1, 2, 3, 4]);
+        let sub_sub_data = sub_data.sub_slice(1..3).unwrap();
+        assert_eq!(&sub_sub_data[0..], &[2, 3]);
+    }
 
     #[test]
     fn sequence_number_set_methods() {
@@ -639,9 +629,12 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            Count::from_bytes::<byteorder::LittleEndian>(&[
-            7, 0, 0,0 , //value (long)
-        ])
+            Count::try_read_from_bytes(
+                &mut &[7, 0, 0, 0 , //value (long)
+                ][..],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
         );
     }
 
@@ -651,7 +644,7 @@ mod tests {
         let locator_2 = Locator::new(2, 2, [3; 16]);
         let expected = LocatorList::new(vec![locator_1, locator_2]);
         #[rustfmt::skip]
-        let result = LocatorList::from_bytes::<byteorder::LittleEndian>(&[
+        let result = LocatorList::try_read_from_bytes(&mut &[
             2, 0, 0, 0,  // numLocators (unsigned long)
             1, 0, 0, 0, // kind (long)
             2, 0, 0, 0, // port (unsigned long)
@@ -665,8 +658,7 @@ mod tests {
             3, 3, 3, 3, // address (octet[16])
             3, 3, 3, 3, // address (octet[16])
             3, 3, 3, 3, // address (octet[16])
-
-        ]);
+        ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -675,9 +667,13 @@ mod tests {
         let expected = 7;
         assert_eq!(
             expected,
-            FragmentNumber::from_bytes::<byteorder::LittleEndian>(&[
+            FragmentNumber::try_read_from_bytes(
+                &mut &[
                 7, 0, 0, 0, // (unsigned long)
-            ])
+            ][..],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
         );
     }
 
@@ -688,7 +684,7 @@ mod tests {
             set: vec![2, 257],
         };
         #[rustfmt::skip]
-        let result = FragmentNumberSet::from_bytes::<byteorder::LittleEndian>(&[
+        let result = FragmentNumberSet::try_read_from_bytes(&mut &[
             2, 0, 0, 0, // bitmapBase: (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
@@ -700,7 +696,7 @@ mod tests {
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
             0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
 
-        ]);
+        ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -708,11 +704,11 @@ mod tests {
     fn deserialize_guid_prefix() {
         let expected = [1; 12];
         #[rustfmt::skip]
-        assert_eq!(expected, GuidPrefix::from_bytes::<byteorder::LittleEndian>(&[
+        assert_eq!(expected, GuidPrefix::try_read_from_bytes(&mut &[
             1, 1, 1, 1,
             1, 1, 1, 1,
             1, 1, 1, 1,
-        ]));
+        ][..], &Endianness::LittleEndian).unwrap());
     }
 
     #[test]
@@ -720,7 +716,8 @@ mod tests {
         let expected = ProtocolVersion::new(2, 3);
         assert_eq!(
             expected,
-            ProtocolVersion::from_bytes::<byteorder::LittleEndian>(&[2, 3])
+            ProtocolVersion::try_read_from_bytes(&mut &[2, 3][..], &Endianness::LittleEndian)
+                .unwrap()
         );
     }
 
@@ -729,8 +726,18 @@ mod tests {
         let expected = [1, 2];
         assert_eq!(
             expected,
-            VendorId::from_bytes::<byteorder::LittleEndian>(&[1, 2,])
+            VendorId::try_read_from_bytes(&mut &[1, 2][..], &Endianness::LittleEndian).unwrap()
         );
+    }
+
+    #[test]
+    fn serialize_sequence_number() {
+        let sequence_number = SequenceNumber::from(i64::MAX);
+        #[rustfmt::skip]
+        assert_eq!(into_bytes_vec(sequence_number), vec![
+            0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+            0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
+        ]);
     }
 
     #[test]
@@ -738,15 +745,51 @@ mod tests {
         let expected = SequenceNumber::from(7);
         assert_eq!(
             expected,
-            SequenceNumber::from_bytes::<byteorder::LittleEndian>(&[
-                0, 0, 0, 0, // high (long)
-                7, 0, 0, 0, // low (unsigned long)
-            ])
+            SequenceNumber::try_read_from_bytes(
+                &mut &[
+                    0, 0, 0, 0, // high (long)
+                    7, 0, 0, 0, // low (unsigned long)
+                ][..],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
         );
     }
 
     #[test]
-    fn serialize_sequence_number_max_gap() {
+    fn deserialize_sequence_number_largest_old() {
+        let expected = SequenceNumber::from(i64::MAX);
+        assert_eq!(
+            expected,
+            SequenceNumber::try_read_from_bytes(
+                &mut &[
+                    0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+                    0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
+                ][..],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn deserialize_sequence_number_largest() {
+        let expected = SequenceNumber::from(i64::MAX);
+        assert_eq!(
+            expected,
+            SequenceNumber::try_read_from_bytes(
+                &mut &[
+                    0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
+                    0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
+                ][..],
+                &Endianness::LittleEndian
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn serialize_sequence_number_set_max_gap() {
         let sequence_number_set = SequenceNumberSet::new(
             SequenceNumber::from(2),
             [SequenceNumber::from(2), SequenceNumber::from(257)],
@@ -768,13 +811,41 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_sequence_number_set_empty() {
+        let expected = SequenceNumberSet::new(SequenceNumber::from(2), []);
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_read_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (unsigned long)
+        ][..], &Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_with_gaps() {
+        let expected = SequenceNumberSet::new(
+            SequenceNumber::from(7),
+            [SequenceNumber::from(9), SequenceNumber::from(11)],
+        );
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_read_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            7, 0, 0, 0, // bitmapBase: low (unsigned long)
+            5, 0, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0010_1000, // bitmap[0] (long)
+        ][..], &Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
     fn deserialize_sequence_number_set_max_gap() {
         let expected = SequenceNumberSet::new(
             SequenceNumber::from(2),
             [SequenceNumber::from(2), SequenceNumber::from(257)],
         );
         #[rustfmt::skip]
-        let result = SequenceNumberSet::from_bytes::<byteorder::LittleEndian>(&[
+        let result = SequenceNumberSet::try_read_from_bytes(&mut &[
             0, 0, 0, 0, // bitmapBase: high (long)
             2, 0, 0, 0, // bitmapBase: low (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
@@ -786,13 +857,26 @@ mod tests {
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
             0b000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
-        ]);
+        ][..], &Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_faulty_num_bitmaps() {
+        let expected = SequenceNumberSet::new(SequenceNumber::from(2), []);
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_read_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (unsigned long)
+            0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+        ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(2, vec![5, 6, 7, 8]);
+        let parameter = Parameter::new(2, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -802,7 +886,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = Parameter::new(2, vec![5, 6, 7]);
+        let parameter = Parameter::new(2, vec![5, 6, 7].into());
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -812,7 +896,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = Parameter::new(2, vec![]);
+        let parameter = Parameter::new(2, vec![].into());
         assert_eq!(
             into_bytes_vec(parameter),
             vec![
@@ -823,8 +907,8 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter_1 = Parameter::new(2, vec![51, 61, 71, 81]);
-        let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0]);
+        let parameter_1 = Parameter::new(2, vec![51, 61, 71, 81].into());
+        let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0].into());
         let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(parameter_list_submessage_element), vec![
@@ -846,70 +930,122 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_parameter_non_multiple_of_4() {
-        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0]);
-        #[rustfmt::skip]
-        let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
-            0x02, 0x00, 8, 0, // Parameter | length
-            5, 6, 7, 8,       // value
-            9, 10, 11, 0,     // value
-        ]);
+    fn deserialize_parameter() {
+        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12].into());
+        let result = Parameter::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x02, 0x00, 8, 0, // Parameter ID | length
+                5, 6, 7, 8, // value
+                9, 10, 11, 12, // value
+            ]),
+            &Endianness::LittleEndian,
+        )
+        .unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
-    fn deserialize_parameter() {
-        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12]);
-        #[rustfmt::skip]
-        let result = Parameter::from_bytes::<byteorder::LittleEndian>(&[
-            0x02, 0x00, 8, 0, // Parameter | length
-            5, 6, 7, 8,       // value
-            9, 10, 11, 12,       // value
-        ]);
+    fn deserialize_parameter_non_multiple_of_4() {
+        // Note: the padding 0 is part of the resulting parameter (this may seems wrong but is specified in RTPS 2.5).
+        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0].into());
+        let result = Parameter::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x02, 0x00, 8, 0, // Parameter ID | length
+                5, 6, 7, 8, // value | value | value | value
+                9, 10, 11,
+                0, // value | value | value | padding
+                   //13, 13, 13, 13, // other data
+            ]),
+            &Endianness::LittleEndian,
+        )
+        .unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_faulty_non_multiple_of_4_length() {
+        let result = Parameter::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x02, 0x00, 3, 0, // Parameter ID | length
+                5, 6, 7, 8, // value
+            ]),
+            &Endianness::LittleEndian,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn deserialize_parameter_faulty_to_large_length() {
+        let result = Parameter::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x02, 0x00, 8, 0, // Parameter ID | length
+                5, 6, 7, 8, // value
+            ]),
+            &Endianness::LittleEndian,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn deserialize_parameter_sentinel_length_should_be_ignored() {
+        let expected = Parameter::new(1, vec![].into());
+        let result = Parameter::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x01, 0x00, 3, 0, // Parameter ID | length
+            ]),
+            &Endianness::LittleEndian,
+        )
+        .unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]
     fn deserialize_parameter_list() {
         let expected = ParameterList::new(vec![
-            Parameter::new(2, vec![15, 16, 17, 18]),
-            Parameter::new(3, vec![25, 26, 27, 28]),
+            Parameter::new(2, vec![15, 16, 17, 18].into()),
+            Parameter::new(3, vec![25, 26, 27, 28].into()),
         ]);
-        #[rustfmt::skip]
-        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
-            0x02, 0x00, 4, 0, // Parameter ID | length
-            15, 16, 17, 18,        // value
-            0x03, 0x00, 4, 0, // Parameter ID | length
-            25, 26, 27, 28,        // value
-            0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
-        ]);
+        let result = ParameterList::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x02, 0x00, 4, 0, // Parameter ID | length
+                15, 16, 17, 18, // value
+                0x03, 0x00, 4, 0, // Parameter ID | length
+                25, 26, 27, 28, // value
+                0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
+            ]),
+            &Endianness::LittleEndian,
+        )
+        .unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
     fn deserialize_parameter_list_with_long_parameter_including_sentinel() {
-        #[rustfmt::skip]
         let parameter_value_expected = vec![
-            0x01, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01,
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x01, 0x01, 0x01, // Parameter value
         ];
 
-        let expected = ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected)]);
-        #[rustfmt::skip]
-        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
-            0x32, 0x00, 24, 0x00, // Parameter ID | length
-            0x01, 0x00, 0x00, 0x00, // Parameter value
-            0x01, 0x00, 0x00, 0x00, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x01, 0x01, 0x01, // Parameter value
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]);
+        let expected =
+            ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected.into())]);
+        let result = ParameterList::try_read_from_arc_slice(
+            &mut ArcSlice::from([
+                0x32, 0x00, 24, 0x00, // Parameter ID | length
+                0x01, 0x00, 0x00, 0x00, // Parameter value
+                0x01, 0x00, 0x00, 0x00, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x01, 0x01, 0x01, // Parameter value
+                0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+            ]),
+            &Endianness::LittleEndian,
+        )
+        .unwrap();
         assert_eq!(expected, result);
     }
 
@@ -935,11 +1071,11 @@ mod tests {
         ];
 
         let expected = ParameterList::new(vec![
-            Parameter::new(0x32, parameter_value_expected1),
-            Parameter::new(0x32, parameter_value_expected2),
+            Parameter::new(0x32, parameter_value_expected1.into()),
+            Parameter::new(0x32, parameter_value_expected2.into()),
         ]);
         #[rustfmt::skip]
-        let result = ParameterList::from_bytes::<byteorder::LittleEndian>(&[
+        let result = ParameterList::try_read_from_arc_slice(&mut ArcSlice::from([
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -955,7 +1091,7 @@ mod tests {
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]);
+        ]), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 }

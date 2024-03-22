@@ -1,55 +1,57 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::EntityId,
+        types::{EntityId, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct AckNackSubmessageRead {
+    final_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
 }
 
-impl SubmessageHeader for AckNackSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> AckNackSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
-        if data.len() >= 28 {
-            Ok(Self { data })
-        } else {
-            Err(DdsError::Error("AckNack submessage invalid".to_string()))
-        }
+impl AckNackSubmessageRead {
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        mut data: &[u8],
+    ) -> DdsResult<Self> {
+            let endianness = submessage_header.endianness();
+            Ok(Self {
+                final_flag: submessage_header.flags()[1],
+                reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+                writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+                reader_sn_state: SequenceNumberSet::try_read_from_bytes(&mut data, endianness)?,
+                count: Count::try_read_from_bytes(&mut data, endianness)?,
+            })
     }
 
     pub fn _final_flag(&self) -> bool {
-        self.submessage_header().flags()[1]
+        self.final_flag
     }
 
-    pub fn reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
     }
 
-    pub fn _writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+    pub fn _writer_id(&self) -> &EntityId {
+        &self.writer_id
     }
 
-    pub fn reader_sn_state(&self) -> SequenceNumberSet {
-        self.map(&self.data[12..])
+    pub fn reader_sn_state(&self) -> &SequenceNumberSet {
+        &self.reader_sn_state
     }
 
     pub fn count(&self) -> Count {
-        self.map(&self.data[self.data.len() - 4..])
+        self.count
     }
 }
 
@@ -131,16 +133,18 @@ mod tests {
     #[test]
     fn deserialize_acknack() {
         #[rustfmt::skip]
-        let submessage = AckNackSubmessageRead::try_from_bytes(&[
-                0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
-                1, 2, 3, 4, // readerId: value[4]
-                6, 7, 8, 9, // writerId: value[4]
-                0, 0, 0, 0, // reader_sn_state.base
-               10, 0, 0, 0, // reader_sn_state.base
-                0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
-                2, 0, 0, 0, // count
-        ]).unwrap();
-
+        let mut data = &[
+            0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // reader_sn_state.base
+           10, 0, 0, 0, // reader_sn_state.base
+            0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
+            2, 0, 0, 0, // count
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            AckNackSubmessageRead::try_from_bytes(&submessage_header, data.as_ref()).unwrap();
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
@@ -148,9 +152,9 @@ mod tests {
         let expected_count = 2;
 
         assert_eq!(expected_final_flag, submessage._final_flag());
-        assert_eq!(expected_reader_id, submessage.reader_id());
-        assert_eq!(expected_writer_id, submessage._writer_id());
-        assert_eq!(expected_reader_sn_state, submessage.reader_sn_state());
+        assert_eq!(&expected_reader_id, submessage.reader_id());
+        assert_eq!(&expected_writer_id, submessage._writer_id());
+        assert_eq!(&expected_reader_sn_state, submessage.reader_sn_state());
         assert_eq!(expected_count, submessage.count());
     }
 }

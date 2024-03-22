@@ -22,7 +22,7 @@ use crate::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
                     RtpsSubmessageWriteKind,
                 },
-                submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
+                submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
                     info_destination::InfoDestinationSubmessageWrite,
@@ -414,7 +414,7 @@ impl DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            serialized_status_info,
+            ArcSlice::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -463,7 +463,7 @@ impl DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            serialized_status_info,
+            ArcSlice::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -836,7 +836,7 @@ impl DataWriterActor {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+            let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
 
             if let Some(reader_proxy) = self
                 .matched_readers

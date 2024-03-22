@@ -1,63 +1,69 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber},
+        types::{EntityId, SequenceNumber, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct HeartbeatSubmessageRead {
+    final_flag: SubmessageFlag,
+    liveliness_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    count: Count,
 }
 
-impl SubmessageHeader for HeartbeatSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> HeartbeatSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
-        if data.len() >= 32 {
-            Ok(Self { data })
-        } else {
-            Err(DdsError::Error("Heartbeat submessage invalid".to_string()))
-        }
+impl HeartbeatSubmessageRead {
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        mut data: &[u8],
+    ) -> DdsResult<Self> {
+        let endianness = submessage_header.endianness();
+        Ok(Self {
+            final_flag: submessage_header.flags()[1],
+            liveliness_flag: submessage_header.flags()[2],
+            reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            first_sn: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            last_sn: SequenceNumber::try_read_from_bytes(&mut data, endianness)?,
+            count: Count::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn final_flag(&self) -> bool {
-        self.submessage_header().flags()[1]
+        self.final_flag
     }
 
     pub fn liveliness_flag(&self) -> bool {
-        self.submessage_header().flags()[2]
+        self.liveliness_flag
     }
 
     pub fn _reader_id(&self) -> EntityId {
-        self.map(&self.data[4..])
+        self.reader_id
     }
 
     pub fn writer_id(&self) -> EntityId {
-        self.map(&self.data[8..])
+        self.writer_id
     }
 
     pub fn first_sn(&self) -> SequenceNumber {
-        self.map(&self.data[12..])
+        self.first_sn
     }
 
     pub fn last_sn(&self) -> SequenceNumber {
-        self.map(&self.data[20..])
+        self.last_sn
     }
 
     pub fn count(&self) -> Count {
-        self.map(&self.data[28..])
+        self.count
     }
 }
 #[derive(Debug, PartialEq, Eq)]
@@ -157,7 +163,7 @@ mod tests {
         let expected_last_sn = SequenceNumber::from(7);
         let expected_count = 2;
         #[rustfmt::skip]
-        let submessage = HeartbeatSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -166,7 +172,9 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage = HeartbeatSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());

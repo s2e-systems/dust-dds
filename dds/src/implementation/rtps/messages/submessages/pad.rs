@@ -1,32 +1,21 @@
 use crate::{
     implementation::rtps::messages::{
-        overall_structure::{
-            Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-        },
+        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
         submessage_elements::SubmessageElement,
         types::SubmessageKind,
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PadSubmessageRead<'a> {
-    data: &'a [u8],
-}
+pub struct PadSubmessageRead {}
 
-impl SubmessageHeader for PadSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> PadSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
-        if data.len() >= 4 {
-            Ok(Self { data })
-        } else {
-            Err(DdsError::Error("Pad submessage invalid".to_string()))
-        }
+impl PadSubmessageRead {
+    pub fn try_from_bytes(
+        _submessage_header: &SubmessageHeaderRead,
+        _data: &[u8],
+    ) -> DdsResult<Self> {
+        Ok(Self {})
     }
 }
 
@@ -60,7 +49,7 @@ impl<'a> Submessage<'a> for PadSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::messages::overall_structure::{
-        into_bytes_vec, RtpsSubmessageWriteKind,
+        into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
     };
 
     #[test]
@@ -76,13 +65,12 @@ mod tests {
     #[test]
     fn deserialize_pad() {
         #[rustfmt::skip]
-        let submessage = PadSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x01, 0b_0000_0001, 0, 0, // Submessage header
-        ]).unwrap();
-        let expected_endianness_flag = true;
-        assert_eq!(
-            expected_endianness_flag,
-            submessage.submessage_header().flags()[0]
-        );
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage = PadSubmessageRead::try_from_bytes(&submessage_header, data);
+
+        assert!(submessage.is_ok())
     }
 }

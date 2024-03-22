@@ -1,6 +1,8 @@
-use crate::infrastructure::{self, time::Duration};
-
 use super::overall_structure::WriteBytes;
+use crate::{
+    implementation::rtps::types::{Endianness, TryReadFromBytes},
+    infrastructure::{self, error::DdsResult, time::Duration},
+};
 use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -10,6 +12,51 @@ type Octet = u8;
 type Long = i32;
 type UnsignedLong = u32;
 type Short = i16;
+type UnsignedShort = u16;
+
+impl TryReadFromBytes for Long {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 4];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => i32::from_be_bytes(bytes),
+            Endianness::LittleEndian => i32::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for UnsignedLong {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 4];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => u32::from_be_bytes(bytes),
+            Endianness::LittleEndian => u32::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for Short {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => i16::from_be_bytes(bytes),
+            Endianness::LittleEndian => i16::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for UnsignedShort {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => u16::from_be_bytes(bytes),
+            Endianness::LittleEndian => u16::from_le_bytes(bytes),
+        })
+    }
+}
 
 /// ProtocolId_t
 /// Enumeration used to identify the protocol.
@@ -122,6 +169,12 @@ impl Time {
 
     pub fn fraction(&self) -> UnsignedLong {
         self.fraction
+    }
+
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let seconds = UnsignedLong::try_read_from_bytes(data, endianness)?;
+        let fraction = UnsignedLong::try_read_from_bytes(data, endianness)?;
+        Ok(Self { seconds, fraction })
     }
 }
 
