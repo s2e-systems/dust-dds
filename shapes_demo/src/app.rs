@@ -5,7 +5,6 @@ pub mod shapes_type {
 use self::shapes_type::ShapeType;
 use super::shapes_widget::{GuiShape, MovingShapeObject, ShapesWidget};
 use dust_dds::{
-    configuration::DustDdsConfigurationBuilder,
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
@@ -128,13 +127,6 @@ impl Default for ShapesDemoApp {
     fn default() -> Self {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
-        let configuration = DustDdsConfigurationBuilder::new()
-            .interface_name(Some("Ethernet".to_string()))
-            .build()
-            .unwrap();
-        participant_factory
-            .set_configuration(configuration)
-            .unwrap();
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
             .unwrap();

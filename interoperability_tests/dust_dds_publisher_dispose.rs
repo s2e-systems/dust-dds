@@ -1,5 +1,4 @@
 use dust_dds::{
-    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listeners::NoOpListener,
@@ -22,13 +21,6 @@ fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let configuration = DustDdsConfigurationBuilder::new()
-        .interface_name(Some("Ethernet".to_string()))
-        .build()
-        .unwrap();
-    participant_factory
-        .set_configuration(configuration)
-        .unwrap();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
         .unwrap();
