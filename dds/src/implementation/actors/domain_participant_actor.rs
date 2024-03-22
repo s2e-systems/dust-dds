@@ -1454,18 +1454,25 @@ impl DomainParticipantActor {
                 .await
                 .expect("Can not fail to send mail to builtin reader")
             {
-                for (spdp_data_sample, _) in spdp_data_sample_list {
-                    match SpdpDiscoveredParticipantData::deserialize_data(
-                        spdp_data_sample.expect("Should contain data").as_ref(),
-                    ) {
-                        Ok(discovered_participant_data) => {
-                            self.process_discovered_participant_data(discovered_participant_data)
+                for (spdp_data_sample, spdp_sample_info) in spdp_data_sample_list {
+                    if let Some(spdp_data) = spdp_data_sample.as_ref() {
+                        match SpdpDiscoveredParticipantData::deserialize_data(spdp_data.as_ref()) {
+                            Ok(discovered_participant_data) => {
+                                self.process_discovered_participant_data(
+                                    discovered_participant_data,
+                                )
                                 .await
+                            }
+                            Err(e) => warn!(
+                                "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
+                                e
+                            ),
                         }
-                        Err(e) => warn!(
-                            "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
-                            e
-                        ),
+                    } else {
+                        warn!(
+                            "Received empty sample on spdp. Sample info: {:?}",
+                            spdp_sample_info
+                        )
                     }
                 }
             }

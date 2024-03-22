@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
-	"Pierre Martinet <pmartinet@s2e-systems.com>"
+	"Pierre Martinet <pmartinet@s2e-systems.com>",
 ]
 license = "Apache-2.0"
 edition = "2021"
@@ -20,7 +20,7 @@ dust_dds = { path = "../dds" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [build-dependencies]
-dust_dds_gen = { path="../dds_gen" }
+dust_dds_gen = { path = "../dds_gen" }
 
 [[bin]]
 name = "dust_dds_publisher"
@@ -45,3 +45,11 @@ path = "subscriber_multi_machine.rs"
 [[bin]]
 name = "multiple_subscriber_test_publisher"
 path = "publisher_multi_machine.rs"
+
+[[bin]]
+name = "dust_dds_subscriber_dispose"
+path = "dust_dds_subscriber_dispose.rs"
+
+[[bin]]
+name = "dust_dds_publisher_dispose"
+path = "dust_dds_publisher_dispose.rs"

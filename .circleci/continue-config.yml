@@ -54,7 +54,7 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen --jobs 4
+            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen
       - run:
           name: Hello world example
           command: |
@@ -93,6 +93,7 @@ jobs:
             cmake -S interoperability_tests/fast_dds -B build/fast_dds
             mkdir build/fast_dds/idl
             java -jar /usr/local/share/fastddsgen/java/fastddsgen.jar -d build/fast_dds/idl interoperability_tests/HelloWorld.idl
+            java -jar /usr/local/share/fastddsgen/java/fastddsgen.jar -d build/fast_dds/idl interoperability_tests/DisposeData.idl
             cmake --build build/fast_dds
       - run:
           name: Build CycloneDDS Interoperability tests
@@ -118,6 +119,20 @@ jobs:
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
+          name: FastDDS publisher dispose interoperability test
+          command: |
+            build/fast_dds/FastDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
+          name: FastDDS subscriber dispose interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            pid=$!
+            build/fast_dds/FastDdsPublisherDispose
+            wait $pid
+      - run:
           name: Cyclone publisher interoperability test
           command: |
             cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
@@ -132,18 +147,32 @@ jobs:
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher
             wait $pid
       - run:
-          name: Big data publisher interoperability test
+          name: Cyclone Big data publisher interoperability test
           command: |
             build/cyclone_dds/CycloneDdsBigDataSubscriber &
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_big_data_publisher
             wait $pid
       - run:
-          name: Big data subscriber interoperability test
+          name: Cyclone Big data subscriber interoperability test
           command: |
             build/cyclone_dds/CycloneDdsBigDataPublisher &
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_big_data_subscriber
+            wait $pid
+      - run:
+          name: Cyclone publisher dispose interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
+          name: Cyclone subscriber dispose interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherDispose
             wait $pid
 
   multi_machine_tests:

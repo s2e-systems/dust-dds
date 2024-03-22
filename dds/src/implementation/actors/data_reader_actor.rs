@@ -412,7 +412,6 @@ impl DataReaderActor {
                                 }
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.key_flag(),
                                                 data_submessage.inline_qos(),
                                                 data_submessage.serialized_payload(),
                                                 source_timestamp,
@@ -449,7 +448,6 @@ impl DataReaderActor {
                                 writer_proxy.received_change_set(sequence_number);
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.key_flag(),
                                                 data_submessage.inline_qos(),
                                                 data_submessage.serialized_payload(),
                                                 source_timestamp,
@@ -491,7 +489,6 @@ impl DataReaderActor {
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
                     if let Ok(change) = self.convert_received_data_to_cache_change(
                         writer_guid,
-                        data_submessage.key_flag(),
                         data_submessage.inline_qos(),
                         data_submessage.serialized_payload(),
                         source_timestamp,
@@ -924,35 +921,25 @@ impl DataReaderActor {
     fn convert_received_data_to_cache_change(
         &mut self,
         writer_guid: Guid,
-        key_flag: bool,
         inline_qos: ParameterList,
         data: Data,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<RtpsReaderCacheChange> {
-        let change_kind = if key_flag {
-            if let Some(p) = inline_qos
-                .parameter()
-                .iter()
-                .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-            {
-                let mut deserializer =
-                    ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
-                let status_info: StatusInfo =
-                    CdrDeserialize::deserialize(&mut deserializer).unwrap();
-                match status_info {
-                    STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                    STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                    STATUS_INFO_DISPOSED_UNREGISTERED => {
-                        Ok(ChangeKind::NotAliveDisposedUnregistered)
-                    }
-                    _ => Err(DdsError::Error("Unknown status info value".to_string())),
-                }
-            } else {
-                Err(DdsError::Error(
-                    "Missing mandatory StatusInfo parameter in parameter list".to_string(),
-                ))
+        let change_kind = if let Some(p) = inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            let mut deserializer =
+                ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
+            let status_info: StatusInfo = CdrDeserialize::deserialize(&mut deserializer).unwrap();
+            match status_info {
+                STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
+                _ => Err(DdsError::Error("Unknown status info value".to_string())),
             }
         } else {
             Ok(ChangeKind::Alive)

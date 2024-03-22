@@ -4,6 +4,7 @@ project(CycloneInteroperability LANGUAGES C)
 find_package(CycloneDDS REQUIRED)
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
+idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
 
 add_executable(CycloneDdsSubscriber
   cyclone_dds_subscriber.c
@@ -36,4 +37,21 @@ add_executable(CycloneDdsBigDataPublisher
 target_link_libraries(CycloneDdsBigDataPublisher PRIVATE
   CycloneDDS::ddsc
   BigDataGeneratedIdl
+)
+
+
+add_executable(CycloneDdsSubscriberDispose
+  cyclone_dds_subscriber_dispose.c
+)
+target_link_libraries(CycloneDdsSubscriberDispose PRIVATE
+  CycloneDDS::ddsc
+  DisposeDataGeneratedIdl
+)
+
+add_executable(CycloneDdsPublisherDispose
+  cyclone_dds_publisher_dispose.c
+)
+target_link_libraries(CycloneDdsPublisherDispose PRIVATE
+  CycloneDDS::ddsc
+  DisposeDataGeneratedIdl
 )
