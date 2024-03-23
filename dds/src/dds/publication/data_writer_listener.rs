@@ -53,81 +53,61 @@ where
 
     fn on_liveliness_lost(
         &mut self,
-        _the_writer: DataWriterAsync<Self::Foo>,
-        _status: LivelinessLostStatus,
+        the_writer: DataWriterAsync<Self::Foo>,
+        status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataWriterListener::on_liveliness_lost(
+                self.as_mut(),
+                DataWriter::new(the_writer),
+                status,
+            )
+        });
         Box::pin(async {})
     }
 
     fn on_offered_deadline_missed(
         &mut self,
-        _the_writer: DataWriterAsync<Self::Foo>,
-        _status: OfferedDeadlineMissedStatus,
+        the_writer: DataWriterAsync<Self::Foo>,
+        status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataWriterListener::on_offered_deadline_missed(
+                self.as_mut(),
+                DataWriter::new(the_writer),
+                status,
+            )
+        });
         Box::pin(async {})
     }
 
     fn on_offered_incompatible_qos(
         &mut self,
-        _the_writer: DataWriterAsync<Self::Foo>,
-        _status: OfferedIncompatibleQosStatus,
+        the_writer: DataWriterAsync<Self::Foo>,
+        status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataWriterListener::on_offered_incompatible_qos(
+                self.as_mut(),
+                DataWriter::new(the_writer),
+                status,
+            )
+        });
         Box::pin(async {})
     }
 
     fn on_publication_matched(
         &mut self,
-        _the_writer: DataWriterAsync<Self::Foo>,
-        _status: PublicationMatchedStatus,
+        the_writer: DataWriterAsync<Self::Foo>,
+        status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataWriterListener::on_publication_matched(
+                self.as_mut(),
+                DataWriter::new(the_writer),
+                status,
+            )
+        });
         Box::pin(async {})
     }
-
-    // fn on_liveliness_lost(
-    //     &mut self,
-    //     the_writer: DataWriterAsync<Self::Foo>,
-    //     status: LivelinessLostStatus,
-    // ) -> impl Future<Output = ()> + Send {
-    //     tokio::task::block_in_place(|| {
-    //         self.0
-    //             .on_liveliness_lost(DataWriter::new(the_writer), status)
-    //     });
-    //     async {}
-    // }
-
-    // fn on_offered_deadline_missed(
-    //     &mut self,
-    //     the_writer: DataWriterAsync<Self::Foo>,
-    //     status: OfferedDeadlineMissedStatus,
-    // ) -> impl Future<Output = ()> + Send {
-    //     tokio::task::block_in_place(|| {
-    //         self.0
-    //             .on_offered_deadline_missed(DataWriter::new(the_writer), status)
-    //     });
-    //     async {}
-    // }
-
-    // fn on_offered_incompatible_qos(
-    //     &mut self,
-    //     the_writer: DataWriterAsync<Self::Foo>,
-    //     status: OfferedIncompatibleQosStatus,
-    // ) -> impl Future<Output = ()> + Send {
-    //     tokio::task::block_in_place(|| {
-    //         self.0
-    //             .on_offered_incompatible_qos(DataWriter::new(the_writer), status)
-    //     });
-    //     async {}
-    // }
-
-    // fn on_publication_matched(
-    //     &mut self,
-    //     the_writer: DataWriterAsync<Self::Foo>,
-    //     status: PublicationMatchedStatus,
-    // ) -> impl Future<Output = ()> + Send {
-    //     tokio::task::block_in_place(|| {
-    //         self.0
-    //             .on_publication_matched(DataWriter::new(the_writer), status)
-    //     });
-    //     async {}
-    // }
 }
