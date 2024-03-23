@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpListener,
         qos::{DataReaderQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
@@ -24,7 +23,7 @@ fn get_subscriber_parent_participant() {
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber_parent_participant = subscriber.get_participant();
@@ -47,13 +46,13 @@ fn default_data_reader_qos() {
             "default_data_reader_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let user_data = vec![1, 2, 3];
@@ -69,7 +68,7 @@ fn default_data_reader_qos() {
         .unwrap();
 
     let reader = subscriber
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -95,30 +94,30 @@ fn different_readers_have_different_instance_handles() {
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber1 = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber2 = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader1_1 = subscriber1
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let reader1_2 = subscriber1
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let reader2_1 = subscriber2
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
     let reader2_2 = subscriber2
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
 
     assert_ne!(
@@ -147,17 +146,17 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
             "default_data_writer_qos",
             "UserType",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader = subscriber
-        .create_datareader::<UserType>(&topic, QosKind::Default, NoOpListener::new(), &[])
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
 
     assert!(

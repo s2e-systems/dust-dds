@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpListener,
         qos::{DomainParticipantQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::NO_STATUS,
@@ -67,26 +66,20 @@ fn not_allowed_to_delete_participant_with_entities() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<KeyedData>(
-            "Test",
-            "KeyedData",
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_topic::<KeyedData>("Test", "KeyedData", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datareader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datawriter = publisher
-        .create_datawriter::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(domain_participant_factory
@@ -102,26 +95,20 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<KeyedData>(
-            "Test",
-            "KeyedData",
-            QosKind::Default,
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_topic::<KeyedData>("Test", "KeyedData", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datareader = subscriber
-        .create_datareader::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _datawriter = publisher
-        .create_datawriter::<KeyedData>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_datawriter::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     participant.delete_contained_entities().unwrap();

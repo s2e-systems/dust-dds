@@ -15,7 +15,7 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listeners::NoOpListener, qos::QosKind, status::NO_STATUS},
+        infrastructure::{qos::QosKind, status::NO_STATUS},
         topic_definition::type_support::DdsType,
     };
 
@@ -35,15 +35,15 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
             .unwrap();
 
         let topic = participant
-            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let publisher = participant
-            .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_publisher(QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let writer = publisher
-            .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let hello_world = HelloWorldType {
@@ -59,7 +59,7 @@ The subscriber side can be implemented as:
 ```rust
     use dust_dds::{
         domain::domain_participant_factory::DomainParticipantFactory,
-        infrastructure::{listeners::NoOpListener, qos::QosKind, status::NO_STATUS},
+        infrastructure::{qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         topic_definition::type_support::DdsType,
     };
@@ -80,15 +80,15 @@ The subscriber side can be implemented as:
             .unwrap();
 
         let topic = participant
-            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let subscriber = participant
-            .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_subscriber(QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let reader = subscriber
-            .create_datareader::<HelloWorldType>(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+            .create_datareader::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
             .unwrap();
 
         let samples = reader

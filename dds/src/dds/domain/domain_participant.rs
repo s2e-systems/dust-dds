@@ -3,8 +3,9 @@ use crate::{
     dds_async::{
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync,
+        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        topic_listener::TopicListenerAsync,
     },
-    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -71,14 +72,14 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
         self.participant_async
             .runtime_handle()
             .block_on(self.participant_async.create_publisher(
                 qos,
-                ListenerSyncToAsync::new(a_listener),
+                a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
                 mask,
             ))
             .map(Publisher::new)
@@ -111,14 +112,14 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         self.participant_async
             .runtime_handle()
             .block_on(self.participant_async.create_subscriber(
                 qos,
-                ListenerSyncToAsync::new(a_listener),
+                a_listener.map::<Box<dyn SubscriberListenerAsync + Send>, _>(|b| Box::new(b)),
                 mask,
             ))
             .map(Subscriber::new)
@@ -151,7 +152,7 @@ impl DomainParticipant {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic>
     where
@@ -163,7 +164,7 @@ impl DomainParticipant {
                 topic_name,
                 type_name,
                 qos,
-                ListenerSyncToAsync::new(a_listener),
+                a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
                 mask,
             ))
             .map(Topic::new)
@@ -176,7 +177,7 @@ impl DomainParticipant {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
         dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
     ) -> DdsResult<Topic> {
@@ -186,7 +187,7 @@ impl DomainParticipant {
                 topic_name,
                 type_name,
                 qos,
-                ListenerSyncToAsync::new(a_listener),
+                a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
                 mask,
                 dynamic_type_representation,
             ))

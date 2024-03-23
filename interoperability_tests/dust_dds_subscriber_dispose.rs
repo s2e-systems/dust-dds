@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpListener,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -33,7 +32,7 @@ fn main() {
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_qos = DataReaderQos {
@@ -50,7 +49,7 @@ fn main() {
         .create_datareader::<dispose_data::DisposeDataType>(
             &topic,
             QosKind::Specific(reader_qos),
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();

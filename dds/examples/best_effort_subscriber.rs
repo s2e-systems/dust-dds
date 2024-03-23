@@ -6,7 +6,6 @@ use std::{
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
     },
@@ -61,13 +60,13 @@ fn main() {
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
@@ -77,7 +76,7 @@ fn main() {
         .create_datareader(
             &topic,
             QosKind::Default,
-            listener,
+            Some(Box::new(listener)),
             &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();

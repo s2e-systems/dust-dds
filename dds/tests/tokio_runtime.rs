@@ -5,7 +5,6 @@ use dust_dds::{
         wait_set::{ConditionAsync, WaitSetAsync},
     },
     infrastructure::{
-        listeners::NoOpListener,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -38,14 +37,14 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
             "LargeDataTopic",
             "UserData",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .await
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .await
         .unwrap();
     let writer_qos = DataWriterQos {
@@ -56,17 +55,12 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(
-            &topic,
-            QosKind::Specific(writer_qos),
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
         .await
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .await
         .unwrap();
     let reader_qos = DataReaderQos {
@@ -77,12 +71,7 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<UserData>(
-            &topic,
-            QosKind::Specific(reader_qos),
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_datareader::<UserData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .await
         .unwrap();
 

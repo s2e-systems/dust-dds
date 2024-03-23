@@ -273,7 +273,7 @@ impl DataReaderActor {
         type_name: String,
         topic_name: String,
         qos: DataReaderQos,
-        listener: Box<dyn AnyDataReaderListener + Send>,
+        listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
         topic_address: ActorAddress<TopicActor>,
@@ -1938,7 +1938,7 @@ impl DataReaderActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn AnyDataReaderListener + Send>,
+        listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {
