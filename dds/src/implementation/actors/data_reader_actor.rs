@@ -39,10 +39,7 @@ use crate::{
             },
             reader::RtpsReaderKind,
             reader_history_cache::{InstanceState, RtpsReaderCacheChange},
-            types::{
-                ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
-                GUID_UNKNOWN,
-            },
+            types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
@@ -667,10 +664,8 @@ impl DataReaderActor {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => {
                 if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                    for seq_num in gap_submessage.gap_start()
-                        ..gap_submessage.gap_list().base()
-                    {
-                        writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
+                    for seq_num in gap_submessage.gap_start()..gap_submessage.gap_list().base() {
+                        writer_proxy.irrelevant_change_set(seq_num)
                     }
 
                     for seq_num in gap_submessage.gap_list().set() {

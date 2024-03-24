@@ -132,10 +132,7 @@ impl SequenceNumberSet {
 
 impl TryReadFromBytes for SequenceNumberSet {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
-        let high = i32::try_read_from_bytes(data, endianness)?;
-        let low = i32::try_read_from_bytes(data, endianness)?;
-        let base = SequenceNumber::from(((high as i64) << 32) + low as i64);
-
+        let base = SequenceNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
