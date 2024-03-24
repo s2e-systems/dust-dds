@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number() {
-        let data = 7;
+        let data: SequenceNumber = 7;
         let result = into_bytes_vec(data);
         assert_eq!(
             result,

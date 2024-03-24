@@ -39,19 +39,25 @@ impl DataFragSubmessageRead {
             let non_standard_payload_flag = submessage_header.flags()[3];
 
             let _extra_flags = u16::try_read_from_bytes(&mut slice, endianness)?;
-            let octets_to_inline_qos = u16::try_read_from_bytes(&mut slice, endianness)? as usize + 4;
+            let octets_to_inline_qos =
+                u16::try_read_from_bytes(&mut slice, endianness)? as usize + 4;
             let reader_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
             let writer_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
             let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
-            let fragment_starting_num = FragmentNumber::try_read_from_bytes(&mut slice, endianness)?;
+            let fragment_starting_num =
+                FragmentNumber::try_read_from_bytes(&mut slice, endianness)?;
             let fragments_in_submessage = u16::try_read_from_bytes(&mut slice, endianness)?;
             let fragment_size = u16::try_read_from_bytes(&mut slice, endianness)?;
             let data_size = u32::try_read_from_bytes(&mut slice, endianness)?;
 
-            let mut data_starting_at_inline_qos = data.sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
+            let mut data_starting_at_inline_qos = data
+                .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
 
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_read_from_arc_slice(&mut data_starting_at_inline_qos, endianness)?
+                ParameterList::try_read_from_arc_slice(
+                    &mut data_starting_at_inline_qos,
+                    endianness,
+                )?
             } else {
                 ParameterList::empty()
             };
@@ -227,7 +233,7 @@ mod tests {
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![].into());
-        let submessage = RtpsSubmessageWriteKind::DataFrag(DataFragSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::DataFrag(Box::new(DataFragSubmessageWrite::new(
             false,
             false,
             false,
@@ -240,7 +246,7 @@ mod tests {
             5,
             inline_qos,
             serialized_payload,
-        ));
+        )));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
@@ -260,7 +266,7 @@ mod tests {
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
         let serialized_payload = Data::new(vec![1, 2, 3].into());
-        let submessage = RtpsSubmessageWriteKind::DataFrag(DataFragSubmessageWrite::new(
+        let submessage = RtpsSubmessageWriteKind::DataFrag(Box::new(DataFragSubmessageWrite::new(
             true,
             false,
             false,
@@ -273,7 +279,7 @@ mod tests {
             5,
             &inline_qos,
             &serialized_payload,
-        ));
+        )));
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(submessage), vec![
                 0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
@@ -309,7 +315,8 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            DataFragSubmessageRead::try_from_arc_slice(&submessage_header, ArcSlice::from(data)).unwrap();
+            DataFragSubmessageRead::try_from_arc_slice(&submessage_header, ArcSlice::from(data))
+                .unwrap();
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
