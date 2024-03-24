@@ -285,7 +285,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::from(2),
+            2,
             TIME_INVALID,
             vec![Data::new(vec![].into())],
             ParameterList::empty(),
@@ -321,7 +321,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            SequenceNumber::from(2),
+            2,
             TIME_INVALID,
             vec![Data::new(vec![].into())],
             ParameterList::empty(),
@@ -338,6 +338,6 @@ mod tests {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         );
-        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::from(2)));
+        assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 }

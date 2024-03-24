@@ -116,7 +116,7 @@ impl SequenceNumberSet {
                     let bitmap_num = delta_n / 32;
                     let mask = 1 << (31 - delta_n % 32);
                     if self.set.bitmap[bitmap_num] & mask == mask {
-                        return Some(self.set.base + SequenceNumber::from(delta_n as i64));
+                        return Some(self.set.base + delta_n as i64);
                     }
                 }
                 None
@@ -558,11 +558,11 @@ mod tests {
 
     #[test]
     fn sequence_number_set_methods() {
-        let base = SequenceNumber::from(100);
+        let base = 100;
         let set = [
-            SequenceNumber::from(102),
-            SequenceNumber::from(200),
-            SequenceNumber::from(355),
+            102,
+            200,
+            355,
         ];
         let seq_num_set = SequenceNumberSet::new(base, set);
 
@@ -729,7 +729,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number() {
-        let sequence_number = SequenceNumber::from(i64::MAX);
+        let sequence_number = i64::MAX;
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(sequence_number), vec![
             0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
@@ -739,7 +739,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number() {
-        let expected = SequenceNumber::from(7);
+        let expected = 7;
         assert_eq!(
             expected,
             SequenceNumber::try_read_from_bytes(
@@ -755,7 +755,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_largest_old() {
-        let expected = SequenceNumber::from(i64::MAX);
+        let expected = i64::MAX;
         assert_eq!(
             expected,
             SequenceNumber::try_read_from_bytes(
@@ -771,7 +771,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_largest() {
-        let expected = SequenceNumber::from(i64::MAX);
+        let expected = i64::MAX;
         assert_eq!(
             expected,
             SequenceNumber::try_read_from_bytes(
@@ -788,8 +788,8 @@ mod tests {
     #[test]
     fn serialize_sequence_number_set_max_gap() {
         let sequence_number_set = SequenceNumberSet::new(
-            SequenceNumber::from(2),
-            [SequenceNumber::from(2), SequenceNumber::from(257)],
+            2,
+            [2, 257],
         );
         #[rustfmt::skip]
         assert_eq!(into_bytes_vec(sequence_number_set), vec![
@@ -809,7 +809,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_empty() {
-        let expected = SequenceNumberSet::new(SequenceNumber::from(2), []);
+        let expected = SequenceNumberSet::new(2, []);
         #[rustfmt::skip]
         let result = SequenceNumberSet::try_read_from_bytes(&mut &[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -822,8 +822,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_with_gaps() {
         let expected = SequenceNumberSet::new(
-            SequenceNumber::from(7),
-            [SequenceNumber::from(9), SequenceNumber::from(11)],
+            7,
+            [9, 11],
         );
         #[rustfmt::skip]
         let result = SequenceNumberSet::try_read_from_bytes(&mut &[
@@ -838,8 +838,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
         let expected = SequenceNumberSet::new(
-            SequenceNumber::from(2),
-            [SequenceNumber::from(2), SequenceNumber::from(257)],
+            2,
+            [2, 257],
         );
         #[rustfmt::skip]
         let result = SequenceNumberSet::try_read_from_bytes(&mut &[
@@ -860,7 +860,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_faulty_num_bitmaps() {
-        let expected = SequenceNumberSet::new(SequenceNumber::from(2), []);
+        let expected = SequenceNumberSet::new(2, []);
         #[rustfmt::skip]
         let result = SequenceNumberSet::try_read_from_bytes(&mut &[
             0, 0, 0, 0, // bitmapBase: high (long)
