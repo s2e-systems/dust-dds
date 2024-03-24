@@ -7,7 +7,6 @@ use network_interface::Addr;
 use std::{
     io::{Read, Write},
     net::IpAddr,
-    ops::{Add, AddAssign, Sub, SubAssign},
 };
 
 ///
@@ -247,82 +246,24 @@ pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
-/// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct SequenceNumber {
-    high: Long,
-    low: UnsignedLong,
-}
-
-#[allow(dead_code)]
-pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber::new(-1, 0);
+pub type SequenceNumber = i64;
 
 impl TryReadFromBytes for SequenceNumber {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
         let high = i32::try_read_from_bytes(data, endianness)?;
         let low = u32::try_read_from_bytes(data, endianness)?;
         let value = ((high as i64) << 32) + low as i64;
-        Ok(SequenceNumber::from(value))
-    }
-}
-
-impl SequenceNumber {
-    pub const fn new(high: Long, low: UnsignedLong) -> Self {
-        Self { high, low }
-    }
-}
-impl From<SequenceNumber> for i64 {
-    fn from(value: SequenceNumber) -> Self {
-        ((value.high as i64) << 32) + value.low as i64
-    }
-}
-impl From<i64> for SequenceNumber {
-    fn from(value: i64) -> Self {
-        Self {
-            high: (value >> 32) as Long,
-            low: value as UnsignedLong,
-        }
-    }
-}
-impl Add for SequenceNumber {
-    type Output = Self;
-    fn add(self, rhs: SequenceNumber) -> Self::Output {
-        Self::from(<i64>::from(self) + <i64>::from(rhs))
-    }
-}
-impl Sub for SequenceNumber {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::from(<i64>::from(self) - <i64>::from(rhs))
-    }
-}
-impl AddAssign<i64> for SequenceNumber {
-    fn add_assign(&mut self, rhs: i64) {
-        *self = Self::from(<i64>::from(*self) + rhs);
-    }
-}
-impl Add<i64> for SequenceNumber {
-    type Output = Self;
-    fn add(self, rhs: i64) -> Self::Output {
-        Self::from(<i64>::from(self) + rhs)
-    }
-}
-impl SubAssign<i64> for SequenceNumber {
-    fn sub_assign(&mut self, rhs: i64) {
-        *self = Self::from(<i64>::from(*self) - rhs);
-    }
-}
-impl Sub<i64> for SequenceNumber {
-    type Output = Self;
-    fn sub(self, rhs: i64) -> Self::Output {
-        Self::from(<i64>::from(self) - rhs)
+        Ok(value)
     }
 }
 
 impl WriteBytes for SequenceNumber {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.high.write_bytes(&mut buf[0..]) + self.low.write_bytes(&mut buf[4..])
+        let high = (*self >> 32) as Long;
+        let low = *self as UnsignedLong;
+        high.to_le_bytes().write_bytes(buf) +
+        low.to_le_bytes().write_bytes(&mut buf[4..])
     }
 }
 

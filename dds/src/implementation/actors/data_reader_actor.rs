@@ -667,8 +667,8 @@ impl DataReaderActor {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => {
                 if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                    for seq_num in i64::from(gap_submessage.gap_start())
-                        ..i64::from(gap_submessage.gap_list().base())
+                    for seq_num in gap_submessage.gap_start()
+                        ..gap_submessage.gap_list().base()
                     {
                         writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
                     }

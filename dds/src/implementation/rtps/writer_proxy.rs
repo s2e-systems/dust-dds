@@ -176,7 +176,7 @@ impl RtpsWriterProxy {
             self.first_available_seq_num,
             self.highest_received_change_sn + 1,
         );
-        (i64::from(first_missing_change)..=i64::from(highest_number)).map(SequenceNumber::from)
+        first_missing_change..=highest_number
     }
 
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
