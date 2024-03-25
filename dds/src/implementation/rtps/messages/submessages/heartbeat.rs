@@ -127,8 +127,8 @@ mod tests {
         let liveliness_flag = true;
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let first_sn = SequenceNumber::from(5);
-        let last_sn = SequenceNumber::from(7);
+        let first_sn = 5;
+        let last_sn = 7;
         let count = 2;
         let submessage = RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite::new(
             final_flag,
@@ -159,8 +159,8 @@ mod tests {
         let expected_liveliness_flag = true;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let expected_first_sn = SequenceNumber::from(5);
-        let expected_last_sn = SequenceNumber::from(7);
+        let expected_first_sn = 5;
+        let expected_last_sn = 7;
         let expected_count = 2;
         #[rustfmt::skip]
         let mut data = &[

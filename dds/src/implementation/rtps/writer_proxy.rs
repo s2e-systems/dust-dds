@@ -57,9 +57,9 @@ impl RtpsWriterProxy {
             multicast_locator_list: multicast_locator_list.to_vec(),
             data_max_size_serialized,
             remote_group_entity_id,
-            first_available_seq_num: SequenceNumber::from(1),
-            last_available_seq_num: SequenceNumber::from(0),
-            highest_received_change_sn: SequenceNumber::from(0),
+            first_available_seq_num: 1,
+            last_available_seq_num: 0,
+            highest_received_change_sn: 0,
             must_send_acknacks: false,
             last_received_heartbeat_count: 0,
             last_received_heartbeat_frag_count: 0,
@@ -176,7 +176,7 @@ impl RtpsWriterProxy {
             self.first_available_seq_num,
             self.highest_received_change_sn + 1,
         );
-        (i64::from(first_missing_change)..=i64::from(highest_number)).map(SequenceNumber::from)
+        first_missing_change..=highest_number
     }
 
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {

@@ -107,7 +107,7 @@ mod tests {
         let submessage = RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite::new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-            SequenceNumber::from(4),
+            4,
             FragmentNumberSet::new(10, []),
             6,
         ));
@@ -143,7 +143,7 @@ mod tests {
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let expected_writer_sn = SequenceNumber::from(4);
+        let expected_writer_sn = 4;
         let expected_fragment_number_state = FragmentNumberSet::new(10, []);
         let expected_count = 6;
 

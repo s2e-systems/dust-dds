@@ -24,14 +24,14 @@ impl AckNackSubmessageRead {
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
     ) -> DdsResult<Self> {
-            let endianness = submessage_header.endianness();
-            Ok(Self {
-                final_flag: submessage_header.flags()[1],
-                reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
-                writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
-                reader_sn_state: SequenceNumberSet::try_read_from_bytes(&mut data, endianness)?,
-                count: Count::try_read_from_bytes(&mut data, endianness)?,
-            })
+        let endianness = submessage_header.endianness();
+        Ok(Self {
+            final_flag: submessage_header.flags()[1],
+            reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            writer_id: EntityId::try_read_from_bytes(&mut data, endianness)?,
+            reader_sn_state: SequenceNumberSet::try_read_from_bytes(&mut data, endianness)?,
+            count: Count::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn _final_flag(&self) -> bool {
@@ -102,7 +102,7 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
-        types::{SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
@@ -114,7 +114,7 @@ mod tests {
             final_flag,
             reader_id,
             writer_id,
-            SequenceNumberSet::new(SequenceNumber::from(10), []),
+            SequenceNumberSet::new(10, []),
             14,
         ));
         #[rustfmt::skip]
@@ -148,7 +148,7 @@ mod tests {
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let expected_reader_sn_state = SequenceNumberSet::new(SequenceNumber::from(10), []);
+        let expected_reader_sn_state = SequenceNumberSet::new(10, []);
         let expected_count = 2;
 
         assert_eq!(expected_final_flag, submessage._final_flag());
