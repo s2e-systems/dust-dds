@@ -1,12 +1,17 @@
-use crate::infrastructure::status::{
-    LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-    SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+use std::{future::Future, pin::Pin};
+
+use crate::{
+    dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
+    infrastructure::status::{
+        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+    },
 };
 
 use super::data_reader::DataReader;
 
 /// This trait represents a listener object which can be associated with the [`DataReader`] entity.
-pub trait DataReaderListener {
+pub trait DataReaderListener: 'static {
     /// Type of the DataReader with which this Listener will be associated.
     type Foo;
 
@@ -54,4 +59,107 @@ pub trait DataReaderListener {
 
     /// Method that is called when this reader reports a sample lost status.
     fn on_sample_lost(&mut self, _the_reader: DataReader<Self::Foo>, _status: SampleLostStatus) {}
+}
+
+impl<'a, Foo> DataReaderListenerAsync for Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>
+where
+    Self: 'static,
+{
+    type Foo = Foo;
+
+    fn on_data_available(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_data_available(self.as_mut(), DataReader::new(the_reader))
+        });
+        Box::pin(async {})
+    }
+
+    fn on_sample_rejected(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+        status: SampleRejectedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_sample_rejected(
+                self.as_mut(),
+                DataReader::new(the_reader),
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_liveliness_changed(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+        status: LivelinessChangedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_liveliness_changed(
+                self.as_mut(),
+                DataReader::new(the_reader),
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_requested_deadline_missed(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+        status: RequestedDeadlineMissedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_requested_deadline_missed(
+                self.as_mut(),
+                DataReader::new(the_reader),
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_requested_incompatible_qos(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+        status: RequestedIncompatibleQosStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_requested_incompatible_qos(
+                self.as_mut(),
+                DataReader::new(the_reader),
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_subscription_matched(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+        status: SubscriptionMatchedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_subscription_matched(
+                self.as_mut(),
+                DataReader::new(the_reader),
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_sample_lost(
+        &mut self,
+        the_reader: DataReaderAsync<Self::Foo>,
+        status: SampleLostStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DataReaderListener::on_sample_lost(self.as_mut(), DataReader::new(the_reader), status)
+        });
+        Box::pin(async {})
+    }
 }

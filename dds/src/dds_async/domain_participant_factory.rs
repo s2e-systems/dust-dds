@@ -48,10 +48,9 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
-        let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
         let runtime_handle = self.runtime_handle.clone();
         let participant_address = self
@@ -59,7 +58,7 @@ impl DomainParticipantFactoryAsync {
             .send_mail_and_await_reply(domain_participant_factory_actor::create_participant::new(
                 domain_id,
                 qos,
-                listener,
+                a_listener,
                 status_kind,
                 runtime_handle,
             ))

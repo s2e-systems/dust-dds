@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
 use crate::infrastructure::status::{
     LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -8,7 +8,10 @@ use crate::infrastructure::status::{
 use super::data_writer::DataWriterAsync;
 
 /// This trait represents a listener object which can be associated with the [`DataWriterAsync`] entity.
-pub trait DataWriterListenerAsync {
+pub trait DataWriterListenerAsync
+where
+    Self: 'static,
+{
     /// Type of the DataWriter with which this Listener will be associated.
     type Foo;
 
@@ -17,31 +20,31 @@ pub trait DataWriterListenerAsync {
         &mut self,
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: LivelinessLostStatus,
-    ) -> impl Future<Output = ()> + Send {
-        async {}
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
     }
     /// Method that is called when this writer reports an offered deadline missed status.
     fn on_offered_deadline_missed(
         &mut self,
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: OfferedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        async {}
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
     }
     /// Method that is called when this writer reports an offered incompatible qos status.
     fn on_offered_incompatible_qos(
         &mut self,
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: OfferedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
-        async {}
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
     }
     /// Method that is called when this writer reports a publication matched status.
     fn on_publication_matched(
         &mut self,
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: PublicationMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        async {}
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
     }
 }

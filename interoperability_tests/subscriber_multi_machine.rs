@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpListener,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -27,7 +26,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -35,13 +34,13 @@ fn main() {
             "HelloWorld",
             "HelloWorldType",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_qos = DataReaderQos {
@@ -55,12 +54,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<HelloWorldType>(
-            &topic,
-            QosKind::Specific(reader_qos),
-            NoOpListener::new(),
-            NO_STATUS,
-        )
+        .create_datareader::<HelloWorldType>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let reader_cond = reader.get_statuscondition();

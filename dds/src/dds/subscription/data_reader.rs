@@ -1,9 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    dds_async::data_reader::DataReaderAsync,
-    implementation::{
-        rtps::messages::submessage_elements::Data, utils::sync_listener::ListenerSyncToAsync,
-    },
+    dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
+    implementation::rtps::messages::submessage_elements::Data,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -546,7 +544,12 @@ impl<Foo> DataReader<Foo> {
             .runtime_handle()
             .block_on(self.reader_async.get_instance_handle())
     }
+}
 
+impl<'a, Foo> DataReader<Foo>
+where
+    Foo: 'a,
+{
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -556,12 +559,15 @@ impl<Foo> DataReader<Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_async.runtime_handle().block_on(
-            self.reader_async
-                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+            self.reader_async.set_listener(
+                a_listener
+                    .map::<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
+                mask,
+            ),
         )
     }
 }

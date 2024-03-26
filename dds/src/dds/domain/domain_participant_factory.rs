@@ -1,9 +1,11 @@
 use super::domain_participant::DomainParticipant;
 use crate::{
     configuration::DustDdsConfiguration,
-    dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
+    dds_async::{
+        domain_participant_factory::DomainParticipantFactoryAsync,
+        domain_participant_listener::DomainParticipantListenerAsync,
+    },
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         error::DdsResult,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
@@ -44,16 +46,19 @@ impl DomainParticipantFactory {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListener + Send + 'static,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         self.runtime
-            .block_on(self.participant_factory_async.create_participant(
-                domain_id,
-                qos,
-                ListenerSyncToAsync::new(a_listener),
-                mask,
-            ))
+            .block_on(
+                self.participant_factory_async.create_participant(
+                    domain_id,
+                    qos,
+                    a_listener
+                        .map::<Box<dyn DomainParticipantListenerAsync + Send>, _>(|b| Box::new(b)),
+                    mask,
+                ),
+            )
             .map(DomainParticipant::new)
     }
 

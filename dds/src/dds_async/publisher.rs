@@ -1,6 +1,7 @@
 use crate::{
     implementation::{
         actors::{
+            any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
@@ -61,13 +62,16 @@ impl PublisherAsync {
 impl PublisherAsync {
     /// Async version of [`create_datawriter`](crate::publication::publisher::Publisher::create_datawriter).
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub async fn create_datawriter<Foo>(
-        &self,
-        a_topic: &TopicAsync,
+    pub async fn create_datawriter<'a, 'b, Foo>(
+        &'a self,
+        a_topic: &'a TopicAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: impl DataWriterListenerAsync<Foo = Foo> + Send + 'static,
-        mask: &[StatusKind],
-    ) -> DdsResult<DataWriterAsync<Foo>> {
+        a_listener: Option<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send + 'b>>,
+        mask: &'a [StatusKind],
+    ) -> DdsResult<DataWriterAsync<Foo>>
+    where
+        Foo: 'b,
+    {
         let type_name = a_topic.get_type_name();
         let type_support = self
             .participant
@@ -103,7 +107,7 @@ impl PublisherAsync {
             .send_mail_and_await_reply(domain_participant_actor::data_max_size_serialized::new())
             .await?;
 
-        let listener = Box::new(a_listener);
+        let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let has_key = type_support.has_key();
         let data_writer_address = self
             .publisher_address
@@ -330,12 +334,12 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl PublisherListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.publisher_address
             .send_mail_and_await_reply(publisher_actor::set_listener::new(
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.participant.runtime_handle().clone(),
             ))

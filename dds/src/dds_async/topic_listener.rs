@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
 use crate::infrastructure::status::InconsistentTopicStatus;
 
@@ -11,7 +11,7 @@ pub trait TopicListenerAsync {
         &mut self,
         _the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
-    ) -> impl Future<Output = ()> + Send {
-        async {}
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
     }
 }

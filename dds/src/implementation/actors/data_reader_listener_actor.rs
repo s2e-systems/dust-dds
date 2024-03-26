@@ -15,11 +15,11 @@ use super::{
 };
 
 pub struct DataReaderListenerActor {
-    listener: Box<dyn AnyDataReaderListener + Send + 'static>,
+    listener: Option<Box<dyn AnyDataReaderListener + Send>>,
 }
 
 impl DataReaderListenerActor {
-    pub fn new(listener: Box<dyn AnyDataReaderListener + Send + 'static>) -> Self {
+    pub fn new(listener: Option<Box<dyn AnyDataReaderListener + Send>>) -> Self {
         Self { listener }
     }
 }
@@ -44,8 +44,8 @@ impl DataReaderListenerActor {
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) {
-        self.listener
-            .call_listener_function(
+        if let Some(l) = &mut self.listener {
+            l.call_listener_function(
                 listener_operation,
                 reader_address,
                 status_condition_address,
@@ -53,5 +53,6 @@ impl DataReaderListenerActor {
                 topic,
             )
             .await
+        }
     }
 }

@@ -4,6 +4,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actors::{
+            any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
@@ -580,17 +581,21 @@ impl<Foo> DataWriterAsync<Foo> {
             .send_mail_and_await_reply(data_writer_actor::get_instance_handle::new())
             .await
     }
-
+}
+impl<'a, Foo> DataWriterAsync<Foo>
+where
+    Foo: 'a,
+{
     /// Async version of [`set_listener`](crate::publication::data_writer::DataWriter::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DataWriterListenerAsync<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address
             .send_mail_and_await_reply(data_writer_actor::set_listener::new(
-                Box::new(a_listener),
+                a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             ))
