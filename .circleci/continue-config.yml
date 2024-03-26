@@ -81,6 +81,15 @@ jobs:
 
       - store_artifacts:
           path: /tmp/coverage
+  compilation_times:
+    docker:
+      - image: cimg/rust:1.75.0
+    resource_class: large
+    steps:
+      - checkout
+      - run: cargo build --timings --tests --examples
+      - store_artifacts:
+          path: ./target/cargo-timings
 
   interoperability_tests:
     docker:
@@ -219,6 +228,7 @@ workflows:
       - build_and_push_docker_image
       - build
       - benchmark
+      - compilation_times
       - clippy
       - interoperability_tests:
           requires:
@@ -231,6 +241,7 @@ workflows:
     jobs:
       - build
       - benchmark
+      - compilation_times
       - clippy
       - interoperability_tests
       - multi_machine_tests
