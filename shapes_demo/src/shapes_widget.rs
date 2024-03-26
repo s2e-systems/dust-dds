@@ -61,7 +61,6 @@ impl GuiShape {
         }
     }
 
-
     pub fn as_egui_shape(&self, scale: f32) -> egui::Shape {
         let stroke = egui::Stroke {
             width: 0.5,
@@ -97,10 +96,9 @@ impl GuiShape {
                 stroke,
             )
             .into(),
-            _ => panic!("shape kind not valid")
+            _ => panic!("shape kind not valid"),
         }
     }
-
 }
 
 #[derive(Clone)]
@@ -111,7 +109,10 @@ pub struct MovingShapeObject {
 
 impl MovingShapeObject {
     pub fn new(shape: GuiShape, velocity: egui::Vec2) -> Self {
-        Self { gui_shape: shape, velocity }
+        Self {
+            gui_shape: shape,
+            velocity,
+        }
     }
 
     pub fn move_within_rect(&mut self, rect_size: egui::Vec2, time_delta: f32) {
@@ -170,16 +171,16 @@ impl<'a> ShapesWidget<'a> {
         let desired_size = self.original_size * scale;
         let (response, painter) = ui.allocate_painter(desired_size, egui::Sense::hover());
         painter.rect_filled(response.rect, egui::Rounding::ZERO, egui::Color32::WHITE);
+        egui::Image::new(egui::include_image!("../res/s2e_logo_background.png"))
+            .paint_at(ui, response.rect);
         for shape in self.shape_list {
             let mut shape = shape.as_egui_shape(scale);
             shape.translate(response.rect.left_top().to_vec2());
             painter.add(shape);
         }
-
         response
     }
 }
-
 
 impl<'a> egui::Widget for ShapesWidget<'a> {
     fn ui(self, ui: &mut eframe::egui::Ui) -> eframe::egui::Response {
