@@ -21,7 +21,7 @@ pub trait DomainParticipantListenerAsync {
         _the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any writer in the domain participant reports a liveliness lost status.
@@ -30,7 +30,7 @@ pub trait DomainParticipantListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: LivelinessLostStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data writer in the domain participant reports a deadline missed status.
@@ -39,7 +39,7 @@ pub trait DomainParticipantListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data writer in the domain participant reports an offered incompatible QoS status.
@@ -48,7 +48,7 @@ pub trait DomainParticipantListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: OfferedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample lost status.
@@ -57,7 +57,7 @@ pub trait DomainParticipantListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a data available status.
@@ -65,7 +65,7 @@ pub trait DomainParticipantListenerAsync {
         &mut self,
         _the_reader: &dyn AnyDataReader,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample rejected status.
@@ -74,7 +74,7 @@ pub trait DomainParticipantListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: SampleRejectedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a liveliness changed status.
@@ -83,7 +83,7 @@ pub trait DomainParticipantListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: LivelinessChangedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested deadline missed status.
@@ -92,7 +92,7 @@ pub trait DomainParticipantListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: RequestedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested incompatible QoS status.
@@ -101,7 +101,7 @@ pub trait DomainParticipantListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: RequestedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data writer in the domain participant reports a publication matched status.
@@ -110,7 +110,7 @@ pub trait DomainParticipantListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: PublicationMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any data reader in the domain participant reports a subscription matched status.
@@ -119,6 +119,6 @@ pub trait DomainParticipantListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: SubscriptionMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 }

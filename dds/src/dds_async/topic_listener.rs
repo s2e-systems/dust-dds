@@ -12,6 +12,6 @@ pub trait TopicListenerAsync {
         _the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 }

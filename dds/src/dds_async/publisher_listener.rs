@@ -16,7 +16,7 @@ pub trait PublisherListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: LivelinessLostStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any writer belonging to this publisher reports an offered deadline missed status.
@@ -25,7 +25,7 @@ pub trait PublisherListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any writer belonging to this publisher reports an offered incompatible qos status.
@@ -34,7 +34,7 @@ pub trait PublisherListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: OfferedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any writer belonging to this publisher reports a publication matched status.
@@ -43,6 +43,6 @@ pub trait PublisherListenerAsync {
         _the_writer: &dyn AnyDataWriter,
         _status: PublicationMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 }

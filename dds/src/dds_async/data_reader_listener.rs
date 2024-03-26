@@ -17,7 +17,7 @@ pub trait DataReaderListenerAsync {
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when this reader reports a sample rejected status.
@@ -26,7 +26,7 @@ pub trait DataReaderListenerAsync {
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SampleRejectedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
     /// Method that is called when this reader reports a liveliness changed status.
     fn on_liveliness_changed(
@@ -34,7 +34,7 @@ pub trait DataReaderListenerAsync {
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: LivelinessChangedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when this reader reports a requested deadline missed status.
@@ -43,7 +43,7 @@ pub trait DataReaderListenerAsync {
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: RequestedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when this reader reports a requested incompatible QoS status.
@@ -52,7 +52,7 @@ pub trait DataReaderListenerAsync {
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: RequestedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when this reader reports a subscription matched status.
@@ -61,7 +61,7 @@ pub trait DataReaderListenerAsync {
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SubscriptionMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when this reader reports a sample lost status.
@@ -70,6 +70,6 @@ pub trait DataReaderListenerAsync {
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 }

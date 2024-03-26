@@ -17,7 +17,7 @@ pub trait SubscriberListenerAsync {
         &mut self,
         _the_subscriber: SubscriberAsync,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports new data available.
@@ -25,7 +25,7 @@ pub trait SubscriberListenerAsync {
         &mut self,
         _the_reader: &dyn AnyDataReader,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
     /// Method that is called when any reader belonging to this subcriber reports a sample rejected status.
     fn on_sample_rejected(
@@ -33,7 +33,7 @@ pub trait SubscriberListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: SampleRejectedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a liveliness changed status.
@@ -42,7 +42,7 @@ pub trait SubscriberListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: LivelinessChangedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a requested deadline missed status.
@@ -51,7 +51,7 @@ pub trait SubscriberListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: RequestedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a requested incompatible QoS status.
@@ -60,7 +60,7 @@ pub trait SubscriberListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: RequestedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a subscription matched status.
@@ -69,7 +69,7 @@ pub trait SubscriberListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: SubscriptionMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a sample lost status.
@@ -78,6 +78,6 @@ pub trait SubscriberListenerAsync {
         _the_reader: &dyn AnyDataReader,
         _status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 }
