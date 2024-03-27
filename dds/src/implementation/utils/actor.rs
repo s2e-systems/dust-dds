@@ -22,27 +22,41 @@ where
 }
 
 #[derive(Debug)]
-pub struct ActorAddress<A> {
+pub struct ActorAddress<A>
+where
+    A: ActorHandler,
+{
     sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
+    sender_: tokio::sync::mpsc::Sender<A::Message>,
 }
 
-impl<A> Clone for ActorAddress<A> {
+impl<A> Clone for ActorAddress<A>
+where
+    A: ActorHandler,
+{
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),
+            sender_: self.sender_.clone(),
         }
     }
 }
 
-impl<A> PartialEq for ActorAddress<A> {
+impl<A> PartialEq for ActorAddress<A>
+where
+    A: ActorHandler,
+{
     fn eq(&self, other: &Self) -> bool {
-        self.sender.same_channel(&other.sender)
+        self.sender.same_channel(&other.sender) && self.sender_.same_channel(&other.sender_)
     }
 }
 
-impl<A> Eq for ActorAddress<A> {}
+impl<A> Eq for ActorAddress<A> where A: ActorHandler {}
 
-impl<A> ActorAddress<A> {
+impl<A> ActorAddress<A>
+where
+    A: ActorHandler,
+{
     pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: MailHandler<M> + Send,
@@ -178,7 +192,17 @@ where
     }
 }
 
-pub struct Actor<A> {
+pub trait ActorHandler {
+    type Message;
+
+    fn handle_message(&mut self, message: Self::Message) -> impl Future<Output = ()> + Send;
+}
+
+pub struct Actor<A>
+where
+    A: ActorHandler,
+{
+    sender_: tokio::sync::mpsc::Sender<A::Message>,
     sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
@@ -186,26 +210,41 @@ pub struct Actor<A> {
 
 impl<A> Actor<A>
 where
-    A: Send + 'static,
+    A: ActorHandler + Send + 'static,
+    A::Message: Send,
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (sender, mut mailbox) =
             tokio::sync::mpsc::channel::<Box<dyn GenericHandlerDyn<A> + Send>>(16);
 
+        let (sender_, mut mailbox_) = tokio::sync::mpsc::channel::<A::Message>(16);
+
         let cancellation_token = Arc::new(AtomicBool::new(false));
         let cancellation_token_cloned = cancellation_token.clone();
 
         let join_handle = runtime.spawn(async move {
-            while let Some(mut m) = mailbox.recv().await {
-                if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                    m.handle(&mut actor).await;
-                } else {
-                    break;
+            loop {
+                tokio::select! {
+                    Some(mut m) = mailbox.recv() => {
+                        if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
+                            m.handle(&mut actor).await;
+                        } else {
+                            break;
+                        }
+                    },
+                    Some(m) = mailbox_.recv() => {
+                        if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
+                            actor.handle_message(m).await;
+                        } else {
+                            break;
+                        }
+                    }
                 }
             }
         });
 
         Actor {
+            sender_,
             sender,
             join_handle,
             cancellation_token,
@@ -215,6 +254,7 @@ where
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
             sender: self.sender.clone(),
+            sender_: self.sender_.clone(),
         }
     }
 
@@ -255,7 +295,10 @@ where
     }
 }
 
-impl<A> Drop for Actor<A> {
+impl<A> Drop for Actor<A>
+where
+    A: ActorHandler,
+{
     fn drop(&mut self) {
         self.cancellation_token
             .store(true, atomic::Ordering::Release);

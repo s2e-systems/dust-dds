@@ -1,7 +1,7 @@
 mod derive;
 
 use derive::{
-    cdr::{expand_cdr_serialize,expand_cdr_deserialize,},
+    cdr::{expand_cdr_deserialize, expand_cdr_serialize},
     dds_key::{expand_dds_key, expand_has_key},
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     dds_type_xml::expand_dds_type_xml,
@@ -203,13 +203,38 @@ pub fn actor_interface(
         actor_structs
     }
 
+    fn create_actor_handler_token_stream(input: &ItemImpl) -> proc_macro2::TokenStream {
+        let actor_type = match input.self_ty.as_ref() {
+            syn::Type::Path(p) => p,
+            _ => panic!("Expect impl block with type"),
+        };
+
+        let actor_ident = match actor_type.path.get_ident() {
+            Some(i) => i,
+            None => panic!("Expected path with ident"),
+        };
+
+        quote! {
+            impl crate::implementation::utils::actor::ActorHandler for #actor_ident {
+                type Message = ();
+
+                fn handle_message(&mut self, message: Self::Message) -> impl std::future::Future<Output = ()> + Send {
+                    std::future::ready(())
+                }
+            }
+        }
+    }
+
     let input = parse_macro_input!(item_token_stream as ItemImpl);
     let actor_interface_token_stream = get_actor_interface_token_stream(&input);
+    let actor_handler_token_stream = create_actor_handler_token_stream(&input);
 
     quote! {
         #input
 
         #actor_interface_token_stream
+
+        #actor_handler_token_stream
     }
     .into()
 }
