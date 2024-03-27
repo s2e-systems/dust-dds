@@ -120,11 +120,21 @@ struct HelloWorldType {
 
 If using different programming languages or vendors, the DDS type can be generated from an OMG IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen).
 
-## Sync and Async API
+## Sync and Async library API
 
 Dust DDS provides both a "sync" and an "async" API to allow integrating DDS in the largest number of applications with maximum performance. In general, the first option should be to use the sync API and make use of the DDS specified functionality such as listeners for event based programs.
 
 When implementing applications that already make use of async, then the async API must be used. In particular, when using a Tokio runtime, using the Sync API will result in a panic due to blocking calls. You can see find an example in the examples folder.
+
+## DDS REST API
+
+If you want to interact with your DDS data using a REST API you can use our [Nebula DDS WebLink](https://www.s2e-systems.com/products/nebula-dds-weblink/) software. Nebula DDS WebLink provides a server implementing the Object Management Group (OMG) Web-Enabled DDS v1.0 standard.
+
+## Shapes demo
+
+DDS interoperability is typically tested using a shapes demo. The Dust DDS Shapes Demo is available on our repository and can be started by running `cargo run --package dust_dds_shapes_demo` from the root folder.
+
+![Dust DDS Shapes demo screenshot](docs/shapes_demo_screenshot.png)
 
 ## Release schedule
 
