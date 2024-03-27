@@ -134,7 +134,7 @@ If you want to interact with your DDS data using a REST API you can use our [Neb
 
 DDS interoperability is typically tested using a shapes demo. The Dust DDS Shapes Demo is available on our repository and can be started by running `cargo run --package dust_dds_shapes_demo` from the root folder.
 
-![Dust DDS Shapes demo screenshot](docs/shapes_demo_screenshot.png)
+![Dust DDS Shapes demo screenshot](https://raw.githubusercontent.com/s2e-systems/dust-dds/master/dds/docs/shapes_demo_screenshot.png)
 
 ## Release schedule
 
