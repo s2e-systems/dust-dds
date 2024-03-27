@@ -4,7 +4,7 @@ Dust DDS is a native [Rust](https://www.rust-lang.org/) implementation of the OM
 
 The goal of this crate is to provide a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation is done using stable Rust and without unsafe code and with large unit test code coverage.
 
-# A brief introduction to DDS
+## A brief introduction to DDS
 
 DDS is a middleware protocol and API standard designed for data-centric connectivity. At its core, DDS aims to facilitate the seamless sharing of pertinent data precisely where and when it's needed, even across publishers and subscribers operating asynchronously in time. With DDS, applications can exchange information through the reading and writing of data-objects identified by user-defined names (Topics) and keys. One of its defining features is the robust control it offers over Quality-of-Service (QoS) parameters, encompassing reliability, bandwidth, delivery deadlines, and resource allocations.
 
