@@ -48,7 +48,7 @@ where
         status: InconsistentTopicStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_inconsistent_topic(Topic::new(the_topic), status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_liveliness_lost(
@@ -57,7 +57,7 @@ where
         status: LivelinessLostStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_liveliness_lost(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_offered_deadline_missed(
@@ -66,7 +66,7 @@ where
         status: OfferedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_offered_deadline_missed(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_offered_incompatible_qos(
@@ -75,7 +75,7 @@ where
         status: OfferedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_offered_incompatible_qos(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_sample_lost(
@@ -84,7 +84,7 @@ where
         status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_sample_lost(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_data_available(
@@ -92,7 +92,7 @@ where
         the_reader: &dyn AnyDataReader,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_data_available(the_reader));
-        async {}
+        std::future::ready(())
     }
 
     fn on_sample_rejected(
@@ -101,7 +101,7 @@ where
         status: SampleRejectedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_sample_rejected(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_liveliness_changed(
@@ -110,7 +110,7 @@ where
         status: LivelinessChangedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_liveliness_changed(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_requested_deadline_missed(
@@ -119,7 +119,7 @@ where
         status: RequestedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_requested_deadline_missed(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_requested_incompatible_qos(
@@ -128,7 +128,7 @@ where
         status: RequestedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_requested_incompatible_qos(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_publication_matched(
@@ -137,7 +137,7 @@ where
         status: PublicationMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_publication_matched(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_subscription_matched(
@@ -146,7 +146,7 @@ where
         status: SubscriptionMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_subscription_matched(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 }
 
@@ -160,7 +160,7 @@ where
         status: LivelinessLostStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_liveliness_lost(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_offered_deadline_missed(
@@ -169,7 +169,7 @@ where
         status: OfferedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_offered_deadline_missed(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_offered_incompatible_qos(
@@ -178,7 +178,7 @@ where
         status: OfferedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_offered_incompatible_qos(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_publication_matched(
@@ -187,7 +187,7 @@ where
         status: PublicationMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_publication_matched(the_writer, status));
-        async {}
+        std::future::ready(())
     }
 }
 
@@ -200,7 +200,7 @@ where
         the_subscriber: SubscriberAsync,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_data_on_readers(Subscriber::new(the_subscriber)));
-        async {}
+        std::future::ready(())
     }
 
     fn on_data_available(
@@ -208,7 +208,7 @@ where
         the_reader: &dyn AnyDataReader,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_data_available(the_reader));
-        async {}
+        std::future::ready(())
     }
 
     fn on_sample_rejected(
@@ -217,7 +217,7 @@ where
         status: SampleRejectedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_sample_rejected(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_liveliness_changed(
@@ -226,7 +226,7 @@ where
         status: LivelinessChangedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_liveliness_changed(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_requested_deadline_missed(
@@ -235,7 +235,7 @@ where
         status: RequestedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_requested_deadline_missed(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_requested_incompatible_qos(
@@ -244,7 +244,7 @@ where
         status: RequestedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_requested_incompatible_qos(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_subscription_matched(
@@ -253,7 +253,7 @@ where
         status: SubscriptionMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_subscription_matched(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 
     fn on_sample_lost(
@@ -262,7 +262,7 @@ where
         status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_sample_lost(the_reader, status));
-        async {}
+        std::future::ready(())
     }
 }
 
@@ -276,7 +276,7 @@ where
         status: InconsistentTopicStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_inconsistent_topic(Topic::new(the_topic), status));
-        async {}
+        std::future::ready(())
     }
 }
 
@@ -291,7 +291,7 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_data_available(DataReader::new(the_reader)));
-        async {}
+        std::future::ready(())
     }
 
     fn on_sample_rejected(
@@ -303,7 +303,7 @@ where
             self.0
                 .on_sample_rejected(DataReader::new(the_reader), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_liveliness_changed(
@@ -315,7 +315,7 @@ where
             self.0
                 .on_liveliness_changed(DataReader::new(the_reader), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_requested_deadline_missed(
@@ -327,7 +327,7 @@ where
             self.0
                 .on_requested_deadline_missed(DataReader::new(the_reader), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_requested_incompatible_qos(
@@ -339,7 +339,7 @@ where
             self.0
                 .on_requested_incompatible_qos(DataReader::new(the_reader), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_subscription_matched(
@@ -351,7 +351,7 @@ where
             self.0
                 .on_subscription_matched(DataReader::new(the_reader), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_sample_lost(
@@ -360,7 +360,7 @@ where
         status: SampleLostStatus,
     ) -> impl Future<Output = ()> + Send {
         tokio::task::block_in_place(|| self.0.on_sample_lost(DataReader::new(the_reader), status));
-        async {}
+        std::future::ready(())
     }
 }
 
@@ -379,7 +379,7 @@ where
             self.0
                 .on_liveliness_lost(DataWriter::new(the_writer), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_offered_deadline_missed(
@@ -391,7 +391,7 @@ where
             self.0
                 .on_offered_deadline_missed(DataWriter::new(the_writer), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_offered_incompatible_qos(
@@ -403,7 +403,7 @@ where
             self.0
                 .on_offered_incompatible_qos(DataWriter::new(the_writer), status)
         });
-        async {}
+        std::future::ready(())
     }
 
     fn on_publication_matched(
@@ -415,6 +415,6 @@ where
             self.0
                 .on_publication_matched(DataWriter::new(the_writer), status)
         });
-        async {}
+        std::future::ready(())
     }
 }

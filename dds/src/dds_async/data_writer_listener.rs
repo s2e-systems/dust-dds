@@ -18,7 +18,7 @@ pub trait DataWriterListenerAsync {
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: LivelinessLostStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
     /// Method that is called when this writer reports an offered deadline missed status.
     fn on_offered_deadline_missed(
@@ -26,7 +26,7 @@ pub trait DataWriterListenerAsync {
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: OfferedDeadlineMissedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
     /// Method that is called when this writer reports an offered incompatible qos status.
     fn on_offered_incompatible_qos(
@@ -34,7 +34,7 @@ pub trait DataWriterListenerAsync {
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: OfferedIncompatibleQosStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
     /// Method that is called when this writer reports a publication matched status.
     fn on_publication_matched(
@@ -42,6 +42,6 @@ pub trait DataWriterListenerAsync {
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: PublicationMatchedStatus,
     ) -> impl Future<Output = ()> + Send {
-        async {}
+        std::future::ready(())
     }
 }
