@@ -57,6 +57,13 @@ impl<A> ActorAddress<A>
 where
     A: ActorHandler,
 {
+    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
+        self.sender_
+            .send(message)
+            .await
+            .map_err(|_| DdsError::AlreadyDeleted)
+    }
+
     pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> DdsResult<M::Result>
     where
         A: MailHandler<M> + Send,
@@ -256,6 +263,12 @@ where
             sender: self.sender.clone(),
             sender_: self.sender_.clone(),
         }
+    }
+
+    pub async fn send_actor_message(&self, message: A::Message) -> () {
+        self.sender_.send(message).await.expect(
+            "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
+        );
     }
 
     pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> M::Result
