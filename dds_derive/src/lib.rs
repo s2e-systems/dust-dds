@@ -220,6 +220,7 @@ pub fn actor_interface(
         let mut enum_variants_ident: Vec<&syn::Ident> = Vec::new();
         let mut enum_variants_arguments_ident: Vec<Vec<&syn::Pat>> = Vec::new();
         let mut enum_variants_arguments_type: Vec<Vec<&syn::Type>> = Vec::new();
+        let mut enum_variants_output: Vec<proc_macro2::TokenStream> = Vec::new();
 
         for method in input.items.iter().filter_map(|i| match i {
             syn::ImplItem::Fn(m) => Some(m),
@@ -237,15 +238,24 @@ pub fn actor_interface(
                 .map(|a| (a.pat.as_ref(), a.ty.as_ref()))
                 .unzip();
 
+            let method_output = match &method.sig.output {
+                syn::ReturnType::Default => quote! {()},
+                syn::ReturnType::Type(_, t) => t.to_token_stream(),
+            };
+
             enum_variants_ident.push(method_ident);
             enum_variants_arguments_ident.push(methods_arguments_ident);
             enum_variants_arguments_type.push(methods_arguments_type);
+            enum_variants_output.push(method_output);
         }
 
         quote! {
             #[allow(non_camel_case_types)]
             pub enum #actor_message_enum_ident {
-                #(#enum_variants_ident{#(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*},)*
+                #(#enum_variants_ident{
+                    #(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*
+                    __response_sender: Option<tokio::sync::oneshot::Sender<#enum_variants_output>>,
+                },)*
             }
 
             impl crate::implementation::utils::actor::ActorHandler for #actor_ident {
@@ -253,8 +263,14 @@ pub fn actor_interface(
 
                 async fn handle_message(&mut self, message: Self::Message) {
                     match message {
-                        #(#actor_message_enum_ident::#enum_variants_ident{#(#enum_variants_arguments_ident, )*} => {
-                            self.#enum_variants_ident(#(#enum_variants_arguments_ident, )*).await;
+                        #(#actor_message_enum_ident::#enum_variants_ident{
+                            #(#enum_variants_arguments_ident, )*
+                            __response_sender,
+                        } => {
+                            let r = self.#enum_variants_ident(#(#enum_variants_arguments_ident, )*).await;
+                            if let Some(s) = __response_sender {
+                                s.send(r).ok();
+                            }
                         },)*
                     }
                 }
