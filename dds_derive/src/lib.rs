@@ -275,6 +275,14 @@ pub fn actor_interface(
                     }
                 }
             }
+
+            impl crate::implementation::utils::actor::Actor<#actor_ident> {
+                #(pub fn #enum_variants_ident(&self) {todo!()})*
+            }
+
+            impl crate::implementation::utils::actor::ActorAddress<#actor_ident> {
+                #(pub fn #enum_variants_ident(&self) {todo!()})*
+            }
         }
     }
 
