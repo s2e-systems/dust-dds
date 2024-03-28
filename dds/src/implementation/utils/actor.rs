@@ -64,23 +64,6 @@ where
             .map_err(|_| DdsError::AlreadyDeleted)
     }
 
-    pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> DdsResult<M::Result>
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        M::Result: Send,
-    {
-        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
-
-        self.sender
-            .send(Box::new(ReplyMail::new(mail, response_sender)))
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)?;
-        response_receiver
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)
-    }
-
     pub async fn send_mail<M>(&self, mail: M) -> DdsResult<()>
     where
         A: MailHandler<M> + Send,
@@ -162,18 +145,6 @@ where
     // trait object this is only feasible by using the Option fields.
     mail: Option<M>,
     sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
-}
-
-impl<M> ReplyMail<M>
-where
-    M: Mail,
-{
-    fn new(message: M, sender: tokio::sync::oneshot::Sender<M::Result>) -> Self {
-        Self {
-            mail: Some(message),
-            sender: Some(sender),
-        }
-    }
 }
 
 impl<A, M> GenericHandler<A> for ReplyMail<M>
@@ -271,27 +242,6 @@ where
         );
     }
 
-    pub async fn send_mail_and_await_reply<M>(&self, mail: M) -> M::Result
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        M::Result: Send,
-    {
-        let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
-
-        self.sender
-            .send(Box::new(ReplyMail::new(mail, response_sender)))
-            .await
-            .map_err(|_| ())
-            .expect(
-                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
-            );
-
-        response_receiver
-            .await
-            .expect("Message is always processed as long as actor object exists")
-    }
-
     pub async fn send_mail<M>(&self, mail: M)
     where
         A: MailHandler<M> + Send,
@@ -353,16 +303,7 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle());
 
-        assert_eq!(
-            runtime
-                .block_on(
-                    actor
-                        .address()
-                        .send_mail_and_await_reply(increment::new(10))
-                )
-                .unwrap(),
-            10
-        )
+        assert_eq!(runtime.block_on(actor.increment(10)), 10)
     }
 
     #[test]
@@ -373,7 +314,7 @@ mod tests {
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert_eq!(
-            runtime.block_on(actor_address.send_mail_and_await_reply(increment::new(10))),
+            runtime.block_on(actor_address.increment(10)),
             Err(DdsError::AlreadyDeleted)
         );
     }

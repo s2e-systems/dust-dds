@@ -148,11 +148,7 @@ impl PublisherActor {
 
     async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DataWriterActor>> {
         for dw in self.data_writer_list.values() {
-            if dw
-                .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
-                .await
-                == topic_name
-            {
+            if dw.get_topic_name().await == topic_name {
                 return Some(dw.address());
             }
         }
@@ -308,7 +304,7 @@ impl PublisherActor {
                     None
                 };
                 data_writer
-                    .send_mail_and_await_reply(data_writer_actor::add_matched_reader::new(
+                    .add_matched_reader(
                         discovered_reader_data.clone(),
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
@@ -323,7 +319,7 @@ impl PublisherActor {
                         participant_publication_matched_listener.clone(),
                         offered_incompatible_qos_publisher_listener,
                         offered_incompatible_qos_participant_listener.clone(),
-                    ))
+                    )
                     .await;
             }
         }
@@ -347,7 +343,7 @@ impl PublisherActor {
                     None
                 };
             data_writer
-                .send_mail_and_await_reply(data_writer_actor::remove_matched_reader::new(
+                .remove_matched_reader(
                     discovered_reader_handle,
                     data_writer_address,
                     PublisherAsync::new(
@@ -357,7 +353,7 @@ impl PublisherActor {
                     ),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
-                ))
+                )
                 .await;
         }
     }

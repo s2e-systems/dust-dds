@@ -78,8 +78,7 @@ use std::{
 };
 
 use super::{
-    data_reader_actor,
-    data_writer_actor::{self, DataWriterActor},
+    data_writer_actor::DataWriterActor,
     domain_participant_listener_actor::{
         DomainParticipantListenerActor, DomainParticipantListenerAsyncDyn,
     },
@@ -88,9 +87,8 @@ use super::{
     status_condition_actor::StatusConditionActor,
     subscriber_actor,
     subscriber_listener_actor::SubscriberListenerAsyncDyn,
-    topic_actor,
     topic_listener_actor::TopicListenerAsyncDyn,
-    type_support_actor::{self, TypeSupportActor},
+    type_support_actor::TypeSupportActor,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -339,9 +337,7 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 spdp_topic_participant.address(),
-                spdp_topic_participant
-                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                    .await,
+                spdp_topic_participant.get_statuscondition().await,
             ),
             handle,
         );
@@ -372,9 +368,7 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 sedp_topic_topics.address(),
-                sedp_topic_topics
-                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                    .await,
+                sedp_topic_topics.get_statuscondition().await,
             ),
             handle,
         );
@@ -391,9 +385,7 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 sedp_topic_publications.address(),
-                sedp_topic_publications
-                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                    .await,
+                sedp_topic_publications.get_statuscondition().await,
             ),
             handle,
         );
@@ -410,9 +402,7 @@ impl DomainParticipantActor {
                 vec![],
                 handle,
                 sedp_topic_subscriptions.address(),
-                sedp_topic_subscriptions
-                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                    .await,
+                sedp_topic_subscriptions.get_statuscondition().await,
             ),
             handle,
         );
@@ -433,34 +423,34 @@ impl DomainParticipantActor {
 
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
+            .data_reader_add(
                 InstanceHandle::new(spdp_builtin_participant_reader_guid.into()),
                 spdp_builtin_participant_reader,
-            ))
+            )
             .await
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
+            .data_reader_add(
                 InstanceHandle::new(sedp_builtin_topics_reader_guid.into()),
                 sedp_builtin_topics_reader,
-            ))
+            )
             .await
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
+            .data_reader_add(
                 InstanceHandle::new(sedp_builtin_publications_reader_guid.into()),
                 sedp_builtin_publications_reader,
-            ))
+            )
             .await
             .unwrap();
         builtin_subscriber
             .address()
-            .send_mail_and_await_reply(subscriber_actor::data_reader_add::new(
+            .data_reader_add(
                 InstanceHandle::new(sedp_builtin_subscriptions_reader_guid.into()),
                 sedp_builtin_subscriptions_reader,
-            ))
+            )
             .await
             .unwrap();
 
@@ -490,9 +480,7 @@ impl DomainParticipantActor {
                 spdp_writer_qos,
                 handle,
                 spdp_topic_participant.address(),
-                spdp_topic_participant
-                    .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                    .await,
+                spdp_topic_participant.get_statuscondition().await,
             ),
             handle,
         );
@@ -503,9 +491,7 @@ impl DomainParticipantActor {
         {
             spdp_builtin_participant_writer
                 .address()
-                .send_mail_and_await_reply(data_writer_actor::reader_locator_add::new(
-                    reader_locator,
-                ))
+                .reader_locator_add(reader_locator)
                 .await
                 .unwrap();
         }
@@ -534,9 +520,7 @@ impl DomainParticipantActor {
             sedp_writer_qos.clone(),
             handle,
             sedp_topic_topics.address(),
-            sedp_topic_topics
-                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                .await,
+            sedp_topic_topics.get_statuscondition().await,
         );
         let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
@@ -551,9 +535,7 @@ impl DomainParticipantActor {
             sedp_writer_qos.clone(),
             handle,
             sedp_topic_publications.address(),
-            sedp_topic_publications
-                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                .await,
+            sedp_topic_publications.get_statuscondition().await,
         );
         let sedp_builtin_publications_writer_actor =
             Actor::spawn(sedp_builtin_publications_writer, handle);
@@ -569,9 +551,7 @@ impl DomainParticipantActor {
             sedp_writer_qos,
             handle,
             sedp_topic_subscriptions.address(),
-            sedp_topic_subscriptions
-                .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                .await,
+            sedp_topic_subscriptions.get_statuscondition().await,
         );
         let sedp_builtin_subscriptions_writer_actor =
             Actor::spawn(sedp_builtin_subscriptions_writer, handle);
@@ -592,34 +572,34 @@ impl DomainParticipantActor {
 
         builtin_publisher
             .address()
-            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
+            .datawriter_add(
                 InstanceHandle::new(spdp_builtin_participant_writer_guid.into()),
                 spdp_builtin_participant_writer,
-            ))
+            )
             .await
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
+            .datawriter_add(
                 InstanceHandle::new(sedp_builtin_topics_writer_guid.into()),
                 sedp_builtin_topics_writer_actor,
-            ))
+            )
             .await
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
+            .datawriter_add(
                 InstanceHandle::new(sedp_builtin_publications_writer_guid.into()),
                 sedp_builtin_publications_writer_actor,
-            ))
+            )
             .await
             .unwrap();
         builtin_publisher
             .address()
-            .send_mail_and_await_reply(publisher_actor::datawriter_add::new(
+            .datawriter_add(
                 InstanceHandle::new(sedp_builtin_subscriptions_writer_guid.into()),
                 sedp_builtin_subscriptions_writer_actor,
-            ))
+            )
             .await
             .unwrap();
 
@@ -799,11 +779,7 @@ impl DomainParticipantActor {
             .iter()
             .chain(self.topic_list.values())
         {
-            if topic
-                .send_mail_and_await_reply(topic_actor::get_name::new())
-                .await
-                == topic_name
-            {
+            if topic.get_name().await == topic_name {
                 return Some(topic.address());
             }
         }
@@ -878,11 +854,7 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(p) = self.user_defined_publisher_list.get(&handle) {
-            if !p
-                .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-                .await
-                .is_empty()
-            {
+            if !p.data_writer_list().await.is_empty() {
                 return Err(DdsError::PreconditionNotMet(
                     "Publisher still contains data writers".to_string(),
                 ));
@@ -900,10 +872,7 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
-            if !subscriber
-                .send_mail_and_await_reply(subscriber_actor::is_empty::new())
-                .await
-            {
+            if !subscriber.is_empty().await {
                 return Err(DdsError::PreconditionNotMet(
                     "Subscriber still contains data readers".to_string(),
                 ));
@@ -946,14 +915,14 @@ impl DomainParticipantActor {
         for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
             user_defined_publisher
                 .address()
-                .send_mail_and_await_reply(publisher_actor::delete_contained_entities::new())
+                .delete_contained_entities()
                 .await?;
         }
 
         for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
             user_defined_subscriber
                 .address()
-                .send_mail_and_await_reply(subscriber_actor::delete_contained_entities::new())
+                .delete_contained_entities()
                 .await?;
         }
 
@@ -1182,19 +1151,17 @@ impl DomainParticipantActor {
         let reception_timestamp = self.get_current_time().await.into();
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::process_rtps_message::new(
+            .process_rtps_message(
                 message.clone(),
                 reception_timestamp,
                 self.builtin_subscriber.address(),
                 participant,
                 participant_mask_listener,
                 self.type_support_actor.address(),
-            ))
+            )
             .await?;
 
-        self.builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::process_rtps_message::new(message))
-            .await;
+        self.builtin_publisher.process_rtps_message(message).await;
 
         Ok(())
     }
@@ -1265,9 +1232,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_PUBLICATION.to_string(),
-            ))
+            .lookup_datawriter(DCPS_PUBLICATION.to_string())
             .await
         {
             let timestamp = self.get_current_time().await;
@@ -1279,12 +1244,7 @@ impl DomainParticipantActor {
                 get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
-                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
-                    serialized_data,
-                    instance_handle,
-                    None,
-                    timestamp,
-                ))
+                .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
                 .await
                 .expect("Shouldn't fail to send to built-in data writer")
                 .expect("Shouldn't fail to write to built-in data writer");
@@ -1299,9 +1259,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_subscriptions_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_SUBSCRIPTION.to_string(),
-            ))
+            .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
             .await
         {
             let timestamp = self.get_current_time().await;
@@ -1313,12 +1271,7 @@ impl DomainParticipantActor {
                 get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_subscriptions_announcer
-                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
-                    serialized_data,
-                    instance_handle,
-                    None,
-                    timestamp,
-                ))
+                .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
                 .await
                 .expect("Shouldn't fail to send to built-in data writer")
                 .expect("Shouldn't fail to write to built-in data writer");
@@ -1330,9 +1283,7 @@ impl DomainParticipantActor {
     async fn announce_deleted_data_writer(&self, writer_handle: InstanceHandle) -> DdsResult<()> {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_PUBLICATION.to_string(),
-            ))
+            .lookup_datawriter(DCPS_PUBLICATION.to_string())
             .await
         {
             let timestamp = self.get_current_time().await;
@@ -1341,11 +1292,7 @@ impl DomainParticipantActor {
                 .expect("Failed to serialize data");
 
             sedp_publications_announcer
-                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
-                    instance_serialized_key,
-                    writer_handle,
-                    timestamp,
-                ))
+                .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
                 .await??;
 
             self.send_message().await;
@@ -1381,9 +1328,7 @@ impl DomainParticipantActor {
     async fn announce_deleted_data_reader(&self, reader_handle: InstanceHandle) -> DdsResult<()> {
         if let Some(sedp_subscriptions_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_SUBSCRIPTION.to_string(),
-            ))
+            .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
             .await
         {
             let timestamp = self.get_current_time().await;
@@ -1391,11 +1336,7 @@ impl DomainParticipantActor {
             serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
             sedp_subscriptions_announcer
-                .send_mail_and_await_reply(data_writer_actor::dispose_w_timestamp::new(
-                    instance_serialized_key,
-                    reader_handle,
-                    timestamp,
-                ))
+                .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
                 .await??;
 
             self.send_message().await;
@@ -1412,10 +1353,7 @@ impl DomainParticipantActor {
         type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) {
         self.type_support_actor
-            .send_mail_and_await_reply(type_support_actor::register_type::new(
-                type_name,
-                type_support.into(),
-            ))
+            .register_type(type_name, type_support.into())
             .await
     }
 
@@ -1423,9 +1361,7 @@ impl DomainParticipantActor {
         &mut self,
         type_name: String,
     ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {
-        self.type_support_actor
-            .send_mail_and_await_reply(type_support_actor::get_type_support::new(type_name))
-            .await
+        self.type_support_actor.get_type_support(type_name).await
     }
 
     async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
@@ -1437,19 +1373,17 @@ impl DomainParticipantActor {
     async fn process_spdp_participant_discovery(&mut self) {
         if let Some(spdp_participant_reader) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_PARTICIPANT.to_string(),
-            ))
+            .lookup_datareader(DCPS_PARTICIPANT.to_string())
             .await
         {
             if let Ok(spdp_data_sample_list) = spdp_participant_reader
-                .send_mail_and_await_reply(data_reader_actor::read::new(
+                .read(
                     i32::MAX,
                     vec![SampleStateKind::NotRead],
                     ANY_VIEW_STATE.to_vec(),
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
-                ))
+                )
                 .await
                 .expect("Can not fail to send mail to builtin reader")
             {
@@ -1539,9 +1473,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_PUBLICATION.to_string(),
-            ))
+            .lookup_datawriter(DCPS_PUBLICATION.to_string())
             .await
         {
             if discovered_participant_data
@@ -1572,7 +1504,7 @@ impl DomainParticipantActor {
                     0,
                 );
                 sedp_publications_announcer
-                    .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
+                    .matched_reader_add(proxy)
                     .await
                     .unwrap();
             }
@@ -1585,9 +1517,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_PUBLICATION.to_string(),
-            ))
+            .lookup_datareader(DCPS_PUBLICATION.to_string())
             .await
         {
             if discovered_participant_data
@@ -1617,7 +1547,7 @@ impl DomainParticipantActor {
                 );
 
                 sedp_publications_detector
-                    .send_mail_and_await_reply(data_reader_actor::matched_writer_add::new(proxy))
+                    .matched_writer_add(proxy)
                     .await
                     .unwrap();
             }
@@ -1630,9 +1560,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_subscriptions_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_SUBSCRIPTION.to_string(),
-            ))
+            .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
             .await
         {
             if discovered_participant_data
@@ -1663,7 +1591,7 @@ impl DomainParticipantActor {
                     0,
                 );
                 sedp_subscriptions_announcer
-                    .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
+                    .matched_reader_add(proxy)
                     .await
                     .unwrap();
             }
@@ -1676,9 +1604,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_SUBSCRIPTION.to_string(),
-            ))
+            .lookup_datareader(DCPS_SUBSCRIPTION.to_string())
             .await
         {
             if discovered_participant_data
@@ -1707,7 +1633,7 @@ impl DomainParticipantActor {
                     remote_group_entity_id,
                 );
                 sedp_subscriptions_detector
-                    .send_mail_and_await_reply(data_reader_actor::matched_writer_add::new(proxy))
+                    .matched_writer_add(proxy)
                     .await
                     .unwrap();
             }
@@ -1720,9 +1646,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_topics_announcer) = self
             .builtin_publisher
-            .send_mail_and_await_reply(publisher_actor::lookup_datawriter::new(
-                DCPS_TOPIC.to_string(),
-            ))
+            .lookup_datawriter(DCPS_TOPIC.to_string())
             .await
         {
             if discovered_participant_data
@@ -1753,7 +1677,7 @@ impl DomainParticipantActor {
                     0,
                 );
                 sedp_topics_announcer
-                    .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
+                    .matched_reader_add(proxy)
                     .await
                     .unwrap();
             }
@@ -1766,9 +1690,7 @@ impl DomainParticipantActor {
     ) {
         if let Some(sedp_topics_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_TOPIC.to_string(),
-            ))
+            .lookup_datareader(DCPS_TOPIC.to_string())
             .await
         {
             if discovered_participant_data
@@ -1797,7 +1719,7 @@ impl DomainParticipantActor {
                     remote_group_entity_id,
                 );
                 sedp_topics_detector
-                    .send_mail_and_await_reply(data_reader_actor::matched_writer_add::new(proxy))
+                    .matched_writer_add(proxy)
                     .await
                     .unwrap();
             }
@@ -1807,19 +1729,17 @@ impl DomainParticipantActor {
     async fn process_sedp_publications_discovery(&mut self, participant: DomainParticipantAsync) {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_PUBLICATION.to_string(),
-            ))
+            .lookup_datareader(DCPS_PUBLICATION.to_string())
             .await
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-                .send_mail_and_await_reply(data_reader_actor::read::new(
+                .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
                     ANY_VIEW_STATE.to_vec(),
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
-                ))
+                )
                 .await
                 .expect("Can not fail to send mail to builtin reader")
             {
@@ -1906,14 +1826,14 @@ impl DomainParticipantActor {
                     let participant_mask_listener =
                         (self.listener.address(), self.status_kind.clone());
                     subscriber
-                        .send_mail_and_await_reply(subscriber_actor::add_matched_writer::new(
+                        .add_matched_writer(
                             discovered_writer_data.clone(),
                             default_unicast_locator_list.clone(),
                             default_multicast_locator_list.clone(),
                             subscriber_address,
                             participant.clone(),
                             participant_mask_listener,
-                        ))
+                        )
                         .await;
                 }
 
@@ -1985,12 +1905,12 @@ impl DomainParticipantActor {
             let subscriber_address = subscriber.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
             subscriber
-                .send_mail_and_await_reply(subscriber_actor::remove_matched_writer::new(
+                .remove_matched_writer(
                     discovered_writer_handle,
                     subscriber_address,
                     participant.clone(),
                     participant_mask_listener,
-                ))
+                )
                 .await;
         }
     }
@@ -1998,19 +1918,17 @@ impl DomainParticipantActor {
     async fn process_sedp_subscriptions_discovery(&mut self, participant: DomainParticipantAsync) {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_SUBSCRIPTION.to_string(),
-            ))
+            .lookup_datareader(DCPS_SUBSCRIPTION.to_string())
             .await
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-                .send_mail_and_await_reply(data_reader_actor::read::new(
+                .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
                     ANY_VIEW_STATE.to_vec(),
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
-                ))
+                )
                 .await
                 .expect("Can not fail to send mail to builtin reader")
             {
@@ -2114,7 +2032,7 @@ impl DomainParticipantActor {
                         None
                     };
                     publisher
-                        .send_mail_and_await_reply(publisher_actor::add_matched_reader::new(
+                        .add_matched_reader(
                             discovered_reader_data.clone(),
                             default_unicast_locator_list.clone(),
                             default_multicast_locator_list.clone(),
@@ -2122,7 +2040,7 @@ impl DomainParticipantActor {
                             participant.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
-                        ))
+                        )
                         .await;
                 }
 
@@ -2200,12 +2118,12 @@ impl DomainParticipantActor {
                     None
                 };
             publisher
-                .send_mail_and_await_reply(publisher_actor::remove_matched_reader::new(
+                .remove_matched_reader(
                     discovered_reader_handle,
                     publisher_address,
                     participant.clone(),
                     participant_publication_matched_listener,
-                ))
+                )
                 .await;
         }
     }
@@ -2213,19 +2131,17 @@ impl DomainParticipantActor {
     async fn process_sedp_topics_discovery(&mut self) {
         if let Some(sedp_topics_detector) = self
             .builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::lookup_datareader::new(
-                DCPS_TOPIC.to_string(),
-            ))
+            .lookup_datareader(DCPS_TOPIC.to_string())
             .await
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-                .send_mail_and_await_reply(data_reader_actor::read::new(
+                .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
                     ANY_VIEW_STATE.to_vec(),
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
-                ))
+                )
                 .await
                 .expect("Can not fail to send mail to builtin reader")
             {
@@ -2261,9 +2177,7 @@ impl DomainParticipantActor {
         if !is_topic_ignored {
             for topic in self.topic_list.values() {
                 topic
-                    .send_mail_and_await_reply(topic_actor::process_discovered_topic::new(
-                        discovered_topic_data.clone(),
-                    ))
+                    .process_discovered_topic(discovered_topic_data.clone())
                     .await;
             }
             self.discovered_topic_list.insert(

@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::{
-    status_condition_actor::{self, StatusConditionActor},
+    status_condition_actor::StatusConditionActor,
     topic_listener_actor::{TopicListenerActor, TopicListenerAsyncDyn},
 };
 
@@ -133,9 +133,7 @@ impl TopicActor {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::InconsistentTopic,
-            ))
+            .remove_communication_state(StatusKind::InconsistentTopic)
             .await?;
         Ok(status)
     }
@@ -150,9 +148,7 @@ impl TopicActor {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                    StatusKind::InconsistentTopic,
-                ))
+                .add_communication_state(StatusKind::InconsistentTopic)
                 .await;
         }
     }

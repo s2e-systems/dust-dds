@@ -78,7 +78,7 @@ use super::{
     data_writer_listener_actor::{self, DataWriterListenerActor},
     domain_participant_listener_actor::{self, DomainParticipantListenerActor},
     publisher_listener_actor::{self, PublisherListenerActor},
-    status_condition_actor::{self, StatusConditionActor},
+    status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
 
@@ -544,9 +544,7 @@ impl DataWriterActor {
 
     async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::PublicationMatched,
-            ))
+            .remove_communication_state(StatusKind::PublicationMatched)
             .await;
         self.matched_subscriptions.get_publication_matched_status()
     }
@@ -991,9 +989,7 @@ impl DataWriterActor {
         >,
     ) {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::PublicationMatched,
-            ))
+            .add_communication_state(StatusKind::PublicationMatched)
             .await;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
@@ -1046,9 +1042,7 @@ impl DataWriterActor {
         >,
     ) {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::OfferedIncompatibleQos,
-            ))
+            .add_communication_state(StatusKind::OfferedIncompatibleQos)
             .await;
         if self
             .status_kind

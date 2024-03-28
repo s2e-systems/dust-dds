@@ -277,11 +277,28 @@ pub fn actor_interface(
             }
 
             impl crate::implementation::utils::actor::Actor<#actor_ident> {
-                #(pub fn #enum_variants_ident(&self) {todo!()})*
+                #(pub async fn #enum_variants_ident(&self, #(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*) -> #enum_variants_output {
+                    let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+                    let message = #actor_message_enum_ident::#enum_variants_ident{
+                        #(#enum_variants_arguments_ident, )*
+                        __response_sender: Some(response_sender),
+                    };
+                    self.send_actor_message(message).await;
+                    response_receiver.await.expect("Message is always processed as long as actor object exists")
+
+                })*
             }
 
             impl crate::implementation::utils::actor::ActorAddress<#actor_ident> {
-                #(pub fn #enum_variants_ident(&self) {todo!()})*
+                #(pub async fn #enum_variants_ident(&self, #(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*) -> crate::infrastructure::error::DdsResult<#enum_variants_output> {
+                    let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
+                    let message = #actor_message_enum_ident::#enum_variants_ident{
+                        #(#enum_variants_arguments_ident, )*
+                        __response_sender: Some(response_sender),
+                    };
+                    self.send_actor_message(message).await?;
+                    response_receiver.await.map_err(|_|  crate::infrastructure::error::DdsError::AlreadyDeleted)
+                })*
             }
         }
     }

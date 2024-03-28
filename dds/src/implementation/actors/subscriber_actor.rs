@@ -165,11 +165,7 @@ impl SubscriberActor {
 
     async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
-            if dr
-                .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
-                .await
-                == topic_name
-            {
+            if dr.get_topic_name().await == topic_name {
                 return Some(dr.address());
             }
         }
@@ -293,7 +289,7 @@ impl SubscriberActor {
 
         for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
             data_reader_address
-                .send_mail_and_await_reply(data_reader_actor::process_rtps_message::new(
+                .process_rtps_message(
                     message.clone(),
                     reception_timestamp,
                     data_reader_address.clone(),
@@ -305,7 +301,7 @@ impl SubscriberActor {
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
-                ))
+                )
                 .await??;
         }
         Ok(())
@@ -329,7 +325,7 @@ impl SubscriberActor {
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader
-                    .send_mail_and_await_reply(data_reader_actor::add_matched_writer::new(
+                    .add_matched_writer(
                         discovered_writer_data.clone(),
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
@@ -342,7 +338,7 @@ impl SubscriberActor {
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
-                    ))
+                    )
                     .await;
             }
         }
@@ -362,7 +358,7 @@ impl SubscriberActor {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
             data_reader
-                .send_mail_and_await_reply(data_reader_actor::remove_matched_writer::new(
+                .remove_matched_writer(
                     discovered_writer_handle,
                     data_reader_address,
                     SubscriberAsync::new(
@@ -372,7 +368,7 @@ impl SubscriberActor {
                     ),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
-                ))
+                )
                 .await;
         }
     }

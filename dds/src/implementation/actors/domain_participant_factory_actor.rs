@@ -1,6 +1,4 @@
-use super::{
-    domain_participant_listener_actor::DomainParticipantListenerAsyncDyn, subscriber_actor,
-};
+use super::domain_participant_listener_actor::DomainParticipantListenerAsyncDyn;
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::domain_participant::DomainParticipantAsync,
@@ -202,15 +200,10 @@ impl DomainParticipantFactoryActor {
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
-        let status_condition = participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
-            .await?;
-        let builtin_subscriber = participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
-            .await?;
-        let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
-            .await?;
+        let status_condition = participant_address.get_statuscondition().await?;
+        let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
+        let builtin_subscriber_status_condition_address =
+            builtin_subscriber.get_statuscondition().await?;
         let participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition.clone(),
@@ -232,23 +225,14 @@ impl DomainParticipantFactoryActor {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::process_metatraffic_rtps_message::new(
-                                message,
-                                participant_clone.clone(),
-                            ),
-                        )
+                        .process_metatraffic_rtps_message(message, participant_clone.clone())
                         .await;
                     if r.is_err() {
                         break;
                     }
 
                     let r = participant_address_clone
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::process_builtin_discovery::new(
-                                participant_clone.clone(),
-                            ),
-                        )
+                        .process_builtin_discovery(participant_clone.clone())
                         .await;
                     if r.is_err() {
                         break;
@@ -274,19 +258,10 @@ impl DomainParticipantFactoryActor {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r: DdsResult<()> = async {
                         participant_address_clone
-                            .send_mail_and_await_reply(
-                                domain_participant_actor::process_metatraffic_rtps_message::new(
-                                    message,
-                                    participant_clone.clone(),
-                                ),
-                            )
+                            .process_metatraffic_rtps_message(message, participant_clone.clone())
                             .await??;
                         participant_address_clone
-                            .send_mail_and_await_reply(
-                                domain_participant_actor::process_builtin_discovery::new(
-                                    participant_clone.clone(),
-                                ),
-                            )
+                            .process_builtin_discovery(participant_clone.clone())
                             .await?;
 
                         participant_address_clone
@@ -330,9 +305,7 @@ impl DomainParticipantFactoryActor {
     }
 
     async fn delete_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        let is_participant_empty = self.domain_participant_list[&handle]
-            .send_mail_and_await_reply(domain_participant_actor::is_empty::new())
-            .await;
+        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await;
         if is_participant_empty {
             self.domain_participant_list.remove(&handle);
             Ok(())
@@ -348,11 +321,7 @@ impl DomainParticipantFactoryActor {
         domain_id: DomainId,
     ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
         for dp in self.domain_participant_list.values() {
-            if dp
-                .send_mail_and_await_reply(domain_participant_actor::get_domain_id::new())
-                .await
-                == domain_id
-            {
+            if dp.get_domain_id().await == domain_id {
                 return Ok(Some(dp.address()));
             }
         }
