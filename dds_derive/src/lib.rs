@@ -8,8 +8,9 @@ use derive::{
     parameter_list::{expand_parameter_list_deserialize, expand_parameter_list_serialize},
 };
 use proc_macro::TokenStream;
+use proc_macro2::{Ident, Span};
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, DeriveInput, FnArg, ItemImpl};
+use syn::{parse_macro_input, token::Comma, DeriveInput, FnArg, ItemImpl};
 
 #[proc_macro_derive(CdrSerialize)]
 pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
@@ -213,13 +214,39 @@ pub fn actor_interface(
             Some(i) => i,
             None => panic!("Expected path with ident"),
         };
+        let actor_message_enum_ident =
+            Ident::new(&format!("{}_MessageKind", actor_ident), Span::call_site());
+
+        let mut enum_variants: Vec<syn::Variant> = Vec::new();
+
+        for method in input.items.iter().filter_map(|i| match i {
+            syn::ImplItem::Fn(m) => Some(m),
+            _ => None,
+        }) {
+            let method_ident = &method.sig.ident;
+
+            let method_variant = syn::Variant {
+                attrs: vec![],
+                ident: method_ident.clone(),
+                fields: syn::Fields::Unit,
+                discriminant: None,
+            };
+            enum_variants.push(method_variant);
+        }
 
         quote! {
+            #[allow(non_camel_case_types)]
+            enum #actor_message_enum_ident {
+                #(#enum_variants,)*
+            }
+
             impl crate::implementation::utils::actor::ActorHandler for #actor_ident {
-                type Message = ();
+                type Message = #actor_message_enum_ident;
 
                 fn handle_message(&mut self, message: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-                    std::future::ready(())
+                    match message {
+                        #(#actor_message_enum_ident::#enum_variants => std::future::ready(()))*
+                    }
                 }
             }
         }
