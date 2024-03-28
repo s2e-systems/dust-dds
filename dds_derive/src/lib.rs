@@ -10,7 +10,7 @@ use derive::{
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, token::Comma, DeriveInput, FnArg, ItemImpl};
+use syn::{parse_macro_input, DeriveInput, FnArg, ItemImpl};
 
 #[proc_macro_derive(CdrSerialize)]
 pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
@@ -215,37 +215,47 @@ pub fn actor_interface(
             None => panic!("Expected path with ident"),
         };
         let actor_message_enum_ident =
-            Ident::new(&format!("{}_MessageKind", actor_ident), Span::call_site());
+            Ident::new(&format!("{}MessageKind", actor_ident), Span::call_site());
 
-        let mut enum_variants: Vec<syn::Variant> = Vec::new();
+        let mut enum_variants_ident: Vec<&syn::Ident> = Vec::new();
+        let mut enum_variants_arguments_ident: Vec<Vec<&syn::Pat>> = Vec::new();
+        let mut enum_variants_arguments_type: Vec<Vec<&syn::Type>> = Vec::new();
 
         for method in input.items.iter().filter_map(|i| match i {
             syn::ImplItem::Fn(m) => Some(m),
             _ => None,
         }) {
             let method_ident = &method.sig.ident;
+            let (methods_arguments_ident, methods_arguments_type) = method
+                .sig
+                .inputs
+                .iter()
+                .filter_map(|a| match a {
+                    FnArg::Receiver(_) => None,
+                    FnArg::Typed(t) => Some(t),
+                })
+                .map(|a| (a.pat.as_ref(), a.ty.as_ref()))
+                .unzip();
 
-            let method_variant = syn::Variant {
-                attrs: vec![],
-                ident: method_ident.clone(),
-                fields: syn::Fields::Unit,
-                discriminant: None,
-            };
-            enum_variants.push(method_variant);
+            enum_variants_ident.push(method_ident);
+            enum_variants_arguments_ident.push(methods_arguments_ident);
+            enum_variants_arguments_type.push(methods_arguments_type);
         }
 
         quote! {
             #[allow(non_camel_case_types)]
-            enum #actor_message_enum_ident {
-                #(#enum_variants,)*
+            pub enum #actor_message_enum_ident {
+                #(#enum_variants_ident{#(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*},)*
             }
 
             impl crate::implementation::utils::actor::ActorHandler for #actor_ident {
                 type Message = #actor_message_enum_ident;
 
-                fn handle_message(&mut self, message: Self::Message) -> impl std::future::Future<Output = ()> + Send {
+                async fn handle_message(&mut self, message: Self::Message) {
                     match message {
-                        #(#actor_message_enum_ident::#enum_variants => std::future::ready(()))*
+                        #(#actor_message_enum_ident::#enum_variants_ident{#(#enum_variants_arguments_ident, )*} => {
+                            self.#enum_variants_ident(#(#enum_variants_arguments_ident, )*).await;
+                        },)*
                     }
                 }
             }
