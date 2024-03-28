@@ -1,6 +1,6 @@
 use super::overall_structure::WriteBytes;
 use crate::{
-    implementation::rtps::types::{Endianness, TryReadFromBytes},
+    implementation::rtps::types::{Endianness, TryReadFromBytes, WriteIntoBytes},
     infrastructure::{self, error::DdsResult, time::Duration},
 };
 use std::{io::Read, ops::Sub};
@@ -73,6 +73,12 @@ impl WriteBytes for ProtocolId {
     }
 }
 
+impl WriteIntoBytes for ProtocolId {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        b"RTPS".write_into_bytes(buf);
+    }
+}
+
 /// SubmessageFlag
 /// Type used to specify a Submessage flag.
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
@@ -88,6 +94,18 @@ impl WriteBytes for [SubmessageFlag; 8] {
         }
         buf[0] = flags;
         1
+    }
+}
+
+impl WriteIntoBytes for [SubmessageFlag; 8] {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let mut flags = 0b_0000_0000_u8;
+        for (i, &item) in self.iter().enumerate() {
+            if item {
+                flags |= 0b_0000_0001 << i
+            }
+        }
+        [flags].write_into_bytes(buf);
     }
 }
 
@@ -146,6 +164,26 @@ impl WriteBytes for SubmessageKind {
     }
 }
 
+impl WriteIntoBytes for SubmessageKind {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let data = match self {
+            SubmessageKind::DATA => DATA,
+            SubmessageKind::GAP => GAP,
+            SubmessageKind::HEARTBEAT => HEARTBEAT,
+            SubmessageKind::ACKNACK => ACKNACK,
+            SubmessageKind::PAD => PAD,
+            SubmessageKind::INFO_TS => INFO_TS,
+            SubmessageKind::INFO_REPLY => INFO_REPLY,
+            SubmessageKind::INFO_DST => INFO_DST,
+            SubmessageKind::INFO_SRC => INFO_SRC,
+            SubmessageKind::DATA_FRAG => DATA_FRAG,
+            SubmessageKind::NACK_FRAG => NACK_FRAG,
+            SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+        };
+        [data].write_into_bytes(buf);
+    }
+}
+
 /// Time_t
 /// Type used to hold a timestamp.
 /// Should have at least nano-second resolution.
@@ -187,6 +225,13 @@ pub const TIME_INFINITE: Time = Time::new(0xffffffff, 0xfffffffe);
 impl WriteBytes for Time {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.seconds.write_bytes(&mut buf[0..]) + self.fraction.write_bytes(&mut buf[4..])
+    }
+}
+
+impl WriteIntoBytes for Time {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.seconds.write_into_bytes(buf);
+        self.fraction.write_into_bytes(buf);
     }
 }
 

@@ -9,7 +9,7 @@ use crate::{
             messages::types::{Count, FragmentNumber},
             types::{
                 Endianness, EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber,
-                TryReadFromBytes, VendorId,
+                TryReadFromBytes, VendorId, WriteIntoBytes,
             },
         },
     },
@@ -66,6 +66,29 @@ impl WriteBytes for SubmessageElement<'_> {
             SubmessageElement::UShort(e) => e.write_bytes(buf),
             SubmessageElement::VendorId(e) => e.write_bytes(buf),
         }
+    }
+}
+
+impl WriteIntoBytes for SubmessageElement<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        match self {
+            SubmessageElement::Count(e) => e.write_into_bytes(buf),
+            SubmessageElement::EntityId(e) => e.write_into_bytes(buf),
+            SubmessageElement::FragmentNumber(e) => e.write_into_bytes(buf),
+            SubmessageElement::FragmentNumberSet(e) => e.write_into_bytes(buf),
+            SubmessageElement::GuidPrefix(e) => e.write_into_bytes(buf),
+            SubmessageElement::LocatorList(e) => e.write_into_bytes(buf),
+            SubmessageElement::Long(e) => e.write_into_bytes(buf),
+            SubmessageElement::ParameterList(e) => e.write_into_bytes(buf),
+            SubmessageElement::ProtocolVersion(e) => e.write_into_bytes(buf),
+            SubmessageElement::SequenceNumber(e) => e.write_into_bytes(buf),
+            SubmessageElement::SequenceNumberSet(e) => e.write_into_bytes(buf),
+            SubmessageElement::SerializedData(e) => e.write_into_bytes(buf),
+            SubmessageElement::Timestamp(e) => e.write_into_bytes(buf),
+            SubmessageElement::ULong(e) => e.write_into_bytes(buf),
+            SubmessageElement::UShort(e) => e.write_into_bytes(buf),
+            SubmessageElement::VendorId(e) => e.write_into_bytes(buf),
+        };
     }
 }
 
@@ -147,6 +170,18 @@ impl TryReadFromBytes for SequenceNumberSet {
     }
 }
 
+impl WriteIntoBytes for SequenceNumberSet {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; //In standard referred to as "M"
+
+        self.base.write_into_bytes(buf);
+        self.num_bits.write_into_bytes(buf);
+        for bitmap_element in &self.bitmap[..number_of_bitmap_elements] {
+            bitmap_element.write_into_bytes(buf);
+        }
+    }
+}
+
 impl WriteBytes for SequenceNumberSet {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -222,6 +257,28 @@ impl WriteBytes for FragmentNumberSet {
     }
 }
 
+impl WriteIntoBytes for FragmentNumberSet {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
+        for fragment_number in &self.set {
+            let delta_n = *fragment_number - self.base;
+            let bitmap_num = delta_n / 32;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
+        }
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
+
+        self.base.write_into_bytes(buf);
+        num_bits.write_into_bytes(buf);
+        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+            bitmap_element.write_into_bytes(buf);
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocatorList {
     value: Vec<Locator>,
@@ -257,6 +314,16 @@ impl WriteBytes for LocatorList {
             len += locator.write_bytes(&mut buf[len..]);
         }
         len
+    }
+}
+
+impl WriteIntoBytes for LocatorList {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let num_locators = self.value().len() as u32;
+        num_locators.write_into_bytes(buf);
+        for locator in self.value().iter() {
+            locator.write_into_bytes(buf);
+        }
     }
 }
 
@@ -368,6 +435,22 @@ impl WriteBytes for Parameter {
     }
 }
 
+impl WriteIntoBytes for Parameter {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let padding = match self.value().len() % 4 {
+            1 => &[0_u8; 3][..],
+            2 => &[0_u8; 2][..],
+            3 => &[0_u8; 1][..],
+            _ => &[0_u8; 0][..],
+        };
+        let length = self.value().len() + padding.len();
+        self.parameter_id().write_into_bytes(buf);
+        (length as i16).write_into_bytes(buf);
+        self.value().write_into_bytes(buf);
+        padding.write_into_bytes(buf);
+    }
+}
+
 impl WriteBytes for &ParameterList {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let mut length = 0;
@@ -377,6 +460,16 @@ impl WriteBytes for &ParameterList {
         PID_SENTINEL.write_bytes(&mut buf[length..]);
         buf[length + 2..length + 4].fill(0);
         length + 4
+    }
+}
+
+impl WriteIntoBytes for &ParameterList {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for parameter in self.parameter().iter() {
+            parameter.write_into_bytes(buf);
+        }
+        PID_SENTINEL.write_into_bytes(buf);
+        [0_u8; 2].write_into_bytes(buf);
     }
 }
 
@@ -540,11 +633,22 @@ impl WriteBytes for &Data {
     }
 }
 
+impl WriteIntoBytes for &Data {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.0.as_slice().write_into_bytes(buf);
+        let length_inclusive_padding = (self.0.len() + 3) & !3;
+        (length_inclusive_padding as u32).write_into_bytes(buf);
+
+        let padding = &[0_u8; 4];
+        (&padding[..length_inclusive_padding - self.0.len()]).write_into_bytes(buf);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::into_bytes_vec, types::Locator,
+        messages::overall_structure::write_into_bytes_vec, types::Locator,
     };
 
     #[test]
@@ -559,11 +663,7 @@ mod tests {
     #[test]
     fn sequence_number_set_methods() {
         let base = 100;
-        let set = [
-            102,
-            200,
-            355,
-        ];
+        let set = [102, 200, 355];
         let seq_num_set = SequenceNumberSet::new(base, set);
 
         assert_eq!(seq_num_set.base(), base);
@@ -582,7 +682,7 @@ mod tests {
             set: vec![2, 257],
         };
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(fragment_number_set), vec![
+        assert_eq!(write_into_bytes_vec(fragment_number_set), vec![
             2, 0, 0, 0, // bitmapBase: (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
             0b000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
@@ -602,7 +702,7 @@ mod tests {
         let locator_2 = Locator::new(2, 2, [3; 16]);
         let locator_list = LocatorList::new(vec![locator_1, locator_2]);
         assert_eq!(
-            into_bytes_vec(locator_list),
+            write_into_bytes_vec(locator_list),
             vec![
                 2, 0, 0, 0, // numLocators (unsigned long)
                 1, 0, 0, 0, // kind (long)
@@ -731,7 +831,7 @@ mod tests {
     fn serialize_sequence_number() {
         let sequence_number = i64::MAX;
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(sequence_number), vec![
+        assert_eq!(write_into_bytes_vec(sequence_number), vec![
             0xff, 0xff, 0xff, 0x7f, // bitmapBase: high (long)
             0xff, 0xff, 0xff, 0xff, // bitmapBase: low (unsigned long)
         ]);
@@ -787,12 +887,9 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_set_max_gap() {
-        let sequence_number_set = SequenceNumberSet::new(
-            2,
-            [2, 257],
-        );
+        let sequence_number_set = SequenceNumberSet::new(2, [2, 257]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(sequence_number_set), vec![
+        assert_eq!(write_into_bytes_vec(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
             2, 0, 0, 0, // bitmapBase: low (unsigned long)
             0, 1, 0, 0, // numBits (unsigned long)
@@ -821,10 +918,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_with_gaps() {
-        let expected = SequenceNumberSet::new(
-            7,
-            [9, 11],
-        );
+        let expected = SequenceNumberSet::new(7, [9, 11]);
         #[rustfmt::skip]
         let result = SequenceNumberSet::try_read_from_bytes(&mut &[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -837,10 +931,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSet::new(
-            2,
-            [2, 257],
-        );
+        let expected = SequenceNumberSet::new(2, [2, 257]);
         #[rustfmt::skip]
         let result = SequenceNumberSet::try_read_from_bytes(&mut &[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -875,7 +966,7 @@ mod tests {
     fn serialize_parameter() {
         let parameter = Parameter::new(2, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(parameter), vec![
+        assert_eq!(write_into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -885,7 +976,7 @@ mod tests {
     fn serialize_parameter_non_multiple_4() {
         let parameter = Parameter::new(2, vec![5, 6, 7].into());
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(parameter), vec![
+        assert_eq!(write_into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
@@ -895,7 +986,7 @@ mod tests {
     fn serialize_parameter_zero_size() {
         let parameter = Parameter::new(2, vec![].into());
         assert_eq!(
-            into_bytes_vec(parameter),
+            write_into_bytes_vec(parameter),
             vec![
             0x02, 0x00, 0, 0, // Parameter | length
         ]
@@ -908,7 +999,7 @@ mod tests {
         let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0].into());
         let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(parameter_list_submessage_element), vec![
+        assert_eq!(write_into_bytes_vec(parameter_list_submessage_element), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -921,7 +1012,7 @@ mod tests {
     fn serialize_parameter_list_empty() {
         let parameter = &ParameterList::empty();
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(parameter), vec![
+        assert_eq!(write_into_bytes_vec(parameter), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ]);
     }

@@ -20,11 +20,35 @@ type UnsignedLong = u32;
 
 const MSG: &str = "write_bytes: not enough data in buffer";
 
+pub trait WriteIntoBytes {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]);
+}
+
 impl WriteBytes for Long {
     #[inline]
     fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
         buf.write(i32::to_le_bytes(*self).as_slice()).expect(MSG)
     }
+}
+
+impl WriteIntoBytes for Long {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(4);
+        a.copy_from_slice(self.to_le_bytes().as_slice());
+        *buf = b;
+    }
+}
+
+#[test]
+fn write_long() {
+    let long: Long = 3;
+    let mut buf = [7_u8; 6];
+    let mut moving_buf = &mut buf[..];
+    let len = moving_buf.len();
+    long.write_into_bytes(&mut moving_buf);
+    assert_eq!(4, len - moving_buf.len());
+    assert_eq!(moving_buf, &[7, 7][..]);
+    assert_eq!(buf, [3, 0, 0, 0, 7, 7]);
 }
 
 impl WriteBytes for UnsignedLong {
@@ -33,11 +57,25 @@ impl WriteBytes for UnsignedLong {
         buf.write(u32::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
-
+impl WriteIntoBytes for UnsignedLong {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(4);
+        a.copy_from_slice(self.to_le_bytes().as_slice());
+        *buf = b;
+    }
+}
 impl WriteBytes for u16 {
     #[inline]
     fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
         buf.write(u16::to_le_bytes(*self).as_slice()).expect(MSG)
+    }
+}
+
+impl WriteIntoBytes for u16 {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(2);
+        a.copy_from_slice(self.to_le_bytes().as_slice());
+        *buf = b;
     }
 }
 
@@ -48,11 +86,35 @@ impl WriteBytes for i16 {
     }
 }
 
+impl WriteIntoBytes for i16 {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(2);
+        a.copy_from_slice(self.to_le_bytes().as_slice());
+        *buf = b;
+    }
+}
+
 impl<const N: usize> WriteBytes for [Octet; N] {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         buf[..self.len()].copy_from_slice(self);
         N
+    }
+}
+
+impl<const N: usize> WriteIntoBytes for  [Octet; N] {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(N);
+        a.copy_from_slice(self);
+        *buf = b;
+    }
+}
+
+impl WriteIntoBytes for &[u8] {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(self.len());
+        a.copy_from_slice(self);
+        *buf = b;
     }
 }
 
@@ -212,6 +274,13 @@ impl WriteBytes for EntityId {
     }
 }
 
+impl WriteIntoBytes for EntityId {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.entity_key().write_into_bytes(buf);
+        [self.entity_kind()].write_into_bytes(buf);
+    }
+}
+
 impl WriteBytes for Octet {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
@@ -262,8 +331,16 @@ impl WriteBytes for SequenceNumber {
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         let high = (*self >> 32) as Long;
         let low = *self as UnsignedLong;
-        high.to_le_bytes().write_bytes(buf) +
-        low.to_le_bytes().write_bytes(&mut buf[4..])
+        high.to_le_bytes().write_bytes(buf) + low.to_le_bytes().write_bytes(&mut buf[4..])
+    }
+}
+
+impl WriteIntoBytes for SequenceNumber {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let high = (*self >> 32) as Long;
+        let low = *self as UnsignedLong;
+        high.write_into_bytes(buf);
+        low.write_into_bytes(buf);
     }
 }
 
@@ -285,6 +362,14 @@ impl WriteBytes for Locator {
         self.port.write_bytes(&mut buf[4..]);
         self.address.write_bytes(&mut buf[8..]);
         24
+    }
+}
+
+impl WriteIntoBytes for Locator {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.kind.write_into_bytes(buf);
+        self.port.write_into_bytes(buf);
+        self.address.write_into_bytes(buf);
     }
 }
 
@@ -432,6 +517,12 @@ impl WriteBytes for ProtocolVersion {
     #[inline]
     fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
         buf.write(&self.bytes).expect(MSG)
+    }
+}
+
+impl WriteIntoBytes for ProtocolVersion {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.bytes.write_into_bytes(buf);
     }
 }
 

@@ -28,7 +28,7 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId},
+        types::{Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -240,11 +240,20 @@ pub trait WriteBytes {
     fn write_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
+
 #[allow(dead_code)] // Only used as convenience in tests
 pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let len = value.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[0..len])
+}
+#[allow(dead_code)] // Only used as convenience in tests
+pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
+    let mut buf = [0u8; BUFFER_SIZE];
+    let mut slice = buf.as_mut_slice();
+    value.write_into_bytes(&mut slice);
+    let len = BUFFER_SIZE-slice.len();
+    Vec::from(&buf[..len])
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -320,6 +329,25 @@ impl WriteBytes for RtpsSubmessageWriteKind<'_> {
         }
     }
 }
+impl WriteIntoBytes for RtpsSubmessageWriteKind<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        match self {
+            RtpsSubmessageWriteKind::AckNack(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::Data(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::DataFrag(s) => write_into_bytes(s.as_ref(), buf),
+            // RtpsSubmessageWriteKind::Gap(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::Heartbeat(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::InfoDestination(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::InfoReply(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::InfoSource(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::NackFrag(s) => s.write_into_bytes(buf),
+            // RtpsSubmessageWriteKind::Pad(s) => s.write_into_bytes(buf),
+            _ => todo!()
+        };
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
@@ -358,6 +386,15 @@ impl WriteBytes for RtpsMessageHeader {
         self.vendor_id.write_bytes(&mut buf[6..]);
         self.guid_prefix.write_bytes(&mut buf[8..]);
         20
+    }
+}
+
+impl WriteIntoBytes for RtpsMessageHeader {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        ProtocolId::PROTOCOL_RTPS.write_into_bytes(buf);
+        self.version.write_into_bytes(buf);
+        self.vendor_id.write_into_bytes(buf);
+        self.guid_prefix.write_into_bytes(buf);
     }
 }
 
@@ -404,6 +441,24 @@ impl WriteBytes for SubmessageHeaderWrite {
         flags.write_bytes(&mut buf[1..]);
         self.submessage_length.write_bytes(&mut buf[2..]);
         4
+    }
+}
+
+impl WriteIntoBytes for SubmessageHeaderWrite {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.submessage_id.write_into_bytes(buf);
+        let flags = [
+            true,
+            self.flags[0],
+            self.flags[1],
+            self.flags[2],
+            self.flags[3],
+            self.flags[4],
+            self.flags[5],
+            self.flags[6],
+        ];
+        flags.write_into_bytes(buf);
+        self.submessage_length.write_into_bytes(buf);
     }
 }
 

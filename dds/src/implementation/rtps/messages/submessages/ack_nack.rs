@@ -5,7 +5,7 @@ use crate::{
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, TryReadFromBytes},
+        types::{EntityId, TryReadFromBytes, WriteIntoBytes},
     },
     infrastructure::error::DdsResult,
 };
@@ -77,6 +77,14 @@ impl AckNackSubmessageWrite<'_> {
                 SubmessageElement::SequenceNumberSet(reader_sn_state),
                 SubmessageElement::Count(count),
             ],
+        }
+    }
+}
+
+impl WriteIntoBytes for AckNackSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
         }
     }
 }
