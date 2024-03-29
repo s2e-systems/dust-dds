@@ -172,6 +172,8 @@ impl SubscriberActor {
         }
         None
     }
+
+    #[allow(clippy::unused_unit)]
     async fn delete_contained_entities(&mut self) -> () {}
 
     async fn guid(&self) -> Guid {
@@ -186,6 +188,7 @@ impl SubscriberActor {
         self.enabled
     }
 
+    #[allow(clippy::unused_unit)]
     async fn data_reader_add(
         &mut self,
         instance_handle: InstanceHandle,
@@ -194,6 +197,7 @@ impl SubscriberActor {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_reader_list.remove(&handle);
     }
@@ -228,6 +232,7 @@ impl SubscriberActor {
         Ok(())
     }
 
+    #[allow(clippy::unused_unit)]
     async fn enable(&mut self) -> () {
         self.enabled = true;
     }
@@ -304,6 +309,7 @@ impl SubscriberActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
@@ -341,6 +347,7 @@ impl SubscriberActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
@@ -370,6 +377,7 @@ impl SubscriberActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_listener(
         &mut self,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,

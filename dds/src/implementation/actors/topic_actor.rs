@@ -82,6 +82,7 @@ impl TopicActor {
         self.guid
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_qos(&mut self, qos: TopicQos) -> () {
         self.qos = qos;
     }
@@ -90,6 +91,7 @@ impl TopicActor {
         self.qos.clone()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn enable(&mut self) -> () {
         self.enabled = true;
     }
@@ -138,6 +140,7 @@ impl TopicActor {
         Ok(status)
     }
 
+    #[allow(clippy::unused_unit)]
     async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) -> () {
         if discovered_topic_data
             .topic_builtin_topic_data()

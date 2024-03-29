@@ -33,10 +33,12 @@ impl Default for StatusConditionActor {
 
 #[actor_interface]
 impl StatusConditionActor {
+    #[allow(clippy::unused_unit)]
     async fn add_communication_state(&mut self, state: StatusKind) -> () {
         self.status_changes.push(state);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_communication_state(&mut self, state: StatusKind) -> () {
         self.status_changes.retain(|x| x != &state);
     }
@@ -45,6 +47,7 @@ impl StatusConditionActor {
         self.enabled_statuses.clone()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) -> () {
         self.enabled_statuses = mask;
     }

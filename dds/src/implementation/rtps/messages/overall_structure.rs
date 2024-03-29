@@ -414,7 +414,6 @@ mod tests {
     use crate::implementation::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
-            submessages::data::DataSubmessageRead,
             types::Time,
         },
         types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},

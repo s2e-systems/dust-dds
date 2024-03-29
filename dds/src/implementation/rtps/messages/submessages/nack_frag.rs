@@ -104,7 +104,7 @@ impl Submessage for NackFragSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
+        messages::overall_structure::write_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 

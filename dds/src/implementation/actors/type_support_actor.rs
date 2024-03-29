@@ -18,6 +18,7 @@ impl TypeSupportActor {
 
 #[actor_interface]
 impl TypeSupportActor {
+    #[allow(clippy::unused_unit)]
     async fn register_type(
         &mut self,
         type_name: String,

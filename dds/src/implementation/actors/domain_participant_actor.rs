@@ -811,6 +811,7 @@ impl DomainParticipantActor {
         InstanceHandle::new(self.rtps_participant.guid().into())
     }
 
+    #[allow(clippy::unused_unit)]
     async fn enable(&mut self) -> () {
         self.enabled = true;
     }
@@ -819,18 +820,22 @@ impl DomainParticipantActor {
         self.enabled
     }
 
+    #[allow(clippy::unused_unit)]
     async fn ignore_participant(&mut self, handle: InstanceHandle) -> () {
         self.ignored_participants.insert(handle);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn ignore_subscription(&mut self, handle: InstanceHandle) -> () {
         self.ignored_subcriptions.insert(handle);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn ignore_publication(&mut self, handle: InstanceHandle) -> () {
         self.ignored_publications.insert(handle);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn ignore_topic(&self, _handle: InstanceHandle) -> () {
         todo!()
     }
@@ -839,6 +844,7 @@ impl DomainParticipantActor {
         todo!()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn _discovered_participant_remove(&mut self, handle: InstanceHandle) -> () {
         self.discovered_participant_list.remove(&handle);
     }
@@ -886,6 +892,7 @@ impl DomainParticipantActor {
         counter
     }
 
+    #[allow(clippy::unused_unit)]
     async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> () {
         self.topic_list.remove(&handle);
     }
@@ -896,6 +903,7 @@ impl DomainParticipantActor {
             && self.topic_list.len() == 0
     }
 
+    #[allow(clippy::unused_unit)]
     async fn delete_topic(&mut self, handle: InstanceHandle) -> () {
         self.topic_list.remove(&handle);
     }
@@ -928,6 +936,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_default_publisher_qos(&mut self, qos: PublisherQos) -> () {
         self.default_publisher_qos = qos;
     }
@@ -936,6 +945,7 @@ impl DomainParticipantActor {
         self.default_publisher_qos.clone()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) -> () {
         self.default_subscriber_qos = qos;
     }
@@ -944,6 +954,8 @@ impl DomainParticipantActor {
         self.default_subscriber_qos.clone()
     }
 
+
+    #[allow(clippy::unused_unit)]
     async fn set_default_topic_qos(&mut self, qos: TopicQos) -> () {
         self.default_topic_qos = qos;
     }
@@ -966,6 +978,7 @@ impl DomainParticipantActor {
             .ok_or(DdsError::BadParameter)
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_qos(&mut self, qos: DomainParticipantQos) -> () {
         self.qos = qos;
     }
@@ -974,6 +987,7 @@ impl DomainParticipantActor {
         self.discovered_participant_list.keys().cloned().collect()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn discovered_participant_add(
         &mut self,
         handle: InstanceHandle,
@@ -1286,6 +1300,7 @@ impl DomainParticipantActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) -> () {
         self.process_spdp_participant_discovery().await;
         self.process_sedp_publications_discovery(participant.clone())
@@ -1295,6 +1310,7 @@ impl DomainParticipantActor {
         self.process_sedp_topics_discovery().await;
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_listener(
         &mut self,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
@@ -1330,6 +1346,7 @@ impl DomainParticipantActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn register_type(
         &mut self,
         type_name: String,

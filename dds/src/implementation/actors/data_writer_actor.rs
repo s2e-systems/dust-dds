@@ -276,6 +276,7 @@ impl DataWriterActor {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
+    #[allow(clippy::unused_unit)]
     async fn add_matched_publication(
         &mut self,
         handle: InstanceHandle,
@@ -285,6 +286,7 @@ impl DataWriterActor {
             .add_matched_subscription(handle, subscription_data)
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_matched_subscription(&mut self, handle: InstanceHandle) -> () {
         self.matched_subscriptions
             .remove_matched_subscription(handle)
@@ -303,6 +305,7 @@ impl DataWriterActor {
             .cloned()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn add_offered_incompatible_qos(
         &mut self,
         handle: InstanceHandle,
@@ -330,6 +333,7 @@ impl DataWriterActor {
             .get_incompatible_subscriptions()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn enable(&mut self) -> () {
         self.enabled = true;
     }
@@ -354,6 +358,7 @@ impl DataWriterActor {
         self.rtps_writer.data_max_size_serialized()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn matched_reader_remove(&mut self, a_reader_guid: Guid) -> () {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
@@ -363,6 +368,7 @@ impl DataWriterActor {
         self.qos.clone()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_qos(&mut self, qos: DataWriterQos) -> () {
         self.qos = qos;
     }
@@ -548,6 +554,7 @@ impl DataWriterActor {
         self.matched_subscriptions.get_publication_matched_status()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) -> () {
         if !self
             .matched_readers
@@ -590,7 +597,7 @@ impl DataWriterActor {
         self.type_name.clone()
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
     async fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
@@ -737,6 +744,7 @@ impl DataWriterActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
@@ -798,6 +806,7 @@ impl DataWriterActor {
         self.send_message_to_reader_proxies(header, &udp_transport_write);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) -> () {
         let mut locator = a_locator;
         if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
@@ -807,6 +816,7 @@ impl DataWriterActor {
         self.reader_locators.push(locator);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_listener(
         &mut self,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
@@ -1182,8 +1192,7 @@ fn send_message_to_reader_proxy_best_effort(
                         InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                     );
 
-                    let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1334,8 +1343,7 @@ fn send_change_message_reader_proxy_reliable(
                         InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                     );
 
-                    let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),

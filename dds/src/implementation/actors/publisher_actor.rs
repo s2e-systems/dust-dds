@@ -156,6 +156,7 @@ impl PublisherActor {
         None
     }
 
+    #[allow(clippy::unused_unit)]
     async fn enable(&mut self) -> () {
         self.enabled = true;
     }
@@ -174,10 +175,12 @@ impl PublisherActor {
         counter
     }
 
+    #[allow(clippy::unused_unit)]
     async fn delete_contained_entities(&mut self) -> () {
         self.data_writer_list.clear()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn datawriter_add(
         &mut self,
         instance_handle: InstanceHandle,
@@ -186,10 +189,12 @@ impl PublisherActor {
         self.data_writer_list.insert(instance_handle, data_writer);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn datawriter_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_writer_list.remove(&handle);
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) -> () {
         self.default_datawriter_qos = qos;
     }
@@ -262,7 +267,7 @@ impl PublisherActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
     async fn add_matched_reader(
         &self,
         discovered_reader_data: DiscoveredReaderData,
@@ -320,6 +325,7 @@ impl PublisherActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
@@ -357,6 +363,7 @@ impl PublisherActor {
         self.status_condition.address()
     }
 
+    #[allow(clippy::unused_unit)]
     async fn set_listener(
         &mut self,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
