@@ -1,5 +1,4 @@
 use super::{
-    submessage_elements::SubmessageElement,
     submessages::{
         ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
         data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
@@ -28,7 +27,7 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId},
+        types::{Endianness, GuidPrefix, ProtocolVersion, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -36,28 +35,28 @@ use std::{io::BufRead, sync::Arc};
 
 const BUFFER_SIZE: usize = 65000;
 
-pub trait Submessage<'a> {
-    type SubmessageList;
-
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
-    fn submessage_elements(&'a self) -> Self::SubmessageList;
+pub trait TryReadFromBytes: Sized {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;
 }
 
-#[inline]
-fn write_submessage_bytes<'a>(
-    submessage: &'a impl Submessage<
-        'a,
-        SubmessageList = impl IntoIterator<Item = &'a SubmessageElement<'a>>,
-    >,
-    buf: &mut [u8],
-) -> usize {
-    let (header, body) = buf.split_at_mut(4);
-    let mut len = 0;
-    for submessage_element in submessage.submessage_elements().into_iter() {
-        len += submessage_element.write_bytes(&mut body[len..]);
+pub trait WriteIntoBytes {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]);
+}
+
+pub trait Submessage {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]);
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]);
+}
+
+impl<T: Submessage> WriteIntoBytes for T {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (header, mut elements) = std::mem::take(buf).split_at_mut(4);
+        let len_before = elements.len();
+        self.write_submessage_elements_into_bytes(&mut elements);
+        let len = len_before - elements.len();
+        self.write_submessage_header_into_bytes(len as u16, header);
+        *buf = elements;
     }
-    let submessage_header = submessage.submessage_header(len as u16);
-    submessage_header.write_bytes(header) + len
 }
 
 pub struct SubmessageHeaderRead {
@@ -236,15 +235,13 @@ impl RtpsMessageRead {
     }
 }
 
-pub trait WriteBytes {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize;
-}
-
 #[allow(dead_code)] // Only used as convenience in tests
-pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
+pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
-    let len = value.write_bytes(buf.as_mut_slice());
-    Vec::from(&buf[0..len])
+    let mut slice = buf.as_mut_slice();
+    value.write_into_bytes(&mut slice);
+    let len = BUFFER_SIZE - slice.len();
+    Vec::from(&buf[..len])
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -256,10 +253,12 @@ pub struct RtpsMessageWrite {
 impl RtpsMessageWrite {
     pub fn new(header: &RtpsMessageHeader, submessages: &[RtpsSubmessageWriteKind<'_>]) -> Self {
         let mut buffer = [0; BUFFER_SIZE];
-        let mut len = header.write_bytes(&mut buffer[0..]);
+        let mut slice = buffer.as_mut_slice();
+        header.write_into_bytes(&mut slice);
         for submessage in submessages {
-            len += submessage.write_bytes(&mut buffer[len..]);
+            submessage.write_into_bytes(&mut slice);
         }
+        let len = BUFFER_SIZE - slice.len();
         Self { buffer, len }
     }
 
@@ -287,37 +286,36 @@ pub enum RtpsSubmessageReadKind {
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
-    AckNack(AckNackSubmessageWrite<'a>),
+    AckNack(AckNackSubmessageWrite),
     Data(DataSubmessageWrite<'a>),
-    DataFrag(Box<DataFragSubmessageWrite<'a>>),
-    Gap(GapSubmessageWrite<'a>),
-    Heartbeat(HeartbeatSubmessageWrite<'a>),
-    HeartbeatFrag(HeartbeatFragSubmessageWrite<'a>),
-    InfoDestination(InfoDestinationSubmessageWrite<'a>),
-    InfoReply(InfoReplySubmessageWrite<'a>),
-    InfoSource(InfoSourceSubmessageWrite<'a>),
-    InfoTimestamp(InfoTimestampSubmessageWrite<'a>),
-    NackFrag(NackFragSubmessageWrite<'a>),
+    DataFrag(DataFragSubmessageWrite<'a>),
+    Gap(GapSubmessageWrite),
+    Heartbeat(HeartbeatSubmessageWrite),
+    HeartbeatFrag(HeartbeatFragSubmessageWrite),
+    InfoDestination(InfoDestinationSubmessageWrite),
+    InfoReply(InfoReplySubmessageWrite),
+    InfoSource(InfoSourceSubmessageWrite),
+    InfoTimestamp(InfoTimestampSubmessageWrite),
+    NackFrag(NackFragSubmessageWrite),
     Pad(PadSubmessageWrite),
 }
 
-impl WriteBytes for RtpsSubmessageWriteKind<'_> {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
+impl WriteIntoBytes for RtpsSubmessageWriteKind<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         match self {
-            RtpsSubmessageWriteKind::AckNack(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::Data(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_bytes(s.as_ref(), buf),
-            RtpsSubmessageWriteKind::Gap(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoDestination(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoReply(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoSource(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::Pad(s) => write_submessage_bytes(s, buf),
-        }
+            RtpsSubmessageWriteKind::AckNack(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Data(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Gap(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Pad(s) => s.write_into_bytes(buf),
+        };
     }
 }
 
@@ -350,22 +348,19 @@ impl RtpsMessageHeader {
     }
 }
 
-impl WriteBytes for RtpsMessageHeader {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        ProtocolId::PROTOCOL_RTPS.write_bytes(&mut buf[0..]);
-        self.version.write_bytes(&mut buf[4..]);
-        self.vendor_id.write_bytes(&mut buf[6..]);
-        self.guid_prefix.write_bytes(&mut buf[8..]);
-        20
+impl WriteIntoBytes for RtpsMessageHeader {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        ProtocolId::PROTOCOL_RTPS.write_into_bytes(buf);
+        self.version.write_into_bytes(buf);
+        self.vendor_id.write_into_bytes(buf);
+        self.guid_prefix.write_into_bytes(buf);
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubmessageHeaderWrite {
     submessage_id: SubmessageKind,
-    // flags without endianness
-    flags: [SubmessageFlag; 7],
+    flags_octet: u8,
     submessage_length: u16,
 }
 
@@ -376,34 +371,26 @@ impl SubmessageHeaderWrite {
         flags: &[SubmessageFlag],
         submessage_length: u16,
     ) -> Self {
-        let mut flags_array = [false; 7];
-        flags_array[..flags.len()].copy_from_slice(flags);
+        let mut flags_octet = 0b_0000_0001_u8;
+        for (i, &item) in flags.iter().enumerate() {
+            if item {
+                flags_octet |= 0b_0000_0010 << i
+            }
+        }
 
         Self {
             submessage_id,
-            flags: flags_array,
+            flags_octet,
             submessage_length,
         }
     }
 }
 
-impl WriteBytes for SubmessageHeaderWrite {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.submessage_id.write_bytes(&mut buf[0..]);
-        let flags = [
-            true,
-            self.flags[0],
-            self.flags[1],
-            self.flags[2],
-            self.flags[3],
-            self.flags[4],
-            self.flags[5],
-            self.flags[6],
-        ];
-        flags.write_bytes(&mut buf[1..]);
-        self.submessage_length.write_bytes(&mut buf[2..]);
-        4
+impl WriteIntoBytes for SubmessageHeaderWrite {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.submessage_id.write_into_bytes(buf);
+        self.flags_octet.write_into_bytes(buf);
+        self.submessage_length.write_into_bytes(buf);
     }
 }
 
@@ -414,6 +401,7 @@ mod tests {
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::data::DataSubmessageRead,
+            types::Time,
         },
         types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
@@ -474,6 +462,65 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
+        ]);
+    }
+
+    #[test]
+    fn serialize_rtps_message_multiple_submessages() {
+        let header = RtpsMessageHeader {
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
+        };
+        let info_timestamp_submessage = RtpsSubmessageWriteKind::InfoTimestamp(
+            InfoTimestampSubmessageWrite::new(false, Time::new(4, 0)),
+        );
+
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
+        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
+        let serialized_payload = &Data::new(vec![].into());
+
+        let data_submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        ));
+        let value = RtpsMessageWrite::new(&header, &[info_timestamp_submessage, data_submessage]);
+        #[rustfmt::skip]
+        assert_eq!(value.buffer(), vec![
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
+            4, 0, 0, 0, // Time
+            0, 0, 0, 0, // Time
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]

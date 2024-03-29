@@ -1,11 +1,14 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{FragmentNumberSet, SubmessageElement},
+            overall_structure::{
+                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+                WriteIntoBytes,
+            },
+            submessage_elements::FragmentNumberSet,
             types::{Count, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber},
     },
     infrastructure::error::DdsResult,
 };
@@ -56,11 +59,15 @@ impl NackFragSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessageWrite<'a> {
-    submessage_elements: [SubmessageElement<'a>; 5],
+pub struct NackFragSubmessageWrite {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    fragment_number_state: FragmentNumberSet,
+    count: Count,
 }
 
-impl NackFragSubmessageWrite<'_> {
+impl NackFragSubmessageWrite {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -69,26 +76,27 @@ impl NackFragSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumber(writer_sn),
-                SubmessageElement::FragmentNumberSet(fragment_number_state),
-                SubmessageElement::Count(count),
-            ],
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_number_state,
+            count,
         }
     }
 }
 
-impl<'a> Submessage<'a> for NackFragSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+impl Submessage for NackFragSubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        self.fragment_number_state.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
     }
 }
 
@@ -96,23 +104,21 @@ impl<'a> Submessage<'a> for NackFragSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{
-            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
-        },
+        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_nack_frag() {
-        let submessage = RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite::new(
+        let submessage = NackFragSubmessageWrite::new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             4,
             FragmentNumberSet::new(10, []),
             6,
-        ));
+        );
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x12_u8, 0b_0000_0001, 28, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]

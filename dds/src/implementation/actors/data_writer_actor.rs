@@ -1202,7 +1202,7 @@ fn send_message_to_reader_proxy_best_effort(
                     );
 
                     let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(Box::new(data_frag_submessage));
+                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1354,7 +1354,7 @@ fn send_change_message_reader_proxy_reliable(
                     );
 
                     let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(Box::new(data_frag_submessage));
+                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
