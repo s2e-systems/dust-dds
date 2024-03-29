@@ -9,7 +9,7 @@ use super::{
         overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            ack_nack::AckNackSubmessageWrite, data::DataSubmessageRead,
+            ack_nack::AckNackSubmessage, data::DataSubmessageRead,
             data_frag::DataFragSubmessageRead, info_destination::InfoDestinationSubmessageWrite,
             nack_frag::NackFragSubmessageWrite,
         },
@@ -241,7 +241,7 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
 
-            let acknack_submessage = AckNackSubmessageWrite::new(
+            let acknack_submessage = AckNackSubmessage::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),

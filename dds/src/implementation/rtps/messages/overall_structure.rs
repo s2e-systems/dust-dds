@@ -4,7 +4,7 @@ use crate::{
         messages::{
             submessage_elements::ArcSlice,
             submessages::{
-                ack_nack::AckNackSubmessageRead, data::DataSubmessageRead,
+                ack_nack::AckNackSubmessage, data::DataSubmessageRead,
                 data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
                 heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
                 info_destination::InfoDestinationSubmessageRead,
@@ -188,10 +188,8 @@ impl RtpsMessageRead {
                     break;
                 }
                 let submessage = match submessage_header.submessage_id() {
-                    ACKNACK => {
-                        AckNackSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
-                            .map(RtpsSubmessageReadKind::AckNack)
-                    }
+                    ACKNACK => AckNackSubmessage::try_from_bytes(&submessage_header, data.as_ref())
+                        .map(RtpsSubmessageReadKind::AckNack),
                     DATA => {
                         DataSubmessageRead::try_from_arc_slice(&submessage_header, data.clone())
                             .map(RtpsSubmessageReadKind::Data)
@@ -284,7 +282,7 @@ impl RtpsMessageWrite {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind {
-    AckNack(AckNackSubmessageRead),
+    AckNack(AckNackSubmessage),
     Data(DataSubmessageRead),
     DataFrag(DataFragSubmessageRead),
     Gap(GapSubmessageRead),

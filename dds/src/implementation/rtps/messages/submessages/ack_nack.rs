@@ -1,7 +1,10 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes},
+            overall_structure::{
+                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+                WriteIntoBytes,
+            },
             submessage_elements::SequenceNumberSet,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
@@ -11,7 +14,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageRead {
+pub struct AckNackSubmessage {
     final_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
@@ -19,7 +22,7 @@ pub struct AckNackSubmessageRead {
     count: Count,
 }
 
-impl AckNackSubmessageRead {
+impl AckNackSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -55,16 +58,7 @@ impl AckNackSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageWrite {
-    final_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    reader_sn_state: SequenceNumberSet,
-    count: Count,
-}
-
-impl AckNackSubmessageWrite {
+impl AckNackSubmessage {
     pub fn new(
         final_flag: SubmessageFlag,
         reader_id: EntityId,
@@ -82,7 +76,7 @@ impl AckNackSubmessageWrite {
     }
 }
 
-impl Submessage for AckNackSubmessageWrite {
+impl Submessage for AckNackSubmessage {
     fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
@@ -113,7 +107,7 @@ mod tests {
         let final_flag = false;
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let submessage = AckNackSubmessageWrite::new(
+        let submessage = AckNackSubmessage::new(
             final_flag,
             reader_id,
             writer_id,
@@ -147,7 +141,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            AckNackSubmessageRead::try_from_bytes(&submessage_header, data.as_ref()).unwrap();
+            AckNackSubmessage::try_from_bytes(&submessage_header, data.as_ref()).unwrap();
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

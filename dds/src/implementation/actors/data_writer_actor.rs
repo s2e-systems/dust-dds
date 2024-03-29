@@ -23,7 +23,7 @@ use crate::{
                 },
                 submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
-                    ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
+                    ack_nack::AckNackSubmessage, gap::GapSubmessageWrite,
                     info_destination::InfoDestinationSubmessageWrite,
                     info_timestamp::InfoTimestampSubmessageWrite,
                     nack_frag::NackFragSubmessageRead,
@@ -826,7 +826,7 @@ impl DataWriterActor {
 
     fn on_acknack_submessage_received(
         &mut self,
-        acknack_submessage: &AckNackSubmessageRead,
+        acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
