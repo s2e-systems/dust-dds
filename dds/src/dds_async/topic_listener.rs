@@ -12,6 +12,6 @@ pub trait TopicListenerAsync {
         _the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 }

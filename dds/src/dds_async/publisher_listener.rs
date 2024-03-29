@@ -19,7 +19,7 @@ pub trait PublisherListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any writer belonging to this publisher reports an offered deadline missed status.
@@ -31,7 +31,7 @@ pub trait PublisherListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any writer belonging to this publisher reports an offered incompatible qos status.
@@ -43,7 +43,7 @@ pub trait PublisherListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any writer belonging to this publisher reports a publication matched status.
@@ -55,6 +55,6 @@ pub trait PublisherListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 }

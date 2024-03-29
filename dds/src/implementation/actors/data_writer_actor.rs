@@ -22,7 +22,7 @@ use crate::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
                     RtpsSubmessageWriteKind,
                 },
-                submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
+                submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessageRead, gap::GapSubmessageWrite,
                     info_destination::InfoDestinationSubmessageWrite,
@@ -414,7 +414,7 @@ impl DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            serialized_status_info,
+            ArcSlice::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -463,7 +463,7 @@ impl DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            serialized_status_info,
+            ArcSlice::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -675,11 +675,10 @@ impl DataWriterActor {
                     .durability()
                     .kind
                 {
-                    DurabilityQosPolicyKind::Volatile => self
-                        .writer_cache
-                        .get_seq_num_max()
-                        .unwrap_or_else(|| SequenceNumber::from(0)),
-                    DurabilityQosPolicyKind::TransientLocal => SequenceNumber::from(0),
+                    DurabilityQosPolicyKind::Volatile => {
+                        self.writer_cache.get_seq_num_max().unwrap_or(0)
+                    }
+                    DurabilityQosPolicyKind::TransientLocal => 0,
                 };
 
                 let reader_proxy = RtpsReaderProxy::new(
@@ -836,7 +835,7 @@ impl DataWriterActor {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id());
+            let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
 
             if let Some(reader_proxy) = self
                 .matched_readers
@@ -1202,7 +1201,8 @@ fn send_message_to_reader_proxy_best_effort(
                         InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                     );
 
-                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag =
+                        RtpsSubmessageWriteKind::DataFrag(Box::new(data_frag_submessage));
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1265,12 +1265,8 @@ fn send_message_to_reader_proxy_reliable(
                     gap_start_sequence_number,
                     SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                 ));
-                let first_sn = writer_cache
-                    .get_seq_num_min()
-                    .unwrap_or_else(|| SequenceNumber::from(1));
-                let last_sn = writer_cache
-                    .get_seq_num_max()
-                    .unwrap_or_else(|| SequenceNumber::from(0));
+                let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
+                let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
                 let heartbeat_submessage = reader_proxy
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);
@@ -1296,12 +1292,8 @@ fn send_message_to_reader_proxy_reliable(
         .heartbeat_machine()
         .is_time_for_heartbeat(heartbeat_period)
     {
-        let first_sn = writer_cache
-            .get_seq_num_min()
-            .unwrap_or_else(|| SequenceNumber::from(1));
-        let last_sn = writer_cache
-            .get_seq_num_max()
-            .unwrap_or_else(|| SequenceNumber::from(0));
+        let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
+        let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
         let heartbeat_submessage = reader_proxy
             .heartbeat_machine()
             .submessage(writer_id, first_sn, last_sn);
@@ -1361,7 +1353,8 @@ fn send_change_message_reader_proxy_reliable(
                         InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                     );
 
-                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag =
+                        RtpsSubmessageWriteKind::DataFrag(Box::new(data_frag_submessage));
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1381,12 +1374,8 @@ fn send_change_message_reader_proxy_reliable(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
 
-                let first_sn = writer_cache
-                    .get_seq_num_min()
-                    .unwrap_or_else(|| SequenceNumber::from(1));
-                let last_sn = writer_cache
-                    .get_seq_num_max()
-                    .unwrap_or_else(|| SequenceNumber::from(0));
+                let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
+                let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
                 let heartbeat = reader_proxy
                     .heartbeat_machine()
                     .submessage(writer_id, first_sn, last_sn);

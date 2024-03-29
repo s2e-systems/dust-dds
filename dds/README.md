@@ -1,12 +1,14 @@
 # Dust DDS
 
-[S2E Software Systems](https://www.s2e-systems.com) implementation of the OMG [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
+Dust DDS is a native [Rust](https://www.rust-lang.org/) implementation of the OMG [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) developed by [S2E Software Systems](https://www.s2e-systems.com).
 
-DDS is a middleware protocol and API standard for data-centric connectivity. The main goal of DDS is to share the right data at the right place at the right time, even between time-decoupled publishers and consumers.
+The goal of this crate is to provide a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation is done using stable Rust and without unsafe code and with large unit test code coverage.
 
-This crate provide a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation is done using stable Rust and without unsafe code and with large unit test code coverage.
+## A brief introduction to DDS
 
-The DDS type can be generated from an OMG IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen).
+DDS is a middleware protocol and API standard designed for data-centric connectivity. At its core, DDS aims to facilitate the seamless sharing of pertinent data precisely where and when it's needed, even across publishers and subscribers operating asynchronously in time. With DDS, applications can exchange information through the reading and writing of data-objects identified by user-defined names (Topics) and keys. One of its defining features is the robust control it offers over Quality-of-Service (QoS) parameters, encompassing reliability, bandwidth, delivery deadlines, and resource allocations.
+
+The [DDS standard](https://www.omg.org/spec/DDS/1.4/PDF) "defines both the Application Interfaces (APIs) and the Communication Semantics (behavior and quality of service) that enable the efficient delivery of information from information producers to matching consumer". Complementing this standard is the [DDSI-RTPS specification](https://www.omg.org/spec/DDSI-RTPS/2.5/PDF), which defines an interoperability wire protocol for DDS. Its primary aim is to ensure that applications based on different vendors' implementations of DDS can interoperate. The implementation of Dust DDS primarily centers around the DDS and DDSI-RTPS standards.
 
 ## Example
 
@@ -99,9 +101,40 @@ The subscriber side can be implemented as:
         }
     }
 ```
-## Sync and Async API
 
-Dust DDS provides both a "sync" and an "async" API to allow integrating DDS in the largest number of applications with maximum performance. In general, the first option should be to use the sync API and make use of the DDS specified functionality such as listeners for event based programs. However, when implementing applications that already make use of async then the async API must be used. In particular, when using a Tokio runtime, using the Sync API will result in a panic due to blocking calls.
+## IDL type generation
+
+If using only Rust, you can make use of the procedural macros to enable a type to be transmitted
+using DustDDS. The key fields can also be defined as part of the macro.
+
+```rust
+use dust_dds::topic_definition::type_support::DdsType;
+
+#[derive(DdsType)]
+struct HelloWorldType {
+    #[dust_dds(key)]
+    id: u8,
+    msg: String,
+}
+```
+
+If using different programming languages or vendors, the DDS type can be generated from an OMG IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen).
+
+## Sync and Async library API
+
+Dust DDS provides both a "sync" and an "async" API to allow integrating DDS in the largest number of applications with maximum performance. In general, the first option should be to use the sync API and make use of the DDS specified functionality such as listeners for event based programs.
+
+When implementing applications that already make use of async, then the async API must be used. In particular, when using a Tokio runtime, using the Sync API will result in a panic due to blocking calls. You can see find an example in the examples folder.
+
+## DDS REST API
+
+If you want to interact with your DDS data using a REST API you can use our [Nebula DDS WebLink](https://www.s2e-systems.com/products/nebula-dds-weblink/) software. Nebula DDS WebLink provides a server implementing the Object Management Group (OMG) Web-Enabled DDS v1.0 standard.
+
+## Shapes demo
+
+DDS interoperability is typically tested using a shapes demo. The Dust DDS Shapes Demo is available on our repository and can be started by running `cargo run --package dust_dds_shapes_demo` from the root folder.
+
+![Dust DDS Shapes demo screenshot](https://raw.githubusercontent.com/s2e-systems/dust-dds/master/dds/docs/shapes_demo_screenshot.png)
 
 ## Release schedule
 

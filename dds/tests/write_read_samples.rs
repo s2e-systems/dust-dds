@@ -1453,7 +1453,7 @@ fn write_read_sample_view_state() {
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     reader

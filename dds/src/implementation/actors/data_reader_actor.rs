@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    convert::TryFrom,
     sync::Arc,
 };
 
@@ -39,10 +38,7 @@ use crate::{
             },
             reader::RtpsReaderKind,
             reader_history_cache::{InstanceState, RtpsReaderCacheChange},
-            types::{
-                ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
-                GUID_UNKNOWN,
-            },
+            types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
@@ -412,8 +408,8 @@ impl DataReaderActor {
                                 }
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.inline_qos(),
-                                                data_submessage.serialized_payload(),
+                                                data_submessage.inline_qos().clone(),
+                                                data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
                                                 type_support,
@@ -448,8 +444,8 @@ impl DataReaderActor {
                                 writer_proxy.received_change_set(sequence_number);
                                 match self.convert_received_data_to_cache_change(
                                                 writer_guid,
-                                                data_submessage.inline_qos(),
-                                                data_submessage.serialized_payload(),
+                                                data_submessage.inline_qos().clone(),
+                                                data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
                                                 type_support,
@@ -489,8 +485,8 @@ impl DataReaderActor {
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
                     if let Ok(change) = self.convert_received_data_to_cache_change(
                         writer_guid,
-                        data_submessage.inline_qos(),
-                        data_submessage.serialized_payload(),
+                        data_submessage.inline_qos().clone(),
+                        data_submessage.serialized_payload().clone(),
                         source_timestamp,
                         reception_timestamp,
                         type_support,
@@ -667,10 +663,8 @@ impl DataReaderActor {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => {
                 if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                    for seq_num in i64::from(gap_submessage.gap_start())
-                        ..i64::from(gap_submessage.gap_list().base())
-                    {
-                        writer_proxy.irrelevant_change_set(SequenceNumber::from(seq_num))
+                    for seq_num in gap_submessage.gap_start()..gap_submessage.gap_list().base() {
+                        writer_proxy.irrelevant_change_set(seq_num)
                     }
 
                     for seq_num in gap_submessage.gap_list().set() {

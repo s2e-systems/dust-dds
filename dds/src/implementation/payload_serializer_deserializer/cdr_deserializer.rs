@@ -1,7 +1,4 @@
-use std::{
-    convert::TryInto,
-    io::{BufRead, Read},
-};
+use std::io::{BufRead, Read};
 
 use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer};
 

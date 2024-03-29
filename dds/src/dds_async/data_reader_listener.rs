@@ -20,7 +20,7 @@ where
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a sample rejected status.
@@ -29,7 +29,7 @@ where
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SampleRejectedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
     /// Method that is called when this reader reports a liveliness changed status.
     fn on_liveliness_changed(
@@ -37,7 +37,7 @@ where
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: LivelinessChangedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a requested deadline missed status.
@@ -46,7 +46,7 @@ where
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: RequestedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a requested incompatible QoS status.
@@ -55,7 +55,7 @@ where
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: RequestedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a subscription matched status.
@@ -64,7 +64,7 @@ where
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a sample lost status.
@@ -73,6 +73,6 @@ where
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SampleLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 }

@@ -1,39 +1,35 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::GuidPrefix,
+        types::{GuidPrefix, TryReadFromBytes},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoDestinationSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct InfoDestinationSubmessageRead {
+    guid_prefix: GuidPrefix,
 }
 
-impl SubmessageHeader for InfoDestinationSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> InfoDestinationSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
-        if data.len() >= 16 {
-            Ok(Self { data })
-        } else {
-            Err(DdsError::Error("InfoDestination submessage invalid".to_string()))
-        }
+impl InfoDestinationSubmessageRead {
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        mut data: &[u8],
+    ) -> DdsResult<Self> {
+        Ok(Self {
+            guid_prefix: GuidPrefix::try_read_from_bytes(
+                &mut data,
+                submessage_header.endianness(),
+            )?,
+        })
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.map(&self.data[4..])
+        self.guid_prefix
     }
 }
 #[derive(Debug, PartialEq, Eq)]
@@ -65,7 +61,9 @@ impl<'a> Submessage<'a> for InfoDestinationSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::overall_structure::{
+            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+        },
         types::GUIDPREFIX_UNKNOWN,
     };
 
@@ -88,12 +86,15 @@ mod tests {
     #[test]
     fn deserialize_info_destination() {
         #[rustfmt::skip]
-        let submessage = InfoDestinationSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x0e, 0b_0000_0001, 12, 0, // Submessage header
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoDestinationSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_guid_prefix = GUIDPREFIX_UNKNOWN;
         assert_eq!(expected_guid_prefix, submessage.guid_prefix());

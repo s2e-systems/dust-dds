@@ -21,7 +21,7 @@ where
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
     /// Method that is called when this writer reports an offered deadline missed status.
     fn on_offered_deadline_missed(
@@ -29,7 +29,7 @@ where
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
     /// Method that is called when this writer reports an offered incompatible qos status.
     fn on_offered_incompatible_qos(
@@ -37,7 +37,7 @@ where
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
     /// Method that is called when this writer reports a publication matched status.
     fn on_publication_matched(
@@ -45,6 +45,6 @@ where
         _the_writer: DataWriterAsync<Self::Foo>,
         _status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 }

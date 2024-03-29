@@ -21,7 +21,7 @@ pub trait DomainParticipantListenerAsync {
         _the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any writer in the domain participant reports a liveliness lost status.
@@ -33,7 +33,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a deadline missed status.
@@ -45,7 +45,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports an offered incompatible QoS status.
@@ -57,7 +57,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample lost status.
@@ -69,7 +69,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a data available status.
@@ -80,7 +80,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample rejected status.
@@ -92,7 +92,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a liveliness changed status.
@@ -104,7 +104,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested deadline missed status.
@@ -116,7 +116,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested incompatible QoS status.
@@ -128,7 +128,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a publication matched status.
@@ -140,7 +140,7 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a subscription matched status.
@@ -152,6 +152,6 @@ pub trait DomainParticipantListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 }

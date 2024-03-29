@@ -17,7 +17,7 @@ pub trait SubscriberListenerAsync {
         &mut self,
         _the_subscriber: SubscriberAsync,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports new data available.
@@ -28,7 +28,7 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a sample rejected status.
@@ -40,7 +40,7 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a liveliness changed status.
@@ -52,7 +52,7 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a requested deadline missed status.
@@ -64,7 +64,7 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a requested incompatible QoS status.
@@ -76,7 +76,7 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a subscription matched status.
@@ -88,7 +88,7 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any reader belonging to this subcriber reports a sample lost status.
@@ -100,6 +100,6 @@ pub trait SubscriberListenerAsync {
     where
         'a: 'b,
     {
-        Box::pin(async {})
+        Box::pin(std::future::ready(()))
     }
 }

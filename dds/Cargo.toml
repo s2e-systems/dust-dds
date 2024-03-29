@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds"
-version = "0.8.2"
+version = "0.9.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
@@ -16,11 +16,9 @@ keywords = ["dds", "rtps", "middleware", "network", "udp"]
 categories = ["api-bindings", "network-programming"]
 
 [dependencies]
-dust_dds_derive = { path = "../dds_derive", version = "0.8" }
+dust_dds_derive = { path = "../dds_derive" }
 
 md5 = "0.7.0" # Chose this crate over other possibilities since it doesn't have any other dependencies
-
-byteorder = "1.5.0"
 
 socket2 = "0.5"
 network-interface = "1.1.1"

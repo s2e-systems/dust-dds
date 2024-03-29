@@ -37,11 +37,10 @@ use crate::{
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
-                EntityId, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-                BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
-                ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
+                EntityId, Guid, Locator, ReliabilityKind, TopicKind, BUILT_IN_READER_GROUP,
+                BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
             writer_proxy::RtpsWriterProxy,
@@ -1568,7 +1567,7 @@ impl DomainParticipantActor {
                     expects_inline_qos,
                     true,
                     ReliabilityKind::Reliable,
-                    SequenceNumber::from(0),
+                    0,
                 );
                 sedp_publications_announcer
                     .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
@@ -1659,7 +1658,7 @@ impl DomainParticipantActor {
                     expects_inline_qos,
                     true,
                     ReliabilityKind::Reliable,
-                    SequenceNumber::from(0),
+                    0,
                 );
                 sedp_subscriptions_announcer
                     .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))
@@ -1749,7 +1748,7 @@ impl DomainParticipantActor {
                     expects_inline_qos,
                     true,
                     ReliabilityKind::Reliable,
-                    SequenceNumber::from(0),
+                    0,
                 );
                 sedp_topics_announcer
                     .send_mail_and_await_reply(data_writer_actor::matched_reader_add::new(proxy))

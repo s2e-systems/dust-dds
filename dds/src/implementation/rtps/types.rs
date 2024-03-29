@@ -1,11 +1,12 @@
-use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
-
-use super::messages::overall_structure::{WriteBytes, WriteEndianness};
-use byteorder::ByteOrder;
+use super::messages::overall_structure::WriteBytes;
+use crate::{
+    infrastructure::error::DdsResult,
+    serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
+};
 use network_interface::Addr;
 use std::{
+    io::{Read, Write},
     net::IpAddr,
-    ops::{Add, AddAssign, Sub, SubAssign},
 };
 
 ///
@@ -14,38 +15,36 @@ use std::{
 ///
 
 type Octet = u8;
-type Long = i32;
+pub type Long = i32;
 type UnsignedLong = u32;
+
+const MSG: &str = "write_bytes: not enough data in buffer";
 
 impl WriteBytes for Long {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i32(buf, *self);
-        4
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(i32::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
 impl WriteBytes for UnsignedLong {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u32(buf, *self);
-        4
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(u32::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
 impl WriteBytes for u16 {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_u16(buf, *self);
-        2
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(u16::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
 impl WriteBytes for i16 {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        WriteEndianness::write_i16(buf, *self);
-        2
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(i16::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
@@ -124,6 +123,32 @@ impl From<Guid> for [u8; 16] {
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
+pub enum Endianness {
+    BigEndian,
+    LittleEndian,
+}
+
+impl TryReadFromBytes for GuidPrefix {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        let mut guid_prefix = [0; 12];
+        data.read_exact(&mut guid_prefix)?;
+        Ok(guid_prefix)
+    }
+}
+
+impl Endianness {
+    pub fn from_flags(byte: u8) -> Self {
+        match byte & 0b_0000_0001 != 0 {
+            true => Endianness::LittleEndian,
+            false => Endianness::BigEndian,
+        }
+    }
+}
+
+pub trait TryReadFromBytes: Sized {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;
+}
+
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
@@ -149,6 +174,23 @@ impl EntityId {
 
     pub const fn entity_kind(&self) -> Octet {
         self.entity_kind
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Self {
+        Self::new([data[0], data[1], data[2]], data[3])
+    }
+}
+
+impl TryReadFromBytes for EntityId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        let mut entity_key = [0; 3];
+        let mut entity_kind = [0; 1];
+        data.read_exact(&mut entity_key)?;
+        data.read_exact(&mut entity_kind)?;
+        Ok(Self {
+            entity_key,
+            entity_kind: entity_kind[0],
+        })
     }
 }
 
@@ -204,73 +246,24 @@ pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
-/// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct SequenceNumber {
-    high: Long,
-    low: UnsignedLong,
-}
+pub type SequenceNumber = i64;
 
-#[allow(dead_code)]
-pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber::new(-1, 0);
-
-impl SequenceNumber {
-    pub const fn new(high: Long, low: UnsignedLong) -> Self {
-        Self { high, low }
-    }
-}
-impl From<SequenceNumber> for i64 {
-    fn from(value: SequenceNumber) -> Self {
-        ((value.high as i64) << 32) + value.low as i64
-    }
-}
-impl From<i64> for SequenceNumber {
-    fn from(value: i64) -> Self {
-        Self {
-            high: (value >> 32) as Long,
-            low: value as UnsignedLong,
-        }
-    }
-}
-impl Add for SequenceNumber {
-    type Output = Self;
-    fn add(self, rhs: SequenceNumber) -> Self::Output {
-        Self::from(<i64>::from(self) + <i64>::from(rhs))
-    }
-}
-impl Sub for SequenceNumber {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::from(<i64>::from(self) - <i64>::from(rhs))
-    }
-}
-impl AddAssign<i64> for SequenceNumber {
-    fn add_assign(&mut self, rhs: i64) {
-        *self = Self::from(<i64>::from(*self) + rhs);
-    }
-}
-impl Add<i64> for SequenceNumber {
-    type Output = Self;
-    fn add(self, rhs: i64) -> Self::Output {
-        Self::from(<i64>::from(self) + rhs)
-    }
-}
-impl SubAssign<i64> for SequenceNumber {
-    fn sub_assign(&mut self, rhs: i64) {
-        *self = Self::from(<i64>::from(*self) - rhs);
-    }
-}
-impl Sub<i64> for SequenceNumber {
-    type Output = Self;
-    fn sub(self, rhs: i64) -> Self::Output {
-        Self::from(<i64>::from(self) - rhs)
+impl TryReadFromBytes for SequenceNumber {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let high = i32::try_read_from_bytes(data, endianness)?;
+        let low = u32::try_read_from_bytes(data, endianness)?;
+        let value = ((high as i64) << 32) + low as i64;
+        Ok(value)
     }
 }
 
 impl WriteBytes for SequenceNumber {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.high.write_bytes(&mut buf[0..]) + self.low.write_bytes(&mut buf[4..])
+        let high = (*self >> 32) as Long;
+        let low = *self as UnsignedLong;
+        high.to_le_bytes().write_bytes(buf) +
+        low.to_le_bytes().write_bytes(&mut buf[4..])
     }
 }
 
@@ -292,6 +285,16 @@ impl WriteBytes for Locator {
         self.port.write_bytes(&mut buf[4..]);
         self.address.write_bytes(&mut buf[8..]);
         24
+    }
+}
+
+impl TryReadFromBytes for Locator {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let kind = i32::try_read_from_bytes(data, endianness)?;
+        let port = u32::try_read_from_bytes(data, endianness)?;
+        let mut address = [0; 16];
+        data.read_exact(&mut address)?;
+        Ok(Self::new(kind, port, address))
     }
 }
 
@@ -414,16 +417,21 @@ pub enum ReliabilityKind {
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
 #[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize)]
 pub struct ProtocolVersion {
-    major: Octet,
-    minor: Octet,
+    bytes: [u8; 2],
+}
+
+impl TryReadFromBytes for ProtocolVersion {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(Self { bytes })
+    }
 }
 
 impl WriteBytes for ProtocolVersion {
     #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[0] = self.major;
-        buf[1] = self.minor;
-        2
+    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
+        buf.write(&self.bytes).expect(MSG)
     }
 }
 
@@ -444,13 +452,15 @@ pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
 
 impl ProtocolVersion {
     pub const fn new(major: Octet, minor: Octet) -> Self {
-        Self { major, minor }
+        Self {
+            bytes: [major, minor],
+        }
     }
     pub const fn _major(&self) -> Octet {
-        self.major
+        self.bytes[0]
     }
     pub const fn _minor(&self) -> Octet {
-        self.minor
+        self.bytes[1]
     }
 }
 
@@ -458,6 +468,14 @@ impl ProtocolVersion {
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
 pub type VendorId = [Octet; 2];
+
+impl TryReadFromBytes for VendorId {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(bytes)
+    }
+}
 
 #[allow(dead_code)]
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
@@ -469,8 +487,16 @@ mod tests {
     use crate::implementation::rtps::messages::overall_structure::into_bytes_vec;
 
     #[test]
+    fn deserialize_u16() {
+        let mut data = &[7, 0, 123][..];
+        let result = u16::try_read_from_bytes(&mut data, &Endianness::LittleEndian).unwrap();
+        assert_eq!(result, 7);
+        assert_eq!(data, &[123]);
+    }
+
+    #[test]
     fn serialize_sequence_number() {
-        let data = SequenceNumber::from(7);
+        let data: SequenceNumber = 7;
         let result = into_bytes_vec(data);
         assert_eq!(
             result,

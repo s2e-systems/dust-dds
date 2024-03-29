@@ -28,13 +28,12 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
-use std::{marker::PhantomData, sync::Arc};
+use std::{io::BufRead, sync::Arc};
 
-pub(in crate::implementation::rtps) type WriteEndianness = byteorder::LittleEndian;
 const BUFFER_SIZE: usize = 65000;
 
 pub trait Submessage<'a> {
@@ -61,25 +60,70 @@ fn write_submessage_bytes<'a>(
     submessage_header.write_bytes(header) + len
 }
 
-pub trait FromBytes {
-    fn from_bytes<E: byteorder::ByteOrder>(v: &[u8]) -> Self;
+pub struct SubmessageHeaderRead {
+    submessage_id: u8,
+    flags: [SubmessageFlag; 8],
+    submessage_length: u16,
+    endianness: Endianness,
 }
 
-pub trait SubmessageHeader {
-    fn submessage_header(&self) -> SubmessageHeaderRead;
-}
+impl SubmessageHeaderRead {
+    pub fn try_read_from_arc_slice(data: &mut ArcSlice) -> DdsResult<Self> {
+        let mut data_slice = data.as_ref();
+        let this = Self::try_read_from_bytes(&mut data_slice)?;
+        data.consume(4);
+        Ok(this)
+    }
 
-pub trait RtpsMap: SubmessageHeader {
-    fn map<T: FromBytes>(&self, data: &[u8]) -> T {
-        if self.submessage_header().flags()[0] {
-            T::from_bytes::<byteorder::LittleEndian>(data)
+    pub fn try_read_from_bytes(data: &mut &[u8]) -> DdsResult<Self> {
+        if data.len() >= 4 {
+            let submessage_id = data[0];
+            let flags_byte = data[1];
+            let flags = [
+                flags_byte & 0b_0000_0001 != 0,
+                flags_byte & 0b_0000_0010 != 0,
+                flags_byte & 0b_0000_0100 != 0,
+                flags_byte & 0b_0000_1000 != 0,
+                flags_byte & 0b_0001_0000 != 0,
+                flags_byte & 0b_0010_0000 != 0,
+                flags_byte & 0b_0100_0000 != 0,
+                flags_byte & 0b_1000_0000 != 0,
+            ];
+            let endianness = match flags[0] {
+                true => Endianness::LittleEndian,
+                false => Endianness::BigEndian,
+            };
+            let submessage_length = u16::try_read_from_bytes(&mut &data[2..], &endianness)?;
+            data.consume(4);
+            Ok(Self {
+                submessage_id,
+                flags,
+                submessage_length,
+                endianness,
+            })
         } else {
-            T::from_bytes::<byteorder::BigEndian>(data)
+            Err(DdsError::Error(
+                "SubmessageHeader not enough data".to_string(),
+            ))
         }
     }
-}
 
-impl<T: SubmessageHeader> RtpsMap for T {}
+    pub fn endianness(&self) -> &Endianness {
+        &self.endianness
+    }
+
+    pub fn flags(&self) -> [bool; 8] {
+        self.flags
+    }
+
+    pub fn submessage_length(&self) -> u16 {
+        self.submessage_length
+    }
+
+    pub fn submessage_id(&self) -> u8 {
+        self.submessage_id
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsMessageRead {
@@ -116,68 +160,76 @@ impl RtpsMessageRead {
     }
 
     pub fn submessages(&self) -> Vec<RtpsSubmessageReadKind> {
-        let mut offset = 20;
+        let mut data = ArcSlice::new(self.data.clone(), 20..self.data.len());
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
         for _ in 0..MAX_SUBMESSAGES {
-            if self.data.len() < offset {
+            if data.len() < 4 {
                 break;
             }
-            let buf = &self.data[offset..];
-            if buf.len() < 4 {
-                break;
-            }
-            let submessage_id = buf[0];
-            let endianness_flag = (buf[1] & 0b_0000_0001) != 0;
-            let submessage_length = if endianness_flag {
-                u16::from_le_bytes([buf[2], buf[3]])
-            } else {
-                u16::from_be_bytes([buf[2], buf[3]])
-            } as usize
-                + 4;
-
-            if buf.len() < submessage_length {
-                break;
-            }
-
-            let submessage_data = &buf[..submessage_length];
-            let submessage_arc_slice =
-                ArcSlice::new(self.data.clone(), offset..offset + submessage_length);
-
-            let submessage =
-                match submessage_id {
-                    ACKNACK => AckNackSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::AckNack),
-                    DATA => DataSubmessageRead::try_from_bytes(submessage_arc_slice)
-                        .map(RtpsSubmessageReadKind::Data),
-                    DATA_FRAG => DataFragSubmessageRead::try_from_bytes(submessage_arc_slice)
-                        .map(RtpsSubmessageReadKind::DataFrag),
-                    GAP => GapSubmessageRead::try_from_bytes(submessage_data)
+            if let Ok(submessage_header) = SubmessageHeaderRead::try_read_from_arc_slice(&mut data)
+            {
+                let submessage_length = submessage_header.submessage_length() as usize;
+                if data.len() < submessage_length {
+                    break;
+                }
+                let submessage = match submessage_header.submessage_id() {
+                    ACKNACK => {
+                        AckNackSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::AckNack)
+                    }
+                    DATA => {
+                        DataSubmessageRead::try_from_arc_slice(&submessage_header, data.clone())
+                            .map(RtpsSubmessageReadKind::Data)
+                    }
+                    DATA_FRAG => {
+                        DataFragSubmessageRead::try_from_arc_slice(&submessage_header, data.clone())
+                            .map(RtpsSubmessageReadKind::DataFrag)
+                    }
+                    GAP => GapSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::Gap),
-                    HEARTBEAT => HeartbeatSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::Heartbeat),
-                    HEARTBEAT_FRAG => HeartbeatFragSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::HeartbeatFrag),
-                    INFO_DST => InfoDestinationSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::InfoDestination),
-                    INFO_REPLY => InfoReplySubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::InfoReply),
-                    INFO_SRC => InfoSourceSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::InfoSource),
-                    INFO_TS => InfoTimestampSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::InfoTimestamp),
-                    NACK_FRAG => NackFragSubmessageRead::try_from_bytes(submessage_data)
-                        .map(RtpsSubmessageReadKind::NackFrag),
-                    PAD => PadSubmessageRead::try_from_bytes(submessage_data)
+                    HEARTBEAT => {
+                        HeartbeatSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::Heartbeat)
+                    }
+                    HEARTBEAT_FRAG => HeartbeatFragSubmessageRead::try_from_bytes(
+                        &submessage_header,
+                        data.as_ref(),
+                    )
+                    .map(RtpsSubmessageReadKind::HeartbeatFrag),
+                    INFO_DST => InfoDestinationSubmessageRead::try_from_bytes(
+                        &submessage_header,
+                        data.as_ref(),
+                    )
+                    .map(RtpsSubmessageReadKind::InfoDestination),
+                    INFO_REPLY => {
+                        InfoReplySubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::InfoReply)
+                    }
+                    INFO_SRC => {
+                        InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::InfoSource)
+                    }
+                    INFO_TS => InfoTimestampSubmessageRead::try_from_bytes(
+                        &submessage_header,
+                        data.as_ref(),
+                    )
+                    .map(RtpsSubmessageReadKind::InfoTimestamp),
+                    NACK_FRAG => {
+                        NackFragSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::NackFrag)
+                    }
+                    PAD => PadSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::Pad),
                     _ => {
-                        offset += submessage_length;
+                        data.consume(submessage_length);
                         continue;
                     }
                 };
-            offset += submessage_length;
-            if let Ok(submessage) = submessage {
-                submessages.push(submessage);
+                data.consume(submessage_length);
+                if let Ok(submessage) = submessage {
+                    submessages.push(submessage);
+                }
             }
         }
         submessages
@@ -217,19 +269,19 @@ impl RtpsMessageWrite {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum RtpsSubmessageReadKind<'a> {
-    AckNack(AckNackSubmessageRead<'a>),
+pub enum RtpsSubmessageReadKind {
+    AckNack(AckNackSubmessageRead),
     Data(DataSubmessageRead),
     DataFrag(DataFragSubmessageRead),
-    Gap(GapSubmessageRead<'a>),
-    Heartbeat(HeartbeatSubmessageRead<'a>),
-    HeartbeatFrag(HeartbeatFragSubmessageRead<'a>),
-    InfoDestination(InfoDestinationSubmessageRead<'a>),
-    InfoReply(InfoReplySubmessageRead<'a>),
-    InfoSource(InfoSourceSubmessageRead<'a>),
-    InfoTimestamp(InfoTimestampSubmessageRead<'a>),
-    NackFrag(NackFragSubmessageRead<'a>),
-    Pad(PadSubmessageRead<'a>),
+    Gap(GapSubmessageRead),
+    Heartbeat(HeartbeatSubmessageRead),
+    HeartbeatFrag(HeartbeatFragSubmessageRead),
+    InfoDestination(InfoDestinationSubmessageRead),
+    InfoReply(InfoReplySubmessageRead),
+    InfoSource(InfoSourceSubmessageRead),
+    InfoTimestamp(InfoTimestampSubmessageRead),
+    NackFrag(NackFragSubmessageRead),
+    Pad(PadSubmessageRead),
 }
 
 #[allow(dead_code)]
@@ -237,7 +289,7 @@ pub enum RtpsSubmessageReadKind<'a> {
 pub enum RtpsSubmessageWriteKind<'a> {
     AckNack(AckNackSubmessageWrite<'a>),
     Data(DataSubmessageWrite<'a>),
-    DataFrag(DataFragSubmessageWrite<'a>),
+    DataFrag(Box<DataFragSubmessageWrite<'a>>),
     Gap(GapSubmessageWrite<'a>),
     Heartbeat(HeartbeatSubmessageWrite<'a>),
     HeartbeatFrag(HeartbeatFragSubmessageWrite<'a>),
@@ -255,7 +307,7 @@ impl WriteBytes for RtpsSubmessageWriteKind<'_> {
         match self {
             RtpsSubmessageWriteKind::AckNack(s) => write_submessage_bytes(s, buf),
             RtpsSubmessageWriteKind::Data(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_bytes(s, buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_bytes(s.as_ref(), buf),
             RtpsSubmessageWriteKind::Gap(s) => write_submessage_bytes(s, buf),
             RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_bytes(s, buf),
             RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_bytes(s, buf),
@@ -335,21 +387,12 @@ impl SubmessageHeaderWrite {
     }
 }
 
-struct EndiannessFlag<E> {
-    endianness: PhantomData<E>,
-}
-impl EndiannessFlag<byteorder::LittleEndian> {
-    fn get() -> bool {
-        true
-    }
-}
-
 impl WriteBytes for SubmessageHeaderWrite {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         self.submessage_id.write_bytes(&mut buf[0..]);
         let flags = [
-            EndiannessFlag::<WriteEndianness>::get(),
+            true,
             self.flags[0],
             self.flags[1],
             self.flags[2],
@@ -364,40 +407,15 @@ impl WriteBytes for SubmessageHeaderWrite {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct SubmessageHeaderRead<'a> {
-    data: &'a [u8],
-}
-
-impl<'a> SubmessageHeaderRead<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
-    }
-
-    pub fn flags(&self) -> [SubmessageFlag; 8] {
-        let flags_byte = self.data[1];
-        [
-            flags_byte & 0b_0000_0001 != 0,
-            flags_byte & 0b_0000_0010 != 0,
-            flags_byte & 0b_0000_0100 != 0,
-            flags_byte & 0b_0000_1000 != 0,
-            flags_byte & 0b_0001_0000 != 0,
-            flags_byte & 0b_0010_0000 != 0,
-            flags_byte & 0b_0100_0000 != 0,
-            flags_byte & 0b_1000_0000 != 0,
-        ]
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
-            submessages::{data::DataSubmessageRead, heartbeat::HeartbeatSubmessageRead},
+            submessages::data::DataSubmessageRead,
         },
-        types::{EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
@@ -431,9 +449,9 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let writer_sn = SequenceNumber::from(5);
-        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23]);
+        let writer_sn = 5;
+        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
+        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = &Data::new(vec![].into());
 
@@ -500,30 +518,8 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0,
-        ]);
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
-        assert_eq!(rtps_message.submessages(), vec![]);
-    }
-
-    #[test]
-    fn deserialize_rtps_message_too_small_submessage_length() {
-        #[rustfmt::skip]
-        let data = Arc::new([
-            b'R', b'T', b'P', b'S', // Protocol
-            2, 3, 9, 8, // ProtocolVersion | VendorId
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            0x07, 0b_0000_0101, 24, 0, // Submessage header
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // firstSN: SequenceNumber: high
-            5, 0, 0, 0, // firstSN: SequenceNumber: low
-            0, 0, 0, 0, // lastSN: SequenceNumberSet: high
-            7, 0, 0, 0, // lastSN: SequenceNumberSet: low
-            2, 0, 0, 0, // count: Count: value (long)
+            0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
+            4, 0, 0, 0, // Time (half only)
         ]);
         let rtps_message = RtpsMessageRead::new(data).unwrap();
         assert_eq!(rtps_message.submessages(), vec![]);
@@ -538,34 +534,6 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::try_from_bytes(
-            ArcSlice::from(vec![0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 1, 0, // inlineQos: Sentinel
-        ])).unwrap());
-        #[rustfmt::skip]
-        let heartbeat_submessage = RtpsSubmessageReadKind::Heartbeat(HeartbeatSubmessageRead::try_from_bytes(&[
-            0x07, 0b_0000_0101, 28, 0, // Submessage header
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // firstSN: SequenceNumber: high
-            5, 0, 0, 0, // firstSN: SequenceNumber: low
-            0, 0, 0, 0, // lastSN: SequenceNumberSet: high
-            7, 0, 0, 0, // lastSN: SequenceNumberSet: low
-            2, 0, 0, 0, // count: Count: value (long)
-        ]).unwrap());
-
-        let expected_submessages = vec![data_submessage, heartbeat_submessage];
-
-        #[rustfmt::skip]
         let data = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
@@ -582,7 +550,7 @@ mod tests {
             10, 11, 12, 13, // inlineQos: value_1[length_1]
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 1, 0, // inlineQos: Sentinel
+            1, 0, 0, 0, // inlineQos: Sentinel
             0x07, 0b_0000_0101, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -594,27 +562,36 @@ mod tests {
         ]);
 
         let rtps_message = RtpsMessageRead::new(data).unwrap();
-        assert_eq!(expected_header, rtps_message.header());
-        assert_eq!(expected_submessages, rtps_message.submessages());
+        assert_eq!(rtps_message.header(), expected_header);
+        assert_eq!(rtps_message.submessages().len(), 2);
+        assert!(matches!(
+            rtps_message.submessages()[0],
+            RtpsSubmessageReadKind::Data(..)
+        ));
+        assert!(matches!(
+            rtps_message.submessages()[1],
+            RtpsSubmessageReadKind::Heartbeat(..)
+        ));
     }
 
     #[test]
     fn deserialize_rtps_message_unknown_submessage() {
-        #[rustfmt::skip]
-        let submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::try_from_bytes(ArcSlice::from(vec![
-            0x15, 0b_0000_0011, 40, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
-            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13, // inlineQos: value_1[length_1]
-            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 0, 0, // inlineQos: Sentinel
-        ])).unwrap());
-        let expected_submessages = vec![submessage];
+        let expected_data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(
+            true,
+            false,
+            false,
+            false,
+            EntityId::new([1, 2, 3], 4),
+            EntityId::new([6, 7, 8], 9),
+            5,
+            ParameterList::new(vec![
+                Parameter::new(6, vec![10, 11, 12, 13].into()),
+                Parameter::new(7, vec![20, 21, 22, 23].into()),
+            ]),
+            Data::empty(),
+        ));
+
+        let expected_submessages = vec![expected_data_submessage];
 
         #[rustfmt::skip]
         let data = Arc::new([

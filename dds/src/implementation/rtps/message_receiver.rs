@@ -5,7 +5,7 @@ use crate::implementation::rtps::{
 
 use super::messages::{self, types::TIME_INVALID};
 
-pub struct MessageReceiver<'a> {
+pub struct MessageReceiver {
     source_version: ProtocolVersion,
     source_vendor_id: VendorId,
     source_guid_prefix: GuidPrefix,
@@ -14,11 +14,11 @@ pub struct MessageReceiver<'a> {
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: messages::types::Time,
-    submessages: std::vec::IntoIter<RtpsSubmessageReadKind<'a>>,
+    submessages: std::vec::IntoIter<RtpsSubmessageReadKind>,
 }
 
-impl<'a> Iterator for MessageReceiver<'a> {
-    type Item = RtpsSubmessageReadKind<'a>;
+impl Iterator for MessageReceiver {
+    type Item = RtpsSubmessageReadKind;
 
     fn next(&mut self) -> Option<Self::Item> {
         for submessage in self.submessages.by_ref() {
@@ -56,8 +56,8 @@ impl<'a> Iterator for MessageReceiver<'a> {
     }
 }
 
-impl<'a> MessageReceiver<'a> {
-    pub fn new(message: &'a RtpsMessageRead) -> Self {
+impl MessageReceiver {
+    pub fn new(message: &RtpsMessageRead) -> Self {
         Self {
             source_version: message.header().version(),
             source_vendor_id: message.header().vendor_id(),

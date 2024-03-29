@@ -1,6 +1,8 @@
-use crate::infrastructure::{self, time::Duration};
-
 use super::overall_structure::WriteBytes;
+use crate::{
+    implementation::rtps::types::{Endianness, TryReadFromBytes},
+    infrastructure::{self, error::DdsResult, time::Duration},
+};
 use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -10,6 +12,51 @@ type Octet = u8;
 type Long = i32;
 type UnsignedLong = u32;
 type Short = i16;
+type UnsignedShort = u16;
+
+impl TryReadFromBytes for Long {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 4];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => i32::from_be_bytes(bytes),
+            Endianness::LittleEndian => i32::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for UnsignedLong {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 4];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => u32::from_be_bytes(bytes),
+            Endianness::LittleEndian => u32::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for Short {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => i16::from_be_bytes(bytes),
+            Endianness::LittleEndian => i16::from_le_bytes(bytes),
+        })
+    }
+}
+
+impl TryReadFromBytes for UnsignedShort {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let mut bytes = [0; 2];
+        data.read_exact(&mut bytes)?;
+        Ok(match endianness {
+            Endianness::BigEndian => u16::from_be_bytes(bytes),
+            Endianness::LittleEndian => u16::from_le_bytes(bytes),
+        })
+    }
+}
 
 /// ProtocolId_t
 /// Enumeration used to identify the protocol.
@@ -123,6 +170,12 @@ impl Time {
     pub fn fraction(&self) -> UnsignedLong {
         self.fraction
     }
+
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+        let seconds = UnsignedLong::try_read_from_bytes(data, endianness)?;
+        let fraction = UnsignedLong::try_read_from_bytes(data, endianness)?;
+        Ok(Self { seconds, fraction })
+    }
 }
 
 #[allow(dead_code)]
@@ -140,7 +193,7 @@ impl WriteBytes for Time {
 impl From<infrastructure::time::Time> for Time {
     fn from(value: infrastructure::time::Time) -> Self {
         let seconds = value.sec() as u32;
-        let fraction = ((value.nanosec() as u64 * 2u64.pow(32)) / 1_000_000_000) as u32;
+        let fraction = (value.nanosec() as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32;
         Self { seconds, fraction }
     }
 }
@@ -148,7 +201,7 @@ impl From<infrastructure::time::Time> for Time {
 impl From<Time> for infrastructure::time::Time {
     fn from(value: Time) -> Self {
         let sec = value.seconds as i32;
-        let nanosec = (value.fraction as u64 * 1_000_000_000 / 2u64.pow(32)) as u32;
+        let nanosec = (value.fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u32;
         infrastructure::time::Time::new(sec, nanosec)
     }
 }
@@ -201,3 +254,38 @@ pub type UExtension4 = [Octet; 4];
 /// Type used to hold an undefined 8-byte value. It is intended to be used in future revisions of the specification.
 #[allow(dead_code)]
 pub type WExtension8 = [Octet; 8];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dds_time_to_rtps_time() {
+        let dds_time = infrastructure::time::Time::new(13, 500_000_000);
+
+        let rtps_time = Time::from(dds_time);
+
+        assert_eq!(rtps_time.seconds(), 13);
+        assert_eq!(rtps_time.fraction(), 2u32.pow(31));
+    }
+
+    #[test]
+    fn rtps_time_to_dds_time() {
+        let rtps_time = Time::new(13, 2u32.pow(31));
+
+        let dds_time = infrastructure::time::Time::from(rtps_time);
+
+        assert_eq!(dds_time.sec(), 13);
+        assert_eq!(dds_time.nanosec(), 500_000_000);
+    }
+
+    #[test]
+    fn dds_time_to_rtps_time_to_dds_time() {
+        let dds_time = infrastructure::time::Time::new(13, 200);
+
+        let rtps_time = Time::from(dds_time);
+        let dds_time_from_rtps_time = infrastructure::time::Time::from(rtps_time);
+
+        assert_eq!(dds_time, dds_time_from_rtps_time)
+    }
+}

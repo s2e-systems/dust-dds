@@ -57,9 +57,9 @@ impl RtpsWriterProxy {
             multicast_locator_list: multicast_locator_list.to_vec(),
             data_max_size_serialized,
             remote_group_entity_id,
-            first_available_seq_num: SequenceNumber::from(1),
-            last_available_seq_num: SequenceNumber::from(0),
-            highest_received_change_sn: SequenceNumber::from(0),
+            first_available_seq_num: 1,
+            last_available_seq_num: 0,
+            highest_received_change_sn: 0,
             must_send_acknacks: false,
             last_received_heartbeat_count: 0,
             last_received_heartbeat_frag_count: 0,
@@ -99,7 +99,7 @@ impl RtpsWriterProxy {
                 let writer_id = self.remote_writer_guid.entity_id();
                 let reader_id = frag_seq_num_list[0].reader_id();
                 let writer_sn = seq_num;
-                let inline_qos = frag_seq_num_list[0].inline_qos();
+                let inline_qos = frag_seq_num_list[0].inline_qos().clone();
                 let mut data = Vec::new();
                 for frag in frag_seq_num_list {
                     data.append(&mut frag.serialized_payload().as_ref().to_vec());
@@ -113,8 +113,8 @@ impl RtpsWriterProxy {
                     reader_id,
                     writer_id,
                     writer_sn,
-                    &inline_qos,
-                    &Data::new(ArcSlice::from(data)),
+                    inline_qos,
+                    Data::new(ArcSlice::from(data)),
                 ))
             } else {
                 None
@@ -176,7 +176,7 @@ impl RtpsWriterProxy {
             self.first_available_seq_num,
             self.highest_received_change_sn + 1,
         );
-        (i64::from(first_missing_change)..=i64::from(highest_number)).map(SequenceNumber::from)
+        first_missing_change..=highest_number
     }
 
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {

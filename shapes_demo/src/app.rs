@@ -269,6 +269,8 @@ impl ShapesDemoApp {
 
 impl eframe::App for ShapesDemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ctx);
+
         if let Some(publish_widget) = &mut self.publish_widget {
             let mut open = true;
             egui::Window::new("Publish")

@@ -1,47 +1,46 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{
-                RtpsMap, Submessage, SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite,
-            },
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{GuidPrefix, Long, ProtocolVersion, TryReadFromBytes, VendorId},
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessageRead<'a> {
-    data: &'a [u8],
+pub struct InfoSourceSubmessageRead {
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
 }
 
-impl SubmessageHeader for InfoSourceSubmessageRead<'_> {
-    fn submessage_header(&self) -> SubmessageHeaderRead {
-        SubmessageHeaderRead::new(self.data)
-    }
-}
-
-impl<'a> InfoSourceSubmessageRead<'a> {
-    pub fn try_from_bytes(data: &'a [u8]) -> DdsResult<Self> {
-        if data.len() >= 24 {
-            Ok(Self { data })
-        } else {
-            Err(DdsError::Error("InfoSource submessage invalid".to_string()))
-        }
+impl InfoSourceSubmessageRead {
+    pub fn try_from_bytes(
+        submessage_header: &SubmessageHeaderRead,
+        mut data: &[u8],
+    ) -> DdsResult<Self> {
+        let endianness = submessage_header.endianness();
+        let _unused = Long::try_read_from_bytes(&mut data, endianness)?;
+        Ok(Self {
+            protocol_version: ProtocolVersion::try_read_from_bytes(&mut data, endianness)?,
+            vendor_id: VendorId::try_read_from_bytes(&mut data, endianness)?,
+            guid_prefix: GuidPrefix::try_read_from_bytes(&mut data, endianness)?,
+        })
     }
 
     pub fn protocol_version(&self) -> ProtocolVersion {
-        self.map(&self.data[8..])
+        self.protocol_version
     }
 
     pub fn vendor_id(&self) -> VendorId {
-        self.map(&self.data[10..])
+        self.vendor_id
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
-        self.map(&self.data[12..])
+        self.guid_prefix
     }
 }
 
@@ -83,7 +82,9 @@ impl<'a> Submessage<'a> for InfoSourceSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::overall_structure::{
+            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+        },
         types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
     };
 
@@ -109,14 +110,17 @@ mod tests {
     #[test]
     fn deserialize_info_source() {
         #[rustfmt::skip]
-        let submessage = InfoSourceSubmessageRead::try_from_bytes(&[
+        let mut data = &[
             0x0c, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 0, 0, // unused
             1, 0, 0, 0, //protocol_version | vendor_id
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
             0, 0, 0, 0, //guid_prefix
-        ]).unwrap();
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        let submessage =
+            InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;
