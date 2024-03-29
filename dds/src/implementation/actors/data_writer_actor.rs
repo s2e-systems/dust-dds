@@ -20,7 +20,6 @@ use crate::{
             messages::{
                 overall_structure::{
                     RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
-                    RtpsSubmessageWriteKind,
                 },
                 submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
@@ -876,12 +875,12 @@ impl DataWriterActor {
                             .change_list()
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
-                            let info_ts_submessage = RtpsSubmessageWriteKind::InfoTimestamp(
-                                InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
-                            );
-                            let data_submessage = RtpsSubmessageWriteKind::Data(
-                                cache_change.as_data_submessage(ENTITYID_UNKNOWN),
-                            );
+                            let info_ts_submessage = Box::new(InfoTimestampSubmessageWrite::new(
+                                false,
+                                cache_change.timestamp(),
+                            ));
+                            let data_submessage =
+                                Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
                             udp_transport_write.write(
                                 &RtpsMessageWrite::new(
                                     &header,
@@ -890,13 +889,12 @@ impl DataWriterActor {
                                 &[reader_locator.locator()],
                             );
                         } else {
-                            let gap_submessage =
-                                RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
-                                    ENTITYID_UNKNOWN,
-                                    self.rtps_writer.guid().entity_id(),
-                                    unsent_change_seq_num,
-                                    SequenceNumberSet::new(unsent_change_seq_num + 1, []),
-                                ));
+                            let gap_submessage = Box::new(GapSubmessageWrite::new(
+                                ENTITYID_UNKNOWN,
+                                self.rtps_writer.guid().entity_id(),
+                                unsent_change_seq_num,
+                                SequenceNumberSet::new(unsent_change_seq_num + 1, []),
+                            ));
                             udp_transport_write.write(
                                 &RtpsMessageWrite::new(&header, &[gap_submessage]),
                                 &[reader_locator.locator()],
@@ -1149,7 +1147,7 @@ fn send_message_to_reader_proxy_best_effort(
         if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
             let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
             let gap_end_sequence_number = next_unsent_change_seq_num - 1;
-            let gap_submessage = RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+            let gap_submessage = Box::new(GapSubmessageWrite::new(
                 reader_proxy.remote_reader_guid().entity_id(),
                 writer_id,
                 gap_start_sequence_number,
@@ -1171,17 +1169,16 @@ fn send_message_to_reader_proxy_best_effort(
                     reader_proxy.remote_reader_guid().entity_id(),
                 );
                 for data_frag_submessage in cache_change_frag.into_iter() {
-                    let info_dst = RtpsSubmessageWriteKind::InfoDestination(
-                        InfoDestinationSubmessageWrite::new(
-                            reader_proxy.remote_reader_guid().prefix(),
-                        ),
-                    );
+                    let info_dst = Box::new(InfoDestinationSubmessageWrite::new(
+                        reader_proxy.remote_reader_guid().prefix(),
+                    ));
 
-                    let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
-                        InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
-                    );
+                    let info_timestamp = Box::new(InfoTimestampSubmessageWrite::new(
+                        false,
+                        cache_change.timestamp(),
+                    ));
 
-                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag = Box::new(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1189,15 +1186,16 @@ fn send_message_to_reader_proxy_best_effort(
                     );
                 }
             } else {
-                let info_dst = RtpsSubmessageWriteKind::InfoDestination(
-                    InfoDestinationSubmessageWrite::new(reader_proxy.remote_reader_guid().prefix()),
-                );
+                let info_dst = Box::new(InfoDestinationSubmessageWrite::new(
+                    reader_proxy.remote_reader_guid().prefix(),
+                ));
 
-                let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
-                    InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
-                );
+                let info_timestamp = Box::new(InfoTimestampSubmessageWrite::new(
+                    false,
+                    cache_change.timestamp(),
+                ));
 
-                let data_submessage = RtpsSubmessageWriteKind::Data(
+                let data_submessage = Box::new(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
                 udp_transport_write.write(
@@ -1209,7 +1207,7 @@ fn send_message_to_reader_proxy_best_effort(
             udp_transport_write.write(
                 &RtpsMessageWrite::new(
                     &header,
-                    &[RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+                    &[Box::new(GapSubmessageWrite::new(
                         ENTITYID_UNKNOWN,
                         writer_id,
                         next_unsent_change_seq_num,
@@ -1238,7 +1236,7 @@ fn send_message_to_reader_proxy_reliable(
             if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
                 let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
                 let gap_end_sequence_number = next_unsent_change_seq_num - 1;
-                let gap_submessage = RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+                let gap_submessage = Box::new(GapSubmessageWrite::new(
                     reader_proxy.remote_reader_guid().entity_id(),
                     writer_id,
                     gap_start_sequence_number,
@@ -1246,9 +1244,11 @@ fn send_message_to_reader_proxy_reliable(
                 ));
                 let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
                 let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
-                let heartbeat_submessage = reader_proxy
-                    .heartbeat_machine()
-                    .submessage(writer_id, first_sn, last_sn);
+                let heartbeat_submessage = Box::new(
+                    reader_proxy
+                        .heartbeat_machine()
+                        .submessage(writer_id, first_sn, last_sn),
+                );
                 udp_transport_write.write(
                     &RtpsMessageWrite::new(&header, &[gap_submessage, heartbeat_submessage]),
                     reader_proxy.unicast_locator_list(),
@@ -1273,9 +1273,11 @@ fn send_message_to_reader_proxy_reliable(
     {
         let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
         let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
-        let heartbeat_submessage = reader_proxy
-            .heartbeat_machine()
-            .submessage(writer_id, first_sn, last_sn);
+        let heartbeat_submessage = Box::new(
+            reader_proxy
+                .heartbeat_machine()
+                .submessage(writer_id, first_sn, last_sn),
+        );
         udp_transport_write.write(
             &RtpsMessageWrite::new(&header, &[heartbeat_submessage]),
             reader_proxy.unicast_locator_list(),
@@ -1322,17 +1324,16 @@ fn send_change_message_reader_proxy_reliable(
                     reader_proxy.remote_reader_guid().entity_id(),
                 );
                 for data_frag_submessage in cache_change_frag.into_iter() {
-                    let info_dst = RtpsSubmessageWriteKind::InfoDestination(
-                        InfoDestinationSubmessageWrite::new(
-                            reader_proxy.remote_reader_guid().prefix(),
-                        ),
-                    );
+                    let info_dst = Box::new(InfoDestinationSubmessageWrite::new(
+                        reader_proxy.remote_reader_guid().prefix(),
+                    ));
 
-                    let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
-                        InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
-                    );
+                    let info_timestamp = Box::new(InfoTimestampSubmessageWrite::new(
+                        false,
+                        cache_change.timestamp(),
+                    ));
 
-                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag = Box::new(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1340,23 +1341,26 @@ fn send_change_message_reader_proxy_reliable(
                     );
                 }
             } else {
-                let info_dst = RtpsSubmessageWriteKind::InfoDestination(
-                    InfoDestinationSubmessageWrite::new(reader_proxy.remote_reader_guid().prefix()),
-                );
+                let info_dst = Box::new(InfoDestinationSubmessageWrite::new(
+                    reader_proxy.remote_reader_guid().prefix(),
+                ));
 
-                let info_timestamp = RtpsSubmessageWriteKind::InfoTimestamp(
-                    InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
-                );
+                let info_timestamp = Box::new(InfoTimestampSubmessageWrite::new(
+                    false,
+                    cache_change.timestamp(),
+                ));
 
-                let data_submessage = RtpsSubmessageWriteKind::Data(
+                let data_submessage = Box::new(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
 
                 let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
                 let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
-                let heartbeat = reader_proxy
-                    .heartbeat_machine()
-                    .submessage(writer_id, first_sn, last_sn);
+                let heartbeat = Box::new(
+                    reader_proxy
+                        .heartbeat_machine()
+                        .submessage(writer_id, first_sn, last_sn),
+                );
 
                 udp_transport_write.write(
                     &RtpsMessageWrite::new(
@@ -1368,11 +1372,11 @@ fn send_change_message_reader_proxy_reliable(
             }
         }
         _ => {
-            let info_dst = RtpsSubmessageWriteKind::InfoDestination(
-                InfoDestinationSubmessageWrite::new(reader_proxy.remote_reader_guid().prefix()),
-            );
+            let info_dst = Box::new(InfoDestinationSubmessageWrite::new(
+                reader_proxy.remote_reader_guid().prefix(),
+            ));
 
-            let gap_submessage = RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
+            let gap_submessage = Box::new(GapSubmessageWrite::new(
                 ENTITYID_UNKNOWN,
                 writer_id,
                 change_seq_num,

@@ -6,7 +6,7 @@ use crate::implementation::{
 
 use super::{
     messages::{
-        overall_structure::{RtpsMessageHeader, RtpsMessageWrite, RtpsSubmessageWriteKind},
+        overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessageWrite, data::DataSubmessageRead,
@@ -252,10 +252,8 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let mut submessages = vec![
-                RtpsSubmessageWriteKind::InfoDestination(info_dst_submessage),
-                RtpsSubmessageWriteKind::AckNack(acknack_submessage),
-            ];
+            let mut submessages: Vec<Box<dyn Submessage>> =
+                vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
 
             for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
                 let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
@@ -272,19 +270,18 @@ impl RtpsWriterProxy {
 
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage =
-                        RtpsSubmessageWriteKind::NackFrag(NackFragSubmessageWrite::new(
-                            reader_guid.entity_id(),
-                            self.remote_writer_guid().entity_id(),
-                            *seq_num,
-                            FragmentNumberSet::new(
-                                missing_fragment_number[0],
-                                missing_fragment_number.into_iter(),
-                            ),
-                            self.nack_frag_count,
-                        ));
+                    let nack_frag_submessage = NackFragSubmessageWrite::new(
+                        reader_guid.entity_id(),
+                        self.remote_writer_guid().entity_id(),
+                        *seq_num,
+                        FragmentNumberSet::new(
+                            missing_fragment_number[0],
+                            missing_fragment_number.into_iter(),
+                        ),
+                        self.nack_frag_count,
+                    );
 
-                    submessages.push(nack_frag_submessage)
+                    submessages.push(Box::new(nack_frag_submessage))
                 }
             }
 

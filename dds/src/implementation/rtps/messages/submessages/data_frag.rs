@@ -135,7 +135,7 @@ impl DataFragSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DataFragSubmessageWrite<'a> {
+pub struct DataFragSubmessageWrite {
     inline_qos_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
@@ -146,11 +146,11 @@ pub struct DataFragSubmessageWrite<'a> {
     fragments_in_submessage: u16,
     fragment_size: u16,
     data_size: u32,
-    inline_qos: &'a ParameterList,
-    serialized_payload: &'a Data,
+    inline_qos: ParameterList,
+    serialized_payload: Data,
 }
 
-impl<'a> DataFragSubmessageWrite<'a> {
+impl DataFragSubmessageWrite {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         inline_qos_flag: SubmessageFlag,
@@ -163,8 +163,8 @@ impl<'a> DataFragSubmessageWrite<'a> {
         fragments_in_submessage: u16,
         fragment_size: u16,
         data_size: u32,
-        inline_qos: &'a ParameterList,
-        serialized_payload: &'a Data,
+        inline_qos: ParameterList,
+        serialized_payload: Data,
     ) -> Self {
         Self {
             inline_qos_flag,
@@ -183,7 +183,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
     }
 }
 
-impl Submessage for DataFragSubmessageWrite<'_> {
+impl Submessage for DataFragSubmessageWrite {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
@@ -226,8 +226,8 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
-        let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![].into());
+        let inline_qos = ParameterList::empty();
+        let serialized_payload = Data::new(vec![].into());
         let submessage = DataFragSubmessageWrite::new(
             false,
             false,
@@ -272,8 +272,8 @@ mod tests {
             3,
             5,
             8,
-            &inline_qos,
-            &serialized_payload,
+            inline_qos,
+            serialized_payload,
         );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
