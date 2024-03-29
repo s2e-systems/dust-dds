@@ -372,7 +372,7 @@ impl SubscriberActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn SubscriberListenerAsync + Send>,
+        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {

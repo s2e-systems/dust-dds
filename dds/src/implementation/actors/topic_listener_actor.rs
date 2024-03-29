@@ -6,11 +6,11 @@ use crate::{
 };
 
 pub struct TopicListenerActor {
-    listener: Box<dyn TopicListenerAsync + Send>,
+    listener: Option<Box<dyn TopicListenerAsync + Send>>,
 }
 
 impl TopicListenerActor {
-    pub fn new(listener: Box<dyn TopicListenerAsync + Send>) -> Self {
+    pub fn new(listener: Option<Box<dyn TopicListenerAsync + Send>>) -> Self {
         Self { listener }
     }
 }

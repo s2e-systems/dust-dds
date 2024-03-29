@@ -50,7 +50,7 @@ impl TopicActor {
         qos: TopicQos,
         type_name: String,
         topic_name: &str,
-        listener: Box<dyn TopicListenerAsync + Send>,
+        listener: Option<Box<dyn TopicListenerAsync + Send>>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);

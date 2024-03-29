@@ -1,6 +1,7 @@
 use crate::{
     implementation::{
         actors::{
+            any_data_reader_listener::AnyDataReaderListener,
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
         },
@@ -263,11 +264,7 @@ impl SubscriberAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.subscriber_address
-            .set_listener(
-                Box::new(a_listener),
-                mask.to_vec(),
-                self.runtime_handle().clone(),
-            )
+            .set_listener(a_listener, mask.to_vec(), self.runtime_handle().clone())
             .await
     }
 

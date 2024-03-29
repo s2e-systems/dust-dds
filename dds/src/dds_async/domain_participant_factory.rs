@@ -51,7 +51,7 @@ impl DomainParticipantFactoryAsync {
         let runtime_handle = self.runtime_handle.clone();
         let participant_address = self
             .domain_participant_factory_actor
-            .create_participant(domain_id, qos, listener, status_kind, runtime_handle)
+            .create_participant(domain_id, qos, a_listener, status_kind, runtime_handle)
             .await?;
         let status_condition = participant_address.get_statuscondition().await?;
         let builtin_subscriber = participant_address.get_built_in_subscriber().await?;

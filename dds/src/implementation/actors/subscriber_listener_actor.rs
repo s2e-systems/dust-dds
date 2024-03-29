@@ -9,11 +9,11 @@ use crate::{
 };
 
 pub struct SubscriberListenerActor {
-    listener: Box<dyn SubscriberListenerAsync + Send>,
+    listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
 }
 
 impl SubscriberListenerActor {
-    pub fn new(listener: Box<dyn SubscriberListenerAsync + Send>) -> Self {
+    pub fn new(listener: Option<Box<dyn SubscriberListenerAsync + Send>>) -> Self {
         Self { listener }
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
     implementation::{
         actors::{
+            any_data_writer_listener::AnyDataWriterListener,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
             status_condition_actor::StatusConditionActor,
         },
@@ -299,7 +300,7 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         self.publisher_address
             .set_listener(
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.participant.runtime_handle().clone(),
             )
