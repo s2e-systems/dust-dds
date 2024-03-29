@@ -5,7 +5,10 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use crate::{
-    dds_async::{domain_participant::DomainParticipantAsync, publisher::PublisherAsync},
+    dds_async::{
+        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
+        publisher_listener::PublisherListenerAsync,
+    },
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
@@ -35,7 +38,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_listener_actor::{PublisherListenerActor, PublisherListenerAsyncDyn},
+    publisher_listener_actor::PublisherListenerActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
@@ -56,7 +59,7 @@ impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn PublisherListenerAsyncDyn + Send>,
+        listener: Box<dyn PublisherListenerAsync + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -368,7 +371,7 @@ impl PublisherActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn PublisherListenerAsyncDyn + Send>,
+        listener: Box<dyn PublisherListenerAsync + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {

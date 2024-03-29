@@ -2,6 +2,7 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    dds_async::topic_listener::TopicListenerAsync,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
@@ -17,7 +18,7 @@ use crate::{
 
 use super::{
     status_condition_actor::{self, StatusConditionActor},
-    topic_listener_actor::{TopicListenerActor, TopicListenerAsyncDyn},
+    topic_listener_actor::TopicListenerActor,
 };
 
 impl InconsistentTopicStatus {
@@ -50,7 +51,7 @@ impl TopicActor {
         qos: TopicQos,
         type_name: String,
         topic_name: &str,
-        listener: Box<dyn TopicListenerAsyncDyn + Send>,
+        listener: Box<dyn TopicListenerAsync + Send>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);

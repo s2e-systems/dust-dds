@@ -1,10 +1,10 @@
 [package]
 name = "dust_dds_derive"
-version = "0.8.2"
+version = "0.9.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
-	"Pierre Martinet <pmartinet@s2e-systems.com>"
+	"Pierre Martinet <pmartinet@s2e-systems.com>",
 ]
 edition = "2021"
 license = "Apache-2.0"
@@ -21,5 +21,5 @@ proc-macro = true
 [dependencies]
 quote = "1.0"
 proc-macro2 = "1.0"
-syn = { version = "2.0", features=["full", "extra-traits"] }
+syn = { version = "2.0", features = ["full", "extra-traits"] }
 xml-rs = "0.8.19"
