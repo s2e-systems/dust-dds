@@ -34,12 +34,12 @@ impl Default for StatusConditionActor {
 #[actor_interface]
 impl StatusConditionActor {
     #[tracing::instrument(level = "trace")]
-    async fn add_communication_state(&mut self, state: StatusKind) {
+    async fn add_communication_state(&mut self, state: StatusKind) -> () {
         self.status_changes.push(state);
     }
 
     #[tracing::instrument(level = "trace")]
-    async fn remove_communication_state(&mut self, state: StatusKind) {
+    async fn remove_communication_state(&mut self, state: StatusKind) -> () {
         self.status_changes.retain(|x| x != &state);
     }
 
@@ -49,7 +49,7 @@ impl StatusConditionActor {
     }
 
     #[tracing::instrument(level = "trace")]
-    async fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) {
+    async fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) -> () {
         self.enabled_statuses = mask;
     }
 

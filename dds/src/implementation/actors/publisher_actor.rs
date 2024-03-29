@@ -155,7 +155,7 @@ impl PublisherActor {
         None
     }
 
-    async fn enable(&mut self) {
+    async fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
@@ -173,7 +173,7 @@ impl PublisherActor {
         counter
     }
 
-    async fn delete_contained_entities(&mut self) {
+    async fn delete_contained_entities(&mut self) -> () {
         self.data_writer_list.clear()
     }
 
@@ -181,15 +181,15 @@ impl PublisherActor {
         &mut self,
         instance_handle: InstanceHandle,
         data_writer: Actor<DataWriterActor>,
-    ) {
+    ) -> () {
         self.data_writer_list.insert(instance_handle, data_writer);
     }
 
-    async fn datawriter_delete(&mut self, handle: InstanceHandle) {
+    async fn datawriter_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_writer_list.remove(&handle);
     }
 
-    async fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) {
+    async fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) -> () {
         self.default_datawriter_qos = qos;
     }
 
@@ -239,7 +239,7 @@ impl PublisherActor {
             .collect()
     }
 
-    async fn process_rtps_message(&self, message: RtpsMessageRead) {
+    async fn process_rtps_message(&self, message: RtpsMessageRead) -> () {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
                 .send_mail(data_writer_actor::process_rtps_message::new(
@@ -255,7 +255,7 @@ impl PublisherActor {
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
-    ) {
+    ) -> () {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_mail(data_writer_actor::send_message::new(
@@ -281,7 +281,7 @@ impl PublisherActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-    ) {
+    ) -> () {
         if self.is_partition_matched(
             discovered_reader_data
                 .subscription_builtin_topic_data()
@@ -333,7 +333,7 @@ impl PublisherActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-    ) {
+    ) -> () {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
             let publisher_publication_matched_listener =
@@ -367,7 +367,7 @@ impl PublisherActor {
         listener: Box<dyn PublisherListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(PublisherListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }

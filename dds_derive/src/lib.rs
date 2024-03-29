@@ -217,17 +217,17 @@ pub fn actor_interface(
         let actor_message_enum_ident =
             Ident::new(&format!("{}MessageKind", actor_ident), Span::call_site());
 
-        let mut enum_variants_ident: Vec<&syn::Ident> = Vec::new();
-        let mut enum_variants_arguments_ident: Vec<Vec<&syn::Pat>> = Vec::new();
-        let mut enum_variants_arguments_type: Vec<Vec<&syn::Type>> = Vec::new();
-        let mut enum_variants_output: Vec<proc_macro2::TokenStream> = Vec::new();
+        let mut enum_variants: Vec<proc_macro2::TokenStream> = Vec::new();
+        let mut enum_handle_variants: Vec<proc_macro2::TokenStream> = Vec::new();
+        let mut actor_method_variants: Vec<proc_macro2::TokenStream> = Vec::new();
+        let mut actor_address_method_variants: Vec<proc_macro2::TokenStream> = Vec::new();
 
         for method in input.items.iter().filter_map(|i| match i {
             syn::ImplItem::Fn(m) => Some(m),
             _ => None,
         }) {
             let method_ident = &method.sig.ident;
-            let (methods_arguments_ident, methods_arguments_type) = method
+            let (methods_arguments_ident, methods_arguments_type): (Vec<_>, Vec<_>) = method
                 .sig
                 .inputs
                 .iter()
@@ -238,24 +238,98 @@ pub fn actor_interface(
                 .map(|a| (a.pat.as_ref(), a.ty.as_ref()))
                 .unzip();
 
-            let method_output = match &method.sig.output {
-                syn::ReturnType::Default => quote! {()},
-                syn::ReturnType::Type(_, t) => t.to_token_stream(),
-            };
+            match &method.sig.output {
+                syn::ReturnType::Default => {
+                    let enum_variant = quote! {
+                        #method_ident{
+                            #(#methods_arguments_ident: #methods_arguments_type, )*
+                        }
+                    };
+                    let enum_handle_variant = quote! {
+                        #actor_message_enum_ident::#method_ident{
+                            #(#methods_arguments_ident, )*
+                        } => {
+                            self.#method_ident(#(#methods_arguments_ident, )*).await;
+                        }
+                    };
 
-            enum_variants_ident.push(method_ident);
-            enum_variants_arguments_ident.push(methods_arguments_ident);
-            enum_variants_arguments_type.push(methods_arguments_type);
-            enum_variants_output.push(method_output);
+                    let actor_method_variant = quote! {
+                        pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*){
+                            let message = #actor_message_enum_ident::#method_ident{
+                                #(#methods_arguments_ident, )*
+                            };
+                            self.send_actor_message(message).await
+                        }
+                    };
+
+                    let actor_address_method_variant = quote! {
+                        pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> crate::infrastructure::error::DdsResult<()> {
+                            let message = #actor_message_enum_ident::#method_ident{
+                                #(#methods_arguments_ident, )*
+                            };
+                            self.send_actor_message(message).await
+                        }
+                    };
+
+                    enum_variants.push(enum_variant);
+                    enum_handle_variants.push(enum_handle_variant);
+                    actor_method_variants.push(actor_method_variant);
+                    actor_address_method_variants.push(actor_address_method_variant);
+                }
+                syn::ReturnType::Type(_, output_type) => {
+                    let enum_variant = quote! {
+                        #method_ident{
+                            #(#methods_arguments_ident: #methods_arguments_type, )*
+                            __response_sender: tokio::sync::oneshot::Sender<#output_type>,
+                        }
+                    };
+
+                    let enum_handle_variant = quote! {
+                        #actor_message_enum_ident::#method_ident{
+                            #(#methods_arguments_ident, )*
+                            __response_sender,
+                        } => {
+                            let r = self.#method_ident(#(#methods_arguments_ident, )*).await;
+                            __response_sender.send(r).ok();
+                        }
+                    };
+
+                    let actor_method_variant = quote! {
+                        pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> #output_type {
+                            let (__response_sender, response_receiver) = tokio::sync::oneshot::channel();
+                            let message = #actor_message_enum_ident::#method_ident{
+                                #(#methods_arguments_ident, )*
+                                __response_sender,
+                            };
+                            self.send_actor_message(message).await;
+                            response_receiver.await.expect("Message is always processed as long as actor object exists")
+                        }
+                    };
+
+                    let actor_address_method_variant = quote! {
+                        pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> crate::infrastructure::error::DdsResult<#output_type> {
+                            let (__response_sender, response_receiver) = tokio::sync::oneshot::channel();
+                            let message = #actor_message_enum_ident::#method_ident{
+                                #(#methods_arguments_ident, )*
+                                __response_sender,
+                            };
+                            self.send_actor_message(message).await?;
+                            response_receiver.await.map_err(|_|  crate::infrastructure::error::DdsError::AlreadyDeleted)
+                        }
+                    };
+
+                    enum_variants.push(enum_variant);
+                    enum_handle_variants.push(enum_handle_variant);
+                    actor_method_variants.push(actor_method_variant);
+                    actor_address_method_variants.push(actor_address_method_variant);
+                }
+            };
         }
 
         quote! {
             #[allow(non_camel_case_types)]
             pub enum #actor_message_enum_ident {
-                #(#enum_variants_ident{
-                    #(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*
-                    __response_sender: Option<tokio::sync::oneshot::Sender<#enum_variants_output>>,
-                },)*
+                #(#enum_variants,)*
             }
 
             impl crate::implementation::utils::actor::ActorHandler for #actor_ident {
@@ -263,42 +337,17 @@ pub fn actor_interface(
 
                 async fn handle_message(&mut self, message: Self::Message) {
                     match message {
-                        #(#actor_message_enum_ident::#enum_variants_ident{
-                            #(#enum_variants_arguments_ident, )*
-                            __response_sender,
-                        } => {
-                            let r = self.#enum_variants_ident(#(#enum_variants_arguments_ident, )*).await;
-                            if let Some(s) = __response_sender {
-                                s.send(r).ok();
-                            }
-                        },)*
+                        #(#enum_handle_variants,)*
                     }
                 }
             }
 
             impl crate::implementation::utils::actor::Actor<#actor_ident> {
-                #(pub async fn #enum_variants_ident(&self, #(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*) -> #enum_variants_output {
-                    let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
-                    let message = #actor_message_enum_ident::#enum_variants_ident{
-                        #(#enum_variants_arguments_ident, )*
-                        __response_sender: Some(response_sender),
-                    };
-                    self.send_actor_message(message).await;
-                    response_receiver.await.expect("Message is always processed as long as actor object exists")
-
-                })*
+                #(#actor_method_variants)*
             }
 
             impl crate::implementation::utils::actor::ActorAddress<#actor_ident> {
-                #(pub async fn #enum_variants_ident(&self, #(#enum_variants_arguments_ident: #enum_variants_arguments_type, )*) -> crate::infrastructure::error::DdsResult<#enum_variants_output> {
-                    let (response_sender, response_receiver) = tokio::sync::oneshot::channel();
-                    let message = #actor_message_enum_ident::#enum_variants_ident{
-                        #(#enum_variants_arguments_ident, )*
-                        __response_sender: Some(response_sender),
-                    };
-                    self.send_actor_message(message).await?;
-                    response_receiver.await.map_err(|_|  crate::infrastructure::error::DdsError::AlreadyDeleted)
-                })*
+                #(#actor_address_method_variants)*
             }
         }
     }

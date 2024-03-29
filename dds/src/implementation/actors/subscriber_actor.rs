@@ -171,7 +171,7 @@ impl SubscriberActor {
         }
         None
     }
-    async fn delete_contained_entities(&mut self) {}
+    async fn delete_contained_entities(&mut self) -> () {}
 
     async fn guid(&self) -> Guid {
         self.rtps_group.guid()
@@ -189,11 +189,11 @@ impl SubscriberActor {
         &mut self,
         instance_handle: InstanceHandle,
         data_reader: Actor<DataReaderActor>,
-    ) {
+    ) -> () {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
 
-    async fn data_reader_delete(&mut self, handle: InstanceHandle) {
+    async fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_reader_list.remove(&handle);
     }
 
@@ -227,7 +227,7 @@ impl SubscriberActor {
         Ok(())
     }
 
-    async fn enable(&mut self) {
+    async fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
@@ -262,7 +262,7 @@ impl SubscriberActor {
         &self,
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
-    ) {
+    ) -> () {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .send_mail(data_reader_actor::send_message::new(
@@ -318,7 +318,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> () {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
                 let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -353,7 +353,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> () {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -378,7 +378,7 @@ impl SubscriberActor {
         listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(SubscriberListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }

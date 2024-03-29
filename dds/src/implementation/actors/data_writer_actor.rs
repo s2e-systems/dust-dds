@@ -281,12 +281,12 @@ impl DataWriterActor {
         &mut self,
         handle: InstanceHandle,
         subscription_data: SubscriptionBuiltinTopicData,
-    ) {
+    ) -> () {
         self.matched_subscriptions
             .add_matched_subscription(handle, subscription_data)
     }
 
-    async fn remove_matched_subscription(&mut self, handle: InstanceHandle) {
+    async fn remove_matched_subscription(&mut self, handle: InstanceHandle) -> () {
         self.matched_subscriptions
             .remove_matched_subscription(handle)
     }
@@ -308,7 +308,7 @@ impl DataWriterActor {
         &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-    ) {
+    ) -> () {
         self.incompatible_subscriptions
             .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
     }
@@ -331,7 +331,7 @@ impl DataWriterActor {
             .get_incompatible_subscriptions()
     }
 
-    async fn enable(&mut self) {
+    async fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
@@ -355,7 +355,7 @@ impl DataWriterActor {
         self.rtps_writer.data_max_size_serialized()
     }
 
-    async fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
+    async fn matched_reader_remove(&mut self, a_reader_guid: Guid) -> () {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
@@ -364,7 +364,7 @@ impl DataWriterActor {
         self.qos.clone()
     }
 
-    async fn set_qos(&mut self, qos: DataWriterQos) {
+    async fn set_qos(&mut self, qos: DataWriterQos) -> () {
         self.qos = qos;
     }
 
@@ -549,7 +549,7 @@ impl DataWriterActor {
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    async fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
+    async fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) -> () {
         if !self
             .matched_readers
             .iter()
@@ -608,7 +608,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-    ) {
+    ) -> () {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
@@ -747,7 +747,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-    ) {
+    ) -> () {
         if let Some(r) = self
             .get_matched_subscription_data(discovered_reader_handle)
             .await
@@ -767,7 +767,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+    async fn process_rtps_message(&mut self, message: RtpsMessageRead) -> () {
         let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
@@ -791,7 +791,7 @@ impl DataWriterActor {
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
-    ) {
+    ) -> () {
         // Remove stale changes before sending
         self.remove_stale_changes(now);
 
@@ -799,7 +799,7 @@ impl DataWriterActor {
         self.send_message_to_reader_proxies(header, &udp_transport_write);
     }
 
-    async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
+    async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) -> () {
         let mut locator = a_locator;
         if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
             locator.set_highest_sent_change_sn(highest_available_change_sn)
@@ -813,7 +813,7 @@ impl DataWriterActor {
         listener: Box<dyn AnyDataWriterListener + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(DataWriterListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }

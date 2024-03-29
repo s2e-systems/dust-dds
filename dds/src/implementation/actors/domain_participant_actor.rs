@@ -814,7 +814,7 @@ impl DomainParticipantActor {
         InstanceHandle::new(self.rtps_participant.guid().into())
     }
 
-    async fn enable(&mut self) {
+    async fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
@@ -822,19 +822,19 @@ impl DomainParticipantActor {
         self.enabled
     }
 
-    async fn ignore_participant(&mut self, handle: InstanceHandle) {
+    async fn ignore_participant(&mut self, handle: InstanceHandle) -> () {
         self.ignored_participants.insert(handle);
     }
 
-    async fn ignore_subscription(&mut self, handle: InstanceHandle) {
+    async fn ignore_subscription(&mut self, handle: InstanceHandle) -> () {
         self.ignored_subcriptions.insert(handle);
     }
 
-    async fn ignore_publication(&mut self, handle: InstanceHandle) {
+    async fn ignore_publication(&mut self, handle: InstanceHandle) -> () {
         self.ignored_publications.insert(handle);
     }
 
-    async fn ignore_topic(&self, _handle: InstanceHandle) {
+    async fn ignore_topic(&self, _handle: InstanceHandle) -> () {
         todo!()
     }
 
@@ -842,7 +842,7 @@ impl DomainParticipantActor {
         todo!()
     }
 
-    async fn _discovered_participant_remove(&mut self, handle: InstanceHandle) {
+    async fn _discovered_participant_remove(&mut self, handle: InstanceHandle) -> () {
         self.discovered_participant_list.remove(&handle);
     }
 
@@ -889,7 +889,7 @@ impl DomainParticipantActor {
         counter
     }
 
-    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) {
+    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> () {
         self.topic_list.remove(&handle);
     }
 
@@ -899,7 +899,7 @@ impl DomainParticipantActor {
             && self.topic_list.len() == 0
     }
 
-    async fn delete_topic(&mut self, handle: InstanceHandle) {
+    async fn delete_topic(&mut self, handle: InstanceHandle) -> () {
         self.topic_list.remove(&handle);
     }
 
@@ -931,7 +931,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn set_default_publisher_qos(&mut self, qos: PublisherQos) {
+    async fn set_default_publisher_qos(&mut self, qos: PublisherQos) -> () {
         self.default_publisher_qos = qos;
     }
 
@@ -939,7 +939,7 @@ impl DomainParticipantActor {
         self.default_publisher_qos.clone()
     }
 
-    async fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) {
+    async fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) -> () {
         self.default_subscriber_qos = qos;
     }
 
@@ -947,7 +947,7 @@ impl DomainParticipantActor {
         self.default_subscriber_qos.clone()
     }
 
-    async fn set_default_topic_qos(&mut self, qos: TopicQos) {
+    async fn set_default_topic_qos(&mut self, qos: TopicQos) -> () {
         self.default_topic_qos = qos;
     }
 
@@ -969,7 +969,7 @@ impl DomainParticipantActor {
             .ok_or(DdsError::BadParameter)
     }
 
-    async fn set_qos(&mut self, qos: DomainParticipantQos) {
+    async fn set_qos(&mut self, qos: DomainParticipantQos) -> () {
         self.qos = qos;
     }
 
@@ -981,7 +981,7 @@ impl DomainParticipantActor {
         &mut self,
         handle: InstanceHandle,
         discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
+    ) -> () {
         self.discovered_participant_list
             .insert(handle, discovered_participant_data);
     }
@@ -1098,7 +1098,7 @@ impl DomainParticipantActor {
         self.builtin_publisher.address()
     }
 
-    async fn send_message(&self) {
+    async fn send_message(&self) -> () {
         let now = self.get_current_time().await;
         let header = RtpsMessageHeader::new(
             self.rtps_participant.protocol_version(),
@@ -1170,7 +1170,7 @@ impl DomainParticipantActor {
         &self,
         message: RtpsMessageRead,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> () {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self
             .user_defined_subscriber_list
@@ -1229,7 +1229,7 @@ impl DomainParticipantActor {
     async fn announce_created_or_modified_data_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
-    ) {
+    ) -> () {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
             .lookup_datawriter(DCPS_PUBLICATION.to_string())
@@ -1256,7 +1256,7 @@ impl DomainParticipantActor {
     async fn announce_created_or_modified_data_reader(
         &self,
         discovered_reader_data: DiscoveredReaderData,
-    ) {
+    ) -> () {
         if let Some(sedp_subscriptions_announcer) = self
             .builtin_publisher
             .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
@@ -1303,7 +1303,7 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
+    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) -> () {
         self.process_spdp_participant_discovery().await;
         self.process_sedp_publications_discovery(participant.clone())
             .await;
@@ -1317,7 +1317,7 @@ impl DomainParticipantActor {
         listener: Box<dyn DomainParticipantListenerAsyncDyn + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(
             DomainParticipantListenerActor::new(listener),
             &runtime_handle,
@@ -1351,7 +1351,7 @@ impl DomainParticipantActor {
         &mut self,
         type_name: String,
         type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
-    ) {
+    ) -> () {
         self.type_support_actor
             .register_type(type_name, type_support.into())
             .await

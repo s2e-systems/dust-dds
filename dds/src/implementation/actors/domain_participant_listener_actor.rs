@@ -254,41 +254,44 @@ impl DomainParticipantListenerActor {
 
 #[actor_interface]
 impl DomainParticipantListenerActor {
-    async fn trigger_on_sample_rejected(&mut self, status: SampleRejectedStatus) {
+    async fn trigger_on_sample_rejected(&mut self, status: SampleRejectedStatus) -> () {
         self.listener.on_sample_rejected(&(), status).await
     }
 
     async fn trigger_on_requested_incompatible_qos(
         &mut self,
         status: RequestedIncompatibleQosStatus,
-    ) {
+    ) -> () {
         self.listener
             .on_requested_incompatible_qos(&(), status)
             .await
     }
 
-    async fn trigger_on_offered_incompatible_qos(&mut self, status: OfferedIncompatibleQosStatus) {
+    async fn trigger_on_offered_incompatible_qos(
+        &mut self,
+        status: OfferedIncompatibleQosStatus,
+    ) -> () {
         self.listener.on_offered_incompatible_qos(&(), status).await
     }
 
-    async fn trigger_on_publication_matched(&mut self, status: PublicationMatchedStatus) {
+    async fn trigger_on_publication_matched(&mut self, status: PublicationMatchedStatus) -> () {
         self.listener.on_publication_matched(&(), status).await
     }
 
     async fn trigger_on_requested_deadline_missed(
         &mut self,
         status: RequestedDeadlineMissedStatus,
-    ) {
+    ) -> () {
         self.listener
             .on_requested_deadline_missed(&(), status)
             .await
     }
 
-    async fn trigger_on_subscription_matched(&mut self, status: SubscriptionMatchedStatus) {
+    async fn trigger_on_subscription_matched(&mut self, status: SubscriptionMatchedStatus) -> () {
         self.listener.on_subscription_matched(&(), status).await
     }
 
-    async fn trigger_on_sample_lost(&mut self, status: SampleLostStatus) {
+    async fn trigger_on_sample_lost(&mut self, status: SampleLostStatus) -> () {
         self.listener.on_sample_lost(&(), status).await
     }
 }

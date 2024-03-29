@@ -22,7 +22,7 @@ impl TypeSupportActor {
         &mut self,
         type_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-    ) {
+    ) -> () {
         self.type_support_list.insert(type_name, type_support);
     }
 

@@ -82,7 +82,7 @@ impl TopicActor {
         self.guid
     }
 
-    async fn set_qos(&mut self, qos: TopicQos) {
+    async fn set_qos(&mut self, qos: TopicQos) -> () {
         self.qos = qos;
     }
 
@@ -90,7 +90,7 @@ impl TopicActor {
         self.qos.clone()
     }
 
-    async fn enable(&mut self) {
+    async fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
@@ -138,7 +138,7 @@ impl TopicActor {
         Ok(status)
     }
 
-    async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
+    async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) -> () {
         if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()

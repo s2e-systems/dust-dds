@@ -44,7 +44,7 @@ impl TopicListenerActor {
         &mut self,
         the_topic: TopicAsync,
         status: InconsistentTopicStatus,
-    ) {
+    ) -> () {
         self.listener.on_inconsistent_topic(the_topic, status).await
     }
 }

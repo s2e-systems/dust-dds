@@ -106,11 +106,14 @@ impl PublisherListenerActor {
 
 #[actor_interface]
 impl PublisherListenerActor {
-    async fn trigger_on_offered_incompatible_qos(&mut self, status: OfferedIncompatibleQosStatus) {
+    async fn trigger_on_offered_incompatible_qos(
+        &mut self,
+        status: OfferedIncompatibleQosStatus,
+    ) -> () {
         self.listener.on_offered_incompatible_qos(&(), status).await
     }
 
-    async fn trigger_on_publication_matched(&mut self, status: PublicationMatchedStatus) {
+    async fn trigger_on_publication_matched(&mut self, status: PublicationMatchedStatus) -> () {
         self.listener.on_publication_matched(&(), status).await
     }
 }

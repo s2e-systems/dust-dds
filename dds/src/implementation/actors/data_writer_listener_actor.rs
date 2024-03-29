@@ -30,7 +30,7 @@ impl DataWriterListenerActor {
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
-    ) {
+    ) -> () {
         self.listener
             .trigger_on_offered_incompatible_qos(
                 writer_address,
@@ -49,7 +49,7 @@ impl DataWriterListenerActor {
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,
-    ) {
+    ) -> () {
         self.listener
             .trigger_on_publication_matched(
                 writer_address,

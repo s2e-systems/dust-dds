@@ -153,7 +153,7 @@ impl ReaderRequestedDeadlineMissedStatus {
     async fn increment_requested_deadline_missed_status(
         &mut self,
         instance_handle: InstanceHandle,
-    ) {
+    ) -> () {
         self.total_count += 1;
         self.total_count_change += 1;
         self.last_instance_handle = instance_handle;
@@ -1554,7 +1554,7 @@ impl DataReaderActor {
         InstanceHandle::new(self.rtps_reader.guid().into())
     }
 
-    async fn set_qos(&mut self, qos: DataReaderQos) {
+    async fn set_qos(&mut self, qos: DataReaderQos) -> () {
         self.qos = qos;
     }
 
@@ -1580,7 +1580,7 @@ impl DataReaderActor {
         self.enabled
     }
 
-    async fn enable(&mut self) {
+    async fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
@@ -1658,7 +1658,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
+    async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) -> () {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => r.matched_writer_add(a_writer_proxy),
             RtpsReaderKind::Stateless(_) => (),
@@ -1679,7 +1679,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> () {
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
@@ -1789,7 +1789,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> () {
         let matched_publication = self
             .matched_publication_list
             .remove(&discovered_writer_handle);
@@ -1899,7 +1899,7 @@ impl DataReaderActor {
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
-    ) {
+    ) -> () {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => r.send_message(header, udp_transport_write),
             RtpsReaderKind::Stateless(_) => (),
@@ -1911,7 +1911,7 @@ impl DataReaderActor {
         listener: Box<dyn AnyDataReaderListener + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(DataReaderListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
