@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listeners::NoOpListener,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -20,7 +19,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -28,17 +27,17 @@ fn main() {
             "BestEffortExampleTopic",
             "BestEffortExampleType",
             QosKind::Default,
-            NoOpListener::new(),
+            None,
             NO_STATUS,
         )
         .unwrap();
 
     let publisher = participant
-        .create_publisher(QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let writer = publisher
-        .create_datawriter(&topic, QosKind::Default, NoOpListener::new(), NO_STATUS)
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition();
     writer_cond

@@ -76,7 +76,7 @@ impl DomainParticipantFactoryActor {
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener: Box<dyn DomainParticipantListenerAsync + Send>,
+        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<ActorAddress<DomainParticipantActor>> {

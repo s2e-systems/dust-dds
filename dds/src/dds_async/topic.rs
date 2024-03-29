@@ -13,13 +13,13 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    topic_definition::{
-        topic_listener::TopicListener,
-        type_support::{DdsKey, DdsSerialize},
-    },
+    topic_definition::type_support::{DdsKey, DdsSerialize},
 };
 
-use super::{condition::StatusConditionAsync, domain_participant::DomainParticipantAsync};
+use super::{
+    condition::StatusConditionAsync, domain_participant::DomainParticipantAsync,
+    topic_listener::TopicListenerAsync,
+};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]
@@ -158,7 +158,7 @@ impl TopicAsync {
     #[tracing::instrument(skip(self, _a_listener))]
     pub async fn set_listener(
         &self,
-        _a_listener: impl TopicListener + Send + 'static,
+        _a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()

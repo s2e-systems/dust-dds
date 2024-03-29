@@ -1,11 +1,14 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
+            overall_structure::{
+                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+                WriteIntoBytes,
+            },
+            submessage_elements::{ArcSlice, Data, ParameterList},
             types::{SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber},
     },
     infrastructure::error::DdsResult,
 };
@@ -139,9 +142,11 @@ pub struct DataSubmessageWrite<'a> {
     data_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    submessage_elements: [SubmessageElement<'a>; 5],
-    inline_qos_submessage_element: Option<SubmessageElement<'a>>,
-    serialized_payload_submessage_element: Option<SubmessageElement<'a>>,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    inline_qos: &'a ParameterList,
+    serialized_payload: &'a Data,
 }
 
 impl<'a> DataSubmessageWrite<'a> {
@@ -157,48 +162,22 @@ impl<'a> DataSubmessageWrite<'a> {
         inline_qos: &'a ParameterList,
         serialized_payload: &'a Data,
     ) -> Self {
-        const EXTRA_FLAGS: u16 = 0;
-        const OCTETS_TO_INLINE_QOS: u16 = 16;
-        let submessage_elements = [
-            SubmessageElement::UShort(EXTRA_FLAGS),
-            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
-            SubmessageElement::EntityId(reader_id),
-            SubmessageElement::EntityId(writer_id),
-            SubmessageElement::SequenceNumber(writer_sn),
-        ];
-        let inline_qos_submessage_element = if inline_qos_flag {
-            Some(SubmessageElement::ParameterList(inline_qos))
-        } else {
-            None
-        };
-
-        let serialized_payload_submessage_element = if data_flag || key_flag {
-            Some(SubmessageElement::SerializedData(serialized_payload))
-        } else {
-            None
-        };
         Self {
             inline_qos_flag,
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            submessage_elements,
-            inline_qos_submessage_element,
-            serialized_payload_submessage_element,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
         }
     }
 }
 
-impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
-    type SubmessageList = std::iter::Chain<
-        std::iter::Chain<
-            std::slice::Iter<'a, SubmessageElement<'a>>,
-            std::option::Iter<'a, SubmessageElement<'a>>,
-        >,
-        std::option::Iter<'a, SubmessageElement<'a>>,
-    >;
-
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+impl Submessage for DataSubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
             &[
@@ -209,13 +188,23 @@ impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
             ],
             octets_to_next_header,
         )
+        .write_into_bytes(&mut buf)
     }
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        self.submessage_elements
-            .iter()
-            .chain(self.inline_qos_submessage_element.iter())
-            .chain(self.serialized_payload_submessage_element.iter())
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        EXTRA_FLAGS.write_into_bytes(buf);
+        OCTETS_TO_INLINE_QOS.write_into_bytes(buf);
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        if self.inline_qos_flag {
+            self.inline_qos.write_into_bytes(buf);
+        }
+        if self.data_flag || self.key_flag {
+            self.serialized_payload.write_into_bytes(buf);
+        }
     }
 }
 
@@ -223,10 +212,7 @@ impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
-            submessage_elements::Parameter,
-        },
+        messages::{overall_structure::write_into_bytes_vec, submessage_elements::Parameter},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -241,7 +227,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![].into());
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -251,9 +237,9 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -278,7 +264,7 @@ mod tests {
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = &Data::new(vec![].into());
 
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -288,9 +274,9 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15, 0b_0000_0011, 40, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -317,7 +303,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![1, 2, 3, 4].into());
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -327,9 +313,9 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -352,7 +338,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![1, 2, 3].into());
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -362,9 +348,9 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]

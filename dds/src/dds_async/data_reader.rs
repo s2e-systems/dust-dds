@@ -472,17 +472,22 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.reader_address.get_instance_handle().await
     }
+}
 
+impl<'a, Foo> DataReaderAsync<Foo>
+where
+    Foo: 'a,
+{
     /// Async version of [`set_listener`](crate::subscription::data_reader::DataReader::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DataReaderListenerAsync<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address
             .set_listener(
-                Box::new(a_listener),
+                a_listener.map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             )

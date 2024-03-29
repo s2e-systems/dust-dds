@@ -1,6 +1,6 @@
-use super::overall_structure::WriteBytes;
+use super::overall_structure::{TryReadFromBytes, WriteIntoBytes};
 use crate::{
-    implementation::rtps::types::{Endianness, TryReadFromBytes},
+    implementation::rtps::types::Endianness,
     infrastructure::{self, error::DdsResult, time::Duration},
 };
 use std::{io::Read, ops::Sub};
@@ -67,9 +67,9 @@ pub enum ProtocolId {
     PROTOCOL_RTPS,
 }
 
-impl WriteBytes for ProtocolId {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        b"RTPS".as_slice().read(buf).unwrap()
+impl WriteIntoBytes for ProtocolId {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        b"RTPS".write_into_bytes(buf);
     }
 }
 
@@ -77,19 +77,6 @@ impl WriteBytes for ProtocolId {
 /// Type used to specify a Submessage flag.
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
 pub type SubmessageFlag = bool;
-
-impl WriteBytes for [SubmessageFlag; 8] {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut flags = 0b_0000_0000_u8;
-        for (i, &item) in self.iter().enumerate() {
-            if item {
-                flags |= 0b_0000_0001 << i
-            }
-        }
-        buf[0] = flags;
-        1
-    }
-}
 
 /// SubmessageKind
 /// Enumeration used to identify the kind of Submessage.
@@ -126,9 +113,9 @@ pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
 
-impl WriteBytes for SubmessageKind {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[0] = match self {
+impl WriteIntoBytes for SubmessageKind {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let data = match self {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
             SubmessageKind::HEARTBEAT => HEARTBEAT,
@@ -142,7 +129,7 @@ impl WriteBytes for SubmessageKind {
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
         };
-        1
+        [data].write_into_bytes(buf);
     }
 }
 
@@ -184,9 +171,10 @@ pub const TIME_INVALID: Time = Time::new(0xffffffff, 0xffffffff);
 #[allow(dead_code)]
 pub const TIME_INFINITE: Time = Time::new(0xffffffff, 0xfffffffe);
 
-impl WriteBytes for Time {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.seconds.write_bytes(&mut buf[0..]) + self.fraction.write_bytes(&mut buf[4..])
+impl WriteIntoBytes for Time {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.seconds.write_into_bytes(buf);
+        self.fraction.write_into_bytes(buf);
     }
 }
 

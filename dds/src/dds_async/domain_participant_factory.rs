@@ -44,10 +44,9 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
-        let listener = Box::new(a_listener);
         let status_kind = mask.to_vec();
         let runtime_handle = self.runtime_handle.clone();
         let participant_address = self

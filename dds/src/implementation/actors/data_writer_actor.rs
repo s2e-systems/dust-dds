@@ -236,7 +236,7 @@ impl DataWriterActor {
         rtps_writer: RtpsWriter,
         type_name: String,
         topic_name: String,
-        listener: Box<dyn AnyDataWriterListener + Send>,
+        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
@@ -809,7 +809,7 @@ impl DataWriterActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn AnyDataWriterListener + Send>,
+        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
@@ -1183,7 +1183,7 @@ fn send_message_to_reader_proxy_best_effort(
                     );
 
                     let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(Box::new(data_frag_submessage));
+                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1335,7 +1335,7 @@ fn send_change_message_reader_proxy_reliable(
                     );
 
                     let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(Box::new(data_frag_submessage));
+                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),

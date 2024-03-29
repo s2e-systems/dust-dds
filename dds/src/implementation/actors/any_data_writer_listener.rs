@@ -51,9 +51,9 @@ pub trait AnyDataWriterListener {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 }
 
-impl<T> AnyDataWriterListener for T
+impl<'a, Foo> AnyDataWriterListener for Box<dyn DataWriterListenerAsync<Foo = Foo> + Send + 'a>
 where
-    T: DataWriterListenerAsync + Send,
+    Foo: 'a,
 {
     fn trigger_on_liveliness_lost(
         &mut self,

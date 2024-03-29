@@ -1,7 +1,8 @@
 use crate::{
     implementation::rtps::messages::{
-        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-        submessage_elements::SubmessageElement,
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
+        },
         types::SubmessageKind,
     },
     infrastructure::error::DdsResult,
@@ -33,30 +34,28 @@ impl Default for PadSubmessageWrite {
         Self::new()
     }
 }
-impl<'a> Submessage<'a> for PadSubmessageWrite {
-    type SubmessageList = &'a [SubmessageElement<'a>];
 
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+impl Submessage for PadSubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::PAD, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
 
-    fn submessage_elements(&self) -> Self::SubmessageList {
-        &[]
-    }
+    fn write_submessage_elements_into_bytes(&self, _buf: &mut &mut [u8]) {}
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::implementation::rtps::messages::overall_structure::{
-        into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+        write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
     };
 
     #[test]
     fn serialize_pad() {
         let submessage = RtpsSubmessageWriteKind::Pad(PadSubmessageWrite::new());
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x01, 0b_0000_0001, 0, 0, // Submessage header
             ]
         );

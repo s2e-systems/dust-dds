@@ -1,11 +1,14 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{SequenceNumberSet, SubmessageElement},
+            overall_structure::{
+                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+                WriteIntoBytes,
+            },
+            submessage_elements::SequenceNumberSet,
             types::SubmessageKind,
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber},
     },
     infrastructure::error::DdsResult,
 };
@@ -50,11 +53,14 @@ impl GapSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessageWrite<'a> {
-    submessage_elements: [SubmessageElement<'a>; 4],
+pub struct GapSubmessageWrite {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    gap_start: SequenceNumber,
+    gap_list: SequenceNumberSet,
 }
 
-impl GapSubmessageWrite<'_> {
+impl GapSubmessageWrite {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -62,34 +68,32 @@ impl GapSubmessageWrite<'_> {
         gap_list: SequenceNumberSet,
     ) -> Self {
         Self {
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumber(gap_start),
-                SubmessageElement::SequenceNumberSet(gap_list),
-            ],
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
         }
     }
 }
 
-impl<'a> Submessage<'a> for GapSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+impl Submessage for GapSubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.gap_start.write_into_bytes(buf);
+        self.gap_list.write_into_bytes(buf);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::implementation::rtps::{
-        messages::overall_structure::{
-            into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
-        },
+        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -99,11 +103,9 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let gap_start = 5;
         let gap_list = SequenceNumberSet::new(10, []);
-        let submessage = RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
-            reader_id, writer_id, gap_start, gap_list,
-        ));
+        let submessage = GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]

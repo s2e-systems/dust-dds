@@ -30,6 +30,7 @@ pub trait SubscriberListenerAsync {
     {
         Box::pin(std::future::ready(()))
     }
+
     /// Method that is called when any reader belonging to this subcriber reports a sample rejected status.
     fn on_sample_rejected<'a, 'b>(
         &'a mut self,

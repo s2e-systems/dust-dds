@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dds_async::data_writer::DataWriterAsync,
-    implementation::utils::sync_listener::ListenerSyncToAsync,
+    dds_async::{data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync},
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -446,7 +445,12 @@ impl<Foo> DataWriter<Foo> {
             .runtime_handle()
             .block_on(self.writer_async.get_instance_handle())
     }
+}
 
+impl<'a, Foo> DataWriter<Foo>
+where
+    Foo: 'a,
+{
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
     /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
     /// as a Listener whose operations perform no action.
@@ -456,12 +460,15 @@ impl<Foo> DataWriter<Foo> {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_async.runtime_handle().block_on(
-            self.writer_async
-                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
+            self.writer_async.set_listener(
+                a_listener
+                    .map::<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),
+                mask,
+            ),
         )
     }
 }

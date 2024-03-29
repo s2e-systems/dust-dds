@@ -35,11 +35,9 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::DataWriterActor,
+    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_listener_actor::PublisherListenerActor,
-    status_condition_actor::StatusConditionActor,
+    publisher_listener_actor::PublisherListenerActor, status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
 
@@ -59,7 +57,7 @@ impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn PublisherListenerAsync + Send>,
+        listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -87,7 +85,7 @@ impl PublisherActor {
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
-        a_listener: Box<dyn AnyDataWriterListener + Send>,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
@@ -361,7 +359,7 @@ impl PublisherActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn PublisherListenerAsync + Send>,
+        listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {

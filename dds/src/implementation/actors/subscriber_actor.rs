@@ -60,7 +60,7 @@ impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn SubscriberListenerAsync + Send>,
+        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -95,7 +95,7 @@ impl SubscriberActor {
         topic_name: String,
         has_key: bool,
         qos: QosKind<DataReaderQos>,
-        a_listener: Box<dyn AnyDataReaderListener + Send>,
+        a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,

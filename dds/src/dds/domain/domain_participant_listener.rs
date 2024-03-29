@@ -1,4 +1,7 @@
+use std::{future::Future, pin::Pin};
+
 use crate::{
+    dds_async::{domain_participant_listener::DomainParticipantListenerAsync, topic::TopicAsync},
     infrastructure::status::{
         InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
@@ -94,5 +97,187 @@ pub trait DomainParticipantListener {
         _the_reader: &dyn AnyDataReader,
         _status: SubscriptionMatchedStatus,
     ) {
+    }
+}
+
+impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send> {
+    fn on_inconsistent_topic(
+        &mut self,
+        the_topic: TopicAsync,
+        status: InconsistentTopicStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_inconsistent_topic(
+                self.as_mut(),
+                Topic::new(the_topic),
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_liveliness_lost<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: LivelinessLostStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_liveliness_lost(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_offered_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedDeadlineMissedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_offered_deadline_missed(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_offered_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedIncompatibleQosStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_offered_incompatible_qos(
+                self.as_mut(),
+                the_writer,
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_sample_lost<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+        status: SampleLostStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_sample_lost(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_data_available<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_data_available(self.as_mut(), the_reader)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_sample_rejected<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+        status: SampleRejectedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_sample_rejected(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_liveliness_changed<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+        status: LivelinessChangedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_liveliness_changed(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_requested_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+        status: RequestedDeadlineMissedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_requested_deadline_missed(
+                self.as_mut(),
+                the_reader,
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_requested_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+        status: RequestedIncompatibleQosStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_requested_incompatible_qos(
+                self.as_mut(),
+                the_reader,
+                status,
+            )
+        });
+        Box::pin(async {})
+    }
+
+    fn on_publication_matched<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: PublicationMatchedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_publication_matched(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_subscription_matched<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+        status: SubscriptionMatchedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            DomainParticipantListener::on_subscription_matched(self.as_mut(), the_reader, status)
+        });
+        Box::pin(async {})
     }
 }
