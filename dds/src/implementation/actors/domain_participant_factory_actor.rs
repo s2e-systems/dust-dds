@@ -233,12 +233,6 @@ impl DomainParticipantFactoryActor {
                         break;
                     }
 
-                    let r = participant_address_clone
-                        .process_builtin_discovery(participant_clone.clone())
-                        .await;
-                    if r.is_err() {
-                        break;
-                    }
                     let r = participant_address_clone.send_message().await;
                     if r.is_err() {
                         break;
@@ -260,9 +254,6 @@ impl DomainParticipantFactoryActor {
                         participant_address_clone
                             .process_metatraffic_rtps_message(message, participant_clone.clone())
                             .await??;
-                        participant_address_clone
-                            .process_builtin_discovery(participant_clone.clone())
-                            .await?;
 
                         participant_address_clone.send_message().await?;
                         Ok(())

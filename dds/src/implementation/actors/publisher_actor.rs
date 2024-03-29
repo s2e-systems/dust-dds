@@ -230,10 +230,6 @@ impl PublisherActor {
         self.status_kind.clone()
     }
 
-    fn get_listener(&self) -> ActorAddress<PublisherListenerActor> {
-        self.listener.address()
-    }
-
     fn get_qos(&self) -> PublisherQos {
         self.qos.clone()
     }

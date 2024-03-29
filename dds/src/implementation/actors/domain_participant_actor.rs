@@ -820,53 +820,69 @@ impl DomainParticipantActor {
         self.enabled
     }
 
-    #[allow(clippy::unused_unit)]
-    fn ignore_participant(&mut self, handle: InstanceHandle) -> () {
-        self.ignored_participants.insert(handle);
+    fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if self.enabled {
+            self.ignored_participants.insert(handle);
+            Ok(())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
-    #[allow(clippy::unused_unit)]
-    fn ignore_subscription(&mut self, handle: InstanceHandle) -> () {
-        self.ignored_subcriptions.insert(handle);
+    fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if self.enabled {
+            self.ignored_subcriptions.insert(handle);
+            Ok(())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
-    #[allow(clippy::unused_unit)]
-    fn ignore_publication(&mut self, handle: InstanceHandle) -> () {
-        self.ignored_publications.insert(handle);
+    fn ignore_publication(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if self.enabled {
+            self.ignored_publications.insert(handle);
+            Ok(())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
-    #[allow(clippy::unused_unit)]
-    fn ignore_topic(&self, _handle: InstanceHandle) -> () {
-        todo!()
-    }
-
-    fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
+    fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
         todo!()
     }
 
     async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(p) = self.user_defined_publisher_list.get(&handle) {
             if !p.data_writer_list().await.is_empty() {
-                return Err(DdsError::PreconditionNotMet(
+                Err(DdsError::PreconditionNotMet(
                     "Publisher still contains data writers".to_string(),
-                ));
+                ))
+            } else {
+                self.user_defined_publisher_list.remove(&handle);
+                Ok(())
             }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ))
         }
-        self.user_defined_publisher_list.remove(&handle);
-        Ok(())
     }
 
     async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
             if !subscriber.is_empty().await {
-                return Err(DdsError::PreconditionNotMet(
+                Err(DdsError::PreconditionNotMet(
                     "Subscriber still contains data readers".to_string(),
-                ));
+                ))
+            } else {
+                self.user_defined_subscriber_list.remove(&handle);
+                Ok(())
             }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ))
         }
-
-        self.user_defined_subscriber_list.remove(&handle);
-        Ok(())
     }
 
     #[allow(clippy::unused_unit)]
@@ -913,31 +929,69 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    #[allow(clippy::unused_unit)]
-    fn set_default_publisher_qos(&mut self, qos: PublisherQos) -> () {
+    fn set_default_publisher_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => PublisherQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
         self.default_publisher_qos = qos;
+
+        Ok(())
     }
 
-    fn default_publisher_qos(&self) -> PublisherQos {
+    fn get_default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.clone()
     }
 
-    #[allow(clippy::unused_unit)]
-    fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) -> () {
+    fn set_default_subscriber_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => SubscriberQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
         self.default_subscriber_qos = qos;
+
+        Ok(())
     }
 
-    fn default_subscriber_qos(&self) -> SubscriberQos {
+    fn get_default_subscriber_qos(&self) -> SubscriberQos {
         self.default_subscriber_qos.clone()
     }
 
-    #[allow(clippy::unused_unit)]
-    fn set_default_topic_qos(&mut self, qos: TopicQos) -> () {
+    fn set_default_topic_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => TopicQos::default(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
         self.default_topic_qos = qos;
+
+        Ok(())
     }
 
-    fn default_topic_qos(&self) -> TopicQos {
+    fn get_default_topic_qos(&self) -> TopicQos {
         self.default_topic_qos.clone()
+    }
+
+    fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
+        self.discovered_participant_list.keys().cloned().collect()
+    }
+
+    fn get_discovered_participant_data(
+        &self,
+        participant_handle: InstanceHandle,
+    ) -> DdsResult<ParticipantBuiltinTopicData> {
+        Ok(self.discovered_participant_list
+            .get(&participant_handle)
+            .ok_or(DdsError::PreconditionNotMet(
+                "Participant with this instance handle not discovered".to_owned(),
+            ))?
+            .dds_participant_data()
+            .clone())
     }
 
     fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
@@ -951,69 +1005,26 @@ impl DomainParticipantActor {
         self.discovered_topic_list
             .get(&topic_handle)
             .cloned()
-            .ok_or(DdsError::BadParameter)
+            .ok_or(DdsError::PreconditionNotMet(
+                "Topic with this handle not discovered".to_owned(),
+            ))
     }
 
-    #[allow(clippy::unused_unit)]
-    fn set_qos(&mut self, qos: DomainParticipantQos) -> () {
+    fn set_qos(&mut self, qos: DomainParticipantQos) -> DdsResult<()> {
         self.qos = qos;
-    }
-
-    fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
-        self.discovered_participant_list.keys().cloned().collect()
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn discovered_participant_add(
-        &mut self,
-        handle: InstanceHandle,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) -> () {
-        self.discovered_participant_list
-            .insert(handle, discovered_participant_data);
+        Ok(())
     }
 
     fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<TopicActor>> {
         self.topic_list.values().map(|a| a.address()).collect()
     }
 
-    fn discovered_participant_get(
-        &self,
-        handle: InstanceHandle,
-    ) -> Option<SpdpDiscoveredParticipantData> {
-        self.discovered_participant_list.get(&handle).cloned()
-    }
-
-    fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_publications.contains(&handle)
-    }
-
-    fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_subcriptions.contains(&handle)
-    }
-
-    fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_participants.contains(&handle)
-    }
-
     fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
 
-    fn get_domain_tag(&self) -> String {
-        self.domain_tag.clone()
-    }
-
     fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
         self.builtin_subscriber.address()
-    }
-
-    fn get_upd_transport_write(&self) -> Arc<UdpTransportWrite> {
-        self.udp_transport_write.clone()
-    }
-
-    fn get_guid(&self) -> Guid {
-        self.rtps_participant.guid()
     }
 
     fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<PublisherActor>> {
@@ -1065,10 +1076,6 @@ impl DomainParticipantActor {
         )
     }
 
-    fn get_listener(&self) -> ActorAddress<DomainParticipantListenerActor> {
-        self.listener.address()
-    }
-
     fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
@@ -1113,7 +1120,7 @@ impl DomainParticipantActor {
     }
 
     async fn process_metatraffic_rtps_message(
-        &self,
+        &mut self,
         message: RtpsMessageRead,
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
@@ -1128,13 +1135,15 @@ impl DomainParticipantActor {
                 message.clone(),
                 reception_timestamp,
                 self.builtin_subscriber.address(),
-                participant,
+                participant.clone(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
             )
             .await;
 
         self.builtin_publisher.process_rtps_message(message).await;
+
+        self.process_builtin_discovery(participant).await;
 
         Ok(())
     }
@@ -1277,16 +1286,6 @@ impl DomainParticipantActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) -> () {
-        self.process_spdp_participant_discovery().await;
-        self.process_sedp_publications_discovery(participant.clone())
-            .await;
-        self.process_sedp_subscriptions_discovery(participant.clone())
-            .await;
-        self.process_sedp_topics_discovery().await;
-    }
-
-    #[allow(clippy::unused_unit)]
     fn set_listener(
         &mut self,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
@@ -1362,6 +1361,15 @@ impl DomainParticipantActor {
         let counter = self.user_defined_topic_counter;
         self.user_defined_topic_counter += 1;
         counter
+    }
+
+    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
+        self.process_spdp_participant_discovery().await;
+        self.process_sedp_publications_discovery(participant.clone())
+            .await;
+        self.process_sedp_subscriptions_discovery(participant.clone())
+            .await;
+        self.process_sedp_topics_discovery().await;
     }
 
     async fn process_spdp_participant_discovery(&mut self) {

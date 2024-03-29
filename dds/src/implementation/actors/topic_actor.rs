@@ -82,9 +82,14 @@ impl TopicActor {
         self.guid
     }
 
-    #[allow(clippy::unused_unit)]
-    fn set_qos(&mut self, qos: TopicQos) -> () {
+    fn set_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
+        if self.enabled {
+            self.qos.check_immutability(&qos)?
+        }
+
         self.qos = qos;
+
+        Ok(())
     }
 
     fn get_qos(&self) -> TopicQos {

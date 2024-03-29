@@ -256,10 +256,6 @@ impl SubscriberActor {
             .collect()
     }
 
-    fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
-        self.listener.address()
-    }
-
     fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
