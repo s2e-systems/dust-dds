@@ -5,10 +5,8 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader_actor::DataReaderActor,
-    subscriber_listener_actor::{SubscriberListenerActor, SubscriberListenerAsyncDyn},
-    topic_actor::TopicActor,
+    any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
+    subscriber_listener_actor::SubscriberListenerActor, topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
 };
 use crate::{

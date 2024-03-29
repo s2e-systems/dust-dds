@@ -1,13 +1,11 @@
-
-
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    dds_async::{domain_participant_listener::DomainParticipantListenerAsync},
+    dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     infrastructure::status::{
-        OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-        SampleRejectedStatus, SubscriptionMatchedStatus,
+        OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
+        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
+        SubscriptionMatchedStatus,
     },
 };
 

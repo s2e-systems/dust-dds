@@ -17,8 +17,7 @@ use crate::{
 };
 
 use super::{
-    status_condition_actor::StatusConditionActor,
-    topic_listener_actor::{TopicListenerActor, TopicListenerAsyncDyn},
+    status_condition_actor::StatusConditionActor, topic_listener_actor::TopicListenerActor,
 };
 
 impl InconsistentTopicStatus {

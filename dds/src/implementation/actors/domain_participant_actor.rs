@@ -83,13 +83,10 @@ use std::{
 };
 
 use super::{
-    data_reader_actor,
-    data_writer_actor::{self, DataWriterActor},
+    data_writer_actor::DataWriterActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_actor::{self, PublisherActor},
-    status_condition_actor::StatusConditionActor,
-    subscriber_actor, topic_actor,
-    type_support_actor::{self, TypeSupportActor},
+    publisher_actor::PublisherActor, status_condition_actor::StatusConditionActor,
+    type_support_actor::TypeSupportActor,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =

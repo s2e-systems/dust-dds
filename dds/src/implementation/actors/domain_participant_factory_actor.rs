@@ -1,4 +1,3 @@
-use super::domain_participant_listener_actor::DomainParticipantListenerAsyncDyn;
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::{
@@ -35,8 +34,6 @@ use std::{
     },
 };
 use tracing::{info, warn};
-
-use super::subscriber_actor;
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
