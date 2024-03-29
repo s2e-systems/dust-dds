@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
-        types::{GuidPrefix, Long, ProtocolVersion, TryReadFromBytes, VendorId},
+        types::{GuidPrefix, Long, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes},
     },
     infrastructure::error::DdsResult,
 };
@@ -66,15 +66,17 @@ impl InfoSourceSubmessageWrite<'_> {
     }
 }
 
-impl<'a> Submessage<'a> for InfoSourceSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
+impl SubmessageHeader for &InfoSourceSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+impl WriteIntoBytes for &InfoSourceSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
     }
 }
 

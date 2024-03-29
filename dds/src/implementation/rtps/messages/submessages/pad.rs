@@ -1,8 +1,10 @@
 use crate::{
-    implementation::rtps::messages::{
-        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-        submessage_elements::SubmessageElement,
-        types::SubmessageKind,
+    implementation::rtps::{
+        messages::{
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            types::SubmessageKind,
+        },
+        types::WriteIntoBytes,
     },
     infrastructure::error::DdsResult,
 };
@@ -33,16 +35,15 @@ impl Default for PadSubmessageWrite {
         Self::new()
     }
 }
-impl<'a> Submessage<'a> for PadSubmessageWrite {
-    type SubmessageList = &'a [SubmessageElement<'a>];
 
+impl SubmessageHeader for &PadSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::PAD, &[], octets_to_next_header)
     }
+}
 
-    fn submessage_elements(&self) -> Self::SubmessageList {
-        &[]
-    }
+impl WriteIntoBytes for &PadSubmessageWrite {
+    fn write_into_bytes(&self, _buf: &mut &mut [u8]) {}
 }
 
 #[cfg(test)]

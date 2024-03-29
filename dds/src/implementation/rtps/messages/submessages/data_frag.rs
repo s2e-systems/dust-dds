@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -189,15 +189,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
     }
 }
 
-impl<'a> Submessage<'a> for DataFragSubmessageWrite<'a> {
-    type SubmessageList = std::iter::Chain<
-        std::iter::Chain<
-            std::slice::Iter<'a, SubmessageElement<'a>>,
-            std::option::Iter<'a, SubmessageElement<'a>>,
-        >,
-        std::iter::Once<&'a SubmessageElement<'a>>,
-    >;
-
+impl SubmessageHeader for &DataFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
@@ -209,12 +201,18 @@ impl<'a> Submessage<'a> for DataFragSubmessageWrite<'a> {
             octets_to_next_header,
         )
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        self.submessage_elements
-            .iter()
-            .chain(self.inline_qos_submessage_element.iter())
-            .chain(std::iter::once(&self.serialized_payload_submessage_element))
+impl WriteIntoBytes for &DataFragSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
+        if let Some(submessage_element) = &self.inline_qos_submessage_element {
+            submessage_element.write_into_bytes(buf);
+        }
+        self.serialized_payload_submessage_element
+            .write_into_bytes(buf);
     }
 }
 

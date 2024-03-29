@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
     },
     infrastructure::error::DdsResult,
 };
@@ -97,9 +97,7 @@ impl HeartbeatSubmessageWrite<'_> {
     }
 }
 
-impl<'a> Submessage<'a> for HeartbeatSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
+impl SubmessageHeader for &HeartbeatSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
@@ -107,9 +105,13 @@ impl<'a> Submessage<'a> for HeartbeatSubmessageWrite<'a> {
             octets_to_next_header,
         )
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+impl WriteIntoBytes for &HeartbeatSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
     }
 }
 

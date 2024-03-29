@@ -1,5 +1,4 @@
 use super::{
-    submessage_elements::SubmessageElement,
     submessages::{
         ack_nack::AckNackSubmessageWrite, data::DataSubmessageWrite,
         data_frag::DataFragSubmessageWrite, gap::GapSubmessageWrite,
@@ -28,7 +27,9 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes},
+        types::{
+            Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes,
+        },
     },
     infrastructure::error::{DdsError, DdsResult},
 };
@@ -43,21 +44,20 @@ pub trait Submessage<'a> {
     fn submessage_elements(&'a self) -> Self::SubmessageList;
 }
 
-#[inline]
-fn write_submessage_bytes<'a>(
-    submessage: &'a impl Submessage<
-        'a,
-        SubmessageList = impl IntoIterator<Item = &'a SubmessageElement<'a>>,
-    >,
+pub trait SubmessageHeader {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
+}
+
+fn write_submessage_into_bytes<'a>(
+    submessage: impl SubmessageHeader + WriteIntoBytes,
     buf: &mut [u8],
-) -> usize {
-    let (header, body) = buf.split_at_mut(4);
-    let mut len = 0;
-    for submessage_element in submessage.submessage_elements().into_iter() {
-        len += submessage_element.write_bytes(&mut body[len..]);
-    }
-    let submessage_header = submessage.submessage_header(len as u16);
-    submessage_header.write_bytes(header) + len
+) {
+    let header_len = 4;
+    let len_before = buf.len();
+    let mut slice = &mut buf[header_len..];
+    submessage.write_into_bytes(&mut slice);
+    let len = (len_before - slice.len() - header_len) as u16;
+    submessage.submessage_header(len).write_bytes(buf);
 }
 
 pub struct SubmessageHeaderRead {
@@ -240,7 +240,6 @@ pub trait WriteBytes {
     fn write_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
-
 #[allow(dead_code)] // Only used as convenience in tests
 pub fn into_bytes_vec<T: WriteBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
@@ -252,7 +251,16 @@ pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let mut slice = buf.as_mut_slice();
     value.write_into_bytes(&mut slice);
-    let len = BUFFER_SIZE-slice.len();
+    let len = BUFFER_SIZE - slice.len();
+    Vec::from(&buf[..len])
+}
+
+#[allow(dead_code)] // Only used as convenience in tests
+pub fn write_submessage_into_bytes_vec<T: WriteIntoBytes + SubmessageHeader>(value: T) -> Vec<u8> {
+    let mut buf = [0u8; BUFFER_SIZE];
+    let mut slice = buf.as_mut_slice();
+    write_submessage_into_bytes(value, &mut slice);
+    let len = BUFFER_SIZE - slice.len();
     Vec::from(&buf[..len])
 }
 
@@ -314,37 +322,37 @@ impl WriteBytes for RtpsSubmessageWriteKind<'_> {
     #[inline]
     fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
-            RtpsSubmessageWriteKind::AckNack(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::Data(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_bytes(s.as_ref(), buf),
-            RtpsSubmessageWriteKind::Gap(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoDestination(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoReply(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoSource(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_bytes(s, buf),
-            RtpsSubmessageWriteKind::Pad(s) => write_submessage_bytes(s, buf),
-        }
+            RtpsSubmessageWriteKind::AckNack(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Data(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_into_bytes(s.as_ref(), buf),
+            RtpsSubmessageWriteKind::Gap(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Pad(s) => write_submessage_into_bytes(s, buf),
+        };
+        0
     }
 }
 impl WriteIntoBytes for RtpsSubmessageWriteKind<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         match self {
-            RtpsSubmessageWriteKind::AckNack(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::Data(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::DataFrag(s) => write_into_bytes(s.as_ref(), buf),
-            // RtpsSubmessageWriteKind::Gap(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::Heartbeat(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::InfoDestination(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::InfoReply(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::InfoSource(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::NackFrag(s) => s.write_into_bytes(buf),
-            // RtpsSubmessageWriteKind::Pad(s) => s.write_into_bytes(buf),
-            _ => todo!()
+            RtpsSubmessageWriteKind::AckNack(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Data(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_into_bytes(s.as_ref(), buf),
+            RtpsSubmessageWriteKind::Gap(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Pad(s) => write_submessage_into_bytes(s, buf),
         };
     }
 }

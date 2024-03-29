@@ -1,8 +1,11 @@
 use crate::{
-    implementation::rtps::messages::{
-        overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-        submessage_elements::SubmessageElement,
-        types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
+    implementation::rtps::{
+        messages::{
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            submessage_elements::SubmessageElement,
+            types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
+        },
+        types::WriteIntoBytes,
     },
     infrastructure::error::DdsResult,
 };
@@ -59,9 +62,7 @@ impl InfoTimestampSubmessageWrite<'_> {
     }
 }
 
-impl<'a> Submessage<'a> for InfoTimestampSubmessageWrite<'a> {
-    type SubmessageList = std::option::Iter<'a, SubmessageElement<'a>>;
-
+impl SubmessageHeader for &InfoTimestampSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
@@ -69,9 +70,13 @@ impl<'a> Submessage<'a> for InfoTimestampSubmessageWrite<'a> {
             octets_to_next_header,
         )
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        self.timestamp_submessage_element.iter()
+impl WriteIntoBytes for &InfoTimestampSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        if let Some(submessage_element) = &self.timestamp_submessage_element {
+            submessage_element.write_into_bytes(buf);
+        }
     }
 }
 

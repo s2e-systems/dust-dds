@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
     },
     infrastructure::error::DdsResult,
 };
@@ -189,15 +189,7 @@ impl<'a> DataSubmessageWrite<'a> {
     }
 }
 
-impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
-    type SubmessageList = std::iter::Chain<
-        std::iter::Chain<
-            std::slice::Iter<'a, SubmessageElement<'a>>,
-            std::option::Iter<'a, SubmessageElement<'a>>,
-        >,
-        std::option::Iter<'a, SubmessageElement<'a>>,
-    >;
-
+impl SubmessageHeader for &DataSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
@@ -210,13 +202,61 @@ impl<'a> Submessage<'a> for DataSubmessageWrite<'a> {
             octets_to_next_header,
         )
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        self.submessage_elements
-            .iter()
-            .chain(self.inline_qos_submessage_element.iter())
-            .chain(self.serialized_payload_submessage_element.iter())
+impl WriteIntoBytes for &DataSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
+        if let Some(submessage_element) = &self.inline_qos_submessage_element {
+            submessage_element.write_into_bytes(buf);
+        }
+        if let Some(submessage_element) = &self.serialized_payload_submessage_element {
+            submessage_element.write_into_bytes(buf);
+        }
     }
+}
+
+#[test]
+fn submheader() {
+    let inline_qos_flag = false;
+    let data_flag = false;
+    let key_flag = false;
+    let non_standard_payload_flag = false;
+    let reader_id = EntityId::new([1, 2, 3], 4);
+    let writer_id = EntityId::new([6, 7, 8], 9);
+    let writer_sn = 5;
+    let inline_qos = &ParameterList::empty();
+    let serialized_payload = &Data::new(vec![].into());
+    let submessage = DataSubmessageWrite::new(
+        inline_qos_flag,
+        data_flag,
+        key_flag,
+        non_standard_payload_flag,
+        reader_id,
+        writer_id,
+        writer_sn,
+        inline_qos,
+        serialized_payload,
+    );
+
+    // let mut buf = [0u8; 100];
+    // let mut slice = &mut buf[4..];
+    // submessage.write_into_bytes(&mut slice);
+    // let len = 100 - slice.len();
+    // submessage.submessage_header((len - 4) as u16).write_bytes(buf.as_mut_slice());
+
+    // #[rustfmt::skip]
+    // assert_eq!(&buf[..len], &[
+    //         0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+    //         0, 0, 16, 0, // extraFlags, octetsToInlineQos
+    //         1, 2, 3, 4, // readerId: value[4]
+    //         6, 7, 8, 9, // writerId: value[4]
+    //         0, 0, 0, 0, // writerSN: high
+    //         5, 0, 0, 0, // writerSN: low
+    //     ]
+    // );
 }
 
 #[cfg(test)]
@@ -224,7 +264,7 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+            overall_structure::{into_bytes_vec, write_into_bytes_vec, RtpsSubmessageWriteKind},
             submessage_elements::Parameter,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
@@ -253,7 +293,7 @@ mod tests {
             serialized_payload,
         ));
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]

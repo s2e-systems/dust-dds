@@ -1,11 +1,12 @@
+use crate::implementation::rtps::messages::overall_structure::SubmessageHeader;
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{LocatorList, SubmessageElement},
             types::{SubmessageFlag, SubmessageKind},
         },
-        types::TryReadFromBytes,
+        types::{TryReadFromBytes, WriteIntoBytes},
     },
     infrastructure::error::DdsResult,
 };
@@ -56,6 +57,20 @@ pub struct InfoReplySubmessageWrite<'a> {
     submessage_elements: Vec<SubmessageElement<'a>>,
 }
 
+impl SubmessageHeader for &InfoReplySubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+        SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
+    }
+}
+
+impl WriteIntoBytes for &InfoReplySubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
+    }
+}
+
 impl<'a> InfoReplySubmessageWrite<'a> {
     pub fn _new(
         multicast_flag: SubmessageFlag,
@@ -70,18 +85,6 @@ impl<'a> InfoReplySubmessageWrite<'a> {
             multicast_flag,
             submessage_elements,
         }
-    }
-}
-
-impl<'a> Submessage<'a> for InfoReplySubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-        SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
-    }
-
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
     }
 }
 

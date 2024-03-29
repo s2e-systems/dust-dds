@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::{Count, SubmessageFlag, SubmessageKind},
         },
@@ -81,17 +81,7 @@ impl AckNackSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for AckNackSubmessageWrite<'_> {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
-    }
-}
-
-impl<'a> Submessage<'a> for AckNackSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
+impl SubmessageHeader for &AckNackSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
@@ -99,9 +89,13 @@ impl<'a> Submessage<'a> for AckNackSubmessageWrite<'a> {
             octets_to_next_header,
         )
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+impl WriteIntoBytes for &AckNackSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
     }
 }
 
@@ -109,7 +103,7 @@ impl<'a> Submessage<'a> for AckNackSubmessageWrite<'a> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::overall_structure::{into_bytes_vec, write_into_bytes_vec, RtpsSubmessageWriteKind},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -126,7 +120,7 @@ mod tests {
             14,
         ));
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]

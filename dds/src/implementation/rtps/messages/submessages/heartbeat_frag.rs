@@ -1,11 +1,11 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, FragmentNumber, SubmessageKind},
         },
-        types::{EntityId, SequenceNumber, TryReadFromBytes},
+        types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
     },
     infrastructure::error::DdsResult,
 };
@@ -79,18 +79,17 @@ impl HeartbeatFragSubmessageWrite<'_> {
     }
 }
 
-impl<'a> Submessage<'a> for HeartbeatFragSubmessageWrite<'a> {
-    type SubmessageList = &'a [SubmessageElement<'a>];
-
-    fn submessage_header(
-        &self,
-        octets_to_next_header: u16,
-    ) -> crate::implementation::rtps::messages::overall_structure::SubmessageHeaderWrite {
+impl SubmessageHeader for &HeartbeatFragSubmessageWrite<'_> {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
     }
+}
 
-    fn submessage_elements(&'a self) -> Self::SubmessageList {
-        &self.submessage_elements
+impl WriteIntoBytes for &HeartbeatFragSubmessageWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        for submessage_element in &self.submessage_elements {
+            submessage_element.write_into_bytes(buf);
+        }
     }
 }
 
