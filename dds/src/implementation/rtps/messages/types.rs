@@ -1,8 +1,5 @@
-use super::overall_structure::{TryReadFromBytes, WriteIntoBytes};
-use crate::{
-    implementation::rtps::types::Endianness,
-    infrastructure::{self, error::DdsResult, time::Duration},
-};
+use super::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes};
+use crate::infrastructure::{self, error::DdsResult, time::Duration};
 use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -129,7 +126,7 @@ impl WriteIntoBytes for SubmessageKind {
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
         };
-        [data].write_into_bytes(buf);
+        data.write_into_bytes(buf);
     }
 }
 
