@@ -247,10 +247,7 @@ impl DdsTypeXml for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy,
-        topic_definition::type_support::DdsSerialize,
-    };
+    use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {

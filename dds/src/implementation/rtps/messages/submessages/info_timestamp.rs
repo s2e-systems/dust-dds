@@ -1,8 +1,7 @@
 use crate::{
     implementation::rtps::messages::{
         overall_structure::{
-            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite,
-            WriteIntoBytes,
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
         },
         types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
     },
@@ -81,9 +80,7 @@ impl Submessage for InfoTimestampSubmessageWrite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::{
-        write_into_bytes_vec, SubmessageHeaderRead,
-    };
+    use crate::implementation::rtps::messages::overall_structure::write_into_bytes_vec;
 
     #[test]
     fn serialize_info_timestamp_valid_time() {

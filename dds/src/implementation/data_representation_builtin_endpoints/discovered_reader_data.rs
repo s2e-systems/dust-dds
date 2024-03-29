@@ -141,7 +141,6 @@ mod tests {
             PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
-        topic_definition::type_support::DdsSerialize,
     };
 
     #[test]

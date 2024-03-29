@@ -71,12 +71,12 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    data_reader_listener_actor::{self, DataReaderListenerActor, DataReaderListenerOperation},
-    domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    status_condition_actor::{self, StatusConditionActor},
-    subscriber_listener_actor::{self, SubscriberListenerActor},
+    data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
+    domain_participant_listener_actor::DomainParticipantListenerActor,
+    status_condition_actor::StatusConditionActor,
+    subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
-    type_support_actor::{self, TypeSupportActor},
+    type_support_actor::TypeSupportActor,
 };
 
 fn build_instance_handle(
@@ -150,16 +150,13 @@ struct ReaderRequestedDeadlineMissedStatus {
 
 #[actor_interface]
 impl ReaderRequestedDeadlineMissedStatus {
-    async fn increment_requested_deadline_missed_status(
-        &mut self,
-        instance_handle: InstanceHandle,
-    ) {
+    fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.total_count += 1;
         self.total_count_change += 1;
         self.last_instance_handle = instance_handle;
     }
 
-    async fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+    fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
         let status = RequestedDeadlineMissedStatus {
             total_count: self.total_count,
             total_count_change: self.total_count_change,
@@ -331,26 +328,20 @@ impl DataReaderActor {
         subscriber
             .get_statuscondition()
             .address()
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::DataOnReaders,
-            ))
+            .add_communication_state(StatusKind::DataOnReaders)
             .await?;
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::DataAvailable,
-            ))
+            .add_communication_state(StatusKind::DataAvailable)
             .await?;
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
-                .send_mail(subscriber_listener_actor::trigger_on_data_on_readers::new(
-                    subscriber.clone(),
-                ))
+                .trigger_on_data_on_readers(subscriber.clone())
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             let participant = subscriber.get_participant();
             self.listener
-                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                .call_listener_function(
                     DataReaderListenerOperation::OnDataAvailable,
                     data_reader_address.clone(),
                     self.status_condition.address(),
@@ -362,7 +353,7 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         participant,
                     ),
-                ))
+                )
                 .await;
         }
         Ok(())
@@ -692,14 +683,12 @@ impl DataReaderActor {
         self.sample_lost_status.increment();
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::SampleLost,
-            ))
+            .add_communication_state(StatusKind::SampleLost)
             .await?;
         if self.status_kind.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             self.listener
-                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                .call_listener_function(
                     DataReaderListenerOperation::OnSampleLost(status),
                     data_reader_address.clone(),
                     self.status_condition.address(),
@@ -711,19 +700,17 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                ))
+                )
                 .await;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
-                .send_mail(subscriber_listener_actor::trigger_on_sample_lost::new(
-                    status,
-                ))
+                .trigger_on_sample_lost(status)
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
-                .send_mail(domain_participant_listener_actor::trigger_on_sample_lost::new(status))
+                .trigger_on_sample_lost(status)
                 .await?;
         }
 
@@ -746,15 +733,13 @@ impl DataReaderActor {
     ) {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::SubscriptionMatched,
-            ))
+            .add_communication_state(StatusKind::SubscriptionMatched)
             .await;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             self.listener
-                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                .call_listener_function(
                     DataReaderListenerOperation::OnSubscriptionMatched(status),
                     data_reader_address,
                     self.status_condition.address(),
@@ -766,20 +751,18 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                ))
+                )
                 .await;
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             subscriber_listener_address
-                .send_mail(subscriber_listener_actor::trigger_on_subscription_matched::new(status))
+                .trigger_on_subscription_matched(status)
                 .await
                 .expect("Subscriber is guaranteed to exist");
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             participant_listener_address
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_subscription_matched::new(status),
-                )
+                .trigger_on_subscription_matched(status)
                 .await
                 .expect("Participant is guaranteed to exist");
         }
@@ -805,15 +788,13 @@ impl DataReaderActor {
             .increment(instance_handle, rejected_reason);
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::SampleRejected,
-            ))
+            .add_communication_state(StatusKind::SampleRejected)
             .await?;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
 
             self.listener
-                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                .call_listener_function(
                     DataReaderListenerOperation::OnSampleRejected(status),
                     data_reader_address.clone(),
                     self.status_condition.address(),
@@ -825,22 +806,18 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                ))
+                )
                 .await;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
 
             subscriber_listener_address
-                .send_mail(subscriber_listener_actor::trigger_on_sample_rejected::new(
-                    status,
-                ))
+                .trigger_on_sample_rejected(status)
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_sample_rejected::new(status),
-                )
+                .trigger_on_sample_rejected(status)
                 .await?;
         }
 
@@ -864,9 +841,7 @@ impl DataReaderActor {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::RequestedIncompatibleQos,
-            ))
+            .add_communication_state(StatusKind::RequestedIncompatibleQos)
             .await;
 
         if self
@@ -876,7 +851,7 @@ impl DataReaderActor {
             let status = self.get_requested_incompatible_qos_status();
 
             self.listener
-                .send_mail(data_reader_listener_actor::call_listener_function::new(
+                .call_listener_function(
                     DataReaderListenerOperation::OnRequestedIncompatibleQos(status),
                     data_reader_address.clone(),
                     self.status_condition.address(),
@@ -888,24 +863,18 @@ impl DataReaderActor {
                         self.topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                ))
+                )
                 .await;
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
-                .send_mail(
-                    subscriber_listener_actor::trigger_on_requested_incompatible_qos::new(status),
-                )
+                .trigger_on_requested_incompatible_qos(status)
                 .await
                 .expect("Subscriber listener should exist");
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             participant_listener_address
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_requested_incompatible_qos::new(
-                        status,
-                    ),
-                )
+                .trigger_on_requested_incompatible_qos(status)
                 .await
                 .expect("Participant listener should exist");
         }
@@ -1333,28 +1302,19 @@ impl DataReaderActor {
 
                     let r: DdsResult<()> = async {
                         requested_deadline_missed_status
-                            .send_mail_and_await_reply(
-                                increment_requested_deadline_missed_status::new(
-                                    change_instance_handle,
-                                ),
-                            )
+                            .increment_requested_deadline_missed_status(change_instance_handle)
                             .await?;
 
                         reader_status_condition
-                            .send_mail_and_await_reply(
-                                status_condition_actor::add_communication_state::new(
-                                    StatusKind::RequestedDeadlineMissed,
-                                ),
-                            )
+                            .add_communication_state(StatusKind::RequestedDeadlineMissed)
                             .await?;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
                             let status = requested_deadline_missed_status
-                                .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                                .read_requested_deadline_missed_status()
                                 .await?;
 
                             reader_listener_address
-                                .send_mail(
-                                    data_reader_listener_actor::call_listener_function::new(
+                                .call_listener_function(
                                     DataReaderListenerOperation::OnRequestedDeadlineMissed(status),
                                     data_reader_address.clone(),
                                     status_condition_address.clone(),
@@ -1366,34 +1326,26 @@ impl DataReaderActor {
                                         topic_name.clone(),
                                         subscriber.get_participant(),
                                     ),
-                                ),
-                            )
-                            .await?;
+                                )
+                                .await?;
                         } else if subscriber_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
-                                .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                                .read_requested_deadline_missed_status()
                                 .await?;
                             subscriber_listener_address
-                                .send_mail(
-                                    subscriber_listener_actor::trigger_on_requested_deadline_missed::new(
-                                    status,
-                                ),
-                            )
-                            .await?;
+                                .trigger_on_requested_deadline_missed(status)
+                                .await?;
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
-                                .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+                                .read_requested_deadline_missed_status()
                                 .await?;
-                            participant_listener_address.send_mail(
-                                    domain_participant_listener_actor::trigger_on_requested_deadline_missed::new(
-                                    status,
-                                ),
-                            )
-                            .await?;
+                            participant_listener_address
+                                .trigger_on_requested_deadline_missed(status)
+                                .await?;
                         }
                         Ok(())
                     }
@@ -1427,9 +1379,7 @@ impl DataReaderActor {
 
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::DataAvailable,
-            ))
+            .remove_communication_state(StatusKind::DataAvailable)
             .await?;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
@@ -1477,9 +1427,7 @@ impl DataReaderActor {
 
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::DataAvailable,
-            ))
+            .remove_communication_state(StatusKind::DataAvailable)
             .await?;
 
         let mut change_index_list: Vec<usize>;
@@ -1497,7 +1445,7 @@ impl DataReaderActor {
         Ok(samples)
     }
 
-    async fn is_historical_data_received(&self) -> DdsResult<bool> {
+    fn is_historical_data_received(&self) -> DdsResult<bool> {
         if !self.enabled {
             Err(DdsError::NotEnabled)
         } else {
@@ -1515,7 +1463,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn as_discovered_reader_data(
+    fn as_discovered_reader_data(
         &self,
         topic_qos: TopicQos,
         subscriber_qos: SubscriberQos,
@@ -1570,19 +1518,19 @@ impl DataReaderActor {
         )
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_reader.guid().into())
     }
 
-    async fn set_qos(&mut self, qos: DataReaderQos) {
+    fn set_qos(&mut self, qos: DataReaderQos) {
         self.qos = qos;
     }
 
-    async fn get_qos(&self) -> DataReaderQos {
+    fn get_qos(&self) -> DataReaderQos {
         self.qos.clone()
     }
 
-    async fn get_matched_publication_data(
+    fn get_matched_publication_data(
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
@@ -1596,19 +1544,19 @@ impl DataReaderActor {
             .ok_or(DdsError::BadParameter)
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn enable(&mut self) {
+    fn enable(&mut self) {
         self.enabled = true;
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+    fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list
             .iter()
             .map(|(&key, _)| key)
@@ -1644,9 +1592,7 @@ impl DataReaderActor {
 
     async fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::SubscriptionMatched,
-            ))
+            .remove_communication_state(StatusKind::SubscriptionMatched)
             .await;
 
         self.subscription_matched_status
@@ -1680,7 +1626,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
+    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => r.matched_writer_add(a_writer_proxy),
             RtpsReaderKind::Stateless(_) => (),
@@ -1832,11 +1778,11 @@ impl DataReaderActor {
         }
     }
 
-    async fn get_topic_name(&mut self) -> String {
+    fn get_topic_name(&mut self) -> String {
         self.topic_name.clone()
     }
 
-    async fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.type_name.to_string()
     }
 
@@ -1853,73 +1799,67 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
-    ) -> DdsResult<()> {
+    ) {
         let mut message_receiver = MessageReceiver::new(&message);
-        let type_support = type_support_actor_address
-            .send_mail_and_await_reply(type_support_actor::get_type_support::new(
-                self.type_name.clone(),
-            ))
-            .await?
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    self.type_name
-                ))
-            })?;
-
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    self.on_data_submessage_received(
-                        &data_submessage,
-                        &type_support,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    )
-                    .await?;
+        if let Ok(Some(type_support)) = type_support_actor_address
+            .get_type_support(self.type_name.clone())
+            .await
+        {
+            while let Some(submessage) = message_receiver.next() {
+                match submessage {
+                    RtpsSubmessageReadKind::Data(data_submessage) => {
+                        self.on_data_submessage_received(
+                            &data_submessage,
+                            &type_support,
+                            message_receiver.source_guid_prefix(),
+                            message_receiver.source_timestamp(),
+                            reception_timestamp,
+                            &data_reader_address,
+                            &subscriber,
+                            &subscriber_mask_listener,
+                            &participant_mask_listener,
+                        )
+                        .await
+                        .ok();
+                    }
+                    RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                        self.on_data_frag_submessage_received(
+                            &data_frag_submessage,
+                            &type_support,
+                            message_receiver.source_guid_prefix(),
+                            message_receiver.source_timestamp(),
+                            reception_timestamp,
+                            &data_reader_address,
+                            &subscriber,
+                            &subscriber_mask_listener,
+                            &participant_mask_listener,
+                        )
+                        .await
+                        .ok();
+                    }
+                    RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                        self.on_gap_submessage_received(
+                            &gap_submessage,
+                            message_receiver.source_guid_prefix(),
+                        );
+                    }
+                    RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
+                        .on_heartbeat_submessage_received(
+                            &heartbeat_submessage,
+                            message_receiver.source_guid_prefix(),
+                        ),
+                    RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
+                        .on_heartbeat_frag_submessage_received(
+                            &heartbeat_frag_submessage,
+                            message_receiver.source_guid_prefix(),
+                        ),
+                    _ => (),
                 }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    self.on_data_frag_submessage_received(
-                        &data_frag_submessage,
-                        &type_support,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    )
-                    .await?;
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.on_gap_submessage_received(
-                        &gap_submessage,
-                        message_receiver.source_guid_prefix(),
-                    );
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                    .on_heartbeat_submessage_received(
-                        &heartbeat_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
-                    .on_heartbeat_frag_submessage_received(
-                        &heartbeat_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
             }
         }
-        Ok(())
     }
 
-    async fn send_message(
+    fn send_message(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
@@ -1930,7 +1870,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn set_listener(
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
@@ -1942,7 +1882,7 @@ impl DataReaderActor {
 
     async fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
         self.requested_deadline_missed_status
-            .send_mail_and_await_reply(read_requested_deadline_missed_status::new())
+            .read_requested_deadline_missed_status()
             .await
     }
 }

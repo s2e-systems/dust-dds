@@ -1,11 +1,8 @@
 use crate::{
     implementation::{
         actors::{
-            data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor,
-            status_condition_actor::StatusConditionActor,
-            topic_actor::{self, TopicActor},
+            domain_participant_actor::DomainParticipantActor,
+            status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
@@ -68,9 +65,7 @@ impl TopicAsync {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_inconsistent_topic_status::new())
-            .await?
+        self.topic_address.get_inconsistent_topic_status().await?
     }
 }
 
@@ -99,39 +94,27 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => {
-                self.participant_address()
-                    .send_mail_and_await_reply(domain_participant_actor::default_topic_qos::new())
-                    .await?
-            }
+            QosKind::Default => self.participant_address().default_topic_qos().await?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
 
-        if self
-            .topic_address
-            .send_mail_and_await_reply(topic_actor::is_enabled::new())
-            .await?
-        {
+        if self.topic_address.is_enabled().await? {
             self.topic_address
-                .send_mail_and_await_reply(topic_actor::get_qos::new())
+                .get_qos()
                 .await?
                 .check_immutability(&qos)?
         }
 
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::set_qos::new(qos))
-            .await
+        self.topic_address.set_qos(qos).await
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_qos::new())
-            .await
+        self.topic_address.get_qos().await
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -152,20 +135,12 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self
-            .topic_address
-            .send_mail_and_await_reply(topic_actor::is_enabled::new())
-            .await?
-        {
-            self.topic_address
-                .send_mail_and_await_reply(topic_actor::enable::new())
-                .await?;
+        if !self.topic_address.is_enabled().await? {
+            self.topic_address.enable().await?;
 
             announce_topic(
                 self.participant_address(),
-                self.topic_address
-                    .send_mail_and_await_reply(topic_actor::as_discovered_topic_data::new())
-                    .await?,
+                self.topic_address.as_discovered_topic_data().await?,
             )
             .await?;
         }
@@ -176,9 +151,7 @@ impl TopicAsync {
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.topic_address
-            .send_mail_and_await_reply(topic_actor::get_instance_handle::new())
-            .await
+        self.topic_address.get_instance_handle().await
     }
 
     /// Async version of [`set_listener`](crate::topic_definition::topic::Topic::set_listener).
@@ -198,33 +171,21 @@ async fn announce_topic(
 ) -> DdsResult<()> {
     let mut serialized_data = Vec::new();
     discovered_topic_data.serialize_data(&mut serialized_data)?;
-    let timestamp = domain_participant
-        .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
-        .await?;
-    let builtin_publisher = domain_participant
-        .send_mail_and_await_reply(domain_participant_actor::get_builtin_publisher::new())
-        .await?;
-    let data_writer_list = builtin_publisher
-        .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-        .await?;
+    let timestamp = domain_participant.get_current_time().await?;
+    let builtin_publisher = domain_participant.get_builtin_publisher().await?;
+    let data_writer_list = builtin_publisher.data_writer_list().await?;
     for data_writer in data_writer_list {
-        if data_writer
-            .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-            .await
-            == Ok("DiscoveredTopicData".to_string())
-        {
+        if data_writer.get_type_name().await == Ok("DiscoveredTopicData".to_string()) {
             data_writer
-                .send_mail_and_await_reply(data_writer_actor::write_w_timestamp::new(
+                .write_w_timestamp(
                     serialized_data,
                     get_instance_handle_from_key(&discovered_topic_data.get_key()?)?,
                     None,
                     timestamp,
-                ))
+                )
                 .await??;
 
-            domain_participant
-                .send_mail(domain_participant_actor::send_message::new())
-                .await?;
+            domain_participant.send_message().await?;
             break;
         }
     }

@@ -1,4 +1,3 @@
-use super::subscriber_actor;
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::{
@@ -7,7 +6,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actors::domain_participant_actor::{self, DomainParticipantActor},
+        actors::domain_participant_actor::DomainParticipantActor,
         rtps::{
             messages::overall_structure::RtpsMessageRead,
             participant::RtpsParticipant,
@@ -203,15 +202,10 @@ impl DomainParticipantFactoryActor {
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
-        let status_condition = participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_statuscondition::new())
-            .await?;
-        let builtin_subscriber = participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
-            .await?;
-        let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
-            .await?;
+        let status_condition = participant_address.get_statuscondition().await?;
+        let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
+        let builtin_subscriber_status_condition_address =
+            builtin_subscriber.get_statuscondition().await?;
         let participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition.clone(),
@@ -233,30 +227,19 @@ impl DomainParticipantFactoryActor {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::process_metatraffic_rtps_message::new(
-                                message,
-                                participant_clone.clone(),
-                            ),
-                        )
+                        .process_metatraffic_rtps_message(message, participant_clone.clone())
                         .await;
                     if r.is_err() {
                         break;
                     }
 
                     let r = participant_address_clone
-                        .send_mail_and_await_reply(
-                            domain_participant_actor::process_builtin_discovery::new(
-                                participant_clone.clone(),
-                            ),
-                        )
+                        .process_builtin_discovery(participant_clone.clone())
                         .await;
                     if r.is_err() {
                         break;
                     }
-                    let r = participant_address_clone
-                        .send_mail(domain_participant_actor::send_message::new())
-                        .await;
+                    let r = participant_address_clone.send_message().await;
                     if r.is_err() {
                         break;
                     }
@@ -275,24 +258,13 @@ impl DomainParticipantFactoryActor {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r: DdsResult<()> = async {
                         participant_address_clone
-                            .send_mail_and_await_reply(
-                                domain_participant_actor::process_metatraffic_rtps_message::new(
-                                    message,
-                                    participant_clone.clone(),
-                                ),
-                            )
+                            .process_metatraffic_rtps_message(message, participant_clone.clone())
                             .await??;
                         participant_address_clone
-                            .send_mail_and_await_reply(
-                                domain_participant_actor::process_builtin_discovery::new(
-                                    participant_clone.clone(),
-                                ),
-                            )
+                            .process_builtin_discovery(participant_clone.clone())
                             .await?;
 
-                        participant_address_clone
-                            .send_mail(domain_participant_actor::send_message::new())
-                            .await?;
+                        participant_address_clone.send_message().await?;
                         Ok(())
                     }
                     .await;
@@ -312,12 +284,7 @@ impl DomainParticipantFactoryActor {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
-                        .send_mail(
-                            domain_participant_actor::process_user_defined_rtps_message::new(
-                                message,
-                                participant_clone.clone(),
-                            ),
-                        )
+                        .process_user_defined_rtps_message(message, participant_clone.clone())
                         .await;
 
                     if r.is_err() {
@@ -331,9 +298,7 @@ impl DomainParticipantFactoryActor {
     }
 
     async fn delete_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        let is_participant_empty = self.domain_participant_list[&handle]
-            .send_mail_and_await_reply(domain_participant_actor::is_empty::new())
-            .await;
+        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await;
         if is_participant_empty {
             self.domain_participant_list.remove(&handle);
             Ok(())
@@ -349,11 +314,7 @@ impl DomainParticipantFactoryActor {
         domain_id: DomainId,
     ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
         for dp in self.domain_participant_list.values() {
-            if dp
-                .send_mail_and_await_reply(domain_participant_actor::get_domain_id::new())
-                .await
-                == domain_id
-            {
+            if dp.get_domain_id().await == domain_id {
                 return Ok(Some(dp.address()));
             }
         }
@@ -361,10 +322,7 @@ impl DomainParticipantFactoryActor {
         Ok(None)
     }
 
-    async fn set_default_participant_qos(
-        &mut self,
-        qos: QosKind<DomainParticipantQos>,
-    ) -> DdsResult<()> {
+    fn set_default_participant_qos(&mut self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
@@ -375,11 +333,11 @@ impl DomainParticipantFactoryActor {
         Ok(())
     }
 
-    async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
+    fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         Ok(self.default_participant_qos.clone())
     }
 
-    async fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
+    fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
@@ -390,16 +348,16 @@ impl DomainParticipantFactoryActor {
         Ok(())
     }
 
-    async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
+    fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
         Ok(self.qos.clone())
     }
 
-    async fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
+    fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         self.configuration = configuration;
         Ok(())
     }
 
-    async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
+    fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         Ok(self.configuration.clone())
     }
 }
