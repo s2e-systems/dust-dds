@@ -27,13 +27,27 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{Endianness, GuidPrefix, ProtocolVersion, VendorId},
+        types::{GuidPrefix, ProtocolVersion, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 use std::{io::BufRead, sync::Arc};
 
 const BUFFER_SIZE: usize = 65000;
+
+pub enum Endianness {
+    BigEndian,
+    LittleEndian,
+}
+
+impl Endianness {
+    pub fn from_flags(byte: u8) -> Self {
+        match byte & 0b_0000_0001 != 0 {
+            true => Endianness::LittleEndian,
+            false => Endianness::BigEndian,
+        }
+    }
+}
 
 pub trait TryReadFromBytes: Sized {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;

@@ -1,5 +1,5 @@
 use super::{
-    overall_structure::{TryReadFromBytes, WriteIntoBytes},
+    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     types::ParameterId,
 };
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         rtps::{
             messages::types::FragmentNumber,
-            types::{Endianness, Locator, SequenceNumber},
+            types::{Locator, SequenceNumber},
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -469,12 +469,15 @@ impl AsRef<[u8]> for Data {
     }
 }
 
-impl WriteIntoBytes for &Data {
+impl WriteIntoBytes for Data {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         self.0.as_slice().write_into_bytes(buf);
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        let padding = &[0_u8; 4];
-        (&padding[..length_inclusive_padding - self.0.len()]).write_into_bytes(buf);
+        match self.0.len() % 4 {
+            1 => [0_u8; 3].write_into_bytes(buf),
+            2 => [0_u8; 2].write_into_bytes(buf),
+            3 => [0_u8; 1].write_into_bytes(buf),
+            _ => (),
+        };
     }
 }
 
