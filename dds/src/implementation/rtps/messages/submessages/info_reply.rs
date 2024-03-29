@@ -59,13 +59,12 @@ pub struct InfoReplySubmessageWrite {
 }
 
 impl Submessage for InfoReplySubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for InfoReplySubmessageWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         self.unicast_locator_list.write_into_bytes(buf);
         if self.multicast_flag {
             self.multicast_locator_list.write_into_bytes(buf);
@@ -91,20 +90,18 @@ impl InfoReplySubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{
-            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
-        },
+        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
         types::Locator,
     };
 
     #[test]
     fn serialize_info_reply() {
         let locator = Locator::new(11, 12, [1; 16]);
-        let submessage = RtpsSubmessageWriteKind::InfoReply(InfoReplySubmessageWrite::_new(
+        let submessage = InfoReplySubmessageWrite::_new(
             false,
             LocatorList::new(vec![locator]),
             LocatorList::new(vec![]),
-        ));
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x0f, 0b_0000_0001, 28, 0, // Submessage header

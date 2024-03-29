@@ -81,13 +81,12 @@ impl HeartbeatFragSubmessageWrite {
 }
 
 impl Submessage for HeartbeatFragSubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for HeartbeatFragSubmessageWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
         self.writer_sn.write_into_bytes(buf);
@@ -100,22 +99,19 @@ impl WriteIntoBytes for HeartbeatFragSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{
-            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
-        },
+        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_heart_beat() {
-        let submessage =
-            RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::_new(
-                EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-                EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-                5,
-                7,
-                2,
-            ));
+        let submessage = HeartbeatFragSubmessageWrite::_new(
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            5,
+            7,
+            2,
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x13_u8, 0b_0000_0001, 24, 0, // Submessage header

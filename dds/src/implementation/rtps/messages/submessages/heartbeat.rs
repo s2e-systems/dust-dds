@@ -99,17 +99,16 @@ impl HeartbeatSubmessageWrite {
 }
 
 impl Submessage for HeartbeatSubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
             &[self.final_flag, self.liveliness_flag],
             octets_to_next_header,
         )
+        .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for HeartbeatSubmessageWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
         self.first_sn.write_into_bytes(buf);
@@ -122,7 +121,7 @@ impl WriteIntoBytes for HeartbeatSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{write_into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::overall_structure::write_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -135,7 +134,7 @@ mod tests {
         let first_sn = 5;
         let last_sn = 7;
         let count = 2;
-        let submessage = RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite::new(
+        let submessage = HeartbeatSubmessageWrite::new(
             final_flag,
             liveliness_flag,
             reader_id,
@@ -143,7 +142,7 @@ mod tests {
             first_sn,
             last_sn,
             count,
-        ));
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x07_u8, 0b_0000_0101, 28, 0, // Submessage header

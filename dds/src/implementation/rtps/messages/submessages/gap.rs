@@ -74,13 +74,12 @@ impl GapSubmessageWrite {
 }
 
 impl Submessage for GapSubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for GapSubmessageWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
         self.gap_start.write_into_bytes(buf);
@@ -91,9 +90,7 @@ impl WriteIntoBytes for GapSubmessageWrite {
 #[cfg(test)]
 mod tests {
     use crate::implementation::rtps::{
-        messages::overall_structure::{
-            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
-        },
+        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -103,9 +100,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let gap_start = 5;
         let gap_list = SequenceNumberSet::new(10, []);
-        let submessage = RtpsSubmessageWriteKind::Gap(GapSubmessageWrite::new(
-            reader_id, writer_id, gap_start, gap_list,
-        ));
+        let submessage = GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header

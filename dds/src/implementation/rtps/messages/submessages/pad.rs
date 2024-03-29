@@ -37,13 +37,12 @@ impl Default for PadSubmessageWrite {
 }
 
 impl Submessage for PadSubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::PAD, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for PadSubmessageWrite {
-    fn write_into_bytes(&self, _buf: &mut &mut [u8]) {}
+    fn write_submessage_elements_into_bytes(&self, _buf: &mut &mut [u8]) {}
 }
 
 #[cfg(test)]

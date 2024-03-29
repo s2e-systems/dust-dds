@@ -43,13 +43,12 @@ impl InfoDestinationSubmessageWrite {
 }
 
 impl Submessage for InfoDestinationSubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_DST, &[], octets_to_next_header)
+            .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for InfoDestinationSubmessageWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         self.guid_prefix.write_into_bytes(buf);
     }
 }
@@ -58,18 +57,14 @@ impl WriteIntoBytes for InfoDestinationSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{
-            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
-        },
+        messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead},
         types::GUIDPREFIX_UNKNOWN,
     };
 
     #[test]
     fn serialize_heart_beat() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        let submessage = RtpsSubmessageWriteKind::InfoDestination(
-            InfoDestinationSubmessageWrite::new(guid_prefix),
-        );
+        let submessage = InfoDestinationSubmessageWrite::new(guid_prefix);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
               0x0e, 0b_0000_0001, 12, 0, // Submessage header

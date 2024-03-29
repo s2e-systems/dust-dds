@@ -62,17 +62,16 @@ impl InfoTimestampSubmessageWrite {
 }
 
 impl Submessage for InfoTimestampSubmessageWrite {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
             &[self.invalidate_flag],
             octets_to_next_header,
         )
+        .write_into_bytes(&mut buf);
     }
-}
 
-impl WriteIntoBytes for InfoTimestampSubmessageWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         if let Some(timestamp) = &self.timestamp_submessage_element {
             timestamp.write_into_bytes(buf);
         }
@@ -83,15 +82,12 @@ impl WriteIntoBytes for InfoTimestampSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::messages::overall_structure::{
-        write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+        write_into_bytes_vec, SubmessageHeaderRead,
     };
 
     #[test]
     fn serialize_info_timestamp_valid_time() {
-        let submessage = RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-            false,
-            Time::new(4, 0),
-        ));
+        let submessage = InfoTimestampSubmessageWrite::new(false, Time::new(4, 0));
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
@@ -103,10 +99,7 @@ mod tests {
 
     #[test]
     fn serialize_info_timestamp_invalid_time() {
-        let submessage = RtpsSubmessageWriteKind::InfoTimestamp(InfoTimestampSubmessageWrite::new(
-            true,
-            TIME_INVALID,
-        ));
+        let submessage = InfoTimestampSubmessageWrite::new(true, TIME_INVALID);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0011, 0, 0, // Submessage header

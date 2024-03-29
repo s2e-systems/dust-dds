@@ -37,8 +37,20 @@ use std::{io::BufRead, sync::Arc};
 
 const BUFFER_SIZE: usize = 65000;
 
-pub trait Submessage: WriteIntoBytes {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
+pub trait Submessage {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]);
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]);
+}
+
+impl<T: Submessage> WriteIntoBytes for T {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (header, mut elements) = std::mem::take(buf).split_at_mut(4);
+        let len_before = elements.len();
+        self.write_submessage_elements_into_bytes(&mut elements);
+        let len = len_before - elements.len();
+        self.write_submessage_header_into_bytes(len as u16, header);
+        *buf = elements;
+    }
 }
 
 pub struct SubmessageHeaderRead {
@@ -282,38 +294,22 @@ pub enum RtpsSubmessageWriteKind<'a> {
     Pad(PadSubmessageWrite),
 }
 
-fn write_submessage_into_bytes<'a>(
-    submessage: &impl Submessage,
-    mut buf: &mut [u8],
-) -> usize {
-    let header_len = 4;
-    let len_before = buf.len();
-    let mut slice = &mut buf[header_len..];
-    submessage.write_into_bytes(&mut slice);
-    let len = len_before - slice.len();
-    submessage
-        .submessage_header((len - header_len) as u16)
-        .write_into_bytes(&mut buf);
-    len
-}
-
 impl WriteIntoBytes for RtpsSubmessageWriteKind<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let submessage_len = match self {
-            RtpsSubmessageWriteKind::AckNack(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::Data(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::DataFrag(s) => write_submessage_into_bytes(s.as_ref(), buf),
-            RtpsSubmessageWriteKind::Gap(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::Heartbeat(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::HeartbeatFrag(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoDestination(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoReply(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoSource(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_into_bytes(s, buf),
-            RtpsSubmessageWriteKind::Pad(s) => write_submessage_into_bytes(s, buf),
+        match self {
+            RtpsSubmessageWriteKind::AckNack(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Data(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Gap(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoDestination(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoReply(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoSource(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::NackFrag(s) => s.write_into_bytes(buf),
+            RtpsSubmessageWriteKind::Pad(s) => s.write_into_bytes(buf),
         };
-        *buf = &mut std::mem::take(buf)[submessage_len..];
     }
 }
 
@@ -405,7 +401,8 @@ mod tests {
     use crate::implementation::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
-            submessages::data::DataSubmessageRead, types::Time,
+            submessages::data::DataSubmessageRead,
+            types::Time,
         },
         types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };

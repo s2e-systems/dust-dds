@@ -174,7 +174,7 @@ impl<'a> DataSubmessageWrite<'a> {
 }
 
 impl Submessage for DataSubmessageWrite<'_> {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
             &[
@@ -185,11 +185,10 @@ impl Submessage for DataSubmessageWrite<'_> {
             ],
             octets_to_next_header,
         )
+        .write_into_bytes(&mut buf)
     }
-}
 
-impl WriteIntoBytes for DataSubmessageWrite<'_> {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         EXTRA_FLAGS.write_into_bytes(buf);
@@ -210,10 +209,7 @@ impl WriteIntoBytes for DataSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::{
-            overall_structure::{write_into_bytes_vec, RtpsSubmessageWriteKind},
-            submessage_elements::Parameter,
-        },
+        messages::{overall_structure::write_into_bytes_vec, submessage_elements::Parameter},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -228,7 +224,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![].into());
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -238,7 +234,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
@@ -265,7 +261,7 @@ mod tests {
         let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = &Data::new(vec![].into());
 
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -275,7 +271,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15, 0b_0000_0011, 40, 0, // Submessage header
@@ -304,7 +300,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![1, 2, 3, 4].into());
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -314,7 +310,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
@@ -339,7 +335,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = &ParameterList::empty();
         let serialized_payload = &Data::new(vec![1, 2, 3].into());
-        let submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -349,7 +345,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
+        );
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
