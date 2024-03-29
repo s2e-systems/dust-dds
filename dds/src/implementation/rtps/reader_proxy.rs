@@ -30,7 +30,7 @@ impl HeartbeatMachine {
             >= std::time::Duration::from_secs(heartbeat_period.sec() as u64)
                 + std::time::Duration::from_nanos(heartbeat_period.nanosec() as u64)
     }
-    pub fn submessage<'a>(
+    pub fn submessage(
         &mut self,
         writer_id: EntityId,
         first_sn: SequenceNumber,
