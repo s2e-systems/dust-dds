@@ -137,7 +137,7 @@ impl DataSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DataSubmessageWrite<'a> {
+pub struct DataSubmessageWrite {
     inline_qos_flag: SubmessageFlag,
     data_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
@@ -145,11 +145,11 @@ pub struct DataSubmessageWrite<'a> {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    inline_qos: &'a ParameterList,
-    serialized_payload: &'a Data,
+    inline_qos: ParameterList,
+    serialized_payload: Data,
 }
 
-impl<'a> DataSubmessageWrite<'a> {
+impl DataSubmessageWrite {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         inline_qos_flag: SubmessageFlag,
@@ -159,8 +159,8 @@ impl<'a> DataSubmessageWrite<'a> {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: &'a ParameterList,
-        serialized_payload: &'a Data,
+        inline_qos: ParameterList,
+        serialized_payload: Data,
     ) -> Self {
         Self {
             inline_qos_flag,
@@ -176,7 +176,7 @@ impl<'a> DataSubmessageWrite<'a> {
     }
 }
 
-impl Submessage for DataSubmessageWrite<'_> {
+impl Submessage for DataSubmessageWrite {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
@@ -225,8 +225,8 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![].into());
+        let inline_qos = ParameterList::empty();
+        let serialized_payload = Data::new(vec![].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -261,8 +261,8 @@ mod tests {
         let writer_sn = 5;
         let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
         let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &Data::new(vec![].into());
+        let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
+        let serialized_payload = Data::new(vec![].into());
 
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
@@ -301,8 +301,8 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![1, 2, 3, 4].into());
+        let inline_qos = ParameterList::empty();
+        let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
@@ -336,8 +336,8 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let inline_qos = &ParameterList::empty();
-        let serialized_payload = &Data::new(vec![1, 2, 3].into());
+        let inline_qos = ParameterList::empty();
+        let serialized_payload = Data::new(vec![1, 2, 3].into());
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,

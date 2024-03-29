@@ -44,7 +44,7 @@ pub struct DataFragSubmessagesIter<'a> {
 }
 
 impl<'a> IntoIterator for &'a DataFragSubmessages<'a> {
-    type Item = DataFragSubmessageWrite<'a>;
+    type Item = DataFragSubmessageWrite;
     type IntoIter = DataFragSubmessagesIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -59,7 +59,7 @@ impl<'a> IntoIterator for &'a DataFragSubmessages<'a> {
 }
 
 impl<'a> Iterator for DataFragSubmessagesIter<'a> {
-    type Item = DataFragSubmessageWrite<'a>;
+    type Item = DataFragSubmessageWrite;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos < self.data.len() {
@@ -77,8 +77,8 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
             let fragments_in_submessage = 1;
             let data_size = self.data.iter().map(|d| d.len()).sum::<usize>() as u32;
             let fragment_size = self.data[0].len() as u16;
-            let inline_qos = &self.cache_change.inline_qos;
-            let serialized_payload = self.data[self.pos];
+            let inline_qos = self.cache_change.inline_qos.clone();
+            let serialized_payload = self.data[self.pos].clone();
 
             self.pos += 1;
 
@@ -118,8 +118,8 @@ impl RtpsWriterCacheChange {
             reader_id,
             self.writer_guid().entity_id(),
             self.sequence_number(),
-            &self.inline_qos,
-            &self.data_value[0],
+            self.inline_qos.clone(),
+            self.data_value[0].clone(),
         )
     }
 

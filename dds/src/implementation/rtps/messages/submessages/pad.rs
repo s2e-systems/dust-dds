@@ -48,12 +48,12 @@ impl Submessage for PadSubmessageWrite {
 mod tests {
     use super::*;
     use crate::implementation::rtps::messages::overall_structure::{
-        write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+        write_into_bytes_vec, SubmessageHeaderRead,
     };
 
     #[test]
     fn serialize_pad() {
-        let submessage = RtpsSubmessageWriteKind::Pad(PadSubmessageWrite::new());
+        let submessage = PadSubmessageWrite::new();
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x01, 0b_0000_0001, 0, 0, // Submessage header

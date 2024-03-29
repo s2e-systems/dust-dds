@@ -1,6 +1,5 @@
 use super::{
     messages::{
-        overall_structure::RtpsSubmessageWriteKind,
         submessages::{
             heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
         },
@@ -36,10 +35,10 @@ impl HeartbeatMachine {
         writer_id: EntityId,
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
-    ) -> RtpsSubmessageWriteKind<'a> {
+    ) -> HeartbeatSubmessageWrite {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
-        RtpsSubmessageWriteKind::Heartbeat(HeartbeatSubmessageWrite::new(
+        HeartbeatSubmessageWrite::new(
             false,
             false,
             self.reader_id,
@@ -47,7 +46,7 @@ impl HeartbeatMachine {
             first_sn,
             last_sn,
             self.count,
-        ))
+        )
     }
 }
 
@@ -64,20 +63,20 @@ impl HeartbeatFragMachine {
             reader_id,
         }
     }
-    pub fn _submessage<'a>(
+    pub fn _submessage(
         &mut self,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         last_fragment_num: FragmentNumber,
-    ) -> RtpsSubmessageWriteKind<'a> {
+    ) -> HeartbeatFragSubmessageWrite {
         self.count = self.count.wrapping_add(1);
-        RtpsSubmessageWriteKind::HeartbeatFrag(HeartbeatFragSubmessageWrite::_new(
+        HeartbeatFragSubmessageWrite::_new(
             self.reader_id,
             writer_id,
             writer_sn,
             last_fragment_num,
             self.count,
-        ))
+        )
     }
 }
 
