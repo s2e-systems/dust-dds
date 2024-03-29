@@ -288,7 +288,7 @@ pub enum RtpsSubmessageReadKind {
 pub enum RtpsSubmessageWriteKind<'a> {
     AckNack(AckNackSubmessageWrite),
     Data(DataSubmessageWrite<'a>),
-    DataFrag(Box<DataFragSubmessageWrite<'a>>),
+    DataFrag(DataFragSubmessageWrite<'a>),
     Gap(GapSubmessageWrite),
     Heartbeat(HeartbeatSubmessageWrite),
     HeartbeatFrag(HeartbeatFragSubmessageWrite),
