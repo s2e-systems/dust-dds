@@ -18,8 +18,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any inconsistent topic is discovered in the domain participant.
     fn on_inconsistent_topic(
         &mut self,
-        the_topic: TopicAsync,
-        status: InconsistentTopicStatus,
+        _the_topic: TopicAsync,
+        _status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(std::future::ready(()))
     }
@@ -27,8 +27,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any writer in the domain participant reports a liveliness lost status.
     fn on_liveliness_lost<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: LivelinessLostStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -39,8 +39,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data writer in the domain participant reports a deadline missed status.
     fn on_offered_deadline_missed<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: OfferedDeadlineMissedStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -51,8 +51,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data writer in the domain participant reports an offered incompatible QoS status.
     fn on_offered_incompatible_qos<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: OfferedIncompatibleQosStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -63,8 +63,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a sample lost status.
     fn on_sample_lost<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
-        status: SampleLostStatus,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+        _status: SampleLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -75,7 +75,7 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a data available status.
     fn on_data_available<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
+        _the_reader: &'b (dyn AnyDataReader + Sync),
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -86,8 +86,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a sample rejected status.
     fn on_sample_rejected<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
-        status: SampleRejectedStatus,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+        _status: SampleRejectedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -98,8 +98,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a liveliness changed status.
     fn on_liveliness_changed<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
-        status: LivelinessChangedStatus,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+        _status: LivelinessChangedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -110,8 +110,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a requested deadline missed status.
     fn on_requested_deadline_missed<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
-        status: RequestedDeadlineMissedStatus,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+        _status: RequestedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -122,8 +122,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a requested incompatible QoS status.
     fn on_requested_incompatible_qos<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
-        status: RequestedIncompatibleQosStatus,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+        _status: RequestedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -134,8 +134,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data writer in the domain participant reports a publication matched status.
     fn on_publication_matched<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: PublicationMatchedStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -146,8 +146,8 @@ pub trait DomainParticipantListenerAsync {
     /// Method that is called when any data reader in the domain participant reports a subscription matched status.
     fn on_subscription_matched<'a, 'b>(
         &'a mut self,
-        the_reader: &'b (dyn AnyDataReader + Sync),
-        status: SubscriptionMatchedStatus,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+        _status: SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,

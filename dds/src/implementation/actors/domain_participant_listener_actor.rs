@@ -1,17 +1,14 @@
-use std::{future::Future, pin::Pin};
+
 
 use dust_dds_derive::actor_interface;
 
 use crate::{
-    dds_async::{domain_participant_listener::DomainParticipantListenerAsync, topic::TopicAsync},
+    dds_async::{domain_participant_listener::DomainParticipantListenerAsync},
     infrastructure::status::{
-        InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
-        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+        OfferedIncompatibleQosStatus, PublicationMatchedStatus,
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
-    publication::data_writer::AnyDataWriter,
-    subscription::data_reader::AnyDataReader,
 };
 
 pub struct DomainParticipantListenerActor {
