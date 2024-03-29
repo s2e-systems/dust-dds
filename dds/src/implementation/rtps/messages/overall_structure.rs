@@ -27,15 +27,21 @@ use crate::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{
-            Endianness, GuidPrefix, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes,
-        },
+        types::{Endianness, GuidPrefix, ProtocolVersion, VendorId},
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 use std::{io::BufRead, sync::Arc};
 
 const BUFFER_SIZE: usize = 65000;
+
+pub trait TryReadFromBytes: Sized {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;
+}
+
+pub trait WriteIntoBytes {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]);
+}
 
 pub trait Submessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]);
@@ -354,8 +360,7 @@ impl WriteIntoBytes for RtpsMessageHeader {
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubmessageHeaderWrite {
     submessage_id: SubmessageKind,
-    // flags without endianness
-    flags: [SubmessageFlag; 7],
+    flags_octet: u8,
     submessage_length: u16,
 }
 
@@ -366,12 +371,16 @@ impl SubmessageHeaderWrite {
         flags: &[SubmessageFlag],
         submessage_length: u16,
     ) -> Self {
-        let mut flags_array = [false; 7];
-        flags_array[..flags.len()].copy_from_slice(flags);
+        let mut flags_octet = 0b_0000_0001_u8;
+        for (i, &item) in flags.iter().enumerate() {
+            if item {
+                flags_octet |= 0b_0000_0010 << i
+            }
+        }
 
         Self {
             submessage_id,
-            flags: flags_array,
+            flags_octet,
             submessage_length,
         }
     }
@@ -380,17 +389,7 @@ impl SubmessageHeaderWrite {
 impl WriteIntoBytes for SubmessageHeaderWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         self.submessage_id.write_into_bytes(buf);
-        let flags = [
-            true,
-            self.flags[0],
-            self.flags[1],
-            self.flags[2],
-            self.flags[3],
-            self.flags[4],
-            self.flags[5],
-            self.flags[6],
-        ];
-        flags.write_into_bytes(buf);
+        self.flags_octet.write_into_bytes(buf);
         self.submessage_length.write_into_bytes(buf);
     }
 }

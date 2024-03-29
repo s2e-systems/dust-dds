@@ -5,6 +5,8 @@ use crate::{
 use network_interface::Addr;
 use std::{io::Read, net::IpAddr};
 
+use super::messages::overall_structure::{TryReadFromBytes, WriteIntoBytes};
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
@@ -14,9 +16,12 @@ type Octet = u8;
 pub type Long = i32;
 type UnsignedLong = u32;
 
-
-pub trait WriteIntoBytes {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]);
+impl WriteIntoBytes for Octet {
+    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+        let (a, b) = std::mem::take(buf).split_at_mut(1);
+        a[0] = *self;
+        *buf = b;
+    }
 }
 
 impl WriteIntoBytes for Long {
@@ -166,10 +171,6 @@ impl Endianness {
             false => Endianness::BigEndian,
         }
     }
-}
-
-pub trait TryReadFromBytes: Sized {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;
 }
 
 /// EntityId_t

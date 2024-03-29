@@ -1,10 +1,10 @@
 use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
+    implementation::rtps::messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite,
+            WriteIntoBytes,
         },
-        types::WriteIntoBytes,
+        types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
     },
     infrastructure::error::DdsResult,
 };

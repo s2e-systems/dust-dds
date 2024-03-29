@@ -1,10 +1,13 @@
-use super::types::ParameterId;
+use super::{
+    overall_structure::{TryReadFromBytes, WriteIntoBytes},
+    types::ParameterId,
+};
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         rtps::{
             messages::types::FragmentNumber,
-            types::{Endianness, Locator, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
+            types::{Endianness, Locator, SequenceNumber},
         },
     },
     infrastructure::error::{DdsError, DdsResult},

@@ -1,10 +1,9 @@
 use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            types::SubmessageKind,
+    implementation::rtps::messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
         },
-        types::WriteIntoBytes,
+        types::SubmessageKind,
     },
     infrastructure::error::DdsResult,
 };

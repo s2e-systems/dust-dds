@@ -1,12 +1,11 @@
 use crate::implementation::rtps::messages::overall_structure::Submessage;
 use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::LocatorList,
-            types::{SubmessageFlag, SubmessageKind},
+    implementation::rtps::messages::{
+        overall_structure::{
+            SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
         },
-        types::{TryReadFromBytes, WriteIntoBytes},
+        submessage_elements::LocatorList,
+        types::{SubmessageFlag, SubmessageKind},
     },
     infrastructure::error::DdsResult,
 };

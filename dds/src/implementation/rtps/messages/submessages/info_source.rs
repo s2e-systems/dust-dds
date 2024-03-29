@@ -1,10 +1,13 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{
+                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+                WriteIntoBytes,
+            },
             types::SubmessageKind,
         },
-        types::{GuidPrefix, Long, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes},
+        types::{GuidPrefix, Long, ProtocolVersion, VendorId},
     },
     infrastructure::error::DdsResult,
 };

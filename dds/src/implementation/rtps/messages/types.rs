@@ -1,5 +1,6 @@
+use super::overall_structure::{TryReadFromBytes, WriteIntoBytes};
 use crate::{
-    implementation::rtps::types::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    implementation::rtps::types::Endianness,
     infrastructure::{self, error::DdsResult, time::Duration},
 };
 use std::{io::Read, ops::Sub};
@@ -77,18 +78,6 @@ impl WriteIntoBytes for ProtocolId {
 /// A Submessage flag takes a boolean value and affects the parsing of the Submessage by the receiver.
 pub type SubmessageFlag = bool;
 
-impl WriteIntoBytes for [SubmessageFlag; 8] {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let mut flags = 0b_0000_0000_u8;
-        for (i, &item) in self.iter().enumerate() {
-            if item {
-                flags |= 0b_0000_0001 << i
-            }
-        }
-        [flags].write_into_bytes(buf);
-    }
-}
-
 /// SubmessageKind
 /// Enumeration used to identify the kind of Submessage.
 /// The following values are reserved by this version of the protocol:
@@ -123,7 +112,6 @@ pub const INFO_SRC: u8 = 0x0c;
 pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
-
 
 impl WriteIntoBytes for SubmessageKind {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
