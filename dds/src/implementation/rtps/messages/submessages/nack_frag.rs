@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{FragmentNumberSet, SubmessageElement},
             types::{Count, SubmessageKind},
         },
@@ -80,7 +80,7 @@ impl NackFragSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for NackFragSubmessageWrite<'_> {
+impl Submessage for NackFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
     }

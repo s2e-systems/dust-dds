@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
@@ -97,7 +97,7 @@ impl HeartbeatSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for HeartbeatSubmessageWrite<'_> {
+impl Submessage for HeartbeatSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,

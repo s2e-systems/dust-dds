@@ -37,7 +37,7 @@ use std::{io::BufRead, sync::Arc};
 
 const BUFFER_SIZE: usize = 65000;
 
-pub trait SubmessageHeader {
+pub trait Submessage: WriteIntoBytes {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite;
 }
 
@@ -283,7 +283,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
 }
 
 fn write_submessage_into_bytes<'a>(
-    submessage: &(impl SubmessageHeader + WriteIntoBytes),
+    submessage: &impl Submessage,
     mut buf: &mut [u8],
 ) -> usize {
     let header_len = 4;

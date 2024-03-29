@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
@@ -66,7 +66,7 @@ impl InfoSourceSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for InfoSourceSubmessageWrite<'_> {
+impl Submessage for InfoSourceSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
     }

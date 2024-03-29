@@ -1,4 +1,4 @@
-use crate::implementation::rtps::messages::overall_structure::SubmessageHeader;
+use crate::implementation::rtps::messages::overall_structure::Submessage;
 use crate::{
     implementation::rtps::{
         messages::{
@@ -57,7 +57,7 @@ pub struct InfoReplySubmessageWrite<'a> {
     submessage_elements: Vec<SubmessageElement<'a>>,
 }
 
-impl SubmessageHeader for InfoReplySubmessageWrite<'_> {
+impl Submessage for InfoReplySubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
     }

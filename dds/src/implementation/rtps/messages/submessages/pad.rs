@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             types::SubmessageKind,
         },
         types::WriteIntoBytes,
@@ -36,7 +36,7 @@ impl Default for PadSubmessageWrite {
     }
 }
 
-impl SubmessageHeader for PadSubmessageWrite {
+impl Submessage for PadSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::PAD, &[], octets_to_next_header)
     }

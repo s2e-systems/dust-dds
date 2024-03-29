@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{SequenceNumberSet, SubmessageElement},
             types::SubmessageKind,
         },
@@ -72,7 +72,7 @@ impl GapSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for GapSubmessageWrite<'_> {
+impl Submessage for GapSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
     }

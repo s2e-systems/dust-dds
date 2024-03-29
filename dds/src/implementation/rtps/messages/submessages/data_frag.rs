@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
             types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
@@ -189,7 +189,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
     }
 }
 
-impl SubmessageHeader for DataFragSubmessageWrite<'_> {
+impl Submessage for DataFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,

@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         messages::{
-            overall_structure::{SubmessageHeader, SubmessageHeaderRead, SubmessageHeaderWrite},
+            overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
             submessage_elements::SubmessageElement,
             types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
         },
@@ -62,7 +62,7 @@ impl InfoTimestampSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for InfoTimestampSubmessageWrite<'_> {
+impl Submessage for InfoTimestampSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
