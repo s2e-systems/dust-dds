@@ -139,6 +139,12 @@ pub fn actor_interface(
                 .map(|a| (a.pat.as_ref(), a.ty.as_ref()))
                 .unzip();
 
+            let method_await = if method.sig.asyncness.is_some() {
+                quote! {.await}
+            } else {
+                quote! {}
+            };
+
             match &method.sig.output {
                 syn::ReturnType::Default => {
                     let enum_variant = quote! {
@@ -150,7 +156,7 @@ pub fn actor_interface(
                         #actor_message_enum_ident::#method_ident{
                             #(#methods_arguments_ident, )*
                         } => {
-                            self.#method_ident(#(#methods_arguments_ident, )*).await;
+                            self.#method_ident(#(#methods_arguments_ident, )*)#method_await;
                         }
                     };
 
@@ -192,7 +198,7 @@ pub fn actor_interface(
                             #(#methods_arguments_ident, )*
                             __response_sender,
                         } => {
-                            let r = self.#method_ident(#(#methods_arguments_ident, )*).await;
+                            let r = self.#method_ident(#(#methods_arguments_ident, )*)#method_await;
                             __response_sender.send(r).ok();
                         }
                     };

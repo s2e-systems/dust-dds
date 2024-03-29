@@ -87,28 +87,28 @@ impl TopicActor {
         self.qos = qos;
     }
 
-    async fn get_qos(&self) -> TopicQos {
+    fn get_qos(&self) -> TopicQos {
         self.qos.clone()
     }
 
     #[allow(clippy::unused_unit)]
-    async fn enable(&mut self) -> () {
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.guid.into())
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
+    fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
         let qos = &self.qos;
         DiscoveredTopicData::new(TopicBuiltinTopicData::new(
             BuiltInTopicKey {
