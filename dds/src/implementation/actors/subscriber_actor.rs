@@ -89,7 +89,7 @@ impl SubscriberActor {
 #[actor_interface]
 impl SubscriberActor {
     #[allow(clippy::too_many_arguments)]
-    async fn create_datareader(
+    fn create_datareader(
         &mut self,
         type_name: String,
         topic_name: String,
@@ -174,22 +174,22 @@ impl SubscriberActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn delete_contained_entities(&mut self) -> () {}
+    fn delete_contained_entities(&mut self) -> () {}
 
-    async fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
 
-    async fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.data_reader_list.is_empty()
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
     #[allow(clippy::unused_unit)]
-    async fn data_reader_add(
+    fn data_reader_add(
         &mut self,
         instance_handle: InstanceHandle,
         data_reader: Actor<DataReaderActor>,
@@ -198,11 +198,11 @@ impl SubscriberActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
+    fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_reader_list.remove(&handle);
     }
 
-    async fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match qos {
             QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
             QosKind::Specific(q) => {
@@ -213,11 +213,11 @@ impl SubscriberActor {
         Ok(())
     }
 
-    async fn get_default_datareader_qos(&self) -> DataReaderQos {
+    fn get_default_datareader_qos(&self) -> DataReaderQos {
         self.default_data_reader_qos.clone()
     }
 
-    async fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+    fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -233,34 +233,34 @@ impl SubscriberActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn enable(&mut self) -> () {
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn get_qos(&self) -> SubscriberQos {
+    fn get_qos(&self) -> SubscriberQos {
         self.qos.clone()
     }
 
-    async fn data_reader_list(&self) -> Vec<ActorAddress<DataReaderActor>> {
+    fn data_reader_list(&self) -> Vec<ActorAddress<DataReaderActor>> {
         self.data_reader_list
             .values()
             .map(|dr| dr.address())
             .collect()
     }
 
-    async fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
+    fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
         self.listener.address()
     }
 
-    async fn get_status_kind(&self) -> Vec<StatusKind> {
+    fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
 
@@ -378,7 +378,7 @@ impl SubscriberActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_listener(
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,

@@ -322,10 +322,7 @@ impl DomainParticipantFactoryActor {
         Ok(None)
     }
 
-    async fn set_default_participant_qos(
-        &mut self,
-        qos: QosKind<DomainParticipantQos>,
-    ) -> DdsResult<()> {
+    fn set_default_participant_qos(&mut self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
@@ -336,11 +333,11 @@ impl DomainParticipantFactoryActor {
         Ok(())
     }
 
-    async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
+    fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         Ok(self.default_participant_qos.clone())
     }
 
-    async fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
+    fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
@@ -351,16 +348,16 @@ impl DomainParticipantFactoryActor {
         Ok(())
     }
 
-    async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
+    fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
         Ok(self.qos.clone())
     }
 
-    async fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
+    fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         self.configuration = configuration;
         Ok(())
     }
 
-    async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
+    fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         Ok(self.configuration.clone())
     }
 }

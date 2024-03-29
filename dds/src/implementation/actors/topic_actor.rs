@@ -70,20 +70,20 @@ impl TopicActor {
 
 #[actor_interface]
 impl TopicActor {
-    async fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
 
-    async fn get_name(&self) -> String {
+    fn get_name(&self) -> String {
         self.topic_name.clone()
     }
 
-    async fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         self.guid
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_qos(&mut self, qos: TopicQos) -> () {
+    fn set_qos(&mut self, qos: TopicQos) -> () {
         self.qos = qos;
     }
 
@@ -145,8 +145,8 @@ impl TopicActor {
         if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
-            == self.get_type_name().await
-            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name().await
+            == self.get_type_name()
+            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
             && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
         {
             self.inconsistent_topic_status.increment();

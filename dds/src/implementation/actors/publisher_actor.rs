@@ -78,7 +78,7 @@ impl PublisherActor {
 #[actor_interface]
 impl PublisherActor {
     #[allow(clippy::too_many_arguments)]
-    async fn create_datawriter(
+    fn create_datawriter(
         &mut self,
         type_name: String,
         topic_name: String,
@@ -108,7 +108,7 @@ impl PublisherActor {
         };
         let entity_key = [
             self.rtps_group.guid().entity_id().entity_key()[0],
-            self.get_unique_writer_id().await,
+            self.get_unique_writer_id(),
             0,
         ];
         let entity_id = EntityId::new(entity_key, entity_kind);
@@ -157,31 +157,31 @@ impl PublisherActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn enable(&mut self) -> () {
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.data_writer_list.is_empty()
     }
 
-    async fn get_unique_writer_id(&mut self) -> u8 {
+    fn get_unique_writer_id(&mut self) -> u8 {
         let counter = self.user_defined_data_writer_counter;
         self.user_defined_data_writer_counter += 1;
         counter
     }
 
     #[allow(clippy::unused_unit)]
-    async fn delete_contained_entities(&mut self) -> () {
+    fn delete_contained_entities(&mut self) -> () {
         self.data_writer_list.clear()
     }
 
     #[allow(clippy::unused_unit)]
-    async fn datawriter_add(
+    fn datawriter_add(
         &mut self,
         instance_handle: InstanceHandle,
         data_writer: Actor<DataWriterActor>,
@@ -190,20 +190,20 @@ impl PublisherActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn datawriter_delete(&mut self, handle: InstanceHandle) -> () {
+    fn datawriter_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_writer_list.remove(&handle);
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) -> () {
+    fn set_default_datawriter_qos(&mut self, qos: DataWriterQos) -> () {
         self.default_datawriter_qos = qos;
     }
 
-    async fn get_default_datawriter_qos(&self) -> DataWriterQos {
+    fn get_default_datawriter_qos(&self) -> DataWriterQos {
         self.default_datawriter_qos.clone()
     }
 
-    async fn set_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+    fn set_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -218,27 +218,27 @@ impl PublisherActor {
         Ok(())
     }
 
-    async fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 
-    async fn get_status_kind(&self) -> Vec<StatusKind> {
+    fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
 
-    async fn get_listener(&self) -> ActorAddress<PublisherListenerActor> {
+    fn get_listener(&self) -> ActorAddress<PublisherListenerActor> {
         self.listener.address()
     }
 
-    async fn get_qos(&self) -> PublisherQos {
+    fn get_qos(&self) -> PublisherQos {
         self.qos.clone()
     }
 
-    async fn data_writer_list(&self) -> Vec<ActorAddress<DataWriterActor>> {
+    fn data_writer_list(&self) -> Vec<ActorAddress<DataWriterActor>> {
         self.data_writer_list
             .values()
             .map(|x| x.address())
@@ -359,12 +359,12 @@ impl PublisherActor {
         }
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_listener(
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,

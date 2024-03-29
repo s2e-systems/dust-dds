@@ -666,7 +666,7 @@ impl DomainParticipantActor {
 
 #[actor_interface]
 impl DomainParticipantActor {
-    async fn create_publisher(
+    fn create_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
@@ -677,7 +677,7 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher_counter = self.create_unique_publisher_id().await;
+        let publisher_counter = self.create_unique_publisher_id();
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -698,7 +698,7 @@ impl DomainParticipantActor {
         publisher_address
     }
 
-    async fn create_subscriber(
+    fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
@@ -709,7 +709,7 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let subcriber_counter = self.create_unique_subscriber_id().await;
+        let subcriber_counter = self.create_unique_subscriber_id();
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -732,7 +732,7 @@ impl DomainParticipantActor {
         subscriber_address
     }
 
-    async fn create_topic(
+    fn create_topic(
         &mut self,
         topic_name: String,
         type_name: String,
@@ -745,7 +745,7 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let topic_counter = self.create_unique_topic_id().await;
+        let topic_counter = self.create_unique_topic_id();
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
@@ -783,73 +783,73 @@ impl DomainParticipantActor {
         None
     }
 
-    async fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
+    fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()
             .to_vec()
     }
 
-    async fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
+    fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_multicast_locator_list()
             .to_vec()
     }
 
-    async fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+    fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
             .to_vec()
     }
 
-    async fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+    fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_multicast_locator_list()
             .to_vec()
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_participant.guid().into())
     }
 
     #[allow(clippy::unused_unit)]
-    async fn enable(&mut self) -> () {
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
     #[allow(clippy::unused_unit)]
-    async fn ignore_participant(&mut self, handle: InstanceHandle) -> () {
+    fn ignore_participant(&mut self, handle: InstanceHandle) -> () {
         self.ignored_participants.insert(handle);
     }
 
     #[allow(clippy::unused_unit)]
-    async fn ignore_subscription(&mut self, handle: InstanceHandle) -> () {
+    fn ignore_subscription(&mut self, handle: InstanceHandle) -> () {
         self.ignored_subcriptions.insert(handle);
     }
 
     #[allow(clippy::unused_unit)]
-    async fn ignore_publication(&mut self, handle: InstanceHandle) -> () {
+    fn ignore_publication(&mut self, handle: InstanceHandle) -> () {
         self.ignored_publications.insert(handle);
     }
 
     #[allow(clippy::unused_unit)]
-    async fn ignore_topic(&self, _handle: InstanceHandle) -> () {
+    fn ignore_topic(&self, _handle: InstanceHandle) -> () {
         todo!()
     }
 
-    async fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
+    fn is_topic_ignored(&self, _handle: InstanceHandle) -> bool {
         todo!()
     }
 
     #[allow(clippy::unused_unit)]
-    async fn _discovered_participant_remove(&mut self, handle: InstanceHandle) -> () {
+    fn _discovered_participant_remove(&mut self, handle: InstanceHandle) -> () {
         self.discovered_participant_list.remove(&handle);
     }
 
-    async fn create_unique_publisher_id(&mut self) -> u8 {
+    fn create_unique_publisher_id(&mut self) -> u8 {
         let counter = self.user_defined_publisher_counter;
         self.user_defined_publisher_counter += 1;
         counter
@@ -867,7 +867,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn create_unique_subscriber_id(&mut self) -> u8 {
+    fn create_unique_subscriber_id(&mut self) -> u8 {
         let counter = self.user_defined_subscriber_counter;
         self.user_defined_subscriber_counter += 1;
         counter
@@ -886,33 +886,33 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn create_unique_topic_id(&mut self) -> u8 {
+    fn create_unique_topic_id(&mut self) -> u8 {
         let counter = self.user_defined_topic_counter;
         self.user_defined_topic_counter += 1;
         counter
     }
 
     #[allow(clippy::unused_unit)]
-    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> () {
+    fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> () {
         self.topic_list.remove(&handle);
     }
 
-    async fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
             && self.topic_list.len() == 0
     }
 
     #[allow(clippy::unused_unit)]
-    async fn delete_topic(&mut self, handle: InstanceHandle) -> () {
+    fn delete_topic(&mut self, handle: InstanceHandle) -> () {
         self.topic_list.remove(&handle);
     }
 
-    async fn get_qos(&self) -> DomainParticipantQos {
+    fn get_qos(&self) -> DomainParticipantQos {
         self.qos.clone()
     }
 
-    async fn data_max_size_serialized(&self) -> usize {
+    fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
 
@@ -937,38 +937,37 @@ impl DomainParticipantActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_default_publisher_qos(&mut self, qos: PublisherQos) -> () {
+    fn set_default_publisher_qos(&mut self, qos: PublisherQos) -> () {
         self.default_publisher_qos = qos;
     }
 
-    async fn default_publisher_qos(&self) -> PublisherQos {
+    fn default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.clone()
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) -> () {
+    fn set_default_subscriber_qos(&mut self, qos: SubscriberQos) -> () {
         self.default_subscriber_qos = qos;
     }
 
-    async fn default_subscriber_qos(&self) -> SubscriberQos {
+    fn default_subscriber_qos(&self) -> SubscriberQos {
         self.default_subscriber_qos.clone()
     }
 
-
     #[allow(clippy::unused_unit)]
-    async fn set_default_topic_qos(&mut self, qos: TopicQos) -> () {
+    fn set_default_topic_qos(&mut self, qos: TopicQos) -> () {
         self.default_topic_qos = qos;
     }
 
-    async fn default_topic_qos(&self) -> TopicQos {
+    fn default_topic_qos(&self) -> TopicQos {
         self.default_topic_qos.clone()
     }
 
-    async fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
+    fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
         self.discovered_topic_list.keys().cloned().collect()
     }
 
-    async fn discovered_topic_data(
+    fn discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
@@ -979,16 +978,16 @@ impl DomainParticipantActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_qos(&mut self, qos: DomainParticipantQos) -> () {
+    fn set_qos(&mut self, qos: DomainParticipantQos) -> () {
         self.qos = qos;
     }
 
-    async fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
+    fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
         self.discovered_participant_list.keys().cloned().collect()
     }
 
     #[allow(clippy::unused_unit)]
-    async fn discovered_participant_add(
+    fn discovered_participant_add(
         &mut self,
         handle: InstanceHandle,
         discovered_participant_data: SpdpDiscoveredParticipantData,
@@ -997,64 +996,64 @@ impl DomainParticipantActor {
             .insert(handle, discovered_participant_data);
     }
 
-    async fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<TopicActor>> {
+    fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<TopicActor>> {
         self.topic_list.values().map(|a| a.address()).collect()
     }
 
-    async fn discovered_participant_get(
+    fn discovered_participant_get(
         &self,
         handle: InstanceHandle,
     ) -> Option<SpdpDiscoveredParticipantData> {
         self.discovered_participant_list.get(&handle).cloned()
     }
 
-    async fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
+    fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_publications.contains(&handle)
     }
 
-    async fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
+    fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_subcriptions.contains(&handle)
     }
 
-    async fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
+    fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
         self.ignored_participants.contains(&handle)
     }
 
-    async fn get_domain_id(&self) -> DomainId {
+    fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
 
-    async fn get_domain_tag(&self) -> String {
+    fn get_domain_tag(&self) -> String {
         self.domain_tag.clone()
     }
 
-    async fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
+    fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
         self.builtin_subscriber.address()
     }
 
-    async fn get_upd_transport_write(&self) -> Arc<UdpTransportWrite> {
+    fn get_upd_transport_write(&self) -> Arc<UdpTransportWrite> {
         self.udp_transport_write.clone()
     }
 
-    async fn get_guid(&self) -> Guid {
+    fn get_guid(&self) -> Guid {
         self.rtps_participant.guid()
     }
 
-    async fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<PublisherActor>> {
+    fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<PublisherActor>> {
         self.user_defined_publisher_list
             .values()
             .map(|a| a.address())
             .collect()
     }
 
-    async fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<SubscriberActor>> {
+    fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<SubscriberActor>> {
         self.user_defined_subscriber_list
             .values()
             .map(|a| a.address())
             .collect()
     }
 
-    async fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+    fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -1089,15 +1088,15 @@ impl DomainParticipantActor {
         )
     }
 
-    async fn get_listener(&self) -> ActorAddress<DomainParticipantListenerActor> {
+    fn get_listener(&self) -> ActorAddress<DomainParticipantListenerActor> {
         self.listener.address()
     }
 
-    async fn get_status_kind(&self) -> Vec<StatusKind> {
+    fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
 
-    async fn get_current_time(&self) -> infrastructure::time::Time {
+    fn get_current_time(&self) -> infrastructure::time::Time {
         let now_system_time = SystemTime::now();
         let unix_time = now_system_time
             .duration_since(UNIX_EPOCH)
@@ -1105,12 +1104,12 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    async fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
+    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
         self.builtin_publisher.address()
     }
 
     async fn send_message(&self) {
-        let now = self.get_current_time().await;
+        let now = self.get_current_time();
         let header = RtpsMessageHeader::new(
             self.rtps_participant.protocol_version(),
             self.rtps_participant.vendor_id(),
@@ -1145,7 +1144,7 @@ impl DomainParticipantActor {
             rtps_message = ?message,
             "Received metatraffic RTPS message"
         );
-        let reception_timestamp = self.get_current_time().await.into();
+        let reception_timestamp = self.get_current_time().into();
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber
             .process_rtps_message(
@@ -1177,7 +1176,7 @@ impl DomainParticipantActor {
             user_defined_subscriber_address
                 .process_rtps_message(
                     message.clone(),
-                    self.get_current_time().await.into(),
+                    self.get_current_time().into(),
                     user_defined_subscriber_address.clone(),
                     participant.clone(),
                     participant_mask_listener.clone(),
@@ -1216,7 +1215,7 @@ impl DomainParticipantActor {
                         self.rtps_participant.guid().prefix(),
                     ),
                     self.udp_transport_write.clone(),
-                    self.get_current_time().await,
+                    self.get_current_time(),
                 )
                 .await
                 .expect("Should not fail to send command");
@@ -1232,7 +1231,7 @@ impl DomainParticipantActor {
             .lookup_datawriter(DCPS_PUBLICATION.to_string())
             .await
         {
-            let timestamp = self.get_current_time().await;
+            let timestamp = self.get_current_time();
             let mut serialized_data = Vec::new();
             discovered_writer_data
                 .serialize_data(&mut serialized_data)
@@ -1259,7 +1258,7 @@ impl DomainParticipantActor {
             .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
             .await
         {
-            let timestamp = self.get_current_time().await;
+            let timestamp = self.get_current_time();
             let mut serialized_data = Vec::new();
             discovered_reader_data
                 .serialize_data(&mut serialized_data)
@@ -1283,7 +1282,7 @@ impl DomainParticipantActor {
             .lookup_datawriter(DCPS_PUBLICATION.to_string())
             .await
         {
-            let timestamp = self.get_current_time().await;
+            let timestamp = self.get_current_time();
             let mut instance_serialized_key = Vec::new();
             serialize_rtps_classic_cdr_le(writer_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
@@ -1311,7 +1310,7 @@ impl DomainParticipantActor {
     }
 
     #[allow(clippy::unused_unit)]
-    async fn set_listener(
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
@@ -1330,7 +1329,7 @@ impl DomainParticipantActor {
             .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
             .await
         {
-            let timestamp = self.get_current_time().await;
+            let timestamp = self.get_current_time();
             let mut instance_serialized_key = Vec::new();
             serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
@@ -1364,7 +1363,7 @@ impl DomainParticipantActor {
         self.type_support_actor.get_type_support(type_name).await
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 }

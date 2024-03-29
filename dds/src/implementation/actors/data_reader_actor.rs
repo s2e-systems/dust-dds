@@ -150,16 +150,13 @@ struct ReaderRequestedDeadlineMissedStatus {
 
 #[actor_interface]
 impl ReaderRequestedDeadlineMissedStatus {
-    async fn increment_requested_deadline_missed_status(
-        &mut self,
-        instance_handle: InstanceHandle,
-    ) {
+    fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.total_count += 1;
         self.total_count_change += 1;
         self.last_instance_handle = instance_handle;
     }
 
-    async fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+    fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
         let status = RequestedDeadlineMissedStatus {
             total_count: self.total_count,
             total_count_change: self.total_count_change,
@@ -1448,7 +1445,7 @@ impl DataReaderActor {
         Ok(samples)
     }
 
-    async fn is_historical_data_received(&self) -> DdsResult<bool> {
+    fn is_historical_data_received(&self) -> DdsResult<bool> {
         if !self.enabled {
             Err(DdsError::NotEnabled)
         } else {
@@ -1466,7 +1463,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn as_discovered_reader_data(
+    fn as_discovered_reader_data(
         &self,
         topic_qos: TopicQos,
         subscriber_qos: SubscriberQos,
@@ -1521,19 +1518,19 @@ impl DataReaderActor {
         )
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_reader.guid().into())
     }
 
-    async fn set_qos(&mut self, qos: DataReaderQos) {
+    fn set_qos(&mut self, qos: DataReaderQos) {
         self.qos = qos;
     }
 
-    async fn get_qos(&self) -> DataReaderQos {
+    fn get_qos(&self) -> DataReaderQos {
         self.qos.clone()
     }
 
-    async fn get_matched_publication_data(
+    fn get_matched_publication_data(
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
@@ -1547,19 +1544,19 @@ impl DataReaderActor {
             .ok_or(DdsError::BadParameter)
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn enable(&mut self) {
+    fn enable(&mut self) {
         self.enabled = true;
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+    fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list
             .iter()
             .map(|(&key, _)| key)
@@ -1629,7 +1626,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
+    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => r.matched_writer_add(a_writer_proxy),
             RtpsReaderKind::Stateless(_) => (),
@@ -1781,11 +1778,11 @@ impl DataReaderActor {
         }
     }
 
-    async fn get_topic_name(&mut self) -> String {
+    fn get_topic_name(&mut self) -> String {
         self.topic_name.clone()
     }
 
-    async fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.type_name.to_string()
     }
 
@@ -1862,7 +1859,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn send_message(
+    fn send_message(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
@@ -1873,7 +1870,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn set_listener(
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
