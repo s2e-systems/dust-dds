@@ -1,7 +1,9 @@
 use crate::{
-    dds_async::publisher::PublisherAsync,
+    dds_async::{
+        data_writer_listener::DataWriterListenerAsync, publisher::PublisherAsync,
+        publisher_listener::PublisherListenerAsync,
+    },
     domain::domain_participant::DomainParticipant,
-    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -52,21 +54,28 @@ impl Publisher {
     /// 3. Combine those two qos policies using the [`Publisher::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataWriterQos`] to construct the [`DataWriter`].
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub fn create_datawriter<Foo>(
+    pub fn create_datawriter<'a, Foo>(
         &self,
         a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
-        a_listener: impl DataWriterListener<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DataWriter<Foo>> {
+    ) -> DdsResult<DataWriter<Foo>>
+    where
+        Foo: 'a,
+    {
         self.publisher_async
             .runtime_handle()
-            .block_on(self.publisher_async.create_datawriter::<Foo>(
-                a_topic.topic_async(),
-                qos,
-                ListenerSyncToAsync::new(a_listener),
-                mask,
-            ))
+            .block_on(
+                self.publisher_async.create_datawriter::<Foo>(
+                    a_topic.topic_async(),
+                    qos,
+                    a_listener.map::<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send>, _>(|b| {
+                        Box::new(b)
+                    }),
+                    mask,
+                ),
+            )
             .map(DataWriter::new)
     }
 
@@ -263,13 +272,15 @@ impl Publisher {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl PublisherListener + Send + 'static,
+        a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.publisher_async.runtime_handle().block_on(
-            self.publisher_async
-                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
-        )
+        self.publisher_async
+            .runtime_handle()
+            .block_on(self.publisher_async.set_listener(
+                a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
+                mask,
+            ))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

@@ -2,6 +2,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actors::{
+            any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor},
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
@@ -517,17 +518,22 @@ impl<Foo> DataReaderAsync<Foo> {
             .send_mail_and_await_reply(data_reader_actor::get_instance_handle::new())
             .await
     }
+}
 
+impl<'a, Foo> DataReaderAsync<Foo>
+where
+    Foo: 'a,
+{
     /// Async version of [`set_listener`](crate::subscription::data_reader::DataReader::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DataReaderListenerAsync<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address
             .send_mail_and_await_reply(data_reader_actor::set_listener::new(
-                Box::new(a_listener),
+                a_listener.map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             ))

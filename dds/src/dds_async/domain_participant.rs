@@ -17,7 +17,6 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        listeners::NoOpListener,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::{StatusKind, NO_STATUS},
         time::{Duration, Time},
@@ -79,14 +78,14 @@ impl DomainParticipantAsync {
     pub async fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: impl PublisherListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let publisher_address = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::create_publisher::new(
                 qos,
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.runtime_handle.clone(),
             ))
@@ -140,14 +139,14 @@ impl DomainParticipantAsync {
     pub async fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: impl SubscriberListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let subscriber_address = self
             .participant_address
             .send_mail_and_await_reply(domain_participant_actor::create_subscriber::new(
                 qos,
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.runtime_handle.clone(),
             ))
@@ -207,13 +206,13 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync>
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        let type_support = FooTypeSupport::new::<Foo>();
+        let type_support = Box::new(FooTypeSupport::new::<Foo>());
 
         self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
             .await
@@ -226,14 +225,14 @@ impl DomainParticipantAsync {
         topic_name: &str,
         type_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: impl TopicListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
+        dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         self.participant_address
             .send_mail_and_await_reply(domain_participant_actor::register_type::new(
                 type_name.to_string(),
-                Box::new(dynamic_type_representation),
+                dynamic_type_representation,
             ))
             .await?;
 
@@ -243,7 +242,7 @@ impl DomainParticipantAsync {
                 topic_name.to_string(),
                 type_name.to_string(),
                 qos,
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.runtime_handle.clone(),
             ))
@@ -422,7 +421,7 @@ impl DomainParticipantAsync {
                                 topic_name,
                                 discovered_topic_data.get_type_name(),
                                 QosKind::Specific(qos),
-                                NoOpListener::new(),
+                                None,
                                 NO_STATUS,
                             )
                             .await?;
@@ -786,12 +785,12 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl DomainParticipantListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
             .send_mail_and_await_reply(domain_participant_actor::set_listener::new(
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.runtime_handle.clone(),
             ))

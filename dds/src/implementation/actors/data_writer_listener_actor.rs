@@ -12,11 +12,11 @@ use super::{
 };
 
 pub struct DataWriterListenerActor {
-    listener: Box<dyn AnyDataWriterListener + Send + 'static>,
+    listener: Option<Box<dyn AnyDataWriterListener + Send>>,
 }
 
 impl DataWriterListenerActor {
-    pub fn new(listener: Box<dyn AnyDataWriterListener + Send + 'static>) -> Self {
+    pub fn new(listener: Option<Box<dyn AnyDataWriterListener + Send>>) -> Self {
         Self { listener }
     }
 }
@@ -31,8 +31,8 @@ impl DataWriterListenerActor {
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
     ) {
-        self.listener
-            .trigger_on_offered_incompatible_qos(
+        if let Some(l) = &mut self.listener {
+            l.trigger_on_offered_incompatible_qos(
                 writer_address,
                 status_condition_address,
                 publisher,
@@ -40,6 +40,7 @@ impl DataWriterListenerActor {
                 status,
             )
             .await
+        }
     }
 
     async fn trigger_on_publication_matched(
@@ -50,8 +51,8 @@ impl DataWriterListenerActor {
         topic: TopicAsync,
         status: PublicationMatchedStatus,
     ) {
-        self.listener
-            .trigger_on_publication_matched(
+        if let Some(l) = &mut self.listener {
+            l.trigger_on_publication_matched(
                 writer_address,
                 status_condition_address,
                 publisher,
@@ -59,5 +60,6 @@ impl DataWriterListenerActor {
                 status,
             )
             .await
+        }
     }
 }

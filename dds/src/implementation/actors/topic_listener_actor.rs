@@ -1,5 +1,3 @@
-
-
 use dust_dds_derive::actor_interface;
 
 use crate::{
@@ -8,11 +6,11 @@ use crate::{
 };
 
 pub struct TopicListenerActor {
-    listener: Box<dyn TopicListenerAsync + Send>,
+    listener: Option<Box<dyn TopicListenerAsync + Send>>,
 }
 
 impl TopicListenerActor {
-    pub fn new(listener: Box<dyn TopicListenerAsync + Send>) -> Self {
+    pub fn new(listener: Option<Box<dyn TopicListenerAsync + Send>>) -> Self {
         Self { listener }
     }
 }
@@ -24,6 +22,8 @@ impl TopicListenerActor {
         the_topic: TopicAsync,
         status: InconsistentTopicStatus,
     ) {
-        self.listener.on_inconsistent_topic(the_topic, status).await
+        if let Some(l) = &mut self.listener {
+            l.on_inconsistent_topic(the_topic, status).await
+        }
     }
 }
