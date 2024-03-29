@@ -44,13 +44,16 @@ pub trait SubmessageHeader {
 fn write_submessage_into_bytes<'a>(
     submessage: impl SubmessageHeader + WriteIntoBytes,
     mut buf: &mut [u8],
-) {
+) -> usize {
     let header_len = 4;
     let len_before = buf.len();
     let mut slice = &mut buf[header_len..];
     submessage.write_into_bytes(&mut slice);
-    let len = (len_before - slice.len() - header_len) as u16;
-    submessage.submessage_header(len).write_into_bytes(&mut buf);
+    let len = len_before - slice.len();
+    submessage
+        .submessage_header((len - header_len) as u16)
+        .write_into_bytes(&mut buf);
+    len
 }
 
 pub struct SubmessageHeaderRead {
@@ -239,11 +242,9 @@ pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
-pub fn write_submessage_into_bytes_vec<T: WriteIntoBytes + SubmessageHeader>(value: T) -> Vec<u8> {
+pub fn write_submessage_into_bytes_vec(submessage: &RtpsSubmessageWriteKind<'_>) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
-    let mut slice = buf.as_mut_slice();
-    write_submessage_into_bytes(value, &mut slice);
-    let len = BUFFER_SIZE - slice.len();
+    let len = submessage.write_bytes(buf.as_mut_slice());
     Vec::from(&buf[..len])
 }
 
@@ -259,7 +260,8 @@ impl RtpsMessageWrite {
         let mut slice = buffer.as_mut_slice();
         header.write_into_bytes(&mut slice);
         for submessage in submessages {
-            submessage.write_into_bytes(&mut slice);
+            let submessage_len = submessage.write_bytes(slice);
+            slice = &mut slice[submessage_len..];
         }
         let len = BUFFER_SIZE - slice.len();
         Self { buffer, len }
@@ -303,8 +305,8 @@ pub enum RtpsSubmessageWriteKind<'a> {
     Pad(PadSubmessageWrite),
 }
 
-impl WriteIntoBytes for RtpsSubmessageWriteKind<'_> {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+impl RtpsSubmessageWriteKind<'_> {
+    fn write_bytes(&self, buf: &mut [u8]) -> usize {
         match self {
             RtpsSubmessageWriteKind::AckNack(s) => write_submessage_into_bytes(s, buf),
             RtpsSubmessageWriteKind::Data(s) => write_submessage_into_bytes(s, buf),
@@ -318,7 +320,7 @@ impl WriteIntoBytes for RtpsSubmessageWriteKind<'_> {
             RtpsSubmessageWriteKind::InfoTimestamp(s) => write_submessage_into_bytes(s, buf),
             RtpsSubmessageWriteKind::NackFrag(s) => write_submessage_into_bytes(s, buf),
             RtpsSubmessageWriteKind::Pad(s) => write_submessage_into_bytes(s, buf),
-        };
+        }
     }
 }
 
@@ -410,7 +412,7 @@ mod tests {
     use crate::implementation::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
-            submessages::data::DataSubmessageRead,
+            submessages::data::DataSubmessageRead, types::Time,
         },
         types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
@@ -471,6 +473,65 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
+        ]);
+    }
+
+    #[test]
+    fn serialize_rtps_message_multiple_submessages() {
+        let header = RtpsMessageHeader {
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: [9, 8],
+            guid_prefix: [3; 12],
+        };
+        let info_timestamp_submessage = RtpsSubmessageWriteKind::InfoTimestamp(
+            InfoTimestampSubmessageWrite::new(false, Time::new(4, 0)),
+        );
+
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
+        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
+        let inline_qos = &ParameterList::new(vec![parameter_1, parameter_2]);
+        let serialized_payload = &Data::new(vec![].into());
+
+        let data_submessage = RtpsSubmessageWriteKind::Data(DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        ));
+        let value = RtpsMessageWrite::new(&header, &[info_timestamp_submessage, data_submessage]);
+        #[rustfmt::skip]
+        assert_eq!(value.buffer(), vec![
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
+            4, 0, 0, 0, // Time
+            0, 0, 0, 0, // Time
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]

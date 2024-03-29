@@ -518,8 +518,6 @@ impl WriteIntoBytes for &Data {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         self.0.as_slice().write_into_bytes(buf);
         let length_inclusive_padding = (self.0.len() + 3) & !3;
-        (length_inclusive_padding as u32).write_into_bytes(buf);
-
         let padding = &[0_u8; 4];
         (&padding[..length_inclusive_padding - self.0.len()]).write_into_bytes(buf);
     }

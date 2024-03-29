@@ -64,7 +64,8 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::{
-            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+            write_into_bytes_vec, write_submessage_into_bytes_vec, RtpsSubmessageWriteKind,
+            SubmessageHeaderRead,
         },
         types::GUIDPREFIX_UNKNOWN,
     };
@@ -76,7 +77,7 @@ mod tests {
             InfoDestinationSubmessageWrite::new(guid_prefix),
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
               0x0e, 0b_0000_0001, 12, 0, // Submessage header
                 1, 2, 3, 4, //guid_prefix
                 5, 6, 7, 8, //guid_prefix

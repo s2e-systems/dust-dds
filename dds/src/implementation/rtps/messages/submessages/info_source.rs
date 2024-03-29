@@ -85,7 +85,8 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::{
-            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+            write_into_bytes_vec, write_submessage_into_bytes_vec, RtpsSubmessageWriteKind,
+            SubmessageHeaderRead,
         },
         types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
     };
@@ -98,7 +99,7 @@ mod tests {
             GUIDPREFIX_UNKNOWN,
         ));
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x0c, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 0, 0, // unused
                 1, 0, 0, 0, //protocol_version | vendor_id

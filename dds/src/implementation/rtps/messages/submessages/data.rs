@@ -218,53 +218,14 @@ impl WriteIntoBytes for &DataSubmessageWrite<'_> {
     }
 }
 
-#[test]
-fn submheader() {
-    let inline_qos_flag = false;
-    let data_flag = false;
-    let key_flag = false;
-    let non_standard_payload_flag = false;
-    let reader_id = EntityId::new([1, 2, 3], 4);
-    let writer_id = EntityId::new([6, 7, 8], 9);
-    let writer_sn = 5;
-    let inline_qos = &ParameterList::empty();
-    let serialized_payload = &Data::new(vec![].into());
-    let submessage = DataSubmessageWrite::new(
-        inline_qos_flag,
-        data_flag,
-        key_flag,
-        non_standard_payload_flag,
-        reader_id,
-        writer_id,
-        writer_sn,
-        inline_qos,
-        serialized_payload,
-    );
-
-    // let mut buf = [0u8; 100];
-    // let mut slice = &mut buf[4..];
-    // submessage.write_into_bytes(&mut slice);
-    // let len = 100 - slice.len();
-    // submessage.submessage_header((len - 4) as u16).write_bytes(buf.as_mut_slice());
-
-    // #[rustfmt::skip]
-    // assert_eq!(&buf[..len], &[
-    //         0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
-    //         0, 0, 16, 0, // extraFlags, octetsToInlineQos
-    //         1, 2, 3, 4, // readerId: value[4]
-    //         6, 7, 8, 9, // writerId: value[4]
-    //         0, 0, 0, 0, // writerSN: high
-    //         5, 0, 0, 0, // writerSN: low
-    //     ]
-    // );
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            overall_structure::{write_into_bytes_vec, RtpsSubmessageWriteKind},
+            overall_structure::{
+                write_into_bytes_vec, write_submessage_into_bytes_vec, RtpsSubmessageWriteKind,
+            },
             submessage_elements::Parameter,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
@@ -293,7 +254,7 @@ mod tests {
             serialized_payload,
         ));
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -330,7 +291,7 @@ mod tests {
             serialized_payload,
         ));
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15, 0b_0000_0011, 40, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -369,7 +330,7 @@ mod tests {
             serialized_payload,
         ));
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -404,7 +365,7 @@ mod tests {
             serialized_payload,
         ));
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
