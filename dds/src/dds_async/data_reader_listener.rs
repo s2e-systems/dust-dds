@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
 use crate::infrastructure::status::{
     LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
@@ -16,8 +16,8 @@ pub trait DataReaderListenerAsync {
     fn on_data_available(
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a sample rejected status.
@@ -25,16 +25,16 @@ pub trait DataReaderListenerAsync {
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SampleRejectedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
     /// Method that is called when this reader reports a liveliness changed status.
     fn on_liveliness_changed(
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: LivelinessChangedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a requested deadline missed status.
@@ -42,8 +42,8 @@ pub trait DataReaderListenerAsync {
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: RequestedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a requested incompatible QoS status.
@@ -51,8 +51,8 @@ pub trait DataReaderListenerAsync {
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: RequestedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a subscription matched status.
@@ -60,8 +60,8 @@ pub trait DataReaderListenerAsync {
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SubscriptionMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when this reader reports a sample lost status.
@@ -69,7 +69,7 @@ pub trait DataReaderListenerAsync {
         &mut self,
         _the_reader: DataReaderAsync<Self::Foo>,
         _status: SampleLostStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 }

@@ -12,7 +12,10 @@ use super::{
     type_support_actor::TypeSupportActor,
 };
 use crate::{
-    dds_async::{domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync},
+    dds_async::{
+        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
+        subscriber_listener::SubscriberListenerAsync,
+    },
     implementation::{
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -59,7 +62,7 @@ impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
+        listener: Box<dyn SubscriberListenerAsync + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -371,7 +374,7 @@ impl SubscriberActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
+        listener: Box<dyn SubscriberListenerAsync + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {

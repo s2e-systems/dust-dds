@@ -4,7 +4,12 @@ use tracing::warn;
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dds::infrastructure,
-    dds_async::domain_participant::DomainParticipantAsync,
+    dds_async::{
+        domain_participant::DomainParticipantAsync,
+        domain_participant_listener::DomainParticipantListenerAsync,
+        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        topic_listener::TopicListenerAsync,
+    },
     domain::domain_participant_factory::DomainId,
     implementation::{
         actors::{
@@ -78,16 +83,13 @@ use std::{
 };
 
 use super::{
-    data_writer_actor::DataWriterActor,
-    domain_participant_listener_actor::{
-        DomainParticipantListenerActor, DomainParticipantListenerAsyncDyn,
-    },
-    publisher_actor::PublisherActor,
-    publisher_listener_actor::PublisherListenerAsyncDyn,
+    data_reader_actor,
+    data_writer_actor::{self, DataWriterActor},
+    domain_participant_listener_actor::DomainParticipantListenerActor,
+    publisher_actor::{self, PublisherActor},
     status_condition_actor::StatusConditionActor,
-    subscriber_listener_actor::SubscriberListenerAsyncDyn,
-    topic_listener_actor::TopicListenerAsyncDyn,
-    type_support_actor::TypeSupportActor,
+    subscriber_actor, topic_actor,
+    type_support_actor::{self, TypeSupportActor},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -247,7 +249,7 @@ impl DomainParticipantActor {
         spdp_discovery_locator_list: &[Locator],
         data_max_size_serialized: usize,
         udp_transport_write: Arc<UdpTransportWrite>,
-        listener: Box<dyn DomainParticipantListenerAsyncDyn + Send>,
+        listener: Box<dyn DomainParticipantListenerAsync + Send>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -671,7 +673,7 @@ impl DomainParticipantActor {
     async fn create_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
-        a_listener: Box<dyn PublisherListenerAsyncDyn + Send>,
+        a_listener: Box<dyn PublisherListenerAsync + Send>,
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<PublisherActor> {
@@ -703,7 +705,7 @@ impl DomainParticipantActor {
     async fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
+        a_listener: Box<dyn SubscriberListenerAsync + Send>,
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<SubscriberActor> {
@@ -739,7 +741,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        a_listener: Box<dyn TopicListenerAsyncDyn + Send>,
+        a_listener: Box<dyn TopicListenerAsync + Send>,
         _mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<TopicActor> {
@@ -1299,7 +1301,7 @@ impl DomainParticipantActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn DomainParticipantListenerAsyncDyn + Send>,
+        listener: Box<dyn DomainParticipantListenerAsync + Send>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
