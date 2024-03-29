@@ -1,6 +1,5 @@
 use std::{
     future::Future,
-    pin::Pin,
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -9,25 +8,12 @@ use std::{
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
-pub trait Mail {
-    type Result;
-}
-
-pub trait MailHandler<M>
-where
-    M: Mail,
-    Self: Sized,
-{
-    fn handle(&mut self, mail: M) -> impl Future<Output = M::Result> + Send;
-}
-
 #[derive(Debug)]
 pub struct ActorAddress<A>
 where
     A: ActorHandler,
 {
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
-    sender_: tokio::sync::mpsc::Sender<A::Message>,
+    sender: tokio::sync::mpsc::Sender<A::Message>,
 }
 
 impl<A> Clone for ActorAddress<A>
@@ -37,7 +23,6 @@ where
     fn clone(&self) -> Self {
         Self {
             sender: self.sender.clone(),
-            sender_: self.sender_.clone(),
         }
     }
 }
@@ -47,7 +32,7 @@ where
     A: ActorHandler,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.sender.same_channel(&other.sender) && self.sender_.same_channel(&other.sender_)
+        self.sender.same_channel(&other.sender)
     }
 }
 
@@ -58,103 +43,10 @@ where
     A: ActorHandler,
 {
     pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
-        self.sender_
+        self.sender
             .send(message)
             .await
             .map_err(|_| DdsError::AlreadyDeleted)
-    }
-}
-
-// Workaround for not being able to make a dyn object out of a trait with async
-// https://rust-lang.github.io/async-fundamentals-initiative/evaluation/case-studies/builder-provider-api.html#dynamic-dispatch-behind-the-api
-trait GenericHandlerDyn<A> {
-    fn handle<'a, 'b>(
-        &'a mut self,
-        actor: &'b mut A,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
-    where
-        'a: 'b,
-        Self: 'b;
-}
-
-impl<A, T> GenericHandlerDyn<A> for T
-where
-    T: GenericHandler<A>,
-{
-    fn handle<'a, 'b>(
-        &'a mut self,
-        actor: &'b mut A,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
-    where
-        'a: 'b,
-        Self: 'b,
-    {
-        Box::pin(<Self as GenericHandler<A>>::handle(self, actor))
-    }
-}
-
-trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A) -> impl Future<Output = ()> + Send;
-}
-
-struct CommandMail<M> {
-    mail: Option<M>,
-}
-
-impl<M> CommandMail<M> {
-    fn new(mail: M) -> Self {
-        Self { mail: Some(mail) }
-    }
-}
-
-impl<A, M> GenericHandler<A> for CommandMail<M>
-where
-    A: MailHandler<M> + Send,
-    M: Mail + Send,
-    M::Result: Send,
-{
-    async fn handle(&mut self, actor: &mut A) {
-        <A as MailHandler<M>>::handle(
-            actor,
-            self.mail
-                .take()
-                .expect("Mail should be processed only once"),
-        )
-        .await;
-    }
-}
-
-struct ReplyMail<M>
-where
-    M: Mail,
-{
-    // Both fields have to be inside an option because later on the contents
-    // have to be moved out and the struct. Because the struct is passed as a Boxed
-    // trait object this is only feasible by using the Option fields.
-    mail: Option<M>,
-    sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
-}
-
-impl<A, M> GenericHandler<A> for ReplyMail<M>
-where
-    A: MailHandler<M> + Send,
-    M: Mail + Send,
-    M::Result: Send,
-{
-    async fn handle(&mut self, actor: &mut A) {
-        let result = <A as MailHandler<M>>::handle(
-            actor,
-            self.mail
-                .take()
-                .expect("Mail should be processed only once"),
-        )
-        .await;
-        self.sender
-            .take()
-            .expect("Mail should be processed only once")
-            .send(result)
-            .map_err(|_| "Remove need for Debug on message send type")
-            .expect("Sending should never fail");
     }
 }
 
@@ -168,8 +60,7 @@ pub struct Actor<A>
 where
     A: ActorHandler,
 {
-    sender_: tokio::sync::mpsc::Sender<A::Message>,
-    sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
+    sender: tokio::sync::mpsc::Sender<A::Message>,
     join_handle: tokio::task::JoinHandle<()>,
     cancellation_token: Arc<AtomicBool>,
 }
@@ -180,37 +71,21 @@ where
     A::Message: Send,
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
-        let (sender, mut mailbox) =
-            tokio::sync::mpsc::channel::<Box<dyn GenericHandlerDyn<A> + Send>>(16);
-
-        let (sender_, mut mailbox_) = tokio::sync::mpsc::channel::<A::Message>(16);
+        let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(16);
 
         let cancellation_token = Arc::new(AtomicBool::new(false));
         let cancellation_token_cloned = cancellation_token.clone();
 
         let join_handle = runtime.spawn(async move {
-            loop {
-                tokio::select! {
-                    Some(mut m) = mailbox.recv() => {
-                        if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                            m.handle(&mut actor).await;
-                        } else {
-                            break;
-                        }
-                    },
-                    Some(m) = mailbox_.recv() => {
-                        if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                            actor.handle_message(m).await;
-                        } else {
-                            break;
-                        }
-                    }
+            while let Some(m) = mailbox.recv().await {
+                if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
+                    actor.handle_message(m).await;
+                } else {
+                    break;
                 }
             }
         });
-
         Actor {
-            sender_,
             sender,
             join_handle,
             cancellation_token,
@@ -220,12 +95,11 @@ where
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
             sender: self.sender.clone(),
-            sender_: self.sender_.clone(),
         }
     }
 
     pub async fn send_actor_message(&self, message: A::Message) -> () {
-        self.sender_.send(message).await.expect(
+        self.sender.send(message).await.expect(
             "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
         );
     }

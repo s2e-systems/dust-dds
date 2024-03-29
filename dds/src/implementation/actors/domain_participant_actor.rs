@@ -1144,7 +1144,7 @@ impl DomainParticipantActor {
                 participant_mask_listener,
                 self.type_support_actor.address(),
             )
-            .await?;
+            .await;
 
         self.builtin_publisher.process_rtps_message(message).await;
 
