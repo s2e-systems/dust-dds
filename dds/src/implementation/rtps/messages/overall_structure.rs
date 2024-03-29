@@ -283,7 +283,7 @@ pub enum RtpsSubmessageWriteKind<'a> {
 }
 
 fn write_submessage_into_bytes<'a>(
-    submessage: impl SubmessageHeader + WriteIntoBytes,
+    submessage: &(impl SubmessageHeader + WriteIntoBytes),
     mut buf: &mut [u8],
 ) -> usize {
     let header_len = 4;

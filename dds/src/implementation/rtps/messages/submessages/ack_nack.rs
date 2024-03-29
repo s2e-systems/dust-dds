@@ -81,7 +81,7 @@ impl AckNackSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for &AckNackSubmessageWrite<'_> {
+impl SubmessageHeader for AckNackSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
@@ -91,7 +91,7 @@ impl SubmessageHeader for &AckNackSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for &AckNackSubmessageWrite<'_> {
+impl WriteIntoBytes for AckNackSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);

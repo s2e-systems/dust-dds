@@ -80,13 +80,13 @@ impl NackFragSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for &NackFragSubmessageWrite<'_> {
+impl SubmessageHeader for NackFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for &NackFragSubmessageWrite<'_> {
+impl WriteIntoBytes for NackFragSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);

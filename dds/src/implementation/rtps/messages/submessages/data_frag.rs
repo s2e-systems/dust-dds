@@ -189,7 +189,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
     }
 }
 
-impl SubmessageHeader for &DataFragSubmessageWrite<'_> {
+impl SubmessageHeader for DataFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
@@ -203,7 +203,7 @@ impl SubmessageHeader for &DataFragSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for &DataFragSubmessageWrite<'_> {
+impl WriteIntoBytes for DataFragSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);

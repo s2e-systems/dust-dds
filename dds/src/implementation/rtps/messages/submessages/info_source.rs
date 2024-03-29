@@ -66,13 +66,13 @@ impl InfoSourceSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for &InfoSourceSubmessageWrite<'_> {
+impl SubmessageHeader for InfoSourceSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for &InfoSourceSubmessageWrite<'_> {
+impl WriteIntoBytes for InfoSourceSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);

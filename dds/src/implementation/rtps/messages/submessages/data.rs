@@ -189,7 +189,7 @@ impl<'a> DataSubmessageWrite<'a> {
     }
 }
 
-impl SubmessageHeader for &DataSubmessageWrite<'_> {
+impl SubmessageHeader for DataSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
@@ -204,7 +204,7 @@ impl SubmessageHeader for &DataSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for &DataSubmessageWrite<'_> {
+impl WriteIntoBytes for DataSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);
@@ -217,6 +217,18 @@ impl WriteIntoBytes for &DataSubmessageWrite<'_> {
         }
     }
 }
+
+// impl SubmessageHeader for DataSubmessageWrite<'_> {
+//     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
+//         todo!()
+//     }
+// }
+
+// impl WriteIntoBytes for DataSubmessageWrite<'_> {
+//     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+//         todo!()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

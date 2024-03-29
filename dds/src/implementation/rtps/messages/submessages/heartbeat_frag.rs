@@ -79,13 +79,13 @@ impl HeartbeatFragSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for &HeartbeatFragSubmessageWrite<'_> {
+impl SubmessageHeader for HeartbeatFragSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for &HeartbeatFragSubmessageWrite<'_> {
+impl WriteIntoBytes for HeartbeatFragSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);

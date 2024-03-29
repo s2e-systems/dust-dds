@@ -62,7 +62,7 @@ impl InfoTimestampSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for &InfoTimestampSubmessageWrite<'_> {
+impl SubmessageHeader for InfoTimestampSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
@@ -72,7 +72,7 @@ impl SubmessageHeader for &InfoTimestampSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for &InfoTimestampSubmessageWrite<'_> {
+impl WriteIntoBytes for InfoTimestampSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         if let Some(submessage_element) = &self.timestamp_submessage_element {
             submessage_element.write_into_bytes(buf);

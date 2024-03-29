@@ -72,13 +72,13 @@ impl GapSubmessageWrite<'_> {
     }
 }
 
-impl SubmessageHeader for &GapSubmessageWrite<'_> {
+impl SubmessageHeader for GapSubmessageWrite<'_> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for &GapSubmessageWrite<'_> {
+impl WriteIntoBytes for GapSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for submessage_element in &self.submessage_elements {
             submessage_element.write_into_bytes(buf);
