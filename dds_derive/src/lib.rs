@@ -128,7 +128,6 @@ pub fn actor_interface(
             _ => None,
         }) {
             let method_ident = &method.sig.ident;
-            let method_attrs = &method.attrs;
             let (methods_arguments_ident, methods_arguments_type): (Vec<_>, Vec<_>) = method
                 .sig
                 .inputs
@@ -156,7 +155,7 @@ pub fn actor_interface(
                     };
 
                     let actor_method_variant = quote! {
-                        #(#method_attrs)*
+                        #[allow(clippy::too_many_arguments)]
                         pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*){
                             let message = #actor_message_enum_ident::#method_ident{
                                 #(#methods_arguments_ident, )*
@@ -166,7 +165,7 @@ pub fn actor_interface(
                     };
 
                     let actor_address_method_variant = quote! {
-                        #(#method_attrs)*
+                        #[allow(clippy::too_many_arguments)]
                         pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> crate::infrastructure::error::DdsResult<()> {
                             let message = #actor_message_enum_ident::#method_ident{
                                 #(#methods_arguments_ident, )*
@@ -199,7 +198,7 @@ pub fn actor_interface(
                     };
 
                     let actor_method_variant = quote! {
-                        #(#method_attrs)*
+                        #[allow(clippy::too_many_arguments)]
                         pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> #output_type {
                             let (__response_sender, response_receiver) = tokio::sync::oneshot::channel();
                             let message = #actor_message_enum_ident::#method_ident{
@@ -212,7 +211,7 @@ pub fn actor_interface(
                     };
 
                     let actor_address_method_variant = quote! {
-                        #(#method_attrs)*
+                        #[allow(clippy::too_many_arguments)]
                         pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> crate::infrastructure::error::DdsResult<#output_type> {
                             let (__response_sender, response_receiver) = tokio::sync::oneshot::channel();
                             let message = #actor_message_enum_ident::#method_ident{
