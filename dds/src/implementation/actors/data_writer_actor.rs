@@ -75,10 +75,9 @@ use std::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    data_writer_listener_actor::{self, DataWriterListenerActor},
-    domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    publisher_listener_actor::{self, PublisherListenerActor},
-    status_condition_actor::StatusConditionActor,
+    data_writer_listener_actor::DataWriterListenerActor,
+    domain_participant_listener_actor::DomainParticipantListenerActor,
+    publisher_listener_actor::PublisherListenerActor, status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
 
@@ -767,7 +766,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn process_rtps_message(&mut self, message: RtpsMessageRead) -> () {
+    async fn process_rtps_message(&mut self, message: RtpsMessageRead) {
         let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
@@ -791,7 +790,7 @@ impl DataWriterActor {
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
-    ) -> () {
+    ) {
         // Remove stale changes before sending
         self.remove_stale_changes(now);
 
@@ -995,20 +994,18 @@ impl DataWriterActor {
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
             self.listener
-                .send_mail(
-                    data_writer_listener_actor::trigger_on_publication_matched::new(
-                        data_writer_address,
-                        self.status_condition.address(),
-                        publisher,
-                        TopicAsync::new(
-                            self.topic_address.clone(),
-                            self.topic_status_condition_address.clone(),
-                            self.type_name.clone(),
-                            self.topic_name.clone(),
-                            participant,
-                        ),
-                        status,
+                .trigger_on_publication_matched(
+                    data_writer_address,
+                    self.status_condition.address(),
+                    publisher,
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        participant,
                     ),
+                    status,
                 )
                 .await;
         } else if let Some(publisher_publication_matched_listener) =
@@ -1016,7 +1013,7 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             publisher_publication_matched_listener
-                .send_mail(publisher_listener_actor::trigger_on_publication_matched::new(status))
+                .trigger_on_publication_matched(status)
                 .await
                 .expect("Listener should exist");
         } else if let Some(participant_publication_matched_listener) =
@@ -1024,9 +1021,7 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             participant_publication_matched_listener
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_publication_matched::new(status),
-                )
+                .trigger_on_publication_matched(status)
                 .await
                 .expect("Listener should exist");
         }
@@ -1051,20 +1046,18 @@ impl DataWriterActor {
             let status = self.get_offered_incompatible_qos_status().await;
             let participant = publisher.get_participant();
             self.listener
-                .send_mail(
-                    data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        data_writer_address,
-                        self.status_condition.address(),
-                        publisher,
-                        TopicAsync::new(
-                            self.topic_address.clone(),
-                            self.topic_status_condition_address.clone(),
-                            self.type_name.clone(),
-                            self.topic_name.clone(),
-                            participant,
-                        ),
-                        status,
+                .trigger_on_offered_incompatible_qos(
+                    data_writer_address,
+                    self.status_condition.address(),
+                    publisher,
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        participant,
                     ),
+                    status,
                 )
                 .await;
         } else if let Some(offered_incompatible_qos_publisher_listener) =
@@ -1072,9 +1065,7 @@ impl DataWriterActor {
         {
             let status = self.get_offered_incompatible_qos_status().await;
             offered_incompatible_qos_publisher_listener
-                .send_mail(
-                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(status),
-                )
+                .trigger_on_offered_incompatible_qos(status)
                 .await
                 .expect("Listener should exist");
         } else if let Some(offered_incompatible_qos_participant_listener) =
@@ -1082,11 +1073,7 @@ impl DataWriterActor {
         {
             let status = self.get_offered_incompatible_qos_status().await;
             offered_incompatible_qos_participant_listener
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        status,
-                    ),
-                )
+                .trigger_on_offered_incompatible_qos(status)
                 .await
                 .expect("Listener should exist");
         }

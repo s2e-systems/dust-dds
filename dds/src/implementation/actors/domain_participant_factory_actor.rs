@@ -4,7 +4,7 @@ use crate::{
     dds_async::domain_participant::DomainParticipantAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actors::domain_participant_actor::{self, DomainParticipantActor},
+        actors::domain_participant_actor::DomainParticipantActor,
         rtps::{
             messages::overall_structure::RtpsMessageRead,
             participant::RtpsParticipant,
@@ -237,9 +237,7 @@ impl DomainParticipantFactoryActor {
                     if r.is_err() {
                         break;
                     }
-                    let r = participant_address_clone
-                        .send_mail(domain_participant_actor::send_message::new())
-                        .await;
+                    let r = participant_address_clone.send_message().await;
                     if r.is_err() {
                         break;
                     }
@@ -264,9 +262,7 @@ impl DomainParticipantFactoryActor {
                             .process_builtin_discovery(participant_clone.clone())
                             .await?;
 
-                        participant_address_clone
-                            .send_mail(domain_participant_actor::send_message::new())
-                            .await?;
+                        participant_address_clone.send_message().await?;
                         Ok(())
                     }
                     .await;
@@ -286,12 +282,7 @@ impl DomainParticipantFactoryActor {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
-                        .send_mail(
-                            domain_participant_actor::process_user_defined_rtps_message::new(
-                                message,
-                                participant_clone.clone(),
-                            ),
-                        )
+                        .process_user_defined_rtps_message(message, participant_clone.clone())
                         .await;
 
                     if r.is_err() {

@@ -82,10 +82,9 @@ use super::{
     domain_participant_listener_actor::{
         DomainParticipantListenerActor, DomainParticipantListenerAsyncDyn,
     },
-    publisher_actor::{self, PublisherActor},
+    publisher_actor::PublisherActor,
     publisher_listener_actor::PublisherListenerAsyncDyn,
     status_condition_actor::StatusConditionActor,
-    subscriber_actor,
     subscriber_listener_actor::SubscriberListenerAsyncDyn,
     topic_listener_actor::TopicListenerAsyncDyn,
     type_support_actor::TypeSupportActor,
@@ -1098,7 +1097,7 @@ impl DomainParticipantActor {
         self.builtin_publisher.address()
     }
 
-    async fn send_message(&self) -> () {
+    async fn send_message(&self) {
         let now = self.get_current_time().await;
         let header = RtpsMessageHeader::new(
             self.rtps_participant.protocol_version(),
@@ -1106,35 +1105,21 @@ impl DomainParticipantActor {
             self.rtps_participant.guid().prefix(),
         );
         self.builtin_publisher
-            .send_mail(publisher_actor::send_message::new(
-                header,
-                self.udp_transport_write.clone(),
-                now,
-            ))
+            .send_message(header, self.udp_transport_write.clone(), now)
             .await;
         self.builtin_subscriber
-            .send_mail(subscriber_actor::send_message::new(
-                header,
-                self.udp_transport_write.clone(),
-            ))
+            .send_message(header, self.udp_transport_write.clone())
             .await;
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_mail(publisher_actor::send_message::new(
-                    header,
-                    self.udp_transport_write.clone(),
-                    now,
-                ))
+                .send_message(header, self.udp_transport_write.clone(), now)
                 .await;
         }
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_mail(subscriber_actor::send_message::new(
-                    header,
-                    self.udp_transport_write.clone(),
-                ))
+                .send_message(header, self.udp_transport_write.clone())
                 .await;
         }
     }
@@ -1170,7 +1155,7 @@ impl DomainParticipantActor {
         &self,
         message: RtpsMessageRead,
         participant: DomainParticipantAsync,
-    ) -> () {
+    ) {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self
             .user_defined_subscriber_list
@@ -1178,26 +1163,26 @@ impl DomainParticipantActor {
             .map(|a| a.address())
         {
             user_defined_subscriber_address
-                .send_mail(subscriber_actor::process_rtps_message::new(
+                .process_rtps_message(
                     message.clone(),
                     self.get_current_time().await.into(),
                     user_defined_subscriber_address.clone(),
                     participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
-                ))
+                )
                 .await
                 .expect("Should not fail to send command");
 
             user_defined_subscriber_address
-                .send_mail(subscriber_actor::send_message::new(
+                .send_message(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
                         self.rtps_participant.guid().prefix(),
                     ),
                     self.udp_transport_write.clone().clone(),
-                ))
+                )
                 .await
                 .expect("Should not fail to send command");
         }
@@ -1208,11 +1193,11 @@ impl DomainParticipantActor {
             .map(|a| a.address())
         {
             user_defined_publisher_address
-                .send_mail(publisher_actor::process_rtps_message::new(message.clone()))
+                .process_rtps_message(message.clone())
                 .await
                 .expect("Should not fail to send command");
             user_defined_publisher_address
-                .send_mail(publisher_actor::send_message::new(
+                .send_message(
                     RtpsMessageHeader::new(
                         self.rtps_participant.protocol_version(),
                         self.rtps_participant.vendor_id(),
@@ -1220,7 +1205,7 @@ impl DomainParticipantActor {
                     ),
                     self.udp_transport_write.clone(),
                     self.get_current_time().await,
-                ))
+                )
                 .await
                 .expect("Should not fail to send command");
         }
@@ -1229,7 +1214,7 @@ impl DomainParticipantActor {
     async fn announce_created_or_modified_data_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
-    ) -> () {
+    ) {
         if let Some(sedp_publications_announcer) = self
             .builtin_publisher
             .lookup_datawriter(DCPS_PUBLICATION.to_string())
@@ -1256,7 +1241,7 @@ impl DomainParticipantActor {
     async fn announce_created_or_modified_data_reader(
         &self,
         discovered_reader_data: DiscoveredReaderData,
-    ) -> () {
+    ) {
         if let Some(sedp_subscriptions_announcer) = self
             .builtin_publisher
             .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())

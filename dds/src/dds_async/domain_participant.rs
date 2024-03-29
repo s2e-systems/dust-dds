@@ -5,7 +5,7 @@ use crate::{
     domain::domain_participant_factory::{DomainId, DomainParticipantFactory},
     implementation::{
         actors::{
-            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
+            domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::SubscriberActor,
         },
@@ -718,9 +718,7 @@ impl DomainParticipantAsync {
                                     )
                                     .await??;
 
-                                domain_participant_address
-                                    .send_mail(domain_participant_actor::send_message::new())
-                                    .await?;
+                                domain_participant_address.send_message().await?;
                             }
                         }
 

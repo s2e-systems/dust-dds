@@ -4,10 +4,8 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actors::{
-            data_writer_actor::DataWriterActor,
-            domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor::PublisherActor,
-            status_condition_actor::StatusConditionActor,
+            data_writer_actor::DataWriterActor, domain_participant_actor::DomainParticipantActor,
+            publisher_actor::PublisherActor, status_condition_actor::StatusConditionActor,
         },
         utils::actor::ActorAddress,
     },
@@ -105,11 +103,7 @@ impl<Foo> DataWriterAsync<Foo> {
             )
             .await?;
         self.participant_address()
-            .send_mail(
-                domain_participant_actor::announce_created_or_modified_data_writer::new(
-                    discovered_writer_data,
-                ),
-            )
+            .announce_created_or_modified_data_writer(discovered_writer_data)
             .await
     }
 }
@@ -278,9 +272,7 @@ where
             .write_w_timestamp(serialized_data, key, handle, timestamp)
             .await??;
 
-        self.participant_address()
-            .send_mail(domain_participant_actor::send_message::new())
-            .await?;
+        self.participant_address().send_message().await?;
 
         Ok(())
     }

@@ -63,18 +63,6 @@ where
             .await
             .map_err(|_| DdsError::AlreadyDeleted)
     }
-
-    pub async fn send_mail<M>(&self, mail: M) -> DdsResult<()>
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        <M as Mail>::Result: Send,
-    {
-        self.sender
-            .send(Box::new(CommandMail::new(mail)))
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)
-    }
 }
 
 // Workaround for not being able to make a dyn object out of a trait with async
@@ -240,21 +228,6 @@ where
         self.sender_.send(message).await.expect(
             "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
         );
-    }
-
-    pub async fn send_mail<M>(&self, mail: M)
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        <M as Mail>::Result: Send,
-    {
-        self.sender
-            .send(Box::new(CommandMail::new(mail)))
-            .await
-            .map_err(|_| ())
-            .expect(
-                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
-            );
     }
 }
 

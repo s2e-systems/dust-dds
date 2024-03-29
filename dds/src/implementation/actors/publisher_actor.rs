@@ -33,7 +33,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::{self, DataWriterActor},
+    data_writer_actor::DataWriterActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
     publisher_listener_actor::{PublisherListenerActor, PublisherListenerAsyncDyn},
     status_condition_actor::StatusConditionActor,
@@ -239,12 +239,10 @@ impl PublisherActor {
             .collect()
     }
 
-    async fn process_rtps_message(&self, message: RtpsMessageRead) -> () {
+    async fn process_rtps_message(&self, message: RtpsMessageRead) {
         for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
             data_writer_address
-                .send_mail(data_writer_actor::process_rtps_message::new(
-                    message.clone(),
-                ))
+                .process_rtps_message(message.clone())
                 .await
                 .expect("Should not fail to send command");
         }
@@ -255,14 +253,10 @@ impl PublisherActor {
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
-    ) -> () {
+    ) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_mail(data_writer_actor::send_message::new(
-                    header,
-                    udp_transport_write.clone(),
-                    now,
-                ))
+                .send_message(header, udp_transport_write.clone(), now)
                 .await;
         }
     }

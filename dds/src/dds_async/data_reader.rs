@@ -2,10 +2,8 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actors::{
-            data_reader_actor::DataReaderActor,
-            domain_participant_actor::{self, DomainParticipantActor},
-            status_condition_actor::StatusConditionActor,
-            subscriber_actor::SubscriberActor,
+            data_reader_actor::DataReaderActor, domain_participant_actor::DomainParticipantActor,
+            status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
         },
         utils::actor::ActorAddress,
     },
@@ -98,11 +96,7 @@ impl<Foo> DataReaderAsync<Foo> {
             )
             .await?;
         self.participant_address()
-            .send_mail(
-                domain_participant_actor::announce_created_or_modified_data_reader::new(
-                    discovered_reader_data,
-                ),
-            )
+            .announce_created_or_modified_data_reader(discovered_reader_data)
             .await
     }
 }

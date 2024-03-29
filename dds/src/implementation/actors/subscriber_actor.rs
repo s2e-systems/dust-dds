@@ -6,7 +6,7 @@ use tracing::warn;
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    data_reader_actor::{self, DataReaderActor},
+    data_reader_actor::DataReaderActor,
     subscriber_listener_actor::{SubscriberListenerActor, SubscriberListenerAsyncDyn},
     topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
@@ -262,13 +262,10 @@ impl SubscriberActor {
         &self,
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
-    ) -> () {
+    ) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_mail(data_reader_actor::send_message::new(
-                    header,
-                    udp_transport_write.clone(),
-                ))
+                .send_message(header, udp_transport_write.clone())
                 .await;
         }
     }
@@ -284,15 +281,15 @@ impl SubscriberActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
-    ) -> DdsResult<()> {
+    ) {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
+        for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .process_rtps_message(
                     message.clone(),
                     reception_timestamp,
-                    data_reader_address.clone(),
+                    data_reader_address.address(),
                     SubscriberAsync::new(
                         subscriber_address.clone(),
                         self.status_condition.address(),
@@ -302,9 +299,8 @@ impl SubscriberActor {
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
                 )
-                .await??;
+                .await;
         }
-        Ok(())
     }
 
     async fn add_matched_writer(

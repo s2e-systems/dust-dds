@@ -1,9 +1,8 @@
 use crate::{
     implementation::{
         actors::{
-            domain_participant_actor::{self, DomainParticipantActor},
-            status_condition_actor::StatusConditionActor,
-            topic_actor::TopicActor,
+            domain_participant_actor::DomainParticipantActor,
+            status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
@@ -186,9 +185,7 @@ async fn announce_topic(
                 )
                 .await??;
 
-            domain_participant
-                .send_mail(domain_participant_actor::send_message::new())
-                .await?;
+            domain_participant.send_message().await?;
             break;
         }
     }

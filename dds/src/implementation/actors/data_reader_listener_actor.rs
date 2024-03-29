@@ -43,7 +43,7 @@ impl DataReaderListenerActor {
         status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
-    ) -> () {
+    ) {
         self.listener
             .call_listener_function(
                 listener_operation,
