@@ -260,7 +260,7 @@ fn foo_with_specialized_type_support_should_read_and_write() {
             QosKind::Default,
             None,
             NO_STATUS,
-            DynamicTypeSupport { range: 0..4 },
+            Box::new(DynamicTypeSupport { range: 0..4 }),
         )
         .unwrap();
 

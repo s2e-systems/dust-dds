@@ -212,7 +212,7 @@ impl DomainParticipantAsync {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        let type_support = FooTypeSupport::new::<Foo>();
+        let type_support = Box::new(FooTypeSupport::new::<Foo>());
 
         self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
             .await
@@ -227,12 +227,12 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
+        dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         self.participant_address
             .send_mail_and_await_reply(domain_participant_actor::register_type::new(
                 type_name.to_string(),
-                Box::new(dynamic_type_representation),
+                dynamic_type_representation,
             ))
             .await?;
 

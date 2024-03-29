@@ -179,7 +179,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: impl DynamicTypeInterface + Send + Sync + 'static,
+        dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<Topic> {
         self.participant_async
             .runtime_handle()
