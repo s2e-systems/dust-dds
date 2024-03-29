@@ -5,12 +5,11 @@ use crate::{
             submessage_elements::ArcSlice,
             submessages::{
                 ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-                gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
-                heartbeat_frag::HeartbeatFragSubmessageRead,
-                info_destination::InfoDestinationSubmessageRead,
-                info_reply::InfoReplySubmessageRead, info_source::InfoSourceSubmessageRead,
-                info_timestamp::InfoTimestampSubmessageRead, nack_frag::NackFragSubmessageRead,
-                pad::PadSubmessageRead,
+                gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
+                heartbeat_frag::HeartbeatFragSubmessage,
+                info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
+                info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
+                nack_frag::NackFragSubmessage, pad::PadSubmessage,
             },
             types::{
                 ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
@@ -196,40 +195,37 @@ impl RtpsMessageRead {
                         DataFragSubmessage::try_from_arc_slice(&submessage_header, data.clone())
                             .map(RtpsSubmessageReadKind::DataFrag)
                     }
-                    GAP => GapSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                    GAP => GapSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::Gap),
                     HEARTBEAT => {
-                        HeartbeatSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                        HeartbeatSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                             .map(RtpsSubmessageReadKind::Heartbeat)
                     }
-                    HEARTBEAT_FRAG => HeartbeatFragSubmessageRead::try_from_bytes(
-                        &submessage_header,
-                        data.as_ref(),
-                    )
-                    .map(RtpsSubmessageReadKind::HeartbeatFrag),
-                    INFO_DST => InfoDestinationSubmessageRead::try_from_bytes(
-                        &submessage_header,
-                        data.as_ref(),
-                    )
-                    .map(RtpsSubmessageReadKind::InfoDestination),
+                    HEARTBEAT_FRAG => {
+                        HeartbeatFragSubmessage::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::HeartbeatFrag)
+                    }
+                    INFO_DST => {
+                        InfoDestinationSubmessage::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::InfoDestination)
+                    }
                     INFO_REPLY => {
-                        InfoReplySubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                        InfoReplySubmessage::try_from_bytes(&submessage_header, data.as_ref())
                             .map(RtpsSubmessageReadKind::InfoReply)
                     }
                     INFO_SRC => {
-                        InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                        InfoSourceSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                             .map(RtpsSubmessageReadKind::InfoSource)
                     }
-                    INFO_TS => InfoTimestampSubmessageRead::try_from_bytes(
-                        &submessage_header,
-                        data.as_ref(),
-                    )
-                    .map(RtpsSubmessageReadKind::InfoTimestamp),
+                    INFO_TS => {
+                        InfoTimestampSubmessage::try_from_bytes(&submessage_header, data.as_ref())
+                            .map(RtpsSubmessageReadKind::InfoTimestamp)
+                    }
                     NACK_FRAG => {
-                        NackFragSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                        NackFragSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                             .map(RtpsSubmessageReadKind::NackFrag)
                     }
-                    PAD => PadSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
+                    PAD => PadSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::Pad),
                     _ => {
                         data.consume(submessage_length);
@@ -283,15 +279,15 @@ pub enum RtpsSubmessageReadKind {
     AckNack(AckNackSubmessage),
     Data(DataSubmessage),
     DataFrag(DataFragSubmessage),
-    Gap(GapSubmessageRead),
-    Heartbeat(HeartbeatSubmessageRead),
-    HeartbeatFrag(HeartbeatFragSubmessageRead),
-    InfoDestination(InfoDestinationSubmessageRead),
-    InfoReply(InfoReplySubmessageRead),
-    InfoSource(InfoSourceSubmessageRead),
-    InfoTimestamp(InfoTimestampSubmessageRead),
-    NackFrag(NackFragSubmessageRead),
-    Pad(PadSubmessageRead),
+    Gap(GapSubmessage),
+    Heartbeat(HeartbeatSubmessage),
+    HeartbeatFrag(HeartbeatFragSubmessage),
+    InfoDestination(InfoDestinationSubmessage),
+    InfoReply(InfoReplySubmessage),
+    InfoSource(InfoSourceSubmessage),
+    InfoTimestamp(InfoTimestampSubmessage),
+    NackFrag(NackFragSubmessage),
+    Pad(PadSubmessage),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
@@ -374,7 +370,7 @@ mod tests {
     use crate::implementation::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
-            submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessageWrite},
+            submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
             types::Time,
         },
         types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
@@ -458,7 +454,7 @@ mod tests {
             guid_prefix: [3; 12],
         };
         let info_timestamp_submessage =
-            Box::new(InfoTimestampSubmessageWrite::new(false, Time::new(4, 0)));
+            Box::new(InfoTimestampSubmessage::new(false, Time::new(4, 0)));
 
         let inline_qos_flag = true;
         let data_flag = false;

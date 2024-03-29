@@ -13,13 +13,13 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessageRead {
+pub struct InfoSourceSubmessage {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     guid_prefix: GuidPrefix,
 }
 
-impl InfoSourceSubmessageRead {
+impl InfoSourceSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -46,14 +46,7 @@ impl InfoSourceSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessageWrite {
-    protocol_version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
-}
-
-impl InfoSourceSubmessageWrite {
+impl InfoSourceSubmessage {
     pub fn _new(
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
@@ -67,7 +60,7 @@ impl InfoSourceSubmessageWrite {
     }
 }
 
-impl Submessage for InfoSourceSubmessageWrite {
+impl Submessage for InfoSourceSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
             .write_into_bytes(&mut buf);
@@ -91,11 +84,8 @@ mod tests {
 
     #[test]
     fn serialize_info_source() {
-        let submessage = InfoSourceSubmessageWrite::_new(
-            PROTOCOLVERSION_1_0,
-            VENDOR_ID_UNKNOWN,
-            GUIDPREFIX_UNKNOWN,
-        );
+        let submessage =
+            InfoSourceSubmessage::_new(PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN, GUIDPREFIX_UNKNOWN);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x0c, 0b_0000_0001, 20, 0, // Submessage header
@@ -120,8 +110,7 @@ mod tests {
             0, 0, 0, 0, //guid_prefix
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoSourceSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;

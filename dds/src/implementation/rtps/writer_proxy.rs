@@ -10,7 +10,7 @@ use super::{
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-            info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
+            info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
         },
         types::Count,
     },
@@ -238,7 +238,7 @@ impl RtpsWriterProxy {
             self.increment_acknack_count();
 
             let info_dst_submessage =
-                InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
+                InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
 
             let acknack_submessage = AckNackSubmessage::new(
                 true,
@@ -269,7 +269,7 @@ impl RtpsWriterProxy {
 
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage = NackFragSubmessageWrite::new(
+                    let nack_frag_submessage = NackFragSubmessage::new(
                         reader_guid.entity_id(),
                         self.remote_writer_guid().entity_id(),
                         *seq_num,

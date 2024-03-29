@@ -14,14 +14,14 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessageRead {
+pub struct GapSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
     gap_start: SequenceNumber,
     gap_list: SequenceNumberSet,
 }
 
-impl GapSubmessageRead {
+impl GapSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -52,15 +52,7 @@ impl GapSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessageWrite {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    gap_start: SequenceNumber,
-    gap_list: SequenceNumberSet,
-}
-
-impl GapSubmessageWrite {
+impl GapSubmessage {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -76,7 +68,7 @@ impl GapSubmessageWrite {
     }
 }
 
-impl Submessage for GapSubmessageWrite {
+impl Submessage for GapSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
             .write_into_bytes(&mut buf);
@@ -103,7 +95,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let gap_start = 5;
         let gap_list = SequenceNumberSet::new(10, []);
-        let submessage = GapSubmessageWrite::new(reader_id, writer_id, gap_start, gap_list);
+        let submessage = GapSubmessage::new(reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
@@ -137,8 +129,7 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            GapSubmessageRead::try_from_bytes(&&submessage_header, data.as_ref()).unwrap();
+        let submessage = GapSubmessage::try_from_bytes(&&submessage_header, data.as_ref()).unwrap();
         assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());

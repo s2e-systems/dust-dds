@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessageRead {
+pub struct NackFragSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
@@ -22,7 +22,7 @@ pub struct NackFragSubmessageRead {
     count: Count,
 }
 
-impl NackFragSubmessageRead {
+impl NackFragSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -58,16 +58,7 @@ impl NackFragSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct NackFragSubmessageWrite {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    fragment_number_state: FragmentNumberSet,
-    count: Count,
-}
-
-impl NackFragSubmessageWrite {
+impl NackFragSubmessage {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -85,7 +76,7 @@ impl NackFragSubmessageWrite {
     }
 }
 
-impl Submessage for NackFragSubmessageWrite {
+impl Submessage for NackFragSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
             .write_into_bytes(&mut buf);
@@ -110,7 +101,7 @@ mod tests {
 
     #[test]
     fn serialize_nack_frag() {
-        let submessage = NackFragSubmessageWrite::new(
+        let submessage = NackFragSubmessage::new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             4,
@@ -145,7 +136,7 @@ mod tests {
             6, 0, 0, 0, // count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = NackFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = NackFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
