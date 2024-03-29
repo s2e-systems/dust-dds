@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
 use crate::{
     infrastructure::status::{
@@ -20,105 +20,138 @@ pub trait DomainParticipantListenerAsync {
         &mut self,
         _the_topic: TopicAsync,
         _status: InconsistentTopicStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any writer in the domain participant reports a liveliness lost status.
-    fn on_liveliness_lost(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
+    fn on_liveliness_lost<'a, 'b>(
+        &'a mut self,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
         _status: LivelinessLostStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a deadline missed status.
-    fn on_offered_deadline_missed(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
+    fn on_offered_deadline_missed<'a, 'b>(
+        &'a mut self,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
         _status: OfferedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports an offered incompatible QoS status.
-    fn on_offered_incompatible_qos(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
+    fn on_offered_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
         _status: OfferedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample lost status.
-    fn on_sample_lost(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
+    fn on_sample_lost<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
         _status: SampleLostStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a data available status.
-    fn on_data_available(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    fn on_data_available<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a sample rejected status.
-    fn on_sample_rejected(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
+    fn on_sample_rejected<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
         _status: SampleRejectedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a liveliness changed status.
-    fn on_liveliness_changed(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
+    fn on_liveliness_changed<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
         _status: LivelinessChangedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested deadline missed status.
-    fn on_requested_deadline_missed(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
+    fn on_requested_deadline_missed<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
         _status: RequestedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a requested incompatible QoS status.
-    fn on_requested_incompatible_qos(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
+    fn on_requested_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
         _status: RequestedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a publication matched status.
-    fn on_publication_matched(
-        &mut self,
-        _the_writer: &dyn AnyDataWriter,
+    fn on_publication_matched<'a, 'b>(
+        &'a mut self,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
         _status: PublicationMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data reader in the domain participant reports a subscription matched status.
-    fn on_subscription_matched(
-        &mut self,
-        _the_reader: &dyn AnyDataReader,
+    fn on_subscription_matched<'a, 'b>(
+        &'a mut self,
+        _the_reader: &'b (dyn AnyDataReader + Sync),
         _status: SubscriptionMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
-        std::future::ready(())
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        Box::pin(std::future::ready(()))
     }
 }
