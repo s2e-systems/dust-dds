@@ -4,7 +4,7 @@ use tracing::warn;
 use crate::{
     builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dds::infrastructure,
-    dds_async::domain_participant::DomainParticipantAsync,
+    dds_async::{domain_participant::DomainParticipantAsync, subscriber_listener::SubscriberListenerAsync},
     domain::domain_participant_factory::DomainId,
     implementation::{
         actors::{
@@ -86,9 +86,7 @@ use super::{
     publisher_actor::{self, PublisherActor},
     publisher_listener_actor::PublisherListenerAsyncDyn,
     status_condition_actor::StatusConditionActor,
-    subscriber_actor,
-    subscriber_listener_actor::SubscriberListenerAsyncDyn,
-    topic_actor,
+    subscriber_actor, topic_actor,
     topic_listener_actor::TopicListenerAsyncDyn,
     type_support_actor::{self, TypeSupportActor},
 };
@@ -724,7 +722,7 @@ impl DomainParticipantActor {
     async fn create_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Box<dyn SubscriberListenerAsyncDyn + Send>,
+        a_listener: Box<dyn SubscriberListenerAsync + Send>,
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<SubscriberActor> {

@@ -198,71 +198,92 @@ where
     fn on_data_on_readers(
         &mut self,
         the_subscriber: SubscriberAsync,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         tokio::task::block_in_place(|| self.0.on_data_on_readers(Subscriber::new(the_subscriber)));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_data_available(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
-    ) -> impl Future<Output = ()> + Send {
+    fn on_data_available<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_data_available(the_reader));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_sample_rejected(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_sample_rejected<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: SampleRejectedStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_sample_rejected(the_reader, status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_liveliness_changed(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_liveliness_changed<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: LivelinessChangedStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_liveliness_changed(the_reader, status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_requested_deadline_missed(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_requested_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: RequestedDeadlineMissedStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_requested_deadline_missed(the_reader, status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_requested_incompatible_qos(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_requested_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: RequestedIncompatibleQosStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_requested_incompatible_qos(the_reader, status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_subscription_matched(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_subscription_matched<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: SubscriptionMatchedStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_subscription_matched(the_reader, status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 
-    fn on_sample_lost(
-        &mut self,
-        the_reader: &dyn AnyDataReader,
+    fn on_sample_lost<'a, 'b>(
+        &'a mut self,
+        the_reader: &'b (dyn AnyDataReader + Sync),
         status: SampleLostStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
         tokio::task::block_in_place(|| self.0.on_sample_lost(the_reader, status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 }
 
