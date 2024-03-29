@@ -1,6 +1,11 @@
-use crate::infrastructure::status::{
-    LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-    PublicationMatchedStatus,
+use std::{future::Future, pin::Pin};
+
+use crate::{
+    dds_async::publisher_listener::PublisherListenerAsync,
+    infrastructure::status::{
+        LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+        PublicationMatchedStatus,
+    },
 };
 
 use super::data_writer::AnyDataWriter;
@@ -37,5 +42,63 @@ pub trait PublisherListener {
         _the_writer: &dyn AnyDataWriter,
         _status: PublicationMatchedStatus,
     ) {
+    }
+}
+
+impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
+    fn on_liveliness_lost<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: LivelinessLostStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            PublisherListener::on_liveliness_lost(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_offered_deadline_missed<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedDeadlineMissedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            PublisherListener::on_offered_deadline_missed(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_offered_incompatible_qos<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: OfferedIncompatibleQosStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            PublisherListener::on_offered_incompatible_qos(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
+    }
+
+    fn on_publication_matched<'a, 'b>(
+        &'a mut self,
+        the_writer: &'b (dyn AnyDataWriter + Sync),
+        status: PublicationMatchedStatus,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
+    where
+        'a: 'b,
+    {
+        tokio::task::block_in_place(|| {
+            PublisherListener::on_publication_matched(self.as_mut(), the_writer, status)
+        });
+        Box::pin(async {})
     }
 }

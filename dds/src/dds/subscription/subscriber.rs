@@ -1,7 +1,9 @@
 use crate::{
-    dds_async::subscriber::SubscriberAsync,
+    dds_async::{
+        data_reader_listener::DataReaderListenerAsync, subscriber::SubscriberAsync,
+        subscriber_listener::SubscriberListenerAsync,
+    },
     domain::domain_participant::DomainParticipant,
-    implementation::utils::sync_listener::ListenerSyncToAsync,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -54,19 +56,24 @@ impl Subscriber {
     /// 3. Combine those two qos policies using the [`Subscriber::copy_from_topic_qos`] and selectively modify policies as desired and
     /// use the resulting [`DataReaderQos`] to construct the [`DataReader`].
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub fn create_datareader<Foo>(
+    pub fn create_datareader<'a, Foo>(
         &self,
         a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
-        a_listener: impl DataReaderListener<Foo = Foo> + Send + 'static,
+        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DataReader<Foo>> {
+    ) -> DdsResult<DataReader<Foo>>
+    where
+        Foo: 'a,
+    {
         self.subscriber_async
             .runtime_handle()
             .block_on(self.subscriber_async.create_datareader::<Foo>(
                 a_topic.topic_async(),
                 qos,
-                ListenerSyncToAsync::new(a_listener),
+                a_listener.map::<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send + 'a>, _>(|b| {
+                    Box::new(b)
+                }),
                 mask,
             ))
             .map(DataReader::new)
@@ -209,13 +216,15 @@ impl Subscriber {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl SubscriberListener + Send + 'static,
+        a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.subscriber_async.runtime_handle().block_on(
-            self.subscriber_async
-                .set_listener(ListenerSyncToAsync::new(a_listener), mask),
-        )
+        self.subscriber_async
+            .runtime_handle()
+            .block_on(self.subscriber_async.set_listener(
+                a_listener.map::<Box<dyn SubscriberListenerAsync + Send>, _>(|b| Box::new(b)),
+                mask,
+            ))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

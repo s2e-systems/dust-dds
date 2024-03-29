@@ -12,7 +12,10 @@ use super::{
     type_support_actor::TypeSupportActor,
 };
 use crate::{
-    dds_async::{domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync},
+    dds_async::{
+        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
+        subscriber_listener::SubscriberListenerAsync,
+    },
     implementation::{
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -59,7 +62,7 @@ impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        listener: Box<dyn SubscriberListenerAsync + Send>,
+        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
@@ -94,7 +97,7 @@ impl SubscriberActor {
         topic_name: String,
         has_key: bool,
         qos: QosKind<DataReaderQos>,
-        a_listener: Box<dyn AnyDataReaderListener + Send>,
+        a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
@@ -379,7 +382,7 @@ impl SubscriberActor {
 
     async fn set_listener(
         &mut self,
-        listener: Box<dyn SubscriberListenerAsync + Send>,
+        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {

@@ -24,9 +24,9 @@ pub trait AnyDataReaderListener {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 }
 
-impl<T> AnyDataReaderListener for T
+impl<'a, Foo> AnyDataReaderListener for Box<dyn DataReaderListenerAsync<Foo = Foo> + Send + 'a>
 where
-    T: DataReaderListenerAsync + Send,
+    Foo: 'a,
 {
     fn call_listener_function(
         &mut self,

@@ -154,11 +154,17 @@ impl Topic {
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: impl TopicListener + Send + 'static,
+        a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.topic_async
             .runtime_handle()
-            .block_on(self.topic_async.set_listener(a_listener, mask))
+            .block_on(self.topic_async.set_listener(
+                match a_listener {
+                    Some(l) => Some(Box::new(l)),
+                    None => None,
+                },
+                mask,
+            ))
     }
 }

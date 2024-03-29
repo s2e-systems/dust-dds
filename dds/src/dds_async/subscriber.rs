@@ -1,6 +1,7 @@
 use crate::{
     implementation::{
         actors::{
+            any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor,
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
@@ -60,13 +61,16 @@ impl SubscriberAsync {
 impl SubscriberAsync {
     /// Async version of [`create_datareader`](crate::subscription::subscriber::Subscriber::create_datareader).
     #[tracing::instrument(skip(self, a_topic, a_listener))]
-    pub async fn create_datareader<Foo>(
-        &self,
-        a_topic: &TopicAsync,
+    pub async fn create_datareader<'a, 'b, Foo>(
+        &'a self,
+        a_topic: &'a TopicAsync,
         qos: QosKind<DataReaderQos>,
-        a_listener: impl DataReaderListenerAsync<Foo = Foo> + Send + 'static,
-        mask: &[StatusKind],
-    ) -> DdsResult<DataReaderAsync<Foo>> {
+        a_listener: Option<Box<(dyn DataReaderListenerAsync<Foo = Foo> + Send + 'b)>>,
+        mask: &'a [StatusKind],
+    ) -> DdsResult<DataReaderAsync<Foo>>
+    where
+        Foo: 'b,
+    {
         let type_name = a_topic.get_type_name();
         let topic_name = a_topic.get_name();
         let type_support = self
@@ -82,7 +86,8 @@ impl SubscriberAsync {
                 ))
             })?;
 
-        let listener = Box::new(a_listener);
+        let listener =
+            a_listener.map::<Box<dyn AnyDataReaderListener + Send + 'static>, _>(|b| Box::new(b));
 
         let default_unicast_locator_list = self
             .participant_address()
@@ -285,12 +290,12 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: impl SubscriberListenerAsync + Send + 'static,
+        a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.subscriber_address
             .send_mail_and_await_reply(subscriber_actor::set_listener::new(
-                Box::new(a_listener),
+                a_listener,
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             ))

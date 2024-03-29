@@ -1,3 +1,4 @@
+use super::subscriber_actor;
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::{
@@ -34,8 +35,6 @@ use std::{
     },
 };
 use tracing::{info, warn};
-
-use super::subscriber_actor;
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -78,7 +77,7 @@ impl DomainParticipantFactoryActor {
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        listener: Box<dyn DomainParticipantListenerAsync + Send>,
+        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<ActorAddress<DomainParticipantActor>> {
