@@ -90,8 +90,7 @@ impl WriteIntoBytes for &GapSubmessageWrite<'_> {
 mod tests {
     use crate::implementation::rtps::{
         messages::overall_structure::{
-            write_into_bytes_vec, write_submessage_into_bytes_vec, RtpsSubmessageWriteKind,
-            SubmessageHeaderRead,
+            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
@@ -106,7 +105,7 @@ mod tests {
             reader_id, writer_id, gap_start, gap_list,
         ));
         #[rustfmt::skip]
-        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]

@@ -221,9 +221,7 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::{
-            overall_structure::{
-                write_into_bytes_vec, write_submessage_into_bytes_vec, RtpsSubmessageWriteKind,
-            },
+            overall_structure::{write_into_bytes_vec, RtpsSubmessageWriteKind},
             submessage_elements::Parameter,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
@@ -248,7 +246,7 @@ mod tests {
             serialized_payload,
         )));
         #[rustfmt::skip]
-        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
                 0, 0, 28, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -281,7 +279,7 @@ mod tests {
             &serialized_payload,
         )));
         #[rustfmt::skip]
-        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
                 0, 0, 28, 0, // extraFlags | octetsToInlineQos
                 1, 2, 3, 4, // readerId

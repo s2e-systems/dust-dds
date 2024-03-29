@@ -93,8 +93,7 @@ mod tests {
     use super::*;
     use crate::implementation::rtps::{
         messages::overall_structure::{
-            write_into_bytes_vec, write_submessage_into_bytes_vec, RtpsSubmessageWriteKind,
-            SubmessageHeaderRead,
+            write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
         },
         types::Locator,
     };
@@ -108,7 +107,7 @@ mod tests {
             LocatorList::new(vec![]),
         ));
         #[rustfmt::skip]
-        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x0f, 0b_0000_0001, 28, 0, // Submessage header
                 1, 0, 0, 0, //numLocators
                 11, 0, 0, 0, //kind
