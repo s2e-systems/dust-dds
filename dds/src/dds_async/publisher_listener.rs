@@ -13,8 +13,8 @@ pub trait PublisherListenerAsync {
     /// Method that is called when any writer belonging to this publisher reports a liveliness lost status.
     fn on_liveliness_lost<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: LivelinessLostStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -25,8 +25,8 @@ pub trait PublisherListenerAsync {
     /// Method that is called when any writer belonging to this publisher reports an offered deadline missed status.
     fn on_offered_deadline_missed<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: OfferedDeadlineMissedStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -37,8 +37,8 @@ pub trait PublisherListenerAsync {
     /// Method that is called when any writer belonging to this publisher reports an offered incompatible qos status.
     fn on_offered_incompatible_qos<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: OfferedIncompatibleQosStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
@@ -49,8 +49,8 @@ pub trait PublisherListenerAsync {
     /// Method that is called when any writer belonging to this publisher reports a publication matched status.
     fn on_publication_matched<'a, 'b>(
         &'a mut self,
-        the_writer: &'b (dyn AnyDataWriter + Sync),
-        status: PublicationMatchedStatus,
+        _the_writer: &'b (dyn AnyDataWriter + Sync),
+        _status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
     where
         'a: 'b,
