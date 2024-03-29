@@ -340,9 +340,9 @@ where
         &mut self,
         the_topic: TopicAsync,
         status: InconsistentTopicStatus,
-    ) -> impl Future<Output = ()> + Send {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         tokio::task::block_in_place(|| self.0.on_inconsistent_topic(Topic::new(the_topic), status));
-        std::future::ready(())
+        Box::pin(std::future::ready(()))
     }
 }
 

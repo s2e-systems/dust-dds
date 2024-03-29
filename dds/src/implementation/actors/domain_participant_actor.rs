@@ -8,6 +8,7 @@ use crate::{
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync,
         publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        topic_listener::TopicListenerAsync,
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
@@ -88,7 +89,6 @@ use super::{
     publisher_actor::{self, PublisherActor},
     status_condition_actor::StatusConditionActor,
     subscriber_actor, topic_actor,
-    topic_listener_actor::TopicListenerAsyncDyn,
     type_support_actor::{self, TypeSupportActor},
 };
 
@@ -759,7 +759,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
-        a_listener: Box<dyn TopicListenerAsyncDyn + Send>,
+        a_listener: Box<dyn TopicListenerAsync + Send>,
         _mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> ActorAddress<TopicActor> {
