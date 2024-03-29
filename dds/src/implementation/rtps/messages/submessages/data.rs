@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
+            submessage_elements::{ArcSlice, Data, ParameterList},
             types::{SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
@@ -139,9 +139,11 @@ pub struct DataSubmessageWrite<'a> {
     data_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    submessage_elements: [SubmessageElement<'a>; 5],
-    inline_qos_submessage_element: Option<SubmessageElement<'a>>,
-    serialized_payload_submessage_element: Option<SubmessageElement<'a>>,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    inline_qos: &'a ParameterList,
+    serialized_payload: &'a Data,
 }
 
 impl<'a> DataSubmessageWrite<'a> {
@@ -157,34 +159,16 @@ impl<'a> DataSubmessageWrite<'a> {
         inline_qos: &'a ParameterList,
         serialized_payload: &'a Data,
     ) -> Self {
-        const EXTRA_FLAGS: u16 = 0;
-        const OCTETS_TO_INLINE_QOS: u16 = 16;
-        let submessage_elements = [
-            SubmessageElement::UShort(EXTRA_FLAGS),
-            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
-            SubmessageElement::EntityId(reader_id),
-            SubmessageElement::EntityId(writer_id),
-            SubmessageElement::SequenceNumber(writer_sn),
-        ];
-        let inline_qos_submessage_element = if inline_qos_flag {
-            Some(SubmessageElement::ParameterList(inline_qos))
-        } else {
-            None
-        };
-
-        let serialized_payload_submessage_element = if data_flag || key_flag {
-            Some(SubmessageElement::SerializedData(serialized_payload))
-        } else {
-            None
-        };
         Self {
             inline_qos_flag,
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            submessage_elements,
-            inline_qos_submessage_element,
-            serialized_payload_submessage_element,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
         }
     }
 }
@@ -206,29 +190,21 @@ impl Submessage for DataSubmessageWrite<'_> {
 
 impl WriteIntoBytes for DataSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        EXTRA_FLAGS.write_into_bytes(buf);
+        OCTETS_TO_INLINE_QOS.write_into_bytes(buf);
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        if self.inline_qos_flag {
+            self.inline_qos.write_into_bytes(buf);
         }
-        if let Some(submessage_element) = &self.inline_qos_submessage_element {
-            submessage_element.write_into_bytes(buf);
-        }
-        if let Some(submessage_element) = &self.serialized_payload_submessage_element {
-            submessage_element.write_into_bytes(buf);
+        if self.data_flag || self.key_flag {
+            self.serialized_payload.write_into_bytes(buf);
         }
     }
 }
-
-// impl SubmessageHeader for DataSubmessageWrite<'_> {
-//     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
-//         todo!()
-//     }
-// }
-
-// impl WriteIntoBytes for DataSubmessageWrite<'_> {
-//     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-//         todo!()
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

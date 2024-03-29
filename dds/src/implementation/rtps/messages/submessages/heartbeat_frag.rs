@@ -2,7 +2,6 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::SubmessageElement,
             types::{Count, FragmentNumber, SubmessageKind},
         },
         types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
@@ -56,10 +55,14 @@ impl HeartbeatFragSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatFragSubmessageWrite<'a> {
-    submessage_elements: [SubmessageElement<'a>; 5],
+pub struct HeartbeatFragSubmessageWrite {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    last_fragment_num: FragmentNumber,
+    count: Count,
 }
-impl HeartbeatFragSubmessageWrite<'_> {
+impl HeartbeatFragSubmessageWrite {
     pub fn _new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -68,28 +71,28 @@ impl HeartbeatFragSubmessageWrite<'_> {
         count: Count,
     ) -> Self {
         Self {
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumber(writer_sn),
-                SubmessageElement::FragmentNumber(last_fragment_num),
-                SubmessageElement::Count(count),
-            ],
+            reader_id,
+            writer_id,
+            writer_sn,
+            last_fragment_num,
+            count,
         }
     }
 }
 
-impl Submessage for HeartbeatFragSubmessageWrite<'_> {
+impl Submessage for HeartbeatFragSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for HeartbeatFragSubmessageWrite<'_> {
+impl WriteIntoBytes for HeartbeatFragSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        self.last_fragment_num.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
     }
 }
 

@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{SequenceNumberSet, SubmessageElement},
+            submessage_elements::SequenceNumberSet,
             types::SubmessageKind,
         },
         types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
@@ -50,11 +50,14 @@ impl GapSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct GapSubmessageWrite<'a> {
-    submessage_elements: [SubmessageElement<'a>; 4],
+pub struct GapSubmessageWrite {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    gap_start: SequenceNumber,
+    gap_list: SequenceNumberSet,
 }
 
-impl GapSubmessageWrite<'_> {
+impl GapSubmessageWrite {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -62,27 +65,26 @@ impl GapSubmessageWrite<'_> {
         gap_list: SequenceNumberSet,
     ) -> Self {
         Self {
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumber(gap_start),
-                SubmessageElement::SequenceNumberSet(gap_list),
-            ],
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
         }
     }
 }
 
-impl Submessage for GapSubmessageWrite<'_> {
+impl Submessage for GapSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::GAP, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for GapSubmessageWrite<'_> {
+impl WriteIntoBytes for GapSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.gap_start.write_into_bytes(buf);
+        self.gap_list.write_into_bytes(buf);
     }
 }
 

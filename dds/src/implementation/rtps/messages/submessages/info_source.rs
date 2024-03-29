@@ -2,7 +2,6 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
         types::{GuidPrefix, Long, ProtocolVersion, TryReadFromBytes, VendorId, WriteIntoBytes},
@@ -45,38 +44,38 @@ impl InfoSourceSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessageWrite<'a> {
-    submessage_elements: [SubmessageElement<'a>; 4],
+pub struct InfoSourceSubmessageWrite {
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
 }
 
-impl InfoSourceSubmessageWrite<'_> {
+impl InfoSourceSubmessageWrite {
     pub fn _new(
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
     ) -> Self {
         Self {
-            submessage_elements: [
-                SubmessageElement::Long(0),
-                SubmessageElement::ProtocolVersion(protocol_version),
-                SubmessageElement::VendorId(vendor_id),
-                SubmessageElement::GuidPrefix(guid_prefix),
-            ],
+            protocol_version,
+            vendor_id,
+            guid_prefix,
         }
     }
 }
 
-impl Submessage for InfoSourceSubmessageWrite<'_> {
+impl Submessage for InfoSourceSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for InfoSourceSubmessageWrite<'_> {
+impl WriteIntoBytes for InfoSourceSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
+        0_u32.write_into_bytes(buf);
+        self.protocol_version.write_into_bytes(buf);
+        self.vendor_id.write_into_bytes(buf);
+        self.guid_prefix.write_into_bytes(buf);
     }
 }
 

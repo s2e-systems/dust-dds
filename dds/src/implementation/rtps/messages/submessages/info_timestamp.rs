@@ -2,7 +2,6 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::SubmessageElement,
             types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
         },
         types::WriteIntoBytes,
@@ -42,15 +41,15 @@ impl InfoTimestampSubmessageRead {
     }
 }
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoTimestampSubmessageWrite<'a> {
-    pub invalidate_flag: SubmessageFlag,
-    timestamp_submessage_element: Option<SubmessageElement<'a>>,
+pub struct InfoTimestampSubmessageWrite {
+    invalidate_flag: SubmessageFlag,
+    timestamp_submessage_element: Option<Time>,
 }
 
-impl InfoTimestampSubmessageWrite<'_> {
+impl InfoTimestampSubmessageWrite {
     pub fn new(invalidate_flag: SubmessageFlag, timestamp: Time) -> Self {
         let timestamp_submessage_element = if !invalidate_flag {
-            Some(SubmessageElement::Timestamp(timestamp))
+            Some(timestamp)
         } else {
             None
         };
@@ -62,7 +61,7 @@ impl InfoTimestampSubmessageWrite<'_> {
     }
 }
 
-impl Submessage for InfoTimestampSubmessageWrite<'_> {
+impl Submessage for InfoTimestampSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
@@ -72,10 +71,10 @@ impl Submessage for InfoTimestampSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for InfoTimestampSubmessageWrite<'_> {
+impl WriteIntoBytes for InfoTimestampSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        if let Some(submessage_element) = &self.timestamp_submessage_element {
-            submessage_element.write_into_bytes(buf);
+        if let Some(timestamp) = &self.timestamp_submessage_element {
+            timestamp.write_into_bytes(buf);
         }
     }
 }

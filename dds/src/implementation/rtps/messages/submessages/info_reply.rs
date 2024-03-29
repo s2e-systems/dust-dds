@@ -3,7 +3,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{LocatorList, SubmessageElement},
+            submessage_elements::LocatorList,
             types::{SubmessageFlag, SubmessageKind},
         },
         types::{TryReadFromBytes, WriteIntoBytes},
@@ -52,38 +52,37 @@ impl InfoReplySubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoReplySubmessageWrite<'a> {
+pub struct InfoReplySubmessageWrite {
     multicast_flag: SubmessageFlag,
-    submessage_elements: Vec<SubmessageElement<'a>>,
+    unicast_locator_list: LocatorList,
+    multicast_locator_list: LocatorList,
 }
 
-impl Submessage for InfoReplySubmessageWrite<'_> {
+impl Submessage for InfoReplySubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for InfoReplySubmessageWrite<'_> {
+impl WriteIntoBytes for InfoReplySubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
+        self.unicast_locator_list.write_into_bytes(buf);
+        if self.multicast_flag {
+            self.multicast_locator_list.write_into_bytes(buf);
         }
     }
 }
 
-impl<'a> InfoReplySubmessageWrite<'a> {
+impl InfoReplySubmessageWrite {
     pub fn _new(
         multicast_flag: SubmessageFlag,
         unicast_locator_list: LocatorList,
         multicast_locator_list: LocatorList,
     ) -> Self {
-        let mut submessage_elements = vec![SubmessageElement::LocatorList(unicast_locator_list)];
-        if multicast_flag {
-            submessage_elements.push(SubmessageElement::LocatorList(multicast_locator_list));
-        }
         Self {
             multicast_flag,
-            submessage_elements,
+            unicast_locator_list,
+            multicast_locator_list,
         }
     }
 }

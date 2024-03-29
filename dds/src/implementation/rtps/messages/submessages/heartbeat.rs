@@ -2,7 +2,6 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::SubmessageElement,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
@@ -67,13 +66,17 @@ impl HeartbeatSubmessageRead {
     }
 }
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageWrite<'a> {
+pub struct HeartbeatSubmessageWrite {
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,
-    submessage_elements: [SubmessageElement<'a>; 5],
+    reader_id: EntityId,
+    writer_id: EntityId,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    count: Count,
 }
 
-impl HeartbeatSubmessageWrite<'_> {
+impl HeartbeatSubmessageWrite {
     pub fn new(
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
@@ -86,18 +89,16 @@ impl HeartbeatSubmessageWrite<'_> {
         Self {
             final_flag,
             liveliness_flag,
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumber(first_sn),
-                SubmessageElement::SequenceNumber(last_sn),
-                SubmessageElement::Count(count),
-            ],
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
         }
     }
 }
 
-impl Submessage for HeartbeatSubmessageWrite<'_> {
+impl Submessage for HeartbeatSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
@@ -107,11 +108,13 @@ impl Submessage for HeartbeatSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for HeartbeatSubmessageWrite<'_> {
+impl WriteIntoBytes for HeartbeatSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.first_sn.write_into_bytes(buf);
+        self.last_sn.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
     }
 }
 

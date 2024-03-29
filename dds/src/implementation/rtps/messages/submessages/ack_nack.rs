@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{SequenceNumberSet, SubmessageElement},
+            submessage_elements::SequenceNumberSet,
             types::{Count, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, TryReadFromBytes, WriteIntoBytes},
@@ -56,12 +56,15 @@ impl AckNackSubmessageRead {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AckNackSubmessageWrite<'a> {
+pub struct AckNackSubmessageWrite {
     final_flag: SubmessageFlag,
-    submessage_elements: [SubmessageElement<'a>; 4],
+    reader_id: EntityId,
+    writer_id: EntityId,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
 }
 
-impl AckNackSubmessageWrite<'_> {
+impl AckNackSubmessageWrite {
     pub fn new(
         final_flag: SubmessageFlag,
         reader_id: EntityId,
@@ -71,17 +74,15 @@ impl AckNackSubmessageWrite<'_> {
     ) -> Self {
         Self {
             final_flag,
-            submessage_elements: [
-                SubmessageElement::EntityId(reader_id),
-                SubmessageElement::EntityId(writer_id),
-                SubmessageElement::SequenceNumberSet(reader_sn_state),
-                SubmessageElement::Count(count),
-            ],
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
         }
     }
 }
 
-impl Submessage for AckNackSubmessageWrite<'_> {
+impl Submessage for AckNackSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
@@ -91,11 +92,12 @@ impl Submessage for AckNackSubmessageWrite<'_> {
     }
 }
 
-impl WriteIntoBytes for AckNackSubmessageWrite<'_> {
+impl WriteIntoBytes for AckNackSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.reader_sn_state.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
     }
 }
 

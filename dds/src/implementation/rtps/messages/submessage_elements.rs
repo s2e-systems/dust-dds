@@ -1,13 +1,10 @@
-use super::types::{ParameterId, Time};
+use super::types::ParameterId;
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         rtps::{
-            messages::types::{Count, FragmentNumber},
-            types::{
-                Endianness, EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber,
-                TryReadFromBytes, VendorId, WriteIntoBytes,
-            },
+            messages::types::FragmentNumber,
+            types::{Endianness, Locator, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -20,50 +17,6 @@ use std::{
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-
-#[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq)]
-pub enum SubmessageElement<'a> {
-    Count(Count),
-    EntityId(EntityId),
-    FragmentNumber(FragmentNumber),
-    FragmentNumberSet(FragmentNumberSet),
-    GuidPrefix(GuidPrefix),
-    LocatorList(LocatorList),
-    Long(i32),
-    ParameterList(&'a ParameterList),
-    ProtocolVersion(ProtocolVersion),
-    SequenceNumber(SequenceNumber),
-    SequenceNumberSet(SequenceNumberSet),
-    SerializedData(&'a Data),
-    Timestamp(Time),
-    ULong(u32),
-    UShort(u16),
-    VendorId(VendorId),
-}
-
-impl WriteIntoBytes for SubmessageElement<'_> {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        match self {
-            SubmessageElement::Count(e) => e.write_into_bytes(buf),
-            SubmessageElement::EntityId(e) => e.write_into_bytes(buf),
-            SubmessageElement::FragmentNumber(e) => e.write_into_bytes(buf),
-            SubmessageElement::FragmentNumberSet(e) => e.write_into_bytes(buf),
-            SubmessageElement::GuidPrefix(e) => e.write_into_bytes(buf),
-            SubmessageElement::LocatorList(e) => e.write_into_bytes(buf),
-            SubmessageElement::Long(e) => e.write_into_bytes(buf),
-            SubmessageElement::ParameterList(e) => e.write_into_bytes(buf),
-            SubmessageElement::ProtocolVersion(e) => e.write_into_bytes(buf),
-            SubmessageElement::SequenceNumber(e) => e.write_into_bytes(buf),
-            SubmessageElement::SequenceNumberSet(e) => e.write_into_bytes(buf),
-            SubmessageElement::SerializedData(e) => e.write_into_bytes(buf),
-            SubmessageElement::Timestamp(e) => e.write_into_bytes(buf),
-            SubmessageElement::ULong(e) => e.write_into_bytes(buf),
-            SubmessageElement::UShort(e) => e.write_into_bytes(buf),
-            SubmessageElement::VendorId(e) => e.write_into_bytes(buf),
-        };
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
@@ -337,7 +290,6 @@ impl ParameterList {
     }
 }
 
-
 impl WriteIntoBytes for Parameter {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         let padding = match self.value().len() % 4 {
@@ -527,7 +479,8 @@ impl WriteIntoBytes for &Data {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::write_into_bytes_vec, types::Locator,
+        messages::{overall_structure::write_into_bytes_vec, types::Count},
+        types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     };
 
     #[test]

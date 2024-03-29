@@ -91,8 +91,8 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
                 writer_sn,
                 fragment_starting_num,
                 fragments_in_submessage,
-                data_size,
                 fragment_size,
+                data_size,
                 inline_qos,
                 serialized_payload,
             ))

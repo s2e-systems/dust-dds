@@ -2,7 +2,6 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::SubmessageElement,
             types::SubmessageKind,
         },
         types::{GuidPrefix, TryReadFromBytes, WriteIntoBytes},
@@ -33,29 +32,25 @@ impl InfoDestinationSubmessageRead {
     }
 }
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoDestinationSubmessageWrite<'a> {
-    submessage_elements: [SubmessageElement<'a>; 1],
+pub struct InfoDestinationSubmessageWrite {
+    guid_prefix: GuidPrefix,
 }
 
-impl InfoDestinationSubmessageWrite<'_> {
+impl InfoDestinationSubmessageWrite {
     pub fn new(guid_prefix: GuidPrefix) -> Self {
-        Self {
-            submessage_elements: [SubmessageElement::GuidPrefix(guid_prefix)],
-        }
+        Self { guid_prefix }
     }
 }
 
-impl Submessage for InfoDestinationSubmessageWrite<'_> {
+impl Submessage for InfoDestinationSubmessageWrite {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeaderWrite {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_DST, &[], octets_to_next_header)
     }
 }
 
-impl WriteIntoBytes for InfoDestinationSubmessageWrite<'_> {
+impl WriteIntoBytes for InfoDestinationSubmessageWrite {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
-        }
+        self.guid_prefix.write_into_bytes(buf);
     }
 }
 

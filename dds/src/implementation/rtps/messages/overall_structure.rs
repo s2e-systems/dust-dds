@@ -268,17 +268,17 @@ pub enum RtpsSubmessageReadKind {
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageWriteKind<'a> {
-    AckNack(AckNackSubmessageWrite<'a>),
+    AckNack(AckNackSubmessageWrite),
     Data(DataSubmessageWrite<'a>),
     DataFrag(Box<DataFragSubmessageWrite<'a>>),
-    Gap(GapSubmessageWrite<'a>),
-    Heartbeat(HeartbeatSubmessageWrite<'a>),
-    HeartbeatFrag(HeartbeatFragSubmessageWrite<'a>),
-    InfoDestination(InfoDestinationSubmessageWrite<'a>),
-    InfoReply(InfoReplySubmessageWrite<'a>),
-    InfoSource(InfoSourceSubmessageWrite<'a>),
-    InfoTimestamp(InfoTimestampSubmessageWrite<'a>),
-    NackFrag(NackFragSubmessageWrite<'a>),
+    Gap(GapSubmessageWrite),
+    Heartbeat(HeartbeatSubmessageWrite),
+    HeartbeatFrag(HeartbeatFragSubmessageWrite),
+    InfoDestination(InfoDestinationSubmessageWrite),
+    InfoReply(InfoReplySubmessageWrite),
+    InfoSource(InfoSourceSubmessageWrite),
+    InfoTimestamp(InfoTimestampSubmessageWrite),
+    NackFrag(NackFragSubmessageWrite),
     Pad(PadSubmessageWrite),
 }
 

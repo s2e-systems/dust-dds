@@ -2,7 +2,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             overall_structure::{Submessage, SubmessageHeaderRead, SubmessageHeaderWrite},
-            submessage_elements::{ArcSlice, Data, ParameterList, SubmessageElement},
+            submessage_elements::{ArcSlice, Data, ParameterList},
             types::{FragmentNumber, SubmessageFlag, SubmessageKind},
         },
         types::{EntityId, SequenceNumber, TryReadFromBytes, WriteIntoBytes},
@@ -136,9 +136,15 @@ pub struct DataFragSubmessageWrite<'a> {
     inline_qos_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: SubmessageFlag,
-    submessage_elements: [SubmessageElement<'a>; 9],
-    inline_qos_submessage_element: Option<SubmessageElement<'a>>,
-    serialized_payload_submessage_element: SubmessageElement<'a>,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    fragment_starting_num: FragmentNumber,
+    fragments_in_submessage: u16,
+    fragment_size: u16,
+    data_size: u32,
+    inline_qos: &'a ParameterList,
+    serialized_payload: &'a Data,
 }
 
 impl<'a> DataFragSubmessageWrite<'a> {
@@ -152,39 +158,24 @@ impl<'a> DataFragSubmessageWrite<'a> {
         writer_sn: SequenceNumber,
         fragment_starting_num: FragmentNumber,
         fragments_in_submessage: u16,
-        data_size: u32,
         fragment_size: u16,
+        data_size: u32,
         inline_qos: &'a ParameterList,
         serialized_payload: &'a Data,
     ) -> Self {
-        const EXTRA_FLAGS: u16 = 0;
-        const OCTETS_TO_INLINE_QOS: u16 = 28;
-        let submessage_elements = [
-            SubmessageElement::UShort(EXTRA_FLAGS),
-            SubmessageElement::UShort(OCTETS_TO_INLINE_QOS),
-            SubmessageElement::EntityId(reader_id),
-            SubmessageElement::EntityId(writer_id),
-            SubmessageElement::SequenceNumber(writer_sn),
-            SubmessageElement::FragmentNumber(fragment_starting_num),
-            SubmessageElement::UShort(fragments_in_submessage),
-            SubmessageElement::UShort(fragment_size),
-            SubmessageElement::ULong(data_size),
-        ];
-        let inline_qos_submessage_element = if inline_qos_flag {
-            Some(SubmessageElement::ParameterList(inline_qos))
-        } else {
-            None
-        };
-        let serialized_payload_submessage_element =
-            SubmessageElement::SerializedData(serialized_payload);
-
         Self {
             inline_qos_flag,
             non_standard_payload_flag,
             key_flag,
-            submessage_elements,
-            inline_qos_submessage_element,
-            serialized_payload_submessage_element,
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_starting_num,
+            fragments_in_submessage,
+            fragment_size,
+            data_size,
+            inline_qos,
+            serialized_payload,
         }
     }
 }
@@ -205,14 +196,21 @@ impl Submessage for DataFragSubmessageWrite<'_> {
 
 impl WriteIntoBytes for DataFragSubmessageWrite<'_> {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        for submessage_element in &self.submessage_elements {
-            submessage_element.write_into_bytes(buf);
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 28;
+        EXTRA_FLAGS.write_into_bytes(buf);
+        OCTETS_TO_INLINE_QOS.write_into_bytes(buf);
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        self.fragment_starting_num.write_into_bytes(buf);
+        self.fragments_in_submessage.write_into_bytes(buf);
+        self.fragment_size.write_into_bytes(buf);
+        self.data_size.write_into_bytes(buf);
+        if self.inline_qos_flag {
+            self.inline_qos.write_into_bytes(buf);
         }
-        if let Some(submessage_element) = &self.inline_qos_submessage_element {
-            submessage_element.write_into_bytes(buf);
-        }
-        self.serialized_payload_submessage_element
-            .write_into_bytes(buf);
+        self.serialized_payload.write_into_bytes(buf);
     }
 }
 
@@ -240,8 +238,8 @@ mod tests {
             5,
             2,
             3,
-            4,
             5,
+            4,
             inline_qos,
             serialized_payload,
         )));
@@ -273,8 +271,8 @@ mod tests {
             6,
             2,
             3,
-            8,
             5,
+            8,
             &inline_qos,
             &serialized_payload,
         )));
