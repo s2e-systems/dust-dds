@@ -84,7 +84,7 @@ impl WriteIntoBytes for &InfoTimestampSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::messages::overall_structure::{
-        into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
+        write_into_bytes_vec, RtpsSubmessageWriteKind, SubmessageHeaderRead,
     };
 
     #[test]
@@ -94,7 +94,7 @@ mod tests {
             Time::new(4, 0),
         ));
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
                 4, 0, 0, 0, // Time
                 0, 0, 0, 0, // Time
@@ -109,7 +109,7 @@ mod tests {
             TIME_INVALID,
         ));
         #[rustfmt::skip]
-        assert_eq!(into_bytes_vec(submessage), vec![
+        assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
             ]
         );

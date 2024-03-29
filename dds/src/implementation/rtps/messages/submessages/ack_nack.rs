@@ -103,7 +103,7 @@ impl WriteIntoBytes for &AckNackSubmessageWrite<'_> {
 mod tests {
     use super::*;
     use crate::implementation::rtps::{
-        messages::overall_structure::{into_bytes_vec, write_into_bytes_vec, RtpsSubmessageWriteKind},
+        messages::overall_structure::{write_into_bytes_vec, RtpsSubmessageWriteKind},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 

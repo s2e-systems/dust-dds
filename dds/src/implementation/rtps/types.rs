@@ -1,13 +1,9 @@
-use super::messages::overall_structure::WriteBytes;
 use crate::{
     infrastructure::error::DdsResult,
     serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
 };
 use network_interface::Addr;
-use std::{
-    io::{Read, Write},
-    net::IpAddr,
-};
+use std::{io::Read, net::IpAddr};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -18,17 +14,9 @@ type Octet = u8;
 pub type Long = i32;
 type UnsignedLong = u32;
 
-const MSG: &str = "write_bytes: not enough data in buffer";
 
 pub trait WriteIntoBytes {
     fn write_into_bytes(&self, buf: &mut &mut [u8]);
-}
-
-impl WriteBytes for Long {
-    #[inline]
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(i32::to_le_bytes(*self).as_slice()).expect(MSG)
-    }
 }
 
 impl WriteIntoBytes for Long {
@@ -51,23 +39,11 @@ fn write_long() {
     assert_eq!(buf, [3, 0, 0, 0, 7, 7]);
 }
 
-impl WriteBytes for UnsignedLong {
-    #[inline]
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(u32::to_le_bytes(*self).as_slice()).expect(MSG)
-    }
-}
 impl WriteIntoBytes for UnsignedLong {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         let (a, b) = std::mem::take(buf).split_at_mut(4);
         a.copy_from_slice(self.to_le_bytes().as_slice());
         *buf = b;
-    }
-}
-impl WriteBytes for u16 {
-    #[inline]
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(u16::to_le_bytes(*self).as_slice()).expect(MSG)
     }
 }
 
@@ -79,13 +55,6 @@ impl WriteIntoBytes for u16 {
     }
 }
 
-impl WriteBytes for i16 {
-    #[inline]
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(i16::to_le_bytes(*self).as_slice()).expect(MSG)
-    }
-}
-
 impl WriteIntoBytes for i16 {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         let (a, b) = std::mem::take(buf).split_at_mut(2);
@@ -94,15 +63,7 @@ impl WriteIntoBytes for i16 {
     }
 }
 
-impl<const N: usize> WriteBytes for [Octet; N] {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.len()].copy_from_slice(self);
-        N
-    }
-}
-
-impl<const N: usize> WriteIntoBytes for  [Octet; N] {
+impl<const N: usize> WriteIntoBytes for [Octet; N] {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         let (a, b) = std::mem::take(buf).split_at_mut(N);
         a.copy_from_slice(self);
@@ -265,27 +226,10 @@ impl Default for EntityId {
 pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
-impl WriteBytes for EntityId {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.entity_key().write_bytes(&mut buf[0..]);
-        self.entity_kind().write_bytes(&mut buf[3..]);
-        4
-    }
-}
-
 impl WriteIntoBytes for EntityId {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         self.entity_key().write_into_bytes(buf);
         [self.entity_kind()].write_into_bytes(buf);
-    }
-}
-
-impl WriteBytes for Octet {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[0] = *self;
-        1
     }
 }
 
@@ -326,15 +270,6 @@ impl TryReadFromBytes for SequenceNumber {
     }
 }
 
-impl WriteBytes for SequenceNumber {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let high = (*self >> 32) as Long;
-        let low = *self as UnsignedLong;
-        high.to_le_bytes().write_bytes(buf) + low.to_le_bytes().write_bytes(&mut buf[4..])
-    }
-}
-
 impl WriteIntoBytes for SequenceNumber {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         let high = (*self >> 32) as Long;
@@ -353,16 +288,6 @@ pub struct Locator {
     kind: Long,
     port: UnsignedLong,
     address: [Octet; 16],
-}
-
-impl WriteBytes for Locator {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        self.kind.write_bytes(&mut buf[0..]);
-        self.port.write_bytes(&mut buf[4..]);
-        self.address.write_bytes(&mut buf[8..]);
-        24
-    }
 }
 
 impl WriteIntoBytes for Locator {
@@ -513,13 +438,6 @@ impl TryReadFromBytes for ProtocolVersion {
     }
 }
 
-impl WriteBytes for ProtocolVersion {
-    #[inline]
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        buf.write(&self.bytes).expect(MSG)
-    }
-}
-
 impl WriteIntoBytes for ProtocolVersion {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         self.bytes.write_into_bytes(buf);
@@ -574,8 +492,9 @@ pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
 #[cfg(test)]
 mod tests {
+    use crate::implementation::rtps::messages::overall_structure::write_into_bytes_vec;
+
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::into_bytes_vec;
 
     #[test]
     fn deserialize_u16() {
@@ -588,7 +507,7 @@ mod tests {
     #[test]
     fn serialize_sequence_number() {
         let data: SequenceNumber = 7;
-        let result = into_bytes_vec(data);
+        let result = write_into_bytes_vec(data);
         assert_eq!(
             result,
             vec![
@@ -602,7 +521,7 @@ mod tests {
     fn serialize_entity_id() {
         let data = EntityId::new([1, 2, 3], 0x04);
         assert_eq!(
-            into_bytes_vec(data),
+            write_into_bytes_vec(data),
             vec![
             1, 2, 3, 0x04, //value (long)
         ]

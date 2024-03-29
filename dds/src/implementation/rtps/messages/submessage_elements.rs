@@ -1,7 +1,4 @@
-use super::{
-    overall_structure::WriteBytes,
-    types::{ParameterId, Time},
-};
+use super::types::{ParameterId, Time};
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
@@ -43,30 +40,6 @@ pub enum SubmessageElement<'a> {
     ULong(u32),
     UShort(u16),
     VendorId(VendorId),
-}
-
-impl WriteBytes for SubmessageElement<'_> {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        match self {
-            SubmessageElement::Count(e) => e.write_bytes(buf),
-            SubmessageElement::EntityId(e) => e.write_bytes(buf),
-            SubmessageElement::FragmentNumber(e) => e.write_bytes(buf),
-            SubmessageElement::FragmentNumberSet(e) => e.write_bytes(buf),
-            SubmessageElement::GuidPrefix(e) => e.write_bytes(buf),
-            SubmessageElement::LocatorList(e) => e.write_bytes(buf),
-            SubmessageElement::Long(e) => e.write_bytes(buf),
-            SubmessageElement::ParameterList(e) => e.write_bytes(buf),
-            SubmessageElement::ProtocolVersion(e) => e.write_bytes(buf),
-            SubmessageElement::SequenceNumber(e) => e.write_bytes(buf),
-            SubmessageElement::SequenceNumberSet(e) => e.write_bytes(buf),
-            SubmessageElement::SerializedData(e) => e.write_bytes(buf),
-            SubmessageElement::Timestamp(e) => e.write_bytes(buf),
-            SubmessageElement::ULong(e) => e.write_bytes(buf),
-            SubmessageElement::UShort(e) => e.write_bytes(buf),
-            SubmessageElement::VendorId(e) => e.write_bytes(buf),
-        }
-    }
 }
 
 impl WriteIntoBytes for SubmessageElement<'_> {
@@ -182,22 +155,6 @@ impl WriteIntoBytes for SequenceNumberSet {
     }
 }
 
-impl WriteBytes for SequenceNumberSet {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; //In standard referred to as "M"
-
-        self.base.write_bytes(&mut buf[0..]);
-        self.num_bits.write_bytes(&mut buf[8..]);
-        let mut len = 12;
-        for bitmap_element in &self.bitmap[..number_of_bitmap_elements] {
-            bitmap_element.write_bytes(&mut buf[len..]);
-            len += 4;
-        }
-        len
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FragmentNumberSet {
     base: FragmentNumber,
@@ -229,31 +186,6 @@ impl FragmentNumberSet {
             }
         }
         Ok(Self::new(base, set))
-    }
-}
-
-impl WriteBytes for FragmentNumberSet {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut bitmap = [0; 8];
-        let mut num_bits = 0;
-        for fragment_number in &self.set {
-            let delta_n = *fragment_number - self.base;
-            let bitmap_num = delta_n / 32;
-            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
-            if delta_n + 1 > num_bits {
-                num_bits = delta_n + 1;
-            }
-        }
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
-
-        let mut len = 0;
-        len += self.base.write_bytes(&mut buf[len..]);
-        len += num_bits.write_bytes(&mut buf[len..]);
-
-        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
-            len += bitmap_element.write_bytes(&mut buf[len..]);
-        }
-        len
     }
 }
 
@@ -302,18 +234,6 @@ impl TryReadFromBytes for LocatorList {
             locator_list.push(Locator::try_read_from_bytes(data, endianness)?);
         }
         Ok(Self::new(locator_list))
-    }
-}
-
-impl WriteBytes for LocatorList {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let num_locators = self.value().len() as u32;
-        num_locators.write_bytes(&mut buf[0..]);
-        let mut len = 4;
-        for locator in self.value().iter() {
-            len += locator.write_bytes(&mut buf[len..]);
-        }
-        len
     }
 }
 
@@ -417,23 +337,6 @@ impl ParameterList {
     }
 }
 
-impl WriteBytes for Parameter {
-    fn write_bytes(&self, mut buf: &mut [u8]) -> usize {
-        let padding_len = match self.value().len() % 4 {
-            1 => 3,
-            2 => 2,
-            3 => 1,
-            _ => 0,
-        };
-        let length = self.value().len() + padding_len;
-        self.parameter_id().write_bytes(&mut buf[0..]);
-        (length as i16).write_bytes(&mut buf[2..]);
-        buf = &mut buf[4..];
-        buf[..self.value().len()].copy_from_slice(self.value().as_ref());
-        buf[self.value().len()..length].fill(0);
-        4 + length
-    }
-}
 
 impl WriteIntoBytes for Parameter {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
@@ -448,18 +351,6 @@ impl WriteIntoBytes for Parameter {
         (length as i16).write_into_bytes(buf);
         self.value().write_into_bytes(buf);
         padding.write_into_bytes(buf);
-    }
-}
-
-impl WriteBytes for &ParameterList {
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut length = 0;
-        for parameter in self.parameter().iter() {
-            length += parameter.write_bytes(&mut buf[length..]);
-        }
-        PID_SENTINEL.write_bytes(&mut buf[length..]);
-        buf[length + 2..length + 4].fill(0);
-        length + 4
     }
 }
 
@@ -620,16 +511,6 @@ impl Data {
 impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
         self.0.as_slice()
-    }
-}
-
-impl WriteBytes for &Data {
-    #[inline]
-    fn write_bytes(&self, buf: &mut [u8]) -> usize {
-        buf[..self.0.len()].copy_from_slice(self.0.as_slice());
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        buf[self.0.len()..length_inclusive_padding].fill(0);
-        length_inclusive_padding
     }
 }
 
