@@ -1,5 +1,5 @@
 use super::{
-    overall_structure::{TryReadFromBytes, WriteIntoBytes},
+    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     types::ParameterId,
 };
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         rtps::{
             messages::types::FragmentNumber,
-            types::{Endianness, Locator, SequenceNumber},
+            types::{Locator, SequenceNumber},
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -287,10 +287,6 @@ impl ParameterList {
         }
         Ok(Self { parameter })
     }
-
-    pub fn number_of_bytes(&self) -> usize {
-        self.parameter.iter().map(|p| p.length() as usize + 4).sum()
-    }
 }
 
 impl WriteIntoBytes for Parameter {
@@ -309,7 +305,7 @@ impl WriteIntoBytes for Parameter {
     }
 }
 
-impl WriteIntoBytes for &ParameterList {
+impl WriteIntoBytes for ParameterList {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         for parameter in self.parameter().iter() {
             parameter.write_into_bytes(buf);
@@ -347,17 +343,6 @@ impl ArcSlice {
         self.range.len()
     }
 
-    pub fn as_slice(&self) -> &[u8] {
-        &self.data[self.range.clone()]
-    }
-
-    pub fn sub_slice_from(&self, range: RangeFrom<usize>) -> ArcSlice {
-        ArcSlice {
-            data: self.data.clone(),
-            range: range.start + self.range.start..self.range.end,
-        }
-    }
-
     pub fn sub_slice(&self, range: Range<usize>) -> DdsResult<ArcSlice> {
         if self.data.len() >= self.range.start + range.end {
             Ok(ArcSlice {
@@ -376,7 +361,7 @@ impl ArcSlice {
 
 impl PartialEq for ArcSlice {
     fn eq(&self, other: &Self) -> bool {
-        self.as_slice() == other.as_slice()
+        self.as_ref() == other.as_ref()
     }
 }
 
@@ -404,12 +389,6 @@ impl Index<RangeTo<usize>> for ArcSlice {
         &self.data[self.range.clone()][index]
     }
 }
-impl Index<usize> for ArcSlice {
-    type Output = u8;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data[self.range.clone()][index]
-    }
-}
 
 impl From<&[u8]> for ArcSlice {
     fn from(data: &[u8]) -> Self {
@@ -418,22 +397,6 @@ impl From<&[u8]> for ArcSlice {
             data: data.into(),
             range,
         }
-    }
-}
-impl<const N: usize> From<[u8; N]> for ArcSlice {
-    fn from(data: [u8; N]) -> Self {
-        let range = 0..data.len();
-        Self {
-            data: data.into(),
-            range,
-        }
-    }
-}
-
-impl From<Arc<[u8]>> for ArcSlice {
-    fn from(data: Arc<[u8]>) -> Self {
-        let range = 0..data.len();
-        Self { data, range }
     }
 }
 
@@ -465,16 +428,19 @@ impl Data {
 
 impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
-        self.0.as_slice()
+        self.0.as_ref()
     }
 }
 
-impl WriteIntoBytes for &Data {
+impl WriteIntoBytes for Data {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        self.0.as_slice().write_into_bytes(buf);
-        let length_inclusive_padding = (self.0.len() + 3) & !3;
-        let padding = &[0_u8; 4];
-        (&padding[..length_inclusive_padding - self.0.len()]).write_into_bytes(buf);
+        self.0.as_ref().write_into_bytes(buf);
+        match self.0.len() % 4 {
+            1 => [0_u8; 3].write_into_bytes(buf),
+            2 => [0_u8; 2].write_into_bytes(buf),
+            3 => [0_u8; 1].write_into_bytes(buf),
+            _ => (),
+        };
     }
 }
 
@@ -488,7 +454,7 @@ mod tests {
 
     #[test]
     fn arc_slice_sub_slice() {
-        let data = ArcSlice::from([0, 1, 2, 3, 4, 5]);
+        let data = ArcSlice::from([0, 1, 2, 3, 4, 5].as_slice());
         let sub_data = data.sub_slice(1..5).unwrap();
         assert_eq!(&sub_data[0..], &[1, 2, 3, 4]);
         let sub_sub_data = sub_data.sub_slice(1..3).unwrap();
@@ -832,7 +798,7 @@ mod tests {
     fn serialize_parameter_list() {
         let parameter_1 = Parameter::new(2, vec![51, 61, 71, 81].into());
         let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0].into());
-        let parameter_list_submessage_element = &ParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_list_submessage_element = ParameterList::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(parameter_list_submessage_element), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
@@ -845,7 +811,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list_empty() {
-        let parameter = &ParameterList::empty();
+        let parameter = ParameterList::empty();
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(parameter), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
@@ -856,11 +822,13 @@ mod tests {
     fn deserialize_parameter() {
         let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12].into());
         let result = Parameter::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
                 5, 6, 7, 8, // value
                 9, 10, 11, 12, // value
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -872,13 +840,15 @@ mod tests {
         // Note: the padding 0 is part of the resulting parameter (this may seems wrong but is specified in RTPS 2.5).
         let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0].into());
         let result = Parameter::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
                 5, 6, 7, 8, // value | value | value | value
                 9, 10, 11,
                 0, // value | value | value | padding
                    //13, 13, 13, 13, // other data
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -888,10 +858,12 @@ mod tests {
     #[test]
     fn deserialize_parameter_faulty_non_multiple_of_4_length() {
         let result = Parameter::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x02, 0x00, 3, 0, // Parameter ID | length
                 5, 6, 7, 8, // value
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         );
         assert!(result.is_err());
@@ -900,10 +872,12 @@ mod tests {
     #[test]
     fn deserialize_parameter_faulty_to_large_length() {
         let result = Parameter::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
                 5, 6, 7, 8, // value
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         );
         assert!(result.is_err());
@@ -913,9 +887,11 @@ mod tests {
     fn deserialize_parameter_sentinel_length_should_be_ignored() {
         let expected = Parameter::new(1, vec![].into());
         let result = Parameter::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x01, 0x00, 3, 0, // Parameter ID | length
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -929,13 +905,15 @@ mod tests {
             Parameter::new(3, vec![25, 26, 27, 28].into()),
         ]);
         let result = ParameterList::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x02, 0x00, 4, 0, // Parameter ID | length
                 15, 16, 17, 18, // value
                 0x03, 0x00, 4, 0, // Parameter ID | length
                 25, 26, 27, 28, // value
                 0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -956,7 +934,7 @@ mod tests {
         let expected =
             ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected.into())]);
         let result = ParameterList::try_read_from_arc_slice(
-            &mut ArcSlice::from([
+            &mut [
                 0x32, 0x00, 24, 0x00, // Parameter ID | length
                 0x01, 0x00, 0x00, 0x00, // Parameter value
                 0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -965,7 +943,9 @@ mod tests {
                 0x01, 0x01, 0x01, 0x01, // Parameter value
                 0x01, 0x01, 0x01, 0x01, // Parameter value
                 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-            ]),
+            ]
+            .as_slice()
+            .into(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -998,7 +978,7 @@ mod tests {
             Parameter::new(0x32, parameter_value_expected2.into()),
         ]);
         #[rustfmt::skip]
-        let result = ParameterList::try_read_from_arc_slice(&mut ArcSlice::from([
+        let result = ParameterList::try_read_from_arc_slice(&mut [
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -1014,7 +994,7 @@ mod tests {
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]), &Endianness::LittleEndian).unwrap();
+        ].as_slice().into(), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 }

@@ -5,7 +5,7 @@ use crate::{
 use network_interface::Addr;
 use std::{io::Read, net::IpAddr};
 
-use super::messages::overall_structure::{TryReadFromBytes, WriteIntoBytes};
+use super::messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -30,18 +30,6 @@ impl WriteIntoBytes for Long {
         a.copy_from_slice(self.to_le_bytes().as_slice());
         *buf = b;
     }
-}
-
-#[test]
-fn write_long() {
-    let long: Long = 3;
-    let mut buf = [7_u8; 6];
-    let mut moving_buf = &mut buf[..];
-    let len = moving_buf.len();
-    long.write_into_bytes(&mut moving_buf);
-    assert_eq!(4, len - moving_buf.len());
-    assert_eq!(moving_buf, &[7, 7][..]);
-    assert_eq!(buf, [3, 0, 0, 0, 7, 7]);
 }
 
 impl WriteIntoBytes for UnsignedLong {
@@ -151,25 +139,11 @@ impl From<Guid> for [u8; 16] {
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
-pub enum Endianness {
-    BigEndian,
-    LittleEndian,
-}
-
 impl TryReadFromBytes for GuidPrefix {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
         let mut guid_prefix = [0; 12];
         data.read_exact(&mut guid_prefix)?;
         Ok(guid_prefix)
-    }
-}
-
-impl Endianness {
-    pub fn from_flags(byte: u8) -> Self {
-        match byte & 0b_0000_0001 != 0 {
-            true => Endianness::LittleEndian,
-            false => Endianness::BigEndian,
-        }
     }
 }
 
@@ -230,7 +204,7 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_
 impl WriteIntoBytes for EntityId {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         self.entity_key().write_into_bytes(buf);
-        [self.entity_kind()].write_into_bytes(buf);
+        self.entity_kind().write_into_bytes(buf);
     }
 }
 
