@@ -4,9 +4,9 @@ use crate::{
         messages::{
             submessage_elements::ArcSlice,
             submessages::{
-                ack_nack::AckNackSubmessage, data::DataSubmessageRead,
-                data_frag::DataFragSubmessageRead, gap::GapSubmessageRead,
-                heartbeat::HeartbeatSubmessageRead, heartbeat_frag::HeartbeatFragSubmessageRead,
+                ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+                gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
+                heartbeat_frag::HeartbeatFragSubmessageRead,
                 info_destination::InfoDestinationSubmessageRead,
                 info_reply::InfoReplySubmessageRead, info_source::InfoSourceSubmessageRead,
                 info_timestamp::InfoTimestampSubmessageRead, nack_frag::NackFragSubmessageRead,
@@ -190,12 +190,10 @@ impl RtpsMessageRead {
                 let submessage = match submessage_header.submessage_id() {
                     ACKNACK => AckNackSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::AckNack),
-                    DATA => {
-                        DataSubmessageRead::try_from_arc_slice(&submessage_header, data.clone())
-                            .map(RtpsSubmessageReadKind::Data)
-                    }
+                    DATA => DataSubmessage::try_from_arc_slice(&submessage_header, data.clone())
+                        .map(RtpsSubmessageReadKind::Data),
                     DATA_FRAG => {
-                        DataFragSubmessageRead::try_from_arc_slice(&submessage_header, data.clone())
+                        DataFragSubmessage::try_from_arc_slice(&submessage_header, data.clone())
                             .map(RtpsSubmessageReadKind::DataFrag)
                     }
                     GAP => GapSubmessageRead::try_from_bytes(&submessage_header, data.as_ref())
@@ -283,8 +281,8 @@ impl RtpsMessageWrite {
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind {
     AckNack(AckNackSubmessage),
-    Data(DataSubmessageRead),
-    DataFrag(DataFragSubmessageRead),
+    Data(DataSubmessage),
+    DataFrag(DataFragSubmessage),
     Gap(GapSubmessageRead),
     Heartbeat(HeartbeatSubmessageRead),
     HeartbeatFrag(HeartbeatFragSubmessageRead),
@@ -376,10 +374,7 @@ mod tests {
     use crate::implementation::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
-            submessages::{
-                data::{DataSubmessageRead, DataSubmessageWrite},
-                info_timestamp::InfoTimestampSubmessageWrite,
-            },
+            submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessageWrite},
             types::Time,
         },
         types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
@@ -422,7 +417,7 @@ mod tests {
         let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = Data::new(vec![].into());
 
-        let submessage = DataSubmessageWrite::new(
+        let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -477,7 +472,7 @@ mod tests {
         let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = Data::new(vec![].into());
 
-        let data_submessage = Box::new(DataSubmessageWrite::new(
+        let data_submessage = Box::new(DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -601,7 +596,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_unknown_submessage() {
-        let expected_data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(
+        let expected_data_submessage = RtpsSubmessageReadKind::Data(DataSubmessage::new(
             true,
             false,
             false,

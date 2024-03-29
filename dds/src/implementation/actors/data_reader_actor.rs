@@ -31,8 +31,8 @@ use crate::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
                 submessage_elements::{Data, Parameter, ParameterList},
                 submessages::{
-                    data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
-                    gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
+                    data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessageRead,
+                    heartbeat::HeartbeatSubmessageRead,
                     heartbeat_frag::HeartbeatFragSubmessageRead,
                 },
             },
@@ -362,7 +362,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     async fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessageRead,
+        data_submessage: &DataSubmessage,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
@@ -501,7 +501,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     async fn on_data_frag_submessage_received(
         &mut self,
-        data_frag_submessage: &DataFragSubmessageRead,
+        data_frag_submessage: &DataFragSubmessage,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
