@@ -75,10 +75,9 @@ use std::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    data_writer_listener_actor::{self, DataWriterListenerActor},
-    domain_participant_listener_actor::{self, DomainParticipantListenerActor},
-    publisher_listener_actor::{self, PublisherListenerActor},
-    status_condition_actor::{self, StatusConditionActor},
+    data_writer_listener_actor::DataWriterListenerActor,
+    domain_participant_listener_actor::DomainParticipantListenerActor,
+    publisher_listener_actor::PublisherListenerActor, status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
 
@@ -273,29 +272,31 @@ impl DataWriterActor {
 
 #[actor_interface]
 impl DataWriterActor {
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
-    async fn add_matched_publication(
+    #[allow(clippy::unused_unit)]
+    fn add_matched_publication(
         &mut self,
         handle: InstanceHandle,
         subscription_data: SubscriptionBuiltinTopicData,
-    ) {
+    ) -> () {
         self.matched_subscriptions
             .add_matched_subscription(handle, subscription_data)
     }
 
-    async fn remove_matched_subscription(&mut self, handle: InstanceHandle) {
+    #[allow(clippy::unused_unit)]
+    fn remove_matched_subscription(&mut self, handle: InstanceHandle) -> () {
         self.matched_subscriptions
             .remove_matched_subscription(handle)
     }
 
-    async fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
+    fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
         self.matched_subscriptions.get_matched_subscriptions()
     }
 
-    async fn get_matched_subscription_data(
+    fn get_matched_subscription_data(
         &self,
         handle: InstanceHandle,
     ) -> Option<SubscriptionBuiltinTopicData> {
@@ -304,71 +305,75 @@ impl DataWriterActor {
             .cloned()
     }
 
-    async fn add_offered_incompatible_qos(
+    #[allow(clippy::unused_unit)]
+    fn add_offered_incompatible_qos(
         &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-    ) {
+    ) -> () {
         self.incompatible_subscriptions
             .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
     }
 
-    async fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
+    fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
         self.incompatible_subscriptions
             .get_offered_incompatible_qos_status()
     }
 
-    async fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
+    fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
         todo!()
     }
 
-    async fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
+    fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
         todo!()
     }
 
-    async fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
+    fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
         self.incompatible_subscriptions
             .get_incompatible_subscriptions()
     }
 
-    async fn enable(&mut self) {
+    #[allow(clippy::unused_unit)]
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         self.rtps_writer.guid()
     }
 
-    async fn heartbeat_period(&self) -> Duration {
+    fn heartbeat_period(&self) -> Duration {
         self.rtps_writer.heartbeat_period()
     }
 
-    async fn data_max_size_serialized(&self) -> usize {
+    fn data_max_size_serialized(&self) -> usize {
         self.rtps_writer.data_max_size_serialized()
     }
 
-    async fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
+    #[allow(clippy::unused_unit)]
+    fn matched_reader_remove(&mut self, a_reader_guid: Guid) -> () {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
 
-    async fn get_qos(&self) -> DataWriterQos {
+    fn get_qos(&self) -> DataWriterQos {
         self.qos.clone()
     }
 
-    async fn set_qos(&mut self, qos: DataWriterQos) {
+    #[allow(clippy::unused_unit)]
+    fn set_qos(&mut self, qos: DataWriterQos) -> () {
         self.qos = qos;
     }
 
-    async fn register_instance_w_timestamp(
+    fn register_instance_w_timestamp(
         &mut self,
         instance_handle: InstanceHandle,
         _timestamp: Time,
@@ -387,7 +392,7 @@ impl DataWriterActor {
         Ok(Some(instance_handle))
     }
 
-    async fn unregister_instance_w_timestamp(
+    fn unregister_instance_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
@@ -429,7 +434,7 @@ impl DataWriterActor {
         Ok(())
     }
 
-    async fn lookup_instance(
+    fn lookup_instance(
         &self,
         instance_handle: InstanceHandle,
     ) -> DdsResult<Option<InstanceHandle>> {
@@ -446,7 +451,7 @@ impl DataWriterActor {
         )
     }
 
-    async fn dispose_w_timestamp(
+    fn dispose_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
@@ -479,14 +484,14 @@ impl DataWriterActor {
         Ok(())
     }
 
-    async fn are_all_changes_acknowledge(&mut self) -> bool {
+    fn are_all_changes_acknowledge(&mut self) -> bool {
         !self
             .matched_readers
             .iter()
             .any(|rp| rp.unacked_changes(&self.writer_cache))
     }
 
-    async fn as_discovered_writer_data(
+    fn as_discovered_writer_data(
         &self,
         topic_qos: TopicQos,
         publisher_qos: PublisherQos,
@@ -544,14 +549,13 @@ impl DataWriterActor {
 
     async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::PublicationMatched,
-            ))
+            .remove_communication_state(StatusKind::PublicationMatched)
             .await;
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    async fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) {
+    #[allow(clippy::unused_unit)]
+    fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) -> () {
         if !self
             .matched_readers
             .iter()
@@ -561,11 +565,11 @@ impl DataWriterActor {
         }
     }
 
-    async fn get_topic_name(&self) -> String {
+    fn get_topic_name(&self) -> String {
         self.topic_name.clone()
     }
 
-    async fn write_w_timestamp(
+    fn write_w_timestamp(
         &mut self,
         serialized_data: Vec<u8>,
         instance_handle: InstanceHandle,
@@ -573,8 +577,7 @@ impl DataWriterActor {
         timestamp: infrastructure::time::Time,
     ) -> DdsResult<()> {
         let handle = self
-            .register_instance_w_timestamp(instance_handle, timestamp)
-            .await?
+            .register_instance_w_timestamp(instance_handle, timestamp)?
             .unwrap_or(HANDLE_NIL);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
@@ -589,11 +592,11 @@ impl DataWriterActor {
         Ok(())
     }
 
-    async fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
     async fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
@@ -610,7 +613,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-    ) {
+    ) -> () {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
@@ -702,14 +705,8 @@ impl DataWriterActor {
                     self.matched_readers.push(reader_proxy)
                 }
 
-                if !self
-                    .get_matched_subscriptions()
-                    .await
-                    .contains(&instance_handle)
-                    || self
-                        .get_matched_subscription_data(instance_handle)
-                        .await
-                        .as_ref()
+                if !self.get_matched_subscriptions().contains(&instance_handle)
+                    || self.get_matched_subscription_data(instance_handle).as_ref()
                         != Some(discovered_reader_data.subscription_builtin_topic_data())
                 {
                     self.matched_subscriptions.add_matched_subscription(
@@ -740,6 +737,7 @@ impl DataWriterActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
@@ -749,15 +747,11 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
-    ) {
-        if let Some(r) = self
-            .get_matched_subscription_data(discovered_reader_handle)
-            .await
-        {
+    ) -> () {
+        if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
             let handle = r.key().value.into();
-            self.matched_reader_remove(handle).await;
-            self.remove_matched_subscription(InstanceHandle::new(handle.into()))
-                .await;
+            self.matched_reader_remove(handle);
+            self.remove_matched_subscription(InstanceHandle::new(handle.into()));
 
             self.on_publication_matched(
                 data_writer_address,
@@ -769,7 +763,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+    fn process_rtps_message(&mut self, message: RtpsMessageRead) {
         let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
@@ -788,7 +782,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message(
+    fn send_message(
         &mut self,
         header: RtpsMessageHeader,
         udp_transport_write: Arc<UdpTransportWrite>,
@@ -801,7 +795,8 @@ impl DataWriterActor {
         self.send_message_to_reader_proxies(header, &udp_transport_write);
     }
 
-    async fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
+    #[allow(clippy::unused_unit)]
+    fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) -> () {
         let mut locator = a_locator;
         if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
             locator.set_highest_sent_change_sn(highest_available_change_sn)
@@ -810,12 +805,13 @@ impl DataWriterActor {
         self.reader_locators.push(locator);
     }
 
-    async fn set_listener(
+    #[allow(clippy::unused_unit)]
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(DataWriterListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
@@ -991,28 +987,24 @@ impl DataWriterActor {
         >,
     ) {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::PublicationMatched,
-            ))
+            .add_communication_state(StatusKind::PublicationMatched)
             .await;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
             self.listener
-                .send_mail(
-                    data_writer_listener_actor::trigger_on_publication_matched::new(
-                        data_writer_address,
-                        self.status_condition.address(),
-                        publisher,
-                        TopicAsync::new(
-                            self.topic_address.clone(),
-                            self.topic_status_condition_address.clone(),
-                            self.type_name.clone(),
-                            self.topic_name.clone(),
-                            participant,
-                        ),
-                        status,
+                .trigger_on_publication_matched(
+                    data_writer_address,
+                    self.status_condition.address(),
+                    publisher,
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        participant,
                     ),
+                    status,
                 )
                 .await;
         } else if let Some(publisher_publication_matched_listener) =
@@ -1020,7 +1012,7 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             publisher_publication_matched_listener
-                .send_mail(publisher_listener_actor::trigger_on_publication_matched::new(status))
+                .trigger_on_publication_matched(status)
                 .await
                 .expect("Listener should exist");
         } else if let Some(participant_publication_matched_listener) =
@@ -1028,9 +1020,7 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             participant_publication_matched_listener
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_publication_matched::new(status),
-                )
+                .trigger_on_publication_matched(status)
                 .await
                 .expect("Listener should exist");
         }
@@ -1046,53 +1036,43 @@ impl DataWriterActor {
         >,
     ) {
         self.status_condition
-            .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                StatusKind::OfferedIncompatibleQos,
-            ))
+            .add_communication_state(StatusKind::OfferedIncompatibleQos)
             .await;
         if self
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let status = self.get_offered_incompatible_qos_status().await;
+            let status = self.get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
             self.listener
-                .send_mail(
-                    data_writer_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        data_writer_address,
-                        self.status_condition.address(),
-                        publisher,
-                        TopicAsync::new(
-                            self.topic_address.clone(),
-                            self.topic_status_condition_address.clone(),
-                            self.type_name.clone(),
-                            self.topic_name.clone(),
-                            participant,
-                        ),
-                        status,
+                .trigger_on_offered_incompatible_qos(
+                    data_writer_address,
+                    self.status_condition.address(),
+                    publisher,
+                    TopicAsync::new(
+                        self.topic_address.clone(),
+                        self.topic_status_condition_address.clone(),
+                        self.type_name.clone(),
+                        self.topic_name.clone(),
+                        participant,
                     ),
+                    status,
                 )
                 .await;
         } else if let Some(offered_incompatible_qos_publisher_listener) =
             offered_incompatible_qos_publisher_listener
         {
-            let status = self.get_offered_incompatible_qos_status().await;
+            let status = self.get_offered_incompatible_qos_status();
             offered_incompatible_qos_publisher_listener
-                .send_mail(
-                    publisher_listener_actor::trigger_on_offered_incompatible_qos::new(status),
-                )
+                .trigger_on_offered_incompatible_qos(status)
                 .await
                 .expect("Listener should exist");
         } else if let Some(offered_incompatible_qos_participant_listener) =
             offered_incompatible_qos_participant_listener
         {
-            let status = self.get_offered_incompatible_qos_status().await;
+            let status = self.get_offered_incompatible_qos_status();
             offered_incompatible_qos_participant_listener
-                .send_mail(
-                    domain_participant_listener_actor::trigger_on_offered_incompatible_qos::new(
-                        status,
-                    ),
-                )
+                .trigger_on_offered_incompatible_qos(status)
                 .await
                 .expect("Listener should exist");
         }
@@ -1201,8 +1181,7 @@ fn send_message_to_reader_proxy_best_effort(
                         InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                     );
 
-                    let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
@@ -1353,8 +1332,7 @@ fn send_change_message_reader_proxy_reliable(
                         InfoTimestampSubmessageWrite::new(false, cache_change.timestamp()),
                     );
 
-                    let data_frag =
-                        RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
+                    let data_frag = RtpsSubmessageWriteKind::DataFrag(data_frag_submessage);
 
                     udp_transport_write.write(
                         &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),

@@ -17,8 +17,7 @@ use crate::{
 };
 
 use super::{
-    status_condition_actor::{self, StatusConditionActor},
-    topic_listener_actor::TopicListenerActor,
+    status_condition_actor::StatusConditionActor, topic_listener_actor::TopicListenerActor,
 };
 
 impl InconsistentTopicStatus {
@@ -71,43 +70,45 @@ impl TopicActor {
 
 #[actor_interface]
 impl TopicActor {
-    async fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
 
-    async fn get_name(&self) -> String {
+    fn get_name(&self) -> String {
         self.topic_name.clone()
     }
 
-    async fn guid(&self) -> Guid {
+    fn guid(&self) -> Guid {
         self.guid
     }
 
-    async fn set_qos(&mut self, qos: TopicQos) {
+    #[allow(clippy::unused_unit)]
+    fn set_qos(&mut self, qos: TopicQos) -> () {
         self.qos = qos;
     }
 
-    async fn get_qos(&self) -> TopicQos {
+    fn get_qos(&self) -> TopicQos {
         self.qos.clone()
     }
 
-    async fn enable(&mut self) {
+    #[allow(clippy::unused_unit)]
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.guid.into())
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
+    fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
         let qos = &self.qos;
         DiscoveredTopicData::new(TopicBuiltinTopicData::new(
             BuiltInTopicKey {
@@ -134,26 +135,23 @@ impl TopicActor {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
             .address()
-            .send_mail_and_await_reply(status_condition_actor::remove_communication_state::new(
-                StatusKind::InconsistentTopic,
-            ))
+            .remove_communication_state(StatusKind::InconsistentTopic)
             .await?;
         Ok(status)
     }
 
-    async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
+    #[allow(clippy::unused_unit)]
+    async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) -> () {
         if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
-            == self.get_type_name().await
-            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name().await
+            == self.get_type_name()
+            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
             && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .send_mail_and_await_reply(status_condition_actor::add_communication_state::new(
-                    StatusKind::InconsistentTopic,
-                ))
+                .add_communication_state(StatusKind::InconsistentTopic)
                 .await;
         }
     }

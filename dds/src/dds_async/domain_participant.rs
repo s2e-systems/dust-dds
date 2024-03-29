@@ -5,12 +5,9 @@ use crate::{
     domain::domain_participant_factory::{DomainId, DomainParticipantFactory},
     implementation::{
         actors::{
-            data_reader_actor, data_writer_actor,
-            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
-            publisher_actor,
+            domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
-            subscriber_actor::{self, SubscriberActor},
-            topic_actor,
+            subscriber_actor::SubscriberActor,
         },
         utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
     },
@@ -83,24 +80,14 @@ impl DomainParticipantAsync {
     ) -> DdsResult<PublisherAsync> {
         let publisher_address = self
             .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::create_publisher::new(
-                qos,
-                a_listener,
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ))
+            .create_publisher(qos, a_listener, mask.to_vec(), self.runtime_handle.clone())
             .await?;
-        let status_condition = publisher_address
-            .send_mail_and_await_reply(publisher_actor::get_statuscondition::new())
-            .await?;
+        let status_condition = publisher_address.get_statuscondition().await?;
         let publisher = PublisherAsync::new(publisher_address, status_condition, self.clone());
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
+        if self.participant_address.is_enabled().await?
             && self
                 .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_qos::new())
+                .get_qos()
                 .await?
                 .entity_factory
                 .autoenable_created_entities
@@ -114,10 +101,7 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_publisher`](crate::domain::domain_participant::DomainParticipant::delete_publisher).
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_instance_handle::new())
-            .await?
+        if self.participant_address.get_instance_handle().await?
             != a_publisher.get_participant().get_instance_handle().await?
         {
             return Err(DdsError::PreconditionNotMet(
@@ -126,11 +110,7 @@ impl DomainParticipantAsync {
         }
 
         self.participant_address
-            .send_mail_and_await_reply(
-                domain_participant_actor::delete_user_defined_publisher::new(
-                    a_publisher.get_instance_handle().await?,
-                ),
-            )
+            .delete_user_defined_publisher(a_publisher.get_instance_handle().await?)
             .await?
     }
 
@@ -144,17 +124,10 @@ impl DomainParticipantAsync {
     ) -> DdsResult<SubscriberAsync> {
         let subscriber_address = self
             .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::create_subscriber::new(
-                qos,
-                a_listener,
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ))
+            .create_subscriber(qos, a_listener, mask.to_vec(), self.runtime_handle.clone())
             .await?;
 
-        let subscriber_status_condition = subscriber_address
-            .send_mail_and_await_reply(subscriber_actor::get_statuscondition::new())
-            .await?;
+        let subscriber_status_condition = subscriber_address.get_statuscondition().await?;
 
         let subscriber = SubscriberAsync::new(
             subscriber_address,
@@ -162,13 +135,10 @@ impl DomainParticipantAsync {
             self.clone(),
         );
 
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
+        if self.participant_address.is_enabled().await?
             && self
                 .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_qos::new())
+                .get_qos()
                 .await?
                 .entity_factory
                 .autoenable_created_entities
@@ -191,11 +161,7 @@ impl DomainParticipantAsync {
         }
 
         self.participant_address
-            .send_mail_and_await_reply(
-                domain_participant_actor::delete_user_defined_subscriber::new(
-                    a_subscriber.get_instance_handle().await?,
-                ),
-            )
+            .delete_user_defined_subscriber(a_subscriber.get_instance_handle().await?)
             .await?
     }
 
@@ -230,26 +196,21 @@ impl DomainParticipantAsync {
         dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::register_type::new(
-                type_name.to_string(),
-                dynamic_type_representation,
-            ))
+            .register_type(type_name.to_string(), dynamic_type_representation)
             .await?;
 
         let topic_address = self
             .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::create_topic::new(
+            .create_topic(
                 topic_name.to_string(),
                 type_name.to_string(),
                 qos,
                 a_listener,
                 mask.to_vec(),
                 self.runtime_handle.clone(),
-            ))
+            )
             .await?;
-        let topic_status_condition = topic_address
-            .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-            .await?;
+        let topic_status_condition = topic_address.get_statuscondition().await?;
         let topic = TopicAsync::new(
             topic_address,
             topic_status_condition,
@@ -257,13 +218,10 @@ impl DomainParticipantAsync {
             topic_name.to_string(),
             self.clone(),
         );
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
+        if self.participant_address.is_enabled().await?
             && self
                 .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_qos::new())
+                .get_qos()
                 .await?
                 .entity_factory
                 .autoenable_created_entities
@@ -287,23 +245,13 @@ impl DomainParticipantAsync {
 
         for publisher in self
             .participant_address
-            .send_mail_and_await_reply(
-                domain_participant_actor::get_user_defined_publisher_list::new(),
-            )
+            .get_user_defined_publisher_list()
             .await?
         {
-            let data_writer_list = publisher
-                .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-                .await?;
+            let data_writer_list = publisher.data_writer_list().await?;
             for data_writer in data_writer_list {
-                if data_writer
-                    .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-                    .await?
-                    == a_topic.get_type_name()
-                    && data_writer
-                        .send_mail_and_await_reply(data_writer_actor::get_topic_name::new())
-                        .await?
-                        == a_topic.get_name()
+                if data_writer.get_type_name().await? == a_topic.get_type_name()
+                    && data_writer.get_topic_name().await? == a_topic.get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer".to_string(),
@@ -314,23 +262,13 @@ impl DomainParticipantAsync {
 
         for subscriber in self
             .participant_address
-            .send_mail_and_await_reply(
-                domain_participant_actor::get_user_defined_subscriber_list::new(),
-            )
+            .get_user_defined_subscriber_list()
             .await?
         {
-            let data_reader_list = subscriber
-                .send_mail_and_await_reply(subscriber_actor::data_reader_list::new())
-                .await?;
+            let data_reader_list = subscriber.data_reader_list().await?;
             for data_reader in data_reader_list {
-                if data_reader
-                    .send_mail_and_await_reply(data_reader_actor::get_type_name::new())
-                    .await?
-                    == a_topic.get_type_name()
-                    && data_reader
-                        .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
-                        .await?
-                        == a_topic.get_name()
+                if data_reader.get_type_name().await? == a_topic.get_type_name()
+                    && data_reader.get_topic_name().await? == a_topic.get_name()
                 {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data reader".to_string(),
@@ -340,9 +278,7 @@ impl DomainParticipantAsync {
         }
 
         self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::delete_topic::new(
-                a_topic.get_instance_handle().await?,
-            ))
+            .delete_topic(a_topic.get_instance_handle().await?)
             .await
     }
 
@@ -361,22 +297,12 @@ impl DomainParticipantAsync {
         while start_time.elapsed() < std::time::Duration::from(timeout) {
             for topic in self
                 .participant_address
-                .send_mail_and_await_reply(
-                    domain_participant_actor::get_user_defined_topic_list::new(),
-                )
+                .get_user_defined_topic_list()
                 .await?
             {
-                if topic
-                    .send_mail_and_await_reply(topic_actor::get_name::new())
-                    .await?
-                    == topic_name
-                {
-                    let type_name = topic
-                        .send_mail_and_await_reply(topic_actor::get_type_name::new())
-                        .await?;
-                    let topic_status_condition = topic
-                        .send_mail_and_await_reply(topic_actor::get_statuscondition::new())
-                        .await?;
+                if topic.get_name().await? == topic_name {
+                    let type_name = topic.get_type_name().await?;
+                    let topic_status_condition = topic.get_statuscondition().await?;
                     return Ok(TopicAsync::new(
                         topic,
                         topic_status_condition,
@@ -387,18 +313,10 @@ impl DomainParticipantAsync {
                 }
             }
 
-            for discovered_topic_handle in self
-                .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::discovered_topic_list::new())
-                .await?
-            {
+            for discovered_topic_handle in self.participant_address.discovered_topic_list().await? {
                 if let Ok(discovered_topic_data) = self
                     .participant_address
-                    .send_mail_and_await_reply(
-                        domain_participant_actor::discovered_topic_data::new(
-                            discovered_topic_handle,
-                        ),
-                    )
+                    .discovered_topic_data(discovered_topic_handle)
                     .await?
                 {
                     if discovered_topic_data.name() == topic_name {
@@ -466,16 +384,8 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
-        {
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::ignore_participant::new(
-                    handle,
-                ))
-                .await
+        if self.participant_address.is_enabled().await? {
+            self.participant_address.ignore_participant(handle).await
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -484,14 +394,8 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_topic`](crate::domain::domain_participant::DomainParticipant::ignore_topic).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
-        {
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::ignore_topic::new(handle))
-                .await
+        if self.participant_address.is_enabled().await? {
+            self.participant_address.ignore_topic(handle).await
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -500,16 +404,8 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_publication`](crate::domain::domain_participant::DomainParticipant::ignore_publication).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
-        {
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::ignore_publication::new(
-                    handle,
-                ))
-                .await
+        if self.participant_address.is_enabled().await? {
+            self.participant_address.ignore_publication(handle).await
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -518,16 +414,8 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_subscription`](crate::domain::domain_participant::DomainParticipant::ignore_subscription).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
-        {
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::ignore_subscription::new(
-                    handle,
-                ))
-                .await
+        if self.participant_address.is_enabled().await? {
+            self.participant_address.ignore_subscription(handle).await
         } else {
             Err(DdsError::NotEnabled)
         }
@@ -544,81 +432,39 @@ impl DomainParticipantAsync {
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         for publisher in self
             .participant_address
-            .send_mail_and_await_reply(
-                domain_participant_actor::get_user_defined_publisher_list::new(),
-            )
+            .get_user_defined_publisher_list()
             .await?
         {
-            for data_writer in publisher
-                .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-                .await?
-            {
+            for data_writer in publisher.data_writer_list().await? {
                 publisher
-                    .send_mail_and_await_reply(
-                        publisher_actor::datawriter_delete::new(
-                            data_writer
-                                .send_mail_and_await_reply(
-                                    data_writer_actor::get_instance_handle::new(),
-                                )
-                                .await?,
-                        ),
-                    )
+                    .datawriter_delete(data_writer.get_instance_handle().await?)
                     .await?;
             }
             self.participant_address
-                .send_mail_and_await_reply(
-                    domain_participant_actor::delete_user_defined_publisher::new(
-                        publisher
-                            .send_mail_and_await_reply(publisher_actor::get_instance_handle::new())
-                            .await?,
-                    ),
-                )
+                .delete_user_defined_publisher(publisher.get_instance_handle().await?)
                 .await??;
         }
         for subscriber in self
             .participant_address
-            .send_mail_and_await_reply(
-                domain_participant_actor::get_user_defined_subscriber_list::new(),
-            )
+            .get_user_defined_subscriber_list()
             .await?
         {
-            for data_reader in subscriber
-                .send_mail_and_await_reply(subscriber_actor::data_reader_list::new())
-                .await?
-            {
+            for data_reader in subscriber.data_reader_list().await? {
                 subscriber
-                    .send_mail_and_await_reply(
-                        subscriber_actor::data_reader_delete::new(
-                            data_reader
-                                .send_mail_and_await_reply(
-                                    data_reader_actor::get_instance_handle::new(),
-                                )
-                                .await?,
-                        ),
-                    )
+                    .data_reader_delete(data_reader.get_instance_handle().await?)
                     .await?;
             }
             self.participant_address
-                .send_mail_and_await_reply(
-                    domain_participant_actor::delete_user_defined_subscriber::new(
-                        subscriber
-                            .send_mail_and_await_reply(subscriber_actor::get_instance_handle::new())
-                            .await?,
-                    ),
-                )
+                .delete_user_defined_subscriber(subscriber.get_instance_handle().await?)
                 .await??;
         }
         for topic in self
             .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_user_defined_topic_list::new())
+            .get_user_defined_topic_list()
             .await?
         {
             self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::delete_topic::new(
-                    topic
-                        .send_mail_and_await_reply(topic_actor::get_instance_handle::new())
-                        .await?,
-                ))
+                .delete_topic(topic.get_instance_handle().await?)
                 .await?;
         }
         Ok(())
@@ -641,18 +487,14 @@ impl DomainParticipantAsync {
             QosKind::Specific(q) => q,
         };
         self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::set_default_publisher_qos::new(
-                qos,
-            ))
+            .set_default_publisher_qos(qos)
             .await
     }
 
     /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::default_publisher_qos::new())
-            .await
+        self.participant_address.default_publisher_qos().await
     }
 
     /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
@@ -664,18 +506,14 @@ impl DomainParticipantAsync {
         };
 
         self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::set_default_subscriber_qos::new(
-                qos,
-            ))
+            .set_default_subscriber_qos(qos)
             .await
     }
 
     /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::default_subscriber_qos::new())
-            .await
+        self.participant_address.default_subscriber_qos().await
     }
 
     /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
@@ -688,25 +526,19 @@ impl DomainParticipantAsync {
                 q
             }
         };
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::set_default_topic_qos::new(qos))
-            .await
+        self.participant_address.set_default_topic_qos(qos).await
     }
 
     /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::default_topic_qos::new())
-            .await
+        self.participant_address.default_topic_qos().await
     }
 
     /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_discovered_participants::new())
-            .await
+        self.participant_address.get_discovered_participants().await
     }
 
     /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
@@ -721,9 +553,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::discovered_topic_list::new())
-            .await
+        self.participant_address.discovered_topic_list().await
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
@@ -733,9 +563,7 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::discovered_topic_data::new(
-                topic_handle,
-            ))
+            .discovered_topic_data(topic_handle)
             .await?
     }
 
@@ -751,9 +579,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_current_time::new())
-            .await
+        self.participant_address.get_current_time().await
     }
 }
 
@@ -768,32 +594,24 @@ impl DomainParticipantAsync {
             QosKind::Specific(q) => q,
         };
 
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::set_qos::new(qos))
-            .await
+        self.participant_address.set_qos(qos).await
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_qos::new())
-            .await
+        self.participant_address.get_qos().await
     }
 
     /// Async version of [`set_listener`](crate::domain::domain_participant::DomainParticipant::set_listener).
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send + 'static>>,
+        a_listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::set_listener::new(
-                a_listener,
-                mask.to_vec(),
-                self.runtime_handle.clone(),
-            ))
+            .set_listener(a_listener, mask.to_vec(), self.runtime_handle.clone())
             .await
     }
 
@@ -815,49 +633,39 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self
-            .participant_address
-            .send_mail_and_await_reply(domain_participant_actor::is_enabled::new())
-            .await?
-        {
+        if !self.participant_address.is_enabled().await? {
             self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_builtin_publisher::new())
+                .get_builtin_publisher()
                 .await?
-                .send_mail_and_await_reply(publisher_actor::enable::new())
+                .enable()
                 .await?;
             self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+                .get_built_in_subscriber()
                 .await?
-                .send_mail_and_await_reply(subscriber_actor::enable::new())
+                .enable()
                 .await?;
 
             for builtin_reader in self
                 .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_built_in_subscriber::new())
+                .get_built_in_subscriber()
                 .await?
-                .send_mail_and_await_reply(subscriber_actor::data_reader_list::new())
+                .data_reader_list()
                 .await?
             {
-                builtin_reader
-                    .send_mail_and_await_reply(data_reader_actor::enable::new())
-                    .await?;
+                builtin_reader.enable().await?;
             }
 
             for builtin_writer in self
                 .participant_address
-                .send_mail_and_await_reply(domain_participant_actor::get_builtin_publisher::new())
+                .get_builtin_publisher()
                 .await?
-                .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
+                .data_writer_list()
                 .await?
             {
-                builtin_writer
-                    .send_mail_and_await_reply(data_writer_actor::enable::new())
-                    .await?;
+                builtin_writer.enable().await?;
             }
 
-            self.participant_address
-                .send_mail_and_await_reply(domain_participant_actor::enable::new())
-                .await?;
+            self.participant_address.enable().await?;
 
             let domain_participant_address = self.participant_address.clone();
 
@@ -866,46 +674,36 @@ impl DomainParticipantAsync {
                 let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
                 loop {
                     let r: DdsResult<()> = async {
-                        let builtin_publisher = domain_participant_address
-                            .send_mail_and_await_reply(domain_participant_actor::get_builtin_publisher::new())
-                            .await?;
-                        let data_writer_list = builtin_publisher
-                            .send_mail_and_await_reply(publisher_actor::data_writer_list::new())
-                            .await?;
+                        let builtin_publisher =
+                            domain_participant_address.get_builtin_publisher().await?;
+                        let data_writer_list = builtin_publisher.data_writer_list().await?;
                         for data_writer in data_writer_list {
-                            if data_writer
-                                .send_mail_and_await_reply(data_writer_actor::get_type_name::new())
-                                .await
+                            if data_writer.get_type_name().await
                                 == Ok("SpdpDiscoveredParticipantData".to_string())
                             {
                                 let spdp_discovered_participant_data = domain_participant_address
-                                    .send_mail_and_await_reply(
-                                        domain_participant_actor::as_spdp_discovered_participant_data::new(),
-                                    )
+                                    .as_spdp_discovered_participant_data()
                                     .await?;
                                 let mut serialized_data = Vec::new();
-                                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
+                                spdp_discovered_participant_data
+                                    .serialize_data(&mut serialized_data)?;
 
-                                let timestamp = domain_participant_address
-                                    .send_mail_and_await_reply(
-                                        domain_participant_actor::get_current_time::new(),
-                                    )
-                                    .await?;
+                                let timestamp =
+                                    domain_participant_address.get_current_time().await?;
 
                                 data_writer
-                                    .send_mail_and_await_reply(
-                                        data_writer_actor::write_w_timestamp::new(
-                                            serialized_data,
-                                            get_instance_handle_from_key(&spdp_discovered_participant_data.get_key()?)
-                                                .unwrap(),
-                                            None,
-                                            timestamp,
-                                        ),
+                                    .write_w_timestamp(
+                                        serialized_data,
+                                        get_instance_handle_from_key(
+                                            &spdp_discovered_participant_data.get_key()?,
+                                        )
+                                        .unwrap(),
+                                        None,
+                                        timestamp,
                                     )
                                     .await??;
 
-
-                                domain_participant_address.send_mail(domain_participant_actor::send_message::new()).await?;
+                                domain_participant_address.send_message().await?;
                             }
                         }
 
@@ -928,8 +726,6 @@ impl DomainParticipantAsync {
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address
-            .send_mail_and_await_reply(domain_participant_actor::get_instance_handle::new())
-            .await
+        self.participant_address.get_instance_handle().await
     }
 }

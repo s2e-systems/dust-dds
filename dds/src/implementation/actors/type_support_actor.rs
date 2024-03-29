@@ -18,15 +18,16 @@ impl TypeSupportActor {
 
 #[actor_interface]
 impl TypeSupportActor {
-    async fn register_type(
+    #[allow(clippy::unused_unit)]
+    pub fn register_type(
         &mut self,
         type_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-    ) {
+    ) -> () {
         self.type_support_list.insert(type_name, type_support);
     }
 
-    async fn get_type_support(
+    pub fn get_type_support(
         &self,
         type_name: String,
     ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {

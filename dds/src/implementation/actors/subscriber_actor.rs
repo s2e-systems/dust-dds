@@ -5,10 +5,8 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader_actor::{self, DataReaderActor},
-    subscriber_listener_actor::SubscriberListenerActor,
-    topic_actor::TopicActor,
+    any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
+    subscriber_listener_actor::SubscriberListenerActor, topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
 };
 use crate::{
@@ -91,7 +89,7 @@ impl SubscriberActor {
 #[actor_interface]
 impl SubscriberActor {
     #[allow(clippy::too_many_arguments)]
-    async fn create_datareader(
+    fn create_datareader(
         &mut self,
         type_name: String,
         topic_name: String,
@@ -168,43 +166,43 @@ impl SubscriberActor {
 
     async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
-            if dr
-                .send_mail_and_await_reply(data_reader_actor::get_topic_name::new())
-                .await
-                == topic_name
-            {
+            if dr.get_topic_name().await == topic_name {
                 return Some(dr.address());
             }
         }
         None
     }
-    async fn delete_contained_entities(&mut self) {}
 
-    async fn guid(&self) -> Guid {
+    #[allow(clippy::unused_unit)]
+    fn delete_contained_entities(&mut self) -> () {}
+
+    fn guid(&self) -> Guid {
         self.rtps_group.guid()
     }
 
-    async fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.data_reader_list.is_empty()
     }
 
-    async fn is_enabled(&self) -> bool {
+    fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    async fn data_reader_add(
+    #[allow(clippy::unused_unit)]
+    fn data_reader_add(
         &mut self,
         instance_handle: InstanceHandle,
         data_reader: Actor<DataReaderActor>,
-    ) {
+    ) -> () {
         self.data_reader_list.insert(instance_handle, data_reader);
     }
 
-    async fn data_reader_delete(&mut self, handle: InstanceHandle) {
+    #[allow(clippy::unused_unit)]
+    fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_reader_list.remove(&handle);
     }
 
-    async fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match qos {
             QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
             QosKind::Specific(q) => {
@@ -215,11 +213,11 @@ impl SubscriberActor {
         Ok(())
     }
 
-    async fn get_default_datareader_qos(&self) -> DataReaderQos {
+    fn get_default_datareader_qos(&self) -> DataReaderQos {
         self.default_data_reader_qos.clone()
     }
 
-    async fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+    fn set_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -234,34 +232,35 @@ impl SubscriberActor {
         Ok(())
     }
 
-    async fn enable(&mut self) {
+    #[allow(clippy::unused_unit)]
+    fn enable(&mut self) -> () {
         self.enabled = true;
     }
 
-    async fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 
-    async fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    async fn get_qos(&self) -> SubscriberQos {
+    fn get_qos(&self) -> SubscriberQos {
         self.qos.clone()
     }
 
-    async fn data_reader_list(&self) -> Vec<ActorAddress<DataReaderActor>> {
+    fn data_reader_list(&self) -> Vec<ActorAddress<DataReaderActor>> {
         self.data_reader_list
             .values()
             .map(|dr| dr.address())
             .collect()
     }
 
-    async fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
+    fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
         self.listener.address()
     }
 
-    async fn get_status_kind(&self) -> Vec<StatusKind> {
+    fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
 
@@ -272,10 +271,7 @@ impl SubscriberActor {
     ) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_mail(data_reader_actor::send_message::new(
-                    header,
-                    udp_transport_write.clone(),
-                ))
+                .send_message(header, udp_transport_write.clone())
                 .await;
         }
     }
@@ -291,15 +287,15 @@ impl SubscriberActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
-    ) -> DdsResult<()> {
+    ) {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
-        for data_reader_address in self.data_reader_list.values().map(|a| a.address()) {
+        for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_mail_and_await_reply(data_reader_actor::process_rtps_message::new(
+                .process_rtps_message(
                     message.clone(),
                     reception_timestamp,
-                    data_reader_address.clone(),
+                    data_reader_address.address(),
                     SubscriberAsync::new(
                         subscriber_address.clone(),
                         self.status_condition.address(),
@@ -308,12 +304,12 @@ impl SubscriberActor {
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
-                ))
-                .await??;
+                )
+                .await;
         }
-        Ok(())
     }
 
+    #[allow(clippy::unused_unit)]
     async fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
@@ -325,14 +321,14 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> () {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
                 let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader
-                    .send_mail_and_await_reply(data_reader_actor::add_matched_writer::new(
+                    .add_matched_writer(
                         discovered_writer_data.clone(),
                         default_unicast_locator_list.clone(),
                         default_multicast_locator_list.clone(),
@@ -345,12 +341,13 @@ impl SubscriberActor {
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
-                    ))
+                    )
                     .await;
             }
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
@@ -360,12 +357,12 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> () {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
             data_reader
-                .send_mail_and_await_reply(data_reader_actor::remove_matched_writer::new(
+                .remove_matched_writer(
                     discovered_writer_handle,
                     data_reader_address,
                     SubscriberAsync::new(
@@ -375,17 +372,18 @@ impl SubscriberActor {
                     ),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
-                ))
+                )
                 .await;
         }
     }
 
-    async fn set_listener(
+    #[allow(clippy::unused_unit)]
+    fn set_listener(
         &mut self,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) {
+    ) -> () {
         self.listener = Actor::spawn(SubscriberListenerActor::new(listener), &runtime_handle);
         self.status_kind = status_kind;
     }
