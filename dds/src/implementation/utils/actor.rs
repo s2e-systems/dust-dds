@@ -41,6 +41,7 @@ impl<A> Eq for ActorAddress<A> where A: ActorHandler {}
 impl<A> ActorAddress<A>
 where
     A: ActorHandler,
+    A::Message: Send,
 {
     pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
         self.sender
@@ -98,7 +99,7 @@ where
         }
     }
 
-    pub async fn send_actor_message(&self, message: A::Message) -> () {
+    pub async fn send_actor_message(&self, message: A::Message) {
         self.sender.send(message).await.expect(
             "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
         );
