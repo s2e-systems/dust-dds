@@ -844,17 +844,6 @@ impl DomainParticipantActor {
         todo!()
     }
 
-    #[allow(clippy::unused_unit)]
-    fn _discovered_participant_remove(&mut self, handle: InstanceHandle) -> () {
-        self.discovered_participant_list.remove(&handle);
-    }
-
-    fn create_unique_publisher_id(&mut self) -> u8 {
-        let counter = self.user_defined_publisher_counter;
-        self.user_defined_publisher_counter += 1;
-        counter
-    }
-
     async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(p) = self.user_defined_publisher_list.get(&handle) {
             if !p.data_writer_list().await.is_empty() {
@@ -865,12 +854,6 @@ impl DomainParticipantActor {
         }
         self.user_defined_publisher_list.remove(&handle);
         Ok(())
-    }
-
-    fn create_unique_subscriber_id(&mut self) -> u8 {
-        let counter = self.user_defined_subscriber_counter;
-        self.user_defined_subscriber_counter += 1;
-        counter
     }
 
     async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
@@ -884,12 +867,6 @@ impl DomainParticipantActor {
 
         self.user_defined_subscriber_list.remove(&handle);
         Ok(())
-    }
-
-    fn create_unique_topic_id(&mut self) -> u8 {
-        let counter = self.user_defined_topic_counter;
-        self.user_defined_topic_counter += 1;
-        counter
     }
 
     #[allow(clippy::unused_unit)]
@@ -1369,6 +1346,24 @@ impl DomainParticipantActor {
 }
 
 impl DomainParticipantActor {
+    fn create_unique_publisher_id(&mut self) -> u8 {
+        let counter = self.user_defined_publisher_counter;
+        self.user_defined_publisher_counter += 1;
+        counter
+    }
+
+    fn create_unique_subscriber_id(&mut self) -> u8 {
+        let counter = self.user_defined_subscriber_counter;
+        self.user_defined_subscriber_counter += 1;
+        counter
+    }
+
+    fn create_unique_topic_id(&mut self) -> u8 {
+        let counter = self.user_defined_topic_counter;
+        self.user_defined_topic_counter += 1;
+        counter
+    }
+
     async fn process_spdp_participant_discovery(&mut self) {
         if let Some(spdp_participant_reader) = self
             .builtin_subscriber
