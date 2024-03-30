@@ -2,7 +2,7 @@ use super::{
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
-        submessages::{data::DataSubmessageWrite, data_frag::DataFragSubmessageWrite},
+        submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
@@ -44,7 +44,7 @@ pub struct DataFragSubmessagesIter<'a> {
 }
 
 impl<'a> IntoIterator for &'a DataFragSubmessages<'a> {
-    type Item = DataFragSubmessageWrite;
+    type Item = DataFragSubmessage;
     type IntoIter = DataFragSubmessagesIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -59,7 +59,7 @@ impl<'a> IntoIterator for &'a DataFragSubmessages<'a> {
 }
 
 impl<'a> Iterator for DataFragSubmessagesIter<'a> {
-    type Item = DataFragSubmessageWrite;
+    type Item = DataFragSubmessage;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos < self.data.len() {
@@ -82,7 +82,7 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
 
             self.pos += 1;
 
-            Some(DataFragSubmessageWrite::new(
+            Some(DataFragSubmessage::new(
                 inline_qos_flag,
                 non_standard_payload_flag,
                 key_flag,
@@ -103,14 +103,14 @@ impl<'a> Iterator for DataFragSubmessagesIter<'a> {
 }
 
 impl RtpsWriterCacheChange {
-    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessageWrite {
+    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessage {
         let (data_flag, key_flag) = match self.kind() {
             ChangeKind::Alive => (true, false),
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
             _ => todo!(),
         };
 
-        DataSubmessageWrite::new(
+        DataSubmessage::new(
             true,
             data_flag,
             key_flag,

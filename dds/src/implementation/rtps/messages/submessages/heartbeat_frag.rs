@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatFragSubmessageRead {
+pub struct HeartbeatFragSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
@@ -21,7 +21,7 @@ pub struct HeartbeatFragSubmessageRead {
     count: Count,
 }
 
-impl HeartbeatFragSubmessageRead {
+impl HeartbeatFragSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -57,15 +57,7 @@ impl HeartbeatFragSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatFragSubmessageWrite {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    last_fragment_num: FragmentNumber,
-    count: Count,
-}
-impl HeartbeatFragSubmessageWrite {
+impl HeartbeatFragSubmessage {
     pub fn _new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -83,7 +75,7 @@ impl HeartbeatFragSubmessageWrite {
     }
 }
 
-impl Submessage for HeartbeatFragSubmessageWrite {
+impl Submessage for HeartbeatFragSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
             .write_into_bytes(&mut buf);
@@ -108,7 +100,7 @@ mod tests {
 
     #[test]
     fn serialize_heart_beat() {
-        let submessage = HeartbeatFragSubmessageWrite::_new(
+        let submessage = HeartbeatFragSubmessage::_new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             5,
@@ -141,8 +133,7 @@ mod tests {
             2, 0, 0, 0, // count: Count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            HeartbeatFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = HeartbeatFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

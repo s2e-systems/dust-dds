@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct DataFragSubmessageRead {
+pub struct DataFragSubmessage {
     inline_qos_flag: bool,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: bool,
@@ -29,7 +29,7 @@ pub struct DataFragSubmessageRead {
     serialized_payload: Data,
 }
 
-impl DataFragSubmessageRead {
+impl DataFragSubmessage {
     pub fn try_from_arc_slice(
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
@@ -134,23 +134,7 @@ impl DataFragSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct DataFragSubmessageWrite {
-    inline_qos_flag: SubmessageFlag,
-    non_standard_payload_flag: SubmessageFlag,
-    key_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    fragment_starting_num: FragmentNumber,
-    fragments_in_submessage: u16,
-    fragment_size: u16,
-    data_size: u32,
-    inline_qos: ParameterList,
-    serialized_payload: Data,
-}
-
-impl DataFragSubmessageWrite {
+impl DataFragSubmessage {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         inline_qos_flag: SubmessageFlag,
@@ -183,7 +167,7 @@ impl DataFragSubmessageWrite {
     }
 }
 
-impl Submessage for DataFragSubmessageWrite {
+impl Submessage for DataFragSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
@@ -228,7 +212,7 @@ mod tests {
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = ParameterList::empty();
         let serialized_payload = Data::new(vec![].into());
-        let submessage = DataFragSubmessageWrite::new(
+        let submessage = DataFragSubmessage::new(
             false,
             false,
             false,
@@ -261,7 +245,7 @@ mod tests {
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
         let serialized_payload = Data::new(vec![1, 2, 3].into());
-        let submessage = DataFragSubmessageWrite::new(
+        let submessage = DataFragSubmessage::new(
             true,
             false,
             false,
@@ -310,7 +294,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            DataFragSubmessageRead::try_from_arc_slice(&submessage_header, ArcSlice::from(data))
+            DataFragSubmessage::try_from_arc_slice(&submessage_header, ArcSlice::from(data))
                 .unwrap();
 
         let expected_inline_qos_flag = false;
@@ -372,7 +356,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            DataFragSubmessageRead::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataFragSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;

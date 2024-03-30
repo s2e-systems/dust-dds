@@ -9,12 +9,12 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoTimestampSubmessageRead {
+pub struct InfoTimestampSubmessage {
     invalidate_flag: SubmessageFlag,
     timestamp: Time,
 }
 
-impl InfoTimestampSubmessageRead {
+impl InfoTimestampSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -39,28 +39,17 @@ impl InfoTimestampSubmessageRead {
         self.timestamp
     }
 }
-#[derive(Debug, PartialEq, Eq)]
-pub struct InfoTimestampSubmessageWrite {
-    invalidate_flag: SubmessageFlag,
-    timestamp_submessage_element: Option<Time>,
-}
 
-impl InfoTimestampSubmessageWrite {
+impl InfoTimestampSubmessage {
     pub fn new(invalidate_flag: SubmessageFlag, timestamp: Time) -> Self {
-        let timestamp_submessage_element = if !invalidate_flag {
-            Some(timestamp)
-        } else {
-            None
-        };
-
         Self {
             invalidate_flag,
-            timestamp_submessage_element,
+            timestamp,
         }
     }
 }
 
-impl Submessage for InfoTimestampSubmessageWrite {
+impl Submessage for InfoTimestampSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
@@ -71,8 +60,8 @@ impl Submessage for InfoTimestampSubmessageWrite {
     }
 
     fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
-        if let Some(timestamp) = &self.timestamp_submessage_element {
-            timestamp.write_into_bytes(buf);
+        if !self.invalidate_flag {
+            self.timestamp.write_into_bytes(buf);
         }
     }
 }
@@ -84,7 +73,7 @@ mod tests {
 
     #[test]
     fn serialize_info_timestamp_valid_time() {
-        let submessage = InfoTimestampSubmessageWrite::new(false, Time::new(4, 0));
+        let submessage = InfoTimestampSubmessage::new(false, Time::new(4, 0));
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
@@ -96,7 +85,7 @@ mod tests {
 
     #[test]
     fn serialize_info_timestamp_invalid_time() {
-        let submessage = InfoTimestampSubmessageWrite::new(true, TIME_INVALID);
+        let submessage = InfoTimestampSubmessage::new(true, TIME_INVALID);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(submessage), vec![
                 0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
@@ -113,8 +102,7 @@ mod tests {
             0, 0, 0, 0, // Time
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoTimestampSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_invalidate_flag = false;
         let expected_timestamp = Time::new(4, 0);
@@ -130,8 +118,7 @@ mod tests {
             0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoTimestampSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_invalidate_flag = true;
         let expected_timestamp = TIME_INVALID;

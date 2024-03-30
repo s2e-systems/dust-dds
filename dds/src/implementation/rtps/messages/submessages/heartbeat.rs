@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageRead {
+pub struct HeartbeatSubmessage {
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,
     reader_id: EntityId,
@@ -23,7 +23,7 @@ pub struct HeartbeatSubmessageRead {
     count: Count,
 }
 
-impl HeartbeatSubmessageRead {
+impl HeartbeatSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -68,18 +68,8 @@ impl HeartbeatSubmessageRead {
         self.count
     }
 }
-#[derive(Debug, PartialEq, Eq)]
-pub struct HeartbeatSubmessageWrite {
-    final_flag: SubmessageFlag,
-    liveliness_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    first_sn: SequenceNumber,
-    last_sn: SequenceNumber,
-    count: Count,
-}
 
-impl HeartbeatSubmessageWrite {
+impl HeartbeatSubmessage {
     pub fn new(
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
@@ -101,7 +91,7 @@ impl HeartbeatSubmessageWrite {
     }
 }
 
-impl Submessage for HeartbeatSubmessageWrite {
+impl Submessage for HeartbeatSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
@@ -137,7 +127,7 @@ mod tests {
         let first_sn = 5;
         let last_sn = 7;
         let count = 2;
-        let submessage = HeartbeatSubmessageWrite::new(
+        let submessage = HeartbeatSubmessage::new(
             final_flag,
             liveliness_flag,
             reader_id,
@@ -181,7 +171,7 @@ mod tests {
             2, 0, 0, 0, // count: Count: value (long)
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = HeartbeatSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = HeartbeatSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());

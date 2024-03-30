@@ -31,9 +31,8 @@ use crate::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
                 submessage_elements::{Data, Parameter, ParameterList},
                 submessages::{
-                    data::DataSubmessageRead, data_frag::DataFragSubmessageRead,
-                    gap::GapSubmessageRead, heartbeat::HeartbeatSubmessageRead,
-                    heartbeat_frag::HeartbeatFragSubmessageRead,
+                    data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
+                    heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
                 },
             },
             reader::RtpsReaderKind,
@@ -362,7 +361,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     async fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessageRead,
+        data_submessage: &DataSubmessage,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
@@ -501,7 +500,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     async fn on_data_frag_submessage_received(
         &mut self,
-        data_frag_submessage: &DataFragSubmessageRead,
+        data_frag_submessage: &DataFragSubmessage,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
@@ -547,7 +546,7 @@ impl DataReaderActor {
 
     fn on_heartbeat_submessage_received(
         &mut self,
-        heartbeat_submessage: &HeartbeatSubmessageRead,
+        heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
@@ -583,7 +582,7 @@ impl DataReaderActor {
 
     fn on_heartbeat_frag_submessage_received(
         &mut self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessageRead,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
@@ -647,7 +646,7 @@ impl DataReaderActor {
 
     fn on_gap_submessage_received(
         &mut self,
-        gap_submessage: &GapSubmessageRead,
+        gap_submessage: &GapSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());

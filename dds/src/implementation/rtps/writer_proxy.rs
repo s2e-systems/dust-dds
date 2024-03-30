@@ -9,16 +9,15 @@ use super::{
         overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            ack_nack::AckNackSubmessageWrite, data::DataSubmessageRead,
-            data_frag::DataFragSubmessageRead, info_destination::InfoDestinationSubmessageWrite,
-            nack_frag::NackFragSubmessageWrite,
+            ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+            info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
         },
         types::Count,
     },
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
-fn total_fragments_expected(data_frag_submessage: &DataFragSubmessageRead) -> u32 {
+fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
     let data_size = data_frag_submessage.data_size();
     let fragment_size = data_frag_submessage.fragment_size() as u32;
     let total_fragments_correction = if data_size % fragment_size == 0 { 0 } else { 1 };
@@ -40,7 +39,7 @@ pub struct RtpsWriterProxy {
     last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
     nack_frag_count: Count,
-    frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessageRead>>,
+    frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessage>>,
 }
 
 impl RtpsWriterProxy {
@@ -69,7 +68,7 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn push_data_frag(&mut self, submessage: DataFragSubmessageRead) {
+    pub fn push_data_frag(&mut self, submessage: DataFragSubmessage) {
         let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn()).or_default();
         if !frag_bug_seq_num.contains(&submessage) {
             frag_bug_seq_num.push(submessage);
@@ -79,7 +78,7 @@ impl RtpsWriterProxy {
     pub fn reconstruct_data_from_frag(
         &mut self,
         seq_num: SequenceNumber,
-    ) -> Option<DataSubmessageRead> {
+    ) -> Option<DataSubmessage> {
         if let Some(seq_num_frag) = self.frag_buffer.get(&seq_num) {
             let total_fragments_expected = total_fragments_expected(&seq_num_frag[0]);
 
@@ -105,7 +104,7 @@ impl RtpsWriterProxy {
                     data.append(&mut frag.serialized_payload().as_ref().to_vec());
                 }
 
-                Some(DataSubmessageRead::new(
+                Some(DataSubmessage::new(
                     inline_qos_flag,
                     data_flag,
                     key_flag,
@@ -239,9 +238,9 @@ impl RtpsWriterProxy {
             self.increment_acknack_count();
 
             let info_dst_submessage =
-                InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
+                InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
 
-            let acknack_submessage = AckNackSubmessageWrite::new(
+            let acknack_submessage = AckNackSubmessage::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
@@ -270,7 +269,7 @@ impl RtpsWriterProxy {
 
                 if !missing_fragment_number.is_empty() {
                     self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
-                    let nack_frag_submessage = NackFragSubmessageWrite::new(
+                    let nack_frag_submessage = NackFragSubmessage::new(
                         reader_guid.entity_id(),
                         self.remote_writer_guid().entity_id(),
                         *seq_num,

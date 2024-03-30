@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DataSubmessageRead {
+pub struct DataSubmessage {
     inline_qos_flag: bool,
     data_flag: bool,
     key_flag: bool,
@@ -26,7 +26,7 @@ pub struct DataSubmessageRead {
     serialized_payload: Data,
 }
 
-impl DataSubmessageRead {
+impl DataSubmessage {
     pub fn try_from_arc_slice(
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
@@ -136,47 +136,7 @@ impl DataSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct DataSubmessageWrite {
-    inline_qos_flag: SubmessageFlag,
-    data_flag: SubmessageFlag,
-    key_flag: SubmessageFlag,
-    non_standard_payload_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    inline_qos: ParameterList,
-    serialized_payload: Data,
-}
-
-impl DataSubmessageWrite {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        inline_qos_flag: SubmessageFlag,
-        data_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
-        non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        writer_sn: SequenceNumber,
-        inline_qos: ParameterList,
-        serialized_payload: Data,
-    ) -> Self {
-        Self {
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        }
-    }
-}
-
-impl Submessage for DataSubmessageWrite {
+impl Submessage for DataSubmessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
@@ -227,7 +187,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = ParameterList::empty();
         let serialized_payload = Data::new(vec![].into());
-        let submessage = DataSubmessageWrite::new(
+        let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -264,7 +224,7 @@ mod tests {
         let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
         let serialized_payload = Data::new(vec![].into());
 
-        let submessage = DataSubmessageWrite::new(
+        let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -303,7 +263,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = ParameterList::empty();
         let serialized_payload = Data::new(vec![1, 2, 3, 4].into());
-        let submessage = DataSubmessageWrite::new(
+        let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -338,7 +298,7 @@ mod tests {
         let writer_sn = 5;
         let inline_qos = ParameterList::empty();
         let serialized_payload = Data::new(vec![1, 2, 3].into());
-        let submessage = DataSubmessageWrite::new(
+        let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -384,7 +344,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage =
-            DataSubmessageRead::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
 
         assert_eq!(inline_qos_flag, data_submessage._inline_qos_flag());
         assert_eq!(data_flag, data_submessage._data_flag());
@@ -414,7 +374,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage =
-            DataSubmessageRead::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
             &expected_serialized_payload,
@@ -446,7 +406,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage =
-            DataSubmessageRead::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
         assert_eq!(&inline_qos, data_submessage.inline_qos());
         assert_eq!(&serialized_payload, data_submessage.serialized_payload());
     }
@@ -476,7 +436,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage =
-            DataSubmessageRead::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
@@ -508,7 +468,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage =
-            DataSubmessageRead::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
     }

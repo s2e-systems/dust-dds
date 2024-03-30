@@ -1,8 +1,6 @@
 use super::{
     messages::{
-        submessages::{
-            heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
-        },
+        submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
@@ -35,10 +33,10 @@ impl HeartbeatMachine {
         writer_id: EntityId,
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
-    ) -> HeartbeatSubmessageWrite {
+    ) -> HeartbeatSubmessage {
         self.count = self.count.wrapping_add(1);
         self.timer.reset();
-        HeartbeatSubmessageWrite::new(
+        HeartbeatSubmessage::new(
             false,
             false,
             self.reader_id,
@@ -68,9 +66,9 @@ impl HeartbeatFragMachine {
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         last_fragment_num: FragmentNumber,
-    ) -> HeartbeatFragSubmessageWrite {
+    ) -> HeartbeatFragSubmessage {
         self.count = self.count.wrapping_add(1);
-        HeartbeatFragSubmessageWrite::_new(
+        HeartbeatFragSubmessage::_new(
             self.reader_id,
             writer_id,
             writer_sn,
