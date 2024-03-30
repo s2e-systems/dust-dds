@@ -186,10 +186,6 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
         dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
-        self.participant_address
-            .register_type(type_name.to_string(), dynamic_type_representation)
-            .await?;
-
         let (topic_address, topic_status_condition) = self
             .participant_address
             .create_user_defined_topic(
@@ -198,6 +194,7 @@ impl DomainParticipantAsync {
                 qos,
                 a_listener,
                 mask.to_vec(),
+                dynamic_type_representation,
                 self.runtime_handle.clone(),
             )
             .await?;

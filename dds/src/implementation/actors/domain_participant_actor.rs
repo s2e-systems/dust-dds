@@ -776,13 +776,15 @@ impl DomainParticipantActor {
         }
     }
 
-    fn create_user_defined_topic(
+    #[allow(clippy::too_many_arguments)]
+    async fn create_user_defined_topic(
         &mut self,
         topic_name: String,
         type_name: String,
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         _mask: Vec<StatusKind>,
+        type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
     ) -> (ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>) {
         let qos = match qos {
@@ -792,6 +794,10 @@ impl DomainParticipantActor {
         let topic_counter = self.create_unique_topic_id();
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+
+        self.type_support_actor
+            .register_type(type_name.clone(), type_support.into())
+            .await;
 
         let topic = TopicActor::new(
             guid,
@@ -1357,17 +1363,6 @@ impl DomainParticipantActor {
         } else {
             Ok(())
         }
-    }
-
-    #[allow(clippy::unused_unit)]
-    async fn register_type(
-        &mut self,
-        type_name: String,
-        type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
-    ) -> () {
-        self.type_support_actor
-            .register_type(type_name, type_support.into())
-            .await
     }
 
     async fn get_type_support(
