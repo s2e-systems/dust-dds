@@ -215,7 +215,7 @@ pub struct DomainParticipantActor {
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_list: HashMap<InstanceHandle, Actor<TopicActor>>,
+    user_defined_topic_list: HashMap<InstanceHandle, Actor<TopicActor>>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -642,7 +642,7 @@ impl DomainParticipantActor {
             user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            topic_list: HashMap::new(),
+            user_defined_topic_list: HashMap::new(),
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: 0,
@@ -661,6 +661,50 @@ impl DomainParticipantActor {
             type_support_actor,
             status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
+    }
+
+    async fn lookup_discovered_topic(
+        &mut self,
+        topic_name: String,
+        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        runtime_handle: tokio::runtime::Handle,
+    ) -> Option<(
+        ActorAddress<TopicActor>,
+        ActorAddress<StatusConditionActor>,
+        String,
+    )> {
+        for discovered_topic_data in self.discovered_topic_list.values() {
+            if discovered_topic_data.name() == &topic_name {
+                let qos = TopicQos {
+                    topic_data: discovered_topic_data.topic_data().clone(),
+                    durability: discovered_topic_data.durability().clone(),
+                    deadline: discovered_topic_data.deadline().clone(),
+                    latency_budget: discovered_topic_data.latency_budget().clone(),
+                    liveliness: discovered_topic_data.liveliness().clone(),
+                    reliability: discovered_topic_data.reliability().clone(),
+                    destination_order: discovered_topic_data.destination_order().clone(),
+                    history: discovered_topic_data.history().clone(),
+                    resource_limits: discovered_topic_data.resource_limits().clone(),
+                    transport_priority: discovered_topic_data.transport_priority().clone(),
+                    lifespan: discovered_topic_data.lifespan().clone(),
+                    ownership: discovered_topic_data.ownership().clone(),
+                };
+                let type_name = discovered_topic_data.get_type_name().to_owned();
+                let (topic_address, status_condition_address) = self
+                    .create_user_defined_topic(
+                        topic_name,
+                        type_name.clone(),
+                        QosKind::Specific(qos),
+                        None,
+                        vec![],
+                        type_support,
+                        runtime_handle,
+                    )
+                    .await;
+                return Some((topic_address, status_condition_address, type_name));
+            }
+        }
+        None
     }
 }
 
@@ -784,7 +828,7 @@ impl DomainParticipantActor {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         _mask: Vec<StatusKind>,
-        type_support: Box<dyn DynamicTypeInterface + Send + Sync>,
+        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
     ) -> (ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>) {
         let qos = match qos {
@@ -796,7 +840,7 @@ impl DomainParticipantActor {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
         self.type_support_actor
-            .register_type(type_name.clone(), type_support.into())
+            .register_type(type_name.clone(), type_support)
             .await;
 
         let topic = TopicActor::new(
@@ -812,14 +856,14 @@ impl DomainParticipantActor {
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
             Actor::spawn(topic, &runtime_handle);
         let topic_address = topic_actor.address();
-        self.topic_list
+        self.user_defined_topic_list
             .insert(InstanceHandle::new(guid.into()), topic_actor);
 
         (topic_address, topic_status_condition)
     }
 
     async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(topic) = self.topic_list.get(&handle) {
+        if let Some(topic) = self.user_defined_topic_list.get(&handle) {
             let topic_name = topic.get_name().await;
             for publisher in self.user_defined_publisher_list.values() {
                 if publisher
@@ -845,7 +889,7 @@ impl DomainParticipantActor {
                 }
             }
 
-            self.topic_list.remove(&handle);
+            self.user_defined_topic_list.remove(&handle);
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(
@@ -854,17 +898,51 @@ impl DomainParticipantActor {
         }
     }
 
+    async fn find_topic(
+        &mut self,
+        topic_name: String,
+        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        runtime_handle: tokio::runtime::Handle,
+    ) -> Option<(
+        ActorAddress<TopicActor>,
+        ActorAddress<StatusConditionActor>,
+        String,
+    )> {
+        if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
+            return Some(r);
+        } else if let Some(r) = self
+            .lookup_discovered_topic(
+                topic_name.clone(),
+                type_support.clone(),
+                runtime_handle.clone(),
+            )
+            .await
+        {
+            return Some(r);
+        } else {
+            None
+        }
+    }
+
     async fn lookup_topicdescription(
         &self,
         topic_name: String,
-    ) -> Option<ActorAddress<TopicActor>> {
+    ) -> Option<(
+        ActorAddress<TopicActor>,
+        ActorAddress<StatusConditionActor>,
+        String,
+    )> {
         for topic in self
             .builtin_topic_list
             .iter()
-            .chain(self.topic_list.values())
+            .chain(self.user_defined_topic_list.values())
         {
             if topic.get_name().await == topic_name {
-                return Some(topic.address());
+                return Some((
+                    topic.address(),
+                    topic.get_statuscondition().await,
+                    topic.get_type_name().await,
+                ));
             }
         }
         None
@@ -941,7 +1019,7 @@ impl DomainParticipantActor {
     fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
-            && self.topic_list.len() == 0
+            && self.user_defined_topic_list.len() == 0
     }
 
     fn get_qos(&self) -> DomainParticipantQos {
@@ -967,7 +1045,7 @@ impl DomainParticipantActor {
                 .await?;
         }
 
-        self.topic_list.clear();
+        self.user_defined_topic_list.clear();
 
         Ok(())
     }
@@ -1060,7 +1138,10 @@ impl DomainParticipantActor {
     }
 
     fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<TopicActor>> {
-        self.topic_list.values().map(|a| a.address()).collect()
+        self.user_defined_topic_list
+            .values()
+            .map(|a| a.address())
+            .collect()
     }
 
     fn get_domain_id(&self) -> DomainId {
@@ -2210,7 +2291,7 @@ impl DomainParticipantActor {
             InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
-            for topic in self.topic_list.values() {
+            for topic in self.user_defined_topic_list.values() {
                 topic
                     .process_discovered_topic(discovered_topic_data.clone())
                     .await;

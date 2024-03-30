@@ -170,14 +170,12 @@ impl PublisherAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
-        if let Some(topic_address) = self
+        if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant
             .participant_address()
             .lookup_topicdescription(topic_name.to_string())
             .await?
         {
-            let type_name = topic_address.get_type_name().await?;
-            let topic_status_condition = topic_address.get_statuscondition().await?;
             let topic = TopicAsync::new(
                 topic_address,
                 topic_status_condition,

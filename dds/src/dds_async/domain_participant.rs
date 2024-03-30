@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::sync::Arc;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -15,7 +15,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::{StatusKind, NO_STATUS},
+        status::StatusKind,
         time::{Duration, Time},
     },
     topic_definition::type_support::{
@@ -194,7 +194,7 @@ impl DomainParticipantAsync {
                 qos,
                 a_listener,
                 mask.to_vec(),
-                dynamic_type_representation,
+                dynamic_type_representation.into(),
                 self.runtime_handle.clone(),
             )
             .await?;
@@ -237,60 +237,25 @@ impl DomainParticipantAsync {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        let start_time = Instant::now();
+        let start_time = std::time::Instant::now();
 
         while start_time.elapsed() < std::time::Duration::from(timeout) {
-            for topic in self
+            if let Some((topic_address, status_condition_address, type_name)) = self
                 .participant_address
-                .get_user_defined_topic_list()
+                .find_topic(
+                    topic_name.to_owned(),
+                    Arc::new(FooTypeSupport::new::<Foo>()),
+                    self.runtime_handle.clone(),
+                )
                 .await?
             {
-                if topic.get_name().await? == topic_name {
-                    let type_name = topic.get_type_name().await?;
-                    let topic_status_condition = topic.get_statuscondition().await?;
-                    return Ok(TopicAsync::new(
-                        topic,
-                        topic_status_condition,
-                        type_name,
-                        topic_name.to_string(),
-                        self.clone(),
-                    ));
-                }
-            }
-
-            for discovered_topic_handle in self.participant_address.discovered_topic_list().await? {
-                if let Ok(discovered_topic_data) = self
-                    .participant_address
-                    .discovered_topic_data(discovered_topic_handle)
-                    .await?
-                {
-                    if discovered_topic_data.name() == topic_name {
-                        let qos = TopicQos {
-                            topic_data: discovered_topic_data.topic_data().clone(),
-                            durability: discovered_topic_data.durability().clone(),
-                            deadline: discovered_topic_data.deadline().clone(),
-                            latency_budget: discovered_topic_data.latency_budget().clone(),
-                            liveliness: discovered_topic_data.liveliness().clone(),
-                            reliability: discovered_topic_data.reliability().clone(),
-                            destination_order: discovered_topic_data.destination_order().clone(),
-                            history: discovered_topic_data.history().clone(),
-                            resource_limits: discovered_topic_data.resource_limits().clone(),
-                            transport_priority: discovered_topic_data.transport_priority().clone(),
-                            lifespan: discovered_topic_data.lifespan().clone(),
-                            ownership: discovered_topic_data.ownership().clone(),
-                        };
-                        let topic = self
-                            .create_topic::<Foo>(
-                                topic_name,
-                                discovered_topic_data.get_type_name(),
-                                QosKind::Specific(qos),
-                                None,
-                                NO_STATUS,
-                            )
-                            .await?;
-                        return Ok(topic);
-                    }
-                }
+                return Ok(TopicAsync::new(
+                    topic_address,
+                    status_condition_address,
+                    type_name,
+                    topic_name.to_owned(),
+                    self.clone(),
+                ));
             }
         }
 
@@ -299,21 +264,22 @@ impl DomainParticipantAsync {
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub async fn lookup_topicdescription(
-        &self,
-        _topic_name: &str,
-    ) -> DdsResult<Option<TopicAsync>> {
-        todo!()
-        // self.call_participant_method(|dp| {
-        //     Ok(
-        //         crate::implementation::behavior::domain_participant::lookup_topicdescription(
-        //             dp,
-        //             topic_name,
-        //             Foo,
-        //         )?
-        //         .map(|x| Topic::new(TopicNodeKind::UserDefined(x))),
-        //     )
-        // })
+    pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
+        if let Some((topic_address, status_condition_address, type_name)) = self
+            .participant_address
+            .lookup_topicdescription(topic_name.to_owned())
+            .await?
+        {
+            Ok(Some(TopicAsync::new(
+                topic_address,
+                status_condition_address,
+                type_name,
+                topic_name.to_owned(),
+                self.clone(),
+            )))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
@@ -483,9 +449,6 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
         todo!()
-        // self.call_participant_method(|dp| {
-        //     crate::implementation::behavior::domain_participant::contains_entity(dp, a_handle)
-        // })
     }
 
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
