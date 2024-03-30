@@ -109,7 +109,7 @@ impl TopicActor {
         InstanceHandle::new(self.guid.into())
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 

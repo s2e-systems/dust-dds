@@ -73,6 +73,12 @@ impl PublisherActor {
             status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
     }
+
+    fn get_unique_writer_id(&mut self) -> u8 {
+        let counter = self.user_defined_data_writer_counter;
+        self.user_defined_data_writer_counter += 1;
+        counter
+    }
 }
 
 #[actor_interface]
@@ -167,12 +173,6 @@ impl PublisherActor {
 
     fn is_empty(&self) -> bool {
         self.data_writer_list.is_empty()
-    }
-
-    fn get_unique_writer_id(&mut self) -> u8 {
-        let counter = self.user_defined_data_writer_counter;
-        self.user_defined_data_writer_counter += 1;
-        counter
     }
 
     #[allow(clippy::unused_unit)]
@@ -355,7 +355,7 @@ impl PublisherActor {
         }
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 

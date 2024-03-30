@@ -78,11 +78,15 @@ impl DomainParticipantAsync {
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
-        let publisher_address = self
+        let (publisher_address, status_condition) = self
             .participant_address
-            .create_publisher(qos, a_listener, mask.to_vec(), self.runtime_handle.clone())
+            .create_user_defined_publisher(
+                qos,
+                a_listener,
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            )
             .await?;
-        let status_condition = publisher_address.get_statuscondition().await?;
         let publisher = PublisherAsync::new(publisher_address, status_condition, self.clone());
         if self.participant_address.is_enabled().await?
             && self
@@ -114,12 +118,15 @@ impl DomainParticipantAsync {
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
-        let subscriber_address = self
+        let (subscriber_address, subscriber_status_condition) = self
             .participant_address
-            .create_subscriber(qos, a_listener, mask.to_vec(), self.runtime_handle.clone())
+            .create_user_defined_subscriber(
+                qos,
+                a_listener,
+                mask.to_vec(),
+                self.runtime_handle.clone(),
+            )
             .await?;
-
-        let subscriber_status_condition = subscriber_address.get_statuscondition().await?;
 
         let subscriber = SubscriberAsync::new(
             subscriber_address,
@@ -183,9 +190,9 @@ impl DomainParticipantAsync {
             .register_type(type_name.to_string(), dynamic_type_representation)
             .await?;
 
-        let topic_address = self
+        let (topic_address, topic_status_condition) = self
             .participant_address
-            .create_topic(
+            .create_user_defined_topic(
                 topic_name.to_string(),
                 type_name.to_string(),
                 qos,
@@ -194,7 +201,6 @@ impl DomainParticipantAsync {
                 self.runtime_handle.clone(),
             )
             .await?;
-        let topic_status_condition = topic_address.get_statuscondition().await?;
         let topic = TopicAsync::new(
             topic_address,
             topic_status_condition,
@@ -219,51 +225,9 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
-        if self.get_instance_handle().await?
-            != a_topic.get_participant().get_instance_handle().await?
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        for publisher in self
-            .participant_address
-            .get_user_defined_publisher_list()
-            .await?
-        {
-            let data_writer_list = publisher.data_writer_list().await?;
-            for data_writer in data_writer_list {
-                if data_writer.get_type_name().await? == a_topic.get_type_name()
-                    && data_writer.get_topic_name().await? == a_topic.get_name()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data writer".to_string(),
-                    ));
-                }
-            }
-        }
-
-        for subscriber in self
-            .participant_address
-            .get_user_defined_subscriber_list()
-            .await?
-        {
-            let data_reader_list = subscriber.data_reader_list().await?;
-            for data_reader in data_reader_list {
-                if data_reader.get_type_name().await? == a_topic.get_type_name()
-                    && data_reader.get_topic_name().await? == a_topic.get_name()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data reader".to_string(),
-                    ));
-                }
-            }
-        }
-
         self.participant_address
-            .delete_topic(a_topic.get_instance_handle().await?)
-            .await
+            .delete_user_defined_topic(a_topic.get_instance_handle().await?)
+            .await?
     }
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
@@ -432,8 +396,8 @@ impl DomainParticipantAsync {
             .await?
         {
             self.participant_address
-                .delete_topic(topic.get_instance_handle().await?)
-                .await?;
+                .delete_user_defined_topic(topic.get_instance_handle().await?)
+                .await??;
         }
         Ok(())
     }

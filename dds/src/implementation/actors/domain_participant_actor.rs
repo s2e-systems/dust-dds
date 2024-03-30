@@ -666,13 +666,16 @@ impl DomainParticipantActor {
 
 #[actor_interface]
 impl DomainParticipantActor {
-    fn create_publisher(
+    fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> ActorAddress<PublisherActor> {
+    ) -> (
+        ActorAddress<PublisherActor>,
+        ActorAddress<StatusConditionActor>,
+    ) {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
@@ -690,21 +693,43 @@ impl DomainParticipantActor {
             &runtime_handle,
         );
 
+        let publisher_status_condition = publisher.get_statuscondition();
+
         let publisher_actor = Actor::spawn(publisher, &runtime_handle);
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
 
-        publisher_address
+        (publisher_address, publisher_status_condition)
     }
 
-    fn create_subscriber(
+    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(p) = self.user_defined_publisher_list.get(&handle) {
+            if !p.data_writer_list().await.is_empty() {
+                Err(DdsError::PreconditionNotMet(
+                    "Publisher still contains data writers".to_string(),
+                ))
+            } else {
+                self.user_defined_publisher_list.remove(&handle);
+                Ok(())
+            }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ))
+        }
+    }
+
+    fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> ActorAddress<SubscriberActor> {
+    ) -> (
+        ActorAddress<SubscriberActor>,
+        ActorAddress<StatusConditionActor>,
+    ) {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
@@ -723,16 +748,35 @@ impl DomainParticipantActor {
             &runtime_handle,
         );
 
+        let subscriber_status_condition = subscriber.get_statuscondition();
+
         let subscriber_actor = Actor::spawn(subscriber, &runtime_handle);
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
             .insert(InstanceHandle::new(guid.into()), subscriber_actor);
 
-        subscriber_address
+        (subscriber_address, subscriber_status_condition)
     }
 
-    fn create_topic(
+    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
+            if !subscriber.is_empty().await {
+                Err(DdsError::PreconditionNotMet(
+                    "Subscriber still contains data readers".to_string(),
+                ))
+            } else {
+                self.user_defined_subscriber_list.remove(&handle);
+                Ok(())
+            }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ))
+        }
+    }
+
+    fn create_user_defined_topic(
         &mut self,
         topic_name: String,
         type_name: String,
@@ -740,7 +784,7 @@ impl DomainParticipantActor {
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         _mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> ActorAddress<TopicActor> {
+    ) -> (ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>) {
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
@@ -758,13 +802,50 @@ impl DomainParticipantActor {
             &runtime_handle,
         );
 
+        let topic_status_condition = topic.get_statuscondition();
         let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
             Actor::spawn(topic, &runtime_handle);
         let topic_address = topic_actor.address();
         self.topic_list
             .insert(InstanceHandle::new(guid.into()), topic_actor);
 
-        topic_address
+        (topic_address, topic_status_condition)
+    }
+
+    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        if let Some(topic) = self.topic_list.get(&handle) {
+            let topic_name = topic.get_name().await;
+            for publisher in self.user_defined_publisher_list.values() {
+                if publisher
+                    .lookup_datawriter(topic_name.clone())
+                    .await
+                    .is_some()
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data writer".to_string(),
+                    ));
+                }
+            }
+
+            for subscriber in self.user_defined_subscriber_list.values() {
+                if subscriber
+                    .lookup_datareader(topic_name.clone())
+                    .await
+                    .is_some()
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader".to_string(),
+                    ));
+                }
+            }
+
+            self.topic_list.remove(&handle);
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ))
+        }
     }
 
     async fn lookup_topicdescription(
@@ -851,54 +932,10 @@ impl DomainParticipantActor {
         todo!()
     }
 
-    async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(p) = self.user_defined_publisher_list.get(&handle) {
-            if !p.data_writer_list().await.is_empty() {
-                Err(DdsError::PreconditionNotMet(
-                    "Publisher still contains data writers".to_string(),
-                ))
-            } else {
-                self.user_defined_publisher_list.remove(&handle);
-                Ok(())
-            }
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ))
-        }
-    }
-
-    async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
-            if !subscriber.is_empty().await {
-                Err(DdsError::PreconditionNotMet(
-                    "Subscriber still contains data readers".to_string(),
-                ))
-            } else {
-                self.user_defined_subscriber_list.remove(&handle);
-                Ok(())
-            }
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ))
-        }
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> () {
-        self.topic_list.remove(&handle);
-    }
-
     fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
             && self.topic_list.len() == 0
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn delete_topic(&mut self, handle: InstanceHandle) -> () {
-        self.topic_list.remove(&handle);
     }
 
     fn get_qos(&self) -> DomainParticipantQos {
@@ -985,7 +1022,8 @@ impl DomainParticipantActor {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        Ok(self.discovered_participant_list
+        Ok(self
+            .discovered_participant_list
             .get(&participant_handle)
             .ok_or(DdsError::PreconditionNotMet(
                 "Participant with this instance handle not discovered".to_owned(),
