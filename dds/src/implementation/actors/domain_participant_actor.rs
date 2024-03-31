@@ -1031,19 +1031,23 @@ impl DomainParticipantActor {
     }
 
     async fn delete_contained_entities(&mut self) -> DdsResult<()> {
-        for (_, user_defined_publisher) in self.user_defined_publisher_list.drain() {
-            user_defined_publisher
-                .address()
-                .delete_contained_entities()
-                .await?;
+        for user_defined_publisher in self.user_defined_publisher_list.values() {
+            let deleted_data_writer_handle_list =
+                user_defined_publisher.delete_contained_entities().await;
+            for writer_handle in deleted_data_writer_handle_list {
+                self.announce_deleted_data_writer(writer_handle).await?;
+            }
         }
+        self.user_defined_publisher_list.clear();
 
-        for (_, user_defined_subscriber) in self.user_defined_subscriber_list.drain() {
-            user_defined_subscriber
-                .address()
-                .delete_contained_entities()
-                .await?;
+        for user_defined_subscriber in self.user_defined_subscriber_list.values() {
+            let deleted_data_reader_handle_list =
+                user_defined_subscriber.delete_contained_entities().await;
+            for reader_handle in deleted_data_reader_handle_list {
+                self.announce_deleted_data_reader(reader_handle).await?;
+            }
         }
+        self.user_defined_subscriber_list.clear();
 
         self.user_defined_topic_list.clear();
 
@@ -1116,11 +1120,11 @@ impl DomainParticipantActor {
             .clone())
     }
 
-    fn discovered_topic_list(&self) -> Vec<InstanceHandle> {
+    fn get_discovered_topics(&self) -> Vec<InstanceHandle> {
         self.discovered_topic_list.keys().cloned().collect()
     }
 
-    fn discovered_topic_data(
+    fn get_discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
@@ -1137,33 +1141,12 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    fn get_user_defined_topic_list(&self) -> Vec<ActorAddress<TopicActor>> {
-        self.user_defined_topic_list
-            .values()
-            .map(|a| a.address())
-            .collect()
-    }
-
     fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
 
     fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
         self.builtin_subscriber.address()
-    }
-
-    fn get_user_defined_publisher_list(&self) -> Vec<ActorAddress<PublisherActor>> {
-        self.user_defined_publisher_list
-            .values()
-            .map(|a| a.address())
-            .collect()
-    }
-
-    fn get_user_defined_subscriber_list(&self) -> Vec<ActorAddress<SubscriberActor>> {
-        self.user_defined_subscriber_list
-            .values()
-            .map(|a| a.address())
-            .collect()
     }
 
     fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {

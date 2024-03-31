@@ -325,44 +325,7 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        for publisher in self
-            .participant_address
-            .get_user_defined_publisher_list()
-            .await?
-        {
-            for data_writer in publisher.data_writer_list().await? {
-                publisher
-                    .datawriter_delete(data_writer.get_instance_handle().await?)
-                    .await?;
-            }
-            self.participant_address
-                .delete_user_defined_publisher(publisher.get_instance_handle().await?)
-                .await??;
-        }
-        for subscriber in self
-            .participant_address
-            .get_user_defined_subscriber_list()
-            .await?
-        {
-            for data_reader in subscriber.data_reader_list().await? {
-                subscriber
-                    .data_reader_delete(data_reader.get_instance_handle().await?)
-                    .await?;
-            }
-            self.participant_address
-                .delete_user_defined_subscriber(subscriber.get_instance_handle().await?)
-                .await??;
-        }
-        for topic in self
-            .participant_address
-            .get_user_defined_topic_list()
-            .await?
-        {
-            self.participant_address
-                .delete_user_defined_topic(topic.get_instance_handle().await?)
-                .await??;
-        }
-        Ok(())
+        self.participant_address.delete_contained_entities().await?
     }
 
     /// Async version of [`assert_liveliness`](crate::domain::domain_participant::DomainParticipant::assert_liveliness).
@@ -431,7 +394,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address.discovered_topic_list().await
+        self.participant_address.get_discovered_topics().await
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
@@ -441,7 +404,7 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.participant_address
-            .discovered_topic_data(topic_handle)
+            .get_discovered_topic_data(topic_handle)
             .await?
     }
 
