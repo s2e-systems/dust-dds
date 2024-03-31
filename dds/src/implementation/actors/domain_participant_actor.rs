@@ -908,13 +908,20 @@ impl DomainParticipantActor {
         ActorAddress<StatusConditionActor>,
         String,
     )> {
-        self.lookup_topicdescription(topic_name.clone()).await?;
-        self.lookup_discovered_topic(
-            topic_name.clone(),
-            type_support.clone(),
-            runtime_handle.clone(),
-        )
-        .await
+        if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
+            Some(r)
+        } else if let Some(r) = self
+            .lookup_discovered_topic(
+                topic_name.clone(),
+                type_support.clone(),
+                runtime_handle.clone(),
+            )
+            .await
+        {
+            Some(r)
+        } else {
+            None
+        }
     }
 
     async fn lookup_topicdescription(

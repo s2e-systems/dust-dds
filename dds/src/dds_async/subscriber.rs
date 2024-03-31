@@ -216,7 +216,14 @@ impl SubscriberAsync {
     /// Async version of [`delete_contained_entities`](crate::subscription::subscriber::Subscriber::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        todo!()
+        let deleted_reader_handle = self.subscriber_address.delete_contained_entities().await?;
+        for reader_handle in deleted_reader_handle {
+            self.participant
+                .participant_address()
+                .announce_deleted_data_reader(reader_handle)
+                .await??;
+        }
+        Ok(())
     }
 
     /// Async version of [`set_default_datareader_qos`](crate::subscription::subscriber::Subscriber::set_default_datareader_qos).

@@ -173,8 +173,9 @@ impl SubscriberActor {
         None
     }
 
-    #[allow(clippy::unused_unit)]
-    fn delete_contained_entities(&mut self) -> () {}
+    fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
+        self.data_reader_list.drain().map(|(h, _)| h).collect()
+    }
 
     fn guid(&self) -> Guid {
         self.rtps_group.guid()
