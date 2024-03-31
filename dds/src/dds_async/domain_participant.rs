@@ -237,29 +237,29 @@ impl DomainParticipantAsync {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        let start_time = std::time::Instant::now();
-
-        while start_time.elapsed() < std::time::Duration::from(timeout) {
-            if let Some((topic_address, status_condition_address, type_name)) = self
-                .participant_address
-                .find_topic(
-                    topic_name.to_owned(),
-                    Arc::new(FooTypeSupport::new::<Foo>()),
-                    self.runtime_handle.clone(),
-                )
-                .await?
-            {
-                return Ok(TopicAsync::new(
-                    topic_address,
-                    status_condition_address,
-                    type_name,
-                    topic_name.to_owned(),
-                    self.clone(),
-                ));
+        tokio::time::timeout(timeout.into(), async {
+            loop {
+                if let Some((topic_address, status_condition_address, type_name)) = self
+                    .participant_address
+                    .find_topic(
+                        topic_name.to_owned(),
+                        Arc::new(FooTypeSupport::new::<Foo>()),
+                        self.runtime_handle.clone(),
+                    )
+                    .await?
+                {
+                    return Ok(TopicAsync::new(
+                        topic_address,
+                        status_condition_address,
+                        type_name,
+                        topic_name.to_owned(),
+                        self.clone(),
+                    ));
+                }
             }
-        }
-
-        Err(DdsError::Timeout)
+        })
+        .await
+        .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
