@@ -175,9 +175,8 @@ impl PublisherActor {
         self.data_writer_list.is_empty()
     }
 
-    #[allow(clippy::unused_unit)]
-    fn delete_contained_entities(&mut self) -> () {
-        self.data_writer_list.clear()
+    fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
+        self.data_writer_list.drain().map(|(h, _)| h).collect()
     }
 
     #[allow(clippy::unused_unit)]

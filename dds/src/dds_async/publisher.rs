@@ -242,7 +242,14 @@ impl PublisherAsync {
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        todo!()
+        let deleted_writer_handle = self.publisher_address.delete_contained_entities().await?;
+        for writer_handle in deleted_writer_handle {
+            self.participant
+                .participant_address()
+                .announce_deleted_data_writer(writer_handle)
+                .await??;
+        }
+        Ok(())
     }
 
     /// Async version of [`set_default_datawriter_qos`](crate::publication::publisher::Publisher::set_default_datawriter_qos).
