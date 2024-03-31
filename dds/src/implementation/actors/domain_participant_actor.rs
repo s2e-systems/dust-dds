@@ -674,7 +674,7 @@ impl DomainParticipantActor {
         String,
     )> {
         for discovered_topic_data in self.discovered_topic_list.values() {
-            if discovered_topic_data.name() == &topic_name {
+            if discovered_topic_data.name() == topic_name {
                 let qos = TopicQos {
                     topic_data: discovered_topic_data.topic_data().clone(),
                     durability: discovered_topic_data.durability().clone(),
@@ -910,17 +910,13 @@ impl DomainParticipantActor {
     )> {
         if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
             Some(r)
-        } else if let Some(r) = self
-            .lookup_discovered_topic(
+        } else {
+            self.lookup_discovered_topic(
                 topic_name.clone(),
                 type_support.clone(),
                 runtime_handle.clone(),
             )
             .await
-        {
-            Some(r)
-        } else {
-            None
         }
     }
 
