@@ -908,20 +908,13 @@ impl DomainParticipantActor {
         ActorAddress<StatusConditionActor>,
         String,
     )> {
-        if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
-            return Some(r);
-        } else if let Some(r) = self
-            .lookup_discovered_topic(
-                topic_name.clone(),
-                type_support.clone(),
-                runtime_handle.clone(),
-            )
-            .await
-        {
-            return Some(r);
-        } else {
-            None
-        }
+        self.lookup_topicdescription(topic_name.clone()).await?;
+        self.lookup_discovered_topic(
+            topic_name.clone(),
+            type_support.clone(),
+            runtime_handle.clone(),
+        )
+        .await
     }
 
     async fn lookup_topicdescription(
@@ -946,30 +939,6 @@ impl DomainParticipantActor {
             }
         }
         None
-    }
-
-    fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_participant
-            .default_unicast_locator_list()
-            .to_vec()
-    }
-
-    fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_participant
-            .default_multicast_locator_list()
-            .to_vec()
-    }
-
-    fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_participant
-            .metatraffic_unicast_locator_list()
-            .to_vec()
-    }
-
-    fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
-        self.rtps_participant
-            .metatraffic_multicast_locator_list()
-            .to_vec()
     }
 
     fn get_instance_handle(&self) -> InstanceHandle {
@@ -1024,6 +993,30 @@ impl DomainParticipantActor {
 
     fn get_qos(&self) -> DomainParticipantQos {
         self.qos.clone()
+    }
+
+    fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .default_unicast_locator_list()
+            .to_vec()
+    }
+
+    fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .default_multicast_locator_list()
+            .to_vec()
+    }
+
+    fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .metatraffic_unicast_locator_list()
+            .to_vec()
+    }
+
+    fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_participant
+            .metatraffic_multicast_locator_list()
+            .to_vec()
     }
 
     fn data_max_size_serialized(&self) -> usize {
