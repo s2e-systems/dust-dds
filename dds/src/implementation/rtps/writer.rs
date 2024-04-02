@@ -60,7 +60,7 @@ impl RtpsWriter {
         self.heartbeat_period
     }
 
-    pub fn data_max_size_serialized(&self) -> usize {
+    pub fn _data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
 

@@ -163,13 +163,11 @@ impl SubscriberAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
-        if let Some(topic_address) = self
+        if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant_address()
             .lookup_topicdescription(topic_name.to_string())
             .await?
         {
-            let type_name = topic_address.get_type_name().await?;
-            let topic_status_condition = topic_address.get_statuscondition().await?;
             let topic = TopicAsync::new(
                 topic_address,
                 topic_status_condition,
@@ -218,7 +216,14 @@ impl SubscriberAsync {
     /// Async version of [`delete_contained_entities`](crate::subscription::subscriber::Subscriber::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        todo!()
+        let deleted_reader_handle = self.subscriber_address.delete_contained_entities().await?;
+        for reader_handle in deleted_reader_handle {
+            self.participant
+                .participant_address()
+                .announce_deleted_data_reader(reader_handle)
+                .await??;
+        }
+        Ok(())
     }
 
     /// Async version of [`set_default_datareader_qos`](crate::subscription::subscriber::Subscriber::set_default_datareader_qos).

@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, time::Instant};
+use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -344,15 +344,15 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        let start_time = Instant::now();
-        while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.writer_address.are_all_changes_acknowledge().await? {
-                return Ok(());
+        tokio::time::timeout(max_wait.into(), async {
+            loop {
+                if self.writer_address.are_all_changes_acknowledge().await? {
+                    return Ok(());
+                }
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(25)).await;
-        }
-
-        Err(DdsError::Timeout)
+        })
+        .await
+        .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).

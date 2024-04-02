@@ -94,21 +94,14 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self.participant_address().default_topic_qos().await?,
+            QosKind::Default => self.participant_address().get_default_topic_qos().await?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
             }
         };
 
-        if self.topic_address.is_enabled().await? {
-            self.topic_address
-                .get_qos()
-                .await?
-                .check_immutability(&qos)?
-        }
-
-        self.topic_address.set_qos(qos).await
+        self.topic_address.set_qos(qos).await?
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).

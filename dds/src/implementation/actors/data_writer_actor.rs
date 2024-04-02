@@ -352,10 +352,6 @@ impl DataWriterActor {
         self.rtps_writer.heartbeat_period()
     }
 
-    fn data_max_size_serialized(&self) -> usize {
-        self.rtps_writer.data_max_size_serialized()
-    }
-
     #[allow(clippy::unused_unit)]
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) -> () {
         self.matched_readers

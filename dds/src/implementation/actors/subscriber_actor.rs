@@ -173,8 +173,9 @@ impl SubscriberActor {
         None
     }
 
-    #[allow(clippy::unused_unit)]
-    fn delete_contained_entities(&mut self) -> () {}
+    fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
+        self.data_reader_list.drain().map(|(h, _)| h).collect()
+    }
 
     fn guid(&self) -> Guid {
         self.rtps_group.guid()
@@ -241,7 +242,7 @@ impl SubscriberActor {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -254,10 +255,6 @@ impl SubscriberActor {
             .values()
             .map(|dr| dr.address())
             .collect()
-    }
-
-    fn get_listener(&self) -> ActorAddress<SubscriberListenerActor> {
-        self.listener.address()
     }
 
     fn get_status_kind(&self) -> Vec<StatusKind> {

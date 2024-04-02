@@ -73,6 +73,12 @@ impl PublisherActor {
             status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
     }
+
+    fn get_unique_writer_id(&mut self) -> u8 {
+        let counter = self.user_defined_data_writer_counter;
+        self.user_defined_data_writer_counter += 1;
+        counter
+    }
 }
 
 #[actor_interface]
@@ -169,15 +175,8 @@ impl PublisherActor {
         self.data_writer_list.is_empty()
     }
 
-    fn get_unique_writer_id(&mut self) -> u8 {
-        let counter = self.user_defined_data_writer_counter;
-        self.user_defined_data_writer_counter += 1;
-        counter
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn delete_contained_entities(&mut self) -> () {
-        self.data_writer_list.clear()
+    fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
+        self.data_writer_list.drain().map(|(h, _)| h).collect()
     }
 
     #[allow(clippy::unused_unit)]
@@ -228,10 +227,6 @@ impl PublisherActor {
 
     fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
-    }
-
-    fn get_listener(&self) -> ActorAddress<PublisherListenerActor> {
-        self.listener.address()
     }
 
     fn get_qos(&self) -> PublisherQos {
@@ -359,7 +354,7 @@ impl PublisherActor {
         }
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
