@@ -76,7 +76,7 @@ use crate::{
 };
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -710,7 +710,8 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher_counter = self.create_unique_publisher_id();
+        let publisher_counter = self.user_defined_publisher_counter;
+        self.user_defined_publisher_counter += 1;
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -764,7 +765,8 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let subcriber_counter = self.create_unique_subscriber_id();
+        let subcriber_counter = self.user_defined_subscriber_counter;
+        self.user_defined_subscriber_counter += 1;
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -817,12 +819,13 @@ impl DomainParticipantActor {
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
-        if !self.user_defined_topic_list.contains_key(&topic_name) {
+        if let Entry::Vacant(e) = self.user_defined_topic_list.entry(topic_name.clone()) {
             let qos = match qos {
                 QosKind::Default => self.default_topic_qos.clone(),
                 QosKind::Specific(q) => q,
             };
-            let topic_counter = self.create_unique_topic_id();
+            let topic_counter = self.user_defined_topic_counter;
+            self.user_defined_topic_counter += 1;
             let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
             let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
@@ -843,7 +846,7 @@ impl DomainParticipantActor {
             let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
                 Actor::spawn(topic, &runtime_handle);
             let topic_address = topic_actor.address();
-            self.user_defined_topic_list.insert(topic_name, topic_actor);
+            e.insert(topic_actor);
 
             Ok((topic_address, topic_status_condition))
         } else {
@@ -1431,24 +1434,6 @@ impl DomainParticipantActor {
 }
 
 impl DomainParticipantActor {
-    fn create_unique_publisher_id(&mut self) -> u8 {
-        let counter = self.user_defined_publisher_counter;
-        self.user_defined_publisher_counter += 1;
-        counter
-    }
-
-    fn create_unique_subscriber_id(&mut self) -> u8 {
-        let counter = self.user_defined_subscriber_counter;
-        self.user_defined_subscriber_counter += 1;
-        counter
-    }
-
-    fn create_unique_topic_id(&mut self) -> u8 {
-        let counter = self.user_defined_topic_counter;
-        self.user_defined_topic_counter += 1;
-        counter
-    }
-
     async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
         self.process_spdp_participant_discovery().await;
         self.process_sedp_publications_discovery(participant.clone())

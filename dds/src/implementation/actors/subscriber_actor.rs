@@ -269,6 +269,7 @@ impl SubscriberActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn process_rtps_message(
         &self,
         message: RtpsMessageRead,
@@ -304,7 +305,7 @@ impl SubscriberActor {
         }
     }
 
-    #[allow(clippy::unused_unit)]
+    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
     async fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
