@@ -113,8 +113,6 @@ impl PublisherAsync {
                 default_unicast_locator_list,
                 default_multicast_locator_list,
                 self.participant.runtime_handle().clone(),
-                a_topic.topic_address().clone(),
-                a_topic.get_statuscondition().address().clone(),
             )
             .await??;
         let status_condition = data_writer_address.get_statuscondition().await?;

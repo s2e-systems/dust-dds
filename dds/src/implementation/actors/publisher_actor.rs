@@ -96,8 +96,6 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
-        topic_address: ActorAddress<TopicActor>,
-        topic_status_condition: ActorAddress<StatusConditionActor>,
     ) -> DdsResult<ActorAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -142,8 +140,6 @@ impl PublisherActor {
             mask,
             qos,
             &runtime_handle,
-            topic_address,
-            topic_status_condition,
         );
         let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
         let data_writer_address = data_writer_actor.address();
@@ -276,6 +272,7 @@ impl PublisherActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if self.is_partition_matched(
             discovered_reader_data
@@ -314,6 +311,7 @@ impl PublisherActor {
                         participant_publication_matched_listener.clone(),
                         offered_incompatible_qos_publisher_listener,
                         offered_incompatible_qos_participant_listener.clone(),
+                        topic_list.clone(),
                     )
                     .await;
             }
@@ -329,6 +327,7 @@ impl PublisherActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
@@ -349,6 +348,7 @@ impl PublisherActor {
                     ),
                     publisher_publication_matched_listener,
                     participant_publication_matched_listener.clone(),
+                    topic_list.clone(),
                 )
                 .await;
         }

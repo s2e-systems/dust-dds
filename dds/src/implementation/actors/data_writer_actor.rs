@@ -224,8 +224,6 @@ pub struct DataWriterActor {
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
-    topic_address: ActorAddress<TopicActor>,
-    topic_status_condition_address: ActorAddress<StatusConditionActor>,
 }
 
 impl DataWriterActor {
@@ -238,8 +236,6 @@ impl DataWriterActor {
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
-        topic_address: ActorAddress<TopicActor>,
-        topic_status_condition_address: ActorAddress<StatusConditionActor>,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
@@ -258,8 +254,6 @@ impl DataWriterActor {
             writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashSet::new(),
-            topic_address,
-            topic_status_condition_address,
         }
     }
 
@@ -607,6 +601,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
@@ -714,6 +709,7 @@ impl DataWriterActor {
                         publisher,
                         publisher_publication_matched_listener,
                         participant_publication_matched_listener,
+                        topic_list,
                     )
                     .await;
                 }
@@ -725,6 +721,7 @@ impl DataWriterActor {
                     publisher,
                     offered_incompatible_qos_publisher_listener,
                     offered_incompatible_qos_participant_listener,
+                    topic_list,
                 )
                 .await;
             }
@@ -741,6 +738,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
             let handle = r.key().value.into();
@@ -752,6 +750,7 @@ impl DataWriterActor {
                 publisher,
                 publisher_publication_matched_listener,
                 participant_publication_matched_listener,
+                topic_list,
             )
             .await;
         }
@@ -978,6 +977,7 @@ impl DataWriterActor {
         participant_publication_matched_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         self.status_condition
             .add_communication_state(StatusKind::PublicationMatched)
@@ -985,14 +985,17 @@ impl DataWriterActor {
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
+            let topic_address = topic_list[&self.topic_name].address();
+            let topic_status_condition_address =
+                topic_list[&self.topic_name].get_statuscondition().await;
             self.listener
                 .trigger_on_publication_matched(
                     data_writer_address,
                     self.status_condition.address(),
                     publisher,
                     TopicAsync::new(
-                        self.topic_address.clone(),
-                        self.topic_status_condition_address.clone(),
+                        topic_address,
+                        topic_status_condition_address,
                         self.type_name.clone(),
                         self.topic_name.clone(),
                         participant,
@@ -1027,6 +1030,7 @@ impl DataWriterActor {
         offered_incompatible_qos_participant_listener: Option<
             ActorAddress<DomainParticipantListenerActor>,
         >,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         self.status_condition
             .add_communication_state(StatusKind::OfferedIncompatibleQos)
@@ -1037,14 +1041,17 @@ impl DataWriterActor {
         {
             let status = self.get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
+            let topic_address = topic_list[&self.topic_name].address();
+            let topic_status_condition_address =
+                topic_list[&self.topic_name].get_statuscondition().await;
             self.listener
                 .trigger_on_offered_incompatible_qos(
                     data_writer_address,
                     self.status_condition.address(),
                     publisher,
                     TopicAsync::new(
-                        self.topic_address.clone(),
-                        self.topic_status_condition_address.clone(),
+                        topic_address,
+                        topic_status_condition_address,
                         self.type_name.clone(),
                         self.topic_name.clone(),
                         participant,

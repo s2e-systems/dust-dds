@@ -476,8 +476,6 @@ impl DomainParticipantActor {
                 vec![],
                 spdp_writer_qos,
                 handle,
-                spdp_topic_participant.address(),
-                spdp_topic_participant.get_statuscondition().await,
             ),
             handle,
         );
@@ -516,8 +514,6 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             handle,
-            sedp_topic_topics.address(),
-            sedp_topic_topics.get_statuscondition().await,
         );
         let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
@@ -531,8 +527,6 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             handle,
-            sedp_topic_publications.address(),
-            sedp_topic_publications.get_statuscondition().await,
         );
         let sedp_builtin_publications_writer_actor =
             Actor::spawn(sedp_builtin_publications_writer, handle);
@@ -547,8 +541,6 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos,
             handle,
-            sedp_topic_subscriptions.address(),
-            sedp_topic_subscriptions.get_statuscondition().await,
         );
         let sedp_builtin_subscriptions_writer_actor =
             Actor::spawn(sedp_builtin_subscriptions_writer, handle);
@@ -2142,6 +2134,7 @@ impl DomainParticipantActor {
                             participant.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
+                            self.user_defined_topic_list.clone(),
                         )
                         .await;
                 }
@@ -2225,6 +2218,7 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant.clone(),
                     participant_publication_matched_listener,
+                    self.user_defined_topic_list.clone(),
                 )
                 .await;
         }
