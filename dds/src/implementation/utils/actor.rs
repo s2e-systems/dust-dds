@@ -28,13 +28,17 @@ where
 {
     pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
         if let Some(s) = self.sender.upgrade() {
-            s.send(message)
-                .await
-                .expect("Receiver should be alive as long as as sender exists");
+            s.send(message).await.expect(
+                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
+            );
             Ok(())
         } else {
             Err(DdsError::AlreadyDeleted)
         }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.sender.upgrade().is_none()
     }
 }
 

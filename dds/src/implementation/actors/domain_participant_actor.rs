@@ -215,7 +215,7 @@ pub struct DomainParticipantActor {
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    user_defined_topic_list: HashMap<InstanceHandle, Actor<TopicActor>>,
+    user_defined_topic_list: HashMap<String, Actor<TopicActor>>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -668,11 +668,13 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> Option<(
-        ActorAddress<TopicActor>,
-        ActorAddress<StatusConditionActor>,
-        String,
-    )> {
+    ) -> DdsResult<
+        Option<(
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
+            String,
+        )>,
+    > {
         for discovered_topic_data in self.discovered_topic_list.values() {
             if discovered_topic_data.name() == topic_name {
                 let qos = TopicQos {
@@ -700,11 +702,11 @@ impl DomainParticipantActor {
                         type_support,
                         runtime_handle,
                     )
-                    .await;
-                return Some((topic_address, status_condition_address, type_name));
+                    .await?;
+                return Ok(Some((topic_address, status_condition_address, type_name)));
             }
         }
-        None
+        Ok(None)
     }
 }
 
@@ -830,40 +832,43 @@ impl DomainParticipantActor {
         _mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> (ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>) {
-        let qos = match qos {
-            QosKind::Default => self.default_topic_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        let topic_counter = self.create_unique_topic_id();
-        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+    ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
+        if !self.user_defined_topic_list.contains_key(&topic_name) {
+            let qos = match qos {
+                QosKind::Default => self.default_topic_qos.clone(),
+                QosKind::Specific(q) => q,
+            };
+            let topic_counter = self.create_unique_topic_id();
+            let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
+            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        self.type_support_actor
-            .register_type(type_name.clone(), type_support)
-            .await;
+            self.type_support_actor
+                .register_type(type_name.clone(), type_support)
+                .await;
 
-        let topic = TopicActor::new(
-            guid,
-            qos,
-            type_name,
-            &topic_name,
-            a_listener,
-            &runtime_handle,
-        );
+            let topic = TopicActor::new(
+                guid,
+                qos,
+                type_name,
+                &topic_name,
+                a_listener,
+                &runtime_handle,
+            );
 
-        let topic_status_condition = topic.get_statuscondition();
-        let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
-            Actor::spawn(topic, &runtime_handle);
-        let topic_address = topic_actor.address();
-        self.user_defined_topic_list
-            .insert(InstanceHandle::new(guid.into()), topic_actor);
+            let topic_status_condition = topic.get_statuscondition();
+            let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
+                Actor::spawn(topic, &runtime_handle);
+            let topic_address = topic_actor.address();
+            self.user_defined_topic_list.insert(topic_name, topic_actor);
 
-        (topic_address, topic_status_condition)
+            Ok((topic_address, topic_status_condition))
+        } else {
+            Err(DdsError::PreconditionNotMet(format!("Topic with name {} already exists. To access this topic call the lookup_topicdescription method.",topic_name)))
+        }
     }
 
-    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(topic) = self.user_defined_topic_list.get(&handle) {
+    async fn delete_user_defined_topic(&mut self, topic_name: String) -> DdsResult<()> {
+        if let Some(topic) = self.user_defined_topic_list.get(&topic_name) {
             let topic_name = topic.get_name().await;
             for publisher in self.user_defined_publisher_list.values() {
                 if publisher
@@ -889,7 +894,7 @@ impl DomainParticipantActor {
                 }
             }
 
-            self.user_defined_topic_list.remove(&handle);
+            self.user_defined_topic_list.remove(&topic_name);
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(
@@ -903,13 +908,15 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> Option<(
-        ActorAddress<TopicActor>,
-        ActorAddress<StatusConditionActor>,
-        String,
-    )> {
+    ) -> DdsResult<
+        Option<(
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
+            String,
+        )>,
+    > {
         if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
-            Some(r)
+            Ok(Some(r))
         } else {
             self.lookup_discovered_topic(
                 topic_name.clone(),

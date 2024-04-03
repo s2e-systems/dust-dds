@@ -1515,6 +1515,10 @@ fn inconsistent_topic_status_condition() {
         .attach_condition(Condition::StatusCondition(status_cond))
         .unwrap();
 
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
     let reliable_topic_qos = TopicQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -1522,7 +1526,7 @@ fn inconsistent_topic_status_condition() {
         },
         ..Default::default()
     };
-    let _topic_reliable = participant
+    let _topic_reliable = participant2
         .create_topic::<KeyedData>(
             "Topic",
             "KeyedData",

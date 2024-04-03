@@ -197,7 +197,7 @@ impl DomainParticipantAsync {
                 dynamic_type_representation.into(),
                 self.runtime_handle.clone(),
             )
-            .await?;
+            .await??;
         let topic = TopicAsync::new(
             topic_address,
             topic_status_condition,
@@ -222,9 +222,13 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
-        self.participant_address
-            .delete_user_defined_topic(a_topic.get_instance_handle().await?)
-            .await?
+        if a_topic.topic_address().is_closed() {
+            Err(DdsError::AlreadyDeleted)
+        } else {
+            self.participant_address
+                .delete_user_defined_topic(a_topic.get_name())
+                .await?
+        }
     }
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
@@ -246,7 +250,7 @@ impl DomainParticipantAsync {
                         Arc::new(FooTypeSupport::new::<Foo>()),
                         self.runtime_handle.clone(),
                     )
-                    .await?
+                    .await??
                 {
                     return Ok(TopicAsync::new(
                         topic_address,
