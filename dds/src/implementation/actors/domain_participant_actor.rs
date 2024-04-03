@@ -333,8 +333,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                spdp_topic_participant.address(),
-                spdp_topic_participant.get_statuscondition().await,
             ),
             handle,
         );
@@ -364,8 +362,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                sedp_topic_topics.address(),
-                sedp_topic_topics.get_statuscondition().await,
             ),
             handle,
         );
@@ -381,8 +377,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                sedp_topic_publications.address(),
-                sedp_topic_publications.get_statuscondition().await,
             ),
             handle,
         );
@@ -398,8 +392,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                sedp_topic_subscriptions.address(),
-                sedp_topic_subscriptions.get_statuscondition().await,
             ),
             handle,
         );
@@ -1241,6 +1233,7 @@ impl DomainParticipantActor {
                 participant.clone(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
+                self.user_defined_topic_list.clone(),
             )
             .await;
 
@@ -1270,6 +1263,7 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
+                    self.user_defined_topic_list.clone(),
                 )
                 .await
                 .expect("Should not fail to send command");
@@ -1927,6 +1921,7 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant.clone(),
                             participant_mask_listener,
+                            self.user_defined_topic_list.clone(),
                         )
                         .await;
                 }
@@ -2004,6 +1999,7 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant.clone(),
                     participant_mask_listener,
+                    self.user_defined_topic_list.clone(),
                 )
                 .await;
         }
