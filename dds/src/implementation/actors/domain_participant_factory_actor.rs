@@ -184,6 +184,8 @@ impl DomainParticipantFactoryActor {
         let participant_guid = rtps_participant.guid();
 
         let builtin_data_writer_list = vec![];
+        let builtin_data_reader_list = vec![];
+
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
             domain_id,
@@ -195,6 +197,7 @@ impl DomainParticipantFactoryActor {
             listener,
             status_kind,
             builtin_data_writer_list,
+            builtin_data_reader_list,
             &runtime_handle,
         )
         .await;

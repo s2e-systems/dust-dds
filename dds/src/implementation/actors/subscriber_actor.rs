@@ -62,14 +62,19 @@ impl SubscriberActor {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        data_reader_list: Vec<DataReaderActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
+        let data_reader_list = data_reader_list
+            .into_iter()
+            .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
+            .collect();
         SubscriberActor {
             qos,
             rtps_group,
-            data_reader_list: HashMap::new(),
+            data_reader_list,
             enabled: false,
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: Default::default(),

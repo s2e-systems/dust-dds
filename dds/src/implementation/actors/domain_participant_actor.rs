@@ -248,6 +248,7 @@ impl DomainParticipantActor {
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         builtin_data_writer_list: Vec<DataWriterActor>,
+        builtin_data_reader_list: Vec<DataReaderActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
@@ -406,6 +407,7 @@ impl DomainParticipantActor {
                 )),
                 None,
                 vec![],
+                builtin_data_reader_list,
                 handle,
             ),
             handle,
@@ -780,6 +782,7 @@ impl DomainParticipantActor {
             rtps_group,
             a_listener,
             status_kind,
+            vec![],
             &runtime_handle,
         );
 
