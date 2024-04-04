@@ -264,7 +264,7 @@ impl DataWriterActor {
 
 #[actor_interface]
 impl DataWriterActor {
-    fn get_instance_handle(&self) -> InstanceHandle {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
 

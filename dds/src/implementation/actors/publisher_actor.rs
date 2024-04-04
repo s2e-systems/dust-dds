@@ -59,12 +59,17 @@ impl PublisherActor {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        data_writer_list: Vec<DataWriterActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
+        let data_writer_list = data_writer_list
+            .into_iter()
+            .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
+            .collect();
         Self {
             qos,
             rtps_group,
-            data_writer_list: HashMap::new(),
+            data_writer_list,
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),

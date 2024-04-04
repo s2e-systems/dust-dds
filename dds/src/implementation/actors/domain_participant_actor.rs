@@ -247,6 +247,7 @@ impl DomainParticipantActor {
         udp_transport_write: Arc<UdpTransportWrite>,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        builtin_data_writer_list: Vec<DataWriterActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
@@ -546,6 +547,7 @@ impl DomainParticipantActor {
                 )),
                 None,
                 vec![],
+                builtin_data_writer_list,
                 handle,
             ),
             handle,
@@ -721,6 +723,7 @@ impl DomainParticipantActor {
             rtps_group,
             a_listener,
             status_kind,
+            vec![],
             &runtime_handle,
         );
 
