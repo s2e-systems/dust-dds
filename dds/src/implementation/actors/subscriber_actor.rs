@@ -191,15 +191,6 @@ impl SubscriberActor {
     }
 
     #[allow(clippy::unused_unit)]
-    fn data_reader_add(
-        &mut self,
-        instance_handle: InstanceHandle,
-        data_reader: Actor<DataReaderActor>,
-    ) -> () {
-        self.data_reader_list.insert(instance_handle, data_reader);
-    }
-
-    #[allow(clippy::unused_unit)]
     fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_reader_list.remove(&handle);
     }

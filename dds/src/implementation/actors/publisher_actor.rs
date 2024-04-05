@@ -181,15 +181,6 @@ impl PublisherActor {
     }
 
     #[allow(clippy::unused_unit)]
-    fn datawriter_add(
-        &mut self,
-        instance_handle: InstanceHandle,
-        data_writer: Actor<DataWriterActor>,
-    ) -> () {
-        self.data_writer_list.insert(instance_handle, data_writer);
-    }
-
-    #[allow(clippy::unused_unit)]
     fn datawriter_delete(&mut self, handle: InstanceHandle) -> () {
         self.data_writer_list.remove(&handle);
     }
