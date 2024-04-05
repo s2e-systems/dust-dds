@@ -462,6 +462,29 @@ fn default_topic_qos() {
 }
 
 #[test]
+fn builtin_topic_access() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert!(participant
+        .lookup_topicdescription("DCPSParticipant")
+        .is_ok());
+
+    assert!(participant.lookup_topicdescription("DCPSTopic").is_ok());
+
+    assert!(participant
+        .lookup_topicdescription("DCPSPublication")
+        .is_ok());
+
+    assert!(participant
+        .lookup_topicdescription("DCPSSubscription")
+        .is_ok());
+}
+
+#[test]
 fn builtin_reader_access() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
