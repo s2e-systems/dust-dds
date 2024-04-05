@@ -86,6 +86,13 @@ use super::{
     type_support_actor::TypeSupportActor,
 };
 
+const BUILT_IN_TOPIC_NAME_LIST: [&'static str; 4] = [
+    DCPS_PARTICIPANT,
+    DCPS_TOPIC,
+    DCPS_PUBLICATION,
+    DCPS_SUBSCRIPTION,
+];
+
 pub struct FooTypeSupport {
     has_key: bool,
     get_serialized_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
@@ -176,14 +183,13 @@ pub struct DomainParticipantActor {
     qos: DomainParticipantQos,
     builtin_subscriber: Actor<SubscriberActor>,
     builtin_publisher: Actor<PublisherActor>,
-    builtin_topic_list: Vec<Actor<TopicActor>>,
     user_defined_subscriber_list: HashMap<InstanceHandle, Actor<SubscriberActor>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    user_defined_topic_list: HashMap<String, Actor<TopicActor>>,
+    topic_list: HashMap<String, Actor<TopicActor>>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -220,6 +226,7 @@ impl DomainParticipantActor {
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
+        let mut topic_list = HashMap::new();
 
         let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
@@ -234,6 +241,7 @@ impl DomainParticipantActor {
             ),
             handle,
         );
+        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
         let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
         let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
@@ -248,6 +256,7 @@ impl DomainParticipantActor {
             ),
             handle,
         );
+        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
         let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
@@ -262,6 +271,7 @@ impl DomainParticipantActor {
             ),
             handle,
         );
+        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
         let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
@@ -276,6 +286,7 @@ impl DomainParticipantActor {
             ),
             handle,
         );
+        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
         let builtin_subscriber = Actor::spawn(
             SubscriberActor::new(
@@ -328,13 +339,6 @@ impl DomainParticipantActor {
 
         let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
 
-        let builtin_topic_list = vec![
-            spdp_topic_participant,
-            sedp_topic_topics,
-            sedp_topic_publications,
-            sedp_topic_subscriptions,
-        ];
-
         Self {
             rtps_participant,
             domain_id,
@@ -342,14 +346,13 @@ impl DomainParticipantActor {
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
-            builtin_topic_list,
             user_defined_subscriber_list: HashMap::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            user_defined_topic_list: HashMap::new(),
+            topic_list,
             user_defined_topic_counter: 0,
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: 0,
@@ -544,7 +547,7 @@ impl DomainParticipantActor {
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
-        if let Entry::Vacant(e) = self.user_defined_topic_list.entry(topic_name.clone()) {
+        if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
             let qos = match qos {
                 QosKind::Default => self.default_topic_qos.clone(),
                 QosKind::Specific(q) => q,
@@ -580,33 +583,34 @@ impl DomainParticipantActor {
     }
 
     async fn delete_user_defined_topic(&mut self, topic_name: String) -> DdsResult<()> {
-        if let Some(topic) = self.user_defined_topic_list.get(&topic_name) {
-            let topic_name = topic.get_name().await;
-            for publisher in self.user_defined_publisher_list.values() {
-                if publisher
-                    .lookup_datawriter(topic_name.clone())
-                    .await
-                    .is_some()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data writer".to_string(),
-                    ));
+        if self.topic_list.contains_key(&topic_name) {
+            if !BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_ref()) {
+                for publisher in self.user_defined_publisher_list.values() {
+                    if publisher
+                        .lookup_datawriter(topic_name.clone())
+                        .await
+                        .is_some()
+                    {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data writer".to_string(),
+                        ));
+                    }
                 }
-            }
 
-            for subscriber in self.user_defined_subscriber_list.values() {
-                if subscriber
-                    .lookup_datareader(topic_name.clone())
-                    .await
-                    .is_some()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data reader".to_string(),
-                    ));
+                for subscriber in self.user_defined_subscriber_list.values() {
+                    if subscriber
+                        .lookup_datareader(topic_name.clone())
+                        .await
+                        .is_some()
+                    {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data reader".to_string(),
+                        ));
+                    }
                 }
-            }
 
-            self.user_defined_topic_list.remove(&topic_name);
+                self.topic_list.remove(&topic_name);
+            }
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(
@@ -647,20 +651,15 @@ impl DomainParticipantActor {
         ActorAddress<StatusConditionActor>,
         String,
     )> {
-        for topic in self
-            .builtin_topic_list
-            .iter()
-            .chain(self.user_defined_topic_list.values())
-        {
-            if topic.get_name().await == topic_name {
-                return Some((
-                    topic.address(),
-                    topic.get_statuscondition().await,
-                    topic.get_type_name().await,
-                ));
-            }
+        if let Some(topic) = self.topic_list.get(&topic_name) {
+            Some((
+                topic.address(),
+                topic.get_statuscondition().await,
+                topic.get_type_name().await,
+            ))
+        } else {
+            None
         }
-        None
     }
 
     fn get_instance_handle(&self) -> InstanceHandle {
@@ -710,7 +709,7 @@ impl DomainParticipantActor {
     fn is_empty(&self) -> bool {
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
-            && self.user_defined_topic_list.len() == 0
+            && self.topic_list.len() == 0
     }
 
     fn get_qos(&self) -> DomainParticipantQos {
@@ -764,7 +763,8 @@ impl DomainParticipantActor {
         }
         self.user_defined_subscriber_list.clear();
 
-        self.user_defined_topic_list.clear();
+        self.topic_list
+            .retain(|topic_name, _| BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_ref()));
 
         Ok(())
     }
@@ -961,7 +961,7 @@ impl DomainParticipantActor {
                 participant.clone(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
-                self.user_defined_topic_list.clone(),
+                self.topic_list.clone(),
             )
             .await;
 
@@ -991,7 +991,7 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
-                    self.user_defined_topic_list.clone(),
+                    self.topic_list.clone(),
                 )
                 .await
                 .expect("Should not fail to send command");
@@ -1631,7 +1631,7 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant.clone(),
                             participant_mask_listener,
-                            self.user_defined_topic_list.clone(),
+                            self.topic_list.clone(),
                         )
                         .await;
                 }
@@ -1709,7 +1709,7 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant.clone(),
                     participant_mask_listener,
-                    self.user_defined_topic_list.clone(),
+                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1840,7 +1840,7 @@ impl DomainParticipantActor {
                             participant.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
-                            self.user_defined_topic_list.clone(),
+                            self.topic_list.clone(),
                         )
                         .await;
                 }
@@ -1924,7 +1924,7 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant.clone(),
                     participant_publication_matched_listener,
-                    self.user_defined_topic_list.clone(),
+                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1977,7 +1977,7 @@ impl DomainParticipantActor {
             InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
-            for topic in self.user_defined_topic_list.values() {
+            for topic in self.topic_list.values() {
                 topic
                     .process_discovered_topic(discovered_topic_data.clone())
                     .await;
