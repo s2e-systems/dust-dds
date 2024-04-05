@@ -1,6 +1,7 @@
 use crate::{
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
+    implementation::utils::task::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -33,9 +34,7 @@ impl Topic {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     #[tracing::instrument(skip(self))]
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_inconsistent_topic_status())
+        block_on(self.topic_async.get_inconsistent_topic_status())
     }
 }
 
@@ -76,17 +75,13 @@ impl Topic {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.set_qos(qos))
+        block_on(self.topic_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_qos())
+        block_on(self.topic_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -105,9 +100,7 @@ impl Topic {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_status_changes())
+        block_on(self.topic_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -132,17 +125,13 @@ impl Topic {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.enable())
+        block_on(self.topic_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.get_instance_handle())
+        block_on(self.topic_async.get_instance_handle())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -157,14 +146,12 @@ impl Topic {
         a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.topic_async
-            .runtime_handle()
-            .block_on(self.topic_async.set_listener(
-                match a_listener {
-                    Some(l) => Some(Box::new(l)),
-                    None => None,
-                },
-                mask,
-            ))
+        block_on(self.topic_async.set_listener(
+            match a_listener {
+                Some(l) => Some(Box::new(l)),
+                None => None,
+            },
+            mask,
+        ))
     }
 }

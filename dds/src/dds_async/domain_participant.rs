@@ -250,30 +250,28 @@ impl DomainParticipantAsync {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        tokio::time::timeout(timeout.into(), async {
-            loop {
-                if let Some((topic_address, status_condition_address, type_name)) = self
-                    .participant_address
-                    .upgrade()?
-                    .find_topic(
-                        topic_name.to_owned(),
-                        Arc::new(FooTypeSupport::new::<Foo>()),
-                        self.runtime_handle.clone(),
-                    )
-                    .await?
-                {
-                    return Ok(TopicAsync::new(
-                        topic_address,
-                        status_condition_address,
-                        type_name,
-                        topic_name.to_owned(),
-                        self.clone(),
-                    ));
-                }
+        let now = std::time::Instant::now();
+        while now.elapsed() < timeout.into() {
+            if let Some((topic_address, status_condition_address, type_name)) = self
+                .participant_address
+                .upgrade()?
+                .find_topic(
+                    topic_name.to_owned(),
+                    Arc::new(FooTypeSupport::new::<Foo>()),
+                    self.runtime_handle.clone(),
+                )
+                .await?
+            {
+                return Ok(TopicAsync::new(
+                    topic_address,
+                    status_condition_address,
+                    type_name,
+                    topic_name.to_owned(),
+                    self.clone(),
+                ));
             }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        }
+        Err(DdsError::Timeout)
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
@@ -513,10 +511,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.runtime_handle.clone(),
-        )
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).

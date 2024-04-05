@@ -295,10 +295,7 @@ impl SubscriberAsync {
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
-        )
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::subscriber::Subscriber::get_status_changes).

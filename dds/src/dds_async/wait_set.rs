@@ -37,24 +37,23 @@ impl WaitSetAsync {
     /// Async version of [`wait`](crate::infrastructure::wait_set::WaitSet::wait).
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
-        tokio::time::timeout(timeout.into(), async {
-            loop {
-                let mut finished = false;
-                let mut trigger_conditions = Vec::new();
-                for condition in &self.conditions {
-                    if condition.get_trigger_value().await? {
-                        trigger_conditions.push(condition.clone());
-                        finished = true;
-                    }
-                }
-
-                if finished {
-                    return Ok(trigger_conditions);
+        let now = std::time::Instant::now();
+        while now.elapsed() < timeout.into() {
+            let mut finished = false;
+            let mut trigger_conditions = Vec::new();
+            for condition in &self.conditions {
+                if condition.get_trigger_value().await? {
+                    trigger_conditions.push(condition.clone());
+                    finished = true;
                 }
             }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+
+            if finished {
+                return Ok(trigger_conditions);
+            }
+        }
+
+        Err(DdsError::Timeout)
     }
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).

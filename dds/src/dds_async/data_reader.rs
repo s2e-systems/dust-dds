@@ -397,20 +397,19 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`wait_for_historical_data`](crate::subscription::data_reader::DataReader::wait_for_historical_data).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        tokio::time::timeout(max_wait.into(), async {
-            loop {
-                if self
-                    .reader_address
-                    .upgrade()?
-                    .is_historical_data_received()
-                    .await?
-                {
-                    return Ok(());
-                }
+        let now = std::time::Instant::now();
+        while now.elapsed() < max_wait.into() {
+            if self
+                .reader_address
+                .upgrade()?
+                .is_historical_data_received()
+                .await?
+            {
+                return Ok(());
             }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        }
+
+        Err(DdsError::Timeout)
     }
 
     /// Async version of [`get_matched_publication_data`](crate::subscription::data_reader::DataReader::get_matched_publication_data).
@@ -474,10 +473,7 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
-        )
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::data_reader::DataReader::get_status_changes).

@@ -9,26 +9,15 @@ use crate::{
 #[derive(Clone)]
 pub struct StatusConditionAsync {
     address: ActorAddress<StatusConditionActor>,
-    runtime_handle: tokio::runtime::Handle,
 }
 
 impl StatusConditionAsync {
-    pub(crate) fn new(
-        address: ActorAddress<StatusConditionActor>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            address,
-            runtime_handle,
-        }
+    pub(crate) fn new(address: ActorAddress<StatusConditionActor>) -> Self {
+        Self { address }
     }
 
     pub(crate) fn address(&self) -> &ActorAddress<StatusConditionActor> {
         &self.address
-    }
-
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
     }
 }
 

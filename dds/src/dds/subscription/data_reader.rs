@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
-    implementation::rtps::messages::submessage_elements::Data,
+    implementation::{rtps::messages::submessage_elements::Data, utils::task::block_on},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -140,14 +140,10 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-            ))
+        block_on(
+            self.reader_async
+                .read(max_samples, sample_states, view_states, instance_states),
+        )
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
@@ -161,14 +157,10 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-            ))
+        block_on(
+            self.reader_async
+                .take(max_samples, sample_states, view_states, instance_states),
+        )
     }
 
     /// This operation reads the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -180,9 +172,7 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.read_next_sample())
+        block_on(self.reader_async.read_next_sample())
     }
 
     /// This operation takes the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -194,9 +184,7 @@ impl<Foo> DataReader<Foo> {
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.take_next_sample())
+        block_on(self.reader_async.take_next_sample())
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -216,15 +204,13 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.read_instance(
-                max_samples,
-                a_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ))
+        block_on(self.reader_async.read_instance(
+            max_samples,
+            a_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        ))
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -244,15 +230,13 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.take_instance(
-                max_samples,
-                a_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ))
+        block_on(self.reader_async.take_instance(
+            max_samples,
+            a_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        ))
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`] where all the samples belong to a single instance.
@@ -287,15 +271,13 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.read_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ))
+        block_on(self.reader_async.read_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        ))
     }
 
     /// This operation accesses a collection of [`Sample`] values from the [`DataReader`] and removes them from the [`DataReader`].
@@ -310,15 +292,13 @@ impl<Foo> DataReader<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.take_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ))
+        block_on(self.reader_async.take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        ))
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an `handle`.
@@ -327,9 +307,7 @@ impl<Foo> DataReader<Foo> {
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
     #[tracing::instrument(skip(self, key_holder))]
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_key_value(key_holder, handle))
+        block_on(self.reader_async.get_key_value(key_holder, handle))
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] handle
@@ -340,9 +318,7 @@ impl<Foo> DataReader<Foo> {
     /// an instance handle, the operation will succeed and return [`None`].
     #[tracing::instrument(skip(self, instance))]
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.lookup_instance(instance))
+        block_on(self.reader_async.lookup_instance(instance))
     }
 }
 
@@ -350,17 +326,13 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_liveliness_changed_status())
+        block_on(self.reader_async.get_liveliness_changed_status())
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_requested_deadline_missed_status())
+        block_on(self.reader_async.get_requested_deadline_missed_status())
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
@@ -368,33 +340,25 @@ impl<Foo> DataReader<Foo> {
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_requested_incompatible_qos_status())
+        block_on(self.reader_async.get_requested_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_sample_lost_status())
+        block_on(self.reader_async.get_sample_lost_status())
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_sample_rejected_status())
+        block_on(self.reader_async.get_sample_rejected_status())
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     #[tracing::instrument(skip(self))]
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_subscription_matched_status())
+        block_on(self.reader_async.get_subscription_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
@@ -424,9 +388,7 @@ impl<Foo> DataReader<Foo> {
     /// data is received.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.wait_for_historical_data(max_wait))
+        block_on(self.reader_async.wait_for_historical_data(max_wait))
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
@@ -441,7 +403,7 @@ impl<Foo> DataReader<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        self.reader_async.runtime_handle().block_on(
+        block_on(
             self.reader_async
                 .get_matched_publication_data(publication_handle),
         )
@@ -455,9 +417,7 @@ impl<Foo> DataReader<Foo> {
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_matched_publications())
+        block_on(self.reader_async.get_matched_publications())
     }
 }
 
@@ -476,17 +436,13 @@ impl<Foo> DataReader<Foo> {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.set_qos(qos))
+        block_on(self.reader_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_qos())
+        block_on(self.reader_async.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -505,9 +461,7 @@ impl<Foo> DataReader<Foo> {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_status_changes())
+        block_on(self.reader_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -532,17 +486,13 @@ impl<Foo> DataReader<Foo> {
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.enable())
+        block_on(self.reader_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.reader_async
-            .runtime_handle()
-            .block_on(self.reader_async.get_instance_handle())
+        block_on(self.reader_async.get_instance_handle())
     }
 }
 
@@ -562,7 +512,7 @@ where
         a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.reader_async.runtime_handle().block_on(
+        block_on(
             self.reader_async.set_listener(
                 a_listener
                     .map::<Box<dyn DataReaderListenerAsync<Foo = Foo> + Send>, _>(|b| Box::new(b)),

@@ -55,10 +55,6 @@ impl TopicAsync {
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         self.participant.participant_address()
     }
-
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.participant.runtime_handle()
-    }
 }
 
 impl TopicAsync {
@@ -121,10 +117,7 @@ impl TopicAsync {
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
-        )
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).

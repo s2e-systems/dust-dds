@@ -97,6 +97,8 @@ mod tests {
     use dust_dds_derive::actor_interface;
     use tokio::runtime::Runtime;
 
+    use crate::implementation::utils::task::block_on;
+
     use super::*;
 
     pub struct MyData {
@@ -126,7 +128,7 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle());
 
-        assert_eq!(runtime.block_on(actor.increment(10)), 10)
+        assert_eq!(block_on(actor.increment(10)), 10)
     }
 
     #[test]

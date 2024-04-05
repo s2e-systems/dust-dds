@@ -6,6 +6,7 @@ use crate::{
         publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
         topic_listener::TopicListenerAsync,
     },
+    implementation::utils::task::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -75,14 +76,12 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.create_publisher(
-                qos,
-                a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
-                mask,
-            ))
-            .map(Publisher::new)
+        block_on(self.participant_async.create_publisher(
+            qos,
+            a_listener.map::<Box<dyn PublisherListenerAsync + Send>, _>(|b| Box::new(b)),
+            mask,
+        ))
+        .map(Publisher::new)
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -94,7 +93,7 @@ impl DomainParticipant {
     /// a PreconditionNotMet error.
     #[tracing::instrument(skip(self, a_publisher))]
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
-        self.participant_async.runtime_handle().block_on(
+        block_on(
             self.participant_async
                 .delete_publisher(a_publisher.publisher_async()),
         )
@@ -115,14 +114,12 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.create_subscriber(
-                qos,
-                a_listener.map::<Box<dyn SubscriberListenerAsync + Send>, _>(|b| Box::new(b)),
-                mask,
-            ))
-            .map(Subscriber::new)
+        block_on(self.participant_async.create_subscriber(
+            qos,
+            a_listener.map::<Box<dyn SubscriberListenerAsync + Send>, _>(|b| Box::new(b)),
+            mask,
+        ))
+        .map(Subscriber::new)
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -133,7 +130,7 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        self.participant_async.runtime_handle().block_on(
+        block_on(
             self.participant_async
                 .delete_subscriber(a_subscriber.subscriber_async()),
         )
@@ -158,16 +155,14 @@ impl DomainParticipant {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.create_topic::<Foo>(
-                topic_name,
-                type_name,
-                qos,
-                a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
-                mask,
-            ))
-            .map(Topic::new)
+        block_on(self.participant_async.create_topic::<Foo>(
+            topic_name,
+            type_name,
+            qos,
+            a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
+            mask,
+        ))
+        .map(Topic::new)
     }
 
     #[doc(hidden)]
@@ -181,17 +176,15 @@ impl DomainParticipant {
         mask: &[StatusKind],
         dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<Topic> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.create_dynamic_topic(
-                topic_name,
-                type_name,
-                qos,
-                a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
-                mask,
-                dynamic_type_representation,
-            ))
-            .map(Topic::new)
+        block_on(self.participant_async.create_dynamic_topic(
+            topic_name,
+            type_name,
+            qos,
+            a_listener.map::<Box<dyn TopicListenerAsync + Send>, _>(|b| Box::new(b)),
+            mask,
+            dynamic_type_representation,
+        ))
+        .map(Topic::new)
     }
 
     /// This operation deletes a [`Topic`].
@@ -202,9 +195,7 @@ impl DomainParticipant {
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
     pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.delete_topic(a_topic.topic_async()))
+        block_on(self.participant_async.delete_topic(a_topic.topic_async()))
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -223,13 +214,11 @@ impl DomainParticipant {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
-        self.participant_async
-            .runtime_handle()
-            .block_on(
-                self.participant_async
-                    .find_topic::<Foo>(topic_name, timeout),
-            )
-            .map(Topic::new)
+        block_on(
+            self.participant_async
+                .find_topic::<Foo>(topic_name, timeout),
+        )
+        .map(Topic::new)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The
@@ -244,11 +233,7 @@ impl DomainParticipant {
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
     #[tracing::instrument(skip(self))]
     pub fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<Topic>> {
-        Ok(self
-            .participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.lookup_topicdescription(topic_name))?
-            .map(Topic::new))
+        Ok(block_on(self.participant_async.lookup_topicdescription(topic_name))?.map(Topic::new))
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as
@@ -273,9 +258,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.ignore_participant(handle))
+        block_on(self.participant_async.ignore_participant(handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -287,9 +270,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.ignore_topic(handle))
+        block_on(self.participant_async.ignore_topic(handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -299,9 +280,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.ignore_publication(handle))
+        block_on(self.participant_async.ignore_publication(handle))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -312,9 +291,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.ignore_subscription(handle))
+        block_on(self.participant_async.ignore_subscription(handle))
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
@@ -336,9 +313,7 @@ impl DomainParticipant {
     /// contained entities.
     #[tracing::instrument(skip(self))]
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.delete_contained_entities())
+        block_on(self.participant_async.delete_contained_entities())
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -350,9 +325,7 @@ impl DomainParticipant {
     /// [`DomainParticipant`]. Consequently the use of this operation is only needed if the application is not writing data regularly.
     #[tracing::instrument(skip(self))]
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.assert_liveliness())
+        block_on(self.participant_async.assert_liveliness())
     }
 
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created [`Publisher`] entities in the
@@ -363,9 +336,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.set_default_publisher_qos(qos))
+        block_on(self.participant_async.set_default_publisher_qos(qos))
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -374,9 +345,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_default_publisher_qos())
+        block_on(self.participant_async.get_default_publisher_qos())
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -387,9 +356,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.set_default_subscriber_qos(qos))
+        block_on(self.participant_async.set_default_subscriber_qos(qos))
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -398,9 +365,7 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     #[tracing::instrument(skip(self))]
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_default_subscriber_qos())
+        block_on(self.participant_async.get_default_subscriber_qos())
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -411,9 +376,7 @@ impl DomainParticipant {
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     #[tracing::instrument(skip(self))]
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.set_default_topic_qos(qos))
+        block_on(self.participant_async.set_default_topic_qos(qos))
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -422,18 +385,14 @@ impl DomainParticipant {
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     #[tracing::instrument(skip(self))]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_default_topic_qos())
+        block_on(self.participant_async.get_default_topic_qos())
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_discovered_participants())
+        block_on(self.participant_async.get_discovered_participants())
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -447,7 +406,7 @@ impl DomainParticipant {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        self.participant_async.runtime_handle().block_on(
+        block_on(
             self.participant_async
                 .get_discovered_participant_data(participant_handle),
         )
@@ -457,9 +416,7 @@ impl DomainParticipant {
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_discovered_topics())
+        block_on(self.participant_async.get_discovered_topics())
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -473,7 +430,7 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.participant_async.runtime_handle().block_on(
+        block_on(
             self.participant_async
                 .get_discovered_topic_data(topic_handle),
         )
@@ -487,18 +444,14 @@ impl DomainParticipant {
     /// `get_instance_handle`.
     #[tracing::instrument(skip(self))]
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.contains_entity(a_handle))
+        block_on(self.participant_async.contains_entity(a_handle))
     }
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     #[tracing::instrument(skip(self))]
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_current_time())
+        block_on(self.participant_async.get_current_time())
     }
 }
 
@@ -518,17 +471,13 @@ impl DomainParticipant {
     /// modified to match the current default for the Entity’s factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.set_qos(qos))
+        block_on(self.participant_async.set_qos(qos))
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     #[tracing::instrument(skip(self))]
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_qos())
+        block_on(self.participant_async.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -543,15 +492,10 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(
-                self.participant_async.set_listener(
-                    a_listener
-                        .map::<Box<dyn DomainParticipantListenerAsync + Send>, _>(|b| Box::new(b)),
-                    mask,
-                ),
-            )
+        block_on(self.participant_async.set_listener(
+            a_listener.map::<Box<dyn DomainParticipantListenerAsync + Send>, _>(|b| Box::new(b)),
+            mask,
+        ))
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
@@ -570,9 +514,7 @@ impl DomainParticipant {
     /// and does not include statuses that apply to contained entities.
     #[tracing::instrument(skip(self))]
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_status_changes())
+        block_on(self.participant_async.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -597,16 +539,12 @@ impl DomainParticipant {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.enable())
+        block_on(self.participant_async.enable())
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_async
-            .runtime_handle()
-            .block_on(self.participant_async.get_instance_handle())
+        block_on(self.participant_async.get_instance_handle())
     }
 }

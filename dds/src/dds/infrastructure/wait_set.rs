@@ -1,6 +1,6 @@
 use crate::{
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
-    domain::domain_participant_factory::DomainParticipantFactory,
+    implementation::utils::task::block_on,
     infrastructure::{error::DdsResult, time::Duration},
 };
 
@@ -48,9 +48,7 @@ impl WaitSet {
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError::PreconditionNotMet).
     #[tracing::instrument(skip(self))]
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
-        Ok(DomainParticipantFactory::get_instance()
-            .runtime()
-            .block_on(self.waitset_async.wait(timeout))?
+        Ok(block_on(self.waitset_async.wait(timeout))?
             .into_iter()
             .map(|c| match c {
                 ConditionAsync::StatusCondition(sc) => {
@@ -67,14 +65,9 @@ impl WaitSet {
     #[tracing::instrument(skip(self, cond))]
     pub fn attach_condition(&mut self, cond: Condition) -> DdsResult<()> {
         match cond {
-            Condition::StatusCondition(sc) => {
-                DomainParticipantFactory::get_instance().runtime().block_on(
-                    self.waitset_async
-                        .attach_condition(ConditionAsync::StatusCondition(
-                            sc.condition_async().clone(),
-                        )),
-                )
-            }
+            Condition::StatusCondition(sc) => block_on(self.waitset_async.attach_condition(
+                ConditionAsync::StatusCondition(sc.condition_async().clone()),
+            )),
         }
     }
 
@@ -88,9 +81,7 @@ impl WaitSet {
     /// This operation retrieves the list of attached conditions.
     #[tracing::instrument(skip(self))]
     pub fn get_conditions(&self) -> DdsResult<Vec<Condition>> {
-        Ok(DomainParticipantFactory::get_instance()
-            .runtime()
-            .block_on(self.waitset_async.get_conditions())?
+        Ok(block_on(self.waitset_async.get_conditions())?
             .into_iter()
             .map(|c| match c {
                 ConditionAsync::StatusCondition(sc) => {

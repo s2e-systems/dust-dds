@@ -378,20 +378,19 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        tokio::time::timeout(max_wait.into(), async {
-            loop {
-                if self
-                    .writer_address
-                    .upgrade()?
-                    .are_all_changes_acknowledge()
-                    .await
-                {
-                    return Ok(());
-                }
+        let now = std::time::Instant::now();
+        while now.elapsed() < max_wait.into() {
+            if self
+                .writer_address
+                .upgrade()?
+                .are_all_changes_acknowledge()
+                .await
+            {
+                return Ok(());
             }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        }
+
+        Err(DdsError::Timeout)
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).
@@ -508,10 +507,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(
-            self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
-        )
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).
