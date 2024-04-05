@@ -7,10 +7,19 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actors::domain_participant_actor::DomainParticipantActor,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
+            discovered_writer_data::DCPS_PUBLICATION,
+            spdp_discovered_participant_data::DCPS_PARTICIPANT,
+        },
         rtps::{
+            endpoint::RtpsEndpoint,
             messages::overall_structure::RtpsMessageRead,
             participant::RtpsParticipant,
-            types::{Locator, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E},
+            reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
+            types::{
+                Guid, Locator, TopicKind, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
+            },
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{Actor, ActorAddress},
@@ -18,8 +27,13 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
+        qos::{DataReaderQos, DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
+        qos_policy::{
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
         status::StatusKind,
+        time::{DurationKind, DURATION_ZERO},
     },
 };
 use dust_dds_derive::actor_interface;
@@ -34,6 +48,15 @@ use std::{
     },
 };
 use tracing::{info, warn};
+
+use super::{
+    data_reader_actor::DataReaderActor,
+    domain_participant_actor::{
+        DEFAULT_HEARTBEAT_RESPONSE_DELAY, DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+    },
+};
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -184,7 +207,89 @@ impl DomainParticipantFactoryActor {
         let participant_guid = rtps_participant.guid();
 
         let builtin_data_writer_list = vec![];
-        let builtin_data_reader_list = vec![];
+
+        // Built-in subscriber creation
+        let spdp_reader_qos = DataReaderQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(1),
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+            },
+            ..Default::default()
+        };
+        let spdp_builtin_participant_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
+        let spdp_builtin_participant_reader = DataReaderActor::new(
+            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+            "SpdpDiscoveredParticipantData".to_string(),
+            String::from(DCPS_PARTICIPANT),
+            spdp_reader_qos,
+            None,
+            vec![],
+            &runtime_handle,
+        );
+
+        let sedp_reader_qos = DataReaderQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(1),
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+            },
+            ..Default::default()
+        };
+
+        let sedp_builtin_topics_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+        let sedp_builtin_topics_reader = DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
+            "DiscoveredTopicData".to_string(),
+            String::from(DCPS_TOPIC),
+            sedp_reader_qos.clone(),
+            None,
+            vec![],
+            &runtime_handle,
+        );
+
+        let sedp_builtin_publications_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+        let sedp_builtin_publications_reader = DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+            "DiscoveredWriterData".to_string(),
+            String::from(DCPS_PUBLICATION),
+            sedp_reader_qos.clone(),
+            None,
+            vec![],
+            &runtime_handle,
+        );
+
+        let sedp_builtin_subscriptions_reader_guid =
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let sedp_builtin_subscriptions_reader = DataReaderActor::new(
+            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+            "DiscoveredReaderData".to_string(),
+            String::from(DCPS_SUBSCRIPTION),
+            sedp_reader_qos,
+            None,
+            vec![],
+            &runtime_handle,
+        );
+
+        let builtin_data_reader_list = vec![
+            spdp_builtin_participant_reader,
+            sedp_builtin_topics_reader,
+            sedp_builtin_publications_reader,
+            sedp_builtin_subscriptions_reader,
+        ];
 
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
@@ -435,4 +540,42 @@ fn get_multicast_socket(
     socket.set_multicast_loop_v4(true)?;
 
     tokio::net::UdpSocket::from_std(socket.into())
+}
+
+fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
+    let unicast_locator_list = &[];
+    let multicast_locator_list = &[];
+
+    RtpsReaderKind::Stateless(RtpsStatelessReader::new(RtpsReader::new(
+        RtpsEndpoint::new(
+            guid,
+            TopicKind::WithKey,
+            unicast_locator_list,
+            multicast_locator_list,
+        ),
+        DURATION_ZERO,
+        DURATION_ZERO,
+        false,
+    )))
+}
+
+fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
+    let topic_kind = TopicKind::WithKey;
+    let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
+    let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
+    let expects_inline_qos = false;
+    let unicast_locator_list = &[];
+    let multicast_locator_list = &[];
+
+    RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
+        RtpsEndpoint::new(
+            guid,
+            topic_kind,
+            unicast_locator_list,
+            multicast_locator_list,
+        ),
+        heartbeat_response_delay,
+        heartbeat_suppression_duration,
+        expects_inline_qos,
+    )))
 }

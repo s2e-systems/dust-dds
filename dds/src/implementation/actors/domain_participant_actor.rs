@@ -33,7 +33,6 @@ use crate::{
                 types::Count,
             },
             participant::RtpsParticipant,
-            reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
             reader_locator::RtpsReaderLocator,
             reader_proxy::RtpsReaderProxy,
             types::{
@@ -55,8 +54,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{
-            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
-            SubscriberQos, TopicQos,
+            DataWriterQos, DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos,
         },
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -310,94 +308,6 @@ impl DomainParticipantActor {
             handle,
         );
 
-        // Built-in subscriber creation
-        let spdp_reader_qos = DataReaderQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
-            },
-            ..Default::default()
-        };
-        let spdp_builtin_participant_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader = Actor::spawn(
-            DataReaderActor::new(
-                create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-                "SpdpDiscoveredParticipantData".to_string(),
-                String::from(DCPS_PARTICIPANT),
-                spdp_reader_qos,
-                None,
-                vec![],
-                handle,
-            ),
-            handle,
-        );
-
-        let sedp_reader_qos = DataReaderQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
-            },
-            ..Default::default()
-        };
-
-        let sedp_builtin_topics_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = Actor::spawn(
-            DataReaderActor::new(
-                create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
-                "DiscoveredTopicData".to_string(),
-                String::from(DCPS_TOPIC),
-                sedp_reader_qos.clone(),
-                None,
-                vec![],
-                handle,
-            ),
-            handle,
-        );
-
-        let sedp_builtin_publications_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader = Actor::spawn(
-            DataReaderActor::new(
-                create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-                "DiscoveredWriterData".to_string(),
-                String::from(DCPS_PUBLICATION),
-                sedp_reader_qos.clone(),
-                None,
-                vec![],
-                handle,
-            ),
-            handle,
-        );
-
-        let sedp_builtin_subscriptions_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader = Actor::spawn(
-            DataReaderActor::new(
-                create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-                "DiscoveredReaderData".to_string(),
-                String::from(DCPS_SUBSCRIPTION),
-                sedp_reader_qos,
-                None,
-                vec![],
-                handle,
-            ),
-            handle,
-        );
-
         let builtin_subscriber = Actor::spawn(
             SubscriberActor::new(
                 SubscriberQos::default(),
@@ -412,39 +322,6 @@ impl DomainParticipantActor {
             ),
             handle,
         );
-
-        builtin_subscriber
-            .address()
-            .data_reader_add(
-                InstanceHandle::new(spdp_builtin_participant_reader_guid.into()),
-                spdp_builtin_participant_reader,
-            )
-            .await
-            .unwrap();
-        builtin_subscriber
-            .address()
-            .data_reader_add(
-                InstanceHandle::new(sedp_builtin_topics_reader_guid.into()),
-                sedp_builtin_topics_reader,
-            )
-            .await
-            .unwrap();
-        builtin_subscriber
-            .address()
-            .data_reader_add(
-                InstanceHandle::new(sedp_builtin_publications_reader_guid.into()),
-                sedp_builtin_publications_reader,
-            )
-            .await
-            .unwrap();
-        builtin_subscriber
-            .address()
-            .data_reader_add(
-                InstanceHandle::new(sedp_builtin_subscriptions_reader_guid.into()),
-                sedp_builtin_subscriptions_reader,
-            )
-            .await
-            .unwrap();
 
         // Built-in publisher creation
         let spdp_writer_qos = DataWriterQos {
@@ -2313,42 +2190,4 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
         DURATION_ZERO,
         usize::MAX,
     )
-}
-
-fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
-    let unicast_locator_list = &[];
-    let multicast_locator_list = &[];
-
-    RtpsReaderKind::Stateless(RtpsStatelessReader::new(RtpsReader::new(
-        RtpsEndpoint::new(
-            guid,
-            TopicKind::WithKey,
-            unicast_locator_list,
-            multicast_locator_list,
-        ),
-        DURATION_ZERO,
-        DURATION_ZERO,
-        false,
-    )))
-}
-
-fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
-    let topic_kind = TopicKind::WithKey;
-    let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-    let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
-    let expects_inline_qos = false;
-    let unicast_locator_list = &[];
-    let multicast_locator_list = &[];
-
-    RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
-        RtpsEndpoint::new(
-            guid,
-            topic_kind,
-            unicast_locator_list,
-            multicast_locator_list,
-        ),
-        heartbeat_response_delay,
-        heartbeat_suppression_duration,
-        expects_inline_qos,
-    )))
 }
