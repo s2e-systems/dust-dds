@@ -100,8 +100,6 @@ impl SubscriberActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
-        topic_address: ActorAddress<TopicActor>,
-        topic_status_condition: ActorAddress<StatusConditionActor>,
     ) -> DdsResult<ActorAddress<DataReaderActor>> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
@@ -152,8 +150,6 @@ impl SubscriberActor {
             a_listener,
             status_kind,
             &runtime_handle,
-            topic_address,
-            topic_status_condition,
         );
 
         let reader_actor = Actor::spawn(data_reader, &runtime_handle);
@@ -273,6 +269,7 @@ impl SubscriberActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn process_rtps_message(
         &self,
         message: RtpsMessageRead,
@@ -284,6 +281,7 @@ impl SubscriberActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
@@ -301,12 +299,13 @@ impl SubscriberActor {
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
+                    topic_list.clone(),
                 )
                 .await;
         }
     }
 
-    #[allow(clippy::unused_unit)]
+    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
     async fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
@@ -318,6 +317,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
@@ -338,6 +338,7 @@ impl SubscriberActor {
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
+                        topic_list.clone(),
                     )
                     .await;
             }
@@ -354,6 +355,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
@@ -369,6 +371,7 @@ impl SubscriberActor {
                     ),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
+                    topic_list.clone(),
                 )
                 .await;
         }

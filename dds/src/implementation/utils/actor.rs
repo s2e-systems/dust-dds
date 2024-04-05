@@ -1,10 +1,4 @@
-use std::{
-    future::Future,
-    sync::{
-        atomic::{self, AtomicBool},
-        Arc,
-    },
-};
+use std::future::Future;
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
@@ -13,7 +7,7 @@ pub struct ActorAddress<A>
 where
     A: ActorHandler,
 {
-    sender: tokio::sync::mpsc::Sender<A::Message>,
+    sender: tokio::sync::mpsc::WeakSender<A::Message>,
 }
 
 impl<A> Clone for ActorAddress<A>
@@ -27,27 +21,24 @@ where
     }
 }
 
-impl<A> PartialEq for ActorAddress<A>
-where
-    A: ActorHandler,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.sender.same_channel(&other.sender)
-    }
-}
-
-impl<A> Eq for ActorAddress<A> where A: ActorHandler {}
-
 impl<A> ActorAddress<A>
 where
     A: ActorHandler,
     A::Message: Send,
 {
     pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
-        self.sender
-            .send(message)
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)
+        if let Some(s) = self.sender.upgrade() {
+            s.send(message).await.expect(
+                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
+            );
+            Ok(())
+        } else {
+            Err(DdsError::AlreadyDeleted)
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.sender.upgrade().is_none()
     }
 }
 
@@ -62,8 +53,17 @@ where
     A: ActorHandler,
 {
     sender: tokio::sync::mpsc::Sender<A::Message>,
-    join_handle: tokio::task::JoinHandle<()>,
-    cancellation_token: Arc<AtomicBool>,
+}
+
+impl<A> Clone for Actor<A>
+where
+    A: ActorHandler,
+{
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+        }
+    }
 }
 
 impl<A> Actor<A>
@@ -74,28 +74,17 @@ where
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(16);
 
-        let cancellation_token = Arc::new(AtomicBool::new(false));
-        let cancellation_token_cloned = cancellation_token.clone();
-
-        let join_handle = runtime.spawn(async move {
+        runtime.spawn(async move {
             while let Some(m) = mailbox.recv().await {
-                if !cancellation_token_cloned.load(atomic::Ordering::Acquire) {
-                    actor.handle_message(m).await;
-                } else {
-                    break;
-                }
+                actor.handle_message(m).await;
             }
         });
-        Actor {
-            sender,
-            join_handle,
-            cancellation_token,
-        }
+        Actor { sender }
     }
 
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
-            sender: self.sender.clone(),
+            sender: self.sender.downgrade(),
         }
     }
 
@@ -103,17 +92,6 @@ where
         self.sender.send(message).await.expect(
             "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
         );
-    }
-}
-
-impl<A> Drop for Actor<A>
-where
-    A: ActorHandler,
-{
-    fn drop(&mut self) {
-        self.cancellation_token
-            .store(true, atomic::Ordering::Release);
-        self.join_handle.abort();
     }
 }
 

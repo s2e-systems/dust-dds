@@ -76,7 +76,7 @@ use crate::{
 };
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -215,7 +215,7 @@ pub struct DomainParticipantActor {
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    user_defined_topic_list: HashMap<InstanceHandle, Actor<TopicActor>>,
+    user_defined_topic_list: HashMap<String, Actor<TopicActor>>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -333,8 +333,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                spdp_topic_participant.address(),
-                spdp_topic_participant.get_statuscondition().await,
             ),
             handle,
         );
@@ -364,8 +362,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                sedp_topic_topics.address(),
-                sedp_topic_topics.get_statuscondition().await,
             ),
             handle,
         );
@@ -381,8 +377,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                sedp_topic_publications.address(),
-                sedp_topic_publications.get_statuscondition().await,
             ),
             handle,
         );
@@ -398,8 +392,6 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 handle,
-                sedp_topic_subscriptions.address(),
-                sedp_topic_subscriptions.get_statuscondition().await,
             ),
             handle,
         );
@@ -476,8 +468,6 @@ impl DomainParticipantActor {
                 vec![],
                 spdp_writer_qos,
                 handle,
-                spdp_topic_participant.address(),
-                spdp_topic_participant.get_statuscondition().await,
             ),
             handle,
         );
@@ -516,8 +506,6 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             handle,
-            sedp_topic_topics.address(),
-            sedp_topic_topics.get_statuscondition().await,
         );
         let sedp_builtin_topics_writer_actor = Actor::spawn(sedp_builtin_topics_writer, handle);
 
@@ -531,8 +519,6 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos.clone(),
             handle,
-            sedp_topic_publications.address(),
-            sedp_topic_publications.get_statuscondition().await,
         );
         let sedp_builtin_publications_writer_actor =
             Actor::spawn(sedp_builtin_publications_writer, handle);
@@ -547,8 +533,6 @@ impl DomainParticipantActor {
             vec![],
             sedp_writer_qos,
             handle,
-            sedp_topic_subscriptions.address(),
-            sedp_topic_subscriptions.get_statuscondition().await,
         );
         let sedp_builtin_subscriptions_writer_actor =
             Actor::spawn(sedp_builtin_subscriptions_writer, handle);
@@ -668,11 +652,13 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> Option<(
-        ActorAddress<TopicActor>,
-        ActorAddress<StatusConditionActor>,
-        String,
-    )> {
+    ) -> DdsResult<
+        Option<(
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
+            String,
+        )>,
+    > {
         for discovered_topic_data in self.discovered_topic_list.values() {
             if discovered_topic_data.name() == topic_name {
                 let qos = TopicQos {
@@ -700,11 +686,11 @@ impl DomainParticipantActor {
                         type_support,
                         runtime_handle,
                     )
-                    .await;
-                return Some((topic_address, status_condition_address, type_name));
+                    .await?;
+                return Ok(Some((topic_address, status_condition_address, type_name)));
             }
         }
-        None
+        Ok(None)
     }
 }
 
@@ -724,7 +710,8 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher_counter = self.create_unique_publisher_id();
+        let publisher_counter = self.user_defined_publisher_counter;
+        self.user_defined_publisher_counter += 1;
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -778,7 +765,8 @@ impl DomainParticipantActor {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let subcriber_counter = self.create_unique_subscriber_id();
+        let subcriber_counter = self.user_defined_subscriber_counter;
+        self.user_defined_subscriber_counter += 1;
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -830,40 +818,44 @@ impl DomainParticipantActor {
         _mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> (ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>) {
-        let qos = match qos {
-            QosKind::Default => self.default_topic_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        let topic_counter = self.create_unique_topic_id();
-        let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+    ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
+        if let Entry::Vacant(e) = self.user_defined_topic_list.entry(topic_name.clone()) {
+            let qos = match qos {
+                QosKind::Default => self.default_topic_qos.clone(),
+                QosKind::Specific(q) => q,
+            };
+            let topic_counter = self.user_defined_topic_counter;
+            self.user_defined_topic_counter += 1;
+            let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
+            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-        self.type_support_actor
-            .register_type(type_name.clone(), type_support)
-            .await;
+            self.type_support_actor
+                .register_type(type_name.clone(), type_support)
+                .await;
 
-        let topic = TopicActor::new(
-            guid,
-            qos,
-            type_name,
-            &topic_name,
-            a_listener,
-            &runtime_handle,
-        );
+            let topic = TopicActor::new(
+                guid,
+                qos,
+                type_name,
+                &topic_name,
+                a_listener,
+                &runtime_handle,
+            );
 
-        let topic_status_condition = topic.get_statuscondition();
-        let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
-            Actor::spawn(topic, &runtime_handle);
-        let topic_address = topic_actor.address();
-        self.user_defined_topic_list
-            .insert(InstanceHandle::new(guid.into()), topic_actor);
+            let topic_status_condition = topic.get_statuscondition();
+            let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
+                Actor::spawn(topic, &runtime_handle);
+            let topic_address = topic_actor.address();
+            e.insert(topic_actor);
 
-        (topic_address, topic_status_condition)
+            Ok((topic_address, topic_status_condition))
+        } else {
+            Err(DdsError::PreconditionNotMet(format!("Topic with name {} already exists. To access this topic call the lookup_topicdescription method.",topic_name)))
+        }
     }
 
-    async fn delete_user_defined_topic(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(topic) = self.user_defined_topic_list.get(&handle) {
+    async fn delete_user_defined_topic(&mut self, topic_name: String) -> DdsResult<()> {
+        if let Some(topic) = self.user_defined_topic_list.get(&topic_name) {
             let topic_name = topic.get_name().await;
             for publisher in self.user_defined_publisher_list.values() {
                 if publisher
@@ -889,7 +881,7 @@ impl DomainParticipantActor {
                 }
             }
 
-            self.user_defined_topic_list.remove(&handle);
+            self.user_defined_topic_list.remove(&topic_name);
             Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(
@@ -903,13 +895,15 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> Option<(
-        ActorAddress<TopicActor>,
-        ActorAddress<StatusConditionActor>,
-        String,
-    )> {
+    ) -> DdsResult<
+        Option<(
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
+            String,
+        )>,
+    > {
         if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
-            Some(r)
+            Ok(Some(r))
         } else {
             self.lookup_discovered_topic(
                 topic_name.clone(),
@@ -1242,6 +1236,7 @@ impl DomainParticipantActor {
                 participant.clone(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
+                self.user_defined_topic_list.clone(),
             )
             .await;
 
@@ -1271,6 +1266,7 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
+                    self.user_defined_topic_list.clone(),
                 )
                 .await
                 .expect("Should not fail to send command");
@@ -1438,24 +1434,6 @@ impl DomainParticipantActor {
 }
 
 impl DomainParticipantActor {
-    fn create_unique_publisher_id(&mut self) -> u8 {
-        let counter = self.user_defined_publisher_counter;
-        self.user_defined_publisher_counter += 1;
-        counter
-    }
-
-    fn create_unique_subscriber_id(&mut self) -> u8 {
-        let counter = self.user_defined_subscriber_counter;
-        self.user_defined_subscriber_counter += 1;
-        counter
-    }
-
-    fn create_unique_topic_id(&mut self) -> u8 {
-        let counter = self.user_defined_topic_counter;
-        self.user_defined_topic_counter += 1;
-        counter
-    }
-
     async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
         self.process_spdp_participant_discovery().await;
         self.process_sedp_publications_discovery(participant.clone())
@@ -1928,6 +1906,7 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant.clone(),
                             participant_mask_listener,
+                            self.user_defined_topic_list.clone(),
                         )
                         .await;
                 }
@@ -2005,6 +1984,7 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant.clone(),
                     participant_mask_listener,
+                    self.user_defined_topic_list.clone(),
                 )
                 .await;
         }
@@ -2135,6 +2115,7 @@ impl DomainParticipantActor {
                             participant.clone(),
                             participant_publication_matched_listener,
                             offered_incompatible_qos_participant_listener,
+                            self.user_defined_topic_list.clone(),
                         )
                         .await;
                 }
@@ -2218,6 +2199,7 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant.clone(),
                     participant_publication_matched_listener,
+                    self.user_defined_topic_list.clone(),
                 )
                 .await;
         }
