@@ -26,12 +26,9 @@ where
     A: ActorHandler,
     A::Message: Send,
 {
-    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
+    pub fn upgrade(&self) -> DdsResult<Actor<A>> {
         if let Some(s) = self.sender.upgrade() {
-            s.send(message).await.expect(
-                "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
-            );
-            Ok(())
+            Ok(Actor { sender: s })
         } else {
             Err(DdsError::AlreadyDeleted)
         }
@@ -139,9 +136,8 @@ mod tests {
         let actor = Actor::spawn(my_data, runtime.handle());
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
-        assert_eq!(
-            runtime.block_on(actor_address.increment(10)),
-            Err(DdsError::AlreadyDeleted)
-        );
+        assert!(actor_address
+            .upgrade()
+            .is_err_and(|e| e == DdsError::AlreadyDeleted));
     }
 }

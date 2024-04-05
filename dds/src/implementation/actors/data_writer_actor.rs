@@ -1007,17 +1007,19 @@ impl DataWriterActor {
         {
             let status = self.get_publication_matched_status().await;
             publisher_publication_matched_listener
+                .upgrade()
+                .expect("Listener should exist")
                 .trigger_on_publication_matched(status)
-                .await
-                .expect("Listener should exist");
+                .await;
         } else if let Some(participant_publication_matched_listener) =
             participant_publication_matched_listener
         {
             let status = self.get_publication_matched_status().await;
             participant_publication_matched_listener
+                .upgrade()
+                .expect("Listener should exist")
                 .trigger_on_publication_matched(status)
-                .await
-                .expect("Listener should exist");
+                .await;
         }
     }
 
@@ -1063,17 +1065,19 @@ impl DataWriterActor {
         {
             let status = self.get_offered_incompatible_qos_status();
             offered_incompatible_qos_publisher_listener
+                .upgrade()
+                .expect("Listener should exist")
                 .trigger_on_offered_incompatible_qos(status)
-                .await
-                .expect("Listener should exist");
+                .await;
         } else if let Some(offered_incompatible_qos_participant_listener) =
             offered_incompatible_qos_participant_listener
         {
             let status = self.get_offered_incompatible_qos_status();
             offered_incompatible_qos_participant_listener
+                .upgrade()
+                .expect("Listener should exist")
                 .trigger_on_offered_incompatible_qos(status)
-                .await
-                .expect("Listener should exist");
+                .await;
         }
     }
 }

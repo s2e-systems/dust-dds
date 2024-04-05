@@ -949,11 +949,12 @@ impl DomainParticipantActor {
         }
     }
 
+    #[allow(clippy::unused_unit)]
     async fn process_metatraffic_rtps_message(
         &mut self,
         message: RtpsMessageRead,
         participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
+    ) -> () {
         tracing::trace!(
             rtps_message = ?message,
             "Received metatraffic RTPS message"
@@ -975,8 +976,6 @@ impl DomainParticipantActor {
         self.builtin_publisher.process_rtps_message(message).await;
 
         self.process_builtin_discovery(participant).await;
-
-        Ok(())
     }
 
     async fn process_user_defined_rtps_message(
@@ -985,23 +984,18 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-        for user_defined_subscriber_address in self
-            .user_defined_subscriber_list
-            .values()
-            .map(|a| a.address())
-        {
+        for user_defined_subscriber_address in self.user_defined_subscriber_list.values() {
             user_defined_subscriber_address
                 .process_rtps_message(
                     message.clone(),
                     self.get_current_time().into(),
-                    user_defined_subscriber_address.clone(),
+                    user_defined_subscriber_address.address(),
                     participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
                     self.topic_list.clone(),
                 )
-                .await
-                .expect("Should not fail to send command");
+                .await;
 
             user_defined_subscriber_address
                 .send_message(
@@ -1012,19 +1006,13 @@ impl DomainParticipantActor {
                     ),
                     self.udp_transport_write.clone().clone(),
                 )
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
 
-        for user_defined_publisher_address in self
-            .user_defined_publisher_list
-            .values()
-            .map(|a| a.address())
-        {
+        for user_defined_publisher_address in self.user_defined_publisher_list.values() {
             user_defined_publisher_address
                 .process_rtps_message(message.clone())
-                .await
-                .expect("Should not fail to send command");
+                .await;
             user_defined_publisher_address
                 .send_message(
                     RtpsMessageHeader::new(
@@ -1035,8 +1023,7 @@ impl DomainParticipantActor {
                     self.udp_transport_write.clone(),
                     self.get_current_time(),
                 )
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
     }
 
@@ -1058,9 +1045,10 @@ impl DomainParticipantActor {
                 get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
+                .upgrade()
+                .expect("Built-in data writer should exist")
                 .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
                 .await
-                .expect("Shouldn't fail to send to built-in data writer")
                 .expect("Shouldn't fail to write to built-in data writer");
 
             self.send_message().await;
@@ -1085,9 +1073,10 @@ impl DomainParticipantActor {
                 get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_subscriptions_announcer
+                .upgrade()
+                .expect("Built-in data writer should exist")
                 .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
                 .await
-                .expect("Shouldn't fail to send to built-in data writer")
                 .expect("Shouldn't fail to write to built-in data writer");
 
             self.send_message().await;
@@ -1106,8 +1095,11 @@ impl DomainParticipantActor {
                 .expect("Failed to serialize data");
 
             sedp_publications_announcer
+                .upgrade()
+                .expect("Built-in data writer should exist")
                 .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-                .await??;
+                .await
+                .expect("Shouldn't fail to write to built-in data writer");
 
             self.send_message().await;
 
@@ -1142,8 +1134,11 @@ impl DomainParticipantActor {
             serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
             sedp_subscriptions_announcer
+                .upgrade()
+                .expect("Built-in data writer should exist")
                 .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
-                .await??;
+                .await
+                .expect("Shouldn't fail to write to built-in data writer");
 
             self.send_message().await;
 
@@ -1182,6 +1177,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(spdp_data_sample_list) = spdp_participant_reader
+                .upgrade()
+                .expect("Built-in data reader should exist")
                 .read(
                     i32::MAX,
                     vec![SampleStateKind::NotRead],
@@ -1190,7 +1187,6 @@ impl DomainParticipantActor {
                     None,
                 )
                 .await
-                .expect("Can not fail to send mail to builtin reader")
             {
                 for (spdp_data_sample, spdp_sample_info) in spdp_data_sample_list {
                     if let Some(spdp_data) = spdp_data_sample.as_ref() {
@@ -1309,9 +1305,10 @@ impl DomainParticipantActor {
                     0,
                 );
                 sedp_publications_announcer
+                    .upgrade()
+                    .expect("Built-in data writer should exist")
                     .matched_reader_add(proxy)
-                    .await
-                    .unwrap();
+                    .await;
             }
         }
     }
@@ -1352,9 +1349,10 @@ impl DomainParticipantActor {
                 );
 
                 sedp_publications_detector
+                    .upgrade()
+                    .expect("Built-in data reader should exist")
                     .matched_writer_add(proxy)
-                    .await
-                    .unwrap();
+                    .await;
             }
         }
     }
@@ -1396,9 +1394,10 @@ impl DomainParticipantActor {
                     0,
                 );
                 sedp_subscriptions_announcer
+                    .upgrade()
+                    .expect("Built-in data writer should exist")
                     .matched_reader_add(proxy)
-                    .await
-                    .unwrap();
+                    .await;
             }
         }
     }
@@ -1438,9 +1437,10 @@ impl DomainParticipantActor {
                     remote_group_entity_id,
                 );
                 sedp_subscriptions_detector
+                    .upgrade()
+                    .expect("Built-in data reader should exist")
                     .matched_writer_add(proxy)
-                    .await
-                    .unwrap();
+                    .await;
             }
         }
     }
@@ -1482,9 +1482,10 @@ impl DomainParticipantActor {
                     0,
                 );
                 sedp_topics_announcer
+                    .upgrade()
+                    .expect("Built-in data writer should exist")
                     .matched_reader_add(proxy)
-                    .await
-                    .unwrap();
+                    .await;
             }
         }
     }
@@ -1524,9 +1525,10 @@ impl DomainParticipantActor {
                     remote_group_entity_id,
                 );
                 sedp_topics_detector
+                    .upgrade()
+                    .expect("Built-in data reader should exist")
                     .matched_writer_add(proxy)
-                    .await
-                    .unwrap();
+                    .await;
             }
         }
     }
@@ -1538,6 +1540,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+                .upgrade()
+                .expect("Built-in data reader should exist")
                 .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
@@ -1546,7 +1550,6 @@ impl DomainParticipantActor {
                     None,
                 )
                 .await
-                .expect("Can not fail to send mail to builtin reader")
             {
                 for (discovered_writer_data, discovered_writer_sample_info) in
                     discovered_writer_sample_list.drain(..)
@@ -1729,6 +1732,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+                .upgrade()
+                .expect("Built-in data reader should exist")
                 .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
@@ -1737,7 +1742,6 @@ impl DomainParticipantActor {
                     None,
                 )
                 .await
-                .expect("Can not fail to send mail to builtin reader")
             {
                 for (discovered_reader_data, discovered_reader_sample_info) in
                     discovered_reader_sample_list.drain(..)
@@ -1944,6 +1948,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+                .upgrade()
+                .expect("Built-in data reader should exist")
                 .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
@@ -1952,7 +1958,6 @@ impl DomainParticipantActor {
                     None,
                 )
                 .await
-                .expect("Can not fail to send mail to builtin reader")
             {
                 for (discovered_topic_data, discovered_topic_sample_info) in
                     discovered_topic_sample_list.drain(..)

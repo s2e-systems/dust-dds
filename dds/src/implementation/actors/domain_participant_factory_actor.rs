@@ -418,7 +418,7 @@ impl DomainParticipantFactoryActor {
         let status_condition = domain_participant.get_statuscondition();
         let builtin_subscriber = domain_participant.get_built_in_subscriber();
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
+            builtin_subscriber.upgrade()?.get_statuscondition().await;
 
         let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
         let participant_address = participant_actor.address();
@@ -444,19 +444,13 @@ impl DomainParticipantFactoryActor {
         )
         .map_err(|_| DdsError::Error("Failed to open socket".to_string()))?;
         runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    let r = participant_address_clone
-                        .process_metatraffic_rtps_message(message, participant_clone.clone())
+            while let Ok(message) = read_message(&mut socket).await {
+                if let Ok(p) = participant_address_clone.upgrade() {
+                    p.process_metatraffic_rtps_message(message, participant_clone.clone())
                         .await;
-                    if r.is_err() {
-                        break;
-                    }
-
-                    let r = participant_address_clone.send_message().await;
-                    if r.is_err() {
-                        break;
-                    }
+                    p.send_message().await;
+                } else {
+                    break;
                 }
             }
         });
@@ -468,21 +462,13 @@ impl DomainParticipantFactoryActor {
                 DdsError::Error("Failed to open metattrafic unicast socket".to_string())
             })?;
         runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    let r: DdsResult<()> = async {
-                        participant_address_clone
-                            .process_metatraffic_rtps_message(message, participant_clone.clone())
-                            .await??;
-
-                        participant_address_clone.send_message().await?;
-                        Ok(())
-                    }
-                    .await;
-
-                    if r.is_err() {
-                        break;
-                    }
+            while let Ok(message) = read_message(&mut socket).await {
+                if let Ok(p) = participant_address_clone.upgrade() {
+                    p.process_metatraffic_rtps_message(message, participant_clone.clone())
+                        .await;
+                    p.send_message().await;
+                } else {
+                    break;
                 }
             }
         });
@@ -492,15 +478,12 @@ impl DomainParticipantFactoryActor {
         let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
             .map_err(|_| DdsError::Error("Failed to open default unicast socket".to_string()))?;
         runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    let r = participant_address_clone
-                        .process_user_defined_rtps_message(message, participant_clone.clone())
+            while let Ok(message) = read_message(&mut socket).await {
+                if let Ok(p) = participant_address_clone.upgrade() {
+                    p.process_user_defined_rtps_message(message, participant_clone.clone())
                         .await;
-
-                    if r.is_err() {
-                        break;
-                    }
+                } else {
+                    break;
                 }
             }
         });
