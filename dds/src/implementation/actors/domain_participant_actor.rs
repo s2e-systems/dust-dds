@@ -86,7 +86,7 @@ use super::{
     type_support_actor::TypeSupportActor,
 };
 
-const BUILT_IN_TOPIC_NAME_LIST: [&'static str; 4] = [
+const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
     DCPS_PUBLICATION,
@@ -707,9 +707,16 @@ impl DomainParticipantActor {
     }
 
     fn is_empty(&self) -> bool {
+        let no_user_defined_topics = self
+            .topic_list
+            .keys()
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.as_ref()))
+            .count()
+            == 0;
+
         self.user_defined_publisher_list.len() == 0
             && self.user_defined_subscriber_list.len() == 0
-            && self.topic_list.len() == 0
+            && no_user_defined_topics
     }
 
     fn get_qos(&self) -> DomainParticipantQos {
