@@ -413,18 +413,19 @@ impl DomainParticipantFactoryActor {
             builtin_data_writer_list,
             builtin_data_reader_list,
             &runtime_handle,
-        )
-        .await;
+        );
+
+        let status_condition = domain_participant.get_statuscondition();
+        let builtin_subscriber = domain_participant.get_built_in_subscriber();
+        let builtin_subscriber_status_condition_address =
+            builtin_subscriber.get_statuscondition().await?;
+
         let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
-        let status_condition = participant_address.get_statuscondition().await?;
-        let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
-        let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
         let participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition.clone(),

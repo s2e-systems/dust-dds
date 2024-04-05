@@ -205,7 +205,7 @@ pub struct DomainParticipantActor {
 
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
-    pub async fn new(
+    pub fn new(
         rtps_participant: RtpsParticipant,
         domain_id: DomainId,
         domain_tag: String,
@@ -860,7 +860,7 @@ impl DomainParticipantActor {
         self.domain_id
     }
 
-    fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
+    pub fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
         self.builtin_subscriber.address()
     }
 
@@ -1153,7 +1153,7 @@ impl DomainParticipantActor {
         self.type_support_actor.get_type_support(type_name).await
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 }
