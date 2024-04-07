@@ -257,6 +257,15 @@ impl DataWriterActor {
         }
     }
 
+    pub fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
+        let mut locator = a_locator;
+        if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
+            locator.set_highest_sent_change_sn(highest_available_change_sn)
+        }
+
+        self.reader_locators.push(locator);
+    }
+
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
         self.writer_cache.add_change(change, &self.qos.history)
     }
@@ -264,7 +273,7 @@ impl DataWriterActor {
 
 #[actor_interface]
 impl DataWriterActor {
-    fn get_instance_handle(&self) -> InstanceHandle {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
@@ -786,16 +795,6 @@ impl DataWriterActor {
 
         self.send_message_to_reader_locators(header, &udp_transport_write);
         self.send_message_to_reader_proxies(header, &udp_transport_write);
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) -> () {
-        let mut locator = a_locator;
-        if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
-            locator.set_highest_sent_change_sn(highest_available_change_sn)
-        }
-
-        self.reader_locators.push(locator);
     }
 
     #[allow(clippy::unused_unit)]

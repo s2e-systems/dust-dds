@@ -1549,7 +1549,7 @@ impl DataReaderActor {
         )
     }
 
-    fn get_instance_handle(&self) -> InstanceHandle {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_reader.guid().into())
     }
 

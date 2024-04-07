@@ -263,6 +263,49 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
 }
 
 #[test]
+fn not_allowed_to_create_topic_with_builtin_topic_name() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert!(participant
+        .create_topic::<TestType>(
+            "DCPSParticipant",
+            "TestType",
+            QosKind::Default,
+            None,
+            NO_STATUS
+        )
+        .is_err());
+
+    assert!(participant
+        .create_topic::<TestType>("DCPSTopic", "TestType", QosKind::Default, None, NO_STATUS)
+        .is_err());
+
+    assert!(participant
+        .create_topic::<TestType>(
+            "DCPSPublication",
+            "TestType",
+            QosKind::Default,
+            None,
+            NO_STATUS
+        )
+        .is_err());
+
+    assert!(participant
+        .create_topic::<TestType>(
+            "DCPSSubscription",
+            "TestType",
+            QosKind::Default,
+            None,
+            NO_STATUS
+        )
+        .is_err());
+}
+
+#[test]
 fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -459,6 +502,54 @@ fn default_topic_qos() {
         &topic_data
     );
     assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data);
+}
+
+#[test]
+fn builtin_topic_access() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert!(participant
+        .lookup_topicdescription("DCPSParticipant")
+        .is_ok());
+
+    assert!(participant.lookup_topicdescription("DCPSTopic").is_ok());
+
+    assert!(participant
+        .lookup_topicdescription("DCPSPublication")
+        .is_ok());
+
+    assert!(participant
+        .lookup_topicdescription("DCPSSubscription")
+        .is_ok());
+}
+
+#[test]
+fn builtin_topics_accessible_after_delete_contained_entities() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    participant.delete_contained_entities().unwrap();
+
+    assert!(participant
+        .lookup_topicdescription("DCPSParticipant")
+        .is_ok());
+
+    assert!(participant.lookup_topicdescription("DCPSTopic").is_ok());
+
+    assert!(participant
+        .lookup_topicdescription("DCPSPublication")
+        .is_ok());
+
+    assert!(participant
+        .lookup_topicdescription("DCPSSubscription")
+        .is_ok());
 }
 
 #[test]
