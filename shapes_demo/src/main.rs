@@ -7,7 +7,7 @@ fn main() -> Result<(), eframe::Error> {
     const ICON: &[u8] = include_bytes!("../res/logo.png");
     let icon = eframe::icon_data::from_png_bytes(ICON).expect("Failed to open icon");
     let viewport = eframe::egui::viewport::ViewportBuilder {
-        // min_inner_size: Some(eframe::egui::vec2(500.0, 300.0)),
+        inner_size: Some(eframe::egui::vec2(600.0, 500.0)),
         icon: Some(std::sync::Arc::new(icon)),
         ..Default::default()
     };
