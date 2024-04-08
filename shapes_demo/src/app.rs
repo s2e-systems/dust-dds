@@ -5,13 +5,15 @@ pub mod shapes_type {
 use self::shapes_type::ShapeType;
 use super::shapes_widget::{GuiShape, MovingShapeObject, ShapesWidget};
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
-            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
+            HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::NO_STATUS,
         time::DurationKind,
@@ -126,6 +128,14 @@ impl Default for ShapesDemoApp {
     fn default() -> Self {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
+        participant_factory
+            .set_configuration(
+                DustDdsConfigurationBuilder::new()
+                    .interface_name(Some("Wi-Fi".to_string()))
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
             .unwrap();
@@ -204,8 +214,10 @@ impl ShapesDemoApp {
             shapesize: 30,
         };
 
-        let shape =
-            MovingShapeObject::new(GuiShape::from_shape_type(shape_kind, shape_type), velocity);
+        let shape = MovingShapeObject::new(
+            GuiShape::from_shape_type(shape_kind, shape_type, 255),
+            velocity,
+        );
 
         let shape_writer = ShapeWriter { writer, shape };
         self.writer_list.lock().unwrap().push(shape_writer);
@@ -229,14 +241,16 @@ impl ShapesDemoApp {
                 )
                 .unwrap()
         };
+        let history_kind = HistoryQosPolicyKind::KeepLast(6);
         let qos = if is_reliable {
             DataReaderQos {
                 reliability: ReliabilityQosPolicy {
                     kind: ReliabilityQosPolicyKind::Reliable,
                     max_blocking_time: DurationKind::Infinite,
                 },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
+                history: HistoryQosPolicy { kind: history_kind },
+                destination_order: DestinationOrderQosPolicy {
+                    kind: DestinationOrderQosPolicyKind::BySourceTimestamp,
                 },
                 ..Default::default()
             }
@@ -246,9 +260,7 @@ impl ShapesDemoApp {
                     kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DurationKind::Infinite,
                 },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
-                },
+                history: HistoryQosPolicy { kind: history_kind },
                 ..Default::default()
             }
         };
@@ -394,18 +406,21 @@ impl eframe::App for ShapesDemoApp {
                 let kind = reader.get_topicdescription().get_name();
                 let mut previous_handle = None;
                 while let Ok(samples) = reader.read_next_instance(
-                    1,
+                    100,
                     previous_handle,
                     ANY_SAMPLE_STATE,
                     ANY_VIEW_STATE,
                     ANY_INSTANCE_STATE,
                 ) {
-                    if let Some(sample) = samples.first() {
+                    let mut alpha = 50;
+                    let alpha_step = (255 - alpha) / samples.len() as u8;
+                    for sample in samples.iter() {
                         previous_handle = Some(sample.sample_info().instance_handle);
                         if let Ok(shape_type) = sample.data() {
-                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type);
+                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type, alpha);
                             shape_list.push(shape);
                         }
+                        alpha += alpha_step;
                     }
                 }
             }
