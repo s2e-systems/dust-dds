@@ -5,7 +5,6 @@ pub mod shapes_type {
 use self::shapes_type::ShapeType;
 use super::shapes_widget::{GuiShape, MovingShapeObject, ShapesWidget};
 use dust_dds::{
-    configuration::DustDdsConfigurationBuilder,
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
@@ -128,14 +127,6 @@ impl Default for ShapesDemoApp {
     fn default() -> Self {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
-        participant_factory
-            .set_configuration(
-                DustDdsConfigurationBuilder::new()
-                    .interface_name(Some("Wi-Fi".to_string()))
-                    .build()
-                    .unwrap(),
-            )
-            .unwrap();
         let participant = participant_factory
             .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
             .unwrap();
@@ -366,11 +357,11 @@ impl eframe::App for ShapesDemoApp {
                                     ));
                                     ui.end_row();
                                     if delete_button.clicked() {
-                                        !shape_writer
+                                        shape_writer
                                             .writer
                                             .get_publisher()
                                             .delete_datawriter(&shape_writer.writer)
-                                            .is_ok()
+                                            .is_err()
                                     } else {
                                         true
                                     }
@@ -387,7 +378,7 @@ impl eframe::App for ShapesDemoApp {
                                 ));
                                 ui.end_row();
                                 if delete_button.clicked() {
-                                    !reader.get_subscriber().delete_datareader(reader).is_ok()
+                                    reader.get_subscriber().delete_datareader(reader).is_err()
                                 } else {
                                     true
                                 }
