@@ -36,7 +36,7 @@ struct ShapeWriter {
 impl ShapeWriter {
     fn write(&self) {
         let data = self.shape.gui_shape().as_shape_type();
-        self.writer.write(&data, None).expect("writing failed");
+        self.writer.write(&data, None).ok();
     }
     fn color(&self) -> String {
         self.shape.gui_shape().as_shape_type().color.clone()
@@ -157,11 +157,23 @@ impl Default for ShapesDemoApp {
 impl ShapesDemoApp {
     fn create_writer(&mut self, shape_kind: String, color: &str, is_reliable: bool) {
         let topic_name = shape_kind.as_str();
-
-        let topic = self
+        let topic = if let Some(topic) = self
             .participant
-            .create_topic::<ShapeType>(topic_name, "ShapeType", QosKind::Default, None, NO_STATUS)
-            .unwrap();
+            .lookup_topicdescription(topic_name)
+            .unwrap()
+        {
+            topic
+        } else {
+            self.participant
+                .create_topic::<ShapeType>(
+                    topic_name,
+                    "ShapeType",
+                    QosKind::Default,
+                    None,
+                    NO_STATUS,
+                )
+                .unwrap()
+        };
         let qos = if is_reliable {
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
@@ -200,10 +212,23 @@ impl ShapesDemoApp {
     }
 
     fn create_reader(&mut self, topic_name: &str, is_reliable: bool) {
-        let topic = self
+        let topic = if let Some(topic) = self
             .participant
-            .create_topic::<ShapeType>(topic_name, "ShapeType", QosKind::Default, None, NO_STATUS)
-            .unwrap();
+            .lookup_topicdescription(topic_name)
+            .unwrap()
+        {
+            topic
+        } else {
+            self.participant
+                .create_topic::<ShapeType>(
+                    topic_name,
+                    "ShapeType",
+                    QosKind::Default,
+                    None,
+                    NO_STATUS,
+                )
+                .unwrap()
+        };
         let qos = if is_reliable {
             DataReaderQos {
                 reliability: ReliabilityQosPolicy {
@@ -302,30 +327,46 @@ impl eframe::App for ShapesDemoApp {
                 .max_width(100.0)
                 .resizable(false)
                 .show(ctx, |ui| self.menu_panel(ui));
-            egui::TopBottomPanel::bottom("writer_list")
+            egui::TopBottomPanel::bottom("reader_writer_list")
                 .min_height(100.0)
                 .show(ctx, |ui| {
-                    egui::Grid::new("my_grid")
-                        .num_columns(4)
+                    egui::Grid::new("reader_writer_list_grid")
+                        .num_columns(5)
                         .spacing([40.0, 4.0])
                         .striped(true)
                         .show(ui, |ui| {
+                            ui.label("");
                             ui.label("");
                             ui.label("Topic");
                             ui.label("Color");
                             ui.label("Reliability");
                             ui.end_row();
-                            for shape_writer in self.writer_list.lock().unwrap().iter() {
-                                ui.label("writer");
-                                ui.label(shape_writer.writer.get_topic().get_name());
-                                ui.label(shape_writer.color());
-                                ui.label(reliability_kind(
-                                    &shape_writer.writer.get_qos().unwrap().reliability.kind,
-                                ));
-                                ui.end_row();
-                            }
+                            self.writer_list
+                                .lock()
+                                .expect("Writer list locking failed")
+                                .retain(|shape_writer| {
+                                    let delete_button = ui.button("D");
+                                    ui.label("writer");
+                                    ui.label(shape_writer.writer.get_topic().get_name());
+                                    ui.label(shape_writer.color());
+                                    ui.label(reliability_kind(
+                                        &shape_writer.writer.get_qos().unwrap().reliability.kind,
+                                    ));
+                                    ui.end_row();
+                                    if delete_button.clicked() {
+                                        !shape_writer
+                                            .writer
+                                            .get_publisher()
+                                            .delete_datawriter(&shape_writer.writer)
+                                            .is_ok()
+                                    } else {
+                                        true
+                                    }
+                                });
+
                             ui.end_row();
-                            for reader in self.reader_list.iter() {
+                            self.reader_list.retain(|reader| {
+                                let delete_button = ui.button("D");
                                 ui.label("reader");
                                 ui.label(reader.get_topicdescription().get_name());
                                 ui.label("*");
@@ -333,7 +374,12 @@ impl eframe::App for ShapesDemoApp {
                                     &reader.get_qos().unwrap().reliability.kind,
                                 ));
                                 ui.end_row();
-                            }
+                                if delete_button.clicked() {
+                                    !reader.get_subscriber().delete_datareader(reader).is_ok()
+                                } else {
+                                    true
+                                }
+                            });
                         })
                 });
         } else {
