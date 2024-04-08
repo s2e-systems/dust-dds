@@ -42,7 +42,7 @@ impl GuiShape {
     }
 
     pub fn as_shape_type(&self) -> ShapeType {
-        let color = match  egui::Color32::from_rgb(self.color.r(), self.color.g(), self.color.b())  {
+        let color = match egui::Color32::from_rgb(self.color.r(), self.color.g(), self.color.b()) {
             PURPLE => "PURPLE",
             BLUE => "BLUE",
             RED => "RED",
@@ -172,11 +172,11 @@ impl<'a> ShapesWidget<'a> {
         let (response, painter) = ui.allocate_painter(desired_size, egui::Sense::hover());
         painter.rect_filled(response.rect, egui::Rounding::ZERO, egui::Color32::WHITE);
         egui::Image::new(egui::include_image!("../res/s2e_logo_background.png"))
-             .paint_at(ui, response.rect);
+            .paint_at(ui, response.rect);
         for shape in self.shape_list {
             let mut shape = shape.as_egui_shape(scale);
             shape.translate(response.rect.left_top().to_vec2());
-              painter.add(shape);
+            painter.add(shape);
         }
         response
     }
