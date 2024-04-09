@@ -144,17 +144,31 @@ impl PublisherAsync {
         a_datawriter: &DataWriterAsync<Foo>,
     ) -> DdsResult<()> {
         let writer_handle = a_datawriter.get_instance_handle().await?;
-        if self.publisher_address.get_instance_handle().await?
-            != a_datawriter.get_publisher().get_instance_handle().await?
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ));
-        }
+
+        let header = self
+            .participant
+            .participant_address()
+            .get_rtps_message_header()
+            .await?;
+        let udp_transport_write = self
+            .participant
+            .participant_address()
+            .get_udp_transport_write()
+            .await?;
+        let now = self
+            .participant
+            .participant_address()
+            .get_current_time()
+            .await?;
+
+        a_datawriter
+            .writer_address()
+            .send_message(header, udp_transport_write, now)
+            .await?;
 
         self.publisher_address
-            .datawriter_delete(writer_handle)
-            .await?;
+            .delete_datawriter(writer_handle)
+            .await??;
 
         self.participant
             .participant_address()

@@ -1163,6 +1163,18 @@ impl DomainParticipantActor {
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
+
+    fn get_udp_transport_write(&self) -> Arc<UdpTransportWrite> {
+        self.udp_transport_write.clone()
+    }
+
+    fn get_rtps_message_header(&self) -> RtpsMessageHeader {
+        RtpsMessageHeader::new(
+            self.rtps_participant.protocol_version(),
+            self.rtps_participant.vendor_id(),
+            self.rtps_participant.guid().prefix(),
+        )
+    }
 }
 
 impl DomainParticipantActor {
