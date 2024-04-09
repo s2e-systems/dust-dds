@@ -66,6 +66,10 @@ impl<Foo> DataReaderAsync<Foo> {
         self.subscriber.subscriber_address()
     }
 
+    pub(crate) fn reader_address(&self) -> &ActorAddress<DataReaderActor> {
+        &self.reader_address
+    }
+
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         self.subscriber.runtime_handle()
     }

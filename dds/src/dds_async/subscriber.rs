@@ -138,17 +138,17 @@ impl SubscriberAsync {
         a_datareader: &DataReaderAsync<Foo>,
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
-        if self.get_instance_handle().await?
-            != a_datareader.get_subscriber().get_instance_handle().await?
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Data reader can only be deleted from its parent subscriber".to_string(),
-            ));
-        }
+
+        let header = self.participant_address().get_rtps_message_header().await?;
+        let udp_transport_write = self.participant_address().get_udp_transport_write().await?;
+        a_datareader
+            .reader_address()
+            .send_message(header, udp_transport_write)
+            .await?;
 
         self.subscriber_address
-            .data_reader_delete(reader_handle)
-            .await?;
+            .delete_datareader(reader_handle)
+            .await??;
 
         self.participant_address()
             .announce_deleted_data_reader(reader_handle)
