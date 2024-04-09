@@ -77,6 +77,10 @@ impl<Foo> DataWriterAsync<Foo> {
         self.publisher.runtime_handle()
     }
 
+    pub(crate) fn writer_address(&self) -> &ActorAddress<DataWriterActor> {
+        &self.writer_address
+    }
+
     async fn announce_writer(&self) -> DdsResult<()> {
         let type_name = self.writer_address.get_type_name().await?;
         let type_support = self

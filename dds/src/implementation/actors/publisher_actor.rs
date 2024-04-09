@@ -154,6 +154,17 @@ impl PublisherActor {
         Ok(data_writer_address)
     }
 
+    fn delete_datawriter(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        let removed_writer = self.data_writer_list.remove(&handle);
+        if removed_writer.is_some() {
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            ))
+        }
+    }
+
     async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DataWriterActor>> {
         for dw in self.data_writer_list.values() {
             if dw.get_topic_name().await == topic_name {
@@ -178,11 +189,6 @@ impl PublisherActor {
 
     fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
         self.data_writer_list.drain().map(|(h, _)| h).collect()
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn datawriter_delete(&mut self, handle: InstanceHandle) -> () {
-        self.data_writer_list.remove(&handle);
     }
 
     #[allow(clippy::unused_unit)]

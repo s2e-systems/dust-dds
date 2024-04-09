@@ -35,7 +35,7 @@ use crate::{
         utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
@@ -165,6 +165,17 @@ impl SubscriberActor {
         Ok(reader_address)
     }
 
+    fn delete_datareader(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+        let removed_reader = self.data_reader_list.remove(&handle);
+        if removed_reader.is_some() {
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Data reader can only be deleted from its parent subscriber".to_string(),
+            ))
+        }
+    }
+
     async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
             if dr.get_topic_name().await == topic_name {
@@ -188,11 +199,6 @@ impl SubscriberActor {
 
     fn is_enabled(&self) -> bool {
         self.enabled
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn data_reader_delete(&mut self, handle: InstanceHandle) -> () {
-        self.data_reader_list.remove(&handle);
     }
 
     fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
