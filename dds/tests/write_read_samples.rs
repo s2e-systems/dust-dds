@@ -1464,12 +1464,12 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
     let start_loop_time = std::time::Instant::now();
     let wait_for_disposed_timeout = std::time::Duration::from_secs(10);
     let samples = loop {
-        let samples = reader
-            .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap();
-        if samples.len() == 2 {
-            break samples;
+        if let Ok(samples) = reader.read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
+            if samples.len() == 2 {
+                break samples;
+            }
         }
+
         if start_loop_time.elapsed() > wait_for_disposed_timeout {
             panic!("Disposed sample not received within expected time.")
         }
