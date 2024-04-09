@@ -20,7 +20,7 @@ pub struct GuiShape {
 }
 
 impl GuiShape {
-    pub fn from_shape_type(kind: String, shape_type: &ShapeType) -> Self {
+    pub fn from_shape_type(kind: String, shape_type: &ShapeType, alpha: u8) -> Self {
         let color = match shape_type.color.as_str() {
             "PURPLE" => PURPLE,
             "BLUE" => BLUE,
@@ -32,6 +32,7 @@ impl GuiShape {
             "ORANGE" => ORANGE,
             _ => panic!("color not supported"),
         };
+        let color = egui::Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha);
         Self {
             kind,
             color,
@@ -41,7 +42,7 @@ impl GuiShape {
     }
 
     pub fn as_shape_type(&self) -> ShapeType {
-        let color = match self.color {
+        let color = match egui::Color32::from_rgb(self.color.r(), self.color.g(), self.color.b()) {
             PURPLE => "PURPLE",
             BLUE => "BLUE",
             RED => "RED",
@@ -69,7 +70,6 @@ impl GuiShape {
 
         let position = self.position * scale;
         let size = self.size * scale;
-
         match self.kind.as_str() {
             "Circle" => egui::epaint::CircleShape {
                 center: position,

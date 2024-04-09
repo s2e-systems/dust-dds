@@ -11,7 +11,8 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
-            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
+            HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::NO_STATUS,
         time::DurationKind,
@@ -36,7 +37,7 @@ struct ShapeWriter {
 impl ShapeWriter {
     fn write(&self) {
         let data = self.shape.gui_shape().as_shape_type();
-        self.writer.write(&data, None).expect("writing failed");
+        self.writer.write(&data, None).ok();
     }
     fn color(&self) -> String {
         self.shape.gui_shape().as_shape_type().color.clone()
@@ -157,11 +158,23 @@ impl Default for ShapesDemoApp {
 impl ShapesDemoApp {
     fn create_writer(&mut self, shape_kind: String, color: &str, is_reliable: bool) {
         let topic_name = shape_kind.as_str();
-
-        let topic = self
+        let topic = if let Some(topic) = self
             .participant
-            .create_topic::<ShapeType>(topic_name, "ShapeType", QosKind::Default, None, NO_STATUS)
-            .unwrap();
+            .lookup_topicdescription(topic_name)
+            .unwrap()
+        {
+            topic
+        } else {
+            self.participant
+                .create_topic::<ShapeType>(
+                    topic_name,
+                    "ShapeType",
+                    QosKind::Default,
+                    None,
+                    NO_STATUS,
+                )
+                .unwrap()
+        };
         let qos = if is_reliable {
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
@@ -192,26 +205,43 @@ impl ShapesDemoApp {
             shapesize: 30,
         };
 
-        let shape =
-            MovingShapeObject::new(GuiShape::from_shape_type(shape_kind, shape_type), velocity);
+        let shape = MovingShapeObject::new(
+            GuiShape::from_shape_type(shape_kind, shape_type, 255),
+            velocity,
+        );
 
         let shape_writer = ShapeWriter { writer, shape };
         self.writer_list.lock().unwrap().push(shape_writer);
     }
 
     fn create_reader(&mut self, topic_name: &str, is_reliable: bool) {
-        let topic = self
+        let topic = if let Some(topic) = self
             .participant
-            .create_topic::<ShapeType>(topic_name, "ShapeType", QosKind::Default, None, NO_STATUS)
-            .unwrap();
+            .lookup_topicdescription(topic_name)
+            .unwrap()
+        {
+            topic
+        } else {
+            self.participant
+                .create_topic::<ShapeType>(
+                    topic_name,
+                    "ShapeType",
+                    QosKind::Default,
+                    None,
+                    NO_STATUS,
+                )
+                .unwrap()
+        };
+        let history_kind = HistoryQosPolicyKind::KeepLast(6);
         let qos = if is_reliable {
             DataReaderQos {
                 reliability: ReliabilityQosPolicy {
                     kind: ReliabilityQosPolicyKind::Reliable,
                     max_blocking_time: DurationKind::Infinite,
                 },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
+                history: HistoryQosPolicy { kind: history_kind },
+                destination_order: DestinationOrderQosPolicy {
+                    kind: DestinationOrderQosPolicyKind::BySourceTimestamp,
                 },
                 ..Default::default()
             }
@@ -221,9 +251,7 @@ impl ShapesDemoApp {
                     kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DurationKind::Infinite,
                 },
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast(1),
-                },
+                history: HistoryQosPolicy { kind: history_kind },
                 ..Default::default()
             }
         };
@@ -302,30 +330,46 @@ impl eframe::App for ShapesDemoApp {
                 .max_width(100.0)
                 .resizable(false)
                 .show(ctx, |ui| self.menu_panel(ui));
-            egui::TopBottomPanel::bottom("writer_list")
+            egui::TopBottomPanel::bottom("reader_writer_list")
                 .min_height(100.0)
                 .show(ctx, |ui| {
-                    egui::Grid::new("my_grid")
-                        .num_columns(4)
+                    egui::Grid::new("reader_writer_list_grid")
+                        .num_columns(5)
                         .spacing([40.0, 4.0])
                         .striped(true)
                         .show(ui, |ui| {
+                            ui.label("");
                             ui.label("");
                             ui.label("Topic");
                             ui.label("Color");
                             ui.label("Reliability");
                             ui.end_row();
-                            for shape_writer in self.writer_list.lock().unwrap().iter() {
-                                ui.label("writer");
-                                ui.label(shape_writer.writer.get_topic().get_name());
-                                ui.label(shape_writer.color());
-                                ui.label(reliability_kind(
-                                    &shape_writer.writer.get_qos().unwrap().reliability.kind,
-                                ));
-                                ui.end_row();
-                            }
+                            self.writer_list
+                                .lock()
+                                .expect("Writer list locking failed")
+                                .retain(|shape_writer| {
+                                    let delete_button = ui.button("D");
+                                    ui.label("writer");
+                                    ui.label(shape_writer.writer.get_topic().get_name());
+                                    ui.label(shape_writer.color());
+                                    ui.label(reliability_kind(
+                                        &shape_writer.writer.get_qos().unwrap().reliability.kind,
+                                    ));
+                                    ui.end_row();
+                                    if delete_button.clicked() {
+                                        shape_writer
+                                            .writer
+                                            .get_publisher()
+                                            .delete_datawriter(&shape_writer.writer)
+                                            .is_err()
+                                    } else {
+                                        true
+                                    }
+                                });
+
                             ui.end_row();
-                            for reader in self.reader_list.iter() {
+                            self.reader_list.retain(|reader| {
+                                let delete_button = ui.button("D");
                                 ui.label("reader");
                                 ui.label(reader.get_topicdescription().get_name());
                                 ui.label("*");
@@ -333,7 +377,12 @@ impl eframe::App for ShapesDemoApp {
                                     &reader.get_qos().unwrap().reliability.kind,
                                 ));
                                 ui.end_row();
-                            }
+                                if delete_button.clicked() {
+                                    reader.get_subscriber().delete_datareader(reader).is_err()
+                                } else {
+                                    true
+                                }
+                            });
                         })
                 });
         } else {
@@ -348,18 +397,21 @@ impl eframe::App for ShapesDemoApp {
                 let kind = reader.get_topicdescription().get_name();
                 let mut previous_handle = None;
                 while let Ok(samples) = reader.read_next_instance(
-                    1,
+                    100,
                     previous_handle,
                     ANY_SAMPLE_STATE,
                     ANY_VIEW_STATE,
                     ANY_INSTANCE_STATE,
                 ) {
-                    if let Some(sample) = samples.first() {
+                    let mut alpha = 50;
+                    let alpha_step = (255 - alpha) / samples.len() as u8;
+                    for sample in samples.iter() {
                         previous_handle = Some(sample.sample_info().instance_handle);
                         if let Ok(shape_type) = sample.data() {
-                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type);
+                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type, alpha);
                             shape_list.push(shape);
                         }
+                        alpha += alpha_step;
                     }
                 }
             }
