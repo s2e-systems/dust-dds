@@ -1398,6 +1398,95 @@ fn write_read_disposed_samples() {
 }
 
 #[test]
+fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<KeyedData>("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic1, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let topic2 = participant2
+        .create_topic::<KeyedData>("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<KeyedData>(&topic2, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+
+    writer.write(&data1, None).unwrap();
+    writer.dispose(&data1, None).unwrap();
+    publisher.delete_datawriter(&writer).unwrap();
+
+    let start_loop_time = std::time::Instant::now();
+    let wait_for_disposed_timeout = std::time::Duration::from_secs(10);
+    let samples = loop {
+        let samples = reader
+            .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
+        if samples.len() == 2 {
+            break samples;
+        }
+        if start_loop_time.elapsed() > wait_for_disposed_timeout {
+            panic!("Disposed sample not received within expected time.")
+        }
+    };
+
+    assert_eq!(samples.len(), 2);
+    assert_eq!(
+        samples[0].sample_info().instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
+    assert_eq!(
+        samples[1].sample_info().instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
+}
+
+#[test]
 fn write_read_sample_view_state() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
