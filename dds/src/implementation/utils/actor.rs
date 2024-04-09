@@ -24,7 +24,6 @@ where
 impl<A> ActorAddress<A>
 where
     A: ActorHandler,
-    A::Message: Send,
 {
     pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
         if let Some(s) = self.sender.upgrade() {
@@ -43,7 +42,7 @@ where
 }
 
 pub trait ActorHandler {
-    type Message;
+    type Message: Send;
 
     fn handle_message(&mut self, message: Self::Message) -> impl Future<Output = ()> + Send;
 }
@@ -69,7 +68,6 @@ where
 impl<A> Actor<A>
 where
     A: ActorHandler + Send + 'static,
-    A::Message: Send,
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(16);
