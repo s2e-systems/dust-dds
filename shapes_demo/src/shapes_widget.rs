@@ -1,6 +1,6 @@
-use eframe::egui::{self};
-
 use super::app::shapes_type::ShapeType;
+use dust_dds::subscription::sample_info::InstanceStateKind;
+use eframe::egui::{self, epaint};
 
 const PURPLE: egui::Color32 = egui::Color32::from_rgb(128, 0, 128);
 const BLUE: egui::Color32 = egui::Color32::BLUE;
@@ -17,10 +17,16 @@ pub struct GuiShape {
     color: egui::Color32,
     position: egui::Pos2,
     size: f32,
+    instance_state_kind: InstanceStateKind,
 }
 
 impl GuiShape {
-    pub fn from_shape_type(kind: String, shape_type: &ShapeType, alpha: u8) -> Self {
+    pub fn from_shape_type(
+        kind: String,
+        shape_type: &ShapeType,
+        alpha: u8,
+        instance_state_kind: InstanceStateKind,
+    ) -> Self {
         let color = match shape_type.color.as_str() {
             "PURPLE" => PURPLE,
             "BLUE" => BLUE,
@@ -38,6 +44,7 @@ impl GuiShape {
             color,
             position: egui::pos2(shape_type.x as f32, shape_type.y as f32),
             size: shape_type.shapesize as f32,
+            instance_state_kind,
         }
     }
 
@@ -70,15 +77,16 @@ impl GuiShape {
 
         let position = self.position * scale;
         let size = self.size * scale;
-        match self.kind.as_str() {
-            "Circle" => egui::epaint::CircleShape {
+        let mut shape = Vec::<egui::Shape>::new();
+        shape.push(match self.kind.as_str() {
+            "Circle" => epaint::CircleShape {
                 center: position,
                 radius: size / 2.0,
                 fill: self.color,
                 stroke,
             }
             .into(),
-            "Triangle" => egui::epaint::PathShape {
+            "Triangle" => epaint::PathShape {
                 points: vec![
                     position + egui::vec2(0.0, -size / 2.0),
                     position + egui::vec2(-size / 2.0, size / 2.0),
@@ -89,15 +97,48 @@ impl GuiShape {
                 stroke,
             }
             .into(),
-            "Square" => egui::epaint::RectShape::new(
-                egui::Rect::from_center_size(position, egui::epaint::vec2(size, size)),
+            "Square" => epaint::RectShape::new(
+                egui::Rect::from_center_size(position, epaint::vec2(size, size)),
                 egui::Rounding::ZERO,
                 self.color,
                 stroke,
             )
             .into(),
             _ => panic!("shape kind not valid"),
+        });
+        if self.instance_state_kind == InstanceStateKind::NotAliveNoWriters {
+            let question_mark_size = egui::vec2(size / 3.0, size / 2.0);
+            let mut question_mark =
+                question_mark(question_mark_size.x, question_mark_size.y, size / 20.0);
+            question_mark.translate(position.to_vec2() - question_mark_size / 2.0);
+            shape.push(question_mark);
         }
+        if self.instance_state_kind == InstanceStateKind::NotAliveDisposed {
+            let mut cross_ratio = 0.25;
+            let mut p = position;
+            if self.kind.as_str() == "Triangle" {
+                p += egui::vec2(0.0, size) * 0.2;
+                cross_ratio *= 0.6;
+            };
+            let cross = vec![
+                egui::epaint::PathShape::line(
+                    vec![
+                        p + egui::vec2(-size, -size) * cross_ratio,
+                        p + egui::vec2(size, size) * cross_ratio,
+                    ],
+                    stroke,
+                ),
+                egui::epaint::PathShape::line(
+                    vec![
+                        p + egui::vec2(size, -size) * cross_ratio,
+                        p + egui::vec2(-size, size) * cross_ratio,
+                    ],
+                    stroke,
+                ),
+            ];
+            shape.extend(cross.into_iter().map(Into::into));
+        }
+        shape.into()
     }
 }
 
@@ -191,4 +232,44 @@ impl<'a> egui::Widget for ShapesWidget<'a> {
         }
         .response
     }
+}
+
+fn question_mark(width: f32, height: f32, stroke_width: f32) -> egui::Shape {
+    let y3 = height - stroke_width * 2.0;
+    let y1 = y3 * 0.4;
+    let y2 = y3 * 0.8;
+    let a = egui::pos2(stroke_width, y1);
+    let b = egui::pos2(width / 2.0, stroke_width);
+    let c = egui::pos2(width - stroke_width, y1);
+    let d = egui::pos2(width / 2.0, y2);
+    let e = egui::pos2(width / 2.0, y3);
+    let f = egui::pos2(width / 2.0, height);
+    let curve = (d.y - c.y) * 0.5;
+    let stroke = egui::Stroke::new(stroke_width, egui::Color32::BLACK);
+    let question_mark: Vec<egui::Shape> = vec![
+        epaint::CubicBezierShape::from_points_stroke(
+            [a, a - egui::vec2(0.0, curve), b - egui::vec2(curve, 0.0), b],
+            false,
+            egui::Color32::TRANSPARENT,
+            stroke,
+        )
+        .into(),
+        epaint::CubicBezierShape::from_points_stroke(
+            [b, b + egui::vec2(curve, 0.0), c - egui::vec2(0.0, curve), c],
+            false,
+            egui::Color32::TRANSPARENT,
+            stroke,
+        )
+        .into(),
+        epaint::CubicBezierShape::from_points_stroke(
+            [c, c + egui::vec2(0.0, curve), d - egui::vec2(0.0, curve), d],
+            false,
+            egui::Color32::TRANSPARENT,
+            stroke,
+        )
+        .into(),
+        epaint::PathShape::line(vec![d, e], stroke).into(),
+        epaint::PathShape::line(vec![f - egui::vec2(0.0, stroke_width), f], stroke).into(),
+    ];
+    egui::Shape::Vec(question_mark)
 }

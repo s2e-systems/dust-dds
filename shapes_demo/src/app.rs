@@ -13,6 +13,7 @@ use dust_dds::{
         qos_policy::{
             DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
             HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            WriterDataLifecycleQosPolicy,
         },
         status::NO_STATUS,
         time::DurationKind,
@@ -20,7 +21,7 @@ use dust_dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{
         data_reader::DataReader,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber::Subscriber,
     },
 };
@@ -175,12 +176,16 @@ impl ShapesDemoApp {
                 )
                 .unwrap()
         };
+        let writer_data_lifecycle = WriterDataLifecycleQosPolicy {
+            autodispose_unregistered_instances: false,
+        };
         let qos = if is_reliable {
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
                     kind: ReliabilityQosPolicyKind::Reliable,
                     max_blocking_time: DurationKind::Infinite,
                 },
+                writer_data_lifecycle,
                 ..Default::default()
             }
         } else {
@@ -189,6 +194,7 @@ impl ShapesDemoApp {
                     kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DurationKind::Infinite,
                 },
+                writer_data_lifecycle,
                 ..Default::default()
             }
         };
@@ -206,7 +212,7 @@ impl ShapesDemoApp {
         };
 
         let shape = MovingShapeObject::new(
-            GuiShape::from_shape_type(shape_kind, shape_type, 255),
+            GuiShape::from_shape_type(shape_kind, shape_type, 255, InstanceStateKind::Alive),
             velocity,
         );
 
@@ -334,10 +340,10 @@ impl eframe::App for ShapesDemoApp {
                 .min_height(100.0)
                 .show(ctx, |ui| {
                     egui::Grid::new("reader_writer_list_grid")
-                        .num_columns(5)
-                        .spacing([40.0, 4.0])
+                        .num_columns(6).min_col_width(15.0)
                         .striped(true)
                         .show(ui, |ui| {
+                            ui.label("");
                             ui.label("");
                             ui.label("");
                             ui.label("Topic");
@@ -348,7 +354,12 @@ impl eframe::App for ShapesDemoApp {
                                 .lock()
                                 .expect("Writer list locking failed")
                                 .retain(|shape_writer| {
-                                    let delete_button = ui.button("D");
+                                    let dispose_button = ui
+                                        .button("D")
+                                        .on_hover_text("Dispose instance and delete data writer");
+                                    let unregister_button = ui.button("U").on_hover_text(
+                                        "Unregister instance and delete data writer",
+                                    );
                                     ui.label("writer");
                                     ui.label(shape_writer.writer.get_topic().get_name());
                                     ui.label(shape_writer.color());
@@ -356,7 +367,22 @@ impl eframe::App for ShapesDemoApp {
                                         &shape_writer.writer.get_qos().unwrap().reliability.kind,
                                     ));
                                     ui.end_row();
-                                    if delete_button.clicked() {
+                                    let instance = &ShapeType {
+                                        color: shape_writer.color(),
+                                        x: Default::default(),
+                                        y: Default::default(),
+                                        shapesize: Default::default(),
+                                    };
+                                    if dispose_button.clicked() {
+                                        shape_writer.writer.dispose(instance, None).unwrap();
+                                    };
+                                    if unregister_button.clicked() {
+                                        shape_writer
+                                            .writer
+                                            .unregister_instance(instance, None)
+                                            .unwrap();
+                                    };
+                                    if dispose_button.clicked() || unregister_button.clicked() {
                                         shape_writer
                                             .writer
                                             .get_publisher()
@@ -369,7 +395,8 @@ impl eframe::App for ShapesDemoApp {
 
                             ui.end_row();
                             self.reader_list.retain(|reader| {
-                                let delete_button = ui.button("D");
+                                let delete_button = ui.button("D").on_hover_text("Delete data reader");
+                                ui.label("");
                                 ui.label("reader");
                                 ui.label(reader.get_topicdescription().get_name());
                                 ui.label("*");
@@ -408,7 +435,7 @@ impl eframe::App for ShapesDemoApp {
                     for sample in samples.iter() {
                         previous_handle = Some(sample.sample_info().instance_handle);
                         if let Ok(shape_type) = sample.data() {
-                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type, alpha);
+                            let shape = GuiShape::from_shape_type(kind.clone(), &shape_type, alpha, sample.sample_info().instance_state);
                             shape_list.push(shape);
                         }
                         alpha += alpha_step;
