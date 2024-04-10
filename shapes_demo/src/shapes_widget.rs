@@ -106,38 +106,29 @@ impl GuiShape {
             .into(),
             _ => panic!("shape kind not valid"),
         });
-        if self.instance_state_kind == InstanceStateKind::NotAliveNoWriters {
-            let question_mark_size = egui::vec2(size / 3.0, size / 2.0);
-            let mut question_mark =
-                question_mark(question_mark_size.x, question_mark_size.y, size / 20.0);
-            question_mark.translate(position.to_vec2() - question_mark_size / 2.0);
-            shape.push(question_mark);
+        let symbol_stroke = egui::Stroke::new(size / 20.0, stroke.color);
+
+        let mut shape_position = position;
+        let mut shape_size = size;
+        if self.kind.as_str() == "Triangle" {
+            shape_position.y += size * 0.2;
+            shape_size *= 0.6;
+        };
+        let marker = match self.instance_state_kind {
+            InstanceStateKind::NotAliveNoWriters => Some(question_mark_shape(
+                egui::vec2(shape_size / 3.0, shape_size / 2.0),
+                symbol_stroke,
+            )),
+            InstanceStateKind::NotAliveDisposed => {
+                Some(cross_shape(shape_size * 0.6, symbol_stroke))
+            }
+            InstanceStateKind::Alive => None,
+        };
+        if let Some(mut marker) = marker {
+            marker.translate(shape_position.to_vec2());
+            shape.push(marker);
         }
-        if self.instance_state_kind == InstanceStateKind::NotAliveDisposed {
-            let mut cross_ratio = 0.25;
-            let mut p = position;
-            if self.kind.as_str() == "Triangle" {
-                p += egui::vec2(0.0, size) * 0.2;
-                cross_ratio *= 0.6;
-            };
-            let cross = vec![
-                egui::epaint::PathShape::line(
-                    vec![
-                        p + egui::vec2(-size, -size) * cross_ratio,
-                        p + egui::vec2(size, size) * cross_ratio,
-                    ],
-                    stroke,
-                ),
-                egui::epaint::PathShape::line(
-                    vec![
-                        p + egui::vec2(size, -size) * cross_ratio,
-                        p + egui::vec2(-size, size) * cross_ratio,
-                    ],
-                    stroke,
-                ),
-            ];
-            shape.extend(cross.into_iter().map(Into::into));
-        }
+
         shape.into()
     }
 }
@@ -234,18 +225,46 @@ impl<'a> egui::Widget for ShapesWidget<'a> {
     }
 }
 
-fn question_mark(width: f32, height: f32, stroke_width: f32) -> egui::Shape {
-    let y3 = height - stroke_width * 2.0;
-    let y1 = y3 * 0.4;
-    let y2 = y3 * 0.8;
-    let a = egui::pos2(stroke_width, y1);
-    let b = egui::pos2(width / 2.0, stroke_width);
-    let c = egui::pos2(width - stroke_width, y1);
-    let d = egui::pos2(width / 2.0, y2);
-    let e = egui::pos2(width / 2.0, y3);
-    let f = egui::pos2(width / 2.0, height);
+fn cross_shape(size: f32, stroke: egui::Stroke) -> egui::Shape {
+    let half_size = size / 2.0;
+    egui::Shape::Vec(vec![
+        egui::epaint::PathShape::line(
+            vec![
+                egui::pos2(-half_size, -half_size),
+                egui::pos2(half_size, half_size),
+            ],
+            stroke,
+        )
+        .into(),
+        egui::epaint::PathShape::line(
+            vec![
+                egui::pos2(half_size, -half_size),
+                egui::pos2(-half_size, half_size),
+            ],
+            stroke,
+        )
+        .into(),
+    ])
+}
+
+fn question_mark_shape(size: egui::Vec2, stroke: egui::Stroke) -> egui::Shape {
+    let x_left = stroke.width - size.x / 2.0;
+    let x_center = 0.0;
+    let x_right = size.x / 2.0 - stroke.width;
+
+    let y_top = stroke.width - size.y / 2.0;
+    let y_top_bow = size.y * 0.35 - size.y / 2.0;
+    let y_lower_bow = size.y * 0.7 - size.y / 2.0;
+    let y_end = size.y / 2.0 - stroke.width * 2.0;
+    let y_bottom = size.y / 2.0;
+
+    let a = egui::pos2(x_left, y_top_bow);
+    let b = egui::pos2(x_center, y_top);
+    let c = egui::pos2(x_right, y_top_bow);
+    let d = egui::pos2(x_center, y_lower_bow);
+    let e = egui::pos2(x_center, y_end);
+    let f = egui::pos2(x_center, y_bottom);
     let curve = (d.y - c.y) * 0.5;
-    let stroke = egui::Stroke::new(stroke_width, egui::Color32::BLACK);
     let question_mark: Vec<egui::Shape> = vec![
         epaint::CubicBezierShape::from_points_stroke(
             [a, a - egui::vec2(0.0, curve), b - egui::vec2(curve, 0.0), b],
@@ -269,7 +288,7 @@ fn question_mark(width: f32, height: f32, stroke_width: f32) -> egui::Shape {
         )
         .into(),
         epaint::PathShape::line(vec![d, e], stroke).into(),
-        epaint::PathShape::line(vec![f - egui::vec2(0.0, stroke_width), f], stroke).into(),
+        epaint::PathShape::line(vec![f - egui::vec2(0.0, stroke.width), f], stroke).into(),
     ];
     egui::Shape::Vec(question_mark)
 }
