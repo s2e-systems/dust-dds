@@ -75,11 +75,12 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     async fn announce_reader(&self) -> DdsResult<()> {
-        let type_name = self.reader_address.get_type_name().await?;
+        let type_name = self.reader_address.upgrade()?.get_type_name().await;
         let type_support = self
             .participant_address()
+            .upgrade()?
             .get_type_support(type_name.clone())
-            .await?
+            .await
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(format!(
                     "Type with name {} not registered with parent domain participant",
@@ -88,21 +89,26 @@ impl<Foo> DataReaderAsync<Foo> {
             })?;
         let discovered_reader_data = self
             .reader_address
+            .upgrade()?
             .as_discovered_reader_data(
                 TopicQos::default(),
-                self.subscriber_address().get_qos().await?,
+                self.subscriber_address().upgrade()?.get_qos().await,
                 self.participant_address()
+                    .upgrade()?
                     .get_default_unicast_locator_list()
-                    .await?,
+                    .await,
                 self.participant_address()
+                    .upgrade()?
                     .get_default_multicast_locator_list()
-                    .await?,
+                    .await,
                 type_support.xml_type(),
             )
-            .await?;
+            .await;
         self.participant_address()
+            .upgrade()?
             .announce_created_or_modified_data_reader(discovered_reader_data)
-            .await
+            .await;
+        Ok(())
     }
 }
 
@@ -130,6 +136,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
+            .upgrade()?
             .read(
                 max_samples,
                 sample_states.to_vec(),
@@ -137,7 +144,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states.to_vec(),
                 None,
             )
-            .await??;
+            .await?;
 
         Ok(samples
             .into_iter()
@@ -156,6 +163,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
+            .upgrade()?
             .take(
                 max_samples,
                 sample_states.to_vec(),
@@ -163,7 +171,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states.to_vec(),
                 None,
             )
-            .await??;
+            .await?;
 
         Ok(samples
             .into_iter()
@@ -176,6 +184,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = {
             self.reader_address
+                .upgrade()?
                 .read(
                     1,
                     vec![SampleStateKind::NotRead],
@@ -183,7 +192,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
                 )
-                .await??
+                .await?
         };
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
@@ -194,6 +203,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = self
             .reader_address
+            .upgrade()?
             .take(
                 1,
                 vec![SampleStateKind::NotRead],
@@ -201,7 +211,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 ANY_INSTANCE_STATE.to_vec(),
                 None,
             )
-            .await??;
+            .await?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
     }
@@ -218,6 +228,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
+            .upgrade()?
             .read(
                 max_samples,
                 sample_states.to_vec(),
@@ -225,7 +236,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states.to_vec(),
                 Some(a_handle),
             )
-            .await??;
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -244,6 +255,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
+            .upgrade()?
             .take(
                 max_samples,
                 sample_states.to_vec(),
@@ -251,7 +263,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 instance_states.to_vec(),
                 Some(a_handle),
             )
-            .await??;
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -270,6 +282,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
+            .upgrade()?
             .read_next_instance(
                 max_samples,
                 previous_handle,
@@ -277,7 +290,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states.to_vec(),
                 instance_states.to_vec(),
             )
-            .await??;
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -296,6 +309,7 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
+            .upgrade()?
             .take_next_instance(
                 max_samples,
                 previous_handle,
@@ -303,7 +317,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states.to_vec(),
                 instance_states.to_vec(),
             )
-            .await??;
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -365,7 +379,11 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_subscription_matched_status`](crate::subscription::data_reader::DataReader::get_subscription_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.reader_address.get_subscription_matched_status().await
+        Ok(self
+            .reader_address
+            .upgrade()?
+            .get_subscription_matched_status()
+            .await)
     }
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
@@ -385,7 +403,12 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         tokio::time::timeout(max_wait.into(), async {
             loop {
-                if self.reader_address.is_historical_data_received().await?? {
+                if self
+                    .reader_address
+                    .upgrade()?
+                    .is_historical_data_received()
+                    .await?
+                {
                     return Ok(());
                 }
             }
@@ -400,15 +423,21 @@ impl<Foo> DataReaderAsync<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        self.reader_address
+        Ok(self
+            .reader_address
+            .upgrade()?
             .get_matched_publication_data(publication_handle)
-            .await?
+            .await?)
     }
 
     /// Async version of [`get_matched_publications`](crate::subscription::data_reader::DataReader::get_matched_publications).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.reader_address.get_matched_publications().await
+        Ok(self
+            .reader_address
+            .upgrade()?
+            .get_matched_publications()
+            .await)
     }
 }
 
@@ -418,8 +447,9 @@ impl<Foo> DataReaderAsync<Foo> {
         let q = match qos {
             QosKind::Default => {
                 self.subscriber_address()
+                    .upgrade()?
                     .get_default_datareader_qos()
-                    .await?
+                    .await
             }
             QosKind::Specific(q) => {
                 q.is_consistent()?;
@@ -427,14 +457,14 @@ impl<Foo> DataReaderAsync<Foo> {
             }
         };
 
-        if self.reader_address.is_enabled().await? {
+        if self.reader_address.upgrade()?.is_enabled().await {
             let current_qos = self.get_qos().await?;
             q.check_immutability(&current_qos)?;
-            self.reader_address.set_qos(q).await?;
+            self.reader_address.upgrade()?.set_qos(q).await;
 
             self.announce_reader().await?;
         } else {
-            self.reader_address.set_qos(q).await?;
+            self.reader_address.upgrade()?.set_qos(q).await;
         }
 
         Ok(())
@@ -443,7 +473,7 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_qos`](crate::subscription::data_reader::DataReader::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.reader_address.get_qos().await
+        Ok(self.reader_address.upgrade()?.get_qos().await)
     }
 
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
@@ -464,8 +494,8 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`enable`](crate::subscription::data_reader::DataReader::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.reader_address.is_enabled().await? {
-            self.reader_address.enable().await?;
+        if !self.reader_address.upgrade()?.is_enabled().await {
+            self.reader_address.upgrade()?.enable().await;
 
             self.announce_reader().await?;
         }
@@ -475,7 +505,7 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_instance_handle`](crate::subscription::data_reader::DataReader::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.reader_address.get_instance_handle().await
+        Ok(self.reader_address.upgrade()?.get_instance_handle().await)
     }
 }
 
@@ -491,11 +521,13 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address
+            .upgrade()?
             .set_listener(
                 a_listener.map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             )
-            .await
+            .await;
+        Ok(())
     }
 }

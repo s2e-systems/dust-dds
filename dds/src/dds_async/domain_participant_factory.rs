@@ -53,10 +53,13 @@ impl DomainParticipantFactoryAsync {
             .domain_participant_factory_actor
             .create_participant(domain_id, qos, a_listener, status_kind, runtime_handle)
             .await?;
-        let status_condition = participant_address.get_statuscondition().await?;
-        let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
+        let status_condition = participant_address.upgrade()?.get_statuscondition().await;
+        let builtin_subscriber = participant_address
+            .upgrade()?
+            .get_built_in_subscriber()
+            .await;
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
+            builtin_subscriber.upgrade()?.get_statuscondition().await;
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
@@ -96,10 +99,10 @@ impl DomainParticipantFactoryAsync {
             .lookup_participant(domain_id)
             .await?
         {
-            let status_condition = dp.get_statuscondition().await?;
-            let builtin_subscriber = dp.get_built_in_subscriber().await?;
+            let status_condition = dp.upgrade()?.get_statuscondition().await;
+            let builtin_subscriber = dp.upgrade()?.get_built_in_subscriber().await;
             let builtin_subscriber_status_condition_address =
-                builtin_subscriber.get_statuscondition().await?;
+                builtin_subscriber.upgrade()?.get_statuscondition().await;
             Ok(Some(DomainParticipantAsync::new(
                 dp,
                 status_condition,

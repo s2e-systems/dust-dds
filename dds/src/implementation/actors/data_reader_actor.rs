@@ -322,16 +322,19 @@ impl DataReaderActor {
         subscriber
             .get_statuscondition()
             .address()
+            .upgrade()?
             .add_communication_state(StatusKind::DataOnReaders)
-            .await?;
+            .await;
         self.status_condition
             .address()
+            .upgrade()?
             .add_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .await;
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
+                .upgrade()?
                 .trigger_on_data_on_readers(subscriber.clone())
-                .await?;
+                .await;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             let participant = subscriber.get_participant();
             let topic_address = topic_list[&self.topic_name].address();
@@ -687,9 +690,8 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
-            .address()
             .add_communication_state(StatusKind::SampleLost)
-            .await?;
+            .await;
         let topic_address = topic_list[&self.topic_name].address();
         let topic_status_condition_address =
             topic_list[&self.topic_name].get_statuscondition().await;
@@ -713,13 +715,15 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
+                .upgrade()?
                 .trigger_on_sample_lost(status)
-                .await?;
+                .await;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
+                .upgrade()?
                 .trigger_on_sample_lost(status)
-                .await?;
+                .await;
         }
 
         Ok(())
@@ -768,15 +772,17 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             subscriber_listener_address
+                .upgrade()
+                .expect("Subscriber is guaranteed to exist")
                 .trigger_on_subscription_matched(status)
-                .await
-                .expect("Subscriber is guaranteed to exist");
+                .await;
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             participant_listener_address
+                .upgrade()
+                .expect("Participant is guaranteed to exist")
                 .trigger_on_subscription_matched(status)
-                .await
-                .expect("Participant is guaranteed to exist");
+                .await;
         }
     }
 
@@ -800,9 +806,8 @@ impl DataReaderActor {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
         self.status_condition
-            .address()
             .add_communication_state(StatusKind::SampleRejected)
-            .await?;
+            .await;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             let topic_address = topic_list[&self.topic_name].address();
@@ -827,13 +832,15 @@ impl DataReaderActor {
             let status = self.get_sample_rejected_status();
 
             subscriber_listener_address
+                .upgrade()?
                 .trigger_on_sample_rejected(status)
-                .await?;
+                .await;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
+                .upgrade()?
                 .trigger_on_sample_rejected(status)
-                .await?;
+                .await;
         }
 
         Ok(())
@@ -886,15 +893,17 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
+                .upgrade()
+                .expect("Subscriber listener should exist")
                 .trigger_on_requested_incompatible_qos(status)
-                .await
-                .expect("Subscriber listener should exist");
+                .await;
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             participant_listener_address
+                .upgrade()
+                .expect("Participant listener should exist")
                 .trigger_on_requested_incompatible_qos(status)
-                .await
-                .expect("Participant listener should exist");
+                .await;
         }
     }
 
@@ -1333,18 +1342,22 @@ impl DataReaderActor {
 
                     let r: DdsResult<()> = async {
                         requested_deadline_missed_status
+                            .upgrade()?
                             .increment_requested_deadline_missed_status(change_instance_handle)
-                            .await?;
+                            .await;
 
                         reader_status_condition
+                            .upgrade()?
                             .add_communication_state(StatusKind::RequestedDeadlineMissed)
-                            .await?;
+                            .await;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
                             let status = requested_deadline_missed_status
+                                .upgrade()?
                                 .read_requested_deadline_missed_status()
-                                .await?;
+                                .await;
 
                             reader_listener_address
+                                .upgrade()?
                                 .call_listener_function(
                                     DataReaderListenerOperation::OnRequestedDeadlineMissed(status),
                                     data_reader_address.clone(),
@@ -1358,25 +1371,29 @@ impl DataReaderActor {
                                         subscriber.get_participant(),
                                     ),
                                 )
-                                .await?;
+                                .await;
                         } else if subscriber_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
+                                .upgrade()?
                                 .read_requested_deadline_missed_status()
-                                .await?;
+                                .await;
                             subscriber_listener_address
+                                .upgrade()?
                                 .trigger_on_requested_deadline_missed(status)
-                                .await?;
+                                .await;
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
+                                .upgrade()?
                                 .read_requested_deadline_missed_status()
-                                .await?;
+                                .await;
                             participant_listener_address
+                                .upgrade()?
                                 .trigger_on_requested_deadline_missed(status)
-                                .await?;
+                                .await;
                         }
                         Ok(())
                     }
@@ -1409,9 +1426,8 @@ impl DataReaderActor {
         }
 
         self.status_condition
-            .address()
             .remove_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .await;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -1457,9 +1473,8 @@ impl DataReaderActor {
         )?;
 
         self.status_condition
-            .address()
             .remove_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .await;
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -1839,7 +1854,9 @@ impl DataReaderActor {
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         let mut message_receiver = MessageReceiver::new(&message);
-        if let Ok(Some(type_support)) = type_support_actor_address
+        if let Some(type_support) = type_support_actor_address
+            .upgrade()
+            .expect("Type support actor must exist")
             .get_type_support(self.type_name.clone())
             .await
         {

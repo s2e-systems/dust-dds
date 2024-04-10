@@ -82,11 +82,12 @@ impl<Foo> DataWriterAsync<Foo> {
     }
 
     async fn announce_writer(&self) -> DdsResult<()> {
-        let type_name = self.writer_address.get_type_name().await?;
+        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
             .participant_address()
+            .upgrade()?
             .get_type_support(type_name.clone())
-            .await?
+            .await
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(format!(
                     "Type with name {} not registered with parent domain participant",
@@ -95,21 +96,27 @@ impl<Foo> DataWriterAsync<Foo> {
             })?;
         let discovered_writer_data = self
             .writer_address
+            .upgrade()?
             .as_discovered_writer_data(
                 TopicQos::default(),
-                self.publisher_address().get_qos().await?,
+                self.publisher_address().upgrade()?.get_qos().await,
                 self.participant_address()
+                    .upgrade()?
                     .get_default_unicast_locator_list()
-                    .await?,
+                    .await,
                 self.participant_address()
+                    .upgrade()?
                     .get_default_multicast_locator_list()
-                    .await?,
+                    .await,
                 type_support.xml_type(),
             )
-            .await?;
+            .await;
         self.participant_address()
+            .upgrade()?
             .announce_created_or_modified_data_writer(discovered_writer_data)
-            .await
+            .await;
+
+        Ok(())
     }
 }
 
@@ -120,7 +127,11 @@ where
     /// Async version of [`register_instance`](crate::publication::data_writer::DataWriter::register_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let timestamp = { self.participant_address().get_current_time().await? };
+        let timestamp = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
         self.register_instance_w_timestamp(instance, timestamp)
             .await
     }
@@ -142,7 +153,11 @@ where
         instance: &Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
-        let timestamp = { self.participant_address().get_current_time().await? };
+        let timestamp = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
             .await
     }
@@ -155,11 +170,12 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_name = self.writer_address.get_type_name().await?;
+        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
             .participant_address()
+            .upgrade()?
             .get_type_support(type_name.clone())
-            .await?
+            .await
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(format!(
                     "Type with name {} not registered with parent domain participant",
@@ -199,12 +215,13 @@ where
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
 
             self.writer_address
+                .upgrade()?
                 .unregister_instance_w_timestamp(
                     instance_serialized_key,
                     instance_handle,
                     timestamp,
                 )
-                .await?
+                .await
         } else {
             Err(DdsError::IllegalOperation)
         }
@@ -223,11 +240,12 @@ where
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let type_name = self.writer_address.get_type_name().await?;
+        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
             .participant_address()
+            .upgrade()?
             .get_type_support(type_name.clone())
-            .await?
+            .await
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(format!(
                     "Type with name {} not registered with parent domain participant",
@@ -239,13 +257,20 @@ where
         instance.serialize_data(&mut serialized_foo)?;
         let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
 
-        self.writer_address.lookup_instance(instance_handle).await?
+        self.writer_address
+            .upgrade()?
+            .lookup_instance(instance_handle)
+            .await
     }
 
     /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
     #[tracing::instrument(skip(self, data))]
     pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = { self.participant_address().get_current_time().await? };
+        let timestamp = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
         self.write_w_timestamp(data, handle, timestamp).await
     }
 
@@ -257,11 +282,12 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_name = self.writer_address.get_type_name().await?;
+        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
             .participant_address()
+            .upgrade()?
             .get_type_support(type_name.clone())
-            .await?
+            .await
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(format!(
                     "Type with name {} not registered with parent domain participant",
@@ -274,10 +300,11 @@ where
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         self.writer_address
+            .upgrade()?
             .write_w_timestamp(serialized_data, key, handle, timestamp)
-            .await??;
+            .await?;
 
-        self.participant_address().send_message().await?;
+        self.participant_address().upgrade()?.send_message().await;
 
         Ok(())
     }
@@ -285,7 +312,11 @@ where
     /// Async version of [`dispose`](crate::publication::data_writer::DataWriter::dispose).
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = { self.participant_address().get_current_time().await? };
+        let timestamp = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
         self.dispose_w_timestamp(data, handle, timestamp).await
     }
 
@@ -322,11 +353,12 @@ where
             }
         }?;
 
-        let type_name = self.writer_address.get_type_name().await?;
+        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
             .participant_address()
+            .upgrade()?
             .get_type_support(type_name.clone())
-            .await?
+            .await
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(format!(
                     "Type with name {} not registered with parent domain participant",
@@ -339,8 +371,9 @@ where
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address
+            .upgrade()?
             .dispose_w_timestamp(key, instance_handle, timestamp)
-            .await?
+            .await
     }
 }
 
@@ -350,7 +383,12 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         tokio::time::timeout(max_wait.into(), async {
             loop {
-                if self.writer_address.are_all_changes_acknowledge().await? {
+                if self
+                    .writer_address
+                    .upgrade()?
+                    .are_all_changes_acknowledge()
+                    .await
+                {
                     return Ok(());
                 }
             }
@@ -384,7 +422,11 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_publication_matched_status`](crate::publication::data_writer::DataWriter::get_publication_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.writer_address.get_publication_matched_status().await
+        Ok(self
+            .writer_address
+            .upgrade()?
+            .get_publication_matched_status()
+            .await)
     }
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
@@ -412,15 +454,20 @@ impl<Foo> DataWriterAsync<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.writer_address
+            .upgrade()?
             .get_matched_subscription_data(subscription_handle)
-            .await?
+            .await
             .ok_or(DdsError::BadParameter)
     }
 
     /// Async version of [`get_matched_subscriptions`](crate::publication::data_writer::DataWriter::get_matched_subscriptions).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.writer_address.get_matched_subscriptions().await
+        Ok(self
+            .writer_address
+            .upgrade()?
+            .get_matched_subscriptions()
+            .await)
     }
 }
 
@@ -431,8 +478,9 @@ impl<Foo> DataWriterAsync<Foo> {
         let q = match qos {
             QosKind::Default => {
                 self.publisher_address()
+                    .upgrade()?
                     .get_default_datawriter_qos()
-                    .await?
+                    .await
             }
             QosKind::Specific(q) => {
                 q.is_consistent()?;
@@ -440,15 +488,15 @@ impl<Foo> DataWriterAsync<Foo> {
             }
         };
 
-        if self.writer_address.is_enabled().await? {
+        if self.writer_address.upgrade()?.is_enabled().await {
             let current_qos = self.get_qos().await?;
             q.check_immutability(&current_qos)?;
 
-            self.writer_address.set_qos(q).await?;
+            self.writer_address.upgrade()?.set_qos(q).await;
 
             self.announce_writer().await?;
         } else {
-            self.writer_address.set_qos(q).await?;
+            self.writer_address.upgrade()?.set_qos(q).await;
         }
 
         Ok(())
@@ -457,7 +505,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_qos`](crate::publication::data_writer::DataWriter::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        self.writer_address.get_qos().await
+        Ok(self.writer_address.upgrade()?.get_qos().await)
     }
 
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
@@ -478,8 +526,8 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`enable`](crate::publication::data_writer::DataWriter::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.writer_address.is_enabled().await? {
-            self.writer_address.enable().await?;
+        if !self.writer_address.upgrade()?.is_enabled().await {
+            self.writer_address.upgrade()?.enable().await;
 
             self.announce_writer().await?;
         }
@@ -489,7 +537,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.writer_address.get_instance_handle().await
+        Ok(self.writer_address.upgrade()?.get_instance_handle().await)
     }
 }
 impl<'a, Foo> DataWriterAsync<Foo>
@@ -504,11 +552,13 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address
+            .upgrade()?
             .set_listener(
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             )
-            .await
+            .await;
+        Ok(())
     }
 }

@@ -61,7 +61,7 @@ use std::{
         Arc, OnceLock,
     },
 };
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use super::{data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor};
 
@@ -418,7 +418,7 @@ impl DomainParticipantFactoryActor {
         let status_condition = domain_participant.get_statuscondition();
         let builtin_subscriber = domain_participant.get_built_in_subscriber();
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
+            builtin_subscriber.upgrade()?.get_statuscondition().await;
 
         let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
         let participant_address = participant_actor.address();
@@ -446,17 +446,19 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    let r = participant_address_clone
-                        .process_metatraffic_rtps_message(message, participant_clone.clone())
-                        .await;
-                    if r.is_err() {
-                        break;
-                    }
+                    if let Ok(p) = participant_address_clone.upgrade() {
+                        let r = p
+                            .process_metatraffic_rtps_message(message, participant_clone.clone())
+                            .await;
 
-                    let r = participant_address_clone.send_message().await;
-                    if r.is_err() {
+                        if r.is_err() {
+                            error!("Error processing metatraffic RTPS message. {:?}", r);
+                        }
+
+                        p.send_message().await;
+                    } else {
                         break;
-                    }
+                    };
                 }
             }
         });
@@ -470,17 +472,16 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    let r: DdsResult<()> = async {
-                        participant_address_clone
+                    if let Ok(p) = participant_address_clone.upgrade() {
+                        let r = p
                             .process_metatraffic_rtps_message(message, participant_clone.clone())
-                            .await??;
+                            .await;
+                        if r.is_err() {
+                            error!("Error processing metatraffic RTPS message. {:?}", r);
+                        }
 
-                        participant_address_clone.send_message().await?;
-                        Ok(())
-                    }
-                    .await;
-
-                    if r.is_err() {
+                        p.send_message().await;
+                    } else {
                         break;
                     }
                 }
@@ -494,11 +495,10 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    let r = participant_address_clone
-                        .process_user_defined_rtps_message(message, participant_clone.clone())
-                        .await;
-
-                    if r.is_err() {
+                    if let Ok(p) = participant_address_clone.upgrade() {
+                        p.process_user_defined_rtps_message(message, participant_clone.clone())
+                            .await;
+                    } else {
                         break;
                     }
                 }

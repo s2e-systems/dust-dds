@@ -121,7 +121,6 @@ pub fn actor_interface(
         let mut enum_variants: Vec<proc_macro2::TokenStream> = Vec::new();
         let mut enum_handle_variants: Vec<proc_macro2::TokenStream> = Vec::new();
         let mut actor_method_variants: Vec<proc_macro2::TokenStream> = Vec::new();
-        let mut actor_address_method_variants: Vec<proc_macro2::TokenStream> = Vec::new();
 
         for method in input.items.iter().filter_map(|i| match i {
             syn::ImplItem::Fn(m) => Some(m),
@@ -170,20 +169,9 @@ pub fn actor_interface(
                         }
                     };
 
-                    let actor_address_method_variant = quote! {
-                        #[allow(clippy::too_many_arguments, clippy::unused_unit)]
-                        pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> crate::infrastructure::error::DdsResult<()> {
-                            let message = #actor_message_enum_ident::#method_ident{
-                                #(#methods_arguments_ident, )*
-                            };
-                            self.send_actor_message(message).await
-                        }
-                    };
-
                     enum_variants.push(enum_variant);
                     enum_handle_variants.push(enum_handle_variant);
                     actor_method_variants.push(actor_method_variant);
-                    actor_address_method_variants.push(actor_address_method_variant);
                 }
                 syn::ReturnType::Type(_, output_type) => {
                     let enum_variant = quote! {
@@ -216,23 +204,9 @@ pub fn actor_interface(
                         }
                     };
 
-                    let actor_address_method_variant = quote! {
-                        #[allow(clippy::too_many_arguments, clippy::unused_unit)]
-                        pub async fn #method_ident(&self, #(#methods_arguments_ident: #methods_arguments_type, )*) -> crate::infrastructure::error::DdsResult<#output_type> {
-                            let (__response_sender, response_receiver) = tokio::sync::oneshot::channel();
-                            let message = #actor_message_enum_ident::#method_ident{
-                                #(#methods_arguments_ident, )*
-                                __response_sender,
-                            };
-                            self.send_actor_message(message).await?;
-                            response_receiver.await.map_err(|_|  crate::infrastructure::error::DdsError::AlreadyDeleted)
-                        }
-                    };
-
                     enum_variants.push(enum_variant);
                     enum_handle_variants.push(enum_handle_variant);
                     actor_method_variants.push(actor_method_variant);
-                    actor_address_method_variants.push(actor_address_method_variant);
                 }
             };
         }
@@ -255,10 +229,6 @@ pub fn actor_interface(
 
             impl crate::implementation::utils::actor::Actor<#actor_ident> {
                 #(#actor_method_variants)*
-            }
-
-            impl crate::implementation::utils::actor::ActorAddress<#actor_ident> {
-                #(#actor_address_method_variants)*
             }
         }
     }

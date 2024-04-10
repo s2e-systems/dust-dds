@@ -139,9 +139,8 @@ impl TopicActor {
     async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
-            .address()
             .remove_communication_state(StatusKind::InconsistentTopic)
-            .await?;
+            .await;
         Ok(status)
     }
 
