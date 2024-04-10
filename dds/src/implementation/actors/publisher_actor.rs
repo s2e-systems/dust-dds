@@ -239,11 +239,10 @@ impl PublisherActor {
     }
 
     async fn process_rtps_message(&self, message: RtpsMessageRead) {
-        for data_writer_address in self.data_writer_list.values().map(|a| a.address()) {
+        for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .process_rtps_message(message.clone())
-                .await
-                .expect("Should not fail to send command");
+                .await;
         }
     }
 
