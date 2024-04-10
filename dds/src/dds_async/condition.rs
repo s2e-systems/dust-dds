@@ -42,11 +42,11 @@ impl StatusConditionAsync {
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        Ok(self
-            .address
+        self.address
             .upgrade()?
             .set_enabled_statuses(mask.to_vec())
-            .await)
+            .await;
+        Ok(())
     }
 
     /// Async version of [`get_entity`](crate::infrastructure::condition::StatusCondition::get_entity).

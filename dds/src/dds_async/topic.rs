@@ -179,7 +179,7 @@ async fn announce_topic(
     let builtin_publisher = domain_participant.upgrade()?.get_builtin_publisher().await;
     let data_writer_list = builtin_publisher.upgrade()?.data_writer_list().await;
     for data_writer in data_writer_list {
-        if data_writer.upgrade()?.get_type_name().await == "DiscoveredTopicData".to_string() {
+        if &data_writer.upgrade()?.get_type_name().await == "DiscoveredTopicData" {
             data_writer
                 .upgrade()?
                 .write_w_timestamp(

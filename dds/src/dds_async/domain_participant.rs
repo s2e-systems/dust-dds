@@ -584,8 +584,8 @@ impl DomainParticipantAsync {
                         let data_writer_list =
                             builtin_publisher.upgrade()?.data_writer_list().await;
                         for data_writer in data_writer_list {
-                            if data_writer.upgrade()?.get_type_name().await
-                                == "SpdpDiscoveredParticipantData".to_string()
+                            if &data_writer.upgrade()?.get_type_name().await
+                                == "SpdpDiscoveredParticipantData"
                             {
                                 let spdp_discovered_participant_data = domain_participant_address
                                     .upgrade()?

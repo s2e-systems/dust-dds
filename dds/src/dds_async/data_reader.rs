@@ -423,11 +423,10 @@ impl<Foo> DataReaderAsync<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        Ok(self
-            .reader_address
+        self.reader_address
             .upgrade()?
             .get_matched_publication_data(publication_handle)
-            .await?)
+            .await
     }
 
     /// Async version of [`get_matched_publications`](crate::subscription::data_reader::DataReader::get_matched_publications).
