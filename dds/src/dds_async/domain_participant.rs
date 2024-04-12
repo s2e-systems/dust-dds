@@ -9,7 +9,7 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             subscriber_actor::SubscriberActor,
         },
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -18,9 +18,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time},
     },
-    topic_definition::type_support::{
-        DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
-    },
+    topic_definition::type_support::{DdsHasKey, DdsKey, DdsTypeXml, DynamicTypeInterface},
 };
 
 use super::{
@@ -528,109 +526,7 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.participant_address.upgrade()?.is_enabled().await {
-            self.participant_address
-                .upgrade()?
-                .get_builtin_publisher()
-                .await
-                .upgrade()?
-                .enable()
-                .await;
-            self.participant_address
-                .upgrade()?
-                .get_built_in_subscriber()
-                .await
-                .upgrade()?
-                .enable()
-                .await;
-
-            for builtin_reader in self
-                .participant_address
-                .upgrade()?
-                .get_built_in_subscriber()
-                .await
-                .upgrade()?
-                .data_reader_list()
-                .await
-            {
-                builtin_reader.upgrade()?.enable().await;
-            }
-
-            for builtin_writer in self
-                .participant_address
-                .upgrade()?
-                .get_builtin_publisher()
-                .await
-                .upgrade()?
-                .data_writer_list()
-                .await
-            {
-                builtin_writer.upgrade()?.enable().await;
-            }
-
-            self.participant_address.upgrade()?.enable().await;
-
-            let domain_participant_address = self.participant_address.clone();
-
-            // Spawn the task that regularly announces the domain participant
-            self.runtime_handle.spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-                loop {
-                    let r: DdsResult<()> = async {
-                        let builtin_publisher = domain_participant_address
-                            .upgrade()?
-                            .get_builtin_publisher()
-                            .await;
-                        let data_writer_list =
-                            builtin_publisher.upgrade()?.data_writer_list().await;
-                        for data_writer in data_writer_list {
-                            if &data_writer.upgrade()?.get_type_name().await
-                                == "SpdpDiscoveredParticipantData"
-                            {
-                                let spdp_discovered_participant_data = domain_participant_address
-                                    .upgrade()?
-                                    .as_spdp_discovered_participant_data()
-                                    .await;
-                                let mut serialized_data = Vec::new();
-                                spdp_discovered_participant_data
-                                    .serialize_data(&mut serialized_data)?;
-
-                                let timestamp = domain_participant_address
-                                    .upgrade()?
-                                    .get_current_time()
-                                    .await;
-
-                                data_writer
-                                    .upgrade()?
-                                    .write_w_timestamp(
-                                        serialized_data,
-                                        get_instance_handle_from_key(
-                                            &spdp_discovered_participant_data.get_key()?,
-                                        )
-                                        .unwrap(),
-                                        None,
-                                        timestamp,
-                                    )
-                                    .await?;
-
-                                domain_participant_address.upgrade()?.send_message().await;
-                            }
-                        }
-
-                        Ok(())
-                    }
-                    .await;
-
-                    if r.is_err() {
-                        break;
-                    }
-
-                    interval.tick().await;
-                }
-            });
-        }
-
-        Ok(())
+        self.participant_address.upgrade()?.enable().await
     }
 
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).

@@ -505,6 +505,22 @@ impl DomainParticipantFactoryActor {
             }
         });
 
+        let participant_address_clone = participant_address.clone();
+        runtime_handle.spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+            loop {
+                if let Ok(p) = participant_address_clone.upgrade() {
+                    let r = p.announce_participant().await;
+                    if r.is_err() {
+                        error!("Error announcing participant: {:?}", r);
+                    }
+                } else {
+                    break;
+                }
+                interval.tick().await;
+            }
+        });
+
         Ok(participant_address)
     }
 

@@ -666,9 +666,21 @@ impl DomainParticipantActor {
         InstanceHandle::new(self.rtps_participant.guid().into())
     }
 
-    #[allow(clippy::unused_unit)]
-    fn enable(&mut self) -> () {
-        self.enabled = true;
+    async fn enable(&mut self) -> DdsResult<()> {
+        if !self.enabled {
+            self.builtin_publisher.enable().await;
+            self.builtin_subscriber.enable().await;
+
+            for builtin_reader in self.builtin_subscriber.data_reader_list().await {
+                builtin_reader.upgrade()?.enable().await;
+            }
+            for builtin_writer in self.builtin_publisher.data_writer_list().await {
+                builtin_writer.upgrade()?.enable().await;
+            }
+            self.enabled = true;
+            self.announce_participant().await?;
+        }
+        Ok(())
     }
 
     fn is_enabled(&self) -> bool {
@@ -1106,6 +1118,48 @@ impl DomainParticipantActor {
         } else {
             Ok(())
         }
+    }
+
+    async fn announce_participant(&self) -> DdsResult<()> {
+        if self.enabled {
+            let data_writer_list = self.builtin_publisher.data_writer_list().await;
+            for data_writer in data_writer_list {
+                if &data_writer.upgrade()?.get_type_name().await == "SpdpDiscoveredParticipantData"
+                {
+                    let spdp_discovered_participant_data =
+                        self.as_spdp_discovered_participant_data();
+                    let mut serialized_data = Vec::new();
+                    spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
+
+                    let timestamp = self.get_current_time();
+
+                    data_writer
+                        .upgrade()?
+                        .write_w_timestamp(
+                            serialized_data,
+                            get_instance_handle_from_key(
+                                &spdp_discovered_participant_data.get_key()?,
+                            )
+                            .unwrap(),
+                            None,
+                            timestamp,
+                        )
+                        .await?;
+
+                    let now = self.get_current_time();
+                    let header = RtpsMessageHeader::new(
+                        self.rtps_participant.protocol_version(),
+                        self.rtps_participant.vendor_id(),
+                        self.rtps_participant.guid().prefix(),
+                    );
+                    self.builtin_publisher
+                        .send_message(header, self.udp_transport_write.clone(), now)
+                        .await;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     #[allow(clippy::unused_unit)]
