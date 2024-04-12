@@ -506,8 +506,13 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address.clone();
+        let participant_announcement_interval =
+            self.configuration.participant_announcement_interval();
+        let mut interval = tokio::time::interval(tokio::time::Duration::new(
+            participant_announcement_interval.sec() as u64,
+            participant_announcement_interval.nanosec(),
+        ));
         runtime_handle.spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
             loop {
                 if let Ok(p) = participant_address_clone.upgrade() {
                     let r = p.announce_participant().await;
