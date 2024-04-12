@@ -1,7 +1,6 @@
-use crate::infrastructure::{
-    error::{DdsError, DdsResult},
-    time::Time,
-};
+use std::time::Duration;
+
+use crate::infrastructure::error::{DdsError, DdsResult};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// This struct specifies the high-level configuration for the DustDDS library. The configuration can be set for use by the
@@ -11,7 +10,7 @@ pub struct DustDdsConfiguration {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
-    participant_announcement_interval: Time,
+    participant_announcement_interval: Duration,
 }
 
 impl DustDdsConfiguration {
@@ -36,7 +35,7 @@ impl DustDdsConfiguration {
     }
 
     /// Interval at which the participant is announced on the network.
-    pub fn participant_announcement_interval(&self) -> Time {
+    pub fn participant_announcement_interval(&self) -> Duration {
         self.participant_announcement_interval
     }
 }
@@ -48,7 +47,7 @@ impl Default for DustDdsConfiguration {
             interface_name: None,
             fragment_size: 1344,
             udp_receive_buffer_size: None,
-            participant_announcement_interval: Time::new(5, 0),
+            participant_announcement_interval: Duration::from_secs(5),
         }
     }
 }
@@ -108,7 +107,7 @@ impl DustDdsConfigurationBuilder {
     /// between SPDP messages.
     pub fn participant_announcement_interval(
         mut self,
-        participant_announcement_interval: Time,
+        participant_announcement_interval: Duration,
     ) -> Self {
         self.configuration.participant_announcement_interval = participant_announcement_interval;
         self
