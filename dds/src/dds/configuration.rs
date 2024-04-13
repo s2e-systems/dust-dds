@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -8,6 +10,7 @@ pub struct DustDdsConfiguration {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
+    participant_announcement_interval: Duration,
 }
 
 impl DustDdsConfiguration {
@@ -30,6 +33,11 @@ impl DustDdsConfiguration {
     pub fn udp_receive_buffer_size(&self) -> Option<usize> {
         self.udp_receive_buffer_size
     }
+
+    /// Maximum interval at which the participant is announced on the network.
+    pub fn participant_announcement_interval(&self) -> Duration {
+        self.participant_announcement_interval
+    }
 }
 
 impl Default for DustDdsConfiguration {
@@ -39,6 +47,7 @@ impl Default for DustDdsConfiguration {
             interface_name: None,
             fragment_size: 1344,
             udp_receive_buffer_size: None,
+            participant_announcement_interval: Duration::from_secs(5),
         }
     }
 }
@@ -91,6 +100,16 @@ impl DustDdsConfigurationBuilder {
     /// Set the value of the SO_RCVBUF option on the UDP socket. [`None`] corresponds to the OS default
     pub fn udp_receive_buffer_size(mut self, udp_receive_buffer_size: Option<usize>) -> Self {
         self.configuration.udp_receive_buffer_size = udp_receive_buffer_size;
+        self
+    }
+
+    /// Set the maximum interval at which the participant is announced on the network. This corresponds to the time
+    /// between SPDP messages.
+    pub fn participant_announcement_interval(
+        mut self,
+        participant_announcement_interval: Duration,
+    ) -> Self {
+        self.configuration.participant_announcement_interval = participant_announcement_interval;
         self
     }
 }
