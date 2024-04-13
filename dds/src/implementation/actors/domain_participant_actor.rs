@@ -1328,6 +1328,8 @@ impl DomainParticipantActor {
                 ),
                 discovered_participant_data,
             );
+
+            self.announce_participant().await.ok();
         }
     }
 
