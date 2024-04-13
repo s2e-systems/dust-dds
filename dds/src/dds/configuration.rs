@@ -34,7 +34,7 @@ impl DustDdsConfiguration {
         self.udp_receive_buffer_size
     }
 
-    /// Interval at which the participant is announced on the network.
+    /// Maximum interval at which the participant is announced on the network.
     pub fn participant_announcement_interval(&self) -> Duration {
         self.participant_announcement_interval
     }
@@ -103,7 +103,7 @@ impl DustDdsConfigurationBuilder {
         self
     }
 
-    /// Set the interval at which the participant is announced on the network. This corresponds to the time
+    /// Set the maximum interval at which the participant is announced on the network. This corresponds to the time
     /// between SPDP messages.
     pub fn participant_announcement_interval(
         mut self,
