@@ -165,10 +165,10 @@ impl PublisherActor {
         }
     }
 
-    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DataWriterActor>> {
+    async fn lookup_datawriter(&self, topic_name: String) -> Option<Actor<DataWriterActor>> {
         for dw in self.data_writer_list.values() {
             if dw.get_topic_name().await == topic_name {
-                return Some(dw.address());
+                return Some(dw.clone());
             }
         }
         None

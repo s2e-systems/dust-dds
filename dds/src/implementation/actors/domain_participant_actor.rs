@@ -1058,8 +1058,6 @@ impl DomainParticipantActor {
                 get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
-                .upgrade()
-                .expect("Shouldn't fail to send to built-in data writer")
                 .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
                 .await
                 .expect("Shouldn't fail to write to built-in data writer");
@@ -1086,8 +1084,6 @@ impl DomainParticipantActor {
                 get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_subscriptions_announcer
-                .upgrade()
-                .expect("Shouldn't fail to send to built-in data writer")
                 .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
                 .await
                 .expect("Shouldn't fail to write to built-in data writer");
@@ -1108,7 +1104,6 @@ impl DomainParticipantActor {
                 .expect("Failed to serialize data");
 
             sedp_publications_announcer
-                .upgrade()?
                 .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
                 .await?;
 
@@ -1187,7 +1182,6 @@ impl DomainParticipantActor {
             serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
             sedp_subscriptions_announcer
-                .upgrade()?
                 .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
                 .await?;
 
@@ -1240,8 +1234,6 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(spdp_data_sample_list) = spdp_participant_reader
-                .upgrade()
-                .expect("Can not fail to send mail to builtin reader")
                 .read(
                     i32::MAX,
                     vec![SampleStateKind::NotRead],
@@ -1369,11 +1361,7 @@ impl DomainParticipantActor {
                     ReliabilityKind::Reliable,
                     0,
                 );
-                sedp_publications_announcer
-                    .upgrade()
-                    .expect("Should exist")
-                    .matched_reader_add(proxy)
-                    .await;
+                sedp_publications_announcer.matched_reader_add(proxy).await;
             }
         }
     }
@@ -1413,11 +1401,7 @@ impl DomainParticipantActor {
                     remote_group_entity_id,
                 );
 
-                sedp_publications_detector
-                    .upgrade()
-                    .expect("Should exist")
-                    .matched_writer_add(proxy)
-                    .await;
+                sedp_publications_detector.matched_writer_add(proxy).await;
             }
         }
     }
@@ -1458,11 +1442,7 @@ impl DomainParticipantActor {
                     ReliabilityKind::Reliable,
                     0,
                 );
-                sedp_subscriptions_announcer
-                    .upgrade()
-                    .expect("Should exist")
-                    .matched_reader_add(proxy)
-                    .await;
+                sedp_subscriptions_announcer.matched_reader_add(proxy).await;
             }
         }
     }
@@ -1501,11 +1481,7 @@ impl DomainParticipantActor {
                     data_max_size_serialized,
                     remote_group_entity_id,
                 );
-                sedp_subscriptions_detector
-                    .upgrade()
-                    .expect("Should exist")
-                    .matched_writer_add(proxy)
-                    .await;
+                sedp_subscriptions_detector.matched_writer_add(proxy).await;
             }
         }
     }
@@ -1546,11 +1522,7 @@ impl DomainParticipantActor {
                     ReliabilityKind::Reliable,
                     0,
                 );
-                sedp_topics_announcer
-                    .upgrade()
-                    .expect("Should exist")
-                    .matched_reader_add(proxy)
-                    .await;
+                sedp_topics_announcer.matched_reader_add(proxy).await;
             }
         }
     }
@@ -1589,11 +1561,7 @@ impl DomainParticipantActor {
                     data_max_size_serialized,
                     remote_group_entity_id,
                 );
-                sedp_topics_detector
-                    .upgrade()
-                    .expect("Should exist")
-                    .matched_writer_add(proxy)
-                    .await;
+                sedp_topics_detector.matched_writer_add(proxy).await;
             }
         }
     }
@@ -1605,8 +1573,6 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-                .upgrade()
-                .expect("Can not fail to send mail to builtin reader")
                 .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
@@ -1797,8 +1763,6 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-                .upgrade()
-                .expect("Can not fail to send mail to builtin reader")
                 .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
@@ -2013,8 +1977,6 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-                .upgrade()
-                .expect("Can not fail to send mail to builtin reader")
                 .read(
                     i32::MAX,
                     ANY_SAMPLE_STATE.to_vec(),
