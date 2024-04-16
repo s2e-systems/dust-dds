@@ -227,7 +227,6 @@ pub struct DataWriterActor {
 }
 
 impl DataWriterActor {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_writer: RtpsWriter,
         type_name: String,

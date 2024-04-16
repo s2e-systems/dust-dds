@@ -257,7 +257,6 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsReaderKind,
         type_name: String,
@@ -1297,7 +1296,6 @@ impl DataReaderActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,

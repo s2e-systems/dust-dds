@@ -119,7 +119,6 @@ pub struct TopicBuiltinTopicData {
 }
 
 impl TopicBuiltinTopicData {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         key: BuiltInTopicKey,
         name: String,
