@@ -128,15 +128,16 @@ impl DdsTypeXml for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use crate::builtin_topics::BuiltInTopicKey;
-    use crate::implementation::rtps::types::{
-        BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_UNKNOWN,
-    };
-    use crate::infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-        PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+    use crate::{
+        builtin_topics::BuiltInTopicKey,
+        implementation::rtps::types::{
+            BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+            USER_DEFINED_UNKNOWN,
+        },
+        infrastructure::{
+            qos::{DataWriterQos, PublisherQos},
+            qos_policy::TopicDataQosPolicy,
+        },
     };
 
     use super::*;
@@ -153,19 +154,9 @@ mod tests {
                 },
                 "ab".to_string(),
                 "cd".to_string(),
-                DurabilityQosPolicy::default(),
-                DeadlineQosPolicy::default(),
-                LatencyBudgetQosPolicy::default(),
-                LivelinessQosPolicy::default(),
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-                LifespanQosPolicy::default(),
-                UserDataQosPolicy::default(),
-                OwnershipQosPolicy::default(),
-                DestinationOrderQosPolicy::default(),
-                PresentationQosPolicy::default(),
-                PartitionQosPolicy::default(),
+                DataWriterQos::default(),
+                PublisherQos::default(),
                 TopicDataQosPolicy::default(),
-                GroupDataQosPolicy::default(),
                 String::default(),
             ),
             WriterProxy::new(
@@ -219,19 +210,9 @@ mod tests {
                 },
                 "ab".to_string(),
                 "cd".to_string(),
-                DurabilityQosPolicy::default(),
-                DeadlineQosPolicy::default(),
-                LatencyBudgetQosPolicy::default(),
-                LivelinessQosPolicy::default(),
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-                LifespanQosPolicy::default(),
-                UserDataQosPolicy::default(),
-                OwnershipQosPolicy::default(),
-                DestinationOrderQosPolicy::default(),
-                PresentationQosPolicy::default(),
-                PartitionQosPolicy::default(),
+                DataWriterQos::default(),
+                PublisherQos::default(),
                 TopicDataQosPolicy::default(),
-                GroupDataQosPolicy::default(),
                 String::default(),
             ),
             WriterProxy::new(

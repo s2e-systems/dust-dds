@@ -267,12 +267,10 @@ impl PublisherActor {
         default_multicast_locator_list: Vec<Locator>,
         publisher_address: ActorAddress<PublisherActor>,
         participant: DomainParticipantAsync,
-        participant_publication_matched_listener: Option<
+        participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
-        >,
-        offered_incompatible_qos_participant_listener: Option<
-            ActorAddress<DomainParticipantListenerActor>,
-        >,
+            Vec<StatusKind>,
+        ),
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if self.is_partition_matched(
@@ -282,20 +280,8 @@ impl PublisherActor {
         ) {
             for data_writer in self.data_writer_list.values() {
                 let data_writer_address = data_writer.address();
-                let publisher_publication_matched_listener =
-                    if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                        Some(self.listener.address())
-                    } else {
-                        None
-                    };
-                let offered_incompatible_qos_publisher_listener = if self
-                    .status_kind
-                    .contains(&StatusKind::OfferedIncompatibleQos)
-                {
-                    Some(self.listener.address())
-                } else {
-                    None
-                };
+                let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
+
                 data_writer
                     .add_matched_reader(
                         discovered_reader_data.clone(),
@@ -308,10 +294,8 @@ impl PublisherActor {
                             participant.clone(),
                         ),
                         self.qos.clone(),
-                        publisher_publication_matched_listener,
-                        participant_publication_matched_listener.clone(),
-                        offered_incompatible_qos_publisher_listener,
-                        offered_incompatible_qos_participant_listener.clone(),
+                        publisher_mask_listener,
+                        participant_mask_listener.clone(),
                         topic_list.clone(),
                     )
                     .await;
@@ -325,19 +309,15 @@ impl PublisherActor {
         discovered_reader_handle: InstanceHandle,
         publisher_address: ActorAddress<PublisherActor>,
         participant: DomainParticipantAsync,
-        participant_publication_matched_listener: Option<
+        participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
-        >,
+            Vec<StatusKind>,
+        ),
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
-            let publisher_publication_matched_listener =
-                if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                    Some(self.listener.address())
-                } else {
-                    None
-                };
+            let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
             data_writer
                 .remove_matched_reader(
                     discovered_reader_handle,
@@ -347,8 +327,8 @@ impl PublisherActor {
                         self.status_condition.address(),
                         participant.clone(),
                     ),
-                    publisher_publication_matched_listener,
-                    participant_publication_matched_listener.clone(),
+                    publisher_mask_listener,
+                    participant_mask_listener.clone(),
                     topic_list.clone(),
                 )
                 .await;

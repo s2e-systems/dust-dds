@@ -114,25 +114,13 @@ impl TopicActor {
     }
 
     fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
-        let qos = &self.qos;
         DiscoveredTopicData::new(TopicBuiltinTopicData::new(
             BuiltInTopicKey {
                 value: self.guid.into(),
             },
             self.topic_name.to_string(),
             self.type_name.to_string(),
-            qos.durability.clone(),
-            qos.deadline.clone(),
-            qos.latency_budget.clone(),
-            qos.liveliness.clone(),
-            qos.reliability.clone(),
-            qos.transport_priority.clone(),
-            qos.lifespan.clone(),
-            qos.destination_order.clone(),
-            qos.history.clone(),
-            qos.resource_limits.clone(),
-            qos.ownership.clone(),
-            qos.topic_data.clone(),
+            self.qos.clone(),
         ))
     }
 
