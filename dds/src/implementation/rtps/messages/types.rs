@@ -1,8 +1,8 @@
-use super::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes};
-use crate::{
-    implementation::rtps::error::RtpsResult,
-    infrastructure::{self, time::Duration},
+use super::{
+    super::error::RtpsResult,
+    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
+use crate::infrastructure::{self, time::Duration};
 use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
