@@ -1,11 +1,11 @@
-use crate::{
-    implementation::rtps::messages::{
+use crate::implementation::rtps::{
+    error::RtpsResult,
+    messages::{
         overall_structure::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
         },
         types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
     },
-    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,7 +18,7 @@ impl InfoTimestampSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let invalidate_flag = submessage_header.flags()[1];
         let timestamp = if invalidate_flag {
             TIME_INVALID

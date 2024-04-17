@@ -1,3 +1,4 @@
+use super::{data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor};
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::{
@@ -62,8 +63,6 @@ use std::{
     },
 };
 use tracing::{error, info, warn};
-
-use super::{data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor};
 
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -250,7 +249,7 @@ pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsM
     let (bytes, _) = socket.recv_from(&mut buf).await?;
     buf.truncate(bytes);
     if bytes > 0 {
-        RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()))
+        Ok(RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()))?)
     } else {
         Err(DdsError::NoData)
     }

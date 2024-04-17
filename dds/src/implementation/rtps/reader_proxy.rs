@@ -4,7 +4,6 @@ use super::{
         types::{Count, FragmentNumber},
     },
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
-    utils::clock::{StdTimer, Timer, TimerConstructor},
     writer_history_cache::WriterHistoryCache,
 };
 use crate::infrastructure::time::Duration;
@@ -13,14 +12,14 @@ use crate::infrastructure::time::Duration;
 pub struct HeartbeatMachine {
     count: Count,
     reader_id: EntityId,
-    timer: StdTimer,
+    timer: std::time::Instant,
 }
 impl HeartbeatMachine {
     fn new(reader_id: EntityId) -> Self {
         HeartbeatMachine {
             count: 0,
             reader_id,
-            timer: StdTimer::new(),
+            timer: std::time::Instant::now(),
         }
     }
     pub fn is_time_for_heartbeat(&self, heartbeat_period: Duration) -> bool {
@@ -35,7 +34,7 @@ impl HeartbeatMachine {
         last_sn: SequenceNumber,
     ) -> HeartbeatSubmessage {
         self.count = self.count.wrapping_add(1);
-        self.timer.reset();
+        self.timer = std::time::Instant::now();
         HeartbeatSubmessage::new(
             false,
             false,

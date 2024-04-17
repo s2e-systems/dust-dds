@@ -1,9 +1,3 @@
-use std::{cmp::max, collections::HashMap};
-
-use crate::implementation::{
-    rtps::messages::submessage_elements::ArcSlice, rtps_udp_psm::udp_transport::UdpTransportWrite,
-};
-
 use super::{
     messages::{
         overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
@@ -16,6 +10,10 @@ use super::{
     },
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
+use crate::implementation::{
+    rtps::messages::submessage_elements::ArcSlice, rtps_udp_psm::udp_transport::UdpTransportWrite,
+};
+use std::{cmp::max, collections::HashMap};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
     let data_size = data_frag_submessage.data_size();

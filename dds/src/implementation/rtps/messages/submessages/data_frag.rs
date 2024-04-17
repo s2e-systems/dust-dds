@@ -1,16 +1,12 @@
-use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-                WriteIntoBytes,
-            },
-            submessage_elements::{ArcSlice, Data, ParameterList},
-            types::{FragmentNumber, SubmessageFlag, SubmessageKind},
+use crate::implementation::rtps::{
+    error::{RtpsError, RtpsErrorKind, RtpsResult}, messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
         },
-        types::{EntityId, SequenceNumber},
-    },
-    infrastructure::error::{DdsError, DdsResult},
+        submessage_elements::{ArcSlice, Data, ParameterList},
+        types::{FragmentNumber, SubmessageFlag, SubmessageKind},
+    }, types::{EntityId, SequenceNumber}
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -33,7 +29,7 @@ impl DataFragSubmessage {
     pub fn try_from_arc_slice(
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let mut slice = data.as_ref();
         if data.len() >= 32 {
             let endianness = submessage_header.endianness();
@@ -81,7 +77,7 @@ impl DataFragSubmessage {
                 serialized_payload,
             })
         } else {
-            Err(DdsError::Error("DataFrag submessage invalid".to_string()))
+            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "DataFrag submessage"))
         }
     }
 

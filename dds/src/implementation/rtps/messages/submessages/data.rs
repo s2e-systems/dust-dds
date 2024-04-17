@@ -1,16 +1,12 @@
-use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-                WriteIntoBytes,
-            },
-            submessage_elements::{ArcSlice, Data, ParameterList},
-            types::{SubmessageFlag, SubmessageKind},
+use crate::implementation::rtps::{
+    error::RtpsResult, messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
         },
-        types::{EntityId, SequenceNumber},
-    },
-    infrastructure::error::DdsResult,
+        submessage_elements::{ArcSlice, Data, ParameterList},
+        types::{SubmessageFlag, SubmessageKind},
+    }, types::{EntityId, SequenceNumber}
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,7 +26,7 @@ impl DataSubmessage {
     pub fn try_from_arc_slice(
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let mut slice = data.as_ref();
         let endianness = submessage_header.endianness();
         let inline_qos_flag = submessage_header.flags()[1];

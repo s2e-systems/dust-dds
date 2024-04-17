@@ -1,13 +1,11 @@
+use crate::implementation::rtps::error::RtpsResult;
 use crate::implementation::rtps::messages::overall_structure::Submessage;
-use crate::{
-    implementation::rtps::messages::{
-        overall_structure::{
-            SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
-        },
-        submessage_elements::LocatorList,
-        types::{SubmessageFlag, SubmessageKind},
+use crate::implementation::rtps::messages::{
+    overall_structure::{
+        SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
     },
-    infrastructure::error::DdsResult,
+    submessage_elements::LocatorList,
+    types::{SubmessageFlag, SubmessageKind},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,7 +19,7 @@ impl InfoReplySubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let endianness = submessage_header.endianness();
         let multicast_flag = submessage_header.flags()[1];
         let unicast_locator_list = LocatorList::try_read_from_bytes(&mut data, endianness)?;

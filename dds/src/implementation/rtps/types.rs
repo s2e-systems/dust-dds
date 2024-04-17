@@ -1,11 +1,10 @@
-use crate::{
-    infrastructure::error::DdsResult,
-    serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
+use super::{
+    error::RtpsResult,
+    messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
+use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
 use network_interface::Addr;
 use std::{io::Read, net::IpAddr};
-
-use super::messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -140,7 +139,7 @@ pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
 impl TryReadFromBytes for GuidPrefix {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
         let mut guid_prefix = [0; 12];
         data.read_exact(&mut guid_prefix)?;
         Ok(guid_prefix)
@@ -180,7 +179,7 @@ impl EntityId {
 }
 
 impl TryReadFromBytes for EntityId {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
         let mut entity_key = [0; 3];
         let mut entity_kind = [0; 1];
         data.read_exact(&mut entity_key)?;
@@ -237,7 +236,7 @@ pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 pub type SequenceNumber = i64;
 
 impl TryReadFromBytes for SequenceNumber {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let high = i32::try_read_from_bytes(data, endianness)?;
         let low = u32::try_read_from_bytes(data, endianness)?;
         let value = ((high as i64) << 32) + low as i64;
@@ -274,7 +273,7 @@ impl WriteIntoBytes for Locator {
 }
 
 impl TryReadFromBytes for Locator {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let kind = i32::try_read_from_bytes(data, endianness)?;
         let port = u32::try_read_from_bytes(data, endianness)?;
         let mut address = [0; 16];
@@ -406,7 +405,7 @@ pub struct ProtocolVersion {
 }
 
 impl TryReadFromBytes for ProtocolVersion {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(Self { bytes })
@@ -454,7 +453,7 @@ impl ProtocolVersion {
 pub type VendorId = [Octet; 2];
 
 impl TryReadFromBytes for VendorId {
-    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(bytes)
