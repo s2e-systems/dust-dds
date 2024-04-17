@@ -11,7 +11,6 @@ pub mod reader_history_cache;
 pub mod reader_locator;
 pub mod reader_proxy;
 pub mod types;
-pub mod utils;
 pub mod writer;
 pub mod writer_history_cache;
 pub mod writer_proxy;
