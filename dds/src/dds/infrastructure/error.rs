@@ -1,5 +1,3 @@
-use std::array::TryFromSliceError;
-
 use crate::implementation::rtps::error::RtpsError;
 
 /// Result type returned by the different operations of the service
@@ -47,12 +45,6 @@ impl From<RtpsError> for DdsError {
 
 impl From<std::io::Error> for DdsError {
     fn from(value: std::io::Error) -> Self {
-        DdsError::Error(value.to_string())
-    }
-}
-
-impl From<TryFromSliceError> for DdsError {
-    fn from(value: TryFromSliceError) -> Self {
         DdsError::Error(value.to_string())
     }
 }
