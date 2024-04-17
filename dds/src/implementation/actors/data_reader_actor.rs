@@ -257,7 +257,6 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsReaderKind,
         type_name: String,
@@ -1297,7 +1296,6 @@ impl DataReaderActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
@@ -1546,19 +1544,9 @@ impl DataReaderActor {
                 },
                 self.topic_name.clone(),
                 self.type_name.to_string(),
-                self.qos.durability.clone(),
-                self.qos.deadline.clone(),
-                self.qos.latency_budget.clone(),
-                self.qos.liveliness.clone(),
-                self.qos.reliability.clone(),
-                self.qos.ownership.clone(),
-                self.qos.destination_order.clone(),
-                self.qos.user_data.clone(),
-                self.qos.time_based_filter.clone(),
-                subscriber_qos.presentation.clone(),
-                subscriber_qos.partition.clone(),
+                self.qos.clone(),
+                subscriber_qos.clone(),
                 topic_qos.topic_data,
-                subscriber_qos.group_data,
                 xml_type,
             ),
         )
@@ -1669,13 +1657,6 @@ impl DataReaderActor {
                 .await
             }
             None => Err(DdsError::NoData),
-        }
-    }
-
-    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => r.matched_writer_add(a_writer_proxy),
-            RtpsReaderKind::Stateless(_) => (),
         }
     }
 

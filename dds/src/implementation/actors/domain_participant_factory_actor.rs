@@ -118,27 +118,13 @@ impl DomainParticipantFactoryActor {
             handle,
         );
 
-        let sedp_reader_qos = DataReaderQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
-            },
-            ..Default::default()
-        };
-
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
-            sedp_reader_qos.clone(),
+            sedp_data_reader_qos(),
             None,
             vec![],
             handle,
@@ -150,7 +136,7 @@ impl DomainParticipantFactoryActor {
             create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
-            sedp_reader_qos.clone(),
+            sedp_data_reader_qos(),
             None,
             vec![],
             handle,
@@ -162,7 +148,7 @@ impl DomainParticipantFactoryActor {
             create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
-            sedp_reader_qos,
+            sedp_data_reader_qos(),
             None,
             vec![],
             handle,
@@ -214,20 +200,6 @@ impl DomainParticipantFactoryActor {
             spdp_builtin_participant_writer.reader_locator_add(reader_locator);
         }
 
-        let sedp_writer_qos = DataWriterQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
-            },
-            ..Default::default()
-        };
-
         let sedp_builtin_topics_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DataWriterActor::new(
@@ -236,7 +208,7 @@ impl DomainParticipantFactoryActor {
             String::from(DCPS_TOPIC),
             None,
             vec![],
-            sedp_writer_qos.clone(),
+            sedp_data_writer_qos(),
             handle,
         );
 
@@ -248,7 +220,7 @@ impl DomainParticipantFactoryActor {
             String::from(DCPS_PUBLICATION),
             None,
             vec![],
-            sedp_writer_qos.clone(),
+            sedp_data_writer_qos(),
             handle,
         );
 
@@ -260,7 +232,7 @@ impl DomainParticipantFactoryActor {
             String::from(DCPS_SUBSCRIPTION),
             None,
             vec![],
-            sedp_writer_qos,
+            sedp_data_writer_qos(),
             handle,
         );
 
@@ -757,4 +729,36 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
         DURATION_ZERO,
         usize::MAX,
     )
+}
+
+pub fn sedp_data_reader_qos() -> DataReaderQos {
+    DataReaderQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+        },
+        ..Default::default()
+    }
+}
+
+pub fn sedp_data_writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+        },
+        ..Default::default()
+    }
 }

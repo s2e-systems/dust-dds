@@ -176,10 +176,10 @@ impl SubscriberActor {
         }
     }
 
-    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
+    async fn lookup_datareader(&self, topic_name: String) -> Option<Actor<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
             if dr.get_topic_name().await == topic_name {
-                return Some(dr.address());
+                return Some(dr.clone());
             }
         }
         None

@@ -196,9 +196,9 @@ impl SubscriberAsync {
                 .lookup_datareader(topic_name.to_string())
                 .await
             {
-                let status_condition = dr.upgrade()?.get_statuscondition().await;
+                let status_condition = dr.get_statuscondition().await;
                 Ok(Some(DataReaderAsync::new(
-                    dr,
+                    dr.address(),
                     status_condition,
                     self.clone(),
                     topic,

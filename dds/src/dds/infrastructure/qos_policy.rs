@@ -874,7 +874,7 @@ impl PartialOrd for ReliabilityQosPolicy {
 
 // default for Reliability is differnet for reader and writer, hence
 // added here as constants
-const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100);
+const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100_000_000);
 pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
     ReliabilityQosPolicy {
         kind: ReliabilityQosPolicyKind::BestEffort,
