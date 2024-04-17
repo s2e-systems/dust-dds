@@ -666,9 +666,13 @@ fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
 }
 
 fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
+    const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration =
+        Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
+    const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
+
     let topic_kind = TopicKind::WithKey;
-    let heartbeat_response_delay = DURATION_ZERO;
-    let heartbeat_suppression_duration = DURATION_ZERO;
+    let heartbeat_response_delay = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION.into();
+    let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_RESPONSE_DELAY.into();
     let expects_inline_qos = false;
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];

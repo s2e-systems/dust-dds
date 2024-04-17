@@ -163,14 +163,14 @@ impl Sub<Time> for Time {
     }
 }
 
-/// Special constant value representing a zero duration seconds
+/// Pre-defined value representing a zero duration seconds
 pub const DURATION_ZERO_SEC: i32 = 0;
-/// Special constant value representing a zero duration nano seconds
+/// Pre-defined value representing a zero duration nano seconds
 pub const DURATION_ZERO_NSEC: u32 = 0;
 
-/// Special constant value representing an invalid time
+/// Pre-defined value representing an invalid time
 pub const TIME_INVALID_SEC: i32 = -1;
-/// Special constant value representing an invalid time nano seconds
+/// v value representing an invalid time nano seconds
 pub const TIME_INVALID_NSEC: u32 = 0xffffffff;
 
 #[cfg(test)]
