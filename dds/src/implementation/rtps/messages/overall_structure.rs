@@ -1,22 +1,24 @@
-use super::types::{ProtocolId, SubmessageFlag, SubmessageKind};
-use crate::implementation::rtps::{
-    error::{RtpsError, RtpsErrorKind, RtpsResult},
-    messages::{
-        submessage_elements::ArcSlice,
-        submessages::{
-            ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-            gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
-            heartbeat_frag::HeartbeatFragSubmessage, info_destination::InfoDestinationSubmessage,
-            info_reply::InfoReplySubmessage, info_source::InfoSourceSubmessage,
-            info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
-            pad::PadSubmessage,
+use super::{
+    super::{
+        error::{RtpsError, RtpsErrorKind, RtpsResult},
+        messages::{
+            submessage_elements::ArcSlice,
+            submessages::{
+                ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+                gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
+                heartbeat_frag::HeartbeatFragSubmessage,
+                info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
+                info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
+                nack_frag::NackFragSubmessage, pad::PadSubmessage,
+            },
+            types::{
+                ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
+                INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+            },
         },
-        types::{
-            ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
-            INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-        },
+        types::{GuidPrefix, ProtocolVersion, VendorId},
     },
-    types::{GuidPrefix, ProtocolVersion, VendorId},
+    types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
 use std::{io::BufRead, sync::Arc};
 
@@ -148,10 +150,16 @@ impl RtpsMessageRead {
             if b"RTPS" == &[data[0], data[1], data[2], data[3]] {
                 Ok(Self { data })
             } else {
-                Err(RtpsError::new(RtpsErrorKind::InvalidData, "RTPS not in data"))
+                Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "RTPS not in data",
+                ))
             }
         } else {
-            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "Rtps message header"))
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "Rtps message header",
+            ))
         }
     }
 

@@ -1,14 +1,11 @@
 use super::{
-    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
-    types::ParameterId,
-};
-use crate::implementation::{
-    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::{
+    super::{
         error::{RtpsError, RtpsErrorKind, RtpsResult},
         messages::types::FragmentNumber,
         types::{Locator, SequenceNumber},
     },
+    overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
+    types::ParameterId,
 };
 use std::{
     ops::{Index, Range, RangeFrom, RangeTo},
@@ -18,6 +15,8 @@ use std::{
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
+
+const PID_SENTINEL: i16 = 0x0001;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
