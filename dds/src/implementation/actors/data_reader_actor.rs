@@ -1106,7 +1106,7 @@ impl DataReaderActor {
         if let Some(Some(t)) = closest_timestamp_before_received_sample {
             if let Some(sample_source_time) = change.source_timestamp {
                 let sample_separation = sample_source_time - t;
-                DurationKind::Finite(sample_separation)
+                DurationKind::Finite(sample_separation.into())
                     >= self.qos.time_based_filter.minimum_separation
             } else {
                 true

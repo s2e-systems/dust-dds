@@ -1,8 +1,8 @@
 use super::{
-    super::error::RtpsResult,
+    super::{behavior_types::Duration, error::RtpsResult},
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use crate::infrastructure::{self, time::Duration};
+use crate::infrastructure;
 use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -198,7 +198,7 @@ impl Sub<Time> for Time {
     type Output = Duration;
 
     fn sub(self, rhs: Time) -> Self::Output {
-        infrastructure::time::Time::from(self) - infrastructure::time::Time::from(rhs)
+        (infrastructure::time::Time::from(self) - infrastructure::time::Time::from(rhs)).into()
     }
 }
 
