@@ -227,7 +227,6 @@ pub struct DataWriterActor {
 }
 
 impl DataWriterActor {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_writer: RtpsWriter,
         type_name: String,
@@ -519,19 +518,9 @@ impl DataWriterActor {
                 },
                 self.topic_name.clone(),
                 self.type_name.to_string(),
-                writer_qos.durability.clone(),
-                writer_qos.deadline.clone(),
-                writer_qos.latency_budget.clone(),
-                writer_qos.liveliness.clone(),
-                writer_qos.reliability.clone(),
-                writer_qos.lifespan.clone(),
-                writer_qos.user_data.clone(),
-                writer_qos.ownership.clone(),
-                writer_qos.destination_order.clone(),
-                publisher_qos.presentation.clone(),
-                publisher_qos.partition.clone(),
+                writer_qos.clone(),
+                publisher_qos.clone(),
                 topic_qos.topic_data,
-                publisher_qos.group_data,
                 xml_type,
             ),
             WriterProxy::new(
@@ -549,17 +538,6 @@ impl DataWriterActor {
             .remove_communication_state(StatusKind::PublicationMatched)
             .await;
         self.matched_subscriptions.get_publication_matched_status()
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy) -> () {
-        if !self
-            .matched_readers
-            .iter()
-            .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
-        {
-            self.matched_readers.push(a_reader_proxy)
-        }
     }
 
     fn get_topic_name(&self) -> String {
@@ -602,14 +580,11 @@ impl DataWriterActor {
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
         publisher_qos: PublisherQos,
-        publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
-        participant_publication_matched_listener: Option<
+        publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
+        participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
-        >,
-        offered_incompatible_qos_publisher_listener: Option<ActorAddress<PublisherListenerActor>>,
-        offered_incompatible_qos_participant_listener: Option<
-            ActorAddress<DomainParticipantListenerActor>,
-        >,
+            Vec<StatusKind>,
+        ),
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         let is_matched_topic_name = discovered_reader_data
@@ -716,8 +691,8 @@ impl DataWriterActor {
                     self.on_publication_matched(
                         data_writer_address,
                         publisher,
-                        publisher_publication_matched_listener,
-                        participant_publication_matched_listener,
+                        publisher_mask_listener,
+                        participant_mask_listener,
                         topic_list,
                     )
                     .await;
@@ -728,8 +703,8 @@ impl DataWriterActor {
                 self.on_offered_incompatible_qos(
                     data_writer_address,
                     publisher,
-                    offered_incompatible_qos_publisher_listener,
-                    offered_incompatible_qos_participant_listener,
+                    publisher_mask_listener,
+                    participant_mask_listener,
                     topic_list,
                 )
                 .await;
@@ -743,10 +718,11 @@ impl DataWriterActor {
         discovered_reader_handle: InstanceHandle,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
-        participant_publication_matched_listener: Option<
+        publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
+        participant_mask_listener: (
             ActorAddress<DomainParticipantListenerActor>,
-        >,
+            Vec<StatusKind>,
+        ),
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
@@ -757,8 +733,8 @@ impl DataWriterActor {
             self.on_publication_matched(
                 data_writer_address,
                 publisher,
-                publisher_publication_matched_listener,
-                participant_publication_matched_listener,
+                publisher_mask_listener,
+                participant_mask_listener,
                 topic_list,
             )
             .await;
@@ -972,10 +948,14 @@ impl DataWriterActor {
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        publisher_publication_matched_listener: Option<ActorAddress<PublisherListenerActor>>,
-        participant_publication_matched_listener: Option<
+        (publisher_listener, publisher_listener_mask): (
+            ActorAddress<PublisherListenerActor>,
+            Vec<StatusKind>,
+        ),
+        (participant_listener, participant_listener_mask): (
             ActorAddress<DomainParticipantListenerActor>,
-        >,
+            Vec<StatusKind>,
+        ),
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         self.status_condition
@@ -1002,20 +982,16 @@ impl DataWriterActor {
                     status,
                 )
                 .await;
-        } else if let Some(publisher_publication_matched_listener) =
-            publisher_publication_matched_listener
-        {
+        } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
-            publisher_publication_matched_listener
+            publisher_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_publication_matched(status)
                 .await;
-        } else if let Some(participant_publication_matched_listener) =
-            participant_publication_matched_listener
-        {
+        } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
-            participant_publication_matched_listener
+            participant_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_publication_matched(status)
@@ -1027,10 +1003,14 @@ impl DataWriterActor {
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        offered_incompatible_qos_publisher_listener: Option<ActorAddress<PublisherListenerActor>>,
-        offered_incompatible_qos_participant_listener: Option<
+        (publisher_listener, publisher_listener_mask): (
+            ActorAddress<PublisherListenerActor>,
+            Vec<StatusKind>,
+        ),
+        (participant_listener, participant_listener_mask): (
             ActorAddress<DomainParticipantListenerActor>,
-        >,
+            Vec<StatusKind>,
+        ),
         topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         self.status_condition
@@ -1060,20 +1040,16 @@ impl DataWriterActor {
                     status,
                 )
                 .await;
-        } else if let Some(offered_incompatible_qos_publisher_listener) =
-            offered_incompatible_qos_publisher_listener
-        {
+        } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();
-            offered_incompatible_qos_publisher_listener
+            publisher_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_offered_incompatible_qos(status)
                 .await;
-        } else if let Some(offered_incompatible_qos_participant_listener) =
-            offered_incompatible_qos_participant_listener
-        {
+        } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();
-            offered_incompatible_qos_participant_listener
+            participant_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_offered_incompatible_qos(status)

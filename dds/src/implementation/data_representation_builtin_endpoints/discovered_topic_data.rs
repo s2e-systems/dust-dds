@@ -63,13 +63,7 @@ impl DdsTypeXml for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
-    use crate::builtin_topics::BuiltInTopicKey;
-    use crate::infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-        LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-        ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    };
+    use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos};
 
     use super::*;
 
@@ -82,18 +76,7 @@ mod tests {
                 },
                 "ab".to_string(),
                 "cd".to_string(),
-                DurabilityQosPolicy::default(),
-                DeadlineQosPolicy::default(),
-                LatencyBudgetQosPolicy::default(),
-                LivelinessQosPolicy::default(),
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                TransportPriorityQosPolicy::default(),
-                LifespanQosPolicy::default(),
-                DestinationOrderQosPolicy::default(),
-                HistoryQosPolicy::default(),
-                ResourceLimitsQosPolicy::default(),
-                OwnershipQosPolicy::default(),
-                TopicDataQosPolicy::default(),
+                TopicQos::default(),
             ),
         };
 
@@ -126,18 +109,7 @@ mod tests {
                 },
                 "ab".to_string(),
                 "cd".to_string(),
-                DurabilityQosPolicy::default(),
-                DeadlineQosPolicy::default(),
-                LatencyBudgetQosPolicy::default(),
-                LivelinessQosPolicy::default(),
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                TransportPriorityQosPolicy::default(),
-                LifespanQosPolicy::default(),
-                DestinationOrderQosPolicy::default(),
-                HistoryQosPolicy::default(),
-                ResourceLimitsQosPolicy::default(),
-                OwnershipQosPolicy::default(),
-                TopicDataQosPolicy::default(),
+                TopicQos::default(),
             ),
         };
 
