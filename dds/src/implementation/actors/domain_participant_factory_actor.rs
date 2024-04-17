@@ -14,6 +14,7 @@ use crate::{
             spdp_discovered_participant_data::DCPS_PARTICIPANT,
         },
         rtps::{
+            behavior_types::DURATION_ZERO,
             discovery_types::{
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -48,7 +49,7 @@ use crate::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::StatusKind,
-        time::{Duration, DurationKind, DURATION_ZERO},
+        time::{Duration, DurationKind, DURATION_ZERO_NSEC, DURATION_ZERO_SEC},
     },
 };
 use dust_dds_derive::actor_interface;
@@ -101,7 +102,10 @@ impl DomainParticipantFactoryActor {
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+                max_blocking_time: DurationKind::Finite(Duration::new(
+                    DURATION_ZERO_SEC,
+                    DURATION_ZERO_NSEC,
+                )),
             },
             ..Default::default()
         };
@@ -176,7 +180,10 @@ impl DomainParticipantFactoryActor {
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+                max_blocking_time: DurationKind::Finite(Duration::new(
+                    DURATION_ZERO_SEC,
+                    DURATION_ZERO_NSEC,
+                )),
             },
             ..Default::default()
         };
@@ -659,12 +666,9 @@ fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
 }
 
 fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
-    const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
-    const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
-
     let topic_kind = TopicKind::WithKey;
-    let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-    let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
+    let heartbeat_response_delay = DURATION_ZERO;
+    let heartbeat_suppression_duration = DURATION_ZERO;
     let expects_inline_qos = false;
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
@@ -685,15 +689,16 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
     const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
     const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-    const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
+    const DEFAULT_NACK_SUPPRESSION_DURATION: Duration =
+        Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
 
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
     let topic_kind = TopicKind::WithKey;
     let push_mode = true;
-    let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
-    let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
-    let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
+    let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
+    let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY.into();
+    let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION.into();
     let data_max_size_serialized = usize::MAX;
 
     RtpsWriter::new(
@@ -740,7 +745,10 @@ pub fn sedp_data_reader_qos() -> DataReaderQos {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+            max_blocking_time: DurationKind::Finite(Duration::new(
+                DURATION_ZERO_SEC,
+                DURATION_ZERO_NSEC,
+            )),
         },
         ..Default::default()
     }
@@ -756,7 +764,10 @@ pub fn sedp_data_writer_qos() -> DataWriterQos {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+            max_blocking_time: DurationKind::Finite(Duration::new(
+                DURATION_ZERO_SEC,
+                DURATION_ZERO_NSEC,
+            )),
         },
         ..Default::default()
     }

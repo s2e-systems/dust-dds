@@ -22,6 +22,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
             self,
+            behavior_types::DURATION_ZERO,
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
@@ -40,7 +41,6 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
-        time::DURATION_ZERO,
     },
 };
 

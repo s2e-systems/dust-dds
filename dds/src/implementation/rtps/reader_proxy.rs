@@ -1,4 +1,5 @@
 use super::{
+    behavior_types::Duration,
     messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
@@ -6,7 +7,6 @@ use super::{
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     writer_history_cache::WriterHistoryCache,
 };
-use crate::infrastructure::time::Duration;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatMachine {
@@ -23,9 +23,7 @@ impl HeartbeatMachine {
         }
     }
     pub fn is_time_for_heartbeat(&self, heartbeat_period: Duration) -> bool {
-        self.timer.elapsed()
-            >= std::time::Duration::from_secs(heartbeat_period.sec() as u64)
-                + std::time::Duration::from_nanos(heartbeat_period.nanosec() as u64)
+        self.timer.elapsed() >= heartbeat_period.into()
     }
     pub fn submessage(
         &mut self,

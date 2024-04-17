@@ -99,6 +99,22 @@ impl std::ops::Sub<Duration> for Duration {
     }
 }
 
+impl From<crate::implementation::rtps::behavior_types::Duration> for Duration {
+    fn from(value: crate::implementation::rtps::behavior_types::Duration) -> Self {
+        let sec = value.seconds();
+        let nanosec = (value.fraction() as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u32;
+        Self { sec, nanosec }
+    }
+}
+
+impl From<Duration> for crate::implementation::rtps::behavior_types::Duration {
+    fn from(value: Duration) -> Self {
+        let seconds = value.sec;
+        let fraction = (value.nanosec as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32;
+        crate::implementation::rtps::behavior_types::Duration::new(seconds, fraction)
+    }
+}
+
 impl From<std::time::Duration> for Duration {
     fn from(x: std::time::Duration) -> Self {
         Self::new(x.as_secs() as i32, x.subsec_nanos())
@@ -147,11 +163,49 @@ impl Sub<Time> for Time {
     }
 }
 
-/// Special constant value representing a zero duration
-pub const DURATION_ZERO: Duration = Duration { sec: 0, nanosec: 0 };
+/// Special constant value representing a zero duration seconds
+pub const DURATION_ZERO_SEC: i32 = 0;
+/// Special constant value representing a zero duration nano seconds
+pub const DURATION_ZERO_NSEC: u32 = 0;
 
 /// Special constant value representing an invalid time
-pub const TIME_INVALID: Time = Time {
-    sec: -1,
-    nanosec: 0xffffffff,
-};
+pub const TIME_INVALID_SEC: i32 = -1;
+/// Special constant value representing an invalid time nano seconds
+pub const TIME_INVALID_NSEC: u32 = 0xffffffff;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dds_duration_to_rtps_duration() {
+        let dds_duration = Duration::new(13, 500_000_000);
+
+        let rtps_duration =
+            crate::implementation::rtps::behavior_types::Duration::from(dds_duration);
+
+        assert_eq!(rtps_duration.seconds(), 13);
+        assert_eq!(rtps_duration.fraction(), 2u32.pow(31));
+    }
+
+    #[test]
+    fn rtps_duration_to_dds_duration() {
+        let rtps_duration =
+            crate::implementation::rtps::behavior_types::Duration::new(13, 2u32.pow(31));
+
+        let dds_duration = Duration::from(rtps_duration);
+
+        assert_eq!(dds_duration.sec, 13);
+        assert_eq!(dds_duration.nanosec, 500_000_000);
+    }
+
+    #[test]
+    fn dds_duration_to_rtps_duration_to_dds_duration() {
+        let dds_time = Duration::new(13, 200);
+
+        let rtps_time = crate::implementation::rtps::behavior_types::Duration::from(dds_time);
+        let dds_time_from_rtps_time = Duration::from(rtps_time);
+
+        assert_eq!(dds_time, dds_time_from_rtps_time)
+    }
+}

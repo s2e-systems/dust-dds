@@ -1,3 +1,4 @@
+pub mod behavior_types;
 pub mod discovery_types;
 pub mod endpoint;
 pub mod entity;
