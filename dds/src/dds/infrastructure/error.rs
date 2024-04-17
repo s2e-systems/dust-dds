@@ -1,5 +1,7 @@
 use std::array::TryFromSliceError;
 
+use crate::implementation::rtps::error::RtpsError;
+
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;
 
@@ -35,6 +37,12 @@ pub enum DdsError {
     /// precondition that could be changed to make the operation
     /// succeed.
     IllegalOperation,
+}
+
+impl From<RtpsError> for DdsError {
+    fn from(value: RtpsError) -> Self {
+        DdsError::Error(value.to_string())
+    }
 }
 
 impl From<std::io::Error> for DdsError {

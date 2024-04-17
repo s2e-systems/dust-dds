@@ -1,5 +1,8 @@
 use super::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes};
-use crate::infrastructure::{self, error::DdsResult, time::Duration};
+use crate::{
+    implementation::rtps::error::RtpsResult,
+    infrastructure::{self, error::DdsResult, time::Duration},
+};
 use std::{io::Read, ops::Sub};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -12,7 +15,7 @@ type Short = i16;
 type UnsignedShort = u16;
 
 impl TryReadFromBytes for Long {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 4];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -23,7 +26,7 @@ impl TryReadFromBytes for Long {
 }
 
 impl TryReadFromBytes for UnsignedLong {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 4];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -34,7 +37,7 @@ impl TryReadFromBytes for UnsignedLong {
 }
 
 impl TryReadFromBytes for Short {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {
@@ -45,7 +48,7 @@ impl TryReadFromBytes for Short {
 }
 
 impl TryReadFromBytes for UnsignedShort {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
         Ok(match endianness {

@@ -1,6 +1,7 @@
 use super::types::{ProtocolId, SubmessageFlag, SubmessageKind};
 use crate::{
     implementation::rtps::{
+        error::{RtpsError, RtpsErrorKind, RtpsResult},
         messages::{
             submessage_elements::ArcSlice,
             submessages::{
@@ -39,7 +40,7 @@ impl Endianness {
 }
 
 pub trait TryReadFromBytes: Sized {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self>;
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self>;
 }
 
 pub trait WriteIntoBytes {
@@ -88,7 +89,7 @@ impl SubmessageHeaderRead {
         Ok(this)
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8]) -> DdsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8]) -> RtpsResult<Self> {
         if data.len() >= 4 {
             let submessage_id = data[0];
             let flags_byte = data[1];
@@ -115,9 +116,7 @@ impl SubmessageHeaderRead {
                 endianness,
             })
         } else {
-            Err(DdsError::Error(
-                "SubmessageHeader not enough data".to_string(),
-            ))
+            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "Submessage header"))
         }
     }
 

@@ -6,8 +6,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
         rtps::{
-            messages::types::FragmentNumber,
-            types::{Locator, SequenceNumber},
+            error::RtpsResult, messages::types::FragmentNumber, types::{Locator, SequenceNumber}
         },
     },
     infrastructure::error::{DdsError, DdsResult},
@@ -83,7 +82,7 @@ impl SequenceNumberSet {
 }
 
 impl TryReadFromBytes for SequenceNumberSet {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let base = SequenceNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
@@ -183,7 +182,7 @@ impl LocatorList {
 }
 
 impl TryReadFromBytes for LocatorList {
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let num_locators = u32::try_read_from_bytes(data, endianness)?;
         let mut locator_list = Vec::new();
         for _ in 0..num_locators {
