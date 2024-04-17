@@ -1,16 +1,14 @@
-use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-                WriteIntoBytes,
-            },
-            submessage_elements::SequenceNumberSet,
-            types::{Count, SubmessageFlag, SubmessageKind},
+use crate::implementation::rtps::{
+    error::RtpsResult,
+    messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
         },
-        types::EntityId,
+        submessage_elements::SequenceNumberSet,
+        types::{Count, SubmessageFlag, SubmessageKind},
     },
-    infrastructure::error::DdsResult,
+    types::EntityId,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -26,7 +24,7 @@ impl AckNackSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let endianness = submessage_header.endianness();
         Ok(Self {
             final_flag: submessage_header.flags()[1],

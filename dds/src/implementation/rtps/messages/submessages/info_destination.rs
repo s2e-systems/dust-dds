@@ -1,15 +1,13 @@
-use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-                WriteIntoBytes,
-            },
-            types::SubmessageKind,
+use crate::implementation::rtps::{
+    error::RtpsResult,
+    messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
         },
-        types::GuidPrefix,
+        types::SubmessageKind,
     },
-    infrastructure::error::DdsResult,
+    types::GuidPrefix,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,7 +19,7 @@ impl InfoDestinationSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         Ok(Self {
             guid_prefix: GuidPrefix::try_read_from_bytes(
                 &mut data,

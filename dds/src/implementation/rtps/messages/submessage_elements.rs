@@ -2,14 +2,13 @@ use super::{
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     types::ParameterId,
 };
-use crate::{
-    implementation::{
-        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-        rtps::{
-            error::RtpsResult, messages::types::FragmentNumber, types::{Locator, SequenceNumber}
-        },
+use crate::implementation::{
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    rtps::{
+        error::{RtpsError, RtpsErrorKind, RtpsResult},
+        messages::types::FragmentNumber,
+        types::{Locator, SequenceNumber},
     },
-    infrastructure::error::{DdsError, DdsResult},
 };
 use std::{
     ops::{Index, Range, RangeFrom, RangeTo},
@@ -124,7 +123,7 @@ impl FragmentNumberSet {
         }
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let base = FragmentNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
@@ -228,15 +227,16 @@ impl Parameter {
         self.value.len() as i16
     }
 
-    fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> DdsResult<Self> {
+    fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> RtpsResult<Self> {
         let mut slice = data.as_ref();
         let len = slice.len();
         let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
         let length = i16::try_read_from_bytes(&mut slice, endianness)?;
         data.consume(len - slice.len());
         if parameter_id != PID_SENTINEL && length % 4 != 0 {
-            return Err(DdsError::Error(
-                "Parameter length not multiple of 4".to_string(),
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Parameter length not multiple of 4",
             ));
         }
         let value = if parameter_id == PID_SENTINEL {
@@ -272,7 +272,7 @@ impl ParameterList {
     pub fn try_read_from_arc_slice(
         data: &mut ArcSlice,
         endianness: &Endianness,
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
@@ -342,14 +342,14 @@ impl ArcSlice {
         self.range.len()
     }
 
-    pub fn sub_slice(&self, range: Range<usize>) -> DdsResult<ArcSlice> {
+    pub fn sub_slice(&self, range: Range<usize>) -> RtpsResult<ArcSlice> {
         if self.data.len() >= self.range.start + range.end {
             Ok(ArcSlice {
                 data: self.data.clone(),
                 range: range.start + self.range.start..self.range.start + range.end,
             })
         } else {
-            Err(DdsError::Error("ArcSlice not enough data".to_string()))
+            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "ArcSlice"))
         }
     }
 

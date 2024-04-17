@@ -1,25 +1,22 @@
 use super::types::{ProtocolId, SubmessageFlag, SubmessageKind};
-use crate::{
-    implementation::rtps::{
-        error::{RtpsError, RtpsErrorKind, RtpsResult},
-        messages::{
-            submessage_elements::ArcSlice,
-            submessages::{
-                ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-                gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
-                heartbeat_frag::HeartbeatFragSubmessage,
-                info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
-                info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
-                nack_frag::NackFragSubmessage, pad::PadSubmessage,
-            },
-            types::{
-                ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
-                INFO_SRC, INFO_TS, NACK_FRAG, PAD,
-            },
+use crate::implementation::rtps::{
+    error::{RtpsError, RtpsErrorKind, RtpsResult},
+    messages::{
+        submessage_elements::ArcSlice,
+        submessages::{
+            ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+            gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
+            heartbeat_frag::HeartbeatFragSubmessage, info_destination::InfoDestinationSubmessage,
+            info_reply::InfoReplySubmessage, info_source::InfoSourceSubmessage,
+            info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
+            pad::PadSubmessage,
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{
+            ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY,
+            INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+        },
     },
-    infrastructure::error::{DdsError, DdsResult},
+    types::{GuidPrefix, ProtocolVersion, VendorId},
 };
 use std::{io::BufRead, sync::Arc};
 
@@ -82,7 +79,7 @@ pub struct SubmessageHeaderRead {
 }
 
 impl SubmessageHeaderRead {
-    pub fn try_read_from_arc_slice(data: &mut ArcSlice) -> DdsResult<Self> {
+    pub fn try_read_from_arc_slice(data: &mut ArcSlice) -> RtpsResult<Self> {
         let mut data_slice = data.as_ref();
         let this = Self::try_read_from_bytes(&mut data_slice)?;
         data.consume(4);
@@ -116,7 +113,10 @@ impl SubmessageHeaderRead {
                 endianness,
             })
         } else {
-            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "Submessage header"))
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "Submessage header",
+            ))
         }
     }
 
@@ -143,15 +143,15 @@ pub struct RtpsMessageRead {
 }
 
 impl RtpsMessageRead {
-    pub fn new(data: Arc<[u8]>) -> DdsResult<Self> {
+    pub fn new(data: Arc<[u8]>) -> RtpsResult<Self> {
         if data.len() >= 20 {
             if b"RTPS" == &[data[0], data[1], data[2], data[3]] {
                 Ok(Self { data })
             } else {
-                Err(DdsError::Error("".to_string()))
+                Err(RtpsError::new(RtpsErrorKind::InvalidData, "RTPS not in data"))
             }
         } else {
-            Err(DdsError::Error("".to_string()))
+            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "Rtps message header"))
         }
     }
 

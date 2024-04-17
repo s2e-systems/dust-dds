@@ -1,7 +1,7 @@
 use super::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes};
 use crate::{
     implementation::rtps::error::RtpsResult,
-    infrastructure::{self, error::DdsResult, time::Duration},
+    infrastructure::{self, time::Duration},
 };
 use std::{io::Read, ops::Sub};
 
@@ -158,7 +158,7 @@ impl Time {
         self.fraction
     }
 
-    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> DdsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let seconds = UnsignedLong::try_read_from_bytes(data, endianness)?;
         let fraction = UnsignedLong::try_read_from_bytes(data, endianness)?;
         Ok(Self { seconds, fraction })

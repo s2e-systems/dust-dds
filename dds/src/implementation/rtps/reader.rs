@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::{
     endpoint::RtpsEndpoint,
     messages::overall_structure::RtpsMessageHeader,
@@ -9,6 +7,7 @@ use super::{
 use crate::{
     implementation::rtps_udp_psm::udp_transport::UdpTransportWrite, infrastructure::time::Duration,
 };
+use std::sync::Arc;
 
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,

@@ -1,15 +1,13 @@
-use crate::{
-    implementation::rtps::{
-        messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-                WriteIntoBytes,
-            },
-            types::SubmessageKind,
+use crate::implementation::rtps::{
+    error::RtpsResult,
+    messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
         },
-        types::{GuidPrefix, Long, ProtocolVersion, VendorId},
+        types::SubmessageKind,
     },
-    infrastructure::error::DdsResult,
+    types::{GuidPrefix, Long, ProtocolVersion, VendorId},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -23,7 +21,7 @@ impl InfoSourceSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let endianness = submessage_header.endianness();
         let _unused = Long::try_read_from_bytes(&mut data, endianness)?;
         Ok(Self {

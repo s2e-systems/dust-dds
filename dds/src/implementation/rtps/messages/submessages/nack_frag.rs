@@ -1,17 +1,13 @@
-use crate::{
-    implementation::rtps::{
-        messages::{
+use crate::implementation::rtps::{
+        error::RtpsResult, messages::{
             overall_structure::{
                 Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
                 WriteIntoBytes,
             },
             submessage_elements::FragmentNumberSet,
             types::{Count, SubmessageKind},
-        },
-        types::{EntityId, SequenceNumber},
-    },
-    infrastructure::error::DdsResult,
-};
+        }, types::{EntityId, SequenceNumber}
+    };
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessage {
@@ -26,7 +22,7 @@ impl NackFragSubmessage {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         let endianness = submessage_header.endianness();
         Ok(Self {
             reader_id: EntityId::try_read_from_bytes(&mut data, endianness)?,

@@ -1,11 +1,11 @@
-use crate::{
-    implementation::rtps::messages::{
+use crate::implementation::rtps::{
+    error::RtpsResult,
+    messages::{
         overall_structure::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, WriteIntoBytes,
         },
         types::SubmessageKind,
     },
-    infrastructure::error::DdsResult,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -15,7 +15,7 @@ impl PadSubmessage {
     pub fn try_from_bytes(
         _submessage_header: &SubmessageHeaderRead,
         _data: &[u8],
-    ) -> DdsResult<Self> {
+    ) -> RtpsResult<Self> {
         Ok(Self {})
     }
 }

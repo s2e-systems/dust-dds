@@ -1,11 +1,10 @@
-use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
-use network_interface::Addr;
-use std::{io::Read, net::IpAddr};
-
 use super::{
     error::RtpsResult,
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
+use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
+use network_interface::Addr;
+use std::{io::Read, net::IpAddr};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
