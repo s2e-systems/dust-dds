@@ -47,6 +47,7 @@ use crate::{
         },
     },
     infrastructure::{
+        self,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -1105,8 +1106,9 @@ impl DataReaderActor {
 
         if let Some(Some(t)) = closest_timestamp_before_received_sample {
             if let Some(sample_source_time) = change.source_timestamp {
-                let sample_separation = sample_source_time - t;
-                DurationKind::Finite(sample_separation.into())
+                let sample_separation = infrastructure::time::Duration::from(sample_source_time)
+                    - infrastructure::time::Duration::from(t);
+                DurationKind::Finite(sample_separation)
                     >= self.qos.time_based_filter.minimum_separation
             } else {
                 true
