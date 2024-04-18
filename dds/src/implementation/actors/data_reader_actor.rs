@@ -1099,7 +1099,7 @@ impl DataReaderActor {
         let closest_timestamp_before_received_sample = self
             .changes
             .iter()
-            .filter(|cc| cc.instance_handle == change.instance_handle.into())
+            .filter(|cc| cc.instance_handle == change.instance_handle)
             .filter(|cc| cc.source_timestamp <= change.source_timestamp)
             .map(|cc| cc.source_timestamp)
             .max();
