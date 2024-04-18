@@ -30,3 +30,6 @@ impl Duration {
         self.fraction
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InstanceHandle(pub [u8; 16]);

@@ -422,7 +422,7 @@ impl DataWriterActor {
             ChangeKind::NotAliveUnregistered,
             instance_serialized_key,
             inline_qos,
-            handle,
+            handle.into(),
             timestamp.into(),
         );
 
@@ -471,7 +471,7 @@ impl DataWriterActor {
             ChangeKind::NotAliveDisposed,
             instance_serialized_key,
             inline_qos,
-            handle,
+            handle.into(),
             timestamp.into(),
         );
 
@@ -558,7 +558,7 @@ impl DataWriterActor {
             ChangeKind::Alive,
             serialized_data,
             ParameterList::empty(),
-            handle,
+            handle.into(),
             timestamp.into(),
         );
 

@@ -1,14 +1,12 @@
 use super::{
+    behavior_types::InstanceHandle,
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
     },
     types::{ChangeKind, Guid},
 };
-use crate::{
-    infrastructure::instance::InstanceHandle,
-    subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
-};
+use crate::subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind};
 
 #[derive(Debug)]
 pub struct RtpsReaderCacheChange {
