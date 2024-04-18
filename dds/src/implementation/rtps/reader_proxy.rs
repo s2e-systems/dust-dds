@@ -1,5 +1,4 @@
 use super::{
-    behavior_types::Duration,
     messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
@@ -22,8 +21,8 @@ impl HeartbeatMachine {
             timer: std::time::Instant::now(),
         }
     }
-    pub fn is_time_for_heartbeat(&self, heartbeat_period: Duration) -> bool {
-        self.timer.elapsed() >= heartbeat_period.into()
+    pub fn is_time_for_heartbeat(&self, heartbeat_period: std::time::Duration) -> bool {
+        self.timer.elapsed() >= heartbeat_period
     }
     pub fn submessage(
         &mut self,
