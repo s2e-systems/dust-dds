@@ -1,4 +1,5 @@
 use super::{
+    behavior_types::{Duration, InstanceHandle},
     endpoint::RtpsEndpoint,
     messages::{
         self,
@@ -7,7 +8,6 @@ use super::{
     types::{ChangeKind, Guid, Locator, SequenceNumber},
     writer_history_cache::RtpsWriterCacheChange,
 };
-use crate::infrastructure::{instance::InstanceHandle, time::Duration};
 
 pub struct RtpsWriter {
     endpoint: RtpsEndpoint,

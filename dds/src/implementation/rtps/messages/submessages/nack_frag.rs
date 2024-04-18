@@ -1,13 +1,15 @@
-use crate::implementation::rtps::{
-        error::RtpsResult, messages::{
-            overall_structure::{
-                Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
-                WriteIntoBytes,
-            },
-            submessage_elements::FragmentNumberSet,
-            types::{Count, SubmessageKind},
-        }, types::{EntityId, SequenceNumber}
-    };
+use super::super::super::{
+    error::RtpsResult,
+    messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
+        },
+        submessage_elements::FragmentNumberSet,
+        types::{Count, SubmessageKind},
+    },
+    types::{EntityId, SequenceNumber},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessage {

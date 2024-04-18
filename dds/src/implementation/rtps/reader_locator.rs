@@ -1,6 +1,6 @@
 use super::{
-    writer_history_cache::WriterHistoryCache,
     types::{Locator, SequenceNumber},
+    writer_history_cache::WriterHistoryCache,
 };
 
 pub struct RtpsReaderLocator {

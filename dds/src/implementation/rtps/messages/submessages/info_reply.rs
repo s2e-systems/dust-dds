@@ -1,11 +1,13 @@
-use crate::implementation::rtps::error::RtpsResult;
-use crate::implementation::rtps::messages::overall_structure::Submessage;
-use crate::implementation::rtps::messages::{
-    overall_structure::{
-        SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, WriteIntoBytes,
+use super::super::super::{
+    error::RtpsResult,
+    messages::{
+        overall_structure::{
+            Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+            WriteIntoBytes,
+        },
+        submessage_elements::LocatorList,
+        types::{SubmessageFlag, SubmessageKind},
     },
-    submessage_elements::LocatorList,
-    types::{SubmessageFlag, SubmessageKind},
 };
 
 #[derive(Debug, PartialEq, Eq)]

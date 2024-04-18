@@ -47,6 +47,7 @@ use crate::{
         },
     },
     infrastructure::{
+        self,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -970,7 +971,7 @@ impl DataReaderActor {
             data,
             inline_qos,
             source_timestamp,
-            instance_handle,
+            instance_handle: instance_handle.into(),
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,
@@ -995,7 +996,7 @@ impl DataReaderActor {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(
-                    change.instance_handle,
+                    change.instance_handle.into(),
                     SampleRejectedStatusKind::RejectedBySamplesLimit,
                     data_reader_address,
                     subscriber,
@@ -1006,7 +1007,7 @@ impl DataReaderActor {
                 .await?;
             } else if self.is_max_instances_limit_reached(&change) {
                 self.on_sample_rejected(
-                    change.instance_handle,
+                    change.instance_handle.into(),
                     SampleRejectedStatusKind::RejectedByInstancesLimit,
                     data_reader_address,
                     subscriber,
@@ -1017,7 +1018,7 @@ impl DataReaderActor {
                 .await?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
-                    change.instance_handle,
+                    change.instance_handle.into(),
                     SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
                     data_reader_address,
                     subscriber,
@@ -1050,7 +1051,7 @@ impl DataReaderActor {
                 }
 
                 self.start_deadline_missed_task(
-                    change.instance_handle,
+                    change.instance_handle.into(),
                     data_reader_address.clone(),
                     subscriber.clone(),
                     subscriber_mask_listener,
@@ -1105,7 +1106,8 @@ impl DataReaderActor {
 
         if let Some(Some(t)) = closest_timestamp_before_received_sample {
             if let Some(sample_source_time) = change.source_timestamp {
-                let sample_separation = sample_source_time - t;
+                let sample_separation = infrastructure::time::Duration::from(sample_source_time)
+                    - infrastructure::time::Duration::from(t);
                 DurationKind::Finite(sample_separation)
                     >= self.qos.time_based_filter.minimum_separation
             } else {
@@ -1171,10 +1173,11 @@ impl DataReaderActor {
             .enumerate()
             .filter(|(_, cc)| {
                 sample_states.contains(&cc.sample_state)
-                    && view_states.contains(&instances[&cc.instance_handle].view_state)
-                    && instance_states.contains(&instances[&cc.instance_handle].instance_state)
+                    && view_states.contains(&instances[&cc.instance_handle.into()].view_state)
+                    && instance_states
+                        .contains(&instances[&cc.instance_handle.into()].instance_state)
                     && if let Some(h) = specific_instance_handle {
-                        h == cc.instance_handle
+                        h == cc.instance_handle.into()
                     } else {
                         true
                     }
@@ -1190,12 +1193,13 @@ impl DataReaderActor {
                 .unwrap()
                 .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
-            let view_state = self.instances[&cache_change.instance_handle].view_state;
-            let instance_state = self.instances[&cache_change.instance_handle].instance_state;
+            let view_state = self.instances[&cache_change.instance_handle.into()].view_state;
+            let instance_state =
+                self.instances[&cache_change.instance_handle.into()].instance_state;
 
-            let absolute_generation_rank = (self.instances[&cache_change.instance_handle]
+            let absolute_generation_rank = (self.instances[&cache_change.instance_handle.into()]
                 .most_recent_disposed_generation_count
-                + self.instances[&cache_change.instance_handle]
+                + self.instances[&cache_change.instance_handle.into()]
                     .most_recent_no_writers_generation_count)
                 - (instances_in_collection[&cache_change.instance_handle]
                     .most_recent_disposed_generation_count
@@ -1221,7 +1225,7 @@ impl DataReaderActor {
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp.map(Into::into),
-                instance_handle: cache_change.instance_handle,
+                instance_handle: cache_change.instance_handle.into(),
                 publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
             };
@@ -1239,7 +1243,7 @@ impl DataReaderActor {
                     |IndexedSample {
                          sample: (_, sample_info),
                          ..
-                     }| sample_info.instance_handle == handle,
+                     }| sample_info.instance_handle == handle.into(),
                 )
                 .map(
                     |IndexedSample {
@@ -1256,7 +1260,7 @@ impl DataReaderActor {
                     |IndexedSample {
                          sample: (_, sample_info),
                          ..
-                     }| sample_info.instance_handle == handle,
+                     }| sample_info.instance_handle == handle.into(),
                 )
                 .count();
 
@@ -1267,7 +1271,7 @@ impl DataReaderActor {
                 |IndexedSample {
                      sample: (_, sample_info),
                      ..
-                 }| sample_info.instance_handle == handle,
+                 }| sample_info.instance_handle == handle.into(),
             ) {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
@@ -1277,7 +1281,7 @@ impl DataReaderActor {
             }
 
             self.instances
-                .get_mut(&handle)
+                .get_mut(&handle.into())
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
         }

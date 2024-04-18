@@ -4,8 +4,20 @@ pub struct InstanceHandle([u8; 16]);
 
 impl InstanceHandle {
     /// InstanceHandle constructor
-    pub fn new(bytes: [u8; 16]) -> Self {
+    pub const fn new(bytes: [u8; 16]) -> Self {
         InstanceHandle(bytes)
+    }
+}
+
+impl From<crate::implementation::rtps::behavior_types::InstanceHandle> for InstanceHandle {
+    fn from(value: crate::implementation::rtps::behavior_types::InstanceHandle) -> Self {
+        Self(value.0)
+    }
+}
+
+impl From<InstanceHandle> for crate::implementation::rtps::behavior_types::InstanceHandle {
+    fn from(value: InstanceHandle) -> Self {
+        crate::implementation::rtps::behavior_types::InstanceHandle(value.0)
     }
 }
 

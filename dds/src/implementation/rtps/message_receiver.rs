@@ -1,9 +1,11 @@
-use crate::implementation::rtps::{
-    messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+use super::{
+    messages::{
+        self,
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        types::TIME_INVALID,
+    },
     types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
 };
-
-use super::messages::{self, types::TIME_INVALID};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,

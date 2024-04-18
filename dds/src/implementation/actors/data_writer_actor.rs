@@ -351,7 +351,7 @@ impl DataWriterActor {
     }
 
     fn heartbeat_period(&self) -> Duration {
-        self.rtps_writer.heartbeat_period()
+        self.rtps_writer.heartbeat_period().into()
     }
 
     #[allow(clippy::unused_unit)]
@@ -422,7 +422,7 @@ impl DataWriterActor {
             ChangeKind::NotAliveUnregistered,
             instance_serialized_key,
             inline_qos,
-            handle,
+            handle.into(),
             timestamp.into(),
         );
 
@@ -471,7 +471,7 @@ impl DataWriterActor {
             ChangeKind::NotAliveDisposed,
             instance_serialized_key,
             inline_qos,
-            handle,
+            handle.into(),
             timestamp.into(),
         );
 
@@ -558,7 +558,7 @@ impl DataWriterActor {
             ChangeKind::Alive,
             serialized_data,
             ParameterList::empty(),
-            handle,
+            handle.into(),
             timestamp.into(),
         );
 
@@ -901,7 +901,7 @@ impl DataWriterActor {
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
-                        self.rtps_writer.heartbeat_period(),
+                        self.rtps_writer.heartbeat_period().into(),
                         udp_transport_write,
                         header,
                     )
@@ -1250,7 +1250,7 @@ fn send_message_to_reader_proxy_reliable(
         // Idle
     } else if reader_proxy
         .heartbeat_machine()
-        .is_time_for_heartbeat(heartbeat_period)
+        .is_time_for_heartbeat(heartbeat_period.into())
     {
         let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
         let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);

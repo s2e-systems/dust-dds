@@ -13,7 +13,7 @@ use std::{io::Read, net::IpAddr};
 
 type Octet = u8;
 pub type Long = i32;
-type UnsignedLong = u32;
+pub type UnsignedLong = u32;
 
 impl WriteIntoBytes for Octet {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {

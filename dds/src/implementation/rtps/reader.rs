@@ -1,12 +1,11 @@
 use super::{
+    behavior_types::Duration,
     endpoint::RtpsEndpoint,
     messages::overall_structure::RtpsMessageHeader,
     types::{Guid, Locator},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::{
-    implementation::rtps_udp_psm::udp_transport::UdpTransportWrite, infrastructure::time::Duration,
-};
+use crate::implementation::rtps_udp_psm::udp_transport::UdpTransportWrite;
 use std::sync::Arc;
 
 pub struct RtpsReader {

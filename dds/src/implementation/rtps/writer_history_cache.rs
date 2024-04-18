@@ -1,4 +1,5 @@
 use super::{
+    behavior_types::InstanceHandle,
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
@@ -6,10 +7,7 @@ use super::{
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
-use crate::infrastructure::{
-    instance::InstanceHandle,
-    qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-};
+use crate::infrastructure::qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind};
 use std::collections::{HashMap, VecDeque};
 
 pub struct RtpsWriterCacheChange {
@@ -242,10 +240,10 @@ impl WriterHistoryCache {
 #[cfg(test)]
 mod tests {
     use tests::messages::types::TIME_INVALID;
-
-    use crate::{implementation::rtps::types::GUID_UNKNOWN, infrastructure::instance::HANDLE_NIL};
-
+    use crate::implementation::rtps::types::GUID_UNKNOWN;
     use super::*;
+
+    const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
     #[test]
     fn remove_change() {
@@ -253,7 +251,7 @@ mod tests {
         let change = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            HANDLE_NIL,
+            InstanceHandle([0; 16]),
             1,
             TIME_INVALID,
             vec![Data::new(vec![].into())],
@@ -275,7 +273,7 @@ mod tests {
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            HANDLE_NIL,
+            InstanceHandle([0; 16]),
             1,
             TIME_INVALID,
             vec![Data::new(vec![].into())],

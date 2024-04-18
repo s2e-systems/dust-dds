@@ -1,12 +1,14 @@
 use core::cmp::Ordering;
 
 use crate::{
-    infrastructure::time::{Duration, DurationKind, DURATION_ZERO},
+    infrastructure::time::{Duration, DurationKind},
     serialized_payload::cdr::{
         deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
         serializer::CdrSerializer,
     },
 };
+
+use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 /// QosPolicyId type alias
 pub type QosPolicyId = i32;
 
@@ -531,7 +533,7 @@ impl QosPolicy for LatencyBudgetQosPolicy {
 impl Default for LatencyBudgetQosPolicy {
     fn default() -> Self {
         Self {
-            duration: DurationKind::Finite(DURATION_ZERO),
+            duration: DurationKind::Finite(Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC)),
         }
     }
 }
@@ -738,7 +740,10 @@ impl QosPolicy for TimeBasedFilterQosPolicy {
 impl Default for TimeBasedFilterQosPolicy {
     fn default() -> Self {
         Self {
-            minimum_separation: DurationKind::Finite(DURATION_ZERO),
+            minimum_separation: DurationKind::Finite(Duration::new(
+                DURATION_ZERO_SEC,
+                DURATION_ZERO_NSEC,
+            )),
         }
     }
 }

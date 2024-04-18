@@ -12,14 +12,10 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
-            endpoint::RtpsEndpoint,
-            group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-            types::{
+            behavior_types::DURATION_ZERO, endpoint::RtpsEndpoint, group::RtpsGroup, messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead}, types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
-            },
-            writer::RtpsWriter,
+            }, writer::RtpsWriter
         },
         rtps_udp_psm::udp_transport::UdpTransportWrite,
         utils::actor::{Actor, ActorAddress},
@@ -30,7 +26,7 @@ use crate::{
         qos::{DataWriterQos, PublisherQos, QosKind},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
-        time::{Duration, Time, DURATION_ZERO},
+        time::{Duration, Time},
     },
 };
 
@@ -131,7 +127,7 @@ impl PublisherActor {
                 &default_multicast_locator_list,
             ),
             true,
-            Duration::new(0, 200_000_000),
+            Duration::new(0, 200_000_000).into(),
             DURATION_ZERO,
             DURATION_ZERO,
             data_max_size_serialized,
