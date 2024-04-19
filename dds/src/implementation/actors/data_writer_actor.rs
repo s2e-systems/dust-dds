@@ -2,6 +2,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
@@ -39,11 +40,7 @@ use crate::{
                 DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
             },
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{Actor, ActorAddress},
-            instance_handle_from_key::get_instance_handle_from_key,
-        },
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         self,
@@ -609,7 +606,7 @@ impl DataWriterActor {
                 &publisher_qos,
             );
             let instance_handle =
-                get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap()).unwrap();
+                InstanceHandle::try_from_key(&discovered_reader_data.get_key().unwrap()).unwrap();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data

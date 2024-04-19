@@ -11,6 +11,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
@@ -41,11 +42,7 @@ use crate::{
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{Actor, ActorAddress},
-            instance_handle_from_key::get_instance_handle_from_key,
-        },
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         self,
@@ -1766,7 +1763,7 @@ impl DataReaderActor {
                 "Writer with matched topic and type found",
             );
             let instance_handle =
-                get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap()).unwrap();
+                InstanceHandle::try_from_key(&discovered_writer_data.get_key().unwrap()).unwrap();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &discovered_writer_data,

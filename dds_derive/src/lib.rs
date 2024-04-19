@@ -217,7 +217,7 @@ pub fn actor_interface(
                 #(#enum_variants,)*
             }
 
-            impl crate::implementation::utils::actor::ActorHandler for #actor_ident {
+            impl crate::implementation::actor::ActorHandler for #actor_ident {
                 type Message = #actor_message_enum_ident;
 
                 async fn handle_message(&mut self, message: Self::Message) {
@@ -227,7 +227,7 @@ pub fn actor_interface(
                 }
             }
 
-            impl crate::implementation::utils::actor::Actor<#actor_ident> {
+            impl crate::implementation::actor::Actor<#actor_ident> {
                 #(#actor_method_variants)*
             }
         }

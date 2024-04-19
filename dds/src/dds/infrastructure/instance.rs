@@ -1,3 +1,11 @@
+use super::error::DdsResult;
+use crate::{
+    implementation::payload_serializer_deserializer::{
+        cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
+    },
+    serialized_payload::cdr::serialize::CdrSerialize,
+};
+
 /// Type for the instance handle representing an Entity
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct InstanceHandle([u8; 16]);
@@ -6,6 +14,22 @@ impl InstanceHandle {
     /// InstanceHandle constructor
     pub const fn new(bytes: [u8; 16]) -> Self {
         InstanceHandle(bytes)
+    }
+
+    /// Construct InstanceHandle from key
+    pub fn try_from_key(foo_key: &impl CdrSerialize) -> DdsResult<Self> {
+        let mut serialized_key = Vec::new();
+        let mut serializer =
+            ClassicCdrSerializer::new(&mut serialized_key, CdrEndianness::BigEndian);
+        CdrSerialize::serialize(foo_key, &mut serializer)?;
+        let handle = if serialized_key.len() <= 16 {
+            let mut h = [0; 16];
+            h[..serialized_key.len()].clone_from_slice(serialized_key.as_slice());
+            h
+        } else {
+            <[u8; 16]>::from(md5::compute(serialized_key.as_slice()))
+        };
+        Ok(Self(handle))
     }
 }
 

@@ -5,7 +5,7 @@ use crate::{
         data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync,
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
-    implementation::utils::actor::ActorAddress,
+    implementation::actor::ActorAddress,
 };
 
 use super::{

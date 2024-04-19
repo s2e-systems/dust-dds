@@ -3,7 +3,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actors::domain_participant_factory_actor::DomainParticipantFactoryActor,
-        utils::actor::Actor,
+        actor::Actor,
     },
     infrastructure::{
         error::DdsResult,
