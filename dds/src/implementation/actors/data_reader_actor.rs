@@ -79,11 +79,11 @@ use super::{
     type_support_actor::TypeSupportActor,
 };
 
-pub struct InstanceState {
-    pub view_state: ViewStateKind,
-    pub instance_state: InstanceStateKind,
-    pub most_recent_disposed_generation_count: i32,
-    pub most_recent_no_writers_generation_count: i32,
+struct InstanceState {
+    view_state: ViewStateKind,
+    instance_state: InstanceStateKind,
+    most_recent_disposed_generation_count: i32,
+    most_recent_no_writers_generation_count: i32,
 }
 
 impl InstanceState {
