@@ -48,11 +48,8 @@ use crate::{
                 USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{Actor, ActorAddress},
-            instance_handle_from_key::get_instance_handle_from_key,
-        },
+        udp::udp_transport::UdpTransportWrite,
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -130,13 +127,13 @@ impl FooTypeSupport {
         let instance_handle_from_serialized_foo =
             define_function_with_correct_lifetime(|serialized_foo| {
                 let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                get_instance_handle_from_key(&foo_key)
+                InstanceHandle::try_from_key(&foo_key)
             });
 
         let instance_handle_from_serialized_key =
             define_function_with_correct_lifetime(|mut serialized_key| {
                 let foo_key = deserialize_rtps_classic_cdr::<Foo::Key>(&mut serialized_key)?;
-                get_instance_handle_from_key(&foo_key)
+                InstanceHandle::try_from_key(&foo_key)
             });
 
         let type_xml = Foo::get_type_xml().unwrap_or(String::new());
@@ -1058,7 +1055,7 @@ impl DomainParticipantActor {
                 .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
             let instance_handle =
-                get_instance_handle_from_key(&discovered_writer_data.get_key().unwrap())
+                InstanceHandle::try_from_key(&discovered_writer_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_publications_announcer
                 .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
@@ -1084,7 +1081,7 @@ impl DomainParticipantActor {
                 .serialize_data(&mut serialized_data)
                 .expect("Shouldn't fail to serialize builtin type");
             let instance_handle =
-                get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap())
+                InstanceHandle::try_from_key(&discovered_reader_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             sedp_subscriptions_announcer
                 .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
@@ -1135,7 +1132,7 @@ impl DomainParticipantActor {
                         .upgrade()?
                         .write_w_timestamp(
                             serialized_data,
-                            get_instance_handle_from_key(
+                            InstanceHandle::try_from_key(
                                 &spdp_discovered_participant_data.get_key()?,
                             )
                             .unwrap(),

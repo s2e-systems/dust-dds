@@ -39,11 +39,8 @@ use crate::{
                 DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
             },
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
-        utils::{
-            actor::{Actor, ActorAddress},
-            instance_handle_from_key::get_instance_handle_from_key,
-        },
+        udp::udp_transport::UdpTransportWrite,
+        utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{
         self,
@@ -608,7 +605,7 @@ impl DataWriterActor {
                 &publisher_qos,
             );
             let instance_handle =
-                get_instance_handle_from_key(&discovered_reader_data.get_key().unwrap()).unwrap();
+                InstanceHandle::try_from_key(&discovered_reader_data.get_key().unwrap()).unwrap();
 
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data

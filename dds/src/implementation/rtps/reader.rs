@@ -5,7 +5,7 @@ use super::{
     types::{Guid, Locator},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::rtps_udp_psm::udp_transport::UdpTransportWrite;
+use crate::implementation::udp::udp_transport::UdpTransportWrite;
 use std::sync::Arc;
 
 pub struct RtpsReader {

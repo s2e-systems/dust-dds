@@ -17,7 +17,7 @@ use crate::{
                 USER_DEFINED_WRITER_WITH_KEY,
             }, writer::RtpsWriter
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        udp::udp_transport::UdpTransportWrite,
         utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{

@@ -32,7 +32,7 @@ use crate::{
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        udp::udp_transport::UdpTransportWrite,
         utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{

@@ -34,7 +34,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        rtps_udp_psm::udp_transport::UdpTransportWrite,
+        udp::udp_transport::UdpTransportWrite,
         utils::actor::{Actor, ActorAddress},
     },
     infrastructure::{

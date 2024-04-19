@@ -5,7 +5,7 @@ use crate::{
             status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        utils::{actor::ActorAddress, instance_handle_from_key::get_instance_handle_from_key},
+        utils::actor::ActorAddress,
     },
     infrastructure::{
         error::DdsResult,
@@ -184,7 +184,7 @@ async fn announce_topic(
                 .upgrade()?
                 .write_w_timestamp(
                     serialized_data,
-                    get_instance_handle_from_key(&discovered_topic_data.get_key()?)?,
+                    InstanceHandle::try_from_key(&discovered_topic_data.get_key()?)?,
                     None,
                     timestamp,
                 )
