@@ -272,7 +272,9 @@ impl RtpsMessageWrite {
             submessage.write_into_bytes(&mut slice);
         }
         let len = BUFFER_SIZE - slice.len();
-        Self { data: Arc::from(&buffer[..len]) }
+        Self {
+            data: Arc::from(&buffer[..len]),
+        }
     }
 
     pub fn buffer(&self) -> &[u8] {

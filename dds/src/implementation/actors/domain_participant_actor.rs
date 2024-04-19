@@ -81,6 +81,7 @@ use super::{
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
+    message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
     type_support_actor::TypeSupportActor,
@@ -207,6 +208,7 @@ pub struct DomainParticipantActor {
     status_kind: Vec<StatusKind>,
     type_support_actor: Actor<TypeSupportActor>,
     status_condition: Actor<StatusConditionActor>,
+    message_sender_actor: Actor<MessageSenderActor>,
 }
 
 impl DomainParticipantActor {
@@ -222,6 +224,7 @@ impl DomainParticipantActor {
         status_kind: Vec<StatusKind>,
         builtin_data_writer_list: Vec<DataWriterActor>,
         builtin_data_reader_list: Vec<DataReaderActor>,
+        message_sender_actor: MessageSenderActor,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
@@ -370,6 +373,7 @@ impl DomainParticipantActor {
             status_kind,
             type_support_actor,
             status_condition: Actor::spawn(StatusConditionActor::default(), handle),
+            message_sender_actor: Actor::spawn(message_sender_actor, handle),
         }
     }
 
@@ -1214,6 +1218,10 @@ impl DomainParticipantActor {
             self.rtps_participant.vendor_id(),
             self.rtps_participant.guid().prefix(),
         )
+    }
+
+    fn get_message_sender(&self) -> Actor<MessageSenderActor> {
+        self.message_sender_actor.clone()
     }
 }
 

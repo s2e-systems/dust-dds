@@ -1,4 +1,7 @@
-use super::{data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor};
+use super::{
+    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
+    message_sender_actor::MessageSenderActor,
+};
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::{
@@ -364,6 +367,9 @@ impl DomainParticipantFactoryActor {
         let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
         let udp_transport_write = Arc::new(UdpTransportWrite::new(socket));
 
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
+        let message_sender_actor = MessageSenderActor::new(socket);
+
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
             default_unicast_locator_list,
@@ -390,6 +396,7 @@ impl DomainParticipantFactoryActor {
             status_kind,
             builtin_data_writer_list,
             builtin_data_reader_list,
+            message_sender_actor,
             &runtime_handle,
         );
 
