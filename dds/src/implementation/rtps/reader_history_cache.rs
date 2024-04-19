@@ -6,7 +6,12 @@ use super::{
     },
     types::{ChangeKind, Guid},
 };
-use crate::subscription::sample_info::SampleStateKind;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SampleStateKind {
+    Read,
+    NotRead,
+}
 
 #[derive(Debug)]
 pub struct RtpsReaderCacheChange {

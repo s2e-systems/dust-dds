@@ -138,6 +138,16 @@ impl InstanceState {
     }
 }
 
+impl From<rtps::reader_history_cache::SampleStateKind> for SampleStateKind {
+    fn from(value: rtps::reader_history_cache::SampleStateKind) -> Self {
+        match value {
+            rtps::reader_history_cache::SampleStateKind::Read => Self::Read,
+            rtps::reader_history_cache::SampleStateKind::NotRead => Self::NotRead,
+        }
+    }
+}
+
+
 fn build_instance_handle(
     type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     change_kind: ChangeKind,
@@ -1031,7 +1041,7 @@ impl DataReaderActor {
             inline_qos,
             source_timestamp,
             instance_handle: instance_handle.into(),
-            sample_state: SampleStateKind::NotRead,
+            sample_state: rtps::reader_history_cache::SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,
             no_writers_generation_count: self.instances[&instance_handle]
@@ -1231,7 +1241,7 @@ impl DataReaderActor {
             .iter()
             .enumerate()
             .filter(|(_, cc)| {
-                sample_states.contains(&cc.sample_state)
+                sample_states.contains(&cc.sample_state.into())
                     && view_states.contains(&instances[&cc.instance_handle.into()].view_state)
                     && instance_states
                         .contains(&instances[&cc.instance_handle.into()].instance_state)
@@ -1251,7 +1261,7 @@ impl DataReaderActor {
                 .get_mut(&cache_change.instance_handle)
                 .unwrap()
                 .update_state(cache_change.kind);
-            let sample_state = cache_change.sample_state;
+            let sample_state = cache_change.sample_state.into();
             let view_state = self.instances[&cache_change.instance_handle.into()].view_state;
             let instance_state =
                 self.instances[&cache_change.instance_handle.into()].instance_state;
@@ -1507,7 +1517,7 @@ impl DataReaderActor {
             .unzip();
 
         for index in change_index_list {
-            self.changes[index].sample_state = SampleStateKind::Read;
+            self.changes[index].sample_state = rtps::reader_history_cache::SampleStateKind::Read;
         }
 
         Ok(samples)
