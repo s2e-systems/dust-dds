@@ -36,7 +36,7 @@ use crate::{
                 },
             },
             reader::RtpsReaderKind,
-            reader_history_cache::{InstanceState, RtpsReaderCacheChange},
+            reader_history_cache::RtpsReaderCacheChange,
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
@@ -78,6 +78,65 @@ use super::{
     topic_actor::TopicActor,
     type_support_actor::TypeSupportActor,
 };
+
+pub struct InstanceState {
+    pub view_state: ViewStateKind,
+    pub instance_state: InstanceStateKind,
+    pub most_recent_disposed_generation_count: i32,
+    pub most_recent_no_writers_generation_count: i32,
+}
+
+impl InstanceState {
+    pub fn new() -> Self {
+        Self {
+            view_state: ViewStateKind::New,
+            instance_state: InstanceStateKind::Alive,
+            most_recent_disposed_generation_count: 0,
+            most_recent_no_writers_generation_count: 0,
+        }
+    }
+
+    pub fn update_state(&mut self, change_kind: ChangeKind) {
+        match self.instance_state {
+            InstanceStateKind::Alive => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
+                {
+                    self.instance_state = InstanceStateKind::NotAliveDisposed;
+                } else if change_kind == ChangeKind::NotAliveUnregistered {
+                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
+                }
+            }
+            InstanceStateKind::NotAliveDisposed => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_disposed_generation_count += 1;
+                }
+            }
+            InstanceStateKind::NotAliveNoWriters => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_no_writers_generation_count += 1;
+                }
+            }
+        }
+
+        match self.view_state {
+            ViewStateKind::New => (),
+            ViewStateKind::NotNew => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveUnregistered
+                {
+                    self.view_state = ViewStateKind::New;
+                }
+            }
+        }
+    }
+
+    pub fn mark_viewed(&mut self) {
+        self.view_state = ViewStateKind::NotNew;
+    }
+}
 
 fn build_instance_handle(
     type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
