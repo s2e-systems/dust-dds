@@ -247,7 +247,7 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let mut submessages: Vec<Box<dyn Submessage>> =
+            let mut submessages: Vec<Box<dyn Submessage + Send>> =
                 vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
 
             for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {

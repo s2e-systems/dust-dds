@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use dust_dds_derive::actor_interface;
 use fnmatch_regex::glob_to_regex;
@@ -23,7 +23,6 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -38,8 +37,8 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_listener_actor::PublisherListenerActor, status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
+    message_sender_actor::MessageSenderActor, publisher_listener_actor::PublisherListenerActor,
+    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
 };
 
 pub struct PublisherActor {
@@ -249,13 +248,13 @@ impl PublisherActor {
 
     async fn send_message(
         &self,
+        message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
     ) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_message(header, udp_transport_write.clone(), now)
+                .send_message(message_sender_actor.clone(), header, now)
                 .await;
         }
     }

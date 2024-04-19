@@ -40,15 +40,16 @@ use crate::{
                 DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
             },
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
-        self,
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataWriterQos, PublisherQos, TopicQos},
         qos_policy::{
-            DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID
+            DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -60,17 +61,14 @@ use crate::{
     topic_definition::type_support::DdsKey,
 };
 use dust_dds_derive::actor_interface;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_listener_actor::DataWriterListenerActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_listener_actor::PublisherListenerActor, status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
+    message_sender_actor::MessageSenderActor, publisher_listener_actor::PublisherListenerActor,
+    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {
@@ -542,12 +540,15 @@ impl DataWriterActor {
         self.topic_name.clone()
     }
 
-    fn write_w_timestamp(
+    async fn write_w_timestamp(
         &mut self,
         serialized_data: Vec<u8>,
         instance_handle: InstanceHandle,
         _handle: Option<InstanceHandle>,
-        timestamp: infrastructure::time::Time,
+        timestamp: Time,
+        message_sender_actor: Actor<MessageSenderActor>,
+        header: RtpsMessageHeader,
+        now: Time,
     ) -> DdsResult<()> {
         let handle = self
             .register_instance_w_timestamp(instance_handle, timestamp)?
@@ -561,6 +562,8 @@ impl DataWriterActor {
         );
 
         self.add_change(change);
+
+        self.send_message(message_sender_actor, header, now).await;
 
         Ok(())
     }
@@ -758,17 +761,19 @@ impl DataWriterActor {
         }
     }
 
-    fn send_message(
+    async fn send_message(
         &mut self,
+        message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
         now: Time,
     ) {
         // Remove stale changes before sending
         self.remove_stale_changes(now);
 
-        self.send_message_to_reader_locators(header, &udp_transport_write);
-        self.send_message_to_reader_proxies(header, &udp_transport_write);
+        self.send_message_to_reader_locators(&message_sender_actor, header)
+            .await;
+        self.send_message_to_reader_proxies(&message_sender_actor, header)
+            .await;
     }
 
     #[allow(clippy::unused_unit)]
@@ -822,10 +827,10 @@ impl DataWriterActor {
         }
     }
 
-    fn send_message_to_reader_locators(
+    async fn send_message_to_reader_locators(
         &mut self,
+        message_sender_actor: &Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: &UdpTransportWrite,
     ) {
         for reader_locator in &mut self.reader_locators {
             match &self.qos.reliability.kind {
@@ -848,13 +853,15 @@ impl DataWriterActor {
                             ));
                             let data_submessage =
                                 Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
-                            udp_transport_write.write(
-                                &RtpsMessageWrite::new(
-                                    &header,
-                                    &[info_ts_submessage, data_submessage],
-                                ),
-                                &[reader_locator.locator()],
-                            );
+                            message_sender_actor
+                                .write(
+                                    RtpsMessageWrite::new(
+                                        &header,
+                                        &[info_ts_submessage, data_submessage],
+                                    ),
+                                    vec![reader_locator.locator()],
+                                )
+                                .await;
                         } else {
                             let gap_submessage = Box::new(GapSubmessage::new(
                                 ENTITYID_UNKNOWN,
@@ -862,10 +869,12 @@ impl DataWriterActor {
                                 unsent_change_seq_num,
                                 SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                             ));
-                            udp_transport_write.write(
-                                &RtpsMessageWrite::new(&header, &[gap_submessage]),
-                                &[reader_locator.locator()],
-                            );
+                            message_sender_actor
+                                .write(
+                                    RtpsMessageWrite::new(&header, &[gap_submessage]),
+                                    vec![reader_locator.locator()],
+                                )
+                                .await;
                         }
                         reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
                     }
@@ -877,10 +886,10 @@ impl DataWriterActor {
         }
     }
 
-    fn send_message_to_reader_proxies(
+    async fn send_message_to_reader_proxies(
         &mut self,
+        message_sender_actor: &Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: &UdpTransportWrite,
     ) {
         for reader_proxy in &mut self.matched_readers {
             match (&self.qos.reliability.kind, reader_proxy.reliability()) {
@@ -890,9 +899,10 @@ impl DataWriterActor {
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
-                        udp_transport_write,
+                        &message_sender_actor,
                         header,
                     )
+                    .await
                 }
                 (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
                     send_message_to_reader_proxy_reliable(
@@ -900,9 +910,10 @@ impl DataWriterActor {
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
                         self.rtps_writer.heartbeat_period().into(),
-                        udp_transport_write,
+                        &message_sender_actor,
                         header,
                     )
+                    .await
                 }
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
                     panic!("Impossible combination. Should not be matched")
@@ -1091,11 +1102,11 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     incompatible_qos_policy_list
 }
 
-fn send_message_to_reader_proxy_best_effort(
+async fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
-    udp_transport_write: &UdpTransportWrite,
+    message_sender_actor: &Actor<MessageSenderActor>,
     header: RtpsMessageHeader,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
@@ -1132,10 +1143,12 @@ fn send_message_to_reader_proxy_best_effort(
                 gap_start_sequence_number,
                 SequenceNumberSet::new(gap_end_sequence_number + 1, []),
             ));
-            udp_transport_write.write(
-                &RtpsMessageWrite::new(&header, &[gap_submessage]),
-                reader_proxy.unicast_locator_list(),
-            );
+            message_sender_actor
+                .write(
+                    RtpsMessageWrite::new(&header, &[gap_submessage]),
+                    reader_proxy.unicast_locator_list().to_vec(),
+                )
+                .await;
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = writer_cache
             .change_list()
@@ -1159,10 +1172,12 @@ fn send_message_to_reader_proxy_best_effort(
 
                     let data_frag = Box::new(data_frag_submessage);
 
-                    udp_transport_write.write(
-                        &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
-                        reader_proxy.unicast_locator_list(),
-                    );
+                    message_sender_actor
+                        .write(
+                            RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
+                            reader_proxy.unicast_locator_list().to_vec(),
+                        )
+                        .await;
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -1177,36 +1192,43 @@ fn send_message_to_reader_proxy_best_effort(
                 let data_submessage = Box::new(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
-                udp_transport_write.write(
-                    &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_submessage]),
-                    reader_proxy.unicast_locator_list(),
-                );
+                message_sender_actor
+                    .write(
+                        RtpsMessageWrite::new(
+                            &header,
+                            &[info_dst, info_timestamp, data_submessage],
+                        ),
+                        reader_proxy.unicast_locator_list().to_vec(),
+                    )
+                    .await;
             }
         } else {
-            udp_transport_write.write(
-                &RtpsMessageWrite::new(
-                    &header,
-                    &[Box::new(GapSubmessage::new(
-                        ENTITYID_UNKNOWN,
-                        writer_id,
-                        next_unsent_change_seq_num,
-                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
-                    ))],
-                ),
-                reader_proxy.unicast_locator_list(),
-            );
+            message_sender_actor
+                .write(
+                    RtpsMessageWrite::new(
+                        &header,
+                        &[Box::new(GapSubmessage::new(
+                            ENTITYID_UNKNOWN,
+                            writer_id,
+                            next_unsent_change_seq_num,
+                            SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
+                        ))],
+                    ),
+                    reader_proxy.unicast_locator_list().to_vec(),
+                )
+                .await;
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
     }
 }
 
-fn send_message_to_reader_proxy_reliable(
+async fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     heartbeat_period: Duration,
-    udp_transport_write: &UdpTransportWrite,
+    message_sender_actor: &Actor<MessageSenderActor>,
     header: RtpsMessageHeader,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
@@ -1228,19 +1250,22 @@ fn send_message_to_reader_proxy_reliable(
                         .heartbeat_machine()
                         .submessage(writer_id, first_sn, last_sn),
                 );
-                udp_transport_write.write(
-                    &RtpsMessageWrite::new(&header, &[gap_submessage, heartbeat_submessage]),
-                    reader_proxy.unicast_locator_list(),
-                );
+                message_sender_actor
+                    .write(
+                        RtpsMessageWrite::new(&header, &[gap_submessage, heartbeat_submessage]),
+                        reader_proxy.unicast_locator_list().to_vec(),
+                    )
+                    .await;
             } else {
                 send_change_message_reader_proxy_reliable(
                     reader_proxy,
                     writer_id,
                     writer_cache,
                     next_unsent_change_seq_num,
-                    udp_transport_write,
+                    message_sender_actor,
                     header,
-                );
+                )
+                .await;
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -1257,10 +1282,12 @@ fn send_message_to_reader_proxy_reliable(
                 .heartbeat_machine()
                 .submessage(writer_id, first_sn, last_sn),
         );
-        udp_transport_write.write(
-            &RtpsMessageWrite::new(&header, &[heartbeat_submessage]),
-            reader_proxy.unicast_locator_list(),
-        );
+        message_sender_actor
+            .write(
+                RtpsMessageWrite::new(&header, &[heartbeat_submessage]),
+                reader_proxy.unicast_locator_list().to_vec(),
+            )
+            .await;
     }
 
     // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -1276,19 +1303,20 @@ fn send_message_to_reader_proxy_reliable(
                 writer_id,
                 writer_cache,
                 next_requested_change_seq_num,
-                udp_transport_write,
+                message_sender_actor,
                 header,
-            );
+            )
+            .await;
         }
     }
 }
 
-fn send_change_message_reader_proxy_reliable(
+async fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     change_seq_num: SequenceNumber,
-    udp_transport_write: &UdpTransportWrite,
+    message_sender_actor: &Actor<MessageSenderActor>,
     header: RtpsMessageHeader,
 ) {
     match writer_cache
@@ -1314,10 +1342,12 @@ fn send_change_message_reader_proxy_reliable(
 
                     let data_frag = Box::new(data_frag_submessage);
 
-                    udp_transport_write.write(
-                        &RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
-                        reader_proxy.unicast_locator_list(),
-                    );
+                    message_sender_actor
+                        .write(
+                            RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
+                            reader_proxy.unicast_locator_list().to_vec(),
+                        )
+                        .await;
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -1341,13 +1371,15 @@ fn send_change_message_reader_proxy_reliable(
                         .submessage(writer_id, first_sn, last_sn),
                 );
 
-                udp_transport_write.write(
-                    &RtpsMessageWrite::new(
-                        &header,
-                        &[info_dst, info_timestamp, data_submessage, heartbeat],
-                    ),
-                    reader_proxy.unicast_locator_list(),
-                );
+                message_sender_actor
+                    .write(
+                        RtpsMessageWrite::new(
+                            &header,
+                            &[info_dst, info_timestamp, data_submessage, heartbeat],
+                        ),
+                        reader_proxy.unicast_locator_list().to_vec(),
+                    )
+                    .await;
             }
         }
         _ => {
@@ -1362,10 +1394,12 @@ fn send_change_message_reader_proxy_reliable(
                 SequenceNumberSet::new(change_seq_num + 1, []),
             ));
 
-            udp_transport_write.write(
-                &RtpsMessageWrite::new(&header, &[info_dst, gap_submessage]),
-                reader_proxy.unicast_locator_list(),
-            );
+            message_sender_actor
+                .write(
+                    RtpsMessageWrite::new(&header, &[info_dst, gap_submessage]),
+                    reader_proxy.unicast_locator_list().to_vec(),
+                )
+                .await;
         }
     }
 }

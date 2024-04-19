@@ -3,12 +3,12 @@ use std::marker::PhantomData;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
+        actor::ActorAddress,
         actors::{
             any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
             status_condition_actor::StatusConditionActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -299,12 +299,33 @@ where
         data.serialize_data(&mut serialized_data)?;
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
+        let message_sender_actor = self
+            .participant_address()
+            .upgrade()?
+            .get_message_sender()
+            .await;
+        let header = self
+            .participant_address()
+            .upgrade()?
+            .get_rtps_message_header()
+            .await;
+        let now = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
         self.writer_address
             .upgrade()?
-            .write_w_timestamp(serialized_data, key, handle, timestamp)
+            .write_w_timestamp(
+                serialized_data,
+                key,
+                handle,
+                timestamp,
+                message_sender_actor,
+                header,
+                now,
+            )
             .await?;
-
-        self.participant_address().upgrade()?.send_message().await;
 
         Ok(())
     }

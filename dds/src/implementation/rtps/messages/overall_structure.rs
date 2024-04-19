@@ -62,7 +62,7 @@ impl<T: Submessage> WriteIntoBytes for T {
     }
 }
 
-impl WriteIntoBytes for dyn Submessage {
+impl WriteIntoBytes for dyn Submessage + Send {
     fn write_into_bytes(&self, buf: &mut &mut [u8]) {
         let (header, mut elements) = std::mem::take(buf).split_at_mut(4);
         let len_before = elements.len();
@@ -264,7 +264,7 @@ pub struct RtpsMessageWrite {
 }
 
 impl RtpsMessageWrite {
-    pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage>]) -> Self {
+    pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage + Send>]) -> Self {
         let mut buffer = [0; BUFFER_SIZE];
         let mut slice = buffer.as_mut_slice();
         header.write_into_bytes(&mut slice);
