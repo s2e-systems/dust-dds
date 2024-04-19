@@ -37,7 +37,7 @@ use crate::{
                 },
             },
             reader::RtpsReaderKind,
-            reader_history_cache::RtpsCacheChange,
+            cache_change::RtpsCacheChange,
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
