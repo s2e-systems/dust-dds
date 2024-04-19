@@ -1,11 +1,12 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
+use super::{
+    any_data_reader_listener::AnyDataReaderListener,
+    data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
+    domain_participant_listener_actor::DomainParticipantListenerActor,
+    status_condition_actor::StatusConditionActor,
+    subscriber_listener_actor::SubscriberListenerActor,
+    topic_actor::TopicActor,
+    type_support_actor::TypeSupportActor,
 };
-
-use dust_dds_derive::actor_interface;
-use tracing::debug;
-
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
@@ -36,7 +37,7 @@ use crate::{
                 },
             },
             reader::RtpsReaderKind,
-            reader_history_cache::RtpsReaderCacheChange,
+            reader_history_cache::RtpsCacheChange,
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
@@ -68,16 +69,12 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{DdsKey, DynamicTypeInterface},
 };
-
-use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
-    domain_participant_listener_actor::DomainParticipantListenerActor,
-    status_condition_actor::StatusConditionActor,
-    subscriber_listener_actor::SubscriberListenerActor,
-    topic_actor::TopicActor,
-    type_support_actor::TypeSupportActor,
+use dust_dds_derive::actor_interface;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
 };
+use tracing::debug;
 
 struct InstanceState {
     view_state: ViewStateKind,
@@ -138,15 +135,21 @@ impl InstanceState {
     }
 }
 
-impl From<rtps::reader_history_cache::SampleStateKind> for SampleStateKind {
-    fn from(value: rtps::reader_history_cache::SampleStateKind) -> Self {
-        match value {
-            rtps::reader_history_cache::SampleStateKind::Read => Self::Read,
-            rtps::reader_history_cache::SampleStateKind::NotRead => Self::NotRead,
-        }
-    }
+#[derive(Debug)]
+struct RtpsReaderCacheChange {
+    rtps_cache_change: RtpsCacheChange,
+    sample_state: SampleStateKind,
+    disposed_generation_count: i32,
+    no_writers_generation_count: i32,
+    reception_timestamp: rtps::messages::types::Time,
+    source_timestamp: Option<rtps::messages::types::Time>,
 }
 
+impl RtpsReaderCacheChange {
+    fn instance_handle(&self) -> InstanceHandle {
+        self.rtps_cache_change.instance_handle.into()
+    }
+}
 
 fn build_instance_handle(
     type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
@@ -1035,18 +1038,20 @@ impl DataReaderActor {
         }?;
 
         Ok(RtpsReaderCacheChange {
-            kind: change_kind,
-            writer_guid,
-            data,
-            inline_qos,
-            source_timestamp,
-            instance_handle: instance_handle.into(),
-            sample_state: rtps::reader_history_cache::SampleStateKind::NotRead,
+            rtps_cache_change: RtpsCacheChange {
+                kind: change_kind,
+                writer_guid,
+                instance_handle: instance_handle.into(),
+                data_value: data,
+                inline_qos,
+            },
+            sample_state: SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,
             no_writers_generation_count: self.instances[&instance_handle]
                 .most_recent_no_writers_generation_count,
             reception_timestamp,
+            source_timestamp,
         })
     }
 
@@ -1065,7 +1070,7 @@ impl DataReaderActor {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(
-                    change.instance_handle.into(),
+                    change.instance_handle(),
                     SampleRejectedStatusKind::RejectedBySamplesLimit,
                     data_reader_address,
                     subscriber,
@@ -1076,7 +1081,7 @@ impl DataReaderActor {
                 .await?;
             } else if self.is_max_instances_limit_reached(&change) {
                 self.on_sample_rejected(
-                    change.instance_handle.into(),
+                    change.instance_handle(),
                     SampleRejectedStatusKind::RejectedByInstancesLimit,
                     data_reader_address,
                     subscriber,
@@ -1087,7 +1092,7 @@ impl DataReaderActor {
                 .await?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
-                    change.instance_handle.into(),
+                    change.instance_handle(),
                     SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
                     data_reader_address,
                     subscriber,
@@ -1101,7 +1106,8 @@ impl DataReaderActor {
                     .changes
                     .iter()
                     .filter(|cc| {
-                        cc.instance_handle == change.instance_handle && cc.kind == ChangeKind::Alive
+                        cc.instance_handle() == change.instance_handle()
+                            && cc.rtps_cache_change.kind == ChangeKind::Alive
                     })
                     .count() as i32;
 
@@ -1111,8 +1117,8 @@ impl DataReaderActor {
                             .changes
                             .iter()
                             .position(|cc| {
-                                cc.instance_handle == change.instance_handle
-                                    && cc.kind == ChangeKind::Alive
+                                cc.instance_handle() == change.instance_handle()
+                                    && cc.rtps_cache_change.kind == ChangeKind::Alive
                             })
                             .expect("Samples must exist");
                         self.changes.remove(index_sample_to_remove);
@@ -1120,7 +1126,7 @@ impl DataReaderActor {
                 }
 
                 self.start_deadline_missed_task(
-                    change.instance_handle.into(),
+                    change.instance_handle(),
                     data_reader_address.clone(),
                     subscriber.clone(),
                     subscriber_mask_listener,
@@ -1168,7 +1174,7 @@ impl DataReaderActor {
         let closest_timestamp_before_received_sample = self
             .changes
             .iter()
-            .filter(|cc| cc.instance_handle == change.instance_handle)
+            .filter(|cc| cc.instance_handle() == change.instance_handle())
             .filter(|cc| cc.source_timestamp <= change.source_timestamp)
             .map(|cc| cc.source_timestamp)
             .max();
@@ -1191,7 +1197,7 @@ impl DataReaderActor {
         let total_samples = self
             .changes
             .iter()
-            .filter(|cc| cc.kind == ChangeKind::Alive)
+            .filter(|cc| cc.rtps_cache_change.kind == ChangeKind::Alive)
             .count();
 
         total_samples == self.qos.resource_limits.max_samples
@@ -1199,9 +1205,9 @@ impl DataReaderActor {
 
     fn is_max_instances_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
         let instance_handle_list: HashSet<_> =
-            self.changes.iter().map(|cc| cc.instance_handle).collect();
+            self.changes.iter().map(|cc| cc.instance_handle()).collect();
 
-        if instance_handle_list.contains(&change.instance_handle) {
+        if instance_handle_list.contains(&change.instance_handle()) {
             false
         } else {
             instance_handle_list.len() == self.qos.resource_limits.max_instances
@@ -1212,7 +1218,7 @@ impl DataReaderActor {
         let total_samples_of_instance = self
             .changes
             .iter()
-            .filter(|cc| cc.instance_handle == change.instance_handle)
+            .filter(|cc| cc.instance_handle() == change.instance_handle())
             .count();
 
         total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
@@ -1241,12 +1247,11 @@ impl DataReaderActor {
             .iter()
             .enumerate()
             .filter(|(_, cc)| {
-                sample_states.contains(&cc.sample_state.into())
-                    && view_states.contains(&instances[&cc.instance_handle.into()].view_state)
-                    && instance_states
-                        .contains(&instances[&cc.instance_handle.into()].instance_state)
+                sample_states.contains(&cc.sample_state)
+                    && view_states.contains(&instances[&cc.instance_handle()].view_state)
+                    && instance_states.contains(&instances[&cc.instance_handle()].instance_state)
                     && if let Some(h) = specific_instance_handle {
-                        h == cc.instance_handle.into()
+                        h == cc.instance_handle()
                     } else {
                         true
                     }
@@ -1254,31 +1259,31 @@ impl DataReaderActor {
             .take(max_samples as usize)
         {
             instances_in_collection
-                .entry(cache_change.instance_handle)
+                .entry(cache_change.instance_handle())
                 .or_insert_with(InstanceState::new);
 
             instances_in_collection
-                .get_mut(&cache_change.instance_handle)
+                .get_mut(&cache_change.instance_handle())
                 .unwrap()
-                .update_state(cache_change.kind);
-            let sample_state = cache_change.sample_state.into();
-            let view_state = self.instances[&cache_change.instance_handle.into()].view_state;
-            let instance_state =
-                self.instances[&cache_change.instance_handle.into()].instance_state;
+                .update_state(cache_change.rtps_cache_change.kind);
+            let sample_state = cache_change.sample_state;
+            let view_state = self.instances[&cache_change.instance_handle()].view_state;
+            let instance_state = self.instances[&cache_change.instance_handle()].instance_state;
 
-            let absolute_generation_rank = (self.instances[&cache_change.instance_handle.into()]
+            let absolute_generation_rank = (self.instances[&cache_change.instance_handle()]
                 .most_recent_disposed_generation_count
-                + self.instances[&cache_change.instance_handle.into()]
+                + self.instances[&cache_change.instance_handle()]
                     .most_recent_no_writers_generation_count)
-                - (instances_in_collection[&cache_change.instance_handle]
+                - (instances_in_collection[&cache_change.instance_handle()]
                     .most_recent_disposed_generation_count
-                    + instances_in_collection[&cache_change.instance_handle]
+                    + instances_in_collection[&cache_change.instance_handle()]
                         .most_recent_no_writers_generation_count);
 
-            let (data, valid_data) = match cache_change.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                    (Some(cache_change.data.clone()), true)
-                }
+            let (data, valid_data) = match cache_change.rtps_cache_change.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => (
+                    Some(cache_change.rtps_cache_change.data_value.clone()),
+                    true,
+                ),
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered => (None, false),
@@ -1294,8 +1299,10 @@ impl DataReaderActor {
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp.map(Into::into),
-                instance_handle: cache_change.instance_handle.into(),
-                publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
+                instance_handle: cache_change.instance_handle(),
+                publication_handle: InstanceHandle::new(
+                    cache_change.rtps_cache_change.writer_guid.into(),
+                ),
                 valid_data,
             };
 
@@ -1312,7 +1319,7 @@ impl DataReaderActor {
                     |IndexedSample {
                          sample: (_, sample_info),
                          ..
-                     }| sample_info.instance_handle == handle.into(),
+                     }| sample_info.instance_handle == handle,
                 )
                 .map(
                     |IndexedSample {
@@ -1329,7 +1336,7 @@ impl DataReaderActor {
                     |IndexedSample {
                          sample: (_, sample_info),
                          ..
-                     }| sample_info.instance_handle == handle.into(),
+                     }| sample_info.instance_handle == handle,
                 )
                 .count();
 
@@ -1340,7 +1347,7 @@ impl DataReaderActor {
                 |IndexedSample {
                      sample: (_, sample_info),
                      ..
-                 }| sample_info.instance_handle == handle.into(),
+                 }| sample_info.instance_handle == handle,
             ) {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
@@ -1350,7 +1357,7 @@ impl DataReaderActor {
             }
 
             self.instances
-                .get_mut(&handle.into())
+                .get_mut(&handle)
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
         }
@@ -1517,7 +1524,7 @@ impl DataReaderActor {
             .unzip();
 
         for index in change_index_list {
-            self.changes[index].sample_state = rtps::reader_history_cache::SampleStateKind::Read;
+            self.changes[index].sample_state = SampleStateKind::Read;
         }
 
         Ok(samples)
