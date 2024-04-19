@@ -35,9 +35,9 @@ jobs:
     steps:
       - checkout
       - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline branch_baseline
-      - run: git checkout master
-      - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline master_baseline
-      - run: cargo bench --bench benchmark -- --load-baseline branch_baseline --baseline master_baseline --color never | tee /tmp/output
+      - run: git checkout main
+      - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline main_baseline
+      - run: cargo bench --bench benchmark -- --load-baseline branch_baseline --baseline main_baseline --color never | tee /tmp/output
       # Performance regression is not explicitly checked due to measurement instability issues
       - store_artifacts:
           path: ./target/criterion
