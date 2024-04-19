@@ -136,7 +136,7 @@ impl InstanceState {
 }
 
 #[derive(Debug)]
-struct RtpsReaderCacheChange {
+struct ReaderCacheChange {
     rtps_cache_change: RtpsCacheChange,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
@@ -145,7 +145,7 @@ struct RtpsReaderCacheChange {
     source_timestamp: Option<rtps::messages::types::Time>,
 }
 
-impl RtpsReaderCacheChange {
+impl ReaderCacheChange {
     fn instance_handle(&self) -> InstanceHandle {
         self.rtps_cache_change.instance_handle.into()
     }
@@ -308,7 +308,7 @@ struct IndexedSample {
 
 pub struct DataReaderActor {
     rtps_reader: RtpsReaderKind,
-    changes: Vec<RtpsReaderCacheChange>,
+    changes: Vec<ReaderCacheChange>,
     qos: DataReaderQos,
     type_name: String,
     topic_name: String,
@@ -988,7 +988,7 @@ impl DataReaderActor {
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
         type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
-    ) -> DdsResult<RtpsReaderCacheChange> {
+    ) -> DdsResult<ReaderCacheChange> {
         let change_kind = if let Some(p) = inline_qos
             .parameter()
             .iter()
@@ -1037,7 +1037,7 @@ impl DataReaderActor {
             }
         }?;
 
-        Ok(RtpsReaderCacheChange {
+        Ok(ReaderCacheChange {
             rtps_cache_change: RtpsCacheChange {
                 kind: change_kind,
                 writer_guid,
@@ -1057,7 +1057,7 @@ impl DataReaderActor {
 
     async fn add_change(
         &mut self,
-        change: RtpsReaderCacheChange,
+        change: ReaderCacheChange,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
@@ -1170,7 +1170,7 @@ impl DataReaderActor {
         Ok(())
     }
 
-    fn is_sample_of_interest_based_on_time(&self, change: &RtpsReaderCacheChange) -> bool {
+    fn is_sample_of_interest_based_on_time(&self, change: &ReaderCacheChange) -> bool {
         let closest_timestamp_before_received_sample = self
             .changes
             .iter()
@@ -1193,7 +1193,7 @@ impl DataReaderActor {
         }
     }
 
-    fn is_max_samples_limit_reached(&self, _change: &RtpsReaderCacheChange) -> bool {
+    fn is_max_samples_limit_reached(&self, _change: &ReaderCacheChange) -> bool {
         let total_samples = self
             .changes
             .iter()
@@ -1203,7 +1203,7 @@ impl DataReaderActor {
         total_samples == self.qos.resource_limits.max_samples
     }
 
-    fn is_max_instances_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
+    fn is_max_instances_limit_reached(&self, change: &ReaderCacheChange) -> bool {
         let instance_handle_list: HashSet<_> =
             self.changes.iter().map(|cc| cc.instance_handle()).collect();
 
@@ -1214,7 +1214,7 @@ impl DataReaderActor {
         }
     }
 
-    fn is_max_samples_per_instance_limit_reached(&self, change: &RtpsReaderCacheChange) -> bool {
+    fn is_max_samples_per_instance_limit_reached(&self, change: &ReaderCacheChange) -> bool {
         let total_samples_of_instance = self
             .changes
             .iter()
