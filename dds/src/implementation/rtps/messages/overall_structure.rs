@@ -260,8 +260,7 @@ pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageWrite {
-    buffer: [u8; BUFFER_SIZE],
-    len: usize,
+    data: Arc<[u8]>,
 }
 
 impl RtpsMessageWrite {
@@ -273,11 +272,11 @@ impl RtpsMessageWrite {
             submessage.write_into_bytes(&mut slice);
         }
         let len = BUFFER_SIZE - slice.len();
-        Self { buffer, len }
+        Self { data: Arc::from(&buffer[..len]) }
     }
 
     pub fn buffer(&self) -> &[u8] {
-        &self.buffer[0..self.len]
+        &self.data
     }
 }
 
