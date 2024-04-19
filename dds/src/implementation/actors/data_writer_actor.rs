@@ -2,6 +2,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
@@ -39,8 +40,7 @@ use crate::{
                 DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
             },
         },
-        udp::udp_transport::UdpTransportWrite,
-        actor::{Actor, ActorAddress},
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         self,

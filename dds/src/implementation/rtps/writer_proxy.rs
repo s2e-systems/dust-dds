@@ -10,7 +10,7 @@ use super::{
     },
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
-use crate::implementation::udp::udp_transport::UdpTransportWrite;
+use crate::implementation::udp_transport::UdpTransportWrite;
 use std::{cmp::max, collections::HashMap};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {

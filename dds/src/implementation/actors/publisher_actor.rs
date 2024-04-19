@@ -10,15 +10,20 @@ use crate::{
         publisher_listener::PublisherListenerAsync,
     },
     implementation::{
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
-            behavior_types::DURATION_ZERO, endpoint::RtpsEndpoint, group::RtpsGroup, messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead}, types::{
+            behavior_types::DURATION_ZERO,
+            endpoint::RtpsEndpoint,
+            group::RtpsGroup,
+            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
-            }, writer::RtpsWriter
+            },
+            writer::RtpsWriter,
         },
-        udp::udp_transport::UdpTransportWrite,
-        actor::{Actor, ActorAddress},
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

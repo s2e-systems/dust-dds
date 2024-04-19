@@ -10,6 +10,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
@@ -40,8 +41,7 @@ use crate::{
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        udp::udp_transport::UdpTransportWrite,
-        actor::{Actor, ActorAddress},
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         self,

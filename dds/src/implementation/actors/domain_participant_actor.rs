@@ -15,6 +15,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
+        actor::{Actor, ActorAddress},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -48,8 +49,7 @@ use crate::{
                 USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
-        udp::udp_transport::UdpTransportWrite,
-        actor::{Actor, ActorAddress},
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

@@ -15,6 +15,7 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
+        actor::{Actor, ActorAddress},
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
@@ -32,8 +33,7 @@ use crate::{
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
-        udp::udp_transport::UdpTransportWrite,
-        actor::{Actor, ActorAddress},
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

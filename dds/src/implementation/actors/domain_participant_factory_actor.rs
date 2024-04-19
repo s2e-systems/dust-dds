@@ -7,6 +7,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
+        actor::{Actor, ActorAddress},
         actors::domain_participant_actor::DomainParticipantActor,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
@@ -34,8 +35,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        udp::udp_transport::UdpTransportWrite,
-        actor::{Actor, ActorAddress},
+        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
