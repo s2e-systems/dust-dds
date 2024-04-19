@@ -6,7 +6,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,

@@ -41,7 +41,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         udp::udp_transport::UdpTransportWrite,
-        utils::actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress},
     },
     infrastructure::{
         self,

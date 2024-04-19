@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        actors::status_condition_actor::StatusConditionActor, utils::actor::ActorAddress,
+        actors::status_condition_actor::StatusConditionActor, actor::ActorAddress,
     },
     infrastructure::{error::DdsResult, status::StatusKind},
 };

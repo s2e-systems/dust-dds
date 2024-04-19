@@ -49,7 +49,7 @@ use crate::{
             },
         },
         udp::udp_transport::UdpTransportWrite,
-        utils::actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -571,7 +571,7 @@ impl DomainParticipantActor {
             );
 
             let topic_status_condition = topic.get_statuscondition();
-            let topic_actor: crate::implementation::utils::actor::Actor<TopicActor> =
+            let topic_actor: crate::implementation::actor::Actor<TopicActor> =
                 Actor::spawn(topic, &runtime_handle);
             let topic_address = topic_actor.address();
             e.insert(topic_actor);

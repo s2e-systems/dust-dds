@@ -5,7 +5,7 @@ use crate::{
             status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        utils::actor::ActorAddress,
+        actor::ActorAddress,
     },
     infrastructure::{
         error::DdsResult,

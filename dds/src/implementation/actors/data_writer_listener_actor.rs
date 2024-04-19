@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
-    implementation::utils::actor::ActorAddress,
+    implementation::actor::ActorAddress,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 

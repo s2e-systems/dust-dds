@@ -6,7 +6,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
         },
-        utils::actor::ActorAddress,
+        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
