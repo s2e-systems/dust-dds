@@ -48,10 +48,7 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataWriterQos, PublisherQos, TopicQos},
         qos_policy::{
-            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID
         },
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -235,6 +232,10 @@ impl DataWriterActor {
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
+        let max_changes = match qos.history.kind {
+            HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
+            HistoryQosPolicyKind::KeepAll => None,
+        };
         DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -247,7 +248,7 @@ impl DataWriterActor {
             status_condition,
             listener,
             status_kind,
-            writer_cache: WriterHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(max_changes),
             qos,
             registered_instance_list: HashSet::new(),
         }
@@ -263,7 +264,7 @@ impl DataWriterActor {
     }
 
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.writer_cache.add_change(change, &self.qos.history)
+        self.writer_cache.add_change(change)
     }
 }
 

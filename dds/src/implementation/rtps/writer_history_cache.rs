@@ -7,7 +7,6 @@ use super::{
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
-use crate::infrastructure::qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind};
 use std::collections::{HashMap, VecDeque};
 
 pub struct RtpsWriterCacheChange {
@@ -178,13 +177,15 @@ impl RtpsWriterCacheChange {
 pub struct WriterHistoryCache {
     changes: HashMap<InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
     max_seq_num: Option<SequenceNumber>,
+    max_changes: Option<i32>,
 }
 
 impl WriterHistoryCache {
-    pub fn new() -> Self {
+    pub fn new(max_changes: Option<i32>) -> Self {
         Self {
             changes: HashMap::new(),
             max_seq_num: None,
+            max_changes,
         }
     }
 
@@ -192,21 +193,14 @@ impl WriterHistoryCache {
         self.changes.values().flatten()
     }
 
-    pub fn add_change(
-        &mut self,
-        change: RtpsWriterCacheChange,
-        history_qos_policy: &HistoryQosPolicy,
-    ) {
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         let changes_of_instance = self.changes.entry(change.instance_handle()).or_default();
 
-        match history_qos_policy.kind {
-            HistoryQosPolicyKind::KeepLast(depth) => {
-                if changes_of_instance.len() == depth as usize {
-                    changes_of_instance.pop_front();
-                }
+        if let Some(max_changes) = self.max_changes {
+            if changes_of_instance.len() == max_changes as usize {
+                changes_of_instance.pop_front();
             }
-            HistoryQosPolicyKind::KeepAll => (),
-        };
+        }
 
         if change.sequence_number() > self.max_seq_num.unwrap_or(0) {
             self.max_seq_num = Some(change.sequence_number())
@@ -239,15 +233,15 @@ impl WriterHistoryCache {
 
 #[cfg(test)]
 mod tests {
-    use tests::messages::types::TIME_INVALID;
-    use crate::implementation::rtps::types::GUID_UNKNOWN;
     use super::*;
+    use crate::implementation::rtps::types::GUID_UNKNOWN;
+    use tests::messages::types::TIME_INVALID;
 
     const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
     #[test]
     fn remove_change() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(None);
         let change = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -257,19 +251,14 @@ mod tests {
             vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
-        hc.add_change(
-            change,
-            &HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-            },
-        );
+        hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.change_list().count() == 0);
     }
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(None);
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -288,24 +277,14 @@ mod tests {
             vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
-        hc.add_change(
-            change1,
-            &HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-            },
-        );
-        hc.add_change(
-            change2,
-            &HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-            },
-        );
+        hc.add_change(change1);
+        hc.add_change(change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
     }
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc = WriterHistoryCache::new();
+        let mut hc = WriterHistoryCache::new(None);
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -324,18 +303,8 @@ mod tests {
             vec![Data::new(vec![].into())],
             ParameterList::empty(),
         );
-        hc.add_change(
-            change1,
-            &HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-            },
-        );
-        hc.add_change(
-            change2,
-            &HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-            },
-        );
+        hc.add_change(change1);
+        hc.add_change(change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 }
