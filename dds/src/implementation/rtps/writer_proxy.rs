@@ -280,10 +280,12 @@ impl RtpsWriterProxy {
                 }
             }
 
-            message_sender_actor.write(
-                RtpsMessageWrite::new(&header, &submessages),
-                self.unicast_locator_list().to_vec(),
-            );
+            message_sender_actor
+                .write(
+                    RtpsMessageWrite::new(&header, &submessages),
+                    self.unicast_locator_list().to_vec(),
+                )
+                .await;
         }
     }
 
