@@ -487,19 +487,19 @@ impl DomainParticipantFactoryActor {
 
         let mut interval =
             tokio::time::interval(self.configuration.participant_announcement_interval());
-        // runtime_handle.spawn(async move {
-        //     loop {
-        //         interval.tick().await;
-        //         if let Ok(p) = participant_address_clone.upgrade() {
-        //             let r = p.announce_participant().await;
-        //             if r.is_err() {
-        //                 error!("Error announcing participant: {:?}", r);
-        //             }
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        // });
+        runtime_handle.spawn(async move {
+            loop {
+                interval.tick().await;
+                if let Ok(p) = participant_address_clone.upgrade() {
+                    let r = p.announce_participant().await;
+                    if r.is_err() {
+                        error!("Error announcing participant: {:?}", r);
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
 
         Ok(participant_address)
     }
