@@ -556,6 +556,7 @@ impl DataWriterActor {
         self.topic_name.clone()
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn write_w_timestamp(
         &mut self,
         serialized_data: Vec<u8>,
@@ -914,7 +915,7 @@ impl DataWriterActor {
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
-                        &message_sender_actor,
+                        message_sender_actor,
                         header,
                     )
                     .await
@@ -925,7 +926,7 @@ impl DataWriterActor {
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
                         self.rtps_writer.heartbeat_period().into(),
-                        &message_sender_actor,
+                        message_sender_actor,
                         header,
                     )
                     .await
