@@ -1300,7 +1300,14 @@ impl DomainParticipantActor {
         let is_participant_ignored = self
             .ignored_participants
             .contains(&discovered_participant_handle);
-        if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+        let is_participant_discovered = self
+            .discovered_participant_list
+            .contains_key(&discovered_participant_handle);
+        if is_domain_id_matching
+            && is_domain_tag_matching
+            && !is_participant_ignored
+            && !is_participant_discovered
+        {
             self.add_matched_publications_detector(
                 &discovered_participant_data,
                 participant.clone(),
