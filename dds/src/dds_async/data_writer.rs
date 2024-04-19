@@ -213,13 +213,30 @@ where
             instance.serialize_data(&mut serialized_foo)?;
             let instance_serialized_key =
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-
+            let message_sender_actor = self
+                .participant_address()
+                .upgrade()?
+                .get_message_sender()
+                .await;
+            let header = self
+                .participant_address()
+                .upgrade()?
+                .get_rtps_message_header()
+                .await;
+            let now = self
+                .participant_address()
+                .upgrade()?
+                .get_current_time()
+                .await;
             self.writer_address
                 .upgrade()?
                 .unregister_instance_w_timestamp(
                     instance_serialized_key,
                     instance_handle,
                     timestamp,
+                    message_sender_actor,
+                    header,
+                    now,
                 )
                 .await
         } else {
@@ -390,10 +407,31 @@ where
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-
+        let message_sender_actor = self
+            .participant_address()
+            .upgrade()?
+            .get_message_sender()
+            .await;
+        let header = self
+            .participant_address()
+            .upgrade()?
+            .get_rtps_message_header()
+            .await;
+        let now = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
         self.writer_address
             .upgrade()?
-            .dispose_w_timestamp(key, instance_handle, timestamp)
+            .dispose_w_timestamp(
+                key,
+                instance_handle,
+                timestamp,
+                message_sender_actor,
+                header,
+                now,
+            )
             .await
     }
 }

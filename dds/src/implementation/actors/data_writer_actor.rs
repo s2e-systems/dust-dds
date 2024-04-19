@@ -261,8 +261,16 @@ impl DataWriterActor {
         self.reader_locators.push(locator);
     }
 
-    fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        self.writer_cache.add_change(change)
+    async fn add_change(
+        &mut self,
+        change: RtpsWriterCacheChange,
+        message_sender_actor: Actor<MessageSenderActor>,
+        header: RtpsMessageHeader,
+        now: Time,
+    ) {
+        self.writer_cache.add_change(change);
+
+        self.send_message(message_sender_actor, header, now).await;
     }
 }
 
@@ -384,11 +392,14 @@ impl DataWriterActor {
         Ok(Some(instance_handle))
     }
 
-    fn unregister_instance_w_timestamp(
+    async fn unregister_instance_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
+        message_sender_actor: Actor<MessageSenderActor>,
+        header: RtpsMessageHeader,
+        now: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -422,7 +433,8 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(change);
+        self.add_change(change, message_sender_actor, header, now)
+            .await;
         Ok(())
     }
 
@@ -443,11 +455,14 @@ impl DataWriterActor {
         )
     }
 
-    fn dispose_w_timestamp(
+    async fn dispose_w_timestamp(
         &mut self,
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
+        message_sender_actor: Actor<MessageSenderActor>,
+        header: RtpsMessageHeader,
+        now: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -471,7 +486,8 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(change);
+        self.add_change(change, message_sender_actor, header, now)
+            .await;
 
         Ok(())
     }
@@ -561,9 +577,8 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(change);
-
-        self.send_message(message_sender_actor, header, now).await;
+        self.add_change(change, message_sender_actor, header, now)
+            .await;
 
         Ok(())
     }

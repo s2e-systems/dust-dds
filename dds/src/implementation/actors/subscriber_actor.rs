@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use dust_dds_derive::actor_interface;
 use fnmatch_regex::glob_to_regex;
@@ -6,8 +6,8 @@ use tracing::warn;
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    subscriber_listener_actor::SubscriberListenerActor, topic_actor::TopicActor,
-    type_support_actor::TypeSupportActor,
+    message_sender_actor::MessageSenderActor, subscriber_listener_actor::SubscriberListenerActor,
+    topic_actor::TopicActor, type_support_actor::TypeSupportActor,
 };
 use crate::{
     dds_async::{
@@ -33,7 +33,6 @@ use crate::{
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -261,12 +260,12 @@ impl SubscriberActor {
 
     async fn send_message(
         &self,
+        message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_message(header, udp_transport_write.clone())
+                .send_message(message_sender_actor.clone(), header)
                 .await;
         }
     }

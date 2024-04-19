@@ -2,6 +2,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
     domain_participant_listener_actor::DomainParticipantListenerActor,
+    message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
@@ -28,6 +29,7 @@ use crate::{
         },
         rtps::{
             self,
+            cache_change::RtpsCacheChange,
             message_receiver::MessageReceiver,
             messages::{
                 overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
@@ -38,11 +40,9 @@ use crate::{
                 },
             },
             reader::RtpsReaderKind,
-            cache_change::RtpsCacheChange,
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         self,
@@ -1974,13 +1974,13 @@ impl DataReaderActor {
         }
     }
 
-    fn send_message(
+    async fn send_message(
         &mut self,
+        message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => r.send_message(header, udp_transport_write),
+            RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor, header).await,
             RtpsReaderKind::Stateless(_) => (),
         }
     }

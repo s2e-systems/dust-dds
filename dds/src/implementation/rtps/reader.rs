@@ -5,8 +5,7 @@ use super::{
     types::{Guid, Locator},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::udp_transport::UdpTransportWrite;
-use std::sync::Arc;
+use crate::implementation::{actor::Actor, actors::message_sender_actor::MessageSenderActor};
 
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,
@@ -101,13 +100,15 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub fn send_message(
+    pub async fn send_message(
         &mut self,
+        message_sender_actor: &Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
     ) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.rtps_reader.guid(), header, &udp_transport_write)
+            writer_proxy
+                .send_message(&self.rtps_reader.guid(), message_sender_actor, header)
+                .await
         }
     }
 }

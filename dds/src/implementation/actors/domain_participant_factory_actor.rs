@@ -38,7 +38,6 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -364,9 +363,6 @@ impl DomainParticipantFactoryActor {
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
-        let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-        let udp_transport_write = Arc::new(UdpTransportWrite::new(socket));
-
         let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
         let message_sender_actor = MessageSenderActor::new(socket);
 
@@ -391,7 +387,6 @@ impl DomainParticipantFactoryActor {
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
             self.configuration.fragment_size(),
-            udp_transport_write,
             listener,
             status_kind,
             builtin_data_writer_list,
