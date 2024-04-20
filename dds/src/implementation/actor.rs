@@ -65,7 +65,7 @@ where
     A::Message: Send,
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
-        let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(16);
+        let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(32);
 
         runtime.spawn(async move {
             while let Some(m) = mailbox.recv().await {
