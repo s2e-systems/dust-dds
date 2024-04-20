@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
@@ -228,8 +228,16 @@ impl DataWriterActor {
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let listener = Actor::spawn(
+            DataWriterListenerActor::new(listener),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         let max_changes = match qos.history.kind {
             HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
             HistoryQosPolicyKind::KeepAll => None,
@@ -799,7 +807,11 @@ impl DataWriterActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
-        self.listener = Actor::spawn(DataWriterListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            DataWriterListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 }

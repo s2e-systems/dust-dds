@@ -12,7 +12,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
@@ -336,8 +336,16 @@ impl DataReaderActor {
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(DataReaderListenerActor::new(listener), handle);
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let listener = Actor::spawn(
+            DataReaderListenerActor::new(listener),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
 
         DataReaderActor {
             rtps_reader,
@@ -348,6 +356,7 @@ impl DataReaderActor {
             requested_deadline_missed_status: Actor::spawn(
                 ReaderRequestedDeadlineMissedStatus::default(),
                 handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
             ),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
@@ -1991,7 +2000,11 @@ impl DataReaderActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = Actor::spawn(DataReaderListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            DataReaderListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 

@@ -10,7 +10,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
@@ -400,7 +400,11 @@ impl DomainParticipantFactoryActor {
         let builtin_subscriber_status_condition_address =
             builtin_subscriber.upgrade()?.get_statuscondition().await;
 
-        let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
+        let participant_actor = Actor::spawn(
+            domain_participant,
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),

@@ -2,6 +2,8 @@ use std::future::Future;
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
+pub const DEFAULT_ACTOR_BUFFER_SIZE: usize = 16;
+
 #[derive(Debug)]
 pub struct ActorAddress<A>
 where
@@ -64,8 +66,8 @@ where
     A: ActorHandler + Send + 'static,
     A::Message: Send,
 {
-    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
-        let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(32);
+    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle, buffer_size: usize) -> Self {
+        let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(buffer_size);
 
         runtime.spawn(async move {
             while let Some(m) = mailbox.recv().await {
@@ -120,7 +122,7 @@ mod tests {
     fn actor_increment() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle());
+        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
         assert_eq!(runtime.block_on(actor.increment(10)), 10)
     }
@@ -129,7 +131,7 @@ mod tests {
     fn actor_already_deleted() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle());
+        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
         let actor_address = actor.address().clone();
         std::mem::drop(actor);
         assert!(actor_address.upgrade().is_err());

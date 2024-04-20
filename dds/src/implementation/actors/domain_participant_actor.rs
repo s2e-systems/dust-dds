@@ -15,7 +15,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -240,6 +240,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
@@ -255,6 +256,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
@@ -270,7 +272,9 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
+
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
@@ -285,6 +289,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
@@ -301,6 +306,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         let builtin_publisher = Actor::spawn(
@@ -316,6 +322,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
@@ -337,7 +344,11 @@ impl DomainParticipantActor {
             Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
         );
 
-        let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
+        let type_support_actor = Actor::spawn(
+            TypeSupportActor::new(type_support_list),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
 
         Self {
             rtps_participant,
@@ -365,11 +376,23 @@ impl DomainParticipantActor {
             ignored_subcriptions: HashSet::new(),
             ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
-            listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
+            listener: Actor::spawn(
+                DomainParticipantListenerActor::new(listener),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
             status_kind,
             type_support_actor,
-            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
-            message_sender_actor: Actor::spawn(message_sender_actor, handle),
+            status_condition: Actor::spawn(
+                StatusConditionActor::default(),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
+            message_sender_actor: Actor::spawn(
+                message_sender_actor,
+                handle,
+                128, /*Message sender is used by every writer and reader so uses a bigger buffer to prevent blocking on the full channel */
+            ),
         }
     }
 
@@ -453,7 +476,7 @@ impl DomainParticipantActor {
 
         let publisher_status_condition = publisher.get_statuscondition();
 
-        let publisher_actor = Actor::spawn(publisher, &runtime_handle);
+        let publisher_actor = Actor::spawn(publisher, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
@@ -510,7 +533,7 @@ impl DomainParticipantActor {
 
         let subscriber_status_condition = subscriber.get_statuscondition();
 
-        let subscriber_actor = Actor::spawn(subscriber, &runtime_handle);
+        let subscriber_actor = Actor::spawn(subscriber, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
@@ -572,7 +595,7 @@ impl DomainParticipantActor {
 
             let topic_status_condition = topic.get_statuscondition();
             let topic_actor: crate::implementation::actor::Actor<TopicActor> =
-                Actor::spawn(topic, &runtime_handle);
+                Actor::spawn(topic, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
             let topic_address = topic_actor.address();
             e.insert(topic_actor);
 
@@ -1204,6 +1227,7 @@ impl DomainParticipantActor {
         self.listener = Actor::spawn(
             DomainParticipantListenerActor::new(listener),
             &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = status_kind;
     }

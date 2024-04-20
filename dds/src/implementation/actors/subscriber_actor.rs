@@ -15,7 +15,7 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
@@ -64,11 +64,24 @@ impl SubscriberActor {
         data_reader_list: Vec<DataReaderActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let listener = Actor::spawn(
+            SubscriberListenerActor::new(listener),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         let data_reader_list = data_reader_list
             .into_iter()
-            .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
+            .map(|dr| {
+                (
+                    dr.get_instance_handle(),
+                    Actor::spawn(dr, handle, DEFAULT_ACTOR_BUFFER_SIZE),
+                )
+            })
             .collect();
         SubscriberActor {
             qos,
@@ -156,7 +169,7 @@ impl SubscriberActor {
             &runtime_handle,
         );
 
-        let reader_actor = Actor::spawn(data_reader, &runtime_handle);
+        let reader_actor = Actor::spawn(data_reader, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let reader_address = reader_actor.address();
         self.data_reader_list
             .insert(InstanceHandle::new(guid.into()), reader_actor);
@@ -385,7 +398,11 @@ impl SubscriberActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
-        self.listener = Actor::spawn(SubscriberListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            SubscriberListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 }

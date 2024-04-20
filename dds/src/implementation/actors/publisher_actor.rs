@@ -10,7 +10,7 @@ use crate::{
         publisher_listener::PublisherListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             behavior_types::DURATION_ZERO,
@@ -64,7 +64,12 @@ impl PublisherActor {
     ) -> Self {
         let data_writer_list = data_writer_list
             .into_iter()
-            .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
+            .map(|dw| {
+                (
+                    dw.get_instance_handle(),
+                    Actor::spawn(dw, handle, DEFAULT_ACTOR_BUFFER_SIZE),
+                )
+            })
             .collect();
         Self {
             qos,
@@ -73,9 +78,17 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
+            listener: Actor::spawn(
+                PublisherListenerActor::new(listener),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
             status_kind,
-            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
+            status_condition: Actor::spawn(
+                StatusConditionActor::default(),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
         }
     }
 
@@ -146,7 +159,8 @@ impl PublisherActor {
             qos,
             &runtime_handle,
         );
-        let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
+        let data_writer_actor =
+            Actor::spawn(data_writer, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let data_writer_address = data_writer_actor.address();
         self.data_writer_list
             .insert(InstanceHandle::new(guid.into()), data_writer_actor);
@@ -346,7 +360,11 @@ impl PublisherActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
-        self.listener = Actor::spawn(PublisherListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            PublisherListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 }
