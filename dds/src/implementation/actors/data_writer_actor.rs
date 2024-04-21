@@ -278,16 +278,23 @@ impl DataWriterActor {
         writer_address: Actor<DataWriterActor>,
     ) {
         let seq_num = change.sequence_number();
-        self.writer_cache.add_change(change);
-
-        self.send_message(message_sender_actor, header, now).await;
 
         if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
-            tokio::spawn(async move {
-                tokio::time::sleep(lifespan.into()).await;
-                writer_address.remove_change(seq_num).await;
-            });
+            let change_lifespan =
+                (crate::infrastructure::time::Time::from(change.timestamp()) - now) + lifespan;
+            if change_lifespan > Duration::new(0, 0) {
+                self.writer_cache.add_change(change);
+
+                tokio::spawn(async move {
+                    tokio::time::sleep(change_lifespan.into()).await;
+                    writer_address.remove_change(seq_num).await;
+                });
+            }
+        } else {
+            self.writer_cache.add_change(change);
         }
+
+        self.send_message(message_sender_actor, header).await;
     }
 }
 
@@ -819,11 +826,7 @@ impl DataWriterActor {
         &mut self,
         message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        now: Time,
     ) {
-        // Remove stale changes before sending
-        self.remove_stale_changes(now);
-
         self.send_message_to_reader_locators(&message_sender_actor, header)
             .await;
         self.send_message_to_reader_proxies(&message_sender_actor, header)
@@ -852,13 +855,6 @@ impl DataWriterActor {
 }
 
 impl DataWriterActor {
-    fn remove_stale_changes(&mut self, now: Time) {
-        let timespan_duration = self.qos.lifespan.duration;
-        self.writer_cache.remove_change(|cc| {
-            DurationKind::Finite(now - cc.timestamp().into()) > timespan_duration
-        });
-    }
-
     fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,

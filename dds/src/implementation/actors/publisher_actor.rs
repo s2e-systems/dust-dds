@@ -30,7 +30,7 @@ use crate::{
         qos::{DataWriterQos, PublisherQos, QosKind},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
-        time::{Duration, Time},
+        time::Duration,
     },
 };
 
@@ -264,11 +264,10 @@ impl PublisherActor {
         &self,
         message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
-        now: Time,
     ) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_message(message_sender_actor.clone(), header, now)
+                .send_message(message_sender_actor.clone(), header)
                 .await;
         }
     }

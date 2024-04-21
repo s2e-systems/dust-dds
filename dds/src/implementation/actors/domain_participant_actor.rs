@@ -958,14 +958,13 @@ impl DomainParticipantActor {
     }
 
     async fn send_message(&self) {
-        let now = self.get_current_time();
         let header = RtpsMessageHeader::new(
             self.rtps_participant.protocol_version(),
             self.rtps_participant.vendor_id(),
             self.rtps_participant.guid().prefix(),
         );
         self.builtin_publisher
-            .send_message(self.message_sender_actor.clone(), header, now)
+            .send_message(self.message_sender_actor.clone(), header)
             .await;
         self.builtin_subscriber
             .send_message(self.message_sender_actor.clone(), header)
@@ -973,7 +972,7 @@ impl DomainParticipantActor {
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_message(self.message_sender_actor.clone(), header, now)
+                .send_message(self.message_sender_actor.clone(), header)
                 .await;
         }
 
@@ -1057,7 +1056,6 @@ impl DomainParticipantActor {
                         self.rtps_participant.vendor_id(),
                         self.rtps_participant.guid().prefix(),
                     ),
-                    self.get_current_time(),
                 )
                 .await;
         }

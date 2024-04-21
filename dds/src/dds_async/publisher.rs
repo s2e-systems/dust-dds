@@ -163,17 +163,10 @@ impl PublisherAsync {
             .upgrade()?
             .get_message_sender()
             .await;
-        let now = self
-            .participant
-            .participant_address()
-            .upgrade()?
-            .get_current_time()
-            .await;
-
         a_datawriter
             .writer_address()
             .upgrade()?
-            .send_message(message_sender_actor, header, now)
+            .send_message(message_sender_actor, header)
             .await;
 
         self.publisher_address
