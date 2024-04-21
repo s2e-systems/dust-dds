@@ -2,8 +2,8 @@ use crate::{
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
+        actor::{Actor, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_factory_actor::DomainParticipantFactoryActor,
-        actor::Actor,
     },
     infrastructure::{
         error::DdsResult,
@@ -30,8 +30,11 @@ impl DomainParticipantFactoryAsync {
     /// Create a new [`DomainParticipantFactoryAsync`].
     /// All the tasks of Dust DDS will be spawned on the runtime which is given as an argument.
     pub fn new(runtime_handle: tokio::runtime::Handle) -> Self {
-        let domain_participant_factory_actor =
-            Actor::spawn(DomainParticipantFactoryActor::new(), &runtime_handle);
+        let domain_participant_factory_actor = Actor::spawn(
+            DomainParticipantFactoryActor::new(),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
 
         Self {
             domain_participant_factory_actor,

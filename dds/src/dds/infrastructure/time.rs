@@ -83,6 +83,22 @@ impl Duration {
     }
 }
 
+impl std::ops::Add<Duration> for Duration {
+    type Output = Duration;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        let mut sec = self.sec + rhs.sec;
+        let mut nanosec = (self.nanosec as u64) + (rhs.nanosec as u64);
+        let sec_in_nanosec = nanosec / 1_000_000_000;
+        nanosec -= sec_in_nanosec * 1_000_000_000;
+        sec += sec_in_nanosec as i32;
+        Self {
+            sec,
+            nanosec: nanosec as u32,
+        }
+    }
+}
+
 impl std::ops::Sub<Duration> for Duration {
     type Output = Duration;
 

@@ -15,7 +15,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -38,10 +38,7 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             group::RtpsGroup,
-            messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-                types::Count,
-            },
+            messages::{overall_structure::RtpsMessageRead, types::Count},
             participant::RtpsParticipant,
             types::{
                 EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC,
@@ -49,7 +46,6 @@ use crate::{
                 USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -81,6 +77,7 @@ use super::{
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
+    message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
     type_support_actor::TypeSupportActor,
@@ -202,11 +199,11 @@ pub struct DomainParticipantActor {
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    udp_transport_write: Arc<UdpTransportWrite>,
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
     type_support_actor: Actor<TypeSupportActor>,
     status_condition: Actor<StatusConditionActor>,
+    message_sender_actor: Actor<MessageSenderActor>,
 }
 
 impl DomainParticipantActor {
@@ -217,11 +214,11 @@ impl DomainParticipantActor {
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         data_max_size_serialized: usize,
-        udp_transport_write: Arc<UdpTransportWrite>,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         builtin_data_writer_list: Vec<DataWriterActor>,
         builtin_data_reader_list: Vec<DataReaderActor>,
+        message_sender_actor: MessageSenderActor,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
@@ -240,6 +237,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
@@ -255,6 +253,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
@@ -270,7 +269,9 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
+
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
@@ -285,6 +286,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
@@ -301,6 +303,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         let builtin_publisher = Actor::spawn(
@@ -316,6 +319,7 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
@@ -337,7 +341,11 @@ impl DomainParticipantActor {
             Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
         );
 
-        let type_support_actor = Actor::spawn(TypeSupportActor::new(type_support_list), handle);
+        let type_support_actor = Actor::spawn(
+            TypeSupportActor::new(type_support_list),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
 
         Self {
             rtps_participant,
@@ -365,11 +373,23 @@ impl DomainParticipantActor {
             ignored_subcriptions: HashSet::new(),
             ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
-            udp_transport_write,
-            listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
+            listener: Actor::spawn(
+                DomainParticipantListenerActor::new(listener),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
             status_kind,
             type_support_actor,
-            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
+            status_condition: Actor::spawn(
+                StatusConditionActor::default(),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
+            message_sender_actor: Actor::spawn(
+                message_sender_actor,
+                handle,
+                128, /*Message sender is used by every writer and reader so uses a bigger buffer to prevent blocking on the full channel */
+            ),
         }
     }
 
@@ -453,7 +473,7 @@ impl DomainParticipantActor {
 
         let publisher_status_condition = publisher.get_statuscondition();
 
-        let publisher_actor = Actor::spawn(publisher, &runtime_handle);
+        let publisher_actor = Actor::spawn(publisher, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let publisher_address = publisher_actor.address();
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
@@ -510,7 +530,7 @@ impl DomainParticipantActor {
 
         let subscriber_status_condition = subscriber.get_statuscondition();
 
-        let subscriber_actor = Actor::spawn(subscriber, &runtime_handle);
+        let subscriber_actor = Actor::spawn(subscriber, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
@@ -572,7 +592,7 @@ impl DomainParticipantActor {
 
             let topic_status_condition = topic.get_statuscondition();
             let topic_actor: crate::implementation::actor::Actor<TopicActor> =
-                Actor::spawn(topic, &runtime_handle);
+                Actor::spawn(topic, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
             let topic_address = topic_actor.address();
             e.insert(topic_actor);
 
@@ -935,28 +955,22 @@ impl DomainParticipantActor {
     }
 
     async fn send_message(&self) {
-        let now = self.get_current_time();
-        let header = RtpsMessageHeader::new(
-            self.rtps_participant.protocol_version(),
-            self.rtps_participant.vendor_id(),
-            self.rtps_participant.guid().prefix(),
-        );
         self.builtin_publisher
-            .send_message(header, self.udp_transport_write.clone(), now)
+            .send_message(self.message_sender_actor.clone())
             .await;
         self.builtin_subscriber
-            .send_message(header, self.udp_transport_write.clone())
+            .send_message(self.message_sender_actor.clone())
             .await;
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_message(header, self.udp_transport_write.clone(), now)
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_message(header, self.udp_transport_write.clone())
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
     }
@@ -1011,14 +1025,7 @@ impl DomainParticipantActor {
                 .await;
 
             user_defined_subscriber_address
-                .send_message(
-                    RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    ),
-                    self.udp_transport_write.clone().clone(),
-                )
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
 
@@ -1027,15 +1034,7 @@ impl DomainParticipantActor {
                 .process_rtps_message(message.clone())
                 .await;
             user_defined_publisher_address
-                .send_message(
-                    RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    ),
-                    self.udp_transport_write.clone(),
-                    self.get_current_time(),
-                )
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
     }
@@ -1057,8 +1056,17 @@ impl DomainParticipantActor {
             let instance_handle =
                 InstanceHandle::try_from_key(&discovered_writer_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
+            let now = self.get_current_time();
             sedp_publications_announcer
-                .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
+                .write_w_timestamp(
+                    serialized_data,
+                    instance_handle,
+                    None,
+                    timestamp,
+                    self.message_sender_actor.clone(),
+                    now,
+                    sedp_publications_announcer.clone(),
+                )
                 .await
                 .expect("Shouldn't fail to write to built-in data writer");
 
@@ -1083,12 +1091,20 @@ impl DomainParticipantActor {
             let instance_handle =
                 InstanceHandle::try_from_key(&discovered_reader_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
+            let now = self.get_current_time();
+
             sedp_subscriptions_announcer
-                .write_w_timestamp(serialized_data, instance_handle, None, timestamp)
+                .write_w_timestamp(
+                    serialized_data,
+                    instance_handle,
+                    None,
+                    timestamp,
+                    self.message_sender_actor.clone(),
+                    now,
+                    sedp_subscriptions_announcer.clone(),
+                )
                 .await
                 .expect("Shouldn't fail to write to built-in data writer");
-
-            self.send_message().await;
         }
     }
 
@@ -1103,11 +1119,18 @@ impl DomainParticipantActor {
             serialize_rtps_classic_cdr_le(writer_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
 
-            sedp_publications_announcer
-                .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
-                .await?;
+            let now = self.get_current_time();
 
-            self.send_message().await;
+            sedp_publications_announcer
+                .dispose_w_timestamp(
+                    instance_serialized_key,
+                    writer_handle,
+                    timestamp,
+                    self.message_sender_actor.clone(),
+                    now,
+                    sedp_publications_announcer.clone(),
+                )
+                .await?;
 
             Ok(())
         } else {
@@ -1127,7 +1150,7 @@ impl DomainParticipantActor {
                     spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
 
                     let timestamp = self.get_current_time();
-
+                    let now = self.get_current_time();
                     data_writer
                         .upgrade()?
                         .write_w_timestamp(
@@ -1138,18 +1161,11 @@ impl DomainParticipantActor {
                             .unwrap(),
                             None,
                             timestamp,
+                            self.message_sender_actor.clone(),
+                            now,
+                            data_writer.upgrade()?.clone(),
                         )
                         .await?;
-
-                    let now = self.get_current_time();
-                    let header = RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    );
-                    self.builtin_publisher
-                        .send_message(header, self.udp_transport_write.clone(), now)
-                        .await;
                 }
             }
         }
@@ -1167,6 +1183,7 @@ impl DomainParticipantActor {
         self.listener = Actor::spawn(
             DomainParticipantListenerActor::new(listener),
             &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = status_kind;
     }
@@ -1181,8 +1198,16 @@ impl DomainParticipantActor {
             let mut instance_serialized_key = Vec::new();
             serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
+            let now = self.get_current_time();
             sedp_subscriptions_announcer
-                .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
+                .dispose_w_timestamp(
+                    instance_serialized_key,
+                    reader_handle,
+                    timestamp,
+                    self.message_sender_actor.clone(),
+                    now,
+                    sedp_subscriptions_announcer.clone(),
+                )
                 .await?;
 
             self.send_message().await;
@@ -1204,16 +1229,8 @@ impl DomainParticipantActor {
         self.status_condition.address()
     }
 
-    fn get_udp_transport_write(&self) -> Arc<UdpTransportWrite> {
-        self.udp_transport_write.clone()
-    }
-
-    fn get_rtps_message_header(&self) -> RtpsMessageHeader {
-        RtpsMessageHeader::new(
-            self.rtps_participant.protocol_version(),
-            self.rtps_participant.vendor_id(),
-            self.rtps_participant.guid().prefix(),
-        )
+    fn get_message_sender(&self) -> Actor<MessageSenderActor> {
+        self.message_sender_actor.clone()
     }
 }
 

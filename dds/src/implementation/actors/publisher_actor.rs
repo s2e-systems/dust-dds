@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use dust_dds_derive::actor_interface;
 use fnmatch_regex::glob_to_regex;
@@ -10,20 +10,19 @@ use crate::{
         publisher_listener::PublisherListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             behavior_types::DURATION_ZERO,
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::overall_structure::RtpsMessageRead,
             types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -31,15 +30,15 @@ use crate::{
         qos::{DataWriterQos, PublisherQos, QosKind},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
-        time::{Duration, Time},
+        time::Duration,
     },
 };
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    publisher_listener_actor::PublisherListenerActor, status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
+    message_sender_actor::MessageSenderActor, publisher_listener_actor::PublisherListenerActor,
+    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
 };
 
 pub struct PublisherActor {
@@ -65,7 +64,12 @@ impl PublisherActor {
     ) -> Self {
         let data_writer_list = data_writer_list
             .into_iter()
-            .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
+            .map(|dw| {
+                (
+                    dw.get_instance_handle(),
+                    Actor::spawn(dw, handle, DEFAULT_ACTOR_BUFFER_SIZE),
+                )
+            })
             .collect();
         Self {
             qos,
@@ -74,9 +78,17 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
+            listener: Actor::spawn(
+                PublisherListenerActor::new(listener),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
             status_kind,
-            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
+            status_condition: Actor::spawn(
+                StatusConditionActor::default(),
+                handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            ),
         }
     }
 
@@ -147,7 +159,8 @@ impl PublisherActor {
             qos,
             &runtime_handle,
         );
-        let data_writer_actor = Actor::spawn(data_writer, &runtime_handle);
+        let data_writer_actor =
+            Actor::spawn(data_writer, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let data_writer_address = data_writer_actor.address();
         self.data_writer_list
             .insert(InstanceHandle::new(guid.into()), data_writer_actor);
@@ -247,15 +260,10 @@ impl PublisherActor {
         }
     }
 
-    async fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
-        now: Time,
-    ) {
+    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_message(header, udp_transport_write.clone(), now)
+                .send_message(message_sender_actor.clone())
                 .await;
         }
     }
@@ -347,7 +355,11 @@ impl PublisherActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
-        self.listener = Actor::spawn(PublisherListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            PublisherListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 }

@@ -3,12 +3,12 @@ use std::marker::PhantomData;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
+        actor::ActorAddress,
         actors::{
             any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
             status_condition_actor::StatusConditionActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -213,13 +213,26 @@ where
             instance.serialize_data(&mut serialized_foo)?;
             let instance_serialized_key =
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-
-            self.writer_address
+            let message_sender_actor = self
+                .participant_address()
                 .upgrade()?
+                .get_message_sender()
+                .await;
+            let now = self
+                .participant_address()
+                .upgrade()?
+                .get_current_time()
+                .await;
+            let data_writer = self.writer_address.upgrade()?;
+
+            data_writer
                 .unregister_instance_w_timestamp(
                     instance_serialized_key,
                     instance_handle,
                     timestamp,
+                    message_sender_actor,
+                    now,
+                    data_writer.clone(),
                 )
                 .await
         } else {
@@ -299,12 +312,28 @@ where
         data.serialize_data(&mut serialized_data)?;
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
-        self.writer_address
+        let message_sender_actor = self
+            .participant_address()
             .upgrade()?
-            .write_w_timestamp(serialized_data, key, handle, timestamp)
+            .get_message_sender()
+            .await;
+        let now = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
+        let data_writer = self.writer_address.upgrade()?;
+        data_writer
+            .write_w_timestamp(
+                serialized_data,
+                key,
+                handle,
+                timestamp,
+                message_sender_actor,
+                now,
+                data_writer.clone(),
+            )
             .await?;
-
-        self.participant_address().upgrade()?.send_message().await;
 
         Ok(())
     }
@@ -369,10 +398,26 @@ where
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-
-        self.writer_address
+        let message_sender_actor = self
+            .participant_address()
             .upgrade()?
-            .dispose_w_timestamp(key, instance_handle, timestamp)
+            .get_message_sender()
+            .await;
+        let now = self
+            .participant_address()
+            .upgrade()?
+            .get_current_time()
+            .await;
+        let data_writer = self.writer_address.upgrade()?;
+        data_writer
+            .dispose_w_timestamp(
+                key,
+                instance_handle,
+                timestamp,
+                message_sender_actor,
+                now,
+                data_writer.clone(),
+            )
             .await
     }
 }

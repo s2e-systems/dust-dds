@@ -1,11 +1,11 @@
 use crate::{
     implementation::{
+        actor::ActorAddress,
         actors::{
             any_data_reader_listener::AnyDataReaderListener,
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -144,20 +144,15 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
-        let header = self
+        let message_sender_actor = self
             .participant_address()
             .upgrade()?
-            .get_rtps_message_header()
-            .await;
-        let udp_transport_write = self
-            .participant_address()
-            .upgrade()?
-            .get_udp_transport_write()
+            .get_message_sender()
             .await;
         a_datareader
             .reader_address()
             .upgrade()?
-            .send_message(header, udp_transport_write)
+            .send_message(message_sender_actor)
             .await;
 
         self.subscriber_address

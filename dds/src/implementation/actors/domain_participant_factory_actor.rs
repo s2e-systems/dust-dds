@@ -1,4 +1,7 @@
-use super::{data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor};
+use super::{
+    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
+    message_sender_actor::MessageSenderActor,
+};
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::{
@@ -7,7 +10,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
@@ -35,7 +38,6 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -361,8 +363,9 @@ impl DomainParticipantFactoryActor {
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
-        let socket = std::net::UdpSocket::bind("0.0.0.0:0000").unwrap();
-        let udp_transport_write = Arc::new(UdpTransportWrite::new(socket));
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
+        let message_sender_actor =
+            MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
@@ -385,11 +388,11 @@ impl DomainParticipantFactoryActor {
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
             self.configuration.fragment_size(),
-            udp_transport_write,
             listener,
             status_kind,
             builtin_data_writer_list,
             builtin_data_reader_list,
+            message_sender_actor,
             &runtime_handle,
         );
 
@@ -398,7 +401,11 @@ impl DomainParticipantFactoryActor {
         let builtin_subscriber_status_condition_address =
             builtin_subscriber.upgrade()?.get_statuscondition().await;
 
-        let participant_actor = Actor::spawn(domain_participant, &runtime_handle);
+        let participant_actor = Actor::spawn(
+            domain_participant,
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),

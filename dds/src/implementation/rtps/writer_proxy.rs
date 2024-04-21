@@ -1,6 +1,6 @@
 use super::{
     messages::{
-        overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
+        overall_structure::Submessage,
         submessage_elements::{ArcSlice, Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -10,7 +10,7 @@ use super::{
     },
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
-use crate::implementation::udp_transport::UdpTransportWrite;
+use crate::implementation::{actor::Actor, actors::message_sender_actor::MessageSenderActor};
 use std::{cmp::max, collections::HashMap};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
@@ -223,11 +223,10 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub fn send_message(
+    pub async fn send_message(
         &mut self,
         reader_guid: &Guid,
-        header: RtpsMessageHeader,
-        udp_transport_write: &UdpTransportWrite,
+        message_sender_actor: &Actor<MessageSenderActor>,
     ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
@@ -247,7 +246,7 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let mut submessages: Vec<Box<dyn Submessage>> =
+            let mut submessages: Vec<Box<dyn Submessage + Send>> =
                 vec![Box::new(info_dst_submessage), Box::new(acknack_submessage)];
 
             for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
@@ -280,10 +279,9 @@ impl RtpsWriterProxy {
                 }
             }
 
-            udp_transport_write.write(
-                &RtpsMessageWrite::new(&header, &submessages),
-                self.unicast_locator_list(),
-            );
+            message_sender_actor
+                .write(submessages, self.unicast_locator_list().to_vec())
+                .await;
         }
     }
 

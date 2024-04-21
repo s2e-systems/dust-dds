@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use dust_dds_derive::actor_interface;
 use fnmatch_regex::glob_to_regex;
@@ -6,8 +6,8 @@ use tracing::warn;
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    subscriber_listener_actor::SubscriberListenerActor, topic_actor::TopicActor,
-    type_support_actor::TypeSupportActor,
+    message_sender_actor::MessageSenderActor, subscriber_listener_actor::SubscriberListenerActor,
+    topic_actor::TopicActor, type_support_actor::TypeSupportActor,
 };
 use crate::{
     dds_async::{
@@ -15,7 +15,7 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
@@ -26,14 +26,13 @@ use crate::{
             behavior_types::DURATION_ZERO,
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::overall_structure::RtpsMessageRead,
             reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
             types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -65,11 +64,24 @@ impl SubscriberActor {
         data_reader_list: Vec<DataReaderActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let listener = Actor::spawn(
+            SubscriberListenerActor::new(listener),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         let data_reader_list = data_reader_list
             .into_iter()
-            .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
+            .map(|dr| {
+                (
+                    dr.get_instance_handle(),
+                    Actor::spawn(dr, handle, DEFAULT_ACTOR_BUFFER_SIZE),
+                )
+            })
             .collect();
         SubscriberActor {
             qos,
@@ -157,7 +169,7 @@ impl SubscriberActor {
             &runtime_handle,
         );
 
-        let reader_actor = Actor::spawn(data_reader, &runtime_handle);
+        let reader_actor = Actor::spawn(data_reader, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let reader_address = reader_actor.address();
         self.data_reader_list
             .insert(InstanceHandle::new(guid.into()), reader_actor);
@@ -259,14 +271,10 @@ impl SubscriberActor {
         self.status_kind.clone()
     }
 
-    async fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
-    ) {
+    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_message(header, udp_transport_write.clone())
+                .send_message(message_sender_actor.clone())
                 .await;
         }
     }
@@ -386,7 +394,11 @@ impl SubscriberActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> () {
-        self.listener = Actor::spawn(SubscriberListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            SubscriberListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 }

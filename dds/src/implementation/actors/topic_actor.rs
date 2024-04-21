@@ -4,9 +4,9 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dds_async::topic_listener::TopicListenerAsync,
     implementation::{
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        actor::{Actor, ActorAddress},
     },
     infrastructure::{
         error::DdsResult,
@@ -53,8 +53,16 @@ impl TopicActor {
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(TopicListenerActor::new(listener), handle);
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let listener = Actor::spawn(
+            TopicListenerActor::new(listener),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         Self {
             guid,
             qos,

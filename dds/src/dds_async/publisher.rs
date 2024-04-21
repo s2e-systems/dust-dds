@@ -1,11 +1,11 @@
 use crate::{
     implementation::{
+        actor::ActorAddress,
         actors::{
             any_data_writer_listener::AnyDataWriterListener,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
             status_condition_actor::StatusConditionActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -151,29 +151,16 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         let writer_handle = a_datawriter.get_instance_handle().await?;
 
-        let header = self
+        let message_sender_actor = self
             .participant
             .participant_address()
             .upgrade()?
-            .get_rtps_message_header()
+            .get_message_sender()
             .await;
-        let udp_transport_write = self
-            .participant
-            .participant_address()
-            .upgrade()?
-            .get_udp_transport_write()
-            .await;
-        let now = self
-            .participant
-            .participant_address()
-            .upgrade()?
-            .get_current_time()
-            .await;
-
         a_datawriter
             .writer_address()
             .upgrade()?
-            .send_message(header, udp_transport_write, now)
+            .send_message(message_sender_actor)
             .await;
 
         self.publisher_address

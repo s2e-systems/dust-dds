@@ -2,6 +2,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
     domain_participant_listener_actor::DomainParticipantListenerActor,
+    message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
@@ -11,7 +12,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
@@ -28,9 +29,10 @@ use crate::{
         },
         rtps::{
             self,
+            cache_change::RtpsCacheChange,
             message_receiver::MessageReceiver,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
+                overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
                 submessage_elements::{Data, Parameter, ParameterList},
                 submessages::{
                     data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
@@ -38,11 +40,9 @@ use crate::{
                 },
             },
             reader::RtpsReaderKind,
-            cache_change::RtpsCacheChange,
             types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        udp_transport::UdpTransportWrite,
     },
     infrastructure::{
         self,
@@ -336,8 +336,16 @@ impl DataReaderActor {
         status_kind: Vec<StatusKind>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(DataReaderListenerActor::new(listener), handle);
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let listener = Actor::spawn(
+            DataReaderListenerActor::new(listener),
+            handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
 
         DataReaderActor {
             rtps_reader,
@@ -348,6 +356,7 @@ impl DataReaderActor {
             requested_deadline_missed_status: Actor::spawn(
                 ReaderRequestedDeadlineMissedStatus::default(),
                 handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
             ),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
@@ -1974,13 +1983,9 @@ impl DataReaderActor {
         }
     }
 
-    fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        udp_transport_write: Arc<UdpTransportWrite>,
-    ) {
+    async fn send_message(&mut self, message_sender_actor: Actor<MessageSenderActor>) {
         match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => r.send_message(header, udp_transport_write),
+            RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor).await,
             RtpsReaderKind::Stateless(_) => (),
         }
     }
@@ -1991,7 +1996,11 @@ impl DataReaderActor {
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) {
-        self.listener = Actor::spawn(DataReaderListenerActor::new(listener), &runtime_handle);
+        self.listener = Actor::spawn(
+            DataReaderListenerActor::new(listener),
+            &runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
         self.status_kind = status_kind;
     }
 
