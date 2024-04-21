@@ -1095,6 +1095,7 @@ impl DomainParticipantActor {
                     self.message_sender_actor.clone(),
                     header,
                     now,
+                    sedp_publications_announcer.clone(),
                 )
                 .await
                 .expect("Shouldn't fail to write to built-in data writer");
@@ -1136,6 +1137,7 @@ impl DomainParticipantActor {
                     self.message_sender_actor.clone(),
                     header,
                     now,
+                    sedp_subscriptions_announcer.clone(),
                 )
                 .await
                 .expect("Shouldn't fail to write to built-in data writer");
@@ -1168,6 +1170,7 @@ impl DomainParticipantActor {
                     self.message_sender_actor.clone(),
                     header,
                     now,
+                    sedp_publications_announcer.clone(),
                 )
                 .await?;
 
@@ -1208,6 +1211,7 @@ impl DomainParticipantActor {
                             self.message_sender_actor.clone(),
                             header,
                             now,
+                            data_writer.upgrade()?.clone(),
                         )
                         .await?;
                 }
@@ -1256,6 +1260,7 @@ impl DomainParticipantActor {
                     self.message_sender_actor.clone(),
                     header,
                     now,
+                    sedp_subscriptions_announcer.clone(),
                 )
                 .await?;
 

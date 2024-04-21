@@ -275,10 +275,19 @@ impl DataWriterActor {
         message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
         now: Time,
+        writer_address: Actor<DataWriterActor>,
     ) {
+        let seq_num = change.sequence_number();
         self.writer_cache.add_change(change);
 
         self.send_message(message_sender_actor, header, now).await;
+
+        if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
+            tokio::spawn(async move {
+                tokio::time::sleep(lifespan.into()).await;
+                writer_address.remove_change(seq_num).await;
+            });
+        }
     }
 }
 
@@ -408,6 +417,7 @@ impl DataWriterActor {
         message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
         now: Time,
+        data_writer_address: Actor<DataWriterActor>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -441,8 +451,14 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(change, message_sender_actor, header, now)
-            .await;
+        self.add_change(
+            change,
+            message_sender_actor,
+            header,
+            now,
+            data_writer_address,
+        )
+        .await;
         Ok(())
     }
 
@@ -471,6 +487,7 @@ impl DataWriterActor {
         message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
         now: Time,
+        data_writer_address: Actor<DataWriterActor>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -494,8 +511,14 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(change, message_sender_actor, header, now)
-            .await;
+        self.add_change(
+            change,
+            message_sender_actor,
+            header,
+            now,
+            data_writer_address,
+        )
+        .await;
 
         Ok(())
     }
@@ -574,6 +597,7 @@ impl DataWriterActor {
         message_sender_actor: Actor<MessageSenderActor>,
         header: RtpsMessageHeader,
         now: Time,
+        data_writer_address: Actor<DataWriterActor>,
     ) -> DdsResult<()> {
         let handle = self
             .register_instance_w_timestamp(instance_handle, timestamp)?
@@ -586,8 +610,14 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(change, message_sender_actor, header, now)
-            .await;
+        self.add_change(
+            change,
+            message_sender_actor,
+            header,
+            now,
+            data_writer_address,
+        )
+        .await;
 
         Ok(())
     }
@@ -813,6 +843,11 @@ impl DataWriterActor {
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = status_kind;
+    }
+
+    fn remove_change(&mut self, seq_num: SequenceNumber) {
+        self.writer_cache
+            .remove_change(|cc| cc.sequence_number() == seq_num)
     }
 }
 

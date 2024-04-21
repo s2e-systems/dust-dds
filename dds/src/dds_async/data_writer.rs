@@ -228,8 +228,9 @@ where
                 .upgrade()?
                 .get_current_time()
                 .await;
-            self.writer_address
-                .upgrade()?
+            let data_writer = self.writer_address.upgrade()?;
+
+            data_writer
                 .unregister_instance_w_timestamp(
                     instance_serialized_key,
                     instance_handle,
@@ -237,6 +238,7 @@ where
                     message_sender_actor,
                     header,
                     now,
+                    data_writer.clone(),
                 )
                 .await
         } else {
@@ -331,8 +333,8 @@ where
             .upgrade()?
             .get_current_time()
             .await;
-        self.writer_address
-            .upgrade()?
+        let data_writer = self.writer_address.upgrade()?;
+        data_writer
             .write_w_timestamp(
                 serialized_data,
                 key,
@@ -341,6 +343,7 @@ where
                 message_sender_actor,
                 header,
                 now,
+                data_writer.clone(),
             )
             .await?;
 
@@ -422,8 +425,8 @@ where
             .upgrade()?
             .get_current_time()
             .await;
-        self.writer_address
-            .upgrade()?
+        let data_writer = self.writer_address.upgrade()?;
+        data_writer
             .dispose_w_timestamp(
                 key,
                 instance_handle,
@@ -431,6 +434,7 @@ where
                 message_sender_actor,
                 header,
                 now,
+                data_writer.clone(),
             )
             .await
     }

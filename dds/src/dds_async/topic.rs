@@ -184,9 +184,9 @@ async fn announce_topic(
         .get_rtps_message_header()
         .await;
     for data_writer in data_writer_list {
-        if &data_writer.upgrade()?.get_type_name().await == "DiscoveredTopicData" {
-            data_writer
-                .upgrade()?
+        let data_writer_actor = &data_writer.upgrade()?;
+        if data_writer_actor.get_type_name().await == "DiscoveredTopicData" {
+            data_writer_actor
                 .write_w_timestamp(
                     serialized_data,
                     InstanceHandle::try_from_key(&discovered_topic_data.get_key()?)?,
@@ -195,6 +195,7 @@ async fn announce_topic(
                     message_sender_actor,
                     header,
                     timestamp,
+                    data_writer_actor.clone(),
                 )
                 .await?;
             break;
