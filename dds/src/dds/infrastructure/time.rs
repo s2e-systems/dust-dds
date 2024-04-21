@@ -90,8 +90,8 @@ impl std::ops::Add<Duration> for Duration {
         let mut sec = self.sec + rhs.sec;
         let mut nanosec = (self.nanosec as u64) + (rhs.nanosec as u64);
         let sec_in_nanosec = nanosec / 1_000_000_000;
-        nanosec = nanosec - sec_in_nanosec * 1_000_000_000;
-        sec = sec + sec_in_nanosec as i32;
+        nanosec -= sec_in_nanosec * 1_000_000_000;
+        sec += sec_in_nanosec as i32;
         Self {
             sec,
             nanosec: nanosec as u32,
