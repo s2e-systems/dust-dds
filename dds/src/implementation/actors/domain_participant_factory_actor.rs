@@ -364,7 +364,8 @@ impl DomainParticipantFactoryActor {
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
         let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
-        let message_sender_actor = MessageSenderActor::new(socket);
+        let message_sender_actor =
+            MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,

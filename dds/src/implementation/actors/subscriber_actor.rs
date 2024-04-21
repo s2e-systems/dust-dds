@@ -26,7 +26,7 @@ use crate::{
             behavior_types::DURATION_ZERO,
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::overall_structure::RtpsMessageRead,
             reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
             types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
@@ -271,14 +271,10 @@ impl SubscriberActor {
         self.status_kind.clone()
     }
 
-    async fn send_message(
-        &self,
-        message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
-    ) {
+    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
-                .send_message(message_sender_actor.clone(), header)
+                .send_message(message_sender_actor.clone())
                 .await;
         }
     }

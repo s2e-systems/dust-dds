@@ -151,12 +151,6 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         let writer_handle = a_datawriter.get_instance_handle().await?;
 
-        let header = self
-            .participant
-            .participant_address()
-            .upgrade()?
-            .get_rtps_message_header()
-            .await;
         let message_sender_actor = self
             .participant
             .participant_address()
@@ -166,7 +160,7 @@ impl PublisherAsync {
         a_datawriter
             .writer_address()
             .upgrade()?
-            .send_message(message_sender_actor, header)
+            .send_message(message_sender_actor)
             .await;
 
         self.publisher_address

@@ -38,10 +38,7 @@ use crate::{
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             group::RtpsGroup,
-            messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageRead},
-                types::Count,
-            },
+            messages::{overall_structure::RtpsMessageRead, types::Count},
             participant::RtpsParticipant,
             types::{
                 EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC,
@@ -958,27 +955,22 @@ impl DomainParticipantActor {
     }
 
     async fn send_message(&self) {
-        let header = RtpsMessageHeader::new(
-            self.rtps_participant.protocol_version(),
-            self.rtps_participant.vendor_id(),
-            self.rtps_participant.guid().prefix(),
-        );
         self.builtin_publisher
-            .send_message(self.message_sender_actor.clone(), header)
+            .send_message(self.message_sender_actor.clone())
             .await;
         self.builtin_subscriber
-            .send_message(self.message_sender_actor.clone(), header)
+            .send_message(self.message_sender_actor.clone())
             .await;
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_message(self.message_sender_actor.clone(), header)
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_message(self.message_sender_actor.clone(), header)
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
     }
@@ -1033,14 +1025,7 @@ impl DomainParticipantActor {
                 .await;
 
             user_defined_subscriber_address
-                .send_message(
-                    self.message_sender_actor.clone(),
-                    RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    ),
-                )
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
 
@@ -1049,14 +1034,7 @@ impl DomainParticipantActor {
                 .process_rtps_message(message.clone())
                 .await;
             user_defined_publisher_address
-                .send_message(
-                    self.message_sender_actor.clone(),
-                    RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    ),
-                )
+                .send_message(self.message_sender_actor.clone())
                 .await;
         }
     }
@@ -1079,11 +1057,6 @@ impl DomainParticipantActor {
                 InstanceHandle::try_from_key(&discovered_writer_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             let now = self.get_current_time();
-            let header = RtpsMessageHeader::new(
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.vendor_id(),
-                self.rtps_participant.guid().prefix(),
-            );
             sedp_publications_announcer
                 .write_w_timestamp(
                     serialized_data,
@@ -1091,7 +1064,6 @@ impl DomainParticipantActor {
                     None,
                     timestamp,
                     self.message_sender_actor.clone(),
-                    header,
                     now,
                     sedp_publications_announcer.clone(),
                 )
@@ -1120,11 +1092,6 @@ impl DomainParticipantActor {
                 InstanceHandle::try_from_key(&discovered_reader_data.get_key().unwrap())
                     .expect("Shouldn't fail to serialize key of builtin type");
             let now = self.get_current_time();
-            let header = RtpsMessageHeader::new(
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.vendor_id(),
-                self.rtps_participant.guid().prefix(),
-            );
 
             sedp_subscriptions_announcer
                 .write_w_timestamp(
@@ -1133,7 +1100,6 @@ impl DomainParticipantActor {
                     None,
                     timestamp,
                     self.message_sender_actor.clone(),
-                    header,
                     now,
                     sedp_subscriptions_announcer.clone(),
                 )
@@ -1154,11 +1120,6 @@ impl DomainParticipantActor {
                 .expect("Failed to serialize data");
 
             let now = self.get_current_time();
-            let header = RtpsMessageHeader::new(
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.vendor_id(),
-                self.rtps_participant.guid().prefix(),
-            );
 
             sedp_publications_announcer
                 .dispose_w_timestamp(
@@ -1166,7 +1127,6 @@ impl DomainParticipantActor {
                     writer_handle,
                     timestamp,
                     self.message_sender_actor.clone(),
-                    header,
                     now,
                     sedp_publications_announcer.clone(),
                 )
@@ -1191,11 +1151,6 @@ impl DomainParticipantActor {
 
                     let timestamp = self.get_current_time();
                     let now = self.get_current_time();
-                    let header = RtpsMessageHeader::new(
-                        self.rtps_participant.protocol_version(),
-                        self.rtps_participant.vendor_id(),
-                        self.rtps_participant.guid().prefix(),
-                    );
                     data_writer
                         .upgrade()?
                         .write_w_timestamp(
@@ -1207,7 +1162,6 @@ impl DomainParticipantActor {
                             None,
                             timestamp,
                             self.message_sender_actor.clone(),
-                            header,
                             now,
                             data_writer.upgrade()?.clone(),
                         )
@@ -1245,18 +1199,12 @@ impl DomainParticipantActor {
             serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
                 .expect("Failed to serialize data");
             let now = self.get_current_time();
-            let header = RtpsMessageHeader::new(
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.vendor_id(),
-                self.rtps_participant.guid().prefix(),
-            );
             sedp_subscriptions_announcer
                 .dispose_w_timestamp(
                     instance_serialized_key,
                     reader_handle,
                     timestamp,
                     self.message_sender_actor.clone(),
-                    header,
                     now,
                     sedp_subscriptions_announcer.clone(),
                 )
@@ -1279,14 +1227,6 @@ impl DomainParticipantActor {
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
-    }
-
-    fn get_rtps_message_header(&self) -> RtpsMessageHeader {
-        RtpsMessageHeader::new(
-            self.rtps_participant.protocol_version(),
-            self.rtps_participant.vendor_id(),
-            self.rtps_participant.guid().prefix(),
-        )
     }
 
     fn get_message_sender(&self) -> Actor<MessageSenderActor> {

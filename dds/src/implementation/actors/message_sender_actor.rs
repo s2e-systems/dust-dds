@@ -3,23 +3,45 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::implementation::rtps::{
-    messages::overall_structure::RtpsMessageWrite,
-    types::{Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
+    messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
+    types::{
+        GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6,
+    },
 };
 
 pub struct MessageSenderActor {
     socket: std::net::UdpSocket,
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
 }
 
 impl MessageSenderActor {
-    pub fn new(socket: std::net::UdpSocket) -> Self {
-        Self { socket }
+    pub fn new(
+        socket: std::net::UdpSocket,
+        protocol_version: ProtocolVersion,
+        vendor_id: VendorId,
+        guid_prefix: GuidPrefix,
+    ) -> Self {
+        Self {
+            socket,
+            protocol_version,
+            vendor_id,
+            guid_prefix,
+        }
     }
 }
 
 #[actor_interface]
 impl MessageSenderActor {
-    pub fn write(&self, message: RtpsMessageWrite, destination_locator_list: Vec<Locator>) {
+    pub fn write(
+        &self,
+        submessages: Vec<Box<dyn Submessage + Send>>,
+        destination_locator_list: Vec<Locator>,
+    ) {
+        let header =
+            RtpsMessageHeader::new(self.protocol_version, self.vendor_id, self.guid_prefix);
+        let message = RtpsMessageWrite::new(&header, &submessages);
         let buf = message.buffer();
 
         for destination_locator in destination_locator_list {

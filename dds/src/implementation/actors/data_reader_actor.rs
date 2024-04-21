@@ -32,7 +32,7 @@ use crate::{
             cache_change::RtpsCacheChange,
             message_receiver::MessageReceiver,
             messages::{
-                overall_structure::{RtpsMessageHeader, RtpsMessageRead, RtpsSubmessageReadKind},
+                overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
                 submessage_elements::{Data, Parameter, ParameterList},
                 submessages::{
                     data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
@@ -1983,13 +1983,9 @@ impl DataReaderActor {
         }
     }
 
-    async fn send_message(
-        &mut self,
-        message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
-    ) {
+    async fn send_message(&mut self, message_sender_actor: Actor<MessageSenderActor>) {
         match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor, header).await,
+            RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor).await,
             RtpsReaderKind::Stateless(_) => (),
         }
     }

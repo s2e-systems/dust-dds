@@ -218,11 +218,6 @@ where
                 .upgrade()?
                 .get_message_sender()
                 .await;
-            let header = self
-                .participant_address()
-                .upgrade()?
-                .get_rtps_message_header()
-                .await;
             let now = self
                 .participant_address()
                 .upgrade()?
@@ -236,7 +231,6 @@ where
                     instance_handle,
                     timestamp,
                     message_sender_actor,
-                    header,
                     now,
                     data_writer.clone(),
                 )
@@ -323,11 +317,6 @@ where
             .upgrade()?
             .get_message_sender()
             .await;
-        let header = self
-            .participant_address()
-            .upgrade()?
-            .get_rtps_message_header()
-            .await;
         let now = self
             .participant_address()
             .upgrade()?
@@ -341,7 +330,6 @@ where
                 handle,
                 timestamp,
                 message_sender_actor,
-                header,
                 now,
                 data_writer.clone(),
             )
@@ -415,11 +403,6 @@ where
             .upgrade()?
             .get_message_sender()
             .await;
-        let header = self
-            .participant_address()
-            .upgrade()?
-            .get_rtps_message_header()
-            .await;
         let now = self
             .participant_address()
             .upgrade()?
@@ -432,7 +415,6 @@ where
                 instance_handle,
                 timestamp,
                 message_sender_actor,
-                header,
                 now,
                 data_writer.clone(),
             )

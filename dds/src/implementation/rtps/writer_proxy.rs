@@ -1,6 +1,6 @@
 use super::{
     messages::{
-        overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
+        overall_structure::Submessage,
         submessage_elements::{ArcSlice, Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -227,7 +227,6 @@ impl RtpsWriterProxy {
         &mut self,
         reader_guid: &Guid,
         message_sender_actor: &Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
     ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
@@ -281,10 +280,7 @@ impl RtpsWriterProxy {
             }
 
             message_sender_actor
-                .write(
-                    RtpsMessageWrite::new(&header, &submessages),
-                    self.unicast_locator_list().to_vec(),
-                )
+                .write(submessages, self.unicast_locator_list().to_vec())
                 .await;
         }
     }

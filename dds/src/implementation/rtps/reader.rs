@@ -1,7 +1,6 @@
 use super::{
     behavior_types::Duration,
     endpoint::RtpsEndpoint,
-    messages::overall_structure::RtpsMessageHeader,
     types::{Guid, Locator},
     writer_proxy::RtpsWriterProxy,
 };
@@ -100,14 +99,10 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub async fn send_message(
-        &mut self,
-        message_sender_actor: &Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
-    ) {
+    pub async fn send_message(&mut self, message_sender_actor: &Actor<MessageSenderActor>) {
         for writer_proxy in self.matched_writers.iter_mut() {
             writer_proxy
-                .send_message(&self.rtps_reader.guid(), message_sender_actor, header)
+                .send_message(&self.rtps_reader.guid(), message_sender_actor)
                 .await
         }
     }

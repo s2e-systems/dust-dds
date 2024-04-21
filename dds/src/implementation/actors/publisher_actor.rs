@@ -16,7 +16,7 @@ use crate::{
             behavior_types::DURATION_ZERO,
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
-            messages::overall_structure::{RtpsMessageHeader, RtpsMessageRead},
+            messages::overall_structure::RtpsMessageRead,
             types::{
                 EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
@@ -260,14 +260,10 @@ impl PublisherActor {
         }
     }
 
-    async fn send_message(
-        &self,
-        message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
-    ) {
+    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
-                .send_message(message_sender_actor.clone(), header)
+                .send_message(message_sender_actor.clone())
                 .await;
         }
     }

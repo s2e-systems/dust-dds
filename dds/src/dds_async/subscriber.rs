@@ -144,11 +144,6 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
-        let header = self
-            .participant_address()
-            .upgrade()?
-            .get_rtps_message_header()
-            .await;
         let message_sender_actor = self
             .participant_address()
             .upgrade()?
@@ -157,7 +152,7 @@ impl SubscriberAsync {
         a_datareader
             .reader_address()
             .upgrade()?
-            .send_message(message_sender_actor, header)
+            .send_message(message_sender_actor)
             .await;
 
         self.subscriber_address

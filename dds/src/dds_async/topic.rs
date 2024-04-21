@@ -179,10 +179,6 @@ async fn announce_topic(
     let builtin_publisher = domain_participant.upgrade()?.get_builtin_publisher().await;
     let data_writer_list = builtin_publisher.upgrade()?.data_writer_list().await;
     let message_sender_actor = domain_participant.upgrade()?.get_message_sender().await;
-    let header = domain_participant
-        .upgrade()?
-        .get_rtps_message_header()
-        .await;
     for data_writer in data_writer_list {
         let data_writer_actor = &data_writer.upgrade()?;
         if data_writer_actor.get_type_name().await == "DiscoveredTopicData" {
@@ -193,7 +189,6 @@ async fn announce_topic(
                     None,
                     timestamp,
                     message_sender_actor,
-                    header,
                     timestamp,
                     data_writer_actor.clone(),
                 )

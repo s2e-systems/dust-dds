@@ -19,9 +19,7 @@ use crate::{
         rtps::{
             message_receiver::MessageReceiver,
             messages::{
-                overall_structure::{
-                    RtpsMessageHeader, RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageReadKind,
-                },
+                overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
                 submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
                 submessages::{
                     ack_nack::AckNackSubmessage, gap::GapSubmessage,
@@ -273,7 +271,6 @@ impl DataWriterActor {
         &mut self,
         change: RtpsWriterCacheChange,
         message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
         now: Time,
         writer_address: Actor<DataWriterActor>,
     ) {
@@ -294,7 +291,7 @@ impl DataWriterActor {
             self.writer_cache.add_change(change);
         }
 
-        self.send_message(message_sender_actor, header).await;
+        self.send_message(message_sender_actor).await;
     }
 }
 
@@ -422,7 +419,6 @@ impl DataWriterActor {
         handle: InstanceHandle,
         timestamp: Time,
         message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
         now: Time,
         data_writer_address: Actor<DataWriterActor>,
     ) -> DdsResult<()> {
@@ -458,14 +454,8 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(
-            change,
-            message_sender_actor,
-            header,
-            now,
-            data_writer_address,
-        )
-        .await;
+        self.add_change(change, message_sender_actor, now, data_writer_address)
+            .await;
         Ok(())
     }
 
@@ -492,7 +482,6 @@ impl DataWriterActor {
         handle: InstanceHandle,
         timestamp: Time,
         message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
         now: Time,
         data_writer_address: Actor<DataWriterActor>,
     ) -> DdsResult<()> {
@@ -518,14 +507,8 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(
-            change,
-            message_sender_actor,
-            header,
-            now,
-            data_writer_address,
-        )
-        .await;
+        self.add_change(change, message_sender_actor, now, data_writer_address)
+            .await;
 
         Ok(())
     }
@@ -602,7 +585,6 @@ impl DataWriterActor {
         _handle: Option<InstanceHandle>,
         timestamp: Time,
         message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
         now: Time,
         data_writer_address: Actor<DataWriterActor>,
     ) -> DdsResult<()> {
@@ -617,14 +599,8 @@ impl DataWriterActor {
             timestamp.into(),
         );
 
-        self.add_change(
-            change,
-            message_sender_actor,
-            header,
-            now,
-            data_writer_address,
-        )
-        .await;
+        self.add_change(change, message_sender_actor, now, data_writer_address)
+            .await;
 
         Ok(())
     }
@@ -822,14 +798,10 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message(
-        &mut self,
-        message_sender_actor: Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
-    ) {
-        self.send_message_to_reader_locators(&message_sender_actor, header)
+    async fn send_message(&mut self, message_sender_actor: Actor<MessageSenderActor>) {
+        self.send_message_to_reader_locators(&message_sender_actor)
             .await;
-        self.send_message_to_reader_proxies(&message_sender_actor, header)
+        self.send_message_to_reader_proxies(&message_sender_actor)
             .await;
     }
 
@@ -889,7 +861,6 @@ impl DataWriterActor {
     async fn send_message_to_reader_locators(
         &mut self,
         message_sender_actor: &Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
     ) {
         for reader_locator in &mut self.reader_locators {
             match &self.qos.reliability.kind {
@@ -914,10 +885,7 @@ impl DataWriterActor {
                                 Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
                             message_sender_actor
                                 .write(
-                                    RtpsMessageWrite::new(
-                                        &header,
-                                        &[info_ts_submessage, data_submessage],
-                                    ),
+                                    vec![info_ts_submessage, data_submessage],
                                     vec![reader_locator.locator()],
                                 )
                                 .await;
@@ -929,10 +897,7 @@ impl DataWriterActor {
                                 SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                             ));
                             message_sender_actor
-                                .write(
-                                    RtpsMessageWrite::new(&header, &[gap_submessage]),
-                                    vec![reader_locator.locator()],
-                                )
+                                .write(vec![gap_submessage], vec![reader_locator.locator()])
                                 .await;
                         }
                         reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
@@ -948,7 +913,6 @@ impl DataWriterActor {
     async fn send_message_to_reader_proxies(
         &mut self,
         message_sender_actor: &Actor<MessageSenderActor>,
-        header: RtpsMessageHeader,
     ) {
         for reader_proxy in &mut self.matched_readers {
             match (&self.qos.reliability.kind, reader_proxy.reliability()) {
@@ -959,7 +923,6 @@ impl DataWriterActor {
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
                         message_sender_actor,
-                        header,
                     )
                     .await
                 }
@@ -970,7 +933,6 @@ impl DataWriterActor {
                         &self.writer_cache,
                         self.rtps_writer.heartbeat_period().into(),
                         message_sender_actor,
-                        header,
                     )
                     .await
                 }
@@ -1166,7 +1128,6 @@ async fn send_message_to_reader_proxy_best_effort(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     message_sender_actor: &Actor<MessageSenderActor>,
-    header: RtpsMessageHeader,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
     // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
@@ -1204,7 +1165,7 @@ async fn send_message_to_reader_proxy_best_effort(
             ));
             message_sender_actor
                 .write(
-                    RtpsMessageWrite::new(&header, &[gap_submessage]),
+                    vec![gap_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .await;
@@ -1233,7 +1194,7 @@ async fn send_message_to_reader_proxy_best_effort(
 
                     message_sender_actor
                         .write(
-                            RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
+                            vec![info_dst, info_timestamp, data_frag],
                             reader_proxy.unicast_locator_list().to_vec(),
                         )
                         .await;
@@ -1253,10 +1214,7 @@ async fn send_message_to_reader_proxy_best_effort(
                 );
                 message_sender_actor
                     .write(
-                        RtpsMessageWrite::new(
-                            &header,
-                            &[info_dst, info_timestamp, data_submessage],
-                        ),
+                        vec![info_dst, info_timestamp, data_submessage],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
                     .await;
@@ -1264,15 +1222,12 @@ async fn send_message_to_reader_proxy_best_effort(
         } else {
             message_sender_actor
                 .write(
-                    RtpsMessageWrite::new(
-                        &header,
-                        &[Box::new(GapSubmessage::new(
-                            ENTITYID_UNKNOWN,
-                            writer_id,
-                            next_unsent_change_seq_num,
-                            SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
-                        ))],
-                    ),
+                    vec![Box::new(GapSubmessage::new(
+                        ENTITYID_UNKNOWN,
+                        writer_id,
+                        next_unsent_change_seq_num,
+                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
+                    ))],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .await;
@@ -1288,7 +1243,6 @@ async fn send_message_to_reader_proxy_reliable(
     writer_cache: &WriterHistoryCache,
     heartbeat_period: Duration,
     message_sender_actor: &Actor<MessageSenderActor>,
-    header: RtpsMessageHeader,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
     if reader_proxy.unsent_changes(writer_cache) {
@@ -1311,7 +1265,7 @@ async fn send_message_to_reader_proxy_reliable(
                 );
                 message_sender_actor
                     .write(
-                        RtpsMessageWrite::new(&header, &[gap_submessage, heartbeat_submessage]),
+                        vec![gap_submessage, heartbeat_submessage],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
                     .await;
@@ -1322,7 +1276,6 @@ async fn send_message_to_reader_proxy_reliable(
                     writer_cache,
                     next_unsent_change_seq_num,
                     message_sender_actor,
-                    header,
                 )
                 .await;
             }
@@ -1343,7 +1296,7 @@ async fn send_message_to_reader_proxy_reliable(
         );
         message_sender_actor
             .write(
-                RtpsMessageWrite::new(&header, &[heartbeat_submessage]),
+                vec![heartbeat_submessage],
                 reader_proxy.unicast_locator_list().to_vec(),
             )
             .await;
@@ -1363,7 +1316,6 @@ async fn send_message_to_reader_proxy_reliable(
                 writer_cache,
                 next_requested_change_seq_num,
                 message_sender_actor,
-                header,
             )
             .await;
         }
@@ -1376,7 +1328,6 @@ async fn send_change_message_reader_proxy_reliable(
     writer_cache: &WriterHistoryCache,
     change_seq_num: SequenceNumber,
     message_sender_actor: &Actor<MessageSenderActor>,
-    header: RtpsMessageHeader,
 ) {
     match writer_cache
         .change_list()
@@ -1403,7 +1354,7 @@ async fn send_change_message_reader_proxy_reliable(
 
                     message_sender_actor
                         .write(
-                            RtpsMessageWrite::new(&header, &[info_dst, info_timestamp, data_frag]),
+                            vec![info_dst, info_timestamp, data_frag],
                             reader_proxy.unicast_locator_list().to_vec(),
                         )
                         .await;
@@ -1432,10 +1383,7 @@ async fn send_change_message_reader_proxy_reliable(
 
                 message_sender_actor
                     .write(
-                        RtpsMessageWrite::new(
-                            &header,
-                            &[info_dst, info_timestamp, data_submessage, heartbeat],
-                        ),
+                        vec![info_dst, info_timestamp, data_submessage, heartbeat],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
                     .await;
@@ -1455,7 +1403,7 @@ async fn send_change_message_reader_proxy_reliable(
 
             message_sender_actor
                 .write(
-                    RtpsMessageWrite::new(&header, &[info_dst, gap_submessage]),
+                    vec![info_dst, gap_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .await;
