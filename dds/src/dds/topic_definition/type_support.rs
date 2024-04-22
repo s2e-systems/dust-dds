@@ -1,13 +1,11 @@
 use std::io::Read;
 
 use crate::{
-    implementation::{
-        data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-        payload_serializer_deserializer::{
-            cdr_deserializer::ClassicCdrDeserializer, cdr_serializer::ClassicCdrSerializer,
-            endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
-            parameter_list_serializer::ParameterListCdrSerializer,
-        },
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    implementation::payload_serializer_deserializer::{
+        cdr_deserializer::ClassicCdrDeserializer, cdr_serializer::ClassicCdrSerializer,
+        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
+        parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

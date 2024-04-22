@@ -4,6 +4,11 @@ use super::{
 };
 use crate::{
     configuration::DustDdsConfiguration,
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
+        discovered_writer_data::DCPS_PUBLICATION,
+        spdp_discovered_participant_data::DCPS_PARTICIPANT,
+    },
     dds_async::{
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync,
@@ -12,11 +17,6 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
-            discovered_writer_data::DCPS_PUBLICATION,
-            spdp_discovered_participant_data::DCPS_PARTICIPANT,
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},

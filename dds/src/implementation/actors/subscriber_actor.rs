@@ -10,6 +10,7 @@ use super::{
     topic_actor::TopicActor, type_support_actor::TypeSupportActor,
 };
 use crate::{
+    data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_async::{
         domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync,
@@ -20,7 +21,6 @@ use crate::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
         },
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

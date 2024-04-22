@@ -1,7 +1,7 @@
 use std::io::{BufRead, Read};
 
 use crate::{
-    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     serialized_payload::{
         cdr::deserialize::CdrDeserialize, parameter_list::deserializer::ParameterListDeserializer,
     },

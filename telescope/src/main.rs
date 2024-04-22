@@ -1,7 +1,14 @@
-use dust_dds::rtps::messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind};
+use dust_dds::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    rtps::messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+    topic_definition::type_support::DdsDeserialize,
+};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
-use std::net::{Ipv4Addr, SocketAddr, UdpSocket};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    net::{Ipv4Addr, SocketAddr, UdpSocket},
+};
 
 fn main() {
     let port = 7400;
@@ -37,25 +44,66 @@ fn main() {
         }
     }
 
+    let mut participant_list = HashMap::new();
+
     let mut buf = [0u8; 65000];
     println!("Starting Dust DDS Telescope");
     loop {
         let received_size = socket.recv(&mut buf).unwrap();
-        println!("Received data {received_size}");
         if let Ok(m) = RtpsMessageRead::new(buf[0..received_size].into()) {
             for submessage in m.submessages() {
                 if let RtpsSubmessageReadKind::Data(d) = submessage {
-                    println!("Received data submessage {:?}", d)
+                    if let Ok(discovered_participant) =
+                        SpdpDiscoveredParticipantData::deserialize_data(
+                            d.serialized_payload().as_ref(),
+                        )
+                    {
+                        match participant_list
+                            .entry(discovered_participant.participant_proxy().guid_prefix())
+                        {
+                            Entry::Occupied(_) => (),
+                            Entry::Vacant(e) => {
+                                println!(
+                                    "Discovered participant GUID {:?} on domain {:?} with tag {:?}",
+                                    discovered_participant.participant_proxy().guid_prefix(),
+                                    discovered_participant.participant_proxy().domain_id(),
+                                    discovered_participant.participant_proxy().domain_tag(),
+                                );
+                                println!(
+                                    "Participant metattrafic unicast locator list {:?}",
+                                    discovered_participant
+                                        .participant_proxy()
+                                        .metatraffic_unicast_locator_list()
+                                );
+                                println!(
+                                    "Participant metattrafic multicast locator list {:?}",
+                                    discovered_participant
+                                        .participant_proxy()
+                                        .metatraffic_multicast_locator_list()
+                                );
+                                println!(
+                                    "Participant default unicast locator list {:?}",
+                                    discovered_participant
+                                        .participant_proxy()
+                                        .default_unicast_locator_list()
+                                );
+                                println!(
+                                    "Participant default multicast locator list {:?}",
+                                    discovered_participant
+                                        .participant_proxy()
+                                        .default_multicast_locator_list()
+                                );
+                                e.insert(discovered_participant);
+                                println!("\n\n")
+                            }
+                        }
+                    }
                 }
             }
-
-            println!("Received an RTPS message {:?}", m);
         } else {
-            println!("Received data not representing an RTPS message")
+            println!("Received data not representing an RTPS message");
         }
     }
-
-    // socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 }
 
 fn get_interface_address_list(interface_name: Option<&String>) -> Vec<Addr> {

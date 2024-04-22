@@ -6,6 +6,14 @@ use crate::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
+        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
+        spdp_discovered_participant_data::{
+            ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+        },
+    },
     dds::infrastructure,
     dds_async::{
         domain_participant::DomainParticipantAsync,
@@ -19,14 +27,6 @@ use crate::{
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
-        },
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
-            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{
-                ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-            },
         },
     },
     infrastructure::{

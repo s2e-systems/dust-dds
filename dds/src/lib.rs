@@ -8,9 +8,11 @@ pub use dds::*;
 /// Contains the async version of the DDS API.
 pub mod dds_async;
 
-/// Contains the RTPS types
 #[doc(hidden)]
 pub mod rtps;
+
+#[doc(hidden)]
+pub mod data_representation_builtin_endpoints;
 
 mod implementation;
 
