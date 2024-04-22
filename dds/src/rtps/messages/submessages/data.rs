@@ -1,12 +1,14 @@
 use super::super::super::{
-    error::RtpsResult, messages::{
+    error::RtpsResult,
+    messages::{
         overall_structure::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
             WriteIntoBytes,
         },
         submessage_elements::{ArcSlice, Data, ParameterList},
         types::{SubmessageFlag, SubmessageKind},
-    }, types::{EntityId, SequenceNumber}
+    },
+    types::{EntityId, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -167,7 +169,7 @@ impl Submessage for DataSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::{
+    use crate::rtps::{
         messages::{overall_structure::write_into_bytes_vec, submessage_elements::Parameter},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };

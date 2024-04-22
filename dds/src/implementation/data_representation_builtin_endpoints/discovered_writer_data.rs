@@ -2,8 +2,8 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
+    rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
@@ -130,13 +130,13 @@ impl DdsTypeXml for DiscoveredWriterData {
 mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        implementation::rtps::types::{
-            BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
-            USER_DEFINED_UNKNOWN,
-        },
         infrastructure::{
             qos::{DataWriterQos, PublisherQos},
             qos_policy::TopicDataQosPolicy,
+        },
+        rtps::types::{
+            BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+            USER_DEFINED_UNKNOWN,
         },
     };
 

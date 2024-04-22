@@ -1,12 +1,12 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
-    implementation::rtps::{
+    infrastructure::{error::DdsResult, time::Duration},
+    rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    infrastructure::{error::DdsResult, time::Duration},
     serialized_payload::{
         cdr::{
             deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,

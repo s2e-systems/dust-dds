@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
-use crate::implementation::rtps::{
+use crate::rtps::{
     messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
     types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6,

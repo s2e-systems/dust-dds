@@ -123,8 +123,8 @@ fn nonasec_to_fraction(nanosec: u32) -> u32 {
     (nanosec as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32
 }
 
-impl From<crate::implementation::rtps::behavior_types::Duration> for Duration {
-    fn from(value: crate::implementation::rtps::behavior_types::Duration) -> Self {
+impl From<crate::rtps::behavior_types::Duration> for Duration {
+    fn from(value: crate::rtps::behavior_types::Duration) -> Self {
         Self {
             sec: value.seconds(),
             nanosec: fraction_to_nanosec(value.fraction()),
@@ -132,17 +132,14 @@ impl From<crate::implementation::rtps::behavior_types::Duration> for Duration {
     }
 }
 
-impl From<Duration> for crate::implementation::rtps::behavior_types::Duration {
+impl From<Duration> for crate::rtps::behavior_types::Duration {
     fn from(value: Duration) -> Self {
-        crate::implementation::rtps::behavior_types::Duration::new(
-            value.sec,
-            nonasec_to_fraction(value.nanosec),
-        )
+        crate::rtps::behavior_types::Duration::new(value.sec, nonasec_to_fraction(value.nanosec))
     }
 }
 
-impl From<crate::implementation::rtps::messages::types::Time> for Duration {
-    fn from(value: crate::implementation::rtps::messages::types::Time) -> Self {
+impl From<crate::rtps::messages::types::Time> for Duration {
+    fn from(value: crate::rtps::messages::types::Time) -> Self {
         Self {
             sec: value.seconds() as i32,
             nanosec: fraction_to_nanosec(value.fraction()),
@@ -150,9 +147,9 @@ impl From<crate::implementation::rtps::messages::types::Time> for Duration {
     }
 }
 
-impl From<Duration> for crate::implementation::rtps::messages::types::Time {
+impl From<Duration> for crate::rtps::messages::types::Time {
     fn from(value: Duration) -> Self {
-        crate::implementation::rtps::messages::types::Time::new(
+        crate::rtps::messages::types::Time::new(
             value.sec as u32,
             nonasec_to_fraction(value.nanosec),
         )
@@ -197,14 +194,14 @@ impl Time {
     }
 }
 
-impl From<Time> for crate::implementation::rtps::messages::types::Time {
+impl From<Time> for crate::rtps::messages::types::Time {
     fn from(value: Time) -> Self {
         Self::new(value.sec() as u32, nonasec_to_fraction(value.nanosec()))
     }
 }
 
-impl From<crate::implementation::rtps::messages::types::Time> for Time {
-    fn from(value: crate::implementation::rtps::messages::types::Time) -> Self {
+impl From<crate::rtps::messages::types::Time> for Time {
+    fn from(value: crate::rtps::messages::types::Time) -> Self {
         Time {
             sec: value.seconds() as i32,
             nanosec: fraction_to_nanosec(value.fraction()),
@@ -240,8 +237,7 @@ mod tests {
     fn dds_duration_to_rtps_duration() {
         let dds_duration = Duration::new(13, 500_000_000);
 
-        let rtps_duration =
-            crate::implementation::rtps::behavior_types::Duration::from(dds_duration);
+        let rtps_duration = crate::rtps::behavior_types::Duration::from(dds_duration);
 
         assert_eq!(rtps_duration.seconds(), 13);
         assert_eq!(rtps_duration.fraction(), 2u32.pow(31));
@@ -249,8 +245,7 @@ mod tests {
 
     #[test]
     fn rtps_duration_to_dds_duration() {
-        let rtps_duration =
-            crate::implementation::rtps::behavior_types::Duration::new(13, 2u32.pow(31));
+        let rtps_duration = crate::rtps::behavior_types::Duration::new(13, 2u32.pow(31));
 
         let dds_duration = Duration::from(rtps_duration);
 
@@ -262,7 +257,7 @@ mod tests {
     fn dds_duration_to_rtps_duration_to_dds_duration() {
         let dds_time = Duration::new(13, 200);
 
-        let rtps_time = crate::implementation::rtps::behavior_types::Duration::from(dds_time);
+        let rtps_time = crate::rtps::behavior_types::Duration::from(dds_time);
         let dds_time_from_rtps_time = Duration::from(rtps_time);
 
         assert_eq!(dds_time, dds_time_from_rtps_time)

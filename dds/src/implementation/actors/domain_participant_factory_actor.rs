@@ -17,27 +17,6 @@ use crate::{
             discovered_writer_data::DCPS_PUBLICATION,
             spdp_discovered_participant_data::DCPS_PARTICIPANT,
         },
-        rtps::{
-            behavior_types::DURATION_ZERO,
-            discovery_types::{
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            },
-            endpoint::RtpsEndpoint,
-            messages::overall_structure::RtpsMessageRead,
-            participant::RtpsParticipant,
-            reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
-            reader_locator::RtpsReaderLocator,
-            types::{
-                Guid, GuidPrefix, Locator, TopicKind, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
-                VENDOR_ID_S2E,
-            },
-            writer::RtpsWriter,
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -52,6 +31,27 @@ use crate::{
         },
         status::StatusKind,
         time::{Duration, DurationKind, DURATION_ZERO_NSEC, DURATION_ZERO_SEC},
+    },
+    rtps::{
+        behavior_types::DURATION_ZERO,
+        discovery_types::{
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        },
+        endpoint::RtpsEndpoint,
+        messages::overall_structure::RtpsMessageRead,
+        participant::RtpsParticipant,
+        reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
+        reader_locator::RtpsReaderLocator,
+        types::{
+            Guid, GuidPrefix, Locator, TopicKind, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+        },
+        writer::RtpsWriter,
     },
 };
 use dust_dds_derive::actor_interface;

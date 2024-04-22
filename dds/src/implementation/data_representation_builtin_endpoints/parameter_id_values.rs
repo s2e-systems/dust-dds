@@ -1,9 +1,9 @@
 use crate::{
-    implementation::rtps::{
+    infrastructure::time::Duration,
+    rtps::{
         messages::types::ParameterId,
         types::{EntityId, ENTITYID_UNKNOWN},
     },
-    infrastructure::time::Duration,
 };
 
 // Constant value from Table 9.13 - ParameterId Values

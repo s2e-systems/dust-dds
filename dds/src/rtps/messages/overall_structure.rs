@@ -375,7 +375,7 @@ impl WriteIntoBytes for SubmessageHeaderWrite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::{
+    use crate::rtps::{
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},

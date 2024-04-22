@@ -21,18 +21,6 @@ use crate::{
             status_condition_actor::StatusConditionActor,
         },
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        rtps::{
-            self,
-            behavior_types::DURATION_ZERO,
-            endpoint::RtpsEndpoint,
-            group::RtpsGroup,
-            messages::overall_structure::RtpsMessageRead,
-            reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
-            types::{
-                EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
-                USER_DEFINED_READER_WITH_KEY,
-            },
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -40,6 +28,18 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
+    },
+    rtps::{
+        self,
+        behavior_types::DURATION_ZERO,
+        endpoint::RtpsEndpoint,
+        group::RtpsGroup,
+        messages::overall_structure::RtpsMessageRead,
+        reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
+        types::{
+            EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
+            USER_DEFINED_READER_WITH_KEY,
+        },
     },
 };
 
