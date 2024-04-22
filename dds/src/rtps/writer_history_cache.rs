@@ -234,7 +234,7 @@ impl WriterHistoryCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::GUID_UNKNOWN;
+    use crate::rtps::types::GUID_UNKNOWN;
     use tests::messages::types::TIME_INVALID;
 
     const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);

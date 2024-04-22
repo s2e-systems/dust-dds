@@ -466,7 +466,7 @@ pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::messages::overall_structure::write_into_bytes_vec;
+    use crate::rtps::messages::overall_structure::write_into_bytes_vec;
 
     use super::*;
 

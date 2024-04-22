@@ -341,6 +341,10 @@ impl ArcSlice {
         self.range.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.range.len() == 0
+    }
+
     pub fn sub_slice(&self, range: Range<usize>) -> RtpsResult<ArcSlice> {
         if self.data.len() >= self.range.start + range.end {
             Ok(ArcSlice {
@@ -415,8 +419,13 @@ impl Data {
     pub fn new(data: ArcSlice) -> Self {
         Self(data)
     }
+
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn empty() -> Self {
@@ -445,7 +454,7 @@ impl WriteIntoBytes for Data {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::{
+    use crate::rtps::{
         messages::{overall_structure::write_into_bytes_vec, types::Count},
         types::{GuidPrefix, ProtocolVersion, VendorId},
     };

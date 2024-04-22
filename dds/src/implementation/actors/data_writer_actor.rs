@@ -16,28 +16,6 @@ use crate::{
         payload_serializer_deserializer::{
             cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
         },
-        rtps::{
-            message_receiver::MessageReceiver,
-            messages::{
-                overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-                submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
-                submessages::{
-                    ack_nack::AckNackSubmessage, gap::GapSubmessage,
-                    info_destination::InfoDestinationSubmessage,
-                    info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
-                },
-            },
-            reader_locator::RtpsReaderLocator,
-            reader_proxy::RtpsReaderProxy,
-            types::{
-                ChangeKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
-                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
-            },
-            writer::RtpsWriter,
-            writer_history_cache::{
-                DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache,
-            },
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -54,6 +32,26 @@ use crate::{
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
         time::{Duration, DurationKind, Time},
+    },
+    rtps::{
+        message_receiver::MessageReceiver,
+        messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
+            submessages::{
+                ack_nack::AckNackSubmessage, gap::GapSubmessage,
+                info_destination::InfoDestinationSubmessage,
+                info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
+            },
+        },
+        reader_locator::RtpsReaderLocator,
+        reader_proxy::RtpsReaderProxy,
+        types::{
+            ChangeKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+            ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+        },
+        writer::RtpsWriter,
+        writer_history_cache::{DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache},
     },
     serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,

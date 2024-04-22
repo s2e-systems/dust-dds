@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::rtps::types::{EntityId, Guid, Locator},
     infrastructure::error::DdsResult,
+    rtps::types::{EntityId, Guid, Locator},
     serialized_payload::parameter_list::{
         deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
@@ -132,12 +132,12 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        implementation::rtps::types::{
-            BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
-        },
         infrastructure::{
             qos::{DataReaderQos, SubscriberQos},
             qos_policy::TopicDataQosPolicy,
+        },
+        rtps::types::{
+            BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
         },
     };
 

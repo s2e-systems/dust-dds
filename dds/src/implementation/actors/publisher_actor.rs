@@ -12,17 +12,6 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        rtps::{
-            behavior_types::DURATION_ZERO,
-            endpoint::RtpsEndpoint,
-            group::RtpsGroup,
-            messages::overall_structure::RtpsMessageRead,
-            types::{
-                EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-                USER_DEFINED_WRITER_WITH_KEY,
-            },
-            writer::RtpsWriter,
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -31,6 +20,17 @@ use crate::{
         qos_policy::PartitionQosPolicy,
         status::StatusKind,
         time::Duration,
+    },
+    rtps::{
+        behavior_types::DURATION_ZERO,
+        endpoint::RtpsEndpoint,
+        group::RtpsGroup,
+        messages::overall_structure::RtpsMessageRead,
+        types::{
+            EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
+        },
+        writer::RtpsWriter,
     },
 };
 

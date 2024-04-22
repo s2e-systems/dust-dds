@@ -44,9 +44,7 @@ impl Submessage for PadSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::{
-        write_into_bytes_vec, SubmessageHeaderRead,
-    };
+    use crate::rtps::messages::overall_structure::{write_into_bytes_vec, SubmessageHeaderRead};
 
     #[test]
     fn serialize_pad() {

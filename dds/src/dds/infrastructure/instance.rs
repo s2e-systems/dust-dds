@@ -33,15 +33,15 @@ impl InstanceHandle {
     }
 }
 
-impl From<crate::implementation::rtps::behavior_types::InstanceHandle> for InstanceHandle {
-    fn from(value: crate::implementation::rtps::behavior_types::InstanceHandle) -> Self {
+impl From<crate::rtps::behavior_types::InstanceHandle> for InstanceHandle {
+    fn from(value: crate::rtps::behavior_types::InstanceHandle) -> Self {
         Self(value.0)
     }
 }
 
-impl From<InstanceHandle> for crate::implementation::rtps::behavior_types::InstanceHandle {
+impl From<InstanceHandle> for crate::rtps::behavior_types::InstanceHandle {
     fn from(value: InstanceHandle) -> Self {
-        crate::implementation::rtps::behavior_types::InstanceHandle(value.0)
+        crate::rtps::behavior_types::InstanceHandle(value.0)
     }
 }
 

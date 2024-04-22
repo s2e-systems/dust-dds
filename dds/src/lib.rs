@@ -7,6 +7,11 @@ pub mod serialized_payload;
 pub use dds::*;
 /// Contains the async version of the DDS API.
 pub mod dds_async;
+
+/// Contains the RTPS types
+#[doc(hidden)]
+pub mod rtps;
+
 mod implementation;
 
 // To enable using our own derive macros

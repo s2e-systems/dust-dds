@@ -1,12 +1,14 @@
 use super::super::super::{
-    error::{RtpsError, RtpsErrorKind, RtpsResult}, messages::{
+    error::{RtpsError, RtpsErrorKind, RtpsResult},
+    messages::{
         overall_structure::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
             WriteIntoBytes,
         },
         submessage_elements::{ArcSlice, Data, ParameterList},
         types::{FragmentNumber, SubmessageFlag, SubmessageKind},
-    }, types::{EntityId, SequenceNumber}
+    },
+    types::{EntityId, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -77,7 +79,10 @@ impl DataFragSubmessage {
                 serialized_payload,
             })
         } else {
-            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "DataFrag submessage"))
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "DataFrag submessage",
+            ))
         }
     }
 
@@ -199,7 +204,7 @@ impl Submessage for DataFragSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::{
+    use crate::rtps::{
         messages::{overall_structure::write_into_bytes_vec, submessage_elements::Parameter},
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };

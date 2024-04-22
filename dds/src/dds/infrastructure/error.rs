@@ -1,4 +1,4 @@
-use crate::implementation::rtps::error::RtpsError;
+use crate::rtps::error::RtpsError;
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;

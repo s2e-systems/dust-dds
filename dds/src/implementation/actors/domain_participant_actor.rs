@@ -28,24 +28,6 @@ use crate::{
                 ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
             },
         },
-        rtps::{
-            discovery_types::{
-                BuiltinEndpointQos, BuiltinEndpointSet,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            },
-            group::RtpsGroup,
-            messages::{overall_structure::RtpsMessageRead, types::Count},
-            participant::RtpsParticipant,
-            types::{
-                EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
-                USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
-            },
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -57,6 +39,23 @@ use crate::{
         },
         status::StatusKind,
         time::Duration,
+    },
+    rtps::{
+        discovery_types::{
+            BuiltinEndpointQos, BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        },
+        group::RtpsGroup,
+        messages::{overall_structure::RtpsMessageRead, types::Count},
+        participant::RtpsParticipant,
+        types::{
+            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+            USER_DEFINED_WRITER_GROUP,
+        },
     },
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,

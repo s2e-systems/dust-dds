@@ -27,22 +27,6 @@ use crate::{
         payload_serializer_deserializer::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
-        rtps::{
-            self,
-            cache_change::RtpsCacheChange,
-            message_receiver::MessageReceiver,
-            messages::{
-                overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-                submessage_elements::{Data, Parameter, ParameterList},
-                submessages::{
-                    data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
-                    heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
-                },
-            },
-            reader::RtpsReaderKind,
-            types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
-            writer_proxy::RtpsWriterProxy,
-        },
     },
     infrastructure::{
         self,
@@ -61,6 +45,22 @@ use crate::{
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::DurationKind,
+    },
+    rtps::{
+        self,
+        cache_change::RtpsCacheChange,
+        message_receiver::MessageReceiver,
+        messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            submessage_elements::{Data, Parameter, ParameterList},
+            submessages::{
+                data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
+                heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
+            },
+        },
+        reader::RtpsReaderKind,
+        types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+        writer_proxy::RtpsWriterProxy,
     },
     serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},

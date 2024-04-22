@@ -69,7 +69,7 @@ impl Submessage for InfoTimestampSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::messages::overall_structure::write_into_bytes_vec;
+    use crate::rtps::messages::overall_structure::write_into_bytes_vec;
 
     #[test]
     fn serialize_info_timestamp_valid_time() {

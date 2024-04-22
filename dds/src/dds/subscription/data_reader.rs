@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
-    implementation::rtps::messages::submessage_elements::Data,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -13,6 +12,7 @@ use crate::{
         },
         time::Duration,
     },
+    rtps::messages::submessage_elements::Data,
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{topic::Topic, type_support::DdsDeserialize},
 };

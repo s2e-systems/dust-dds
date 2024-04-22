@@ -6,7 +6,6 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        rtps::types::Guid,
     },
     infrastructure::{
         error::DdsResult,
@@ -14,6 +13,7 @@ use crate::{
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
+    rtps::types::Guid,
 };
 
 use super::{
