@@ -11,3 +11,5 @@ description = "Dust DDS Telescope"
 
 [dependencies]
 dust_dds = { path = "../dds" }
+socket2 = "0.5"
+network-interface = "1.1.1"
