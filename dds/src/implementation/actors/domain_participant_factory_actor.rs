@@ -67,6 +67,7 @@ use std::{
 };
 use tracing::{error, info, warn};
 
+#[derive(Default)]
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
     qos: DomainParticipantFactoryQos,
@@ -76,12 +77,7 @@ pub struct DomainParticipantFactoryActor {
 
 impl DomainParticipantFactoryActor {
     pub fn new() -> Self {
-        Self {
-            domain_participant_list: HashMap::new(),
-            qos: DomainParticipantFactoryQos::default(),
-            default_participant_qos: DomainParticipantQos::default(),
-            configuration: DustDdsConfiguration::default(),
-        }
+        Default::default()
     }
 
     fn get_unique_participant_id(&mut self) -> u32 {
