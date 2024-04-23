@@ -43,7 +43,7 @@ use crate::{
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         endpoint::RtpsEndpoint,
-        messages::overall_structure::RtpsMessageRead,
+        messages::overall_structure::RtpsMessage,
         participant::RtpsParticipant,
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
         reader_locator::RtpsReaderLocator,
@@ -249,12 +249,12 @@ impl DomainParticipantFactoryActor {
     }
 }
 
-pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsMessageRead> {
+pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsMessage> {
     let mut buf = vec![0; 65507];
     let (bytes, _) = socket.recv_from(&mut buf).await?;
     buf.truncate(bytes);
     if bytes > 0 {
-        Ok(RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()))?)
+        Ok(RtpsMessage::try_from(Arc::from(buf.into_boxed_slice()))?)
     } else {
         Err(DdsError::NoData)
     }

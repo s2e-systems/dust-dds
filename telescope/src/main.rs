@@ -1,6 +1,6 @@
 use dust_dds::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    rtps::messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+    rtps::messages::overall_structure::{RtpsMessage, RtpsSubmessageReadKind},
     topic_definition::type_support::DdsDeserialize,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -50,7 +50,7 @@ fn main() {
     println!("Starting Dust DDS Telescope");
     loop {
         let received_size = socket.recv(&mut buf).unwrap();
-        if let Ok(m) = RtpsMessageRead::new(buf[0..received_size].into()) {
+        if let Ok(m) = RtpsMessage::new(buf[0..received_size].into()) {
             for submessage in m.submessages() {
                 if let RtpsSubmessageReadKind::Data(d) = submessage {
                     if let Ok(discovered_participant) =

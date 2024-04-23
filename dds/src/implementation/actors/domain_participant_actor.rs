@@ -49,7 +49,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         group::RtpsGroup,
-        messages::{overall_structure::RtpsMessageRead, types::Count},
+        messages::{overall_structure::RtpsMessage, types::Count},
         participant::RtpsParticipant,
         types::{
             EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
@@ -976,7 +976,7 @@ impl DomainParticipantActor {
 
     async fn process_metatraffic_rtps_message(
         &mut self,
-        message: RtpsMessageRead,
+        message: RtpsMessage,
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         tracing::trace!(
@@ -1006,7 +1006,7 @@ impl DomainParticipantActor {
 
     async fn process_user_defined_rtps_message(
         &self,
-        message: RtpsMessageRead,
+        message: RtpsMessage,
         participant: DomainParticipantAsync,
     ) {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());

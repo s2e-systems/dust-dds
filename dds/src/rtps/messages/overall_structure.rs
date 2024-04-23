@@ -140,12 +140,14 @@ impl SubmessageHeaderRead {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RtpsMessageRead {
+pub struct RtpsMessage {
     data: Arc<[u8]>,
 }
 
-impl RtpsMessageRead {
-    pub fn new(data: Arc<[u8]>) -> RtpsResult<Self> {
+impl TryFrom<Arc<[u8]>> for RtpsMessage {
+    type Error = RtpsError;
+
+    fn try_from(data: Arc<[u8]>) -> Result<Self, Self::Error> {
         if data.len() >= 20 {
             if b"RTPS" == &[data[0], data[1], data[2], data[3]] {
                 Ok(Self { data })
@@ -160,6 +162,21 @@ impl RtpsMessageRead {
                 RtpsErrorKind::NotEnoughData,
                 "Rtps message header",
             ))
+        }
+    }
+}
+
+impl RtpsMessage {
+    pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage + Send>]) -> Self {
+        let mut buffer = [0; BUFFER_SIZE];
+        let mut slice = buffer.as_mut_slice();
+        header.write_into_bytes(&mut slice);
+        for submessage in submessages {
+            submessage.write_into_bytes(&mut slice);
+        }
+        let len = BUFFER_SIZE - slice.len();
+        Self {
+            data: Arc::from(&buffer[..len]),
         }
     }
 
@@ -247,6 +264,10 @@ impl RtpsMessageRead {
         }
         submessages
     }
+
+    pub fn buffer(&self) -> &[u8] {
+        &self.data
+    }
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
@@ -256,30 +277,6 @@ pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
     value.write_into_bytes(&mut slice);
     let len = BUFFER_SIZE - slice.len();
     Vec::from(&buf[..len])
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct RtpsMessageWrite {
-    data: Arc<[u8]>,
-}
-
-impl RtpsMessageWrite {
-    pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage + Send>]) -> Self {
-        let mut buffer = [0; BUFFER_SIZE];
-        let mut slice = buffer.as_mut_slice();
-        header.write_into_bytes(&mut slice);
-        for submessage in submessages {
-            submessage.write_into_bytes(&mut slice);
-        }
-        let len = BUFFER_SIZE - slice.len();
-        Self {
-            data: Arc::from(&buffer[..len]),
-        }
-    }
-
-    pub fn buffer(&self) -> &[u8] {
-        &self.data
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -391,7 +388,7 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
-        let message = RtpsMessageWrite::new(&header, &[]);
+        let message = RtpsMessage::new(&header, &[]);
         #[rustfmt::skip]
         assert_eq!(message.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -432,7 +429,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        let value = RtpsMessageWrite::new(&header, &[Box::new(submessage)]);
+        let value = RtpsMessage::new(&header, &[Box::new(submessage)]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -487,7 +484,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         ));
-        let value = RtpsMessageWrite::new(&header, &[info_timestamp_submessage, data_submessage]);
+        let value = RtpsMessage::new(&header, &[info_timestamp_submessage, data_submessage]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -521,14 +518,14 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data: Arc<[u8]> = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
         ]);
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        let rtps_message = RtpsMessage::try_from(data).unwrap();
         assert_eq!(rtps_message.header(), header);
         assert_eq!(rtps_message.submessages(), vec![]);
     }
@@ -536,7 +533,7 @@ mod tests {
     #[test]
     fn deserialize_rtps_message_too_high_submessage_length() {
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data: Arc<[u8]> = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -545,7 +542,7 @@ mod tests {
             0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
             4, 0, 0, 0, // Time (half only)
         ]);
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        let rtps_message = RtpsMessage::try_from(data).unwrap();
         assert_eq!(rtps_message.submessages(), vec![]);
     }
 
@@ -558,7 +555,7 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data: Arc<[u8]> = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -585,7 +582,7 @@ mod tests {
             2, 0, 0, 0, // count: Count: value (long)
         ]);
 
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        let rtps_message = RtpsMessage::try_from(data).unwrap();
         assert_eq!(rtps_message.header(), expected_header);
         assert_eq!(rtps_message.submessages().len(), 2);
         assert!(matches!(
@@ -618,7 +615,7 @@ mod tests {
         let expected_submessages = vec![expected_data_submessage];
 
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data: Arc<[u8]> = Arc::new([
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -639,7 +636,7 @@ mod tests {
             1, 0, 0, 0, // inlineQos: Sentinel
         ]);
 
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        let rtps_message = RtpsMessage::try_from(data).unwrap();
         assert_eq!(expected_submessages, rtps_message.submessages());
     }
 }

@@ -36,7 +36,7 @@ use crate::{
     rtps::{
         message_receiver::MessageReceiver,
         messages::{
-            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            overall_structure::{RtpsMessage, RtpsSubmessageReadKind},
             submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
             submessages::{
                 ack_nack::AckNackSubmessage, gap::GapSubmessage,
@@ -777,7 +777,7 @@ impl DataWriterActor {
         }
     }
 
-    fn process_rtps_message(&mut self, message: RtpsMessageRead) {
+    fn process_rtps_message(&mut self, message: RtpsMessage) {
         let mut message_receiver = MessageReceiver::new(&message);
         while let Some(submessage) = message_receiver.next() {
             match &submessage {

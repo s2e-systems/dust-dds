@@ -23,7 +23,7 @@ use crate::{
         behavior_types::DURATION_ZERO,
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        messages::overall_structure::RtpsMessageRead,
+        messages::overall_structure::RtpsMessage,
         types::{
             EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
@@ -250,7 +250,7 @@ impl PublisherActor {
             .collect()
     }
 
-    async fn process_rtps_message(&self, message: RtpsMessageRead) {
+    async fn process_rtps_message(&self, message: RtpsMessage) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .process_rtps_message(message.clone())

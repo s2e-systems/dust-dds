@@ -3,7 +3,7 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::rtps::{
-    messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
+    messages::overall_structure::{RtpsMessage, RtpsMessageHeader, Submessage},
     types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6,
     },
@@ -41,7 +41,7 @@ impl MessageSenderActor {
     ) {
         let header =
             RtpsMessageHeader::new(self.protocol_version, self.vendor_id, self.guid_prefix);
-        let message = RtpsMessageWrite::new(&header, &submessages);
+        let message = RtpsMessage::new(&header, &submessages);
         let buf = message.buffer();
 
         for destination_locator in destination_locator_list {

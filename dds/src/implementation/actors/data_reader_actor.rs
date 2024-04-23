@@ -51,7 +51,7 @@ use crate::{
         cache_change::RtpsCacheChange,
         message_receiver::MessageReceiver,
         messages::{
-            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            overall_structure::{RtpsMessage, RtpsSubmessageReadKind},
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{
                 data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
@@ -1908,7 +1908,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     async fn process_rtps_message(
         &mut self,
-        message: RtpsMessageRead,
+        message: RtpsMessage,
         reception_timestamp: rtps::messages::types::Time,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
