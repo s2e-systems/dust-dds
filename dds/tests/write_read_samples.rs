@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
@@ -45,7 +46,15 @@ struct LargeData {
 fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -125,7 +134,15 @@ fn large_data_should_be_fragmented() {
 fn large_data_should_be_fragmented_reliable() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -200,7 +217,15 @@ fn large_data_should_be_fragmented_reliable() {
 fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -288,7 +313,15 @@ fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
 fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -383,7 +416,15 @@ fn writer_with_keep_last_3_should_send_last_3_samples_to_reader() {
 fn samples_are_taken() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -467,7 +508,15 @@ fn samples_are_taken() {
 fn wait_for_samples_to_be_taken_best_effort() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -549,7 +598,15 @@ fn wait_for_samples_to_be_taken_best_effort() {
 fn read_only_unread_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -652,7 +709,15 @@ fn read_only_unread_samples() {
 fn read_next_sample() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -720,7 +785,15 @@ fn read_next_sample() {
 fn take_next_sample() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -788,7 +861,15 @@ fn take_next_sample() {
 fn each_key_sample_is_read() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -878,7 +959,15 @@ fn each_key_sample_is_read() {
 fn read_specific_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -956,7 +1045,15 @@ fn read_specific_instance() {
 fn read_next_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1062,7 +1159,15 @@ fn read_next_instance() {
 fn take_next_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1168,7 +1273,15 @@ fn take_next_instance() {
 fn take_specific_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1245,7 +1358,15 @@ fn take_specific_instance() {
 fn take_specific_unknown_instance() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1318,9 +1439,15 @@ fn take_specific_unknown_instance() {
 #[test]
 fn write_read_disposed_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1400,13 +1527,20 @@ fn write_read_disposed_samples() {
 #[test]
 fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant1 = participant_factory
+    let participant1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let participant2 = participant_factory
+    let participant2 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1489,9 +1623,15 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
 #[test]
 fn write_read_sample_view_state() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1571,9 +1711,15 @@ fn write_read_sample_view_state() {
 #[test]
 fn inconsistent_topic_status_condition() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1604,7 +1750,7 @@ fn inconsistent_topic_status_condition() {
         .attach_condition(Condition::StatusCondition(status_cond))
         .unwrap();
 
-    let participant2 = participant_factory
+    let participant2 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1640,7 +1786,15 @@ fn inconsistent_topic_status_condition() {
 fn reader_with_minimum_time_separation_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1740,7 +1894,15 @@ fn reader_with_minimum_time_separation_qos() {
 fn transient_local_writer_reader_wait_for_historical_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1822,7 +1984,15 @@ fn transient_local_writer_reader_wait_for_historical_data() {
 fn volatile_writer_reader_receives_only_new_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1901,9 +2071,15 @@ fn volatile_writer_reader_receives_only_new_samples() {
 #[test]
 fn write_read_unkeyed_topic() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -1969,9 +2145,15 @@ fn write_read_unkeyed_topic() {
 #[test]
 fn data_reader_resource_limits() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2061,9 +2243,15 @@ fn data_reader_resource_limits() {
 #[test]
 fn data_reader_order_by_source_timestamp() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2150,9 +2338,15 @@ fn data_reader_order_by_source_timestamp() {
 #[test]
 fn data_reader_publication_handle_sample_info() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2220,7 +2414,15 @@ fn data_reader_publication_handle_sample_info() {
 fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2318,9 +2520,15 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
 #[test]
 fn write_read_unregistered_samples_are_also_disposed() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2404,7 +2612,15 @@ fn write_read_unregistered_samples_are_also_disposed() {
 fn transient_local_writer_does_not_deliver_lifespan_expired_data_at_write() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2490,7 +2706,15 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
     const LIFESPAN_MS: u32 = 100;
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -2575,7 +2799,15 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
 fn reader_joining_after_writer_writes_many_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 

@@ -48,8 +48,8 @@ use crate::{
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
         reader_locator::RtpsReaderLocator,
         types::{
-            Guid, GuidPrefix, Locator, TopicKind, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
-            VENDOR_ID_S2E,
+            Guid, GuidPrefix, Locator, TopicKind, LOCATOR_INVALID, LOCATOR_KIND_UDP_V4,
+            PROTOCOLVERSION, VENDOR_ID_S2E,
         },
         writer::RtpsWriter,
     },
@@ -300,67 +300,106 @@ impl DomainParticipantFactoryActor {
             instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
         ];
 
-        let default_unicast_socket =
-            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None).map_err(
-                |_| DdsError::Error("Failed to create default unicast socket".to_string()),
-            )?;
-        default_unicast_socket
-            .bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())
-            .map_err(|_| DdsError::Error("Failed to bind to default unicast socket".to_string()))?;
-        default_unicast_socket
-            .set_nonblocking(true)
-            .map_err(|_| DdsError::Error("Failed to set socket non-blocking".to_string()))?;
-        if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
+        let default_unicast_socket = if self.configuration.udp_transport_enabled() {
+            let default_unicast_socket =
+                socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None).map_err(
+                    |_| DdsError::Error("Failed to create default unicast socket".to_string()),
+                )?;
             default_unicast_socket
-                .set_recv_buffer_size(buffer_size)
+                .bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())
                 .map_err(|_| {
-                    DdsError::Error(
-                        "Failed to set default unicast socket receive buffer size".to_string(),
-                    )
+                    DdsError::Error("Failed to bind to default unicast socket".to_string())
                 })?;
-        }
-        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
+            default_unicast_socket
+                .set_nonblocking(true)
+                .map_err(|_| DdsError::Error("Failed to set socket non-blocking".to_string()))?;
+            if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
+                default_unicast_socket
+                    .set_recv_buffer_size(buffer_size)
+                    .map_err(|_| {
+                        DdsError::Error(
+                            "Failed to set default unicast socket receive buffer size".to_string(),
+                        )
+                    })?;
+            }
 
-        let user_defined_unicast_port = default_unicast_socket
-            .local_addr()
-            .map_err(|_| DdsError::Error("Failed to get socket address".to_string()))?
-            .port();
-        let user_defined_unicast_locator_port = user_defined_unicast_port.into();
+            Some(std::net::UdpSocket::from(default_unicast_socket))
+        } else {
+            None
+        };
 
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::from_ip_and_port(a, user_defined_unicast_locator_port))
-            .collect();
+        let metattrafic_unicast_socket = if self.configuration.udp_transport_enabled() {
+            let metattrafic_unicast_socket =
+                std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).map_err(
+                    |_| DdsError::Error("Failed to open metatraffic socket".to_string()),
+                )?;
+            metattrafic_unicast_socket
+                .set_nonblocking(true)
+                .map_err(|_| {
+                    DdsError::Error("Failed to set metatraffic socket non-blocking".to_string())
+                })?;
+            Some(metattrafic_unicast_socket)
+        } else {
+            None
+        };
+
+        let default_unicast_locator_list: Vec<Locator> = if let Some(s) = &default_unicast_socket {
+            let port = s
+                .local_addr()
+                .map_err(|_| DdsError::Error("Failed to get socket address".to_string()))?
+                .port()
+                .into();
+            interface_address_list
+                .iter()
+                .map(|a| Locator::from_ip_and_port(a, port))
+                .collect()
+        } else {
+            vec![]
+        };
 
         let default_multicast_locator_list = vec![];
 
-        let metattrafic_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-                .map_err(|_| DdsError::Error("Failed to open metatraffic socket".to_string()))?;
-        metattrafic_unicast_socket
-            .set_nonblocking(true)
-            .map_err(|_| {
-                DdsError::Error("Failed to set metatraffic socket non-blocking".to_string())
-            })?;
+        let metatraffic_unicast_locator_list: Vec<Locator> =
+            if let Some(s) = &metattrafic_unicast_socket {
+                let port = s
+                    .local_addr()
+                    .map_err(|_| {
+                        DdsError::Error("Failed to get metatraffic socket address".to_string())
+                    })?
+                    .port()
+                    .into();
+                interface_address_list
+                    .iter()
+                    .map(|a| Locator::from_ip_and_port(a, port))
+                    .collect()
+            } else {
+                vec![]
+            };
 
-        let metattrafic_unicast_locator_port = metattrafic_unicast_socket
-            .local_addr()
-            .map_err(|_| DdsError::Error("Failed to get metatraffic socket address".to_string()))?
-            .port()
-            .into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::from_ip_and_port(a, metattrafic_unicast_locator_port))
-            .collect();
+        let metatraffic_multicast_locator_list = if self.configuration.udp_transport_enabled() {
+            vec![Locator::new(
+                LOCATOR_KIND_UDP_V4,
+                port_builtin_multicast(domain_id) as u32,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+            )]
+        } else {
+            vec![]
+        };
 
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
+        let spdp_discovery_locator_list = if metatraffic_multicast_locator_list.is_empty() {
+            // This is a placeholder to have at least one locator on the list
+            // of the SPDP stateless writer which is needed to make sure messages get
+            // sent.
+            vec![LOCATOR_INVALID]
+        } else {
+            metatraffic_multicast_locator_list.clone()
+        };
 
-        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
-
+        let socket = if self.configuration.udp_transport_enabled() {
+            Some(std::net::UdpSocket::bind("0.0.0.0:0000")?)
+        } else {
+            None
+        };
         let broadcast_sender = match self.broadcast_sender_channels.entry(domain_id) {
             Entry::Vacant(e) => {
                 let (s, _) = broadcast::channel(32);
@@ -369,8 +408,6 @@ impl DomainParticipantFactoryActor {
             }
             Entry::Occupied(e) => e.get().clone(),
         };
-
-        let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
         let message_sender_actor = MessageSenderActor::new(
             socket,
             broadcast_sender.clone(),
@@ -462,45 +499,55 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
-        let mut socket =
-            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
-                DdsError::Error("Failed to open metattrafic unicast socket".to_string())
-            })?;
-        runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        let r = p
-                            .process_metatraffic_rtps_message(message, participant_clone.clone())
-                            .await;
-                        if r.is_err() {
-                            error!("Error processing metatraffic RTPS message. {:?}", r);
+
+        if let Some(metattrafic_unicast_socket) = metattrafic_unicast_socket {
+            let mut socket =
+                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
+                    DdsError::Error("Failed to open metattrafic unicast socket".to_string())
+                })?;
+            runtime_handle.spawn(async move {
+                loop {
+                    if let Ok(message) = read_message(&mut socket).await {
+                        if let Ok(p) = participant_address_clone.upgrade() {
+                            let r = p
+                                .process_metatraffic_rtps_message(
+                                    message,
+                                    participant_clone.clone(),
+                                )
+                                .await;
+                            if r.is_err() {
+                                error!("Error processing metatraffic RTPS message. {:?}", r);
+                            }
+
+                            p.send_message().await;
+                        } else {
+                            break;
                         }
-
-                        p.send_message().await;
-                    } else {
-                        break;
                     }
                 }
-            }
-        });
+            });
+        }
 
-        let participant_address_clone = participant_address.clone();
-        let participant_clone = participant.clone();
-        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
-            .map_err(|_| DdsError::Error("Failed to open default unicast socket".to_string()))?;
-        runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        p.process_user_defined_rtps_message(message, participant_clone.clone())
-                            .await;
-                    } else {
-                        break;
+        if let Some(default_unicast_socket) = default_unicast_socket {
+            let participant_address_clone = participant_address.clone();
+            let participant_clone = participant.clone();
+            let mut socket =
+                tokio::net::UdpSocket::from_std(default_unicast_socket).map_err(|_| {
+                    DdsError::Error("Failed to open default unicast socket".to_string())
+                })?;
+            runtime_handle.spawn(async move {
+                loop {
+                    if let Ok(message) = read_message(&mut socket).await {
+                        if let Ok(p) = participant_address_clone.upgrade() {
+                            p.process_user_defined_rtps_message(message, participant_clone.clone())
+                                .await;
+                        } else {
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         let participant_address_clone = participant_address.clone();
         let mut interval =

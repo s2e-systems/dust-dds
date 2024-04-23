@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
@@ -16,6 +17,13 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 fn create_not_enabled_entities() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let qos = DomainParticipantFactoryQos {
         entity_factory: EntityFactoryQosPolicy {

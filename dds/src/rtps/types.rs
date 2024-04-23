@@ -291,7 +291,6 @@ pub const LOCATOR_KIND_UDP_V6: Long = 2;
 pub const LOCATOR_PORT_INVALID: UnsignedLong = 0;
 pub const LOCATOR_ADDRESS_INVALID: [Octet; 16] = [0; 16];
 
-#[allow(dead_code)]
 pub const LOCATOR_INVALID: Locator = Locator::new(
     LOCATOR_KIND_INVALID,
     LOCATOR_PORT_INVALID,

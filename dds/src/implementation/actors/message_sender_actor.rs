@@ -11,7 +11,7 @@ use crate::rtps::{
 };
 
 pub struct MessageSenderActor {
-    socket: std::net::UdpSocket,
+    socket: Option<std::net::UdpSocket>,
     broadcast_sender: broadcast::Sender<RtpsMessage>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
@@ -20,7 +20,7 @@ pub struct MessageSenderActor {
 
 impl MessageSenderActor {
     pub fn new(
-        socket: std::net::UdpSocket,
+        socket: Option<std::net::UdpSocket>,
         broadcast_sender: broadcast::Sender<RtpsMessage>,
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
@@ -49,32 +49,30 @@ impl MessageSenderActor {
 
         self.broadcast_sender.send(message.clone()).ok();
 
-        let buf = message.buffer();
-        for destination_locator in destination_locator_list {
-            if UdpLocator(destination_locator).is_multicast() {
-                let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
-                let interface_addresses = NetworkInterface::show();
-                let interface_addresses: Vec<_> = interface_addresses
-                    .expect("Could not scan interfaces")
-                    .into_iter()
-                    .flat_map(|i| {
-                        i.addr.into_iter().filter_map(|a| match a {
-                            Addr::V4(v4) => Some(v4.ip),
-                            _ => None,
+        if let Some(socket) = &self.socket {
+            let buf = message.buffer();
+            for destination_locator in destination_locator_list {
+                if UdpLocator(destination_locator).is_multicast() {
+                    let socket2: socket2::Socket = socket.try_clone().unwrap().into();
+                    let interface_addresses = NetworkInterface::show();
+                    let interface_addresses: Vec<_> = interface_addresses
+                        .expect("Could not scan interfaces")
+                        .into_iter()
+                        .flat_map(|i| {
+                            i.addr.into_iter().filter_map(|a| match a {
+                                Addr::V4(v4) => Some(v4.ip),
+                                _ => None,
+                            })
                         })
-                    })
-                    .collect();
-                for address in interface_addresses {
-                    if socket2.set_multicast_if_v4(&address).is_ok() {
-                        self.socket
-                            .send_to(buf, UdpLocator(destination_locator))
-                            .ok();
+                        .collect();
+                    for address in interface_addresses {
+                        if socket2.set_multicast_if_v4(&address).is_ok() {
+                            socket.send_to(buf, UdpLocator(destination_locator)).ok();
+                        }
                     }
+                } else {
+                    socket.send_to(buf, UdpLocator(destination_locator)).ok();
                 }
-            } else {
-                self.socket
-                    .send_to(buf, UdpLocator(destination_locator))
-                    .ok();
             }
         }
     }
