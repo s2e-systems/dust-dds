@@ -1,6 +1,7 @@
 use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
+use tokio::sync::broadcast;
 
 use crate::rtps::{
     messages::overall_structure::{RtpsMessage, RtpsMessageHeader, Submessage},
@@ -11,6 +12,7 @@ use crate::rtps::{
 
 pub struct MessageSenderActor {
     socket: std::net::UdpSocket,
+    broadcast_sender: broadcast::Sender<RtpsMessage>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     guid_prefix: GuidPrefix,
@@ -19,12 +21,14 @@ pub struct MessageSenderActor {
 impl MessageSenderActor {
     pub fn new(
         socket: std::net::UdpSocket,
+        broadcast_sender: broadcast::Sender<RtpsMessage>,
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
     ) -> Self {
         Self {
             socket,
+            broadcast_sender,
             protocol_version,
             vendor_id,
             guid_prefix,
@@ -42,8 +46,10 @@ impl MessageSenderActor {
         let header =
             RtpsMessageHeader::new(self.protocol_version, self.vendor_id, self.guid_prefix);
         let message = RtpsMessage::new(&header, &submessages);
-        let buf = message.buffer();
 
+        self.broadcast_sender.send(message.clone()).ok();
+
+        let buf = message.buffer();
         for destination_locator in destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();

@@ -58,13 +58,14 @@ use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{
         atomic::{AtomicU32, Ordering},
         Arc, OnceLock,
     },
 };
+use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
 #[derive(Default)]
@@ -73,11 +74,12 @@ pub struct DomainParticipantFactoryActor {
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
+    broadcast_sender_channels: HashMap<DomainId, broadcast::Sender<RtpsMessage>>,
 }
 
 impl DomainParticipantFactoryActor {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     fn get_unique_participant_id(&mut self) -> u32 {
@@ -359,9 +361,23 @@ impl DomainParticipantFactoryActor {
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
+        let broadcast_sender = match self.broadcast_sender_channels.entry(domain_id) {
+            Entry::Vacant(e) => {
+                let (s, _) = broadcast::channel(32);
+                e.insert(s.clone());
+                s
+            }
+            Entry::Occupied(e) => e.get().clone(),
+        };
+
         let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
-        let message_sender_actor =
-            MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
+        let message_sender_actor = MessageSenderActor::new(
+            socket,
+            broadcast_sender.clone(),
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+            guid_prefix,
+        );
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
@@ -487,7 +503,6 @@ impl DomainParticipantFactoryActor {
         });
 
         let participant_address_clone = participant_address.clone();
-
         let mut interval =
             tokio::time::interval(self.configuration.participant_announcement_interval());
         runtime_handle.spawn(async move {
@@ -500,6 +515,42 @@ impl DomainParticipantFactoryActor {
                     }
                 } else {
                     break;
+                }
+            }
+        });
+
+        let participant_address_clone = participant_address.clone();
+        let participant_clone = participant.clone();
+        let mut receiver = broadcast_sender.subscribe();
+        runtime_handle.spawn(async move {
+            loop {
+                if let Ok(message) = receiver.recv().await {
+                    if let Ok(p) = participant_address_clone.upgrade() {
+                        let r = p
+                            .process_metatraffic_rtps_message(message, participant_clone.clone())
+                            .await;
+                        if r.is_err() {
+                            error!("Error processing metatraffic RTPS message. {:?}", r);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+        });
+
+        let participant_address_clone = participant_address.clone();
+        let participant_clone = participant.clone();
+        let mut receiver = broadcast_sender.subscribe();
+        runtime_handle.spawn(async move {
+            loop {
+                if let Ok(message) = receiver.recv().await {
+                    if let Ok(p) = participant_address_clone.upgrade() {
+                        p.process_user_defined_rtps_message(message, participant_clone.clone())
+                            .await;
+                    } else {
+                        break;
+                    }
                 }
             }
         });
