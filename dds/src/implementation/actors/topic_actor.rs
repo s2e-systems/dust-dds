@@ -2,11 +2,9 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
-        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-    },
+    implementation::actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,

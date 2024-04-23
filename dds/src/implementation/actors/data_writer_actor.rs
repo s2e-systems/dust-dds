@@ -1,12 +1,12 @@
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::DiscoveredReaderData,
+        discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+    },
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-        },
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
             types::{

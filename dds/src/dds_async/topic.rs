@@ -1,11 +1,11 @@
 use crate::{
+    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     implementation::{
         actor::ActorAddress,
         actors::{
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
         },
-        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     },
     infrastructure::{
         error::DdsResult,

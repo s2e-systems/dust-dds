@@ -5,14 +5,12 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use crate::{
+    data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     dds_async::{
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
-    implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-    },
+    implementation::actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
