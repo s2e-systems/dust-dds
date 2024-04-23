@@ -68,6 +68,8 @@ use std::{
 use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
+const BROADCAST_CHANNEL_BUFFER_SIZE: usize = 128;
+
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -402,7 +404,7 @@ impl DomainParticipantFactoryActor {
         };
         let broadcast_sender = match self.broadcast_sender_channels.entry(domain_id) {
             Entry::Vacant(e) => {
-                let (s, _) = broadcast::channel(32);
+                let (s, _) = broadcast::channel(BROADCAST_CHANNEL_BUFFER_SIZE);
                 e.insert(s.clone());
                 s
             }
