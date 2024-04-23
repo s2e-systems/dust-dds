@@ -8,6 +8,7 @@ use socket2::Socket;
 use std::{
     collections::{hash_map::Entry, HashMap},
     net::{Ipv4Addr, SocketAddr, UdpSocket},
+    sync::Arc,
 };
 
 fn main() {
@@ -50,7 +51,7 @@ fn main() {
     println!("Starting Dust DDS Telescope");
     loop {
         let received_size = socket.recv(&mut buf).unwrap();
-        if let Ok(m) = RtpsMessage::new(buf[0..received_size].into()) {
+        if let Ok(m) = RtpsMessage::try_from(Arc::from(&buf[0..received_size])) {
             for submessage in m.submessages() {
                 if let RtpsSubmessageReadKind::Data(d) = submessage {
                     if let Ok(discovered_participant) =
