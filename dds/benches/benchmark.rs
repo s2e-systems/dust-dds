@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::QosKind,
@@ -24,7 +25,15 @@ struct KeyedData {
 
 pub fn best_effort_write_only(c: &mut Criterion) {
     let domain_id = 200;
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -62,7 +71,15 @@ pub fn best_effort_write_only(c: &mut Criterion) {
 
 pub fn best_effort_read_only(c: &mut Criterion) {
     let domain_id = 201;
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -117,8 +134,15 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     }
 
     let domain_id = 202;
-    let participant_factory = DomainParticipantFactory::get_instance();
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -198,8 +222,15 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     }
 
     let domain_id = 203;
-    let participant_factory = DomainParticipantFactory::get_instance();
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
