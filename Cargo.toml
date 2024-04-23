@@ -1,15 +1,5 @@
-[package]
-name = "dust_dds_telescope"
-version = "0.1.0"
-authors = [
-    "Joao Rebelo <jrebelo@s2e-systems.com>",
-    "Stefan Kimmer <skimmer@s2e-systems.com>",
-]
-license = "Apache-2.0"
-edition = "2021"
-description = "Dust DDS Telescope"
+[workspace]
 
-[dependencies]
-dust_dds = { path = "../dds" }
-socket2 = "0.5"
-network-interface = "1.1.1"
+members = ["dds", "dds_derive", "dds_gen", "interoperability_tests", "shapes_demo", "shapes_demo/android"]
+default-members = ["dds", "dds_derive", "dds_gen"]
+resolver = "2"
