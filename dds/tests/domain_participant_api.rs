@@ -1016,7 +1016,6 @@ fn ignore_subscription() {
 }
 
 #[test]
-#[ignore = "Missing to delete ignored participant if already discovered"]
 fn ignore_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();

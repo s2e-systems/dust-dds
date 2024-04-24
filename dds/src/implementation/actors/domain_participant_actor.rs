@@ -709,6 +709,7 @@ impl DomainParticipantActor {
     fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if self.enabled {
             self.ignored_participants.insert(handle);
+            self.discovered_participant_list.remove(&handle);
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
