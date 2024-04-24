@@ -54,6 +54,7 @@ use crate::{
         writer::RtpsWriter,
     },
 };
+use async_broadcast::broadcast;
 use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
@@ -65,7 +66,6 @@ use std::{
         Arc, OnceLock,
     },
 };
-use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
 const BROADCAST_CHANNEL_BUFFER_SIZE: usize = 128;
@@ -76,7 +76,7 @@ pub struct DomainParticipantFactoryActor {
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
-    broadcast_sender_channels: HashMap<DomainId, broadcast::Sender<RtpsMessage>>,
+    broadcast_sender_channels: HashMap<DomainId, async_broadcast::Sender<RtpsMessage>>,
 }
 
 impl DomainParticipantFactoryActor {
@@ -404,7 +404,7 @@ impl DomainParticipantFactoryActor {
         };
         let broadcast_sender = match self.broadcast_sender_channels.entry(domain_id) {
             Entry::Vacant(e) => {
-                let (s, _) = broadcast::channel(BROADCAST_CHANNEL_BUFFER_SIZE);
+                let (s, _) = broadcast(BROADCAST_CHANNEL_BUFFER_SIZE);
                 e.insert(s.clone());
                 s
             }
@@ -570,7 +570,7 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
-        let mut receiver = broadcast_sender.subscribe();
+        let mut receiver = broadcast_sender.new_receiver();
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = receiver.recv().await {
@@ -590,7 +590,7 @@ impl DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_address.clone();
         let participant_clone = participant.clone();
-        let mut receiver = broadcast_sender.subscribe();
+        let mut receiver = broadcast_sender.new_receiver();
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = receiver.recv().await {

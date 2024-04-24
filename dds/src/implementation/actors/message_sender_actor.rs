@@ -1,7 +1,6 @@
 use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
-use tokio::sync::broadcast;
 
 use crate::rtps::{
     messages::overall_structure::{RtpsMessage, RtpsMessageHeader, Submessage},
@@ -12,7 +11,7 @@ use crate::rtps::{
 
 pub struct MessageSenderActor {
     socket: Option<std::net::UdpSocket>,
-    broadcast_sender: broadcast::Sender<RtpsMessage>,
+    broadcast_sender: async_broadcast::Sender<RtpsMessage>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     guid_prefix: GuidPrefix,
@@ -21,7 +20,7 @@ pub struct MessageSenderActor {
 impl MessageSenderActor {
     pub fn new(
         socket: Option<std::net::UdpSocket>,
-        broadcast_sender: broadcast::Sender<RtpsMessage>,
+        broadcast_sender: async_broadcast::Sender<RtpsMessage>,
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
@@ -38,7 +37,7 @@ impl MessageSenderActor {
 
 #[actor_interface]
 impl MessageSenderActor {
-    pub fn write(
+    pub async fn write(
         &self,
         submessages: Vec<Box<dyn Submessage + Send>>,
         destination_locator_list: Vec<Locator>,
@@ -46,8 +45,7 @@ impl MessageSenderActor {
         let header =
             RtpsMessageHeader::new(self.protocol_version, self.vendor_id, self.guid_prefix);
         let message = RtpsMessage::new(&header, &submessages);
-
-        self.broadcast_sender.send(message.clone()).ok();
+        self.broadcast_sender.broadcast(message.clone()).await.ok();
 
         if let Some(socket) = &self.socket {
             let buf = message.buffer();

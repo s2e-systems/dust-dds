@@ -24,6 +24,7 @@ socket2 = "0.5"
 network-interface = "1.1.1"
 
 fnmatch-regex = "0.2.0"
+async-broadcast = "0.7.0"
 
 tokio = { version = "1", features = [
 	"net",
