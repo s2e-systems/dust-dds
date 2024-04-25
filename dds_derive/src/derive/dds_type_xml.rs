@@ -1,9 +1,8 @@
+use super::enum_support::{get_enum_bitbound, read_enum_variant_discriminant_mapping, BitBound};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{spanned::Spanned, DeriveInput, Field};
 use xml::{writer::XmlEvent, EmitterConfig, EventWriter};
-use super::enum_support::{read_enum_variant_discriminant_mapping, get_enum_bitbound, BitBound};
-
 
 fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
     let mut has_key = false;
@@ -30,24 +29,29 @@ fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
     Ok(has_key)
 }
 
-fn convert_rust_type_to_xtypes(type_ident: &Ident) -> &str {
+enum XTypeKind {
+    Basic(&'static str),
+    NonBasic,
+}
+
+fn convert_rust_type_to_xtypes(type_ident: &Ident) -> XTypeKind {
     let type_string = type_ident.to_string();
     match type_string.as_str() {
-        "bool" => "boolean",
-        "char" => "char8",
-        "i32" => "int32",
-        "u32" => "uint32",
-        "i8" => "int8",
-        "u8" => "uint8",
-        "i16" => "int16",
-        "u16" => "uint16",
-        "i64" => "int64",
-        "u64" => "uint64",
-        "f32" => "float32",
-        "f64" => "float64",
-        "f128" => unimplemented!("Type not valid for XML"),
-        "String" => "string",
-        _ => todo!("Other objects not yet support"),
+        "bool" => XTypeKind::Basic("boolean"),
+        "char" => XTypeKind::Basic("char8"),
+        "i32" => XTypeKind::Basic("int32"),
+        "u32" => XTypeKind::Basic("uint32"),
+        "i8" => XTypeKind::Basic("int8"),
+        "u8" => XTypeKind::Basic("uint8"),
+        "i16" => XTypeKind::Basic("int16"),
+        "u16" => XTypeKind::Basic("uint16"),
+        "i64" => XTypeKind::Basic("int64"),
+        "u64" => XTypeKind::Basic("uint64"),
+        "f32" => XTypeKind::Basic("float32"),
+        "f64" => XTypeKind::Basic("float64"),
+        "f128" => unimplemented!("Type not valid for XML representation"),
+        "String" => XTypeKind::Basic("string"),
+        _ => XTypeKind::NonBasic,
     }
 }
 
@@ -71,14 +75,25 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                     None => field_index.to_string(),
                 };
                 let field_has_key = field_has_key_attribute(field)?;
-                let field_element = XmlEvent::start_element("member").attr("name", &field_name);
+                let mut field_element = XmlEvent::start_element("member").attr("name", &field_name);
+                if field_has_key {
+                    field_element = field_element.attr("key", "true");
+                }
 
-                let mut field_element = match &field.ty {
+                match &field.ty {
                     syn::Type::Array(_) => todo!(),
                     syn::Type::Path(p) => match p.path.get_ident() {
                         Some(i) => {
                             let xtypes_type = convert_rust_type_to_xtypes(i);
-                            Ok(field_element.attr("type", xtypes_type))
+                            let type_name = i.to_string();
+                            field_element = match xtypes_type {
+                                XTypeKind::Basic(type_name) => field_element.attr("type", type_name),
+                                XTypeKind::NonBasic => field_element.attr("type", "nonBasic").attr("nonBasicTypeName", &type_name),
+                            };
+                            xml_writer.write(field_element).unwrap_or_else(|_| {
+                                panic!("Failed to write member start element for {}", field_name)
+                            });
+
                         }
                         None => {
                             if p.path.segments[0].ident == "Vec" {
@@ -89,9 +104,18 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                                                 Some(i) => {
                                                     let xtypes_type =
                                                         convert_rust_type_to_xtypes(i);
-                                                    Ok(field_element
-                                                        .attr("type", xtypes_type)
-                                                        .attr("sequenceMaxLength", "-1"))
+                                                    let type_name = i.to_string();
+                                                    field_element =
+                                                        match xtypes_type {
+                                                            XTypeKind::Basic(type_name) => field_element
+                                                                .attr("type", type_name),
+                                                            XTypeKind::NonBasic => field_element
+                                                                .attr("type", "nonBasic").attr("nonBasicTypeName", &type_name),
+                                                        }.attr("sequenceMaxLength", "-1")
+                                                    ;
+                                                    xml_writer.write(field_element).unwrap_or_else(|_| {
+                                                        panic!("Failed to write member start element for {}", field_name)
+                                                    });
                                                 }
                                                 None => todo!(),
                                             },
@@ -114,9 +138,17 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                                     Some(i) => {
                                         let xtypes_type =
                                             convert_rust_type_to_xtypes(i);
-                                        Ok(field_element
-                                            .attr("type", xtypes_type)
-                                            .attr("sequenceMaxLength", "-1"))
+                                        let type_name = i.to_string();
+                                        field_element = match xtypes_type {
+                                            XTypeKind::Basic(type_name) => field_element
+                                                .attr("type", type_name),
+                                            XTypeKind::NonBasic => field_element
+                                                .attr("type", "nonBasic").attr("nonBasicTypeName", &type_name),
+                                        }.attr("sequenceMaxLength", "-1");
+                                        xml_writer.write(field_element).unwrap_or_else(|_| {
+                                            panic!("Failed to write member start element for {}", field_name)
+                                        });
+
                                     },
                                     None => todo!(),
                                 }
@@ -125,24 +157,19 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                             _=> unimplemented!("Only reference to slice supported"),
                         }
                     },
-                    syn::Type::Tuple(t) => Err(syn::Error::new(
+                    syn::Type::Tuple(t) => return Err(syn::Error::new(
                         t.paren_token.span.open(),
                         "Tuple types not supported for automatic XML drive. Use a custom struct instead",
                     )),
-                    _ => Err(syn::Error::new(
+                    _ => return Err(syn::Error::new(
                         field
                             .colon_token
                             .expect("Field expect to contain colon token for type definition")
                             .span,
                         "Type not supported for automatic XML derive",
                     )),
-                }?;
-                if field_has_key {
-                    field_element = field_element.attr("key", "true");
-                }
-                xml_writer.write(field_element).unwrap_or_else(|_| {
-                    panic!("Failed to write member start element for {}", field_name)
-                });
+                };
+
                 xml_writer
                     .write(XmlEvent::end_element())
                     .unwrap_or_else(|_| {
@@ -165,19 +192,31 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
         syn::Data::Enum(data_enum) => {
             let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
-            let max_discriminant = discriminant_mapping.iter().map(|(_,v)|v).max().expect("Map contains at least a value");
+            let max_discriminant = discriminant_mapping
+                .iter()
+                .map(|(_, v)| v)
+                .max()
+                .expect("Map contains at least a value");
             let bitbound = match get_enum_bitbound(max_discriminant) {
                 BitBound::Bit8 => "8",
                 BitBound::Bit16 => "16",
                 BitBound::Bit32 => "32",
             };
             xml_writer
-                .write(XmlEvent::start_element("enum").attr("name", &ident.to_string()).attr("bitBound", bitbound))
+                .write(
+                    XmlEvent::start_element("enum")
+                        .attr("name", &ident.to_string())
+                        .attr("bitBound", bitbound),
+                )
                 .expect("Failed to write enum XML element");
             for (variant_name, variant_discriminant) in discriminant_mapping.iter() {
                 xml_writer
-                .write(XmlEvent::start_element("enumerator").attr("name", &variant_name.to_string()).attr("value", &variant_discriminant.to_string()))
-                .expect("Failed to write enumerator XML element");
+                    .write(
+                        XmlEvent::start_element("enumerator")
+                            .attr("name", &variant_name.to_string())
+                            .attr("value", &variant_discriminant.to_string()),
+                    )
+                    .expect("Failed to write enumerator XML element");
                 xml_writer
                     .write(XmlEvent::end_element())
                     .expect("Failed to write enumerator XML end element");
@@ -195,7 +234,7 @@ pub fn expand_dds_type_xml(input: &DeriveInput) -> syn::Result<TokenStream> {
                     }
                 }
             })
-        },
+        }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
@@ -230,7 +269,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
-                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" key=\"true\" type=\"uint8\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
                 }
             }"#
             .parse()
@@ -266,7 +305,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
-                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" key=\"true\" type=\"uint8\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
                 }
             }"#
             .parse()
