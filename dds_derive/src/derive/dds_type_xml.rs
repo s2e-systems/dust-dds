@@ -269,7 +269,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
-                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" key=\"true\" type=\"uint8\" /><member name=\"name\" type=\"string\" /><member name=\"value\" type=\"float32\" /></struct>".to_string())
                 }
             }"#
             .parse()
@@ -305,7 +305,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             r#"impl dust_dds::topic_definition::type_support::DdsTypeXml for TestStruct {
                 fn get_type_xml() -> Option<String> {
-                    Some("<struct name=\"TestStruct\"><member name=\"id\" type=\"uint8\" key=\"true\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
+                    Some("<struct name=\"TestStruct\"><member name=\"id\" key=\"true\" type=\"uint8\" /><member name=\"value_list\" type=\"uint8\" sequenceMaxLength=\"-1\" /></struct>".to_string())
                 }
             }"#
             .parse()
