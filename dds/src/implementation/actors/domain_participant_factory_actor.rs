@@ -86,6 +86,39 @@ impl DomainParticipantFactoryActor {
         c.fetch_add(1, Ordering::Acquire)
     }
 
+    fn create_new_guid_prefix(&mut self) -> GuidPrefix {
+        let interface_address_list =
+            get_interface_address_list(self.configuration.interface_name());
+
+        let host_id = if let Some(interface) = interface_address_list.first() {
+            match interface.ip() {
+                IpAddr::V4(a) => a.octets(),
+                IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
+            }
+        } else {
+            warn!("Failed to get Host ID from IP address, use 0 instead");
+            [0; 4]
+        };
+
+        let app_id = std::process::id().to_ne_bytes();
+        let instance_id = self.get_unique_participant_id().to_ne_bytes();
+
+        [
+            host_id[0],
+            host_id[1],
+            host_id[2],
+            host_id[3], // Host ID
+            app_id[0],
+            app_id[1],
+            app_id[2],
+            app_id[3], // App ID
+            instance_id[0],
+            instance_id[1],
+            instance_id[2],
+            instance_id[3], // Instance ID
+        ]
+    }
+
     fn create_builtin_readers(
         &self,
         guid_prefix: GuidPrefix,
@@ -166,7 +199,7 @@ impl DomainParticipantFactoryActor {
     fn create_builtin_writers(
         &self,
         guid_prefix: GuidPrefix,
-        spdp_discovery_locator_list: &[Locator],
+        domain_id: DomainId,
         handle: &tokio::runtime::Handle,
     ) -> Vec<DataWriterActor> {
         let spdp_writer_qos = DataWriterQos {
@@ -196,6 +229,12 @@ impl DomainParticipantFactoryActor {
             spdp_writer_qos,
             handle,
         );
+
+        let spdp_discovery_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(domain_id) as u32,
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
 
         for reader_locator in spdp_discovery_locator_list
             .iter()
@@ -275,89 +314,7 @@ impl DomainParticipantFactoryActor {
             QosKind::Specific(q) => q,
         };
 
-        let interface_address_list =
-            get_interface_address_list(self.configuration.interface_name());
-
-        let host_id = if let Some(interface) = interface_address_list.first() {
-            match interface.ip() {
-                IpAddr::V4(a) => a.octets(),
-                IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
-            }
-        } else {
-            warn!("Failed to get Host ID from IP address, use 0 instead");
-            [0; 4]
-        };
-
-        let app_id = std::process::id().to_ne_bytes();
-        let instance_id = self.get_unique_participant_id().to_ne_bytes();
-
-        #[rustfmt::skip]
-        let guid_prefix = [
-            host_id[0],  host_id[1], host_id[2], host_id[3], // Host ID
-            app_id[0], app_id[1], app_id[2], app_id[3], // App ID
-            instance_id[0], instance_id[1], instance_id[2], instance_id[3], // Instance ID
-        ];
-
-        let default_unicast_socket =
-            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None).map_err(
-                |_| DdsError::Error("Failed to create default unicast socket".to_string()),
-            )?;
-        default_unicast_socket
-            .bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())
-            .map_err(|_| DdsError::Error("Failed to bind to default unicast socket".to_string()))?;
-        default_unicast_socket
-            .set_nonblocking(true)
-            .map_err(|_| DdsError::Error("Failed to set socket non-blocking".to_string()))?;
-        if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
-            default_unicast_socket
-                .set_recv_buffer_size(buffer_size)
-                .map_err(|_| {
-                    DdsError::Error(
-                        "Failed to set default unicast socket receive buffer size".to_string(),
-                    )
-                })?;
-        }
-        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
-
-        let user_defined_unicast_port = default_unicast_socket
-            .local_addr()
-            .map_err(|_| DdsError::Error("Failed to get socket address".to_string()))?
-            .port();
-        let user_defined_unicast_locator_port = user_defined_unicast_port.into();
-
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::from_ip_and_port(a, user_defined_unicast_locator_port))
-            .collect();
-
-        let default_multicast_locator_list = vec![];
-
-        let metattrafic_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-                .map_err(|_| DdsError::Error("Failed to open metatraffic socket".to_string()))?;
-        metattrafic_unicast_socket
-            .set_nonblocking(true)
-            .map_err(|_| {
-                DdsError::Error("Failed to set metatraffic socket non-blocking".to_string())
-            })?;
-
-        let metattrafic_unicast_locator_port = metattrafic_unicast_socket
-            .local_addr()
-            .map_err(|_| DdsError::Error("Failed to get metatraffic socket address".to_string()))?
-            .port()
-            .into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::from_ip_and_port(a, metattrafic_unicast_locator_port))
-            .collect();
-
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-
-        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
+        let guid_prefix = self.create_new_guid_prefix();
 
         let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
         let message_sender_actor =
@@ -365,17 +322,17 @@ impl DomainParticipantFactoryActor {
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
+            vec![],
+            vec![],
+            vec![],
+            vec![],
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
         let participant_guid = rtps_participant.guid();
 
         let builtin_data_writer_list =
-            self.create_builtin_writers(guid_prefix, &spdp_discovery_locator_list, &runtime_handle);
+            self.create_builtin_writers(guid_prefix, domain_id, &runtime_handle);
         let builtin_data_reader_list = self.create_builtin_readers(guid_prefix, &runtime_handle);
 
         let domain_participant = DomainParticipantActor::new(
@@ -402,13 +359,13 @@ impl DomainParticipantFactoryActor {
             &runtime_handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
-        let participant_address = participant_actor.address();
+
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),
-            participant_actor,
+            participant_actor.clone(),
         );
         let participant = DomainParticipantAsync::new(
-            participant_address.clone(),
+            participant_actor.address(),
             status_condition.clone(),
             builtin_subscriber,
             builtin_subscriber_status_condition_address,
@@ -416,35 +373,76 @@ impl DomainParticipantFactoryActor {
             runtime_handle.clone(),
         );
 
-        let participant_address_clone = participant_address.clone();
-        let participant_clone = participant.clone();
-        let mut socket = get_multicast_socket(
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            port_builtin_multicast(domain_id),
-            &interface_address_list,
-        )
-        .map_err(|_| DdsError::Error("Failed to open socket".to_string()))?;
+        let participant_address_clone = participant_actor.address();
+
+        let mut interval =
+            tokio::time::interval(self.configuration.participant_announcement_interval());
         runtime_handle.spawn(async move {
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        let r = p
-                            .process_metatraffic_rtps_message(message, participant_clone.clone())
-                            .await;
-
-                        if r.is_err() {
-                            error!("Error processing metatraffic RTPS message. {:?}", r);
-                        }
-
-                        p.send_message().await;
-                    } else {
-                        break;
-                    };
+                interval.tick().await;
+                if let Ok(p) = participant_address_clone.upgrade() {
+                    let r = p.announce_participant().await;
+                    if r.is_err() {
+                        error!("Error announcing participant: {:?}", r);
+                    }
+                } else {
+                    break;
                 }
             }
         });
 
-        let participant_address_clone = participant_address.clone();
+        // Open socket for unicast user-defined data
+        let interface_address_list =
+            get_interface_address_list(self.configuration.interface_name());
+
+        let default_unicast_socket =
+            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
+        default_unicast_socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
+        default_unicast_socket.set_nonblocking(true)?;
+        if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
+            default_unicast_socket.set_recv_buffer_size(buffer_size)?;
+        }
+        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
+        let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
+        let default_unicast_locator_list: Vec<Locator> = interface_address_list
+            .iter()
+            .map(|a| Locator::from_ip_and_port(a, user_defined_unicast_port))
+            .collect();
+        participant_actor
+            .set_default_unicast_locator_list(default_unicast_locator_list)
+            .await;
+
+        let participant_address_clone = participant_actor.address();
+        let participant_clone = participant.clone();
+        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
+        runtime_handle.spawn(async move {
+            loop {
+                if let Ok(message) = read_message(&mut socket).await {
+                    if let Ok(p) = participant_address_clone.upgrade() {
+                        p.process_user_defined_rtps_message(message, participant_clone.clone())
+                            .await;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Open socket for unicast metatraffic data
+        let metattrafic_unicast_socket =
+            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
+        metattrafic_unicast_socket.set_nonblocking(true)?;
+        let metattrafic_unicast_locator_port =
+            metattrafic_unicast_socket.local_addr()?.port().into();
+        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
+            .iter()
+            .map(|a| Locator::from_ip_and_port(a, metattrafic_unicast_locator_port))
+            .collect();
+        participant_actor
+            .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
+            .await;
+
+        let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
         let mut socket =
             tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
@@ -469,42 +467,44 @@ impl DomainParticipantFactoryActor {
             }
         });
 
-        let participant_address_clone = participant_address.clone();
+        // Open socket for multicast metatraffic data
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(domain_id) as u32,
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
+        participant_actor
+            .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
+            .await;
+
+        let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
-        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)
-            .map_err(|_| DdsError::Error("Failed to open default unicast socket".to_string()))?;
+        let mut socket = get_multicast_socket(
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+            port_builtin_multicast(domain_id),
+            &interface_address_list,
+        )?;
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     if let Ok(p) = participant_address_clone.upgrade() {
-                        p.process_user_defined_rtps_message(message, participant_clone.clone())
+                        let r = p
+                            .process_metatraffic_rtps_message(message, participant_clone.clone())
                             .await;
+
+                        if r.is_err() {
+                            error!("Error processing metatraffic RTPS message. {:?}", r);
+                        }
+
+                        p.send_message().await;
                     } else {
                         break;
-                    }
+                    };
                 }
             }
         });
 
-        let participant_address_clone = participant_address.clone();
-
-        let mut interval =
-            tokio::time::interval(self.configuration.participant_announcement_interval());
-        runtime_handle.spawn(async move {
-            loop {
-                interval.tick().await;
-                if let Ok(p) = participant_address_clone.upgrade() {
-                    let r = p.announce_participant().await;
-                    if r.is_err() {
-                        error!("Error announcing participant: {:?}", r);
-                    }
-                } else {
-                    break;
-                }
-            }
-        });
-
-        Ok(participant_address)
+        Ok(participant_actor.address())
     }
 
     async fn delete_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
