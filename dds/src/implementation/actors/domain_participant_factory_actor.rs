@@ -230,7 +230,7 @@ impl DomainParticipantFactoryActor {
             handle,
         );
 
-        let spdp_discovery_locator_list = vec![Locator::new(
+        let spdp_discovery_locator_list = [Locator::new(
             LOCATOR_KIND_UDP_V4,
             port_builtin_multicast(domain_id) as u32,
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
