@@ -307,8 +307,7 @@ pub struct DataReaderActor {
     rtps_reader: RtpsReaderKind,
     changes: Vec<ReaderCacheChange>,
     qos: DataReaderQos,
-    type_name: String,
-    topic_name: String,
+    topic: Actor<TopicActor>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: Actor<ReaderRequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -329,8 +328,7 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     pub fn new(
         rtps_reader: RtpsReaderKind,
-        type_name: String,
-        topic_name: String,
+        topic: Actor<TopicActor>,
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
@@ -350,8 +348,7 @@ impl DataReaderActor {
         DataReaderActor {
             rtps_reader,
             changes: Vec::new(),
-            type_name,
-            topic_name,
+            topic,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: Actor::spawn(
                 ReaderRequestedDeadlineMissedStatus::default(),
@@ -395,7 +392,6 @@ impl DataReaderActor {
             ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) -> DdsResult<()> {
         subscriber
             .get_statuscondition()
@@ -415,9 +411,10 @@ impl DataReaderActor {
                 .await;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             let participant = subscriber.get_participant();
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnDataAvailable,
@@ -427,8 +424,8 @@ impl DataReaderActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         participant,
                     ),
                 )
@@ -452,7 +449,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
@@ -473,7 +469,6 @@ impl DataReaderActor {
                                         subscriber,
                                         subscriber_mask_listener,
                                         participant_mask_listener,
-                                        topic_list,
                                     )
                                     .await?;
                                 }
@@ -492,7 +487,6 @@ impl DataReaderActor {
                                                         subscriber,
                                                         subscriber_mask_listener,
                                                         participant_mask_listener,
-                                                        topic_list
                                                     )
                                                     .await?;
                                                 }
@@ -529,7 +523,6 @@ impl DataReaderActor {
                                                         subscriber,
                                                         subscriber_mask_listener,
                                                         participant_mask_listener,
-                                                        topic_list
                                                     )
                                                     .await?;
                                                 }
@@ -570,7 +563,6 @@ impl DataReaderActor {
                             subscriber,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                            topic_list,
                         )
                         .await?;
                     }
@@ -596,7 +588,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
@@ -618,7 +609,6 @@ impl DataReaderActor {
                             subscriber,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                            topic_list,
                         )
                         .await?;
                     }
@@ -764,16 +754,16 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
             .add_communication_state(StatusKind::SampleLost)
             .await;
-        let topic_address = topic_list[&self.topic_name].address();
-        let topic_status_condition_address =
-            topic_list[&self.topic_name].get_statuscondition().await;
+        let topic_address = self.topic.address();
+        let topic_status_condition_address = self.topic.get_statuscondition().await;
         if self.status_kind.contains(&StatusKind::SampleLost) {
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status = self.get_sample_lost_status();
             self.listener
                 .call_listener_function(
@@ -784,8 +774,8 @@ impl DataReaderActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         subscriber.get_participant(),
                     ),
                 )
@@ -820,7 +810,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
@@ -828,10 +817,11 @@ impl DataReaderActor {
             .await;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status = self.get_subscription_matched_status().await;
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnSubscriptionMatched(status),
@@ -841,8 +831,8 @@ impl DataReaderActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         subscriber.get_participant(),
                     ),
                 )
@@ -879,7 +869,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) -> DdsResult<()> {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
@@ -887,10 +876,11 @@ impl DataReaderActor {
             .add_communication_state(StatusKind::SampleRejected)
             .await;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status = self.get_sample_rejected_status();
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnSampleRejected(status),
@@ -900,8 +890,8 @@ impl DataReaderActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         subscriber.get_participant(),
                     ),
                 )
@@ -937,7 +927,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
@@ -949,10 +938,11 @@ impl DataReaderActor {
             .status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status = self.get_requested_incompatible_qos_status();
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnRequestedIncompatibleQos(status),
@@ -962,8 +952,8 @@ impl DataReaderActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         subscriber.get_participant(),
                     ),
                 )
@@ -1071,7 +1061,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
@@ -1082,7 +1071,6 @@ impl DataReaderActor {
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    topic_list,
                 )
                 .await?;
             } else if self.is_max_instances_limit_reached(&change) {
@@ -1093,7 +1081,6 @@ impl DataReaderActor {
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    topic_list,
                 )
                 .await?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
@@ -1104,7 +1091,6 @@ impl DataReaderActor {
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    topic_list,
                 )
                 .await?;
             } else {
@@ -1137,7 +1123,6 @@ impl DataReaderActor {
                     subscriber.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    topic_list,
                 )
                 .await;
 
@@ -1163,13 +1148,8 @@ impl DataReaderActor {
                         .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
                 }
 
-                self.on_data_available(
-                    data_reader_address,
-                    subscriber,
-                    subscriber_mask_listener,
-                    topic_list,
-                )
-                .await?;
+                self.on_data_available(data_reader_address, subscriber, subscriber_mask_listener)
+                    .await?;
             }
         }
 
@@ -1392,7 +1372,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: &HashMap<String, Actor<TopicActor>>,
     ) {
         if let Some(t) = self
             .instance_deadline_missed_task
@@ -1414,12 +1393,11 @@ impl DataReaderActor {
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status_condition_address = self.status_condition.address();
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1593,7 +1571,7 @@ impl DataReaderActor {
         }
     }
 
-    fn as_discovered_reader_data(
+    async fn as_discovered_reader_data(
         &self,
         topic_qos: TopicQos,
         subscriber_qos: SubscriberQos,
@@ -1602,6 +1580,8 @@ impl DataReaderActor {
         xml_type: String,
     ) -> DiscoveredReaderData {
         let guid = self.rtps_reader.guid();
+        let type_name = self.topic.get_type_name().await;
+        let topic_name = self.topic.get_name().await;
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
             default_unicast_locator_list
@@ -1628,8 +1608,8 @@ impl DataReaderActor {
                 BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
-                self.topic_name.clone(),
-                self.type_name.to_string(),
+                topic_name,
+                type_name,
                 self.qos.clone(),
                 subscriber_qos.clone(),
                 topic_qos.topic_data,
@@ -1760,15 +1740,16 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
+        let type_name = self.topic.get_type_name().await;
+        let topic_name = self.topic.get_name().await;
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
-        if publication_builtin_topic_data.topic_name() == self.topic_name
-            && publication_builtin_topic_data.get_type_name() == self.type_name
+        if publication_builtin_topic_data.topic_name() == topic_name
+            && publication_builtin_topic_data.get_type_name() == type_name
         {
             tracing::trace!(
-                topic_name = self.topic_name,
-                type_name = self.type_name,
+                topic_name = topic_name,
+                type_name = type_name,
                 "Writer with matched topic and type found",
             );
             let instance_handle =
@@ -1833,7 +1814,6 @@ impl DataReaderActor {
                             subscriber,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
-                            &topic_list,
                         )
                         .await;
                     }
@@ -1844,7 +1824,6 @@ impl DataReaderActor {
                             subscriber,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
-                            &topic_list,
                         )
                         .await;
                     }
@@ -1857,7 +1836,6 @@ impl DataReaderActor {
                     &subscriber,
                     &subscriber_mask_listener,
                     &participant_mask_listener,
-                    &topic_list,
                 )
                 .await;
             }
@@ -1874,7 +1852,6 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         let matched_publication = self
             .matched_publication_list
@@ -1891,18 +1868,17 @@ impl DataReaderActor {
                 subscriber,
                 &subscriber_mask_listener,
                 &participant_mask_listener,
-                &topic_list,
             )
             .await;
         }
     }
 
-    fn get_topic_name(&mut self) -> String {
-        self.topic_name.clone()
+    async fn get_topic_name(&mut self) -> String {
+        self.topic.get_name().await
     }
 
-    fn get_type_name(&self) -> String {
-        self.type_name.to_string()
+    async fn get_type_name(&self) -> String {
+        self.topic.get_type_name().await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1918,13 +1894,13 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         let mut message_receiver = MessageReceiver::new(&message);
+        let type_name = self.topic.get_type_name().await;
         if let Some(type_support) = type_support_actor_address
             .upgrade()
             .expect("Type support actor must exist")
-            .get_type_support(self.type_name.clone())
+            .get_type_support(type_name)
             .await
         {
             while let Some(submessage) = message_receiver.next() {
@@ -1940,7 +1916,6 @@ impl DataReaderActor {
                             &subscriber,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
-                            &topic_list,
                         )
                         .await
                         .ok();
@@ -1956,7 +1931,6 @@ impl DataReaderActor {
                             &subscriber,
                             &subscriber_mask_listener,
                             &participant_mask_listener,
-                            &topic_list,
                         )
                         .await
                         .ok();

@@ -108,8 +108,7 @@ impl SubscriberActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datareader(
         &mut self,
-        type_name: String,
-        topic_name: String,
+        topic: Actor<TopicActor>,
         has_key: bool,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
@@ -161,8 +160,7 @@ impl SubscriberActor {
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new(
             rtps_reader,
-            type_name,
-            topic_name,
+            topic,
             qos,
             a_listener,
             status_kind,
@@ -291,7 +289,6 @@ impl SubscriberActor {
             Vec<StatusKind>,
         ),
         type_support_actor_address: ActorAddress<TypeSupportActor>,
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
@@ -309,7 +306,6 @@ impl SubscriberActor {
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                     type_support_actor_address.clone(),
-                    topic_list.clone(),
                 )
                 .await;
         }
@@ -327,7 +323,6 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
@@ -348,7 +343,6 @@ impl SubscriberActor {
                         subscriber_qos,
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
-                        topic_list.clone(),
                     )
                     .await;
             }
@@ -365,7 +359,6 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
@@ -381,7 +374,6 @@ impl SubscriberActor {
                     ),
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
-                    topic_list.clone(),
                 )
                 .await;
         }

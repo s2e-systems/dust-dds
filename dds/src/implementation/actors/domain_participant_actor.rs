@@ -928,7 +928,6 @@ impl DomainParticipantActor {
                 participant.clone(),
                 participant_mask_listener,
                 self.type_support_actor.address(),
-                self.topic_list.clone(),
             )
             .await;
 
@@ -954,7 +953,6 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener.clone(),
                     self.type_support_actor.address(),
-                    self.topic_list.clone(),
                 )
                 .await;
 
@@ -1434,7 +1432,6 @@ impl DomainParticipantActor {
                     self.builtin_subscriber.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1552,7 +1549,6 @@ impl DomainParticipantActor {
                     self.builtin_subscriber.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1670,7 +1666,6 @@ impl DomainParticipantActor {
                     self.builtin_subscriber.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1782,7 +1777,6 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant.clone(),
                             participant_mask_listener,
-                            self.topic_list.clone(),
                         )
                         .await;
                 }
@@ -1862,7 +1856,6 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant.clone(),
                     participant_mask_listener,
-                    self.topic_list.clone(),
                 )
                 .await;
         }
