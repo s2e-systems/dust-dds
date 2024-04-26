@@ -373,8 +373,8 @@ impl DomainParticipantFactoryActor {
             runtime_handle.clone(),
         );
 
+        // Start the regular participant announcement task
         let participant_address_clone = participant_actor.address();
-
         let mut interval =
             tokio::time::interval(self.configuration.participant_announcement_interval());
         runtime_handle.spawn(async move {
