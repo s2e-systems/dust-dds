@@ -511,16 +511,13 @@ impl DomainParticipantActor {
             let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
             let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-            self.type_support_actor
-                .register_type(type_name.clone(), type_support)
-                .await;
-
             let topic = TopicActor::new(
                 guid,
                 qos,
                 type_name,
                 &topic_name,
                 a_listener,
+                type_support,
                 &runtime_handle,
             );
 

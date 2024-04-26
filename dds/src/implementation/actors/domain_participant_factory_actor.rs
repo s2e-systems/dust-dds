@@ -1,13 +1,15 @@
 use super::{
     data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
-    message_sender_actor::MessageSenderActor, topic_actor::TopicActor,
+    domain_participant_actor::FooTypeSupport, message_sender_actor::MessageSenderActor,
+    topic_actor::TopicActor,
 };
 use crate::{
     configuration::DustDdsConfiguration,
     data_representation_builtin_endpoints::{
-        discovered_reader_data::DCPS_SUBSCRIPTION, discovered_topic_data::DCPS_TOPIC,
-        discovered_writer_data::DCPS_PUBLICATION,
-        spdp_discovered_participant_data::DCPS_PARTICIPANT,
+        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
     },
     dds_async::{
         domain_participant::DomainParticipantAsync,
@@ -135,6 +137,7 @@ impl DomainParticipantFactoryActor {
                 "SpdpDiscoveredParticipantData".to_string(),
                 DCPS_PARTICIPANT,
                 None,
+                FooTypeSupport::new::<SpdpDiscoveredParticipantData>(),
                 handle,
             ),
             handle,
@@ -151,6 +154,7 @@ impl DomainParticipantFactoryActor {
                 "DiscoveredTopicData".to_string(),
                 DCPS_TOPIC,
                 None,
+                FooTypeSupport::new::<DiscoveredTopicData>(),
                 handle,
             ),
             handle,
@@ -167,6 +171,7 @@ impl DomainParticipantFactoryActor {
                 "DiscoveredWriterData".to_string(),
                 DCPS_PUBLICATION,
                 None,
+                FooTypeSupport::new::<DiscoveredWriterData>(),
                 handle,
             ),
             handle,
@@ -184,6 +189,7 @@ impl DomainParticipantFactoryActor {
                 "DiscoveredReaderData".to_string(),
                 DCPS_SUBSCRIPTION,
                 None,
+                FooTypeSupport::new::<DiscoveredReaderData>(),
                 handle,
             ),
             handle,
