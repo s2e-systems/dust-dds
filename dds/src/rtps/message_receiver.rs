@@ -1,7 +1,7 @@
 use super::{
     messages::{
         self,
-        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        overall_structure::{RtpsMessage, RtpsSubmessageReadKind},
         types::TIME_INVALID,
     },
     types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
@@ -59,7 +59,7 @@ impl Iterator for MessageReceiver {
 }
 
 impl MessageReceiver {
-    pub fn new(message: &RtpsMessageRead) -> Self {
+    pub fn new(message: &RtpsMessage) -> Self {
         Self {
             source_version: message.header().version(),
             source_vendor_id: message.header().vendor_id(),

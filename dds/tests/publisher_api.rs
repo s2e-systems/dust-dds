@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataWriterQos, QosKind},
@@ -18,6 +19,13 @@ struct UserType(i32);
 fn get_publisher_parent_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -38,6 +46,13 @@ fn get_publisher_parent_participant() {
 fn default_data_writer_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -86,6 +101,13 @@ fn default_data_writer_qos() {
 fn different_writers_have_different_instance_handles() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -138,6 +160,13 @@ fn different_writers_have_different_instance_handles() {
 fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();

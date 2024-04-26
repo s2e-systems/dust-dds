@@ -11,6 +11,7 @@ pub struct DustDdsConfiguration {
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     participant_announcement_interval: Duration,
+    udp_transport_enabled: bool,
 }
 
 impl DustDdsConfiguration {
@@ -38,6 +39,11 @@ impl DustDdsConfiguration {
     pub fn participant_announcement_interval(&self) -> Duration {
         self.participant_announcement_interval
     }
+
+    /// Flag indicating whether udp transport is enabled or disabled
+    pub fn udp_transport_enabled(&self) -> bool {
+        self.udp_transport_enabled
+    }
 }
 
 impl Default for DustDdsConfiguration {
@@ -48,6 +54,7 @@ impl Default for DustDdsConfiguration {
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             participant_announcement_interval: Duration::from_secs(5),
+            udp_transport_enabled: true,
         }
     }
 }
@@ -110,6 +117,14 @@ impl DustDdsConfigurationBuilder {
         participant_announcement_interval: Duration,
     ) -> Self {
         self.configuration.participant_announcement_interval = participant_announcement_interval;
+        self
+    }
+
+    /// Set whether the UDP transport is enabled or not. When UDP transport is disabled
+    /// no sockets are created and only communication between participants created by the same
+    /// DomainParticipantFactory occurs.
+    pub fn udp_transport_enabled(mut self, udp_transport_enabled: bool) -> Self {
+        self.configuration.udp_transport_enabled = udp_transport_enabled;
         self
     }
 }

@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::{
         domain_participant_factory::DomainParticipantFactory,
         domain_participant_listener::DomainParticipantListener,
@@ -62,8 +63,15 @@ fn deadline_missed_listener() {
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
     let participant_listener = DeadlineMissedListener { sender };
-
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -149,12 +157,19 @@ fn sample_rejected_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let participant_listener = SampleRejectedListener { sender };
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -256,12 +271,19 @@ fn subscription_matched_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let participant_listener = SubscriptionMatchedListener { sender };
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -341,12 +363,19 @@ fn requested_incompatible_qos_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let participant_listener = RequestedIncompatibleQosListener { sender };
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -426,12 +455,19 @@ fn publication_matched_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let participant_listener = PublicationMatchedListener { sender };
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -512,12 +548,19 @@ fn offered_incompatible_qos_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let participant_listener = OfferedIncompatibleQosListener { sender };
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -595,9 +638,23 @@ fn on_data_available_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -672,9 +729,16 @@ fn data_on_readers_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -760,9 +824,16 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -851,8 +922,15 @@ fn participant_deadline_missed_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -941,9 +1019,16 @@ fn participant_sample_rejected_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1051,9 +1136,16 @@ fn participant_subscription_matched_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1137,9 +1229,16 @@ fn participant_requested_incompatible_qos_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1222,9 +1321,16 @@ fn publisher_publication_matched_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1306,9 +1412,16 @@ fn publisher_offered_incompatible_qos_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1391,8 +1504,15 @@ fn subscriber_deadline_missed_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-
-    let participant = DomainParticipantFactory::get_instance()
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1478,9 +1598,16 @@ fn subscriber_sample_rejected_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1583,9 +1710,16 @@ fn subscriber_subscription_matched_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1667,9 +1801,16 @@ fn subscriber_requested_incompatible_qos_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1752,9 +1893,16 @@ fn data_writer_publication_matched_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1840,9 +1988,16 @@ fn data_writer_offered_incompatible_qos_listener() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
-    let participant = participant_factory
+    let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
@@ -1932,8 +2087,15 @@ fn non_sync_listener_should_be_accepted() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-    let participant = participant_factory
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
+    let participant = domain_participant_factory
         .create_participant(
             domain_id,
             QosKind::Default,

@@ -34,7 +34,7 @@ use crate::{
         behavior_types::DURATION_ZERO,
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        messages::overall_structure::RtpsMessageRead,
+        messages::overall_structure::RtpsMessage,
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
         types::{
             EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
@@ -282,7 +282,7 @@ impl SubscriberActor {
     #[allow(clippy::too_many_arguments)]
     async fn process_rtps_message(
         &self,
-        message: RtpsMessageRead,
+        message: RtpsMessage,
         reception_timestamp: rtps::messages::types::Time,
         subscriber_address: ActorAddress<SubscriberActor>,
         participant: DomainParticipantAsync,

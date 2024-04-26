@@ -1,5 +1,6 @@
 mod utils;
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     dds_async::{
         domain_participant_factory::DomainParticipantFactoryAsync,
         wait_set::{ConditionAsync, WaitSetAsync},
@@ -28,6 +29,14 @@ async fn dust_dds_should_run_inside_tokio_runtime() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant_factory = DomainParticipantFactoryAsync::new(tokio::runtime::Handle::current());
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    participant_factory
+        .set_configuration(test_configuration)
+        .await
+        .unwrap();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .await

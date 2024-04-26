@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
@@ -19,7 +20,13 @@ struct UserType(i32);
 #[test]
 fn writer_discovers_reader_in_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -53,7 +60,13 @@ fn writer_discovers_reader_in_same_participant() {
 #[test]
 fn deleted_readers_are_disposed_from_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -92,7 +105,13 @@ fn deleted_readers_are_disposed_from_writer() {
 #[test]
 fn updated_readers_are_announced_to_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -143,7 +162,13 @@ fn updated_readers_are_announced_to_writer() {
 #[test]
 fn reader_discovers_writer_in_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -177,7 +202,13 @@ fn reader_discovers_writer_in_same_participant() {
 #[test]
 fn deleted_writers_are_disposed_from_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -216,7 +247,13 @@ fn deleted_writers_are_disposed_from_reader() {
 #[test]
 fn updated_writers_are_announced_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -268,6 +305,13 @@ fn updated_writers_are_announced_to_reader() {
 fn two_participants_should_get_subscription_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let dp1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -312,6 +356,13 @@ fn two_participants_should_get_subscription_matched() {
 fn participant_records_discovered_topics() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let participant1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -360,6 +411,13 @@ fn participant_records_discovered_topics() {
 fn participant_announces_updated_qos() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let participant1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -387,7 +445,13 @@ fn participant_announces_updated_qos() {
 #[test]
 fn reader_discovers_disposed_writer_same_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -427,7 +491,13 @@ fn reader_discovers_disposed_writer_same_participant() {
 #[test]
 fn publisher_and_subscriber_different_partition_not_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -474,7 +544,13 @@ fn publisher_and_subscriber_different_partition_not_matched() {
 #[test]
 fn publisher_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -531,7 +607,13 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
 #[test]
 fn publisher_regex_and_subscriber_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -588,7 +670,13 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
 #[test]
 fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -645,7 +733,13 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
 #[test]
 fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = dp
@@ -691,7 +785,13 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
 #[test]
 fn reader_matched_to_already_existing_writer_with_matched_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    let factory = DomainParticipantFactory::get_instance();
+    factory.set_configuration(test_configuration).unwrap();
+    let dp = factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -740,6 +840,13 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
 fn participant_removed_after_lease_duration() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let test_configuration = DustDdsConfigurationBuilder::new()
+        .udp_transport_enabled(false)
+        .build()
+        .unwrap();
+    domain_participant_factory
+        .set_configuration(test_configuration)
+        .unwrap();
 
     let participant1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
