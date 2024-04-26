@@ -108,8 +108,7 @@ impl PublisherAsync {
             .publisher_address
             .upgrade()?
             .create_datawriter(
-                a_topic.get_type_name(),
-                a_topic.get_name(),
+                a_topic.topic_address().upgrade()?,
                 has_key,
                 data_max_size_serialized,
                 qos,

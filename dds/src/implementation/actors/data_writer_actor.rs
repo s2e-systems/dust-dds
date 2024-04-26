@@ -201,8 +201,7 @@ pub struct DataWriterActor {
     rtps_writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
-    type_name: String,
-    topic_name: String,
+    topic: Actor<TopicActor>,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
@@ -217,8 +216,7 @@ pub struct DataWriterActor {
 impl DataWriterActor {
     pub fn new(
         rtps_writer: RtpsWriter,
-        type_name: String,
-        topic_name: String,
+        topic: Actor<TopicActor>,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -242,8 +240,7 @@ impl DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            type_name,
-            topic_name,
+            topic,
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
@@ -518,7 +515,7 @@ impl DataWriterActor {
             .any(|rp| rp.unacked_changes(&self.writer_cache))
     }
 
-    fn as_discovered_writer_data(
+    async fn as_discovered_writer_data(
         &self,
         topic_qos: TopicQos,
         publisher_qos: PublisherQos,
@@ -526,6 +523,8 @@ impl DataWriterActor {
         default_multicast_locator_list: Vec<Locator>,
         xml_type: String,
     ) -> DiscoveredWriterData {
+        let type_name = self.topic.get_type_name().await;
+        let topic_name = self.topic.get_name().await;
         let writer_qos = &self.qos;
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
             default_unicast_locator_list
@@ -547,8 +546,8 @@ impl DataWriterActor {
                 BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
-                self.topic_name.clone(),
-                self.type_name.to_string(),
+                topic_name,
+                type_name,
                 writer_qos.clone(),
                 publisher_qos.clone(),
                 topic_qos.topic_data,
@@ -571,8 +570,8 @@ impl DataWriterActor {
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    fn get_topic_name(&self) -> String {
-        self.topic_name.clone()
+    async fn get_topic_name(&self) -> String {
+        self.topic.get_name().await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -603,8 +602,8 @@ impl DataWriterActor {
         Ok(())
     }
 
-    fn get_type_name(&self) -> String {
-        self.type_name.clone()
+    async fn get_type_name(&self) -> String {
+        self.topic.get_name().await
     }
 
     #[allow(clippy::too_many_arguments, clippy::unused_unit)]
@@ -621,21 +620,22 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
+        let type_name = self.topic.get_type_name().await;
+        let topic_name = self.topic.get_name().await;
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
-            == self.topic_name;
+            == topic_name;
         let is_matched_type_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .get_type_name()
-            == self.type_name;
+            == type_name;
 
         if is_matched_topic_name && is_matched_type_name {
             tracing::trace!(
-                topic_name = self.topic_name,
-                type_name = self.type_name,
+                topic_name = topic_name,
+                type_name = type_name,
                 "Reader with matched topic and type found",
             );
             let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
@@ -729,7 +729,6 @@ impl DataWriterActor {
                         publisher,
                         publisher_mask_listener,
                         participant_mask_listener,
-                        topic_list,
                     )
                     .await;
                 }
@@ -741,7 +740,6 @@ impl DataWriterActor {
                     publisher,
                     publisher_mask_listener,
                     participant_mask_listener,
-                    topic_list,
                 )
                 .await;
             }
@@ -759,7 +757,6 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
             let handle = r.key().value.into();
@@ -771,7 +768,6 @@ impl DataWriterActor {
                 publisher,
                 publisher_mask_listener,
                 participant_mask_listener,
-                topic_list,
             )
             .await;
         }
@@ -984,17 +980,17 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         self.status_condition
             .add_communication_state(StatusKind::PublicationMatched)
             .await;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
             self.listener
                 .trigger_on_publication_matched(
                     data_writer_address,
@@ -1003,8 +999,8 @@ impl DataWriterActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         participant,
                     ),
                     status,
@@ -1039,7 +1035,6 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) {
         self.status_condition
             .add_communication_state(StatusKind::OfferedIncompatibleQos)
@@ -1048,11 +1043,12 @@ impl DataWriterActor {
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
+            let type_name = self.topic.get_type_name().await;
+            let topic_name = self.topic.get_name().await;
             let status = self.get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
-            let topic_address = topic_list[&self.topic_name].address();
-            let topic_status_condition_address =
-                topic_list[&self.topic_name].get_statuscondition().await;
+            let topic_address = self.topic.address();
+            let topic_status_condition_address = self.topic.get_statuscondition().await;
             self.listener
                 .trigger_on_offered_incompatible_qos(
                     data_writer_address,
@@ -1061,8 +1057,8 @@ impl DataWriterActor {
                     TopicAsync::new(
                         topic_address,
                         topic_status_condition_address,
-                        self.type_name.clone(),
-                        self.topic_name.clone(),
+                        type_name,
+                        topic_name,
                         participant,
                     ),
                     status,

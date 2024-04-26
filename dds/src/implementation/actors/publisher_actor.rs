@@ -102,8 +102,7 @@ impl PublisherActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datawriter(
         &mut self,
-        type_name: String,
-        topic_name: String,
+        topic: Actor<TopicActor>,
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
@@ -150,8 +149,7 @@ impl PublisherActor {
 
         let data_writer = DataWriterActor::new(
             rtps_writer_impl,
-            type_name,
-            topic_name,
+            topic,
             a_listener,
             mask,
             qos,
@@ -278,7 +276,6 @@ impl PublisherActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         if self.is_partition_matched(
             discovered_reader_data
@@ -303,7 +300,6 @@ impl PublisherActor {
                         self.qos.clone(),
                         publisher_mask_listener,
                         participant_mask_listener.clone(),
-                        topic_list.clone(),
                     )
                     .await;
             }
@@ -320,7 +316,6 @@ impl PublisherActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        topic_list: HashMap<String, Actor<TopicActor>>,
     ) -> () {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
@@ -336,7 +331,6 @@ impl PublisherActor {
                     ),
                     publisher_mask_listener,
                     participant_mask_listener.clone(),
-                    topic_list.clone(),
                 )
                 .await;
         }

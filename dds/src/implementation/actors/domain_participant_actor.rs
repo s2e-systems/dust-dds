@@ -52,7 +52,7 @@ use crate::{
         messages::{overall_structure::RtpsMessageRead, types::Count},
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
             USER_DEFINED_WRITER_GROUP,
         },
@@ -215,6 +215,7 @@ impl DomainParticipantActor {
         data_max_size_serialized: usize,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        topic_list: HashMap<String, Actor<TopicActor>>,
         builtin_data_writer_list: Vec<DataWriterActor>,
         builtin_data_reader_list: Vec<DataReaderActor>,
         message_sender_actor: MessageSenderActor,
@@ -222,72 +223,6 @@ impl DomainParticipantActor {
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
-        let mut topic_list = HashMap::new();
-
-        let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
-        let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let spdp_topic_participant = Actor::spawn(
-            TopicActor::new(
-                spdp_topic_guid,
-                TopicQos::default(),
-                "SpdpDiscoveredParticipantData".to_string(),
-                DCPS_PARTICIPANT,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
-
-        let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
-        let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let sedp_topic_topics = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_topics_guid,
-                TopicQos::default(),
-                "DiscoveredTopicData".to_string(),
-                DCPS_TOPIC,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
-
-        let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
-        let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let sedp_topic_publications = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_publications_guid,
-                TopicQos::default(),
-                "DiscoveredWriterData".to_string(),
-                DCPS_PUBLICATION,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-
-        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
-
-        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
-        let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let sedp_topic_subscriptions = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_subscriptions_guid,
-                TopicQos::default(),
-                "DiscoveredReaderData".to_string(),
-                DCPS_SUBSCRIPTION,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
         let builtin_subscriber = Actor::spawn(
             SubscriberActor::new(
@@ -1440,7 +1375,6 @@ impl DomainParticipantActor {
                     self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener,
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1559,7 +1493,6 @@ impl DomainParticipantActor {
                     self.builtin_publisher.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1678,7 +1611,6 @@ impl DomainParticipantActor {
                     self.builtin_publisher.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -2047,7 +1979,6 @@ impl DomainParticipantActor {
                             publisher_address,
                             participant.clone(),
                             participant_mask_listener,
-                            self.topic_list.clone(),
                         )
                         .await;
                 }
@@ -2128,7 +2059,6 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant.clone(),
                     participant_mask_listener,
-                    self.topic_list.clone(),
                 )
                 .await;
         }
