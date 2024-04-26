@@ -1231,6 +1231,25 @@ impl DomainParticipantActor {
     fn get_message_sender(&self) -> Actor<MessageSenderActor> {
         self.message_sender_actor.clone()
     }
+
+    pub fn set_default_unicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.rtps_participant.set_default_unicast_locator_list(list)
+    }
+
+    pub fn set_default_multicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.rtps_participant
+            .set_default_multicast_locator_list(list)
+    }
+
+    pub fn set_metatraffic_unicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.rtps_participant
+            .set_metatraffic_unicast_locator_list(list)
+    }
+
+    pub fn set_metatraffic_multicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.rtps_participant
+            .set_metatraffic_multicast_locator_list(list)
+    }
 }
 
 impl DomainParticipantActor {

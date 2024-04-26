@@ -50,15 +50,31 @@ impl RtpsParticipant {
         self.default_unicast_locator_list.as_slice()
     }
 
+    pub fn set_default_unicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.default_unicast_locator_list = list;
+    }
+
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         self.default_multicast_locator_list.as_slice()
+    }
+
+    pub fn set_default_multicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.default_multicast_locator_list = list;
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
         self.metatraffic_unicast_locator_list.as_ref()
     }
 
+    pub fn set_metatraffic_unicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.metatraffic_unicast_locator_list = list;
+    }
+
     pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
         self.metatraffic_multicast_locator_list.as_ref()
+    }
+
+    pub fn set_metatraffic_multicast_locator_list(&mut self, list: Vec<Locator>) {
+        self.metatraffic_multicast_locator_list = list;
     }
 }
