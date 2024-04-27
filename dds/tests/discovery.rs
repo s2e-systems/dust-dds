@@ -647,7 +647,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();
+        .unwrap();  
     let topic = dp
         .create_topic::<UserType>("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();

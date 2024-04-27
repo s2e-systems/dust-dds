@@ -7,7 +7,7 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
     message_sender_actor::MessageSenderActor, subscriber_listener_actor::SubscriberListenerActor,
-    topic_actor::TopicActor, type_support_actor::TypeSupportActor,
+    topic_actor::TopicActor,
 };
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
@@ -288,7 +288,6 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        type_support_actor_address: ActorAddress<TypeSupportActor>,
     ) {
         let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
 
@@ -305,7 +304,6 @@ impl SubscriberActor {
                     ),
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
-                    type_support_actor_address.clone(),
                 )
                 .await;
         }

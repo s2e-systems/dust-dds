@@ -6,7 +6,6 @@ use super::{
     status_condition_actor::StatusConditionActor,
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
-    type_support_actor::TypeSupportActor,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -438,7 +437,6 @@ impl DataReaderActor {
     async fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
-        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
@@ -478,8 +476,7 @@ impl DataReaderActor {
                                                 data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
-                                                type_support,
-                                            ) {
+                                            ).await {
                                                 Ok(change) => {
                                                     self.add_change(
                                                         change,
@@ -514,8 +511,7 @@ impl DataReaderActor {
                                                 data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
-                                                type_support,
-                                            ) {
+                                            ).await {
                                                 Ok(change) => {
                                                     self.add_change(
                                                         change,
@@ -549,14 +545,16 @@ impl DataReaderActor {
                 {
                     // Stateless reader behavior. We add the change if the data is correct. No error is printed
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
-                    if let Ok(change) = self.convert_received_data_to_cache_change(
-                        writer_guid,
-                        data_submessage.inline_qos().clone(),
-                        data_submessage.serialized_payload().clone(),
-                        source_timestamp,
-                        reception_timestamp,
-                        type_support,
-                    ) {
+                    if let Ok(change) = self
+                        .convert_received_data_to_cache_change(
+                            writer_guid,
+                            data_submessage.inline_qos().clone(),
+                            data_submessage.serialized_payload().clone(),
+                            source_timestamp,
+                            reception_timestamp,
+                        )
+                        .await
+                    {
                         self.add_change(
                             change,
                             data_reader_address,
@@ -577,7 +575,6 @@ impl DataReaderActor {
     async fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessage,
-        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
@@ -601,7 +598,6 @@ impl DataReaderActor {
                     {
                         self.on_data_submessage_received(
                             &data_submessage,
-                            type_support,
                             source_guid_prefix,
                             source_timestamp,
                             reception_timestamp,
@@ -976,14 +972,13 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn convert_received_data_to_cache_change(
+    async fn convert_received_data_to_cache_change(
         &mut self,
         writer_guid: Guid,
         inline_qos: ParameterList,
         data: Data,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
-        type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
     ) -> DdsResult<ReaderCacheChange> {
         let change_kind = if let Some(p) = inline_qos
             .parameter()
@@ -1002,9 +997,9 @@ impl DataReaderActor {
         } else {
             Ok(ChangeKind::Alive)
         }?;
-
+        let type_support = self.topic.get_type_support().await;
         let instance_handle = build_instance_handle(
-            type_support,
+            &type_support,
             change_kind,
             data.as_ref(),
             inline_qos.parameter(),
@@ -1577,7 +1572,6 @@ impl DataReaderActor {
         subscriber_qos: SubscriberQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        xml_type: String,
     ) -> DiscoveredReaderData {
         let guid = self.rtps_reader.guid();
         let type_name = self.topic.get_type_name().await;
@@ -1594,6 +1588,8 @@ impl DataReaderActor {
         } else {
             self.rtps_reader.multicast_locator_list().to_vec()
         };
+
+        let xml_type = self.topic.get_type_support().await.xml_type();
 
         DiscoveredReaderData::new(
             ReaderProxy::new(
@@ -1893,66 +1889,56 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-        type_support_actor_address: ActorAddress<TypeSupportActor>,
     ) {
         let mut message_receiver = MessageReceiver::new(&message);
-        let type_name = self.topic.get_type_name().await;
-        if let Some(type_support) = type_support_actor_address
-            .upgrade()
-            .expect("Type support actor must exist")
-            .get_type_support(type_name)
-            .await
-        {
-            while let Some(submessage) = message_receiver.next() {
-                match submessage {
-                    RtpsSubmessageReadKind::Data(data_submessage) => {
-                        self.on_data_submessage_received(
-                            &data_submessage,
-                            &type_support,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                            reception_timestamp,
-                            &data_reader_address,
-                            &subscriber,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
-                        )
-                        .await
-                        .ok();
-                    }
-                    RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                        self.on_data_frag_submessage_received(
-                            &data_frag_submessage,
-                            &type_support,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                            reception_timestamp,
-                            &data_reader_address,
-                            &subscriber,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
-                        )
-                        .await
-                        .ok();
-                    }
-                    RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                        self.on_gap_submessage_received(
-                            &gap_submessage,
-                            message_receiver.source_guid_prefix(),
-                        );
-                    }
-                    RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                        .on_heartbeat_submessage_received(
-                            &heartbeat_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
-                        .on_heartbeat_frag_submessage_received(
-                            &heartbeat_frag_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    _ => (),
+
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        &data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        reception_timestamp,
+                        &data_reader_address,
+                        &subscriber,
+                        &subscriber_mask_listener,
+                        &participant_mask_listener,
+                    )
+                    .await
+                    .ok();
                 }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    self.on_data_frag_submessage_received(
+                        &data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        reception_timestamp,
+                        &data_reader_address,
+                        &subscriber,
+                        &subscriber_mask_listener,
+                        &participant_mask_listener,
+                    )
+                    .await
+                    .ok();
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.on_gap_submessage_received(
+                        &gap_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
+                    .on_heartbeat_submessage_received(
+                        &heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
+                    .on_heartbeat_frag_submessage_received(
+                        &heartbeat_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
             }
         }
     }

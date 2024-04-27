@@ -69,20 +69,6 @@ impl PublisherAsync {
     where
         Foo: 'b,
     {
-        let type_name = a_topic.get_type_name();
-        let type_support = self
-            .participant
-            .participant_address()
-            .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-
         let default_unicast_locator_list = self
             .participant
             .participant_address()
@@ -103,7 +89,12 @@ impl PublisherAsync {
             .await;
 
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let has_key = type_support.has_key();
+        let has_key = a_topic
+            .topic_address()
+            .upgrade()?
+            .get_type_support()
+            .await
+            .has_key();
         let data_writer_address = self
             .publisher_address
             .upgrade()?

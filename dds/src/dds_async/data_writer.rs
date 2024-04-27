@@ -82,18 +82,12 @@ impl<Foo> DataWriterAsync<Foo> {
     }
 
     async fn announce_writer(&self) -> DdsResult<()> {
-        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
-            .participant_address()
+            .topic
+            .topic_address()
             .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
+            .get_type_support()
+            .await;
         let discovered_writer_data = self
             .writer_address
             .upgrade()?
@@ -170,18 +164,12 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
-            .participant_address()
+            .topic
+            .topic_address()
             .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
+            .get_type_support()
+            .await;
         let has_key = type_support.has_key();
         if has_key {
             let instance_handle = match handle {
@@ -253,18 +241,12 @@ where
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
-            .participant_address()
+            .topic
+            .topic_address()
             .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
+            .get_type_support()
+            .await;
 
         let mut serialized_foo = Vec::new();
         instance.serialize_data(&mut serialized_foo)?;
@@ -295,18 +277,12 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
-            .participant_address()
+            .topic
+            .topic_address()
             .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
+            .get_type_support()
+            .await;
 
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
@@ -382,18 +358,12 @@ where
             }
         }?;
 
-        let type_name = self.writer_address.upgrade()?.get_type_name().await;
         let type_support = self
-            .participant_address()
+            .topic
+            .topic_address()
             .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
+            .get_type_support()
+            .await;
 
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;

@@ -160,11 +160,8 @@ impl TopicActor {
         }
     }
 
-    pub fn get_type_support(
-        &self,
-        type_name: String,
-    ) -> Arc<dyn DynamicTypeInterface + Send + Sync> {
-        self.type_support_list.get(&type_name).cloned()
+    fn get_type_support(&self) -> Arc<dyn DynamicTypeInterface + Send + Sync> {
+        self.type_support.clone()
     }
 }
 

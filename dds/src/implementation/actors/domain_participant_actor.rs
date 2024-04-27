@@ -79,7 +79,6 @@ use super::{
     message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
-    type_support_actor::TypeSupportActor,
 };
 
 const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
@@ -200,7 +199,6 @@ pub struct DomainParticipantActor {
     data_max_size_serialized: usize,
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
-    type_support_actor: Actor<TypeSupportActor>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,
 }
@@ -256,31 +254,6 @@ impl DomainParticipantActor {
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
-        let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
-            HashMap::new();
-        type_support_list.insert(
-            "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
-        );
-        type_support_list.insert(
-            "DiscoveredReaderData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
-        );
-        type_support_list.insert(
-            "DiscoveredWriterData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
-        );
-        type_support_list.insert(
-            "DiscoveredTopicData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
-        );
-
-        let type_support_actor = Actor::spawn(
-            TypeSupportActor::new(type_support_list),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-
         Self {
             rtps_participant,
             domain_id,
@@ -313,7 +286,6 @@ impl DomainParticipantActor {
                 DEFAULT_ACTOR_BUFFER_SIZE,
             ),
             status_kind,
-            type_support_actor,
             status_condition: Actor::spawn(
                 StatusConditionActor::default(),
                 handle,
@@ -924,7 +896,6 @@ impl DomainParticipantActor {
                 self.builtin_subscriber.address(),
                 participant.clone(),
                 participant_mask_listener,
-                self.type_support_actor.address(),
             )
             .await;
 
@@ -949,7 +920,6 @@ impl DomainParticipantActor {
                     user_defined_subscriber_address.address(),
                     participant.clone(),
                     participant_mask_listener.clone(),
-                    self.type_support_actor.address(),
                 )
                 .await;
 
@@ -1145,13 +1115,6 @@ impl DomainParticipantActor {
         } else {
             Ok(())
         }
-    }
-
-    async fn get_type_support(
-        &mut self,
-        type_name: String,
-    ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {
-        self.type_support_actor.get_type_support(type_name).await
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {

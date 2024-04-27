@@ -603,7 +603,7 @@ impl DataWriterActor {
     }
 
     async fn get_type_name(&self) -> String {
-        self.topic.get_name().await
+        self.topic.get_type_name().await
     }
 
     #[allow(clippy::too_many_arguments, clippy::unused_unit)]
