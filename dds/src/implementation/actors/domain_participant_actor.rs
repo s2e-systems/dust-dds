@@ -1039,33 +1039,29 @@ impl DomainParticipantActor {
 
     async fn announce_participant(&self) -> DdsResult<()> {
         if self.enabled {
-            let data_writer_list = self.builtin_publisher.data_writer_list().await;
-            for data_writer in data_writer_list {
-                if &data_writer.upgrade()?.get_type_name().await == "SpdpDiscoveredParticipantData"
-                {
-                    let spdp_discovered_participant_data =
-                        self.as_spdp_discovered_participant_data();
-                    let mut serialized_data = Vec::new();
-                    spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
+            if let Some(data_writer) = self
+                .builtin_publisher
+                .lookup_datawriter(DCPS_PARTICIPANT.to_owned())
+                .await
+            {
+                let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
+                let mut serialized_data = Vec::new();
+                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
 
-                    let timestamp = self.get_current_time();
-                    let now = self.get_current_time();
-                    data_writer
-                        .upgrade()?
-                        .write_w_timestamp(
-                            serialized_data,
-                            InstanceHandle::try_from_key(
-                                &spdp_discovered_participant_data.get_key()?,
-                            )
+                let timestamp = self.get_current_time();
+                let now = self.get_current_time();
+                data_writer
+                    .write_w_timestamp(
+                        serialized_data,
+                        InstanceHandle::try_from_key(&spdp_discovered_participant_data.get_key()?)
                             .unwrap(),
-                            None,
-                            timestamp,
-                            self.message_sender_actor.clone(),
-                            now,
-                            data_writer.upgrade()?.clone(),
-                        )
-                        .await?;
-                }
+                        None,
+                        timestamp,
+                        self.message_sender_actor.clone(),
+                        now,
+                        data_writer.clone(),
+                    )
+                    .await?;
             }
         }
 

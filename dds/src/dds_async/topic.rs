@@ -1,5 +1,7 @@
 use crate::{
-    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+    data_representation_builtin_endpoints::discovered_topic_data::{
+        DiscoveredTopicData, DCPS_TOPIC,
+    },
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -176,25 +178,28 @@ async fn announce_topic(
     let mut serialized_data = Vec::new();
     discovered_topic_data.serialize_data(&mut serialized_data)?;
     let timestamp = domain_participant.upgrade()?.get_current_time().await;
-    let builtin_publisher = domain_participant.upgrade()?.get_builtin_publisher().await;
-    let data_writer_list = builtin_publisher.upgrade()?.data_writer_list().await;
+    let builtin_publisher = domain_participant
+        .upgrade()?
+        .get_builtin_publisher()
+        .await
+        .upgrade()?;
+
     let message_sender_actor = domain_participant.upgrade()?.get_message_sender().await;
-    for data_writer in data_writer_list {
-        let data_writer_actor = &data_writer.upgrade()?;
-        if data_writer_actor.get_type_name().await == "DiscoveredTopicData" {
-            data_writer_actor
-                .write_w_timestamp(
-                    serialized_data,
-                    InstanceHandle::try_from_key(&discovered_topic_data.get_key()?)?,
-                    None,
-                    timestamp,
-                    message_sender_actor,
-                    timestamp,
-                    data_writer_actor.clone(),
-                )
-                .await?;
-            break;
-        }
+    if let Some(data_writer) = builtin_publisher
+        .lookup_datawriter(DCPS_TOPIC.to_owned())
+        .await
+    {
+        data_writer
+            .write_w_timestamp(
+                serialized_data,
+                InstanceHandle::try_from_key(&discovered_topic_data.get_key()?)?,
+                None,
+                timestamp,
+                message_sender_actor,
+                timestamp,
+                data_writer.clone(),
+            )
+            .await?;
     }
 
     Ok(())
