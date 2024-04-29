@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use dust_dds_derive::actor_interface;
 
 use crate::{
@@ -12,6 +14,7 @@ use crate::{
         status::{InconsistentTopicStatus, StatusKind},
     },
     rtps::types::Guid,
+    topic_definition::type_support::DynamicTypeInterface,
 };
 
 use super::{
@@ -40,6 +43,7 @@ pub struct TopicActor {
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
     _listener: Actor<TopicListenerActor>,
+    type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
 }
 
 impl TopicActor {
@@ -49,6 +53,7 @@ impl TopicActor {
         type_name: String,
         topic_name: &str,
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(
@@ -70,6 +75,7 @@ impl TopicActor {
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition,
             _listener: listener,
+            type_support,
         }
     }
 }
@@ -152,6 +158,10 @@ impl TopicActor {
                 .add_communication_state(StatusKind::InconsistentTopic)
                 .await;
         }
+    }
+
+    fn get_type_support(&self) -> Arc<dyn DynamicTypeInterface + Send + Sync> {
+        self.type_support.clone()
     }
 }
 

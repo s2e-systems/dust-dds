@@ -1,12 +1,12 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
+        actor::ActorAddress,
         actors::{
             any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -75,18 +75,6 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     async fn announce_reader(&self) -> DdsResult<()> {
-        let type_name = self.reader_address.upgrade()?.get_type_name().await;
-        let type_support = self
-            .participant_address()
-            .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
         let discovered_reader_data = self
             .reader_address
             .upgrade()?
@@ -101,7 +89,6 @@ impl<Foo> DataReaderAsync<Foo> {
                     .upgrade()?
                     .get_default_multicast_locator_list()
                     .await,
-                type_support.xml_type(),
             )
             .await;
         self.participant_address()

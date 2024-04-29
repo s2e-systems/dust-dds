@@ -52,7 +52,7 @@ use crate::{
         messages::{overall_structure::RtpsMessageRead, types::Count},
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
             USER_DEFINED_WRITER_GROUP,
         },
@@ -79,7 +79,6 @@ use super::{
     message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
-    type_support_actor::TypeSupportActor,
 };
 
 const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
@@ -200,7 +199,6 @@ pub struct DomainParticipantActor {
     data_max_size_serialized: usize,
     listener: Actor<DomainParticipantListenerActor>,
     status_kind: Vec<StatusKind>,
-    type_support_actor: Actor<TypeSupportActor>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,
 }
@@ -215,6 +213,7 @@ impl DomainParticipantActor {
         data_max_size_serialized: usize,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
+        topic_list: HashMap<String, Actor<TopicActor>>,
         builtin_data_writer_list: Vec<DataWriterActor>,
         builtin_data_reader_list: Vec<DataReaderActor>,
         message_sender_actor: MessageSenderActor,
@@ -222,72 +221,6 @@ impl DomainParticipantActor {
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
-        let mut topic_list = HashMap::new();
-
-        let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
-        let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let spdp_topic_participant = Actor::spawn(
-            TopicActor::new(
-                spdp_topic_guid,
-                TopicQos::default(),
-                "SpdpDiscoveredParticipantData".to_string(),
-                DCPS_PARTICIPANT,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
-
-        let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
-        let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let sedp_topic_topics = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_topics_guid,
-                TopicQos::default(),
-                "DiscoveredTopicData".to_string(),
-                DCPS_TOPIC,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
-
-        let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
-        let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let sedp_topic_publications = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_publications_guid,
-                TopicQos::default(),
-                "DiscoveredWriterData".to_string(),
-                DCPS_PUBLICATION,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-
-        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
-
-        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
-        let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let sedp_topic_subscriptions = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_subscriptions_guid,
-                TopicQos::default(),
-                "DiscoveredReaderData".to_string(),
-                DCPS_SUBSCRIPTION,
-                None,
-                handle,
-            ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
         let builtin_subscriber = Actor::spawn(
             SubscriberActor::new(
@@ -317,31 +250,6 @@ impl DomainParticipantActor {
                 builtin_data_writer_list,
                 handle,
             ),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-
-        let mut type_support_list: HashMap<String, Arc<dyn DynamicTypeInterface + Send + Sync>> =
-            HashMap::new();
-        type_support_list.insert(
-            "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
-        );
-        type_support_list.insert(
-            "DiscoveredReaderData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
-        );
-        type_support_list.insert(
-            "DiscoveredWriterData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
-        );
-        type_support_list.insert(
-            "DiscoveredTopicData".to_string(),
-            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
-        );
-
-        let type_support_actor = Actor::spawn(
-            TypeSupportActor::new(type_support_list),
             handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
@@ -378,7 +286,6 @@ impl DomainParticipantActor {
                 DEFAULT_ACTOR_BUFFER_SIZE,
             ),
             status_kind,
-            type_support_actor,
             status_condition: Actor::spawn(
                 StatusConditionActor::default(),
                 handle,
@@ -576,16 +483,13 @@ impl DomainParticipantActor {
             let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
             let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-            self.type_support_actor
-                .register_type(type_name.clone(), type_support)
-                .await;
-
             let topic = TopicActor::new(
                 guid,
                 qos,
                 type_name,
                 &topic_name,
                 a_listener,
+                type_support,
                 &runtime_handle,
             );
 
@@ -992,8 +896,6 @@ impl DomainParticipantActor {
                 self.builtin_subscriber.address(),
                 participant.clone(),
                 participant_mask_listener,
-                self.type_support_actor.address(),
-                self.topic_list.clone(),
             )
             .await;
 
@@ -1018,8 +920,6 @@ impl DomainParticipantActor {
                     user_defined_subscriber_address.address(),
                     participant.clone(),
                     participant_mask_listener.clone(),
-                    self.type_support_actor.address(),
-                    self.topic_list.clone(),
                 )
                 .await;
 
@@ -1139,33 +1039,29 @@ impl DomainParticipantActor {
 
     async fn announce_participant(&self) -> DdsResult<()> {
         if self.enabled {
-            let data_writer_list = self.builtin_publisher.data_writer_list().await;
-            for data_writer in data_writer_list {
-                if &data_writer.upgrade()?.get_type_name().await == "SpdpDiscoveredParticipantData"
-                {
-                    let spdp_discovered_participant_data =
-                        self.as_spdp_discovered_participant_data();
-                    let mut serialized_data = Vec::new();
-                    spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
+            if let Some(data_writer) = self
+                .builtin_publisher
+                .lookup_datawriter(DCPS_PARTICIPANT.to_owned())
+                .await
+            {
+                let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
+                let mut serialized_data = Vec::new();
+                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
 
-                    let timestamp = self.get_current_time();
-                    let now = self.get_current_time();
-                    data_writer
-                        .upgrade()?
-                        .write_w_timestamp(
-                            serialized_data,
-                            InstanceHandle::try_from_key(
-                                &spdp_discovered_participant_data.get_key()?,
-                            )
+                let timestamp = self.get_current_time();
+                let now = self.get_current_time();
+                data_writer
+                    .write_w_timestamp(
+                        serialized_data,
+                        InstanceHandle::try_from_key(&spdp_discovered_participant_data.get_key()?)
                             .unwrap(),
-                            None,
-                            timestamp,
-                            self.message_sender_actor.clone(),
-                            now,
-                            data_writer.upgrade()?.clone(),
-                        )
-                        .await?;
-                }
+                        None,
+                        timestamp,
+                        self.message_sender_actor.clone(),
+                        now,
+                        data_writer.clone(),
+                    )
+                    .await?;
             }
         }
 
@@ -1215,13 +1111,6 @@ impl DomainParticipantActor {
         } else {
             Ok(())
         }
-    }
-
-    async fn get_type_support(
-        &mut self,
-        type_name: String,
-    ) -> Option<Arc<dyn DynamicTypeInterface + Send + Sync>> {
-        self.type_support_actor.get_type_support(type_name).await
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
@@ -1440,7 +1329,6 @@ impl DomainParticipantActor {
                     self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener,
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1500,7 +1388,6 @@ impl DomainParticipantActor {
                     self.builtin_subscriber.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1559,7 +1446,6 @@ impl DomainParticipantActor {
                     self.builtin_publisher.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1619,7 +1505,6 @@ impl DomainParticipantActor {
                     self.builtin_subscriber.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1678,7 +1563,6 @@ impl DomainParticipantActor {
                     self.builtin_publisher.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1738,7 +1622,6 @@ impl DomainParticipantActor {
                     self.builtin_subscriber.address(),
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -1850,7 +1733,6 @@ impl DomainParticipantActor {
                             subscriber_address,
                             participant.clone(),
                             participant_mask_listener,
-                            self.topic_list.clone(),
                         )
                         .await;
                 }
@@ -1930,7 +1812,6 @@ impl DomainParticipantActor {
                     subscriber_address,
                     participant.clone(),
                     participant_mask_listener,
-                    self.topic_list.clone(),
                 )
                 .await;
         }
@@ -2047,7 +1928,6 @@ impl DomainParticipantActor {
                             publisher_address,
                             participant.clone(),
                             participant_mask_listener,
-                            self.topic_list.clone(),
                         )
                         .await;
                 }
@@ -2128,7 +2008,6 @@ impl DomainParticipantActor {
                     publisher_address,
                     participant.clone(),
                     participant_mask_listener,
-                    self.topic_list.clone(),
                 )
                 .await;
         }

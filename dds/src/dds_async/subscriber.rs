@@ -68,20 +68,6 @@ impl SubscriberAsync {
     where
         Foo: 'b,
     {
-        let type_name = a_topic.get_type_name();
-        let topic_name = a_topic.get_name();
-        let type_support = self
-            .participant_address()
-            .upgrade()?
-            .get_type_support(type_name.clone())
-            .await
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(format!(
-                    "Type with name {} not registered with parent domain participant",
-                    type_name
-                ))
-            })?;
-
         let listener =
             a_listener.map::<Box<dyn AnyDataReaderListener + Send + 'static>, _>(|b| Box::new(b));
 
@@ -96,14 +82,14 @@ impl SubscriberAsync {
             .get_default_unicast_locator_list()
             .await;
 
-        let has_key = type_support.has_key();
+        let topic = a_topic.topic_address().upgrade()?;
+        let has_key = topic.get_type_support().await.has_key();
 
         let reader_address = self
             .subscriber_address
             .upgrade()?
             .create_datareader(
-                type_name,
-                topic_name,
+                topic,
                 has_key,
                 qos,
                 listener,
