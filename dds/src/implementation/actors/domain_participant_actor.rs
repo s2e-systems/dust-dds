@@ -853,8 +853,8 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
-        self.builtin_publisher.address()
+    fn get_builtin_publisher(&self) -> Actor<PublisherActor> {
+        self.builtin_publisher.clone()
     }
 
     async fn send_message(&self) {

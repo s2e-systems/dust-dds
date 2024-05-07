@@ -15,7 +15,6 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    topic_definition::type_support::{DdsKey, DdsSerialize},
 };
 
 use super::{
@@ -105,13 +104,25 @@ impl TopicAsync {
                     .get_default_topic_qos()
                     .await
             }
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
+            QosKind::Specific(q) => q,
         };
 
-        self.topic_address.upgrade()?.set_qos(qos).await
+        let topic = self.topic_address.upgrade()?;
+        topic.set_qos(qos).await?;
+
+        if topic.is_enabled().await {
+            let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
+            if let Some(sedp_topics_announcer) = builtin_publisher
+                .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
+                .await?
+            {
+                let discovered_topic_data = topic.as_discovered_topic_data().await;
+                sedp_topics_announcer
+                    .write(&discovered_topic_data, None)
+                    .await?;
+            }
+        }
+        Ok(())
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
@@ -138,17 +149,20 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.topic_address.upgrade()?.is_enabled().await {
-            self.topic_address.upgrade()?.enable().await;
+        let topic = self.topic_address.upgrade()?;
+        if !topic.is_enabled().await {
+            topic.enable().await;
 
-            announce_topic(
-                self.participant_address(),
-                self.topic_address
-                    .upgrade()?
-                    .as_discovered_topic_data()
-                    .await,
-            )
-            .await?;
+            let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
+            if let Some(sedp_topics_announcer) = builtin_publisher
+                .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
+                .await?
+            {
+                let discovered_topic_data = topic.as_discovered_topic_data().await;
+                sedp_topics_announcer
+                    .write(&discovered_topic_data, None)
+                    .await?;
+            }
         }
 
         Ok(())
@@ -169,38 +183,4 @@ impl TopicAsync {
     ) -> DdsResult<()> {
         todo!()
     }
-}
-
-async fn announce_topic(
-    domain_participant: &ActorAddress<DomainParticipantActor>,
-    discovered_topic_data: DiscoveredTopicData,
-) -> DdsResult<()> {
-    let mut serialized_data = Vec::new();
-    discovered_topic_data.serialize_data(&mut serialized_data)?;
-    let timestamp = domain_participant.upgrade()?.get_current_time().await;
-    let builtin_publisher = domain_participant
-        .upgrade()?
-        .get_builtin_publisher()
-        .await
-        .upgrade()?;
-
-    let message_sender_actor = domain_participant.upgrade()?.get_message_sender().await;
-    if let Some(data_writer) = builtin_publisher
-        .lookup_datawriter(DCPS_TOPIC.to_owned())
-        .await
-    {
-        data_writer
-            .write_w_timestamp(
-                serialized_data,
-                InstanceHandle::try_from_key(&discovered_topic_data.get_key()?)?,
-                None,
-                timestamp,
-                message_sender_actor,
-                timestamp,
-                data_writer.clone(),
-            )
-            .await?;
-    }
-
-    Ok(())
 }

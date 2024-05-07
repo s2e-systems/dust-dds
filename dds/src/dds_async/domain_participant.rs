@@ -4,12 +4,12 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
     implementation::{
+        actor::ActorAddress,
         actors::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::SubscriberActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -537,5 +537,21 @@ impl DomainParticipantAsync {
             .upgrade()?
             .get_instance_handle()
             .await)
+    }
+}
+
+impl DomainParticipantAsync {
+    pub(crate) async fn get_builtin_publisher(&self) -> DdsResult<PublisherAsync> {
+        let publisher_address = self
+            .participant_address
+            .upgrade()?
+            .get_builtin_publisher()
+            .await;
+        let publisher_status_condition = publisher_address.get_statuscondition().await;
+        Ok(PublisherAsync::new(
+            publisher_address.address(),
+            publisher_status_condition,
+            self.clone(),
+        ))
     }
 }
