@@ -60,6 +60,24 @@ impl TopicAsync {
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         self.participant.runtime_handle()
     }
+
+    async fn announce_topic(&self) -> DdsResult<()> {
+        let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
+        if let Some(sedp_topics_announcer) = builtin_publisher
+            .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
+            .await?
+        {
+            let discovered_topic_data = self
+                .topic_address
+                .upgrade()?
+                .as_discovered_topic_data()
+                .await;
+            sedp_topics_announcer
+                .write(&discovered_topic_data, None)
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 impl TopicAsync {
@@ -111,16 +129,7 @@ impl TopicAsync {
         topic.set_qos(qos).await?;
 
         if topic.is_enabled().await {
-            let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
-            if let Some(sedp_topics_announcer) = builtin_publisher
-                .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
-                .await?
-            {
-                let discovered_topic_data = topic.as_discovered_topic_data().await;
-                sedp_topics_announcer
-                    .write(&discovered_topic_data, None)
-                    .await?;
-            }
+            self.announce_topic().await?;
         }
         Ok(())
     }
@@ -152,17 +161,7 @@ impl TopicAsync {
         let topic = self.topic_address.upgrade()?;
         if !topic.is_enabled().await {
             topic.enable().await;
-
-            let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
-            if let Some(sedp_topics_announcer) = builtin_publisher
-                .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
-                .await?
-            {
-                let discovered_topic_data = topic.as_discovered_topic_data().await;
-                sedp_topics_announcer
-                    .write(&discovered_topic_data, None)
-                    .await?;
-            }
+            self.announce_topic().await?;
         }
 
         Ok(())

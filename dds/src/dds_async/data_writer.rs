@@ -2,6 +2,9 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    data_representation_builtin_endpoints::discovered_writer_data::{
+        DiscoveredWriterData, DCPS_PUBLICATION,
+    },
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -13,7 +16,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, QosKind, TopicQos},
+        qos::{DataWriterQos, QosKind},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
@@ -82,34 +85,39 @@ impl<Foo> DataWriterAsync<Foo> {
     }
 
     async fn announce_writer(&self) -> DdsResult<()> {
-        let type_support = self
-            .topic
-            .topic_address()
-            .upgrade()?
-            .get_type_support()
-            .await;
-        let discovered_writer_data = self
-            .writer_address
-            .upgrade()?
-            .as_discovered_writer_data(
-                TopicQos::default(),
-                self.publisher_address().upgrade()?.get_qos().await,
-                self.participant_address()
-                    .upgrade()?
-                    .get_default_unicast_locator_list()
-                    .await,
-                self.participant_address()
-                    .upgrade()?
-                    .get_default_multicast_locator_list()
-                    .await,
-                type_support.xml_type(),
-            )
-            .await;
-        self.participant_address()
-            .upgrade()?
-            .announce_created_or_modified_data_writer(discovered_writer_data)
-            .await;
-
+        let builtin_publisher = self
+            .get_publisher()
+            .get_participant()
+            .get_builtin_publisher()
+            .await?;
+        if let Some(sedp_publications_announcer) = builtin_publisher
+            .lookup_datawriter::<DiscoveredWriterData>(DCPS_PUBLICATION)
+            .await?
+        {
+            let publisher_qos = self.get_publisher().get_qos().await?;
+            let default_unicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_unicast_locator_list()
+                .await;
+            let default_multicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_multicast_locator_list()
+                .await;
+            let discovered_writer_data = self
+                .writer_address
+                .upgrade()?
+                .as_discovered_writer_data(
+                    publisher_qos,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                )
+                .await;
+            sedp_publications_announcer
+                .write(&discovered_writer_data, None)
+                .await?;
+        }
         Ok(())
     }
 }
@@ -490,28 +498,20 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`set_qos`](crate::publication::data_writer::DataWriter::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let q = match qos {
+        let qos = match qos {
             QosKind::Default => {
                 self.publisher_address()
                     .upgrade()?
                     .get_default_datawriter_qos()
                     .await
             }
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
+            QosKind::Specific(q) => q,
         };
 
-        if self.writer_address.upgrade()?.is_enabled().await {
-            let current_qos = self.get_qos().await?;
-            q.check_immutability(&current_qos)?;
-
-            self.writer_address.upgrade()?.set_qos(q).await;
-
+        let writer = self.writer_address.upgrade()?;
+        writer.set_qos(qos).await?;
+        if writer.is_enabled().await {
             self.announce_writer().await?;
-        } else {
-            self.writer_address.upgrade()?.set_qos(q).await;
         }
 
         Ok(())
@@ -541,8 +541,9 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`enable`](crate::publication::data_writer::DataWriter::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.writer_address.upgrade()?.is_enabled().await {
-            self.writer_address.upgrade()?.enable().await;
+        let writer = self.writer_address().upgrade()?;
+        if !writer.is_enabled().await {
+            writer.enable().await;
 
             self.announce_writer().await?;
         }
