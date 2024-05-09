@@ -1,8 +1,9 @@
 use crate::{
+    data_representation_builtin_endpoints::discovered_reader_data::DCPS_SUBSCRIPTION,
     implementation::{
-        actor::ActorAddress,
+        actor::{Actor, ActorAddress},
         actors::{
-            any_data_reader_listener::AnyDataReaderListener,
+            any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
         },
@@ -52,6 +53,35 @@ impl SubscriberAsync {
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         self.participant.runtime_handle()
+    }
+
+    async fn announce_deleted_data_reader(&self, reader: Actor<DataReaderActor>) -> DdsResult<()> {
+        let builtin_publisher = self.participant.get_builtin_publisher().await?;
+        if let Some(sedp_subscriptions_announcer) = builtin_publisher
+            .lookup_datawriter(DCPS_SUBSCRIPTION)
+            .await?
+        {
+            let subscriber_qos = self.get_qos().await?;
+            let default_unicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_unicast_locator_list()
+                .await;
+            let default_multicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_multicast_locator_list()
+                .await;
+            let data = reader
+                .as_discovered_reader_data(
+                    subscriber_qos,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                )
+                .await;
+            sedp_subscriptions_announcer.dispose(&data, None).await?;
+        }
+        Ok(())
     }
 }
 
@@ -130,6 +160,7 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
+        // Send messages before deleting the reader
         let message_sender_actor = self
             .participant_address()
             .upgrade()?
@@ -141,15 +172,13 @@ impl SubscriberAsync {
             .send_message(message_sender_actor)
             .await;
 
-        self.subscriber_address
+        let deleted_reader = self
+            .subscriber_address
             .upgrade()?
             .delete_datareader(reader_handle)
             .await?;
 
-        self.participant_address()
-            .upgrade()?
-            .announce_deleted_data_reader(reader_handle)
-            .await
+        self.announce_deleted_data_reader(deleted_reader).await
     }
 
     /// Async version of [`lookup_datareader`](crate::subscription::subscriber::Subscriber::lookup_datareader).
@@ -213,17 +242,25 @@ impl SubscriberAsync {
     /// Async version of [`delete_contained_entities`](crate::subscription::subscriber::Subscriber::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let deleted_reader_handle = self
+        let deleted_reader_actor = self
             .subscriber_address
             .upgrade()?
-            .delete_contained_entities()
+            .drain_data_reader_list()
             .await;
-        for reader_handle in deleted_reader_handle {
-            self.participant
-                .participant_address()
-                .upgrade()?
-                .announce_deleted_data_reader(reader_handle)
-                .await?;
+
+        let message_sender_actor = self
+            .participant_address()
+            .upgrade()?
+            .get_message_sender()
+            .await;
+
+        for reader_actor in deleted_reader_actor {
+            // Send messages before deleting the reader
+            reader_actor
+                .send_message(message_sender_actor.clone())
+                .await;
+
+            self.announce_deleted_data_reader(reader_actor).await?;
         }
         Ok(())
     }

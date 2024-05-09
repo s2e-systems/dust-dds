@@ -457,7 +457,7 @@ impl<Foo> DataReaderAsync<Foo> {
         };
 
         let reader = self.reader_address.upgrade()?;
-        reader.set_qos(qos).await;
+        reader.set_qos(qos).await?;
         if reader.is_enabled().await {
             self.announce_reader().await?;
         }
