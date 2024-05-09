@@ -544,7 +544,8 @@ impl DomainParticipantAsync {
             QosKind::Specific(q) => q,
         };
 
-        self.participant_address.upgrade()?.set_qos(qos).await
+        self.participant_address.upgrade()?.set_qos(qos).await?;
+        self.announce_participant().await
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
