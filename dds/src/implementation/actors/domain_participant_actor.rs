@@ -1888,8 +1888,9 @@ impl DomainParticipantActor {
                                 ),
                             }
                         }
-                        InstanceStateKind::NotAliveDisposed => todo!(),
-                        InstanceStateKind::NotAliveNoWriters => todo!(),
+                        // Discovered topics are not deleted so it is not need to process these messages in any manner
+                        InstanceStateKind::NotAliveDisposed
+                        | InstanceStateKind::NotAliveNoWriters => (),
                     }
                 }
             }
