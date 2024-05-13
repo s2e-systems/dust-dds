@@ -222,6 +222,10 @@ impl SpdpDiscoveredParticipantData {
     pub fn _lease_duration(&self) -> &Duration {
         &self.lease_duration
     }
+
+    pub fn discovered_participant_list(&self) -> &[InstanceHandle] {
+        &self.discovered_participant_list
+    }
 }
 
 impl DdsHasKey for SpdpDiscoveredParticipantData {

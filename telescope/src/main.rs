@@ -61,7 +61,6 @@ fn main() {
                         match participant_list
                             .entry(discovered_participant.participant_proxy().guid_prefix())
                         {
-                            Entry::Occupied(_) => (),
                             Entry::Vacant(e) => {
                                 println!(
                                     "Discovered participant GUID {:?} on domain {:?} with tag {:?}",
@@ -93,8 +92,29 @@ fn main() {
                                         .participant_proxy()
                                         .default_multicast_locator_list()
                                 );
+                                println!(
+                                    "Discovered participant list {:?}",
+                                    discovered_participant.discovered_participant_list()
+                                );
                                 e.insert(discovered_participant);
                                 println!("\n\n")
+                            }
+                            Entry::Occupied(mut e) => {
+                                if e.get().discovered_participant_list()
+                                    != discovered_participant.discovered_participant_list()
+                                {
+                                    println!(
+                                        "Updated participant GUID {:?} on domain {:?} with tag {:?}",
+                                        discovered_participant.participant_proxy().guid_prefix(),
+                                        discovered_participant.participant_proxy().domain_id(),
+                                        discovered_participant.participant_proxy().domain_tag(),
+                                    );
+                                    println!(
+                                        "Discovered participant list {:?}",
+                                        discovered_participant.discovered_participant_list()
+                                    );
+                                    e.insert(discovered_participant);
+                                }
                             }
                         }
                     }
