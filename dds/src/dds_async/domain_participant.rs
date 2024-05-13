@@ -2,14 +2,19 @@ use std::sync::Arc;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    data_representation_builtin_endpoints::{
+        discovered_topic_data::DCPS_TOPIC,
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+    },
     domain::domain_participant_factory::DomainId,
     implementation::{
+        actor::{Actor, ActorAddress},
         actors::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::SubscriberActor,
+            topic_actor::TopicActor,
         },
-        actor::ActorAddress,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -64,6 +69,37 @@ impl DomainParticipantAsync {
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         &self.runtime_handle
+    }
+
+    pub(crate) async fn announce_participant(&self) -> DdsResult<()> {
+        if self.participant_address.upgrade()?.is_enabled().await {
+            let builtin_publisher = self.get_builtin_publisher().await?;
+
+            if let Some(spdp_participant_writer) = builtin_publisher
+                .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+                .await?
+            {
+                let data = self
+                    .participant_address
+                    .upgrade()?
+                    .as_spdp_discovered_participant_data()
+                    .await;
+                spdp_participant_writer.write(&data, None).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn announce_deleted_topic(&self, topic: Actor<TopicActor>) -> DdsResult<()> {
+        let builtin_publisher = self.get_builtin_publisher().await?;
+
+        if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
+        {
+            let data = topic.as_discovered_topic_data().await;
+            sedp_topics_announcer.dispose(&data, None).await?;
+        }
+
+        Ok(())
     }
 }
 
@@ -350,10 +386,33 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.participant_address
-            .upgrade()?
+        let participant = self.participant_address.upgrade()?;
+
+        for deleted_publisher in participant.drain_publisher_list().await {
+            PublisherAsync::new(
+                deleted_publisher.address(),
+                deleted_publisher.get_statuscondition().await,
+                self.clone(),
+            )
             .delete_contained_entities()
-            .await
+            .await?;
+        }
+
+        for deleted_subscriber in participant.drain_subscriber_list().await {
+            SubscriberAsync::new(
+                deleted_subscriber.address(),
+                deleted_subscriber.get_statuscondition().await,
+                self.clone(),
+            )
+            .delete_contained_entities()
+            .await?;
+        }
+
+        for deleted_topic in participant.drain_topic_list().await {
+            self.announce_deleted_topic(deleted_topic).await?;
+        }
+
+        Ok(())
     }
 
     /// Async version of [`assert_liveliness`](crate::domain::domain_participant::DomainParticipant::assert_liveliness).
@@ -485,7 +544,8 @@ impl DomainParticipantAsync {
             QosKind::Specific(q) => q,
         };
 
-        self.participant_address.upgrade()?.set_qos(qos).await
+        self.participant_address.upgrade()?.set_qos(qos).await?;
+        self.announce_participant().await
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
@@ -526,7 +586,11 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.participant_address.upgrade()?.enable().await
+        self.participant_address.upgrade()?.enable().await?;
+
+        self.announce_participant().await?;
+
+        Ok(())
     }
 
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).
@@ -537,5 +601,21 @@ impl DomainParticipantAsync {
             .upgrade()?
             .get_instance_handle()
             .await)
+    }
+}
+
+impl DomainParticipantAsync {
+    pub(crate) async fn get_builtin_publisher(&self) -> DdsResult<PublisherAsync> {
+        let publisher_address = self
+            .participant_address
+            .upgrade()?
+            .get_builtin_publisher()
+            .await;
+        let publisher_status_condition = publisher_address.get_statuscondition().await;
+        Ok(PublisherAsync::new(
+            publisher_address.address(),
+            publisher_status_condition,
+            self.clone(),
+        ))
     }
 }

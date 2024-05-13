@@ -1,5 +1,8 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    data_representation_builtin_endpoints::discovered_reader_data::{
+        DiscoveredReaderData, DCPS_SUBSCRIPTION,
+    },
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -11,7 +14,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataReaderQos, QosKind, TopicQos},
+        qos::{DataReaderQos, QosKind},
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
@@ -75,26 +78,39 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     async fn announce_reader(&self) -> DdsResult<()> {
-        let discovered_reader_data = self
-            .reader_address
-            .upgrade()?
-            .as_discovered_reader_data(
-                TopicQos::default(),
-                self.subscriber_address().upgrade()?.get_qos().await,
-                self.participant_address()
-                    .upgrade()?
-                    .get_default_unicast_locator_list()
-                    .await,
-                self.participant_address()
-                    .upgrade()?
-                    .get_default_multicast_locator_list()
-                    .await,
-            )
-            .await;
-        self.participant_address()
-            .upgrade()?
-            .announce_created_or_modified_data_reader(discovered_reader_data)
-            .await;
+        let builtin_publisher = self
+            .get_subscriber()
+            .get_participant()
+            .get_builtin_publisher()
+            .await?;
+        if let Some(sedp_subscriptions_announcer) = builtin_publisher
+            .lookup_datawriter::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+            .await?
+        {
+            let subscriber_qos = self.subscriber_address().upgrade()?.get_qos().await;
+            let default_unicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_unicast_locator_list()
+                .await;
+            let default_multicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_multicast_locator_list()
+                .await;
+            let discovered_reader_data = self
+                .reader_address
+                .upgrade()?
+                .as_discovered_reader_data(
+                    subscriber_qos,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                )
+                .await;
+            sedp_subscriptions_announcer
+                .write(&discovered_reader_data, None)
+                .await?;
+        }
         Ok(())
     }
 }
@@ -430,27 +446,20 @@ impl<Foo> DataReaderAsync<Foo> {
 impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`set_qos`](crate::subscription::data_reader::DataReader::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let q = match qos {
+        let qos = match qos {
             QosKind::Default => {
                 self.subscriber_address()
                     .upgrade()?
                     .get_default_datareader_qos()
                     .await
             }
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
+            QosKind::Specific(q) => q,
         };
 
-        if self.reader_address.upgrade()?.is_enabled().await {
-            let current_qos = self.get_qos().await?;
-            q.check_immutability(&current_qos)?;
-            self.reader_address.upgrade()?.set_qos(q).await;
-
+        let reader = self.reader_address.upgrade()?;
+        reader.set_qos(qos).await?;
+        if reader.is_enabled().await {
             self.announce_reader().await?;
-        } else {
-            self.reader_address.upgrade()?.set_qos(q).await;
         }
 
         Ok(())
@@ -480,8 +489,9 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`enable`](crate::subscription::data_reader::DataReader::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.reader_address.upgrade()?.is_enabled().await {
-            self.reader_address.upgrade()?.enable().await;
+        let reader = self.reader_address.upgrade()?;
+        if !reader.is_enabled().await {
+            reader.enable().await;
 
             self.announce_reader().await?;
         }

@@ -20,7 +20,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::{DataWriterQos, PublisherQos, TopicQos},
+        qos::{DataWriterQos, PublisherQos},
         qos_policy::{
             DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
@@ -384,9 +384,13 @@ impl DataWriterActor {
         self.qos.clone()
     }
 
-    #[allow(clippy::unused_unit)]
-    fn set_qos(&mut self, qos: DataWriterQos) -> () {
+    fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
+        qos.is_consistent()?;
+        if self.enabled {
+            qos.check_immutability(&self.qos)?;
+        }
         self.qos = qos;
+        Ok(())
     }
 
     fn register_instance_w_timestamp(
@@ -517,15 +521,16 @@ impl DataWriterActor {
 
     async fn as_discovered_writer_data(
         &self,
-        topic_qos: TopicQos,
         publisher_qos: PublisherQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        xml_type: String,
     ) -> DiscoveredWriterData {
         let type_name = self.topic.get_type_name().await;
         let topic_name = self.topic.get_name().await;
+        let topic_qos = self.topic.get_qos().await;
+        let xml_type = self.topic.get_type_support().await.xml_type();
         let writer_qos = &self.qos;
+
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
             default_unicast_locator_list
         } else {

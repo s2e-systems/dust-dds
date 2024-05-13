@@ -164,10 +164,9 @@ impl PublisherActor {
         Ok(data_writer_address)
     }
 
-    fn delete_datawriter(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        let removed_writer = self.data_writer_list.remove(&handle);
-        if removed_writer.is_some() {
-            Ok(())
+    fn delete_datawriter(&mut self, handle: InstanceHandle) -> DdsResult<Actor<DataWriterActor>> {
+        if let Some(removed_writer) = self.data_writer_list.remove(&handle) {
+            Ok(removed_writer)
         } else {
             Err(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -197,8 +196,8 @@ impl PublisherActor {
         self.data_writer_list.is_empty()
     }
 
-    fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
-        self.data_writer_list.drain().map(|(h, _)| h).collect()
+    fn drain_data_writer_list(&mut self) -> Vec<Actor<DataWriterActor>> {
+        self.data_writer_list.drain().map(|(_, a)| a).collect()
     }
 
     #[allow(clippy::unused_unit)]

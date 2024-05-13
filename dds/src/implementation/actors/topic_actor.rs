@@ -95,6 +95,8 @@ impl TopicActor {
     }
 
     fn set_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
+        qos.is_consistent()?;
+
         if self.enabled {
             self.qos.check_immutability(&qos)?
         }

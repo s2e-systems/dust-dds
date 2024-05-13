@@ -31,7 +31,7 @@ use crate::{
         self,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, SubscriberQos},
         qos_policy::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
             QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
@@ -1568,7 +1568,6 @@ impl DataReaderActor {
 
     async fn as_discovered_reader_data(
         &self,
-        topic_qos: TopicQos,
         subscriber_qos: SubscriberQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
@@ -1576,6 +1575,8 @@ impl DataReaderActor {
         let guid = self.rtps_reader.guid();
         let type_name = self.topic.get_type_name().await;
         let topic_name = self.topic.get_name().await;
+        let topic_qos = self.topic.get_qos().await;
+        let xml_type = self.topic.get_type_support().await.xml_type();
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
             default_unicast_locator_list
@@ -1588,8 +1589,6 @@ impl DataReaderActor {
         } else {
             self.rtps_reader.multicast_locator_list().to_vec()
         };
-
-        let xml_type = self.topic.get_type_support().await.xml_type();
 
         DiscoveredReaderData::new(
             ReaderProxy::new(
@@ -1618,8 +1617,13 @@ impl DataReaderActor {
         InstanceHandle::new(self.rtps_reader.guid().into())
     }
 
-    fn set_qos(&mut self, qos: DataReaderQos) {
+    fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
+        qos.is_consistent()?;
+        if self.enabled {
+            qos.check_immutability(&self.qos)?;
+        }
         self.qos = qos;
+        Ok(())
     }
 
     fn get_qos(&self) -> DataReaderQos {

@@ -175,10 +175,9 @@ impl SubscriberActor {
         Ok(reader_address)
     }
 
-    fn delete_datareader(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        let removed_reader = self.data_reader_list.remove(&handle);
-        if removed_reader.is_some() {
-            Ok(())
+    fn delete_datareader(&mut self, handle: InstanceHandle) -> DdsResult<Actor<DataReaderActor>> {
+        if let Some(removed_reader) = self.data_reader_list.remove(&handle) {
+            Ok(removed_reader)
         } else {
             Err(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
@@ -195,8 +194,8 @@ impl SubscriberActor {
         None
     }
 
-    fn delete_contained_entities(&mut self) -> Vec<InstanceHandle> {
-        self.data_reader_list.drain().map(|(h, _)| h).collect()
+    fn drain_data_reader_list(&mut self) -> Vec<Actor<DataReaderActor>> {
+        self.data_reader_list.drain().map(|(_, a)| a).collect()
     }
 
     fn guid(&self) -> Guid {

@@ -62,7 +62,7 @@ use crate::{
     },
     topic_definition::type_support::{
         deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
-        DdsKey, DdsSerialize, DdsTypeXml, DynamicTypeInterface,
+        DdsKey, DdsTypeXml, DynamicTypeInterface,
     },
 };
 
@@ -601,7 +601,6 @@ impl DomainParticipantActor {
                 builtin_writer.upgrade()?.enable().await;
             }
             self.enabled = true;
-            self.announce_participant().await?;
         }
         Ok(())
     }
@@ -686,29 +685,34 @@ impl DomainParticipantActor {
         self.data_max_size_serialized
     }
 
-    async fn delete_contained_entities(&mut self) -> DdsResult<()> {
-        for user_defined_publisher in self.user_defined_publisher_list.values() {
-            let deleted_data_writer_handle_list =
-                user_defined_publisher.delete_contained_entities().await;
-            for writer_handle in deleted_data_writer_handle_list {
-                self.announce_deleted_data_writer(writer_handle).await?;
+    async fn drain_subscriber_list(&mut self) -> Vec<Actor<SubscriberActor>> {
+        self.user_defined_subscriber_list
+            .drain()
+            .map(|(_, a)| a)
+            .collect()
+    }
+
+    async fn drain_publisher_list(&mut self) -> Vec<Actor<PublisherActor>> {
+        self.user_defined_publisher_list
+            .drain()
+            .map(|(_, a)| a)
+            .collect()
+    }
+
+    async fn drain_topic_list(&mut self) -> Vec<Actor<TopicActor>> {
+        let mut drained_topic_list = Vec::new();
+        let user_defined_topic_name_list: Vec<String> = self
+            .topic_list
+            .keys()
+            .filter(|&k| !BUILT_IN_TOPIC_NAME_LIST.contains(&k.as_ref()))
+            .cloned()
+            .collect();
+        for t in user_defined_topic_name_list {
+            if let Some(removed_topic) = self.topic_list.remove(&t) {
+                drained_topic_list.push(removed_topic);
             }
         }
-        self.user_defined_publisher_list.clear();
-
-        for user_defined_subscriber in self.user_defined_subscriber_list.values() {
-            let deleted_data_reader_handle_list =
-                user_defined_subscriber.delete_contained_entities().await;
-            for reader_handle in deleted_data_reader_handle_list {
-                self.announce_deleted_data_reader(reader_handle).await?;
-            }
-        }
-        self.user_defined_subscriber_list.clear();
-
-        self.topic_list
-            .retain(|topic_name, _| BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_ref()));
-
-        Ok(())
+        drained_topic_list
     }
 
     fn set_default_publisher_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
@@ -853,8 +857,8 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
-        self.builtin_publisher.address()
+    fn get_builtin_publisher(&self) -> Actor<PublisherActor> {
+        self.builtin_publisher.clone()
     }
 
     async fn send_message(&self) {
@@ -938,136 +942,6 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn announce_created_or_modified_data_writer(
-        &self,
-        discovered_writer_data: DiscoveredWriterData,
-    ) {
-        if let Some(sedp_publications_announcer) = self
-            .builtin_publisher
-            .lookup_datawriter(DCPS_PUBLICATION.to_string())
-            .await
-        {
-            let timestamp = self.get_current_time();
-            let mut serialized_data = Vec::new();
-            discovered_writer_data
-                .serialize_data(&mut serialized_data)
-                .expect("Shouldn't fail to serialize builtin type");
-            let instance_handle =
-                InstanceHandle::try_from_key(&discovered_writer_data.get_key().unwrap())
-                    .expect("Shouldn't fail to serialize key of builtin type");
-            let now = self.get_current_time();
-            sedp_publications_announcer
-                .write_w_timestamp(
-                    serialized_data,
-                    instance_handle,
-                    None,
-                    timestamp,
-                    self.message_sender_actor.clone(),
-                    now,
-                    sedp_publications_announcer.clone(),
-                )
-                .await
-                .expect("Shouldn't fail to write to built-in data writer");
-
-            self.send_message().await;
-        }
-    }
-
-    async fn announce_created_or_modified_data_reader(
-        &self,
-        discovered_reader_data: DiscoveredReaderData,
-    ) {
-        if let Some(sedp_subscriptions_announcer) = self
-            .builtin_publisher
-            .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
-            .await
-        {
-            let timestamp = self.get_current_time();
-            let mut serialized_data = Vec::new();
-            discovered_reader_data
-                .serialize_data(&mut serialized_data)
-                .expect("Shouldn't fail to serialize builtin type");
-            let instance_handle =
-                InstanceHandle::try_from_key(&discovered_reader_data.get_key().unwrap())
-                    .expect("Shouldn't fail to serialize key of builtin type");
-            let now = self.get_current_time();
-
-            sedp_subscriptions_announcer
-                .write_w_timestamp(
-                    serialized_data,
-                    instance_handle,
-                    None,
-                    timestamp,
-                    self.message_sender_actor.clone(),
-                    now,
-                    sedp_subscriptions_announcer.clone(),
-                )
-                .await
-                .expect("Shouldn't fail to write to built-in data writer");
-        }
-    }
-
-    async fn announce_deleted_data_writer(&self, writer_handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(sedp_publications_announcer) = self
-            .builtin_publisher
-            .lookup_datawriter(DCPS_PUBLICATION.to_string())
-            .await
-        {
-            let timestamp = self.get_current_time();
-            let mut instance_serialized_key = Vec::new();
-            serialize_rtps_classic_cdr_le(writer_handle.as_ref(), &mut instance_serialized_key)
-                .expect("Failed to serialize data");
-
-            let now = self.get_current_time();
-
-            sedp_publications_announcer
-                .dispose_w_timestamp(
-                    instance_serialized_key,
-                    writer_handle,
-                    timestamp,
-                    self.message_sender_actor.clone(),
-                    now,
-                    sedp_publications_announcer.clone(),
-                )
-                .await?;
-
-            Ok(())
-        } else {
-            Ok(())
-        }
-    }
-
-    async fn announce_participant(&self) -> DdsResult<()> {
-        if self.enabled {
-            if let Some(data_writer) = self
-                .builtin_publisher
-                .lookup_datawriter(DCPS_PARTICIPANT.to_owned())
-                .await
-            {
-                let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
-                let mut serialized_data = Vec::new();
-                spdp_discovered_participant_data.serialize_data(&mut serialized_data)?;
-
-                let timestamp = self.get_current_time();
-                let now = self.get_current_time();
-                data_writer
-                    .write_w_timestamp(
-                        serialized_data,
-                        InstanceHandle::try_from_key(&spdp_discovered_participant_data.get_key()?)
-                            .unwrap(),
-                        None,
-                        timestamp,
-                        self.message_sender_actor.clone(),
-                        now,
-                        data_writer.clone(),
-                    )
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
-
     #[allow(clippy::unused_unit)]
     fn set_listener(
         &mut self,
@@ -1081,36 +955,6 @@ impl DomainParticipantActor {
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = status_kind;
-    }
-
-    async fn announce_deleted_data_reader(&self, reader_handle: InstanceHandle) -> DdsResult<()> {
-        if let Some(sedp_subscriptions_announcer) = self
-            .builtin_publisher
-            .lookup_datawriter(DCPS_SUBSCRIPTION.to_string())
-            .await
-        {
-            let timestamp = self.get_current_time();
-            let mut instance_serialized_key = Vec::new();
-            serialize_rtps_classic_cdr_le(reader_handle.as_ref(), &mut instance_serialized_key)
-                .expect("Failed to serialize data");
-            let now = self.get_current_time();
-            sedp_subscriptions_announcer
-                .dispose_w_timestamp(
-                    instance_serialized_key,
-                    reader_handle,
-                    timestamp,
-                    self.message_sender_actor.clone(),
-                    now,
-                    sedp_subscriptions_announcer.clone(),
-                )
-                .await?;
-
-            self.send_message().await;
-
-            Ok(())
-        } else {
-            Ok(())
-        }
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
@@ -1266,8 +1110,6 @@ impl DomainParticipantActor {
                 ),
                 discovered_participant_data,
             );
-
-            self.announce_participant().await.ok();
         }
     }
 
@@ -2046,8 +1888,9 @@ impl DomainParticipantActor {
                                 ),
                             }
                         }
-                        InstanceStateKind::NotAliveDisposed => todo!(),
-                        InstanceStateKind::NotAliveNoWriters => todo!(),
+                        // Discovered topics are not deleted so it is not need to process these messages in any manner
+                        InstanceStateKind::NotAliveDisposed
+                        | InstanceStateKind::NotAliveNoWriters => (),
                     }
                 }
             }

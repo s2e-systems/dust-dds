@@ -1,8 +1,9 @@
 use crate::{
+    data_representation_builtin_endpoints::discovered_writer_data::DCPS_PUBLICATION,
     implementation::{
-        actor::ActorAddress,
+        actor::{Actor, ActorAddress},
         actors::{
-            any_data_writer_listener::AnyDataWriterListener,
+            any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
             status_condition_actor::StatusConditionActor,
         },
@@ -53,6 +54,35 @@ impl PublisherAsync {
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         self.participant.runtime_handle()
+    }
+
+    async fn announce_deleted_data_writer(&self, writer: Actor<DataWriterActor>) -> DdsResult<()> {
+        let builtin_publisher = self.participant.get_builtin_publisher().await?;
+        if let Some(sedp_publications_announcer) = builtin_publisher
+            .lookup_datawriter(DCPS_PUBLICATION)
+            .await?
+        {
+            let publisher_qos = self.get_qos().await?;
+            let default_unicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_unicast_locator_list()
+                .await;
+            let default_multicast_locator_list = self
+                .participant_address()
+                .upgrade()?
+                .get_default_multicast_locator_list()
+                .await;
+            let data = writer
+                .as_discovered_writer_data(
+                    publisher_qos,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                )
+                .await;
+            sedp_publications_announcer.dispose(&data, None).await?;
+        }
+        Ok(())
     }
 }
 
@@ -153,16 +183,13 @@ impl PublisherAsync {
             .send_message(message_sender_actor)
             .await;
 
-        self.publisher_address
+        let deleted_writer = self
+            .publisher_address
             .upgrade()?
             .delete_datawriter(writer_handle)
             .await?;
 
-        self.participant
-            .participant_address()
-            .upgrade()?
-            .announce_deleted_data_writer(writer_handle)
-            .await
+        self.announce_deleted_data_writer(deleted_writer).await
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::lookup_datawriter).
@@ -245,17 +272,24 @@ impl PublisherAsync {
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let deleted_writer_handle = self
+        let deleted_writer_actor = self
             .publisher_address
             .upgrade()?
-            .delete_contained_entities()
+            .drain_data_writer_list()
             .await;
-        for writer_handle in deleted_writer_handle {
-            self.participant
-                .participant_address()
-                .upgrade()?
-                .announce_deleted_data_writer(writer_handle)
-                .await?;
+        let message_sender_actor = self
+            .participant
+            .participant_address()
+            .upgrade()?
+            .get_message_sender()
+            .await;
+
+        for writer_actor in deleted_writer_actor {
+            writer_actor
+                .send_message(message_sender_actor.clone())
+                .await;
+
+            self.announce_deleted_data_writer(writer_actor).await?;
         }
         Ok(())
     }
