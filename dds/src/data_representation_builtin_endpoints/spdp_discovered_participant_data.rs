@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
-    infrastructure::{error::DdsResult, time::Duration},
+    infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
     rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
@@ -22,9 +22,10 @@ use crate::{
 use super::parameter_id_values::{
     DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, PID_BUILTIN_ENDPOINT_QOS,
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
-    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_VENDORID,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
@@ -191,6 +192,8 @@ pub struct SpdpDiscoveredParticipantData {
     // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons
     #[parameter(id = PID_PARTICIPANT_LEASE_DURATION)]
     lease_duration: Duration,
+    #[parameter(id = PID_DISCOVERED_PARTICIPANT, collection)]
+    discovered_participant_list: Vec<InstanceHandle>,
 }
 
 impl SpdpDiscoveredParticipantData {
@@ -198,11 +201,13 @@ impl SpdpDiscoveredParticipantData {
         dds_participant_data: ParticipantBuiltinTopicData,
         participant_proxy: ParticipantProxy,
         lease_duration: Duration,
+        discovered_participant_list: Vec<InstanceHandle>,
     ) -> Self {
         Self {
             dds_participant_data,
             participant_proxy,
             lease_duration,
+            discovered_participant_list,
         }
     }
 
@@ -295,6 +300,7 @@ mod tests {
                 builtin_endpoint_qos,
             ),
             lease_duration,
+            vec![],
         );
 
         let mut data = &[
@@ -411,6 +417,7 @@ mod tests {
                 builtin_endpoint_qos,
             ),
             lease_duration,
+            vec![],
         );
 
         let expected = vec![
