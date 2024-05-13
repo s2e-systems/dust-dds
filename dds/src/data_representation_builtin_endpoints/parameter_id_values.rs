@@ -61,6 +61,8 @@ pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;
 
 #[allow(overflowing_literals)]
 pub const PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
+#[allow(overflowing_literals)]
+pub const PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 // that are not N/A and not See DDS specification

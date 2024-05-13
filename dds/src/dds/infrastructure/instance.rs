@@ -1,3 +1,5 @@
+use dust_dds_derive::CdrDeserialize;
+
 use super::error::DdsResult;
 use crate::{
     implementation::payload_serializer_deserializer::{
@@ -7,7 +9,9 @@ use crate::{
 };
 
 /// Type for the instance handle representing an Entity
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, CdrSerialize, CdrDeserialize,
+)]
 pub struct InstanceHandle([u8; 16]);
 
 impl InstanceHandle {

@@ -842,6 +842,7 @@ impl DomainParticipantActor {
                 BuiltinEndpointQos::default(),
             ),
             self.lease_duration,
+            self.discovered_participant_list.keys().cloned().collect(),
         )
     }
 
