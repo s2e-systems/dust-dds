@@ -99,12 +99,7 @@ impl DomainParticipantFactoryActor {
                     true
                 }
             })
-            .flat_map(|i| {
-                i.addr.into_iter().filter(|a| match a {
-                    Addr::V4(_) => true,
-                    _ => false,
-                })
-            })
+            .flat_map(|i| i.addr.into_iter().filter(|a| matches!(a, Addr::V4(_))))
             .next();
 
         let host_id = if let Some(interface) = interface_address {
@@ -509,7 +504,8 @@ impl DomainParticipantFactoryActor {
         }
         let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
         let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list.clone()
+        let default_unicast_locator_list: Vec<Locator> = interface_address_list
+            .clone()
             .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
         participant_actor
@@ -538,7 +534,8 @@ impl DomainParticipantFactoryActor {
         metattrafic_unicast_socket.set_nonblocking(true)?;
         let metattrafic_unicast_locator_port =
             metattrafic_unicast_socket.local_addr()?.port().into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list.clone()
+        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
+            .clone()
             .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
             .collect();
         participant_actor
