@@ -1124,7 +1124,7 @@ impl DataReaderActor {
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )
-                .await;
+                .await?;
 
                 tracing::debug!(cache_change = ?change, "Adding change to data reader history cache");
                 self.changes.push(change);
@@ -1824,7 +1824,7 @@ impl DataReaderActor {
                             &subscriber_mask_listener,
                             &participant_mask_listener,
                         )
-                        .await;
+                        .await?;
                     }
                     None => {
                         self.on_subscription_matched(
@@ -1834,7 +1834,7 @@ impl DataReaderActor {
                             &subscriber_mask_listener,
                             &participant_mask_listener,
                         )
-                        .await;
+                        .await?;
                     }
                     _ => (),
                 }
@@ -1846,7 +1846,7 @@ impl DataReaderActor {
                     &subscriber_mask_listener,
                     &participant_mask_listener,
                 )
-                .await;
+                .await?;
             }
         }
 
@@ -1863,7 +1863,7 @@ impl DataReaderActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         let matched_publication = self
             .matched_publication_list
             .remove(&discovered_writer_handle);
@@ -1880,8 +1880,9 @@ impl DataReaderActor {
                 &subscriber_mask_listener,
                 &participant_mask_listener,
             )
-            .await;
+            .await?;
         }
+        Ok(())
     }
 
     async fn get_topic_name(&mut self) -> DdsResult<String> {

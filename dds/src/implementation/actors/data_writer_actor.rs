@@ -614,7 +614,7 @@ impl DataWriterActor {
         Ok(self.topic_address.upgrade()?.get_type_name().await)
     }
 
-    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
@@ -739,7 +739,7 @@ impl DataWriterActor {
                         publisher_mask_listener,
                         participant_mask_listener,
                     )
-                    .await;
+                    .await?;
                 }
             } else {
                 self.incompatible_subscriptions
@@ -750,13 +750,12 @@ impl DataWriterActor {
                     publisher_mask_listener,
                     participant_mask_listener,
                 )
-                .await;
+                .await?;
             }
         }
         Ok(())
     }
 
-    #[allow(clippy::unused_unit)]
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
@@ -767,7 +766,7 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         if let Some(r) = self.get_matched_subscription_data(discovered_reader_handle) {
             let handle = r.key().value.into();
             self.matched_reader_remove(handle);
@@ -779,8 +778,10 @@ impl DataWriterActor {
                 publisher_mask_listener,
                 participant_mask_listener,
             )
-            .await;
+            .await?;
         }
+
+        Ok(())
     }
 
     fn process_rtps_message(&mut self, message: RtpsMessageRead) {

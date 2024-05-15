@@ -263,7 +263,7 @@ impl PublisherActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_reader(
         &self,
         discovered_reader_data: DiscoveredReaderData,
@@ -275,7 +275,7 @@ impl PublisherActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         if self.is_partition_matched(
             discovered_reader_data
                 .subscription_builtin_topic_data()
@@ -300,12 +300,12 @@ impl PublisherActor {
                         publisher_mask_listener,
                         participant_mask_listener.clone(),
                     )
-                    .await;
+                    .await?;
             }
         }
+        Ok(())
     }
 
-    #[allow(clippy::unused_unit)]
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
@@ -315,7 +315,7 @@ impl PublisherActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
             let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -331,8 +331,9 @@ impl PublisherActor {
                     publisher_mask_listener,
                     participant_mask_listener.clone(),
                 )
-                .await;
+                .await?;
         }
+        Ok(())
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {

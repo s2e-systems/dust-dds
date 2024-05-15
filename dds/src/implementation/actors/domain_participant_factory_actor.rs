@@ -887,12 +887,15 @@ async fn process_metatraffic_rtps_message(
                         if let Ok(discovered_participant_data) =
                             discovered_participant_sample.data()
                         {
-                            participant_actor
+                            let r = participant_actor
                                 .add_discovered_participant(
                                     discovered_participant_data,
                                     participant.clone(),
                                 )
                                 .await;
+                            if r.is_err() {
+                                warn!("Error adding discovered participant. Error: {:?}", r);
+                            }
                         }
                     }
                     InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {

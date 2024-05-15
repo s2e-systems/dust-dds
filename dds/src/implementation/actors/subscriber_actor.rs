@@ -308,7 +308,7 @@ impl SubscriberActor {
         }
     }
 
-    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_writer(
         &self,
         discovered_writer_data: DiscoveredWriterData,
@@ -320,7 +320,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data().partition()) {
             for data_reader in self.data_reader_list.values() {
                 let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -341,12 +341,12 @@ impl SubscriberActor {
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
                     )
-                    .await;
+                    .await?;
             }
         }
+        Ok(())
     }
 
-    #[allow(clippy::unused_unit)]
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
@@ -356,7 +356,7 @@ impl SubscriberActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -372,8 +372,10 @@ impl SubscriberActor {
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
                 )
-                .await;
+                .await?;
         }
+
+        Ok(())
     }
 
     #[allow(clippy::unused_unit)]
