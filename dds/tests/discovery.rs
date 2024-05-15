@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -647,7 +649,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();  
+        .unwrap();
     let topic = dp
         .create_topic::<UserType>("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -733,6 +735,43 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
         .unwrap();
 
     assert!(wait_set2.wait(Duration::new(5, 0)).is_ok());
+}
+
+#[test]
+fn discovered_participant_removed_after_deletion() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let start_time = Instant::now();
+    loop {
+        if participant1.get_discovered_participants().unwrap().len() == 2 {
+            break;
+        }
+        if start_time.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Participant not discovered before timeout")
+        }
+    }
+
+    domain_participant_factory
+        .delete_participant(&participant2)
+        .unwrap();
+
+    let start_time = Instant::now();
+    loop {
+        if participant1.get_discovered_participants().unwrap().len() == 1 {
+            break;
+        }
+        if start_time.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Discovered participant not removed before timeout")
+        }
+    }
 }
 
 #[test]

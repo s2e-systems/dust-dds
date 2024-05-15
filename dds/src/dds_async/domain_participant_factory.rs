@@ -1,5 +1,8 @@
 use crate::{
     configuration::DustDdsConfiguration,
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::{
+        SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+    },
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, DEFAULT_ACTOR_BUFFER_SIZE},
@@ -87,9 +90,21 @@ impl DomainParticipantFactoryAsync {
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
         let handle = participant.get_instance_handle().await?;
-        self.domain_participant_factory_actor
+        let deleted_participant = self
+            .domain_participant_factory_actor
             .delete_participant(handle)
-            .await
+            .await?;
+        let builtin_publisher = participant.get_builtin_publisher().await?;
+        if let Some(spdp_participant_writer) = builtin_publisher
+            .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+            .await?
+        {
+            let data = deleted_participant
+                .as_spdp_discovered_participant_data()
+                .await;
+            spdp_participant_writer.write(&data, None).await?;
+        }
+        Ok(())
     }
 
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).

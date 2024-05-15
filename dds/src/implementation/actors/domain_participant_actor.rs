@@ -58,7 +58,7 @@ use crate::{
         },
     },
     subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{
         deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
@@ -984,62 +984,8 @@ impl DomainParticipantActor {
         self.rtps_participant
             .set_metatraffic_multicast_locator_list(list)
     }
-}
 
-impl DomainParticipantActor {
-    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
-        self.process_spdp_participant_discovery(participant.clone())
-            .await;
-        self.process_sedp_publications_discovery(participant.clone())
-            .await;
-        self.process_sedp_subscriptions_discovery(participant.clone())
-            .await;
-        self.process_sedp_topics_discovery().await;
-    }
-
-    async fn process_spdp_participant_discovery(&mut self, participant: DomainParticipantAsync) {
-        if let Some(spdp_participant_reader) = self
-            .builtin_subscriber
-            .lookup_datareader(DCPS_PARTICIPANT.to_string())
-            .await
-        {
-            if let Ok(spdp_data_sample_list) = spdp_participant_reader
-                .read(
-                    i32::MAX,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )
-                .await
-            {
-                for (spdp_data_sample, spdp_sample_info) in spdp_data_sample_list {
-                    if let Some(spdp_data) = spdp_data_sample.as_ref() {
-                        match SpdpDiscoveredParticipantData::deserialize_data(spdp_data.as_ref()) {
-                            Ok(discovered_participant_data) => {
-                                self.process_discovered_participant_data(
-                                    discovered_participant_data,
-                                    participant.clone(),
-                                )
-                                .await
-                            }
-                            Err(e) => warn!(
-                                "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
-                                e
-                            ),
-                        }
-                    } else {
-                        warn!(
-                            "Received empty sample on spdp. Sample info: {:?}",
-                            spdp_sample_info
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    async fn process_discovered_participant_data(
+    async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -1112,6 +1058,20 @@ impl DomainParticipantActor {
                 discovered_participant_data,
             );
         }
+    }
+
+    async fn remove_discovered_participant(&mut self, handle: InstanceHandle) {
+        self.discovered_participant_list.remove(&handle);
+    }
+}
+
+impl DomainParticipantActor {
+    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
+        self.process_sedp_publications_discovery(participant.clone())
+            .await;
+        self.process_sedp_subscriptions_discovery(participant.clone())
+            .await;
+        self.process_sedp_topics_discovery().await;
     }
 
     async fn add_matched_publications_detector(
