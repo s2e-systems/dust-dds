@@ -858,27 +858,27 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    fn get_builtin_publisher(&self) -> Actor<PublisherActor> {
-        self.builtin_publisher.clone()
+    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
+        self.builtin_publisher.address()
     }
 
     async fn send_message(&self) {
         self.builtin_publisher
-            .send_message(self.message_sender_actor.clone())
+            .send_message(self.message_sender_actor.address())
             .await;
         self.builtin_subscriber
-            .send_message(self.message_sender_actor.clone())
+            .send_message(self.message_sender_actor.address())
             .await;
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_message(self.message_sender_actor.clone())
+                .send_message(self.message_sender_actor.address())
                 .await;
         }
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_message(self.message_sender_actor.clone())
+                .send_message(self.message_sender_actor.address())
                 .await;
         }
     }
@@ -929,7 +929,7 @@ impl DomainParticipantActor {
                 .await;
 
             user_defined_subscriber_address
-                .send_message(self.message_sender_actor.clone())
+                .send_message(self.message_sender_actor.address())
                 .await;
         }
 
@@ -938,7 +938,7 @@ impl DomainParticipantActor {
                 .process_rtps_message(message.clone())
                 .await;
             user_defined_publisher_address
-                .send_message(self.message_sender_actor.clone())
+                .send_message(self.message_sender_actor.address())
                 .await;
         }
     }
@@ -962,8 +962,8 @@ impl DomainParticipantActor {
         self.status_condition.address()
     }
 
-    fn get_message_sender(&self) -> Actor<MessageSenderActor> {
-        self.message_sender_actor.clone()
+    fn get_message_sender(&self) -> ActorAddress<MessageSenderActor> {
+        self.message_sender_actor.address()
     }
 
     pub fn set_default_unicast_locator_list(&mut self, list: Vec<Locator>) {

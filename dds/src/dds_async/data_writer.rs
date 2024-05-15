@@ -113,7 +113,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 )
-                .await;
+                .await?;
             sedp_publications_announcer
                 .write(&discovered_writer_data, None)
                 .await?;
@@ -228,7 +228,7 @@ where
                     timestamp,
                     message_sender_actor,
                     now,
-                    data_writer.clone(),
+                    data_writer.address(),
                 )
                 .await
         } else {
@@ -315,7 +315,7 @@ where
                 timestamp,
                 message_sender_actor,
                 now,
-                data_writer.clone(),
+                data_writer.address(),
             )
             .await?;
 
@@ -394,7 +394,7 @@ where
                 timestamp,
                 message_sender_actor,
                 now,
-                data_writer.clone(),
+                data_writer.address(),
             )
             .await
     }

@@ -78,7 +78,7 @@ impl SubscriberAsync {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 )
-                .await;
+                .await?;
             sedp_subscriptions_announcer.dispose(&data, None).await?;
         }
         Ok(())
@@ -119,7 +119,7 @@ impl SubscriberAsync {
             .subscriber_address
             .upgrade()?
             .create_datareader(
-                topic,
+                a_topic.topic_address().clone(),
                 has_key,
                 qos,
                 listener,
@@ -206,9 +206,9 @@ impl SubscriberAsync {
                 .lookup_datareader(topic_name.to_string())
                 .await
             {
-                let status_condition = dr.get_statuscondition().await;
+                let status_condition = dr.upgrade()?.get_statuscondition().await;
                 Ok(Some(DataReaderAsync::new(
-                    dr.address(),
+                    dr,
                     status_condition,
                     self.clone(),
                     topic,

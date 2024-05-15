@@ -10,7 +10,9 @@ use super::{
     },
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
-use crate::implementation::{actor::Actor, actors::message_sender_actor::MessageSenderActor};
+use crate::implementation::{
+    actor::ActorAddress, actors::message_sender_actor::MessageSenderActor,
+};
 use std::{cmp::max, collections::HashMap};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
@@ -226,7 +228,7 @@ impl RtpsWriterProxy {
     pub async fn send_message(
         &mut self,
         reader_guid: &Guid,
-        message_sender_actor: &Actor<MessageSenderActor>,
+        message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
@@ -279,9 +281,10 @@ impl RtpsWriterProxy {
                 }
             }
 
-            message_sender_actor
-                .write(submessages, self.unicast_locator_list().to_vec())
-                .await;
+            if let Ok(w) = message_sender_actor.upgrade() {
+                w.write(submessages, self.unicast_locator_list().to_vec())
+                    .await;
+            }
         }
     }
 

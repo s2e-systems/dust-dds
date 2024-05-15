@@ -102,7 +102,7 @@ impl PublisherActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datawriter(
         &mut self,
-        topic: Actor<TopicActor>,
+        topic_address: ActorAddress<TopicActor>,
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
@@ -149,7 +149,7 @@ impl PublisherActor {
 
         let data_writer = DataWriterActor::new(
             rtps_writer_impl,
-            topic,
+            topic_address,
             a_listener,
             mask,
             qos,
@@ -174,10 +174,10 @@ impl PublisherActor {
         }
     }
 
-    async fn lookup_datawriter(&self, topic_name: String) -> Option<Actor<DataWriterActor>> {
+    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DataWriterActor>> {
         for dw in self.data_writer_list.values() {
-            if dw.get_topic_name().await == topic_name {
-                return Some(dw.clone());
+            if dw.get_topic_name().await.as_ref() == Ok(&topic_name) {
+                return Some(dw.address());
             }
         }
         None
@@ -255,7 +255,7 @@ impl PublisherActor {
         }
     }
 
-    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
+    async fn send_message(&self, message_sender_actor: ActorAddress<MessageSenderActor>) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_message(message_sender_actor.clone())

@@ -50,17 +50,6 @@ where
     sender: tokio::sync::mpsc::Sender<A::Message>,
 }
 
-impl<A> Clone for Actor<A>
-where
-    A: ActorHandler,
-{
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-        }
-    }
-}
-
 impl<A> Actor<A>
 where
     A: ActorHandler + Send + 'static,

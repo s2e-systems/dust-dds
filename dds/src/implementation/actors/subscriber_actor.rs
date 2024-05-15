@@ -108,7 +108,7 @@ impl SubscriberActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datareader(
         &mut self,
-        topic: Actor<TopicActor>,
+        topic_address: ActorAddress<TopicActor>,
         has_key: bool,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
@@ -160,7 +160,7 @@ impl SubscriberActor {
         let status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new(
             rtps_reader,
-            topic,
+            topic_address,
             qos,
             a_listener,
             status_kind,
@@ -185,10 +185,10 @@ impl SubscriberActor {
         }
     }
 
-    async fn lookup_datareader(&self, topic_name: String) -> Option<Actor<DataReaderActor>> {
+    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
-            if dr.get_topic_name().await == topic_name {
-                return Some(dr.clone());
+            if dr.get_topic_name().await.as_ref() == Ok(&topic_name) {
+                return Some(dr.address());
             }
         }
         None
@@ -268,7 +268,7 @@ impl SubscriberActor {
         self.status_kind.clone()
     }
 
-    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
+    async fn send_message(&self, message_sender_actor: ActorAddress<MessageSenderActor>) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .send_message(message_sender_actor.clone())

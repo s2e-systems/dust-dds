@@ -79,7 +79,7 @@ impl PublisherAsync {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 )
-                .await;
+                .await?;
             sedp_publications_announcer.dispose(&data, None).await?;
         }
         Ok(())
@@ -129,7 +129,7 @@ impl PublisherAsync {
             .publisher_address
             .upgrade()?
             .create_datawriter(
-                a_topic.topic_address().upgrade()?,
+                a_topic.topic_address().clone(),
                 has_key,
                 data_max_size_serialized,
                 qos,
@@ -180,7 +180,7 @@ impl PublisherAsync {
         a_datawriter
             .writer_address()
             .upgrade()?
-            .send_message(message_sender_actor)
+            .send_message(message_sender_actor.clone())
             .await;
 
         let deleted_writer = self
@@ -218,6 +218,7 @@ impl PublisherAsync {
                 .lookup_datawriter(topic_name.to_string())
                 .await
             {
+                let dw = dw.upgrade()?;
                 let status_condition = dw.get_statuscondition().await;
                 Ok(Some(DataWriterAsync::new(
                     dw.address(),

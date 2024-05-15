@@ -106,7 +106,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 )
-                .await;
+                .await?;
             sedp_subscriptions_announcer
                 .write(&discovered_reader_data, None)
                 .await?;

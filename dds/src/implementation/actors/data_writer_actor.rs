@@ -201,7 +201,7 @@ pub struct DataWriterActor {
     rtps_writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
-    topic: Actor<TopicActor>,
+    topic_address: ActorAddress<TopicActor>,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
@@ -216,7 +216,7 @@ pub struct DataWriterActor {
 impl DataWriterActor {
     pub fn new(
         rtps_writer: RtpsWriter,
-        topic: Actor<TopicActor>,
+        topic_address: ActorAddress<TopicActor>,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -240,7 +240,7 @@ impl DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            topic,
+            topic_address,
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
@@ -265,9 +265,9 @@ impl DataWriterActor {
     async fn add_change(
         &mut self,
         change: RtpsWriterCacheChange,
-        message_sender_actor: Actor<MessageSenderActor>,
+        message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
-        writer_address: Actor<DataWriterActor>,
+        writer_address: ActorAddress<DataWriterActor>,
     ) {
         let seq_num = change.sequence_number();
 
@@ -279,7 +279,9 @@ impl DataWriterActor {
 
                 tokio::spawn(async move {
                     tokio::time::sleep(change_lifespan.into()).await;
-                    writer_address.remove_change(seq_num).await;
+                    if let Ok(w) = writer_address.upgrade() {
+                        w.remove_change(seq_num).await
+                    };
                 });
             }
         } else {
@@ -417,9 +419,9 @@ impl DataWriterActor {
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
-        message_sender_actor: Actor<MessageSenderActor>,
+        message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
-        data_writer_address: Actor<DataWriterActor>,
+        data_writer_address: ActorAddress<DataWriterActor>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -480,9 +482,9 @@ impl DataWriterActor {
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
-        message_sender_actor: Actor<MessageSenderActor>,
+        message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
-        data_writer_address: Actor<DataWriterActor>,
+        data_writer_address: ActorAddress<DataWriterActor>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -524,11 +526,12 @@ impl DataWriterActor {
         publisher_qos: PublisherQos,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-    ) -> DiscoveredWriterData {
-        let type_name = self.topic.get_type_name().await;
-        let topic_name = self.topic.get_name().await;
-        let topic_qos = self.topic.get_qos().await;
-        let xml_type = self.topic.get_type_support().await.xml_type();
+    ) -> DdsResult<DiscoveredWriterData> {
+        let topic = self.topic_address.upgrade()?;
+        let type_name = topic.get_type_name().await;
+        let topic_name = topic.get_name().await;
+        let topic_qos = topic.get_qos().await;
+        let xml_type = topic.get_type_support().await.xml_type();
         let writer_qos = &self.qos;
 
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
@@ -543,7 +546,7 @@ impl DataWriterActor {
             self.rtps_writer.multicast_locator_list().to_vec()
         };
 
-        DiscoveredWriterData::new(
+        Ok(DiscoveredWriterData::new(
             PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: self.rtps_writer.guid().into(),
@@ -565,7 +568,7 @@ impl DataWriterActor {
                 multicast_locator_list,
                 None,
             ),
-        )
+        ))
     }
 
     async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
@@ -575,8 +578,8 @@ impl DataWriterActor {
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    async fn get_topic_name(&self) -> String {
-        self.topic.get_name().await
+    async fn get_topic_name(&self) -> DdsResult<String> {
+        Ok(self.topic_address.upgrade()?.get_name().await)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -586,9 +589,9 @@ impl DataWriterActor {
         instance_handle: InstanceHandle,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
-        message_sender_actor: Actor<MessageSenderActor>,
+        message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
-        data_writer_address: Actor<DataWriterActor>,
+        data_writer_address: ActorAddress<DataWriterActor>,
     ) -> DdsResult<()> {
         let handle = self
             .register_instance_w_timestamp(instance_handle, timestamp)?
@@ -607,8 +610,8 @@ impl DataWriterActor {
         Ok(())
     }
 
-    async fn get_type_name(&self) -> String {
-        self.topic.get_type_name().await
+    async fn get_type_name(&self) -> DdsResult<String> {
+        Ok(self.topic_address.upgrade()?.get_type_name().await)
     }
 
     #[allow(clippy::too_many_arguments, clippy::unused_unit)]
@@ -625,9 +628,10 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
-        let type_name = self.topic.get_type_name().await;
-        let topic_name = self.topic.get_name().await;
+    ) -> DdsResult<()> {
+        let topic = self.topic_address.upgrade()?;
+        let type_name = topic.get_type_name().await;
+        let topic_name = topic.get_name().await;
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
@@ -749,6 +753,7 @@ impl DataWriterActor {
                 .await;
             }
         }
+        Ok(())
     }
 
     #[allow(clippy::unused_unit)]
@@ -797,7 +802,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message(&mut self, message_sender_actor: Actor<MessageSenderActor>) {
+    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
         self.send_message_to_reader_locators(&message_sender_actor)
             .await;
         self.send_message_to_reader_proxies(&message_sender_actor)
@@ -859,7 +864,7 @@ impl DataWriterActor {
 
     async fn send_message_to_reader_locators(
         &mut self,
-        message_sender_actor: &Actor<MessageSenderActor>,
+        message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
         for reader_locator in &mut self.reader_locators {
             match &self.qos.reliability.kind {
@@ -882,12 +887,13 @@ impl DataWriterActor {
                             ));
                             let data_submessage =
                                 Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
-                            message_sender_actor
-                                .write(
+                            if let Ok(w) = message_sender_actor.upgrade() {
+                                w.write(
                                     vec![info_ts_submessage, data_submessage],
                                     vec![reader_locator.locator()],
                                 )
                                 .await;
+                            }
                         } else {
                             let gap_submessage = Box::new(GapSubmessage::new(
                                 ENTITYID_UNKNOWN,
@@ -895,9 +901,10 @@ impl DataWriterActor {
                                 unsent_change_seq_num,
                                 SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                             ));
-                            message_sender_actor
-                                .write(vec![gap_submessage], vec![reader_locator.locator()])
-                                .await;
+                            if let Ok(w) = message_sender_actor.upgrade() {
+                                w.write(vec![gap_submessage], vec![reader_locator.locator()])
+                                    .await;
+                            }
                         }
                         reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
                     }
@@ -911,7 +918,7 @@ impl DataWriterActor {
 
     async fn send_message_to_reader_proxies(
         &mut self,
-        message_sender_actor: &Actor<MessageSenderActor>,
+        message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
         for reader_proxy in &mut self.matched_readers {
             match (&self.qos.reliability.kind, reader_proxy.reliability()) {
@@ -985,24 +992,24 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.status_condition
             .add_communication_state(StatusKind::PublicationMatched)
             .await;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let type_name = self.topic.get_type_name().await;
-            let topic_name = self.topic.get_name().await;
+            let topic = self.topic_address.upgrade()?;
+            let type_name = topic.get_type_name().await;
+            let topic_name = topic.get_name().await;
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
-            let topic_address = self.topic.address();
-            let topic_status_condition_address = self.topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await;
             self.listener
                 .trigger_on_publication_matched(
                     data_writer_address,
                     self.status_condition.address(),
                     publisher,
                     TopicAsync::new(
-                        topic_address,
+                        self.topic_address.clone(),
                         topic_status_condition_address,
                         type_name,
                         topic_name,
@@ -1026,6 +1033,7 @@ impl DataWriterActor {
                 .trigger_on_publication_matched(status)
                 .await;
         }
+        Ok(())
     }
 
     async fn on_offered_incompatible_qos(
@@ -1040,7 +1048,7 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) {
+    ) -> DdsResult<()> {
         self.status_condition
             .add_communication_state(StatusKind::OfferedIncompatibleQos)
             .await;
@@ -1048,19 +1056,19 @@ impl DataWriterActor {
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let type_name = self.topic.get_type_name().await;
-            let topic_name = self.topic.get_name().await;
+            let topic = self.topic_address.upgrade()?;
+            let type_name = topic.get_type_name().await;
+            let topic_name = topic.get_name().await;
             let status = self.get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
-            let topic_address = self.topic.address();
-            let topic_status_condition_address = self.topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await;
             self.listener
                 .trigger_on_offered_incompatible_qos(
                     data_writer_address,
                     self.status_condition.address(),
                     publisher,
                     TopicAsync::new(
-                        topic_address,
+                        self.topic_address.clone(),
                         topic_status_condition_address,
                         type_name,
                         topic_name,
@@ -1084,6 +1092,7 @@ impl DataWriterActor {
                 .trigger_on_offered_incompatible_qos(status)
                 .await;
         }
+        Ok(())
     }
 }
 
@@ -1126,7 +1135,7 @@ async fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
-    message_sender_actor: &Actor<MessageSenderActor>,
+    message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
     // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
@@ -1162,12 +1171,13 @@ async fn send_message_to_reader_proxy_best_effort(
                 gap_start_sequence_number,
                 SequenceNumberSet::new(gap_end_sequence_number + 1, []),
             ));
-            message_sender_actor
-                .write(
+            if let Ok(w) = message_sender_actor.upgrade() {
+                w.write(
                     vec![gap_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .await;
+            }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = writer_cache
             .change_list()
@@ -1191,12 +1201,13 @@ async fn send_message_to_reader_proxy_best_effort(
 
                     let data_frag = Box::new(data_frag_submessage);
 
-                    message_sender_actor
-                        .write(
+                    if let Ok(w) = message_sender_actor.upgrade() {
+                        w.write(
                             vec![info_dst, info_timestamp, data_frag],
                             reader_proxy.unicast_locator_list().to_vec(),
                         )
                         .await;
+                    }
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -1211,16 +1222,17 @@ async fn send_message_to_reader_proxy_best_effort(
                 let data_submessage = Box::new(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
-                message_sender_actor
-                    .write(
+                if let Ok(w) = message_sender_actor.upgrade() {
+                    w.write(
                         vec![info_dst, info_timestamp, data_submessage],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
                     .await;
+                }
             }
         } else {
-            message_sender_actor
-                .write(
+            if let Ok(w) = message_sender_actor.upgrade() {
+                w.write(
                     vec![Box::new(GapSubmessage::new(
                         ENTITYID_UNKNOWN,
                         writer_id,
@@ -1230,6 +1242,7 @@ async fn send_message_to_reader_proxy_best_effort(
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .await;
+            }
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -1241,7 +1254,7 @@ async fn send_message_to_reader_proxy_reliable(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     heartbeat_period: Duration,
-    message_sender_actor: &Actor<MessageSenderActor>,
+    message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
     if reader_proxy.unsent_changes(writer_cache) {
@@ -1262,12 +1275,13 @@ async fn send_message_to_reader_proxy_reliable(
                         .heartbeat_machine()
                         .submessage(writer_id, first_sn, last_sn),
                 );
-                message_sender_actor
-                    .write(
+                if let Ok(w) = message_sender_actor.upgrade() {
+                    w.write(
                         vec![gap_submessage, heartbeat_submessage],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
                     .await;
+                }
             } else {
                 send_change_message_reader_proxy_reliable(
                     reader_proxy,
@@ -1293,12 +1307,13 @@ async fn send_message_to_reader_proxy_reliable(
                 .heartbeat_machine()
                 .submessage(writer_id, first_sn, last_sn),
         );
-        message_sender_actor
-            .write(
+        if let Ok(w) = message_sender_actor.upgrade() {
+            w.write(
                 vec![heartbeat_submessage],
                 reader_proxy.unicast_locator_list().to_vec(),
             )
             .await;
+        }
     }
 
     // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -1326,7 +1341,7 @@ async fn send_change_message_reader_proxy_reliable(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     change_seq_num: SequenceNumber,
-    message_sender_actor: &Actor<MessageSenderActor>,
+    message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     match writer_cache
         .change_list()
@@ -1351,12 +1366,13 @@ async fn send_change_message_reader_proxy_reliable(
 
                     let data_frag = Box::new(data_frag_submessage);
 
-                    message_sender_actor
-                        .write(
+                    if let Ok(w) = message_sender_actor.upgrade() {
+                        w.write(
                             vec![info_dst, info_timestamp, data_frag],
                             reader_proxy.unicast_locator_list().to_vec(),
                         )
                         .await;
+                    }
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -1380,12 +1396,13 @@ async fn send_change_message_reader_proxy_reliable(
                         .submessage(writer_id, first_sn, last_sn),
                 );
 
-                message_sender_actor
-                    .write(
+                if let Ok(w) = message_sender_actor.upgrade() {
+                    w.write(
                         vec![info_dst, info_timestamp, data_submessage, heartbeat],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
                     .await;
+                }
             }
         }
         _ => {
@@ -1400,12 +1417,13 @@ async fn send_change_message_reader_proxy_reliable(
                 SequenceNumberSet::new(change_seq_num + 1, []),
             ));
 
-            message_sender_actor
-                .write(
+            if let Ok(w) = message_sender_actor.upgrade() {
+                w.write(
                     vec![info_dst, gap_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
                 .await;
+            }
         }
     }
 }

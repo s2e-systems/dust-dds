@@ -229,7 +229,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader = DataReaderActor::new(
             create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-            topic_list[DCPS_PARTICIPANT].clone(),
+            topic_list[DCPS_PARTICIPANT].address(),
             spdp_reader_qos,
             None,
             vec![],
@@ -240,7 +240,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
-            topic_list[DCPS_TOPIC].clone(),
+            topic_list[DCPS_TOPIC].address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -251,7 +251,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-            topic_list[DCPS_PUBLICATION].clone(),
+            topic_list[DCPS_PUBLICATION].address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -262,7 +262,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-            topic_list[DCPS_SUBSCRIPTION].clone(),
+            topic_list[DCPS_SUBSCRIPTION].address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -304,7 +304,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let mut spdp_builtin_participant_writer = DataWriterActor::new(
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
-            topic_list[DCPS_PARTICIPANT].clone(),
+            topic_list[DCPS_PARTICIPANT].address(),
             None,
             vec![],
             spdp_writer_qos,
@@ -328,7 +328,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
-            topic_list[DCPS_TOPIC].clone(),
+            topic_list[DCPS_TOPIC].address(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -339,7 +339,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
-            topic_list[DCPS_PUBLICATION].clone(),
+            topic_list[DCPS_PUBLICATION].address(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -350,7 +350,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
-            topic_list[DCPS_SUBSCRIPTION].clone(),
+            topic_list[DCPS_SUBSCRIPTION].address(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -441,10 +441,6 @@ impl DomainParticipantFactoryActor {
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
-        self.domain_participant_list.insert(
-            InstanceHandle::new(participant_guid.into()),
-            participant_actor.clone(),
-        );
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
             status_condition.clone(),
@@ -567,7 +563,12 @@ impl DomainParticipantFactoryActor {
             }
         });
 
-        Ok(participant_actor.address())
+        let participant_address = participant_actor.address();
+        self.domain_participant_list.insert(
+            InstanceHandle::new(participant_guid.into()),
+            participant_actor,
+        );
+        Ok(participant_address)
     }
 
     async fn delete_participant(

@@ -611,9 +611,9 @@ impl DomainParticipantAsync {
             .upgrade()?
             .get_builtin_publisher()
             .await;
-        let publisher_status_condition = publisher_address.get_statuscondition().await;
+        let publisher_status_condition = publisher_address.upgrade()?.get_statuscondition().await;
         Ok(PublisherAsync::new(
-            publisher_address.address(),
+            publisher_address,
             publisher_status_condition,
             self.clone(),
         ))
