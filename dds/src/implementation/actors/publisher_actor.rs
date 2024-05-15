@@ -10,7 +10,7 @@ use crate::{
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
-    implementation::actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+    implementation::actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -102,7 +102,7 @@ impl PublisherActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datawriter(
         &mut self,
-        topic_address: ActorAddress<TopicActor>,
+        topic_address: ActorWeakAddress<TopicActor>,
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
@@ -111,7 +111,7 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<ActorAddress<DataWriterActor>> {
+    ) -> DdsResult<ActorWeakAddress<DataWriterActor>> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -174,7 +174,10 @@ impl PublisherActor {
         }
     }
 
-    async fn lookup_datawriter(&self, topic_name: String) -> Option<ActorAddress<DataWriterActor>> {
+    async fn lookup_datawriter(
+        &self,
+        topic_name: String,
+    ) -> Option<ActorWeakAddress<DataWriterActor>> {
         for dw in self.data_writer_list.values() {
             if dw.get_topic_name().await.as_ref() == Ok(&topic_name) {
                 return Some(dw.address());
@@ -240,7 +243,7 @@ impl PublisherActor {
         self.qos.clone()
     }
 
-    fn data_writer_list(&self) -> Vec<ActorAddress<DataWriterActor>> {
+    fn data_writer_list(&self) -> Vec<ActorWeakAddress<DataWriterActor>> {
         self.data_writer_list
             .values()
             .map(|x| x.address())
@@ -255,7 +258,7 @@ impl PublisherActor {
         }
     }
 
-    async fn send_message(&self, message_sender_actor: ActorAddress<MessageSenderActor>) {
+    async fn send_message(&self, message_sender_actor: ActorWeakAddress<MessageSenderActor>) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_message(message_sender_actor.clone())
@@ -269,10 +272,10 @@ impl PublisherActor {
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        publisher_address: ActorAddress<PublisherActor>,
+        publisher_address: ActorWeakAddress<PublisherActor>,
         participant: DomainParticipantAsync,
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -309,10 +312,10 @@ impl PublisherActor {
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
-        publisher_address: ActorAddress<PublisherActor>,
+        publisher_address: ActorWeakAddress<PublisherActor>,
         participant: DomainParticipantAsync,
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -336,7 +339,7 @@ impl PublisherActor {
         Ok(())
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 

@@ -6,7 +6,7 @@ use crate::{
         DiscoveredWriterData, DCPS_PUBLICATION,
     },
     implementation::{
-        actor::ActorAddress,
+        actor::ActorWeakAddress,
         actors::{
             any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
@@ -33,8 +33,8 @@ use super::{
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
-    writer_address: ActorAddress<DataWriterActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    writer_address: ActorWeakAddress<DataWriterActor>,
+    status_condition_address: ActorWeakAddress<StatusConditionActor>,
     publisher: PublisherAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -54,8 +54,8 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 
 impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
     ) -> Self {
@@ -68,11 +68,11 @@ impl<Foo> DataWriterAsync<Foo> {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &ActorWeakAddress<DomainParticipantActor> {
         self.publisher.participant_address()
     }
 
-    pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
+    pub(crate) fn publisher_address(&self) -> &ActorWeakAddress<PublisherActor> {
         self.publisher.publisher_address()
     }
 
@@ -80,7 +80,7 @@ impl<Foo> DataWriterAsync<Foo> {
         self.publisher.runtime_handle()
     }
 
-    pub(crate) fn writer_address(&self) -> &ActorAddress<DataWriterActor> {
+    pub(crate) fn writer_address(&self) -> &ActorWeakAddress<DataWriterActor> {
         &self.writer_address
     }
 

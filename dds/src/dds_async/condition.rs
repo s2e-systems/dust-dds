@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        actors::status_condition_actor::StatusConditionActor, actor::ActorAddress,
+        actor::ActorWeakAddress, actors::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{error::DdsResult, status::StatusKind},
 };
@@ -8,13 +8,13 @@ use crate::{
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 #[derive(Clone)]
 pub struct StatusConditionAsync {
-    address: ActorAddress<StatusConditionActor>,
+    address: ActorWeakAddress<StatusConditionActor>,
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl StatusConditionAsync {
     pub(crate) fn new(
-        address: ActorAddress<StatusConditionActor>,
+        address: ActorWeakAddress<StatusConditionActor>,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
@@ -23,7 +23,7 @@ impl StatusConditionAsync {
         }
     }
 
-    pub(crate) fn address(&self) -> &ActorAddress<StatusConditionActor> {
+    pub(crate) fn address(&self) -> &ActorWeakAddress<StatusConditionActor> {
         &self.address
     }
 

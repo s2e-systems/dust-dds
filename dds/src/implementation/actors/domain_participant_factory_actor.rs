@@ -17,7 +17,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -386,7 +386,7 @@ impl DomainParticipantFactoryActor {
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<ActorAddress<DomainParticipantActor>> {
+    ) -> DdsResult<ActorWeakAddress<DomainParticipantActor>> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -595,7 +595,7 @@ impl DomainParticipantFactoryActor {
     async fn lookup_participant(
         &self,
         domain_id: DomainId,
-    ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
+    ) -> DdsResult<Option<ActorWeakAddress<DomainParticipantActor>>> {
         for dp in self.domain_participant_list.values() {
             if dp.get_domain_id().await == domain_id {
                 return Ok(Some(dp.address()));

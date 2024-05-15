@@ -6,7 +6,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+    implementation::actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -123,7 +123,7 @@ impl TopicActor {
         InstanceHandle::new(self.guid.into())
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 

@@ -1,7 +1,7 @@
 use crate::{
     data_representation_builtin_endpoints::discovered_reader_data::DCPS_SUBSCRIPTION,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorWeakAddress},
         actors::{
             any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
             domain_participant_actor::DomainParticipantActor,
@@ -25,15 +25,15 @@ use super::{
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 #[derive(Clone)]
 pub struct SubscriberAsync {
-    subscriber_address: ActorAddress<SubscriberActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    subscriber_address: ActorWeakAddress<SubscriberActor>,
+    status_condition_address: ActorWeakAddress<StatusConditionActor>,
     participant: DomainParticipantAsync,
 }
 
 impl SubscriberAsync {
     pub(crate) fn new(
-        subscriber_address: ActorAddress<SubscriberActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        subscriber_address: ActorWeakAddress<SubscriberActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
@@ -43,11 +43,11 @@ impl SubscriberAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &ActorWeakAddress<DomainParticipantActor> {
         self.participant.participant_address()
     }
 
-    pub(crate) fn subscriber_address(&self) -> &ActorAddress<SubscriberActor> {
+    pub(crate) fn subscriber_address(&self) -> &ActorWeakAddress<SubscriberActor> {
         &self.subscriber_address
     }
 

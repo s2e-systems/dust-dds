@@ -3,7 +3,7 @@ use crate::{
         DiscoveredTopicData, DCPS_TOPIC,
     },
     implementation::{
-        actor::ActorAddress,
+        actor::ActorWeakAddress,
         actors::{
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
@@ -25,8 +25,8 @@ use super::{
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]
 pub struct TopicAsync {
-    topic_address: ActorAddress<TopicActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    topic_address: ActorWeakAddress<TopicActor>,
+    status_condition_address: ActorWeakAddress<StatusConditionActor>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
@@ -34,8 +34,8 @@ pub struct TopicAsync {
 
 impl TopicAsync {
     pub(crate) fn new(
-        topic_address: ActorAddress<TopicActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        topic_address: ActorWeakAddress<TopicActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync,
@@ -49,11 +49,11 @@ impl TopicAsync {
         }
     }
 
-    pub(crate) fn topic_address(&self) -> &ActorAddress<TopicActor> {
+    pub(crate) fn topic_address(&self) -> &ActorWeakAddress<TopicActor> {
         &self.topic_address
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &ActorWeakAddress<DomainParticipantActor> {
         self.participant.participant_address()
     }
 

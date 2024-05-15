@@ -1,7 +1,7 @@
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::DCPS_PUBLICATION,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorWeakAddress},
         actors::{
             any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
@@ -26,15 +26,15 @@ use super::{
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 #[derive(Clone)]
 pub struct PublisherAsync {
-    publisher_address: ActorAddress<PublisherActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    publisher_address: ActorWeakAddress<PublisherActor>,
+    status_condition_address: ActorWeakAddress<StatusConditionActor>,
     participant: DomainParticipantAsync,
 }
 
 impl PublisherAsync {
     pub(crate) fn new(
-        publisher_address: ActorAddress<PublisherActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        publisher_address: ActorWeakAddress<PublisherActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
@@ -44,11 +44,11 @@ impl PublisherAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &ActorWeakAddress<DomainParticipantActor> {
         self.participant.participant_address()
     }
 
-    pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
+    pub(crate) fn publisher_address(&self) -> &ActorWeakAddress<PublisherActor> {
         &self.publisher_address
     }
 

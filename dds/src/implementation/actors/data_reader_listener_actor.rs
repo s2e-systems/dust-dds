@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
-    implementation::actor::ActorAddress,
+    implementation::actor::ActorWeakAddress,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -39,8 +39,8 @@ impl DataReaderListenerActor {
     async fn call_listener_function(
         &mut self,
         listener_operation: DataReaderListenerOperation,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        reader_address: ActorWeakAddress<DataReaderActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) {

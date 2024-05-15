@@ -5,14 +5,14 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 pub const DEFAULT_ACTOR_BUFFER_SIZE: usize = 16;
 
 #[derive(Debug)]
-pub struct ActorAddress<A>
+pub struct ActorWeakAddress<A>
 where
     A: ActorHandler,
 {
     sender: tokio::sync::mpsc::WeakSender<A::Message>,
 }
 
-impl<A> Clone for ActorAddress<A>
+impl<A> Clone for ActorWeakAddress<A>
 where
     A: ActorHandler,
 {
@@ -23,7 +23,7 @@ where
     }
 }
 
-impl<A> ActorAddress<A>
+impl<A> ActorWeakAddress<A>
 where
     A: ActorHandler,
     A::Message: Send,
@@ -66,8 +66,8 @@ where
         Actor { sender }
     }
 
-    pub fn address(&self) -> ActorAddress<A> {
-        ActorAddress {
+    pub fn address(&self) -> ActorWeakAddress<A> {
+        ActorWeakAddress {
             sender: self.sender.downgrade(),
         }
     }

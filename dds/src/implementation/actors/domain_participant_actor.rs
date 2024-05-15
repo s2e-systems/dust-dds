@@ -23,7 +23,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -306,8 +306,8 @@ impl DomainParticipantActor {
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<
         Option<(
-            ActorAddress<TopicActor>,
-            ActorAddress<StatusConditionActor>,
+            ActorWeakAddress<TopicActor>,
+            ActorWeakAddress<StatusConditionActor>,
             String,
         )>,
     > {
@@ -355,8 +355,8 @@ impl DomainParticipantActor {
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> (
-        ActorAddress<PublisherActor>,
-        ActorAddress<StatusConditionActor>,
+        ActorWeakAddress<PublisherActor>,
+        ActorWeakAddress<StatusConditionActor>,
     ) {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
@@ -411,8 +411,8 @@ impl DomainParticipantActor {
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> (
-        ActorAddress<SubscriberActor>,
-        ActorAddress<StatusConditionActor>,
+        ActorWeakAddress<SubscriberActor>,
+        ActorWeakAddress<StatusConditionActor>,
     ) {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
@@ -472,7 +472,10 @@ impl DomainParticipantActor {
         _mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
+    ) -> DdsResult<(
+        ActorWeakAddress<TopicActor>,
+        ActorWeakAddress<StatusConditionActor>,
+    )> {
         if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
             let qos = match qos {
                 QosKind::Default => self.default_topic_qos.clone(),
@@ -549,8 +552,8 @@ impl DomainParticipantActor {
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<
         Option<(
-            ActorAddress<TopicActor>,
-            ActorAddress<StatusConditionActor>,
+            ActorWeakAddress<TopicActor>,
+            ActorWeakAddress<StatusConditionActor>,
             String,
         )>,
     > {
@@ -570,8 +573,8 @@ impl DomainParticipantActor {
         &self,
         topic_name: String,
     ) -> Option<(
-        ActorAddress<TopicActor>,
-        ActorAddress<StatusConditionActor>,
+        ActorWeakAddress<TopicActor>,
+        ActorWeakAddress<StatusConditionActor>,
         String,
     )> {
         if let Some(topic) = self.topic_list.get(&topic_name) {
@@ -806,7 +809,7 @@ impl DomainParticipantActor {
         self.domain_id
     }
 
-    pub fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
+    pub fn get_built_in_subscriber(&self) -> ActorWeakAddress<SubscriberActor> {
         self.builtin_subscriber.address()
     }
 
@@ -858,7 +861,7 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
+    fn get_builtin_publisher(&self) -> ActorWeakAddress<PublisherActor> {
         self.builtin_publisher.address()
     }
 
@@ -958,11 +961,11 @@ impl DomainParticipantActor {
         self.status_kind = status_kind;
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    fn get_message_sender(&self) -> ActorAddress<MessageSenderActor> {
+    fn get_message_sender(&self) -> ActorWeakAddress<MessageSenderActor> {
         self.message_sender_actor.address()
     }
 

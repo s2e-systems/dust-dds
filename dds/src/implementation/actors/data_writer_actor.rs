@@ -6,7 +6,7 @@ use crate::{
     },
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
             types::{
@@ -201,7 +201,7 @@ pub struct DataWriterActor {
     rtps_writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
-    topic_address: ActorAddress<TopicActor>,
+    topic_address: ActorWeakAddress<TopicActor>,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
@@ -216,7 +216,7 @@ pub struct DataWriterActor {
 impl DataWriterActor {
     pub fn new(
         rtps_writer: RtpsWriter,
-        topic_address: ActorAddress<TopicActor>,
+        topic_address: ActorWeakAddress<TopicActor>,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -265,9 +265,9 @@ impl DataWriterActor {
     async fn add_change(
         &mut self,
         change: RtpsWriterCacheChange,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
+        message_sender_actor: ActorWeakAddress<MessageSenderActor>,
         now: Time,
-        writer_address: ActorAddress<DataWriterActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
     ) {
         let seq_num = change.sequence_number();
 
@@ -364,7 +364,7 @@ impl DataWriterActor {
         self.enabled
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -419,9 +419,9 @@ impl DataWriterActor {
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
+        message_sender_actor: ActorWeakAddress<MessageSenderActor>,
         now: Time,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -482,9 +482,9 @@ impl DataWriterActor {
         instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
+        message_sender_actor: ActorWeakAddress<MessageSenderActor>,
         now: Time,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -589,9 +589,9 @@ impl DataWriterActor {
         instance_handle: InstanceHandle,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
+        message_sender_actor: ActorWeakAddress<MessageSenderActor>,
         now: Time,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
     ) -> DdsResult<()> {
         let handle = self
             .register_instance_w_timestamp(instance_handle, timestamp)?
@@ -620,12 +620,12 @@ impl DataWriterActor {
         discovered_reader_data: DiscoveredReaderData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
         publisher: PublisherAsync,
         publisher_qos: PublisherQos,
-        publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
+        publisher_mask_listener: (ActorWeakAddress<PublisherListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -759,11 +759,11 @@ impl DataWriterActor {
     async fn remove_matched_reader(
         &mut self,
         discovered_reader_handle: InstanceHandle,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
+        publisher_mask_listener: (ActorWeakAddress<PublisherListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -803,7 +803,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
+    async fn send_message(&mut self, message_sender_actor: ActorWeakAddress<MessageSenderActor>) {
         self.send_message_to_reader_locators(&message_sender_actor)
             .await;
         self.send_message_to_reader_proxies(&message_sender_actor)
@@ -865,7 +865,7 @@ impl DataWriterActor {
 
     async fn send_message_to_reader_locators(
         &mut self,
-        message_sender_actor: &ActorAddress<MessageSenderActor>,
+        message_sender_actor: &ActorWeakAddress<MessageSenderActor>,
     ) {
         for reader_locator in &mut self.reader_locators {
             match &self.qos.reliability.kind {
@@ -919,7 +919,7 @@ impl DataWriterActor {
 
     async fn send_message_to_reader_proxies(
         &mut self,
-        message_sender_actor: &ActorAddress<MessageSenderActor>,
+        message_sender_actor: &ActorWeakAddress<MessageSenderActor>,
     ) {
         for reader_proxy in &mut self.matched_readers {
             match (&self.qos.reliability.kind, reader_proxy.reliability()) {
@@ -983,14 +983,14 @@ impl DataWriterActor {
 
     async fn on_publication_matched(
         &mut self,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
         publisher: PublisherAsync,
         (publisher_listener, publisher_listener_mask): (
-            ActorAddress<PublisherListenerActor>,
+            ActorWeakAddress<PublisherListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1039,14 +1039,14 @@ impl DataWriterActor {
 
     async fn on_offered_incompatible_qos(
         &mut self,
-        data_writer_address: ActorAddress<DataWriterActor>,
+        data_writer_address: ActorWeakAddress<DataWriterActor>,
         publisher: PublisherAsync,
         (publisher_listener, publisher_listener_mask): (
-            ActorAddress<PublisherListenerActor>,
+            ActorWeakAddress<PublisherListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1136,7 +1136,7 @@ async fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
-    message_sender_actor: &ActorAddress<MessageSenderActor>,
+    message_sender_actor: &ActorWeakAddress<MessageSenderActor>,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
     // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
@@ -1255,7 +1255,7 @@ async fn send_message_to_reader_proxy_reliable(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     heartbeat_period: Duration,
-    message_sender_actor: &ActorAddress<MessageSenderActor>,
+    message_sender_actor: &ActorWeakAddress<MessageSenderActor>,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
     if reader_proxy.unsent_changes(writer_cache) {
@@ -1342,7 +1342,7 @@ async fn send_change_message_reader_proxy_reliable(
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
     change_seq_num: SequenceNumber,
-    message_sender_actor: &ActorAddress<MessageSenderActor>,
+    message_sender_actor: &ActorWeakAddress<MessageSenderActor>,
 ) {
     match writer_cache
         .change_list()

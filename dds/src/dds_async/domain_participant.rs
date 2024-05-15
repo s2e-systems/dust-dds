@@ -8,7 +8,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorWeakAddress},
         actors::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
@@ -36,20 +36,20 @@ use super::{
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
-    participant_address: ActorAddress<DomainParticipantActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
-    builtin_subscriber_address: ActorAddress<SubscriberActor>,
-    builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
+    participant_address: ActorWeakAddress<DomainParticipantActor>,
+    status_condition_address: ActorWeakAddress<StatusConditionActor>,
+    builtin_subscriber_address: ActorWeakAddress<SubscriberActor>,
+    builtin_subscriber_status_condition_address: ActorWeakAddress<StatusConditionActor>,
     domain_id: DomainId,
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
-        participant_address: ActorAddress<DomainParticipantActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        builtin_subscriber_address: ActorAddress<SubscriberActor>,
-        builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
+        participant_address: ActorWeakAddress<DomainParticipantActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
+        builtin_subscriber_address: ActorWeakAddress<SubscriberActor>,
+        builtin_subscriber_status_condition_address: ActorWeakAddress<StatusConditionActor>,
         domain_id: DomainId,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
@@ -63,7 +63,7 @@ impl DomainParticipantAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &ActorWeakAddress<DomainParticipantActor> {
         &self.participant_address
     }
 

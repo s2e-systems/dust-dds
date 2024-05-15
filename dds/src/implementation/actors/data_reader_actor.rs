@@ -15,7 +15,7 @@ use crate::{
     },
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -306,7 +306,7 @@ pub struct DataReaderActor {
     rtps_reader: RtpsReaderKind,
     changes: Vec<ReaderCacheChange>,
     qos: DataReaderQos,
-    topic_address: ActorAddress<TopicActor>,
+    topic_address: ActorWeakAddress<TopicActor>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: Actor<ReaderRequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -327,7 +327,7 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     pub fn new(
         rtps_reader: RtpsReaderKind,
-        topic_address: ActorAddress<TopicActor>,
+        topic_address: ActorWeakAddress<TopicActor>,
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
@@ -385,10 +385,10 @@ impl DataReaderActor {
 
     async fn on_data_available(
         &self,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorAddress<SubscriberListenerActor>,
+            ActorWeakAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -440,11 +440,11 @@ impl DataReaderActor {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -578,11 +578,11 @@ impl DataReaderActor {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -740,14 +740,14 @@ impl DataReaderActor {
 
     async fn on_sample_lost(
         &mut self,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorAddress<SubscriberListenerActor>,
+            ActorWeakAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -796,14 +796,14 @@ impl DataReaderActor {
     async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DataReaderActor>,
+        data_reader_address: ActorWeakAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorAddress<SubscriberListenerActor>,
+            ActorWeakAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -858,14 +858,14 @@ impl DataReaderActor {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorAddress<SubscriberListenerActor>,
+            ActorWeakAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -917,14 +917,14 @@ impl DataReaderActor {
     async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorAddress<SubscriberListenerActor>,
+            ActorWeakAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1054,11 +1054,11 @@ impl DataReaderActor {
     async fn add_change(
         &mut self,
         change: ReaderCacheChange,
-        data_reader_address: &ActorAddress<DataReaderActor>,
+        data_reader_address: &ActorWeakAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1365,11 +1365,11 @@ impl DataReaderActor {
     async fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DataReaderActor>,
+        data_reader_address: ActorWeakAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1660,7 +1660,7 @@ impl DataReaderActor {
         self.enabled = true;
     }
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -1740,12 +1740,12 @@ impl DataReaderActor {
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        data_reader_address: ActorAddress<DataReaderActor>,
+        data_reader_address: ActorWeakAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
         subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: (ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1856,11 +1856,11 @@ impl DataReaderActor {
     async fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DataReaderActor>,
+        data_reader_address: ActorWeakAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: (ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1898,11 +1898,11 @@ impl DataReaderActor {
         &mut self,
         message: RtpsMessageRead,
         reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: ActorAddress<DataReaderActor>,
+        data_reader_address: ActorWeakAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: (ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -1959,7 +1959,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
+    async fn send_message(&mut self, message_sender_actor: ActorWeakAddress<MessageSenderActor>) {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor).await,
             RtpsReaderKind::Stateless(_) => (),

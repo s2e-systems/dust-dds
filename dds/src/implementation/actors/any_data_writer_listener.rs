@@ -5,7 +5,7 @@ use crate::{
         data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync,
         publisher::PublisherAsync, topic::TopicAsync,
     },
-    implementation::actor::ActorAddress,
+    implementation::actor::ActorWeakAddress,
     infrastructure::status::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,
@@ -18,8 +18,8 @@ pub trait AnyDataWriterListener {
     #[allow(dead_code)]
     fn trigger_on_liveliness_lost(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: LivelinessLostStatus,
@@ -27,24 +27,24 @@ pub trait AnyDataWriterListener {
     #[allow(dead_code)]
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
     fn trigger_on_publication_matched(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,
@@ -57,8 +57,8 @@ where
 {
     fn trigger_on_liveliness_lost(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: LivelinessLostStatus,
@@ -74,8 +74,8 @@ where
 
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedDeadlineMissedStatus,
@@ -91,8 +91,8 @@ where
 
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
@@ -108,8 +108,8 @@ where
 
     fn trigger_on_publication_matched(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
+        writer_address: ActorWeakAddress<DataWriterActor>,
+        status_condition_address: ActorWeakAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,

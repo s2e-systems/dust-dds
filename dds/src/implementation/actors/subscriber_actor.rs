@@ -16,7 +16,7 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
@@ -108,7 +108,7 @@ impl SubscriberActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datareader(
         &mut self,
-        topic_address: ActorAddress<TopicActor>,
+        topic_address: ActorWeakAddress<TopicActor>,
         has_key: bool,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
@@ -116,7 +116,7 @@ impl SubscriberActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<ActorAddress<DataReaderActor>> {
+    ) -> DdsResult<ActorWeakAddress<DataReaderActor>> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
             QosKind::Specific(q) => {
@@ -185,7 +185,10 @@ impl SubscriberActor {
         }
     }
 
-    async fn lookup_datareader(&self, topic_name: String) -> Option<ActorAddress<DataReaderActor>> {
+    async fn lookup_datareader(
+        &self,
+        topic_name: String,
+    ) -> Option<ActorWeakAddress<DataReaderActor>> {
         for dr in self.data_reader_list.values() {
             if dr.get_topic_name().await.as_ref() == Ok(&topic_name) {
                 return Some(dr.address());
@@ -249,7 +252,7 @@ impl SubscriberActor {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -257,7 +260,7 @@ impl SubscriberActor {
         self.qos.clone()
     }
 
-    fn data_reader_list(&self) -> Vec<ActorAddress<DataReaderActor>> {
+    fn data_reader_list(&self) -> Vec<ActorWeakAddress<DataReaderActor>> {
         self.data_reader_list
             .values()
             .map(|dr| dr.address())
@@ -268,7 +271,7 @@ impl SubscriberActor {
         self.status_kind.clone()
     }
 
-    async fn send_message(&self, message_sender_actor: ActorAddress<MessageSenderActor>) {
+    async fn send_message(&self, message_sender_actor: ActorWeakAddress<MessageSenderActor>) {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .send_message(message_sender_actor.clone())
@@ -281,10 +284,10 @@ impl SubscriberActor {
         &self,
         message: RtpsMessageRead,
         reception_timestamp: rtps::messages::types::Time,
-        subscriber_address: ActorAddress<SubscriberActor>,
+        subscriber_address: ActorWeakAddress<SubscriberActor>,
         participant: DomainParticipantAsync,
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -314,10 +317,10 @@ impl SubscriberActor {
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        subscriber_address: ActorAddress<SubscriberActor>,
+        subscriber_address: ActorWeakAddress<SubscriberActor>,
         participant: DomainParticipantAsync,
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -350,10 +353,10 @@ impl SubscriberActor {
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
-        subscriber_address: ActorAddress<SubscriberActor>,
+        subscriber_address: ActorWeakAddress<SubscriberActor>,
         participant: DomainParticipantAsync,
         participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
+            ActorWeakAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
