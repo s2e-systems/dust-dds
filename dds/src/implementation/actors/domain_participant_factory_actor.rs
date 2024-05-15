@@ -89,10 +89,20 @@ impl DomainParticipantFactoryActor {
     }
 
     fn create_new_guid_prefix(&mut self) -> GuidPrefix {
-        let interface_address_list =
-            get_interface_address_list(self.configuration.interface_name());
+        let interface_address = NetworkInterface::show()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .filter(|x| {
+                if let Some(if_name) = self.configuration.interface_name() {
+                    &x.name == if_name
+                } else {
+                    true
+                }
+            })
+            .flat_map(|i| i.addr.into_iter().filter(|a| matches!(a, Addr::V4(_))))
+            .next();
 
-        let host_id = if let Some(interface) = interface_address_list.first() {
+        let host_id = if let Some(interface) = interface_address {
             match interface.ip() {
                 IpAddr::V4(a) => a.octets(),
                 IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
@@ -467,8 +477,23 @@ impl DomainParticipantFactoryActor {
         });
 
         // Open socket for unicast user-defined data
-        let interface_address_list =
-            get_interface_address_list(self.configuration.interface_name());
+        let interface_address_list = NetworkInterface::show()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .filter(|x| {
+                if let Some(if_name) = self.configuration.interface_name() {
+                    &x.name == if_name
+                } else {
+                    true
+                }
+            })
+            .flat_map(|i| {
+                i.addr.into_iter().filter(|a| match a {
+                    #[rustfmt::skip]
+                Addr::V4(_) => true,
+                    _ => false,
+                })
+            });
 
         let default_unicast_socket =
             socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
@@ -480,8 +505,8 @@ impl DomainParticipantFactoryActor {
         let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
         let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
         let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::from_ip_and_port(a, user_defined_unicast_port))
+            .clone()
+            .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
         participant_actor
             .set_default_unicast_locator_list(default_unicast_locator_list)
@@ -510,8 +535,8 @@ impl DomainParticipantFactoryActor {
         let metattrafic_unicast_locator_port =
             metattrafic_unicast_socket.local_addr()?.port().into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .iter()
-            .map(|a| Locator::from_ip_and_port(a, metattrafic_unicast_locator_port))
+            .clone()
+            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
             .collect();
         participant_actor
             .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
@@ -557,7 +582,7 @@ impl DomainParticipantFactoryActor {
         let mut socket = get_multicast_socket(
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             port_builtin_multicast(domain_id),
-            &interface_address_list,
+            interface_address_list,
         )?;
         runtime_handle.spawn(async move {
             loop {
@@ -661,31 +686,10 @@ fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
 
-fn get_interface_address_list(interface_name: Option<&String>) -> Vec<Addr> {
-    NetworkInterface::show()
-        .expect("Could not scan interfaces")
-        .into_iter()
-        .filter(|x| {
-            if let Some(if_name) = interface_name {
-                &x.name == if_name
-            } else {
-                true
-            }
-        })
-        .flat_map(|i| {
-            i.addr.into_iter().filter(|a| match a {
-                #[rustfmt::skip]
-                Addr::V4(v4) if !v4.ip.is_loopback() => true,
-                _ => false,
-            })
-        })
-        .collect()
-}
-
 fn get_multicast_socket(
     multicast_address: LocatorAddress,
     port: u16,
-    interface_address_list: &[Addr],
+    interface_address_list: impl IntoIterator<Item = Addr>,
 ) -> std::io::Result<tokio::net::UdpSocket> {
     let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
