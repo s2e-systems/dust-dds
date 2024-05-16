@@ -525,12 +525,15 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    process_metatraffic_rtps_message(
+                    let r = process_metatraffic_rtps_message(
                         participant_address_clone.clone(),
                         message,
                         &participant_clone,
                     )
                     .await;
+                    if r.is_err() {
+                        break;
+                    }
                 }
             }
         });
@@ -555,12 +558,15 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    process_metatraffic_rtps_message(
+                    let r = process_metatraffic_rtps_message(
                         participant_address_clone.clone(),
                         message,
                         &participant_clone,
                     )
                     .await;
+                    if r.is_err() {
+                        break;
+                    }
                 }
             }
         });
@@ -859,14 +865,10 @@ async fn process_metatraffic_rtps_message(
     participant_actor: ActorAddress<DomainParticipantActor>,
     message: RtpsMessageRead,
     participant: &DomainParticipantAsync,
-) {
-    let r = participant_actor
+) -> DdsResult<()> {
+    participant_actor
         .process_metatraffic_rtps_message(message, participant.clone())
-        .await;
-
-    if r.is_err() {
-        warn!("Error processing metatraffic RTPS message. {:?}", r);
-    }
+        .await??;
 
     let builtin_subscriber = participant.get_builtin_subscriber();
 
@@ -889,15 +891,12 @@ async fn process_metatraffic_rtps_message(
                         if let Ok(discovered_participant_data) =
                             discovered_participant_sample.data()
                         {
-                            let r = participant_actor
+                            participant_actor
                                 .add_discovered_participant(
                                     discovered_participant_data,
                                     participant.clone(),
                                 )
-                                .await;
-                            if r.is_err() {
-                                warn!("Error adding discovered participant. Error: {:?}", r);
-                            }
+                                .await??;
                         }
                     }
                     InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
@@ -905,13 +904,12 @@ async fn process_metatraffic_rtps_message(
                             .remove_discovered_participant(
                                 discovered_participant_sample.sample_info().instance_handle,
                             )
-                            .await
-                            .ok();
+                            .await?
                     }
                 }
             }
         }
     }
 
-    participant_actor.send_message().await.ok();
+    participant_actor.send_message().await
 }
