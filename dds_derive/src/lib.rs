@@ -230,6 +230,10 @@ pub fn actor_interface(
             impl crate::implementation::actor::Actor<#actor_ident> {
                 #(#actor_method_variants)*
             }
+
+            impl crate::implementation::actor::ActorAddress<#actor_ident> {
+                #(#actor_method_variants)*
+            }
         }
     }
 

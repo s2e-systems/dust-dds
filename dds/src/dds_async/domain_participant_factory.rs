@@ -102,8 +102,9 @@ impl DomainParticipantFactoryAsync {
             let data = deleted_participant
                 .as_spdp_discovered_participant_data()
                 .await;
-            spdp_participant_writer.write(&data, None).await?;
+            spdp_participant_writer.dispose(&data, None).await?;
         }
+        deleted_participant.stop().await;
         Ok(())
     }
 

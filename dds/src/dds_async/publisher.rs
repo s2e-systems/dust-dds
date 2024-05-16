@@ -218,10 +218,9 @@ impl PublisherAsync {
                 .lookup_datawriter(topic_name.to_string())
                 .await
             {
-                let dw = dw.upgrade()?;
-                let status_condition = dw.get_statuscondition().await;
+                let status_condition = dw.upgrade()?.get_statuscondition().await;
                 Ok(Some(DataWriterAsync::new(
-                    dw.address(),
+                    dw.clone(),
                     status_condition,
                     self.clone(),
                     topic,

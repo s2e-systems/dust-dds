@@ -228,7 +228,7 @@ where
                     timestamp,
                     message_sender_actor,
                     now,
-                    data_writer.address(),
+                    self.writer_address.clone(),
                 )
                 .await
         } else {
@@ -315,7 +315,7 @@ where
                 timestamp,
                 message_sender_actor,
                 now,
-                data_writer.address(),
+                self.writer_address.clone(),
             )
             .await?;
 
@@ -394,7 +394,7 @@ where
                 timestamp,
                 message_sender_actor,
                 now,
-                data_writer.address(),
+                self.writer_address.clone(),
             )
             .await
     }

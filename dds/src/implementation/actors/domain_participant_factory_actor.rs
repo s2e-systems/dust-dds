@@ -17,7 +17,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -854,7 +854,7 @@ pub fn sedp_data_writer_qos() -> DataWriterQos {
 }
 
 async fn process_metatraffic_rtps_message(
-    participant_actor: Actor<DomainParticipantActor>,
+    participant_actor: ActorAddress<DomainParticipantActor>,
     message: RtpsMessageRead,
     participant: &DomainParticipantAsync,
 ) {
