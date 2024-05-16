@@ -1,5 +1,8 @@
 use crate::{
     configuration::DustDdsConfiguration,
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::{
+        SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+    },
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, DEFAULT_ACTOR_BUFFER_SIZE},
@@ -55,14 +58,11 @@ impl DomainParticipantFactoryAsync {
         let participant_address = self
             .domain_participant_factory_actor
             .create_participant(domain_id, qos, a_listener, status_kind, runtime_handle)
-            .await?;
-        let status_condition = participant_address.upgrade()?.get_statuscondition().await;
-        let builtin_subscriber = participant_address
-            .upgrade()?
-            .get_built_in_subscriber()
-            .await;
+            .await??;
+        let status_condition = participant_address.get_statuscondition().await?;
+        let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.upgrade()?.get_statuscondition().await;
+            builtin_subscriber.get_statuscondition().await?;
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
@@ -87,9 +87,22 @@ impl DomainParticipantFactoryAsync {
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
         let handle = participant.get_instance_handle().await?;
-        self.domain_participant_factory_actor
+        let deleted_participant = self
+            .domain_participant_factory_actor
             .delete_participant(handle)
-            .await
+            .await??;
+        let builtin_publisher = participant.get_builtin_publisher().await?;
+        if let Some(spdp_participant_writer) = builtin_publisher
+            .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+            .await?
+        {
+            let data = deleted_participant
+                .as_spdp_discovered_participant_data()
+                .await?;
+            spdp_participant_writer.dispose(&data, None).await?;
+        }
+        deleted_participant.stop().await;
+        Ok(())
     }
 
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
@@ -100,12 +113,12 @@ impl DomainParticipantFactoryAsync {
         if let Some(dp) = self
             .domain_participant_factory_actor
             .lookup_participant(domain_id)
-            .await?
+            .await??
         {
-            let status_condition = dp.upgrade()?.get_statuscondition().await;
-            let builtin_subscriber = dp.upgrade()?.get_built_in_subscriber().await;
+            let status_condition = dp.get_statuscondition().await?;
+            let builtin_subscriber = dp.get_built_in_subscriber().await?;
             let builtin_subscriber_status_condition_address =
-                builtin_subscriber.upgrade()?.get_statuscondition().await;
+                builtin_subscriber.get_statuscondition().await?;
             Ok(Some(DomainParticipantAsync::new(
                 dp,
                 status_condition,
@@ -126,37 +139,37 @@ impl DomainParticipantFactoryAsync {
     ) -> DdsResult<()> {
         self.domain_participant_factory_actor
             .set_default_participant_qos(qos)
-            .await
+            .await?
     }
 
     /// Async version of [`get_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_default_participant_qos).
     pub async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.domain_participant_factory_actor
             .get_default_participant_qos()
-            .await
+            .await?
     }
 
     /// Async version of [`set_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        self.domain_participant_factory_actor.set_qos(qos).await
+        self.domain_participant_factory_actor.set_qos(qos).await?
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_qos).
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        self.domain_participant_factory_actor.get_qos().await
+        self.domain_participant_factory_actor.get_qos().await?
     }
 
     /// Async version of [`set_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_configuration).
     pub async fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         self.domain_participant_factory_actor
             .set_configuration(configuration)
-            .await
+            .await?
     }
 
     /// Async version of [`get_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_configuration).
     pub async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         self.domain_participant_factory_actor
             .get_configuration()
-            .await
+            .await?
     }
 }

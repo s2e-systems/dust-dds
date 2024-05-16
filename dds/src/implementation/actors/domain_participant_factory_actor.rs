@@ -55,6 +55,9 @@ use crate::{
         },
         writer::RtpsWriter,
     },
+    subscription::sample_info::{
+        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
+    },
 };
 use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -67,7 +70,7 @@ use std::{
         Arc, OnceLock,
     },
 };
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
@@ -236,7 +239,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader = DataReaderActor::new(
             create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-            topic_list[DCPS_PARTICIPANT].clone(),
+            topic_list[DCPS_PARTICIPANT].address(),
             spdp_reader_qos,
             None,
             vec![],
@@ -247,7 +250,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
-            topic_list[DCPS_TOPIC].clone(),
+            topic_list[DCPS_TOPIC].address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -258,7 +261,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-            topic_list[DCPS_PUBLICATION].clone(),
+            topic_list[DCPS_PUBLICATION].address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -269,7 +272,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-            topic_list[DCPS_SUBSCRIPTION].clone(),
+            topic_list[DCPS_SUBSCRIPTION].address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -311,7 +314,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let mut spdp_builtin_participant_writer = DataWriterActor::new(
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
-            topic_list[DCPS_PARTICIPANT].clone(),
+            topic_list[DCPS_PARTICIPANT].address(),
             None,
             vec![],
             spdp_writer_qos,
@@ -335,7 +338,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
-            topic_list[DCPS_TOPIC].clone(),
+            topic_list[DCPS_TOPIC].address(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -346,7 +349,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
-            topic_list[DCPS_PUBLICATION].clone(),
+            topic_list[DCPS_PUBLICATION].address(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -357,7 +360,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
-            topic_list[DCPS_SUBSCRIPTION].clone(),
+            topic_list[DCPS_SUBSCRIPTION].address(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -440,7 +443,7 @@ impl DomainParticipantFactoryActor {
         let status_condition = domain_participant.get_statuscondition();
         let builtin_subscriber = domain_participant.get_built_in_subscriber();
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.upgrade()?.get_statuscondition().await;
+            builtin_subscriber.get_statuscondition().await?;
 
         let participant_actor = Actor::spawn(
             domain_participant,
@@ -448,10 +451,6 @@ impl DomainParticipantFactoryActor {
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
-        self.domain_participant_list.insert(
-            InstanceHandle::new(participant_guid.into()),
-            participant_actor.clone(),
-        );
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
             status_condition.clone(),
@@ -510,7 +509,7 @@ impl DomainParticipantFactoryActor {
             .collect();
         participant_actor
             .set_default_unicast_locator_list(default_unicast_locator_list)
-            .await;
+            .await?;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -518,10 +517,10 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        p.process_user_defined_rtps_message(message, participant_clone.clone())
-                            .await;
-                    } else {
+                    let r = participant_address_clone
+                        .process_user_defined_rtps_message(message, participant_clone.clone())
+                        .await;
+                    if r.is_err() {
                         break;
                     }
                 }
@@ -540,7 +539,7 @@ impl DomainParticipantFactoryActor {
             .collect();
         participant_actor
             .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
-            .await;
+            .await?;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -551,16 +550,13 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        let r = p
-                            .process_metatraffic_rtps_message(message, participant_clone.clone())
-                            .await;
-                        if r.is_err() {
-                            error!("Error processing metatraffic RTPS message. {:?}", r);
-                        }
-
-                        p.send_message().await;
-                    } else {
+                    let r = process_metatraffic_rtps_message(
+                        participant_address_clone.clone(),
+                        message,
+                        &participant_clone,
+                    )
+                    .await;
+                    if r.is_err() {
                         break;
                     }
                 }
@@ -575,7 +571,7 @@ impl DomainParticipantFactoryActor {
         )];
         participant_actor
             .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
-            .await;
+            .await?;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -587,31 +583,41 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        let r = p
-                            .process_metatraffic_rtps_message(message, participant_clone.clone())
-                            .await;
-
-                        if r.is_err() {
-                            error!("Error processing metatraffic RTPS message. {:?}", r);
-                        }
-
-                        p.send_message().await;
-                    } else {
+                    let r = process_metatraffic_rtps_message(
+                        participant_address_clone.clone(),
+                        message,
+                        &participant_clone,
+                    )
+                    .await;
+                    if r.is_err() {
                         break;
-                    };
+                    }
                 }
             }
         });
 
-        Ok(participant_actor.address())
+        let participant_address = participant_actor.address();
+        self.domain_participant_list.insert(
+            InstanceHandle::new(participant_guid.into()),
+            participant_actor,
+        );
+        Ok(participant_address)
     }
 
-    async fn delete_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
-        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await;
+    async fn delete_participant(
+        &mut self,
+        handle: InstanceHandle,
+    ) -> DdsResult<Actor<DomainParticipantActor>> {
+        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await?;
         if is_participant_empty {
-            self.domain_participant_list.remove(&handle);
-            Ok(())
+            if let Some(d) = self.domain_participant_list.remove(&handle) {
+                Ok(d)
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Participant can only be deleted from its parent domain participant factory"
+                        .to_string(),
+                ))
+            }
         } else {
             Err(DdsError::PreconditionNotMet(
                 "Domain participant still contains other entities".to_string(),
@@ -624,7 +630,7 @@ impl DomainParticipantFactoryActor {
         domain_id: DomainId,
     ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
         for dp in self.domain_participant_list.values() {
-            if dp.get_domain_id().await == domain_id {
+            if dp.get_domain_id().await? == domain_id {
                 return Ok(Some(dp.address()));
             }
         }
@@ -857,4 +863,57 @@ pub fn sedp_data_writer_qos() -> DataWriterQos {
         },
         ..Default::default()
     }
+}
+
+async fn process_metatraffic_rtps_message(
+    participant_actor: ActorAddress<DomainParticipantActor>,
+    message: RtpsMessageRead,
+    participant: &DomainParticipantAsync,
+) -> DdsResult<()> {
+    participant_actor
+        .process_metatraffic_rtps_message(message, participant.clone())
+        .await??;
+
+    let builtin_subscriber = participant.get_builtin_subscriber();
+
+    if let Ok(Some(spdp_participant_reader)) = builtin_subscriber
+        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .await
+    {
+        if let Ok(spdp_discovered_participant_list) = spdp_participant_reader
+            .read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_participant_sample in spdp_discovered_participant_list {
+                match discovered_participant_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => {
+                        if let Ok(discovered_participant_data) =
+                            discovered_participant_sample.data()
+                        {
+                            participant_actor
+                                .add_discovered_participant(
+                                    discovered_participant_data,
+                                    participant.clone(),
+                                )
+                                .await??;
+                        }
+                    }
+                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
+                        participant_actor
+                            .remove_discovered_participant(
+                                discovered_participant_sample.sample_info().instance_handle,
+                            )
+                            .await?
+                    }
+                }
+            }
+        }
+    }
+
+    participant_actor.send_message().await
 }

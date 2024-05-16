@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
@@ -9,7 +9,7 @@ pub struct ActorAddress<A>
 where
     A: ActorHandler,
 {
-    sender: tokio::sync::mpsc::WeakSender<A::Message>,
+    sender: tokio::sync::mpsc::Sender<A::Message>,
 }
 
 impl<A> Clone for ActorAddress<A>
@@ -26,13 +26,15 @@ where
 impl<A> ActorAddress<A>
 where
     A: ActorHandler,
-    A::Message: Send,
 {
-    pub fn upgrade(&self) -> DdsResult<Actor<A>> {
-        if let Some(sender) = self.sender.upgrade() {
-            Ok(Actor { sender })
-        } else {
-            Err(DdsError::AlreadyDeleted)
+    pub fn is_closed(&self) -> bool {
+        self.sender.is_closed()
+    }
+
+    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
+        match self.sender.send(message).await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DdsError::AlreadyDeleted),
         }
     }
 }
@@ -48,17 +50,8 @@ where
     A: ActorHandler,
 {
     sender: tokio::sync::mpsc::Sender<A::Message>,
-}
-
-impl<A> Clone for Actor<A>
-where
-    A: ActorHandler,
-{
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-        }
-    }
+    join_handle: tokio::task::JoinHandle<()>,
+    notify_stop: Arc<tokio::sync::Notify>,
 }
 
 impl<A> Actor<A>
@@ -68,25 +61,47 @@ where
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle, buffer_size: usize) -> Self {
         let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(buffer_size);
+        let notify_stop = Arc::new(tokio::sync::Notify::new());
+        let notify_clone = notify_stop.clone();
 
-        runtime.spawn(async move {
-            while let Some(m) = mailbox.recv().await {
-                actor.handle_message(m).await;
+        let join_handle = runtime.spawn(async move {
+            loop {
+                tokio::select! {
+                    m = mailbox.recv() => {
+                        match m {
+                            Some(message) => actor.handle_message(message).await,
+                            None => break,
+                        }
+                    }
+                    _ = notify_clone.notified() => {
+                        mailbox.close();
+                    }
+                }
             }
         });
-        Actor { sender }
+        Actor {
+            sender,
+            join_handle,
+            notify_stop,
+        }
     }
 
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
-            sender: self.sender.downgrade(),
+            sender: self.sender.clone(),
         }
     }
 
-    pub async fn send_actor_message(&self, message: A::Message) {
-        self.sender.send(message).await.expect(
-            "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
-        );
+    pub async fn stop(self) {
+        self.notify_stop.notify_one();
+        self.join_handle.await.ok();
+    }
+
+    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
+        match self.sender.send(message).await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DdsError::AlreadyDeleted),
+        }
     }
 }
 
@@ -124,16 +139,31 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)), 10)
+        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10)
     }
 
     #[test]
-    fn actor_already_deleted() {
+    fn actor_stop_should_not_block() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
-        let actor_address = actor.address().clone();
-        std::mem::drop(actor);
-        assert!(actor_address.upgrade().is_err());
+
+        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
+
+        runtime.block_on(actor.stop());
+    }
+
+    #[test]
+    fn actor_send_message_after_stop_should_return_error() {
+        let runtime = Runtime::new().unwrap();
+        let my_data = MyData { data: 0 };
+        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
+        let actor_address = actor.address();
+
+        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
+
+        runtime.block_on(actor.stop());
+
+        assert!(runtime.block_on(actor_address.increment(10)).is_err());
     }
 }

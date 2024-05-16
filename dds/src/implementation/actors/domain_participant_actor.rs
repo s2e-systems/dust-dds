@@ -58,7 +58,7 @@ use crate::{
         },
     },
     subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{
         deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
@@ -389,12 +389,16 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(p) = self.user_defined_publisher_list.get(&handle) {
-            if !p.data_writer_list().await.is_empty() {
+            if !p.data_writer_list().await?.is_empty() {
                 Err(DdsError::PreconditionNotMet(
                     "Publisher still contains data writers".to_string(),
                 ))
             } else {
-                self.user_defined_publisher_list.remove(&handle);
+                let d = self
+                    .user_defined_publisher_list
+                    .remove(&handle)
+                    .expect("Publisher is guaranteed to exist");
+                d.stop().await;
                 Ok(())
             }
         } else {
@@ -447,12 +451,16 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
-            if !subscriber.is_empty().await {
+            if !subscriber.is_empty().await? {
                 Err(DdsError::PreconditionNotMet(
                     "Subscriber still contains data readers".to_string(),
                 ))
             } else {
-                self.user_defined_subscriber_list.remove(&handle);
+                let d = self
+                    .user_defined_subscriber_list
+                    .remove(&handle)
+                    .expect("Subscriber is guaranteed to exist");
+                d.stop().await;
                 Ok(())
             }
         } else {
@@ -511,7 +519,7 @@ impl DomainParticipantActor {
                 for publisher in self.user_defined_publisher_list.values() {
                     if publisher
                         .lookup_datawriter(topic_name.clone())
-                        .await
+                        .await??
                         .is_some()
                     {
                         return Err(DdsError::PreconditionNotMet(
@@ -523,7 +531,7 @@ impl DomainParticipantActor {
                 for subscriber in self.user_defined_subscriber_list.values() {
                     if subscriber
                         .lookup_datareader(topic_name.clone())
-                        .await
+                        .await??
                         .is_some()
                     {
                         return Err(DdsError::PreconditionNotMet(
@@ -532,7 +540,11 @@ impl DomainParticipantActor {
                     }
                 }
 
-                self.topic_list.remove(&topic_name);
+                let d = self
+                    .topic_list
+                    .remove(&topic_name)
+                    .expect("Topic is guaranteed to exist");
+                d.stop().await;
             }
             Ok(())
         } else {
@@ -554,7 +566,7 @@ impl DomainParticipantActor {
             String,
         )>,
     > {
-        if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await {
+        if let Some(r) = self.lookup_topicdescription(topic_name.clone()).await? {
             Ok(Some(r))
         } else {
             self.lookup_discovered_topic(
@@ -569,19 +581,21 @@ impl DomainParticipantActor {
     async fn lookup_topicdescription(
         &self,
         topic_name: String,
-    ) -> Option<(
-        ActorAddress<TopicActor>,
-        ActorAddress<StatusConditionActor>,
-        String,
-    )> {
+    ) -> DdsResult<
+        Option<(
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
+            String,
+        )>,
+    > {
         if let Some(topic) = self.topic_list.get(&topic_name) {
-            Some((
+            Ok(Some((
                 topic.address(),
-                topic.get_statuscondition().await,
-                topic.get_type_name().await,
-            ))
+                topic.get_statuscondition().await?,
+                topic.get_type_name().await?,
+            )))
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -591,14 +605,14 @@ impl DomainParticipantActor {
 
     async fn enable(&mut self) -> DdsResult<()> {
         if !self.enabled {
-            self.builtin_publisher.enable().await;
-            self.builtin_subscriber.enable().await;
+            self.builtin_publisher.enable().await?;
+            self.builtin_subscriber.enable().await?;
 
-            for builtin_reader in self.builtin_subscriber.data_reader_list().await {
-                builtin_reader.upgrade()?.enable().await;
+            for builtin_reader in self.builtin_subscriber.data_reader_list().await? {
+                builtin_reader.enable().await?;
             }
-            for builtin_writer in self.builtin_publisher.data_writer_list().await {
-                builtin_writer.upgrade()?.enable().await;
+            for builtin_writer in self.builtin_publisher.data_writer_list().await? {
+                builtin_writer.enable().await?;
             }
             self.enabled = true;
         }
@@ -858,28 +872,32 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    fn get_builtin_publisher(&self) -> Actor<PublisherActor> {
-        self.builtin_publisher.clone()
+    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
+        self.builtin_publisher.address()
     }
 
     async fn send_message(&self) {
         self.builtin_publisher
-            .send_message(self.message_sender_actor.clone())
-            .await;
+            .send_message(self.message_sender_actor.address())
+            .await
+            .ok();
         self.builtin_subscriber
-            .send_message(self.message_sender_actor.clone())
-            .await;
+            .send_message(self.message_sender_actor.address())
+            .await
+            .ok();
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_message(self.message_sender_actor.clone())
-                .await;
+                .send_message(self.message_sender_actor.address())
+                .await
+                .ok();
         }
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_message(self.message_sender_actor.clone())
-                .await;
+                .send_message(self.message_sender_actor.address())
+                .await
+                .ok();
         }
     }
 
@@ -902,11 +920,15 @@ impl DomainParticipantActor {
                 participant.clone(),
                 participant_mask_listener,
             )
-            .await;
+            .await
+            .ok();
 
-        self.builtin_publisher.process_rtps_message(message).await;
+        self.builtin_publisher
+            .process_rtps_message(message)
+            .await
+            .ok();
 
-        self.process_builtin_discovery(participant).await;
+        self.process_builtin_discovery(participant).await?;
 
         Ok(())
     }
@@ -926,20 +948,24 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener.clone(),
                 )
-                .await;
+                .await
+                .ok();
 
             user_defined_subscriber_address
-                .send_message(self.message_sender_actor.clone())
-                .await;
+                .send_message(self.message_sender_actor.address())
+                .await
+                .ok();
         }
 
         for user_defined_publisher_address in self.user_defined_publisher_list.values() {
             user_defined_publisher_address
                 .process_rtps_message(message.clone())
-                .await;
+                .await
+                .ok();
             user_defined_publisher_address
-                .send_message(self.message_sender_actor.clone())
-                .await;
+                .send_message(self.message_sender_actor.address())
+                .await
+                .ok();
         }
     }
 
@@ -962,8 +988,8 @@ impl DomainParticipantActor {
         self.status_condition.address()
     }
 
-    fn get_message_sender(&self) -> Actor<MessageSenderActor> {
-        self.message_sender_actor.clone()
+    fn get_message_sender(&self) -> ActorAddress<MessageSenderActor> {
+        self.message_sender_actor.address()
     }
 
     pub fn set_default_unicast_locator_list(&mut self, list: Vec<Locator>) {
@@ -984,66 +1010,12 @@ impl DomainParticipantActor {
         self.rtps_participant
             .set_metatraffic_multicast_locator_list(list)
     }
-}
 
-impl DomainParticipantActor {
-    async fn process_builtin_discovery(&mut self, participant: DomainParticipantAsync) {
-        self.process_spdp_participant_discovery(participant.clone())
-            .await;
-        self.process_sedp_publications_discovery(participant.clone())
-            .await;
-        self.process_sedp_subscriptions_discovery(participant.clone())
-            .await;
-        self.process_sedp_topics_discovery().await;
-    }
-
-    async fn process_spdp_participant_discovery(&mut self, participant: DomainParticipantAsync) {
-        if let Some(spdp_participant_reader) = self
-            .builtin_subscriber
-            .lookup_datareader(DCPS_PARTICIPANT.to_string())
-            .await
-        {
-            if let Ok(spdp_data_sample_list) = spdp_participant_reader
-                .read(
-                    i32::MAX,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )
-                .await
-            {
-                for (spdp_data_sample, spdp_sample_info) in spdp_data_sample_list {
-                    if let Some(spdp_data) = spdp_data_sample.as_ref() {
-                        match SpdpDiscoveredParticipantData::deserialize_data(spdp_data.as_ref()) {
-                            Ok(discovered_participant_data) => {
-                                self.process_discovered_participant_data(
-                                    discovered_participant_data,
-                                    participant.clone(),
-                                )
-                                .await
-                            }
-                            Err(e) => warn!(
-                                "Received invalid SpdpDiscoveredParticipantData. Error {:?}",
-                                e
-                            ),
-                        }
-                    } else {
-                        warn!(
-                            "Received empty sample on spdp. Sample info: {:?}",
-                            spdp_sample_info
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    async fn process_discovered_participant_data(
+    async fn add_discovered_participant(
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
@@ -1081,26 +1053,26 @@ impl DomainParticipantActor {
                 &discovered_participant_data,
                 participant.clone(),
             )
-            .await;
+            .await?;
             self.add_matched_publications_announcer(
                 &discovered_participant_data,
                 participant.clone(),
             )
-            .await;
+            .await?;
             self.add_matched_subscriptions_detector(
                 &discovered_participant_data,
                 participant.clone(),
             )
-            .await;
+            .await?;
             self.add_matched_subscriptions_announcer(
                 &discovered_participant_data,
                 participant.clone(),
             )
-            .await;
+            .await?;
             self.add_matched_topics_detector(&discovered_participant_data, participant.clone())
-                .await;
+                .await?;
             self.add_matched_topics_announcer(&discovered_participant_data, participant.clone())
-                .await;
+                .await?;
 
             self.discovered_participant_list.insert(
                 InstanceHandle::new(
@@ -1112,13 +1084,32 @@ impl DomainParticipantActor {
                 discovered_participant_data,
             );
         }
+        Ok(())
+    }
+
+    async fn remove_discovered_participant(&mut self, handle: InstanceHandle) {
+        self.discovered_participant_list.remove(&handle);
+    }
+}
+
+impl DomainParticipantActor {
+    async fn process_builtin_discovery(
+        &mut self,
+        participant: DomainParticipantAsync,
+    ) -> DdsResult<()> {
+        self.process_sedp_publications_discovery(participant.clone())
+            .await?;
+        self.process_sedp_subscriptions_discovery(participant.clone())
+            .await?;
+        self.process_sedp_topics_discovery().await?;
+        Ok(())
     }
 
     async fn add_matched_publications_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
             .available_builtin_endpoints()
@@ -1173,15 +1164,16 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener,
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
     async fn add_matched_publications_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
             .available_builtin_endpoints()
@@ -1232,15 +1224,16 @@ impl DomainParticipantActor {
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
     async fn add_matched_subscriptions_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
             .available_builtin_endpoints()
@@ -1290,15 +1283,16 @@ impl DomainParticipantActor {
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
     async fn add_matched_subscriptions_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
             .available_builtin_endpoints()
@@ -1349,15 +1343,17 @@ impl DomainParticipantActor {
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
                 )
-                .await;
+                .await??;
         }
+
+        Ok(())
     }
 
     async fn add_matched_topics_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
             .available_builtin_endpoints()
@@ -1407,15 +1403,16 @@ impl DomainParticipantActor {
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
     async fn add_matched_topics_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
             .available_builtin_endpoints()
@@ -1466,15 +1463,19 @@ impl DomainParticipantActor {
                     participant,
                     (self.listener.address(), self.status_kind.clone()),
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
-    async fn process_sedp_publications_discovery(&mut self, participant: DomainParticipantAsync) {
+    async fn process_sedp_publications_discovery(
+        &mut self,
+        participant: DomainParticipantAsync,
+    ) -> DdsResult<()> {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
             .lookup_datareader(DCPS_PUBLICATION.to_string())
-            .await
+            .await??
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
                 .read(
@@ -1484,7 +1485,7 @@ impl DomainParticipantActor {
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
                 )
-                .await
+                .await?
             {
                 for (discovered_writer_data, discovered_writer_sample_info) in
                     discovered_writer_sample_list.drain(..)
@@ -1501,7 +1502,7 @@ impl DomainParticipantActor {
                                         discovered_writer_data,
                                         participant.clone(),
                                     )
-                                    .await;
+                                    .await?;
                                 }
                                 Err(e) => warn!(
                                     "Received invalid DiscoveredWriterData sample. Error {:?}",
@@ -1514,7 +1515,7 @@ impl DomainParticipantActor {
                                 discovered_writer_sample_info.instance_handle,
                                 participant.clone(),
                             )
-                            .await
+                            .await?;
                         }
                         InstanceStateKind::NotAliveNoWriters => {
                             todo!()
@@ -1523,13 +1524,14 @@ impl DomainParticipantActor {
                 }
             }
         }
+        Ok(())
     }
 
     async fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
                 discovered_writer_data
@@ -1577,7 +1579,7 @@ impl DomainParticipantActor {
                             participant.clone(),
                             participant_mask_listener,
                         )
-                        .await;
+                        .await??;
                 }
 
                 // Add writer topic to discovered topic list using the writer instance handle
@@ -1639,13 +1641,14 @@ impl DomainParticipantActor {
                     .insert(topic_instance_handle, writer_topic);
             }
         }
+        Ok(())
     }
 
     async fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -1656,15 +1659,19 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener,
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
-    async fn process_sedp_subscriptions_discovery(&mut self, participant: DomainParticipantAsync) {
+    async fn process_sedp_subscriptions_discovery(
+        &mut self,
+        participant: DomainParticipantAsync,
+    ) -> DdsResult<()> {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
             .lookup_datareader(DCPS_SUBSCRIPTION.to_string())
-            .await
+            .await??
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
                 .read(
@@ -1674,7 +1681,7 @@ impl DomainParticipantActor {
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
                 )
-                .await
+                .await?
             {
                 for (discovered_reader_data, discovered_reader_sample_info) in
                     discovered_reader_sample_list.drain(..)
@@ -1691,7 +1698,7 @@ impl DomainParticipantActor {
                                         discovered_reader_data,
                                         participant.clone(),
                                     )
-                                    .await;
+                                    .await?;
                                 }
                                 Err(e) => warn!(
                                     "Received invalid DiscoveredReaderData sample. Error {:?}",
@@ -1704,7 +1711,7 @@ impl DomainParticipantActor {
                                 discovered_reader_sample_info.instance_handle,
                                 participant.clone(),
                             )
-                            .await
+                            .await?;
                         }
                         InstanceStateKind::NotAliveNoWriters => {
                             todo!()
@@ -1713,13 +1720,14 @@ impl DomainParticipantActor {
                 }
             }
         }
+        Ok(())
     }
 
     async fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
                 discovered_reader_data
@@ -1772,7 +1780,7 @@ impl DomainParticipantActor {
                             participant.clone(),
                             participant_mask_listener,
                         )
-                        .await;
+                        .await??;
                 }
 
                 // Add reader topic to discovered topic list using the reader instance handle
@@ -1835,13 +1843,14 @@ impl DomainParticipantActor {
                     .insert(topic_instance_handle, reader_topic);
             }
         }
+        Ok(())
     }
 
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
         participant: DomainParticipantAsync,
-    ) {
+    ) -> DdsResult<()> {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -1852,15 +1861,16 @@ impl DomainParticipantActor {
                     participant.clone(),
                     participant_mask_listener,
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
-    async fn process_sedp_topics_discovery(&mut self) {
+    async fn process_sedp_topics_discovery(&mut self) -> DdsResult<()> {
         if let Some(sedp_topics_detector) = self
             .builtin_subscriber
             .lookup_datareader(DCPS_TOPIC.to_string())
-            .await
+            .await??
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
                 .read(
@@ -1870,7 +1880,7 @@ impl DomainParticipantActor {
                     ANY_INSTANCE_STATE.to_vec(),
                     None,
                 )
-                .await
+                .await?
             {
                 for (discovered_topic_data, discovered_topic_sample_info) in
                     discovered_topic_sample_list.drain(..)
@@ -1896,6 +1906,7 @@ impl DomainParticipantActor {
                 }
             }
         }
+        Ok(())
     }
 
     async fn add_matched_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
@@ -1906,7 +1917,8 @@ impl DomainParticipantActor {
             for topic in self.topic_list.values() {
                 topic
                     .process_discovered_topic(discovered_topic_data.clone())
-                    .await;
+                    .await
+                    .ok();
             }
             self.discovered_topic_list.insert(
                 handle,

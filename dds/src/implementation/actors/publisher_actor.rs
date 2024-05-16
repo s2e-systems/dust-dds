@@ -102,7 +102,7 @@ impl PublisherActor {
     #[allow(clippy::too_many_arguments)]
     fn create_datawriter(
         &mut self,
-        topic: Actor<TopicActor>,
+        topic_address: ActorAddress<TopicActor>,
         has_key: bool,
         data_max_size_serialized: usize,
         qos: QosKind<DataWriterQos>,
@@ -149,7 +149,7 @@ impl PublisherActor {
 
         let data_writer = DataWriterActor::new(
             rtps_writer_impl,
-            topic,
+            topic_address,
             a_listener,
             mask,
             qos,
@@ -174,13 +174,16 @@ impl PublisherActor {
         }
     }
 
-    async fn lookup_datawriter(&self, topic_name: String) -> Option<Actor<DataWriterActor>> {
+    async fn lookup_datawriter(
+        &self,
+        topic_name: String,
+    ) -> DdsResult<Option<ActorAddress<DataWriterActor>>> {
         for dw in self.data_writer_list.values() {
-            if dw.get_topic_name().await == topic_name {
-                return Some(dw.clone());
+            if dw.get_topic_name().await?.as_ref() == Ok(&topic_name) {
+                return Ok(Some(dw.address()));
             }
         }
-        None
+        Ok(None)
     }
 
     #[allow(clippy::unused_unit)]
@@ -251,19 +254,21 @@ impl PublisherActor {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .process_rtps_message(message.clone())
-                .await;
+                .await
+                .ok();
         }
     }
 
-    async fn send_message(&self, message_sender_actor: Actor<MessageSenderActor>) {
+    async fn send_message(&self, message_sender_actor: ActorAddress<MessageSenderActor>) {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_message(message_sender_actor.clone())
-                .await;
+                .await
+                .ok();
         }
     }
 
-    #[allow(clippy::too_many_arguments, clippy::unused_unit)]
+    #[allow(clippy::too_many_arguments)]
     async fn add_matched_reader(
         &self,
         discovered_reader_data: DiscoveredReaderData,
@@ -275,7 +280,7 @@ impl PublisherActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         if self.is_partition_matched(
             discovered_reader_data
                 .subscription_builtin_topic_data()
@@ -300,12 +305,12 @@ impl PublisherActor {
                         publisher_mask_listener,
                         participant_mask_listener.clone(),
                     )
-                    .await;
+                    .await??;
             }
         }
+        Ok(())
     }
 
-    #[allow(clippy::unused_unit)]
     async fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
@@ -315,7 +320,7 @@ impl PublisherActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
-    ) -> () {
+    ) -> DdsResult<()> {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
             let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
@@ -331,8 +336,9 @@ impl PublisherActor {
                     publisher_mask_listener,
                     participant_mask_listener.clone(),
                 )
-                .await;
+                .await??;
         }
+        Ok(())
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {

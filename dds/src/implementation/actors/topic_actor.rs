@@ -142,12 +142,14 @@ impl TopicActor {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
             .remove_communication_state(StatusKind::InconsistentTopic)
-            .await;
+            .await?;
         Ok(status)
     }
 
-    #[allow(clippy::unused_unit)]
-    async fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) -> () {
+    async fn process_discovered_topic(
+        &mut self,
+        discovered_topic_data: DiscoveredTopicData,
+    ) -> DdsResult<()> {
         if discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
@@ -158,8 +160,9 @@ impl TopicActor {
             self.inconsistent_topic_status.increment();
             self.status_condition
                 .add_communication_state(StatusKind::InconsistentTopic)
-                .await;
+                .await?;
         }
+        Ok(())
     }
 
     fn get_type_support(&self) -> Arc<dyn DynamicTypeInterface + Send + Sync> {

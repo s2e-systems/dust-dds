@@ -4,7 +4,9 @@ use super::{
     types::{Guid, Locator},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::{actor::Actor, actors::message_sender_actor::MessageSenderActor};
+use crate::implementation::{
+    actor::ActorAddress, actors::message_sender_actor::MessageSenderActor,
+};
 
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,
@@ -99,7 +101,7 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub async fn send_message(&mut self, message_sender_actor: &Actor<MessageSenderActor>) {
+    pub async fn send_message(&mut self, message_sender_actor: &ActorAddress<MessageSenderActor>) {
         for writer_proxy in self.matched_writers.iter_mut() {
             writer_proxy
                 .send_message(&self.rtps_reader.guid(), message_sender_actor)

@@ -56,7 +56,7 @@ impl PublisherAsync {
         self.participant.runtime_handle()
     }
 
-    async fn announce_deleted_data_writer(&self, writer: Actor<DataWriterActor>) -> DdsResult<()> {
+    async fn announce_deleted_data_writer(&self, writer: &Actor<DataWriterActor>) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_publications_announcer) = builtin_publisher
             .lookup_datawriter(DCPS_PUBLICATION)
@@ -65,21 +65,19 @@ impl PublisherAsync {
             let publisher_qos = self.get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .upgrade()?
                 .get_default_unicast_locator_list()
-                .await;
+                .await?;
             let default_multicast_locator_list = self
                 .participant_address()
-                .upgrade()?
                 .get_default_multicast_locator_list()
-                .await;
+                .await?;
             let data = writer
                 .as_discovered_writer_data(
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 )
-                .await;
+                .await??;
             sedp_publications_announcer.dispose(&data, None).await?;
         }
         Ok(())
@@ -102,34 +100,25 @@ impl PublisherAsync {
         let default_unicast_locator_list = self
             .participant
             .participant_address()
-            .upgrade()?
             .get_default_unicast_locator_list()
-            .await;
+            .await?;
         let default_multicast_locator_list = self
             .participant
             .participant_address()
-            .upgrade()?
             .get_default_multicast_locator_list()
-            .await;
+            .await?;
         let data_max_size_serialized = self
             .participant
             .participant_address()
-            .upgrade()?
             .data_max_size_serialized()
-            .await;
+            .await?;
 
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let has_key = a_topic
-            .topic_address()
-            .upgrade()?
-            .get_type_support()
-            .await
-            .has_key();
+        let has_key = a_topic.topic_address().get_type_support().await?.has_key();
         let data_writer_address = self
             .publisher_address
-            .upgrade()?
             .create_datawriter(
-                a_topic.topic_address().upgrade()?,
+                a_topic.topic_address().clone(),
                 has_key,
                 data_max_size_serialized,
                 qos,
@@ -139,8 +128,8 @@ impl PublisherAsync {
                 default_multicast_locator_list,
                 self.participant.runtime_handle().clone(),
             )
-            .await?;
-        let status_condition = data_writer_address.upgrade()?.get_statuscondition().await;
+            .await??;
+        let status_condition = data_writer_address.get_statuscondition().await?;
         let data_writer = DataWriterAsync::new(
             data_writer_address,
             status_condition,
@@ -148,12 +137,11 @@ impl PublisherAsync {
             a_topic.clone(),
         );
 
-        if self.publisher_address.upgrade()?.is_enabled().await
+        if self.publisher_address.is_enabled().await?
             && self
                 .publisher_address
-                .upgrade()?
                 .get_qos()
-                .await
+                .await?
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -174,22 +162,21 @@ impl PublisherAsync {
         let message_sender_actor = self
             .participant
             .participant_address()
-            .upgrade()?
             .get_message_sender()
-            .await;
+            .await?;
         a_datawriter
             .writer_address()
-            .upgrade()?
-            .send_message(message_sender_actor)
-            .await;
+            .send_message(message_sender_actor.clone())
+            .await?;
 
         let deleted_writer = self
             .publisher_address
-            .upgrade()?
             .delete_datawriter(writer_handle)
-            .await?;
+            .await??;
 
-        self.announce_deleted_data_writer(deleted_writer).await
+        self.announce_deleted_data_writer(&deleted_writer).await?;
+        deleted_writer.stop().await;
+        Ok(())
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::lookup_datawriter).
@@ -201,9 +188,8 @@ impl PublisherAsync {
         if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant
             .participant_address()
-            .upgrade()?
             .lookup_topicdescription(topic_name.to_string())
-            .await
+            .await??
         {
             let topic = TopicAsync::new(
                 topic_address,
@@ -214,13 +200,12 @@ impl PublisherAsync {
             );
             if let Some(dw) = self
                 .publisher_address
-                .upgrade()?
                 .lookup_datawriter(topic_name.to_string())
-                .await
+                .await??
             {
-                let status_condition = dw.get_statuscondition().await;
+                let status_condition = dw.get_statuscondition().await?;
                 Ok(Some(DataWriterAsync::new(
-                    dw.address(),
+                    dw.clone(),
                     status_condition,
                     self.clone(),
                     topic,
@@ -272,24 +257,21 @@ impl PublisherAsync {
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let deleted_writer_actor = self
-            .publisher_address
-            .upgrade()?
-            .drain_data_writer_list()
-            .await;
+        let deleted_writer_actor_list = self.publisher_address.drain_data_writer_list().await?;
         let message_sender_actor = self
             .participant
             .participant_address()
-            .upgrade()?
             .get_message_sender()
-            .await;
+            .await?;
 
-        for writer_actor in deleted_writer_actor {
-            writer_actor
+        for deleted_writer_actor in deleted_writer_actor_list {
+            deleted_writer_actor
                 .send_message(message_sender_actor.clone())
-                .await;
+                .await?;
 
-            self.announce_deleted_data_writer(writer_actor).await?;
+            self.announce_deleted_data_writer(&deleted_writer_actor)
+                .await?;
+            deleted_writer_actor.stop().await;
         }
         Ok(())
     }
@@ -298,12 +280,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => {
-                self.publisher_address
-                    .upgrade()?
-                    .get_default_datawriter_qos()
-                    .await
-            }
+            QosKind::Default => self.publisher_address.get_default_datawriter_qos().await?,
             QosKind::Specific(q) => {
                 q.is_consistent()?;
                 q
@@ -311,9 +288,8 @@ impl PublisherAsync {
         };
 
         self.publisher_address
-            .upgrade()?
             .set_default_datawriter_qos(qos)
-            .await;
+            .await?;
 
         Ok(())
     }
@@ -321,11 +297,7 @@ impl PublisherAsync {
     /// Async version of [`get_default_datawriter_qos`](crate::publication::publisher::Publisher::get_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self
-            .publisher_address
-            .upgrade()?
-            .get_default_datawriter_qos()
-            .await)
+        self.publisher_address.get_default_datawriter_qos().await
     }
 
     /// Async version of [`copy_from_topic_qos`](crate::publication::publisher::Publisher::copy_from_topic_qos).
@@ -349,7 +321,7 @@ impl PublisherAsync {
     /// Async version of [`get_qos`](crate::publication::publisher::Publisher::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self.publisher_address.upgrade()?.get_qos().await)
+        self.publisher_address.get_qos().await
     }
 
     /// Async version of [`set_listener`](crate::publication::publisher::Publisher::set_listener).
@@ -360,13 +332,12 @@ impl PublisherAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.publisher_address
-            .upgrade()?
             .set_listener(
                 a_listener,
                 mask.to_vec(),
                 self.participant.runtime_handle().clone(),
             )
-            .await;
+            .await?;
         Ok(())
     }
 
@@ -388,17 +359,13 @@ impl PublisherAsync {
     /// Async version of [`enable`](crate::publication::publisher::Publisher::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.publisher_address.upgrade()?.enable().await;
+        self.publisher_address.enable().await?;
         Ok(())
     }
 
     /// Async version of [`get_instance_handle`](crate::publication::publisher::Publisher::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self
-            .publisher_address
-            .upgrade()?
-            .get_instance_handle()
-            .await)
+        self.publisher_address.get_instance_handle().await
     }
 }
