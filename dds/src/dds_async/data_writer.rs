@@ -371,7 +371,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_publication_matched_status`](crate::publication::data_writer::DataWriter::get_publication_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.writer_address.get_publication_matched_status().await?
+        self.writer_address.get_publication_matched_status().await
     }
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).

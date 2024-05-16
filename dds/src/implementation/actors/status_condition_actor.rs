@@ -1,9 +1,7 @@
 use std::future::Future;
 
-use dust_dds_derive::actor_interface;
-
 use crate::{
-    implementation::actor::{Mail, MailHandler},
+    implementation::actor::{ActorHandler, Mail, MailHandler},
     infrastructure::status::StatusKind,
 };
 
@@ -39,11 +37,9 @@ impl Default for StatusConditionActor {
 pub struct AddCommunicationState {
     pub state: StatusKind,
 }
-
 impl Mail for AddCommunicationState {
     type Result = ();
 }
-
 impl MailHandler<AddCommunicationState> for StatusConditionActor {
     fn handle(
         &mut self,
@@ -55,28 +51,77 @@ impl MailHandler<AddCommunicationState> for StatusConditionActor {
     }
 }
 
-#[actor_interface]
-impl StatusConditionActor {
-    #[allow(clippy::unused_unit)]
-    fn remove_communication_state(&mut self, state: StatusKind) -> () {
-        self.status_changes.retain(|x| x != &state);
-    }
-
-    fn get_enabled_statuses(&self) -> Vec<StatusKind> {
-        self.enabled_statuses.clone()
-    }
-
-    #[allow(clippy::unused_unit)]
-    fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) -> () {
-        self.enabled_statuses = mask;
-    }
-
-    fn get_trigger_value(&self) -> bool {
-        for status in &self.status_changes {
-            if self.enabled_statuses.contains(status) {
-                return true;
-            }
+pub struct RemoveCommunicationState {
+    pub state: StatusKind,
+}
+impl Mail for RemoveCommunicationState {
+    type Result = ();
+}
+impl MailHandler<RemoveCommunicationState> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        message: RemoveCommunicationState,
+    ) -> impl Future<Output = <RemoveCommunicationState as Mail>::Result> + Send {
+        async move {
+            self.status_changes.retain(|x| x != &message.state);
         }
-        false
+    }
+}
+
+pub struct GetEnabledStatuses;
+impl Mail for GetEnabledStatuses {
+    type Result = Vec<StatusKind>;
+}
+impl MailHandler<GetEnabledStatuses> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        _: GetEnabledStatuses,
+    ) -> impl Future<Output = <GetEnabledStatuses as Mail>::Result> + Send {
+        async move { self.enabled_statuses.clone() }
+    }
+}
+
+pub struct SetEnabledStatuses {
+    pub mask: Vec<StatusKind>,
+}
+impl Mail for SetEnabledStatuses {
+    type Result = ();
+}
+impl MailHandler<SetEnabledStatuses> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        message: SetEnabledStatuses,
+    ) -> impl Future<Output = <SetEnabledStatuses as Mail>::Result> + Send {
+        async move {
+            self.enabled_statuses = message.mask;
+        }
+    }
+}
+
+pub struct GetTriggerValue;
+impl Mail for GetTriggerValue {
+    type Result = bool;
+}
+impl MailHandler<GetTriggerValue> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        _message: GetTriggerValue,
+    ) -> impl Future<Output = <GetTriggerValue as Mail>::Result> + Send {
+        async move {
+            for status in &self.status_changes {
+                if self.enabled_statuses.contains(status) {
+                    return true;
+                }
+            }
+            false
+        }
+    }
+}
+
+impl ActorHandler for StatusConditionActor {
+    type Message = ();
+
+    fn handle_message(&mut self, _: Self::Message) -> impl Future<Output = ()> + Send {
+        async {}
     }
 }

@@ -3,7 +3,7 @@ use super::{
     data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
-    status_condition_actor::{AddCommunicationState, StatusConditionActor},
+    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
 };
@@ -1492,8 +1492,12 @@ impl DataReaderActor {
         }
 
         self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -1539,8 +1543,12 @@ impl DataReaderActor {
         )?;
 
         self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -1701,8 +1709,12 @@ impl DataReaderActor {
 
     async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
         self.status_condition
-            .remove_communication_state(StatusKind::SubscriptionMatched)
-            .await?;
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         Ok(self
             .subscription_matched_status

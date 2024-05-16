@@ -65,7 +65,7 @@ use super::{
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
     publisher_listener_actor::PublisherListenerActor,
-    status_condition_actor::{AddCommunicationState, StatusConditionActor},
+    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
 };
 
@@ -571,11 +571,16 @@ impl DataWriterActor {
         ))
     }
 
-    async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
+    async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
-            .remove_communication_state(StatusKind::PublicationMatched)
-            .await?;
-        Ok(self.matched_subscriptions.get_publication_matched_status())
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::PublicationMatched,
+            })
+            .await
+            .receive_reply()
+            .await;
+
+        self.matched_subscriptions.get_publication_matched_status()
     }
 
     async fn get_topic_name(&self) -> DdsResult<String> {
@@ -1006,7 +1011,7 @@ impl DataWriterActor {
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let type_name = self.topic_address.get_type_name().await?;
             let topic_name = self.topic_address.get_name().await?;
-            let status = self.get_publication_matched_status().await?;
+            let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
             let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             self.listener
@@ -1025,12 +1030,12 @@ impl DataWriterActor {
                 )
                 .await?;
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await?;
+            let status = self.get_publication_matched_status().await;
             publisher_listener
                 .trigger_on_publication_matched(status)
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await?;
+            let status = self.get_publication_matched_status().await;
             participant_listener
                 .trigger_on_publication_matched(status)
                 .await?;

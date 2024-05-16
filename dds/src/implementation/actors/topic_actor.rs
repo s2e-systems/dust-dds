@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    status_condition_actor::{AddCommunicationState, StatusConditionActor},
+    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_listener_actor::TopicListenerActor,
 };
 
@@ -142,8 +142,12 @@ impl TopicActor {
     async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
-            .remove_communication_state(StatusKind::InconsistentTopic)
-            .await?;
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            })
+            .await
+            .receive_reply()
+            .await;
         Ok(status)
     }
 
