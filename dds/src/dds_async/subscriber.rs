@@ -55,7 +55,7 @@ impl SubscriberAsync {
         self.participant.runtime_handle()
     }
 
-    async fn announce_deleted_data_reader(&self, reader: Actor<DataReaderActor>) -> DdsResult<()> {
+    async fn announce_deleted_data_reader(&self, reader: &Actor<DataReaderActor>) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_subscriptions_announcer) = builtin_publisher
             .lookup_datawriter(DCPS_SUBSCRIPTION)
@@ -166,7 +166,9 @@ impl SubscriberAsync {
             .delete_datareader(reader_handle)
             .await??;
 
-        self.announce_deleted_data_reader(deleted_reader).await
+        self.announce_deleted_data_reader(&deleted_reader).await?;
+        deleted_reader.stop().await;
+        Ok(())
     }
 
     /// Async version of [`lookup_datareader`](crate::subscription::subscriber::Subscriber::lookup_datareader).
@@ -228,17 +230,19 @@ impl SubscriberAsync {
     /// Async version of [`delete_contained_entities`](crate::subscription::subscriber::Subscriber::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let deleted_reader_actor = self.subscriber_address.drain_data_reader_list().await?;
+        let deleted_reader_actor_list = self.subscriber_address.drain_data_reader_list().await?;
 
         let message_sender_actor = self.participant_address().get_message_sender().await?;
 
-        for reader_actor in deleted_reader_actor {
+        for deleted_reader_actor in deleted_reader_actor_list {
             // Send messages before deleting the reader
-            reader_actor
+            deleted_reader_actor
                 .send_message(message_sender_actor.clone())
                 .await?;
 
-            self.announce_deleted_data_reader(reader_actor).await?;
+            self.announce_deleted_data_reader(&deleted_reader_actor)
+                .await?;
+            deleted_reader_actor.stop().await;
         }
         Ok(())
     }

@@ -56,7 +56,7 @@ impl PublisherAsync {
         self.participant.runtime_handle()
     }
 
-    async fn announce_deleted_data_writer(&self, writer: Actor<DataWriterActor>) -> DdsResult<()> {
+    async fn announce_deleted_data_writer(&self, writer: &Actor<DataWriterActor>) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_publications_announcer) = builtin_publisher
             .lookup_datawriter(DCPS_PUBLICATION)
@@ -174,7 +174,9 @@ impl PublisherAsync {
             .delete_datawriter(writer_handle)
             .await??;
 
-        self.announce_deleted_data_writer(deleted_writer).await
+        self.announce_deleted_data_writer(&deleted_writer).await?;
+        deleted_writer.stop().await;
+        Ok(())
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::lookup_datawriter).
@@ -255,19 +257,21 @@ impl PublisherAsync {
     /// Async version of [`delete_contained_entities`](crate::publication::publisher::Publisher::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let deleted_writer_actor = self.publisher_address.drain_data_writer_list().await?;
+        let deleted_writer_actor_list = self.publisher_address.drain_data_writer_list().await?;
         let message_sender_actor = self
             .participant
             .participant_address()
             .get_message_sender()
             .await?;
 
-        for writer_actor in deleted_writer_actor {
-            writer_actor
+        for deleted_writer_actor in deleted_writer_actor_list {
+            deleted_writer_actor
                 .send_message(message_sender_actor.clone())
                 .await?;
 
-            self.announce_deleted_data_writer(writer_actor).await?;
+            self.announce_deleted_data_writer(&deleted_writer_actor)
+                .await?;
+            deleted_writer_actor.stop().await;
         }
         Ok(())
     }

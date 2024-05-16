@@ -394,7 +394,11 @@ impl DomainParticipantActor {
                     "Publisher still contains data writers".to_string(),
                 ))
             } else {
-                self.user_defined_publisher_list.remove(&handle);
+                let d = self
+                    .user_defined_publisher_list
+                    .remove(&handle)
+                    .expect("Publisher is guaranteed to exist");
+                d.stop().await;
                 Ok(())
             }
         } else {
@@ -452,7 +456,11 @@ impl DomainParticipantActor {
                     "Subscriber still contains data readers".to_string(),
                 ))
             } else {
-                self.user_defined_subscriber_list.remove(&handle);
+                let d = self
+                    .user_defined_subscriber_list
+                    .remove(&handle)
+                    .expect("Subscriber is guaranteed to exist");
+                d.stop().await;
                 Ok(())
             }
         } else {
@@ -532,7 +540,11 @@ impl DomainParticipantActor {
                     }
                 }
 
-                self.topic_list.remove(&topic_name);
+                let d = self
+                    .topic_list
+                    .remove(&topic_name)
+                    .expect("Topic is guaranteed to exist");
+                d.stop().await;
             }
             Ok(())
         } else {
