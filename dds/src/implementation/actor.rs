@@ -27,42 +27,14 @@ impl<A> ActorAddress<A>
 where
     A: ActorHandler,
 {
+    pub fn is_closed(&self) -> bool {
+        self.sender.is_closed()
+    }
+
     pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
         match self.sender.send(message).await {
             Ok(_) => Ok(()),
             Err(_) => Err(DdsError::AlreadyDeleted),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ActorWeakAddress<A>
-where
-    A: ActorHandler,
-{
-    sender: tokio::sync::mpsc::WeakSender<A::Message>,
-}
-
-impl<A> Clone for ActorWeakAddress<A>
-where
-    A: ActorHandler,
-{
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-        }
-    }
-}
-
-impl<A> ActorWeakAddress<A>
-where
-    A: ActorHandler,
-{
-    pub fn upgrade(&self) -> DdsResult<ActorAddress<A>> {
-        if let Some(sender) = self.sender.upgrade() {
-            Ok(ActorAddress { sender })
-        } else {
-            Err(DdsError::AlreadyDeleted)
         }
     }
 }
@@ -114,9 +86,9 @@ where
         }
     }
 
-    pub fn address(&self) -> ActorWeakAddress<A> {
-        ActorWeakAddress {
-            sender: self.sender.downgrade(),
+    pub fn address(&self) -> ActorAddress<A> {
+        ActorAddress {
+            sender: self.sender.clone(),
         }
     }
 
@@ -186,22 +158,12 @@ mod tests {
         let runtime = Runtime::new().unwrap();
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
-        let actor_address = actor.address().upgrade().unwrap();
+        let actor_address = actor.address();
 
         assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
 
         runtime.block_on(actor.stop());
 
         assert!(runtime.block_on(actor_address.increment(10)).is_err());
-    }
-
-    #[test]
-    fn actor_already_deleted() {
-        let runtime = Runtime::new().unwrap();
-        let my_data = MyData { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
-        let actor_address = actor.address().clone();
-        std::mem::drop(actor);
-        assert!(actor_address.upgrade().is_err());
     }
 }

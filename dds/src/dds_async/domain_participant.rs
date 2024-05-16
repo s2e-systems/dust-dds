@@ -8,7 +8,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorWeakAddress},
+        actor::{Actor, ActorAddress},
         actors::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
@@ -36,20 +36,20 @@ use super::{
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
-    participant_address: ActorWeakAddress<DomainParticipantActor>,
-    status_condition_address: ActorWeakAddress<StatusConditionActor>,
-    builtin_subscriber_address: ActorWeakAddress<SubscriberActor>,
-    builtin_subscriber_status_condition_address: ActorWeakAddress<StatusConditionActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    builtin_subscriber_address: ActorAddress<SubscriberActor>,
+    builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
-        participant_address: ActorWeakAddress<DomainParticipantActor>,
-        status_condition_address: ActorWeakAddress<StatusConditionActor>,
-        builtin_subscriber_address: ActorWeakAddress<SubscriberActor>,
-        builtin_subscriber_status_condition_address: ActorWeakAddress<StatusConditionActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        builtin_subscriber_address: ActorAddress<SubscriberActor>,
+        builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
@@ -63,7 +63,7 @@ impl DomainParticipantAsync {
         }
     }
 
-    pub(crate) fn participant_address(&self) -> &ActorWeakAddress<DomainParticipantActor> {
+    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         &self.participant_address
     }
 
@@ -72,7 +72,7 @@ impl DomainParticipantAsync {
     }
 
     pub(crate) async fn announce_participant(&self) -> DdsResult<()> {
-        if self.participant_address.upgrade()?.is_enabled().await? {
+        if self.participant_address.is_enabled().await? {
             let builtin_publisher = self.get_builtin_publisher().await?;
 
             if let Some(spdp_participant_writer) = builtin_publisher
@@ -81,7 +81,6 @@ impl DomainParticipantAsync {
             {
                 let data = self
                     .participant_address
-                    .upgrade()?
                     .as_spdp_discovered_participant_data()
                     .await?;
                 spdp_participant_writer.write(&data, None).await?;
@@ -114,7 +113,6 @@ impl DomainParticipantAsync {
     ) -> DdsResult<PublisherAsync> {
         let (publisher_address, status_condition) = self
             .participant_address
-            .upgrade()?
             .create_user_defined_publisher(
                 qos,
                 a_listener,
@@ -123,10 +121,9 @@ impl DomainParticipantAsync {
             )
             .await?;
         let publisher = PublisherAsync::new(publisher_address, status_condition, self.clone());
-        if self.participant_address.upgrade()?.is_enabled().await?
+        if self.participant_address.is_enabled().await?
             && self
                 .participant_address
-                .upgrade()?
                 .get_qos()
                 .await?
                 .entity_factory
@@ -142,7 +139,6 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         self.participant_address
-            .upgrade()?
             .delete_user_defined_publisher(a_publisher.get_instance_handle().await?)
             .await?
     }
@@ -157,7 +153,6 @@ impl DomainParticipantAsync {
     ) -> DdsResult<SubscriberAsync> {
         let (subscriber_address, subscriber_status_condition) = self
             .participant_address
-            .upgrade()?
             .create_user_defined_subscriber(
                 qos,
                 a_listener,
@@ -172,10 +167,9 @@ impl DomainParticipantAsync {
             self.clone(),
         );
 
-        if self.participant_address.upgrade()?.is_enabled().await?
+        if self.participant_address.is_enabled().await?
             && self
                 .participant_address
-                .upgrade()?
                 .get_qos()
                 .await?
                 .entity_factory
@@ -191,7 +185,6 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         self.participant_address
-            .upgrade()?
             .delete_user_defined_subscriber(a_subscriber.get_instance_handle().await?)
             .await?
     }
@@ -228,7 +221,6 @@ impl DomainParticipantAsync {
     ) -> DdsResult<TopicAsync> {
         let (topic_address, topic_status_condition) = self
             .participant_address
-            .upgrade()?
             .create_user_defined_topic(
                 topic_name.to_string(),
                 type_name.to_string(),
@@ -246,10 +238,9 @@ impl DomainParticipantAsync {
             topic_name.to_string(),
             self.clone(),
         );
-        if self.participant_address.upgrade()?.is_enabled().await?
+        if self.participant_address.is_enabled().await?
             && self
                 .participant_address
-                .upgrade()?
                 .get_qos()
                 .await?
                 .entity_factory
@@ -264,11 +255,10 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
-        if a_topic.topic_address().upgrade().is_err() {
+        if a_topic.topic_address().is_closed() {
             Err(DdsError::AlreadyDeleted)
         } else {
             self.participant_address
-                .upgrade()?
                 .delete_user_defined_topic(a_topic.get_name())
                 .await?
         }
@@ -288,7 +278,6 @@ impl DomainParticipantAsync {
             loop {
                 if let Some((topic_address, status_condition_address, type_name)) = self
                     .participant_address
-                    .upgrade()?
                     .find_topic(
                         topic_name.to_owned(),
                         Arc::new(FooTypeSupport::new::<Foo>()),
@@ -315,7 +304,6 @@ impl DomainParticipantAsync {
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
         if let Some((topic_address, status_condition_address, type_name)) = self
             .participant_address
-            .upgrade()?
             .lookup_topicdescription(topic_name.to_owned())
             .await??
         {
@@ -344,37 +332,25 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address
-            .upgrade()?
-            .ignore_participant(handle)
-            .await?
+        self.participant_address.ignore_participant(handle).await?
     }
 
     /// Async version of [`ignore_topic`](crate::domain::domain_participant::DomainParticipant::ignore_topic).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address
-            .upgrade()?
-            .ignore_topic(handle)
-            .await?
+        self.participant_address.ignore_topic(handle).await?
     }
 
     /// Async version of [`ignore_publication`](crate::domain::domain_participant::DomainParticipant::ignore_publication).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address
-            .upgrade()?
-            .ignore_publication(handle)
-            .await?
+        self.participant_address.ignore_publication(handle).await?
     }
 
     /// Async version of [`ignore_subscription`](crate::domain::domain_participant::DomainParticipant::ignore_subscription).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address
-            .upgrade()?
-            .ignore_subscription(handle)
-            .await?
+        self.participant_address.ignore_subscription(handle).await?
     }
 
     /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
@@ -386,9 +362,7 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        let participant = self.participant_address.upgrade()?;
-
-        for deleted_publisher in participant.drain_publisher_list().await? {
+        for deleted_publisher in self.participant_address.drain_publisher_list().await? {
             PublisherAsync::new(
                 deleted_publisher.address(),
                 deleted_publisher.get_statuscondition().await?,
@@ -398,7 +372,7 @@ impl DomainParticipantAsync {
             .await?;
         }
 
-        for deleted_subscriber in participant.drain_subscriber_list().await? {
+        for deleted_subscriber in self.participant_address.drain_subscriber_list().await? {
             SubscriberAsync::new(
                 deleted_subscriber.address(),
                 deleted_subscriber.get_statuscondition().await?,
@@ -408,7 +382,7 @@ impl DomainParticipantAsync {
             .await?;
         }
 
-        for deleted_topic in participant.drain_topic_list().await? {
+        for deleted_topic in self.participant_address.drain_topic_list().await? {
             self.announce_deleted_topic(deleted_topic).await?;
         }
 
@@ -425,7 +399,6 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.participant_address
-            .upgrade()?
             .set_default_publisher_qos(qos)
             .await?
     }
@@ -433,17 +406,13 @@ impl DomainParticipantAsync {
     /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.participant_address
-            .upgrade()?
-            .get_default_publisher_qos()
-            .await
+        self.participant_address.get_default_publisher_qos().await
     }
 
     /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.participant_address
-            .upgrade()?
             .set_default_subscriber_qos(qos)
             .await?
     }
@@ -451,37 +420,25 @@ impl DomainParticipantAsync {
     /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.participant_address
-            .upgrade()?
-            .get_default_subscriber_qos()
-            .await
+        self.participant_address.get_default_subscriber_qos().await
     }
 
     /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.participant_address
-            .upgrade()?
-            .set_default_topic_qos(qos)
-            .await?
+        self.participant_address.set_default_topic_qos(qos).await?
     }
 
     /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.participant_address
-            .upgrade()?
-            .get_default_topic_qos()
-            .await
+        self.participant_address.get_default_topic_qos().await
     }
 
     /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address
-            .upgrade()?
-            .get_discovered_participants()
-            .await
+        self.participant_address.get_discovered_participants().await
     }
 
     /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
@@ -491,7 +448,6 @@ impl DomainParticipantAsync {
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         self.participant_address
-            .upgrade()?
             .get_discovered_participant_data(participant_handle)
             .await?
     }
@@ -499,10 +455,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address
-            .upgrade()?
-            .get_discovered_topics()
-            .await
+        self.participant_address.get_discovered_topics().await
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
@@ -512,7 +465,6 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.participant_address
-            .upgrade()?
             .get_discovered_topic_data(topic_handle)
             .await?
     }
@@ -526,7 +478,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
-        self.participant_address.upgrade()?.get_current_time().await
+        self.participant_address.get_current_time().await
     }
 }
 
@@ -539,14 +491,14 @@ impl DomainParticipantAsync {
             QosKind::Specific(q) => q,
         };
 
-        self.participant_address.upgrade()?.set_qos(qos).await??;
+        self.participant_address.set_qos(qos).await??;
         self.announce_participant().await
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.participant_address.upgrade()?.get_qos().await
+        self.participant_address.get_qos().await
     }
 
     /// Async version of [`set_listener`](crate::domain::domain_participant::DomainParticipant::set_listener).
@@ -557,7 +509,6 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
-            .upgrade()?
             .set_listener(a_listener, mask.to_vec(), self.runtime_handle.clone())
             .await?;
         Ok(())
@@ -581,7 +532,7 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.participant_address.upgrade()?.enable().await??;
+        self.participant_address.enable().await??;
 
         self.announce_participant().await?;
 
@@ -591,21 +542,14 @@ impl DomainParticipantAsync {
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address
-            .upgrade()?
-            .get_instance_handle()
-            .await
+        self.participant_address.get_instance_handle().await
     }
 }
 
 impl DomainParticipantAsync {
     pub(crate) async fn get_builtin_publisher(&self) -> DdsResult<PublisherAsync> {
-        let publisher_address = self
-            .participant_address
-            .upgrade()?
-            .get_builtin_publisher()
-            .await?;
-        let publisher_status_condition = publisher_address.upgrade()?.get_statuscondition().await?;
+        let publisher_address = self.participant_address.get_builtin_publisher().await?;
+        let publisher_status_condition = publisher_address.get_statuscondition().await?;
         Ok(PublisherAsync::new(
             publisher_address,
             publisher_status_condition,

@@ -15,7 +15,7 @@ use crate::{
     },
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -306,7 +306,7 @@ pub struct DataReaderActor {
     rtps_reader: RtpsReaderKind,
     changes: Vec<ReaderCacheChange>,
     qos: DataReaderQos,
-    topic_address: ActorWeakAddress<TopicActor>,
+    topic_address: ActorAddress<TopicActor>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: Actor<ReaderRequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -327,7 +327,7 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     pub fn new(
         rtps_reader: RtpsReaderKind,
-        topic_address: ActorWeakAddress<TopicActor>,
+        topic_address: ActorAddress<TopicActor>,
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
@@ -385,35 +385,31 @@ impl DataReaderActor {
 
     async fn on_data_available(
         &self,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorWeakAddress<SubscriberListenerActor>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
         subscriber
             .get_statuscondition()
             .address()
-            .upgrade()?
             .add_communication_state(StatusKind::DataOnReaders)
             .await?;
         self.status_condition
             .address()
-            .upgrade()?
             .add_communication_state(StatusKind::DataAvailable)
             .await?;
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
-                .upgrade()?
                 .trigger_on_data_on_readers(subscriber.clone())
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
-            let topic = self.topic_address.upgrade()?;
             let participant = subscriber.get_participant();
-            let topic_status_condition_address = topic.get_statuscondition().await?;
-            let type_name = topic.get_type_name().await?;
-            let topic_name = topic.get_name().await?;
+            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let type_name = self.topic_address.get_type_name().await?;
+            let topic_name = self.topic_address.get_name().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnDataAvailable,
@@ -440,11 +436,11 @@ impl DataReaderActor {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -578,11 +574,11 @@ impl DataReaderActor {
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps::messages::types::Time>,
         reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -740,26 +736,25 @@ impl DataReaderActor {
 
     async fn on_sample_lost(
         &mut self,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorWeakAddress<SubscriberListenerActor>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
-        let topic = self.topic_address.upgrade()?;
         self.status_condition
             .add_communication_state(StatusKind::SampleLost)
             .await?;
-        let topic_status_condition_address = topic.get_statuscondition().await?;
+        let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
         if self.status_kind.contains(&StatusKind::SampleLost) {
-            let type_name = topic.get_type_name().await?;
-            let topic_name = topic.get_name().await?;
+            let type_name = self.topic_address.get_type_name().await?;
+            let topic_name = self.topic_address.get_name().await?;
             let status = self.get_sample_lost_status();
             self.listener
                 .call_listener_function(
@@ -779,13 +774,11 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
-                .upgrade()?
                 .trigger_on_sample_lost(status)
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
-                .upgrade()?
                 .trigger_on_sample_lost(status)
                 .await?;
         }
@@ -796,14 +789,14 @@ impl DataReaderActor {
     async fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        data_reader_address: ActorWeakAddress<DataReaderActor>,
+        data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorWeakAddress<SubscriberListenerActor>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -813,12 +806,11 @@ impl DataReaderActor {
             .await?;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await?;
-            let topic_name = topic.get_name().await?;
+            let type_name = self.topic_address.get_type_name().await?;
+            let topic_name = self.topic_address.get_name().await?;
             let status = self.get_subscription_matched_status().await?;
 
-            let topic_status_condition_address = topic.get_statuscondition().await?;
+            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnSubscriptionMatched(status),
@@ -837,15 +829,11 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await?;
             subscriber_listener_address
-                .upgrade()
-                .expect("Subscriber is guaranteed to exist")
                 .trigger_on_subscription_matched(status)
                 .await?;
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await?;
             participant_listener_address
-                .upgrade()
-                .expect("Participant is guaranteed to exist")
                 .trigger_on_subscription_matched(status)
                 .await?;
         }
@@ -858,14 +846,14 @@ impl DataReaderActor {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorWeakAddress<SubscriberListenerActor>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -875,12 +863,11 @@ impl DataReaderActor {
             .add_communication_state(StatusKind::SampleRejected)
             .await?;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
-            let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await?;
-            let topic_name = topic.get_name().await?;
+            let type_name = self.topic_address.get_type_name().await?;
+            let topic_name = self.topic_address.get_name().await?;
             let status = self.get_sample_rejected_status();
 
-            let topic_status_condition_address = topic.get_statuscondition().await?;
+            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnSampleRejected(status),
@@ -900,13 +887,11 @@ impl DataReaderActor {
             let status = self.get_sample_rejected_status();
 
             subscriber_listener_address
-                .upgrade()?
                 .trigger_on_sample_rejected(status)
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
-                .upgrade()?
                 .trigger_on_sample_rejected(status)
                 .await?;
         }
@@ -917,14 +902,14 @@ impl DataReaderActor {
     async fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         (subscriber_listener_address, subscriber_listener_mask): &(
-            ActorWeakAddress<SubscriberListenerActor>,
+            ActorAddress<SubscriberListenerActor>,
             Vec<StatusKind>,
         ),
         (participant_listener_address, participant_listener_mask): &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -938,11 +923,10 @@ impl DataReaderActor {
             .status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
-            let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await?;
-            let topic_name = topic.get_name().await?;
+            let type_name = self.topic_address.get_type_name().await?;
+            let topic_name = self.topic_address.get_name().await?;
             let status = self.get_requested_incompatible_qos_status();
-            let topic_status_condition_address = topic.get_statuscondition().await?;
+            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnRequestedIncompatibleQos(status),
@@ -961,15 +945,11 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
-                .upgrade()
-                .expect("Subscriber listener should exist")
                 .trigger_on_requested_incompatible_qos(status)
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             participant_listener_address
-                .upgrade()
-                .expect("Participant listener should exist")
                 .trigger_on_requested_incompatible_qos(status)
                 .await?;
         }
@@ -1002,7 +982,7 @@ impl DataReaderActor {
         } else {
             Ok(ChangeKind::Alive)
         }?;
-        let type_support = self.topic_address.upgrade()?.get_type_support().await?;
+        let type_support = self.topic_address.get_type_support().await?;
         let instance_handle = build_instance_handle(
             &type_support,
             change_kind,
@@ -1054,11 +1034,11 @@ impl DataReaderActor {
     async fn add_change(
         &mut self,
         change: ReaderCacheChange,
-        data_reader_address: &ActorWeakAddress<DataReaderActor>,
+        data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1365,11 +1345,11 @@ impl DataReaderActor {
     async fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
-        data_reader_address: ActorWeakAddress<DataReaderActor>,
+        data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: &(ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: &(ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: &(
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1393,34 +1373,29 @@ impl DataReaderActor {
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
-            let topic = self.topic_address.upgrade()?;
             let topic_address = self.topic_address.clone();
-            let type_name = topic.get_type_name().await?;
-            let topic_name = topic.get_name().await?;
+            let type_name = self.topic_address.get_type_name().await?;
+            let topic_name = self.topic_address.get_name().await?;
             let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = topic.get_statuscondition().await?;
+            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
 
                     let r: DdsResult<()> = async {
                         requested_deadline_missed_status
-                            .upgrade()?
                             .increment_requested_deadline_missed_status(change_instance_handle)
                             .await?;
 
                         reader_status_condition
-                            .upgrade()?
                             .add_communication_state(StatusKind::RequestedDeadlineMissed)
                             .await?;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
                             let status = requested_deadline_missed_status
-                                .upgrade()?
                                 .read_requested_deadline_missed_status()
                                 .await?;
 
                             reader_listener_address
-                                .upgrade()?
                                 .call_listener_function(
                                     DataReaderListenerOperation::OnRequestedDeadlineMissed(status),
                                     data_reader_address.clone(),
@@ -1439,22 +1414,18 @@ impl DataReaderActor {
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
-                                .upgrade()?
                                 .read_requested_deadline_missed_status()
                                 .await?;
                             subscriber_listener_address
-                                .upgrade()?
                                 .trigger_on_requested_deadline_missed(status)
                                 .await?;
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
-                                .upgrade()?
                                 .read_requested_deadline_missed_status()
                                 .await?;
                             participant_listener_address
-                                .upgrade()?
                                 .trigger_on_requested_deadline_missed(status)
                                 .await?;
                         }
@@ -1580,11 +1551,10 @@ impl DataReaderActor {
         default_multicast_locator_list: Vec<Locator>,
     ) -> DdsResult<DiscoveredReaderData> {
         let guid = self.rtps_reader.guid();
-        let topic = self.topic_address.upgrade()?;
-        let type_name = topic.get_type_name().await?;
-        let topic_name = topic.get_name().await?;
-        let topic_qos = topic.get_qos().await?;
-        let xml_type = topic.get_type_support().await?.xml_type();
+        let type_name = self.topic_address.get_type_name().await?;
+        let topic_name = self.topic_address.get_name().await?;
+        let topic_qos = self.topic_address.get_qos().await?;
+        let xml_type = self.topic_address.get_type_support().await?.xml_type();
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
             default_unicast_locator_list
@@ -1660,7 +1630,7 @@ impl DataReaderActor {
         self.enabled = true;
     }
 
-    fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
+    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
@@ -1741,18 +1711,17 @@ impl DataReaderActor {
         discovered_writer_data: DiscoveredWriterData,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        data_reader_address: ActorWeakAddress<DataReaderActor>,
+        data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
         subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let topic = self.topic_address.upgrade()?;
-        let type_name = topic.get_type_name().await?;
-        let topic_name = topic.get_name().await?;
+        let type_name = self.topic_address.get_type_name().await?;
+        let topic_name = self.topic_address.get_name().await?;
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == topic_name
             && publication_builtin_topic_data.get_type_name() == type_name
@@ -1857,11 +1826,11 @@ impl DataReaderActor {
     async fn remove_matched_writer(
         &mut self,
         discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorWeakAddress<DataReaderActor>,
+        data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: (ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
@@ -1887,11 +1856,11 @@ impl DataReaderActor {
     }
 
     async fn get_topic_name(&mut self) -> DdsResult<String> {
-        self.topic_address.upgrade()?.get_name().await
+        self.topic_address.get_name().await
     }
 
     async fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address.upgrade()?.get_type_name().await
+        self.topic_address.get_type_name().await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1899,11 +1868,11 @@ impl DataReaderActor {
         &mut self,
         message: RtpsMessageRead,
         reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: ActorWeakAddress<DataReaderActor>,
+        data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: (ActorWeakAddress<SubscriberListenerActor>, Vec<StatusKind>),
+        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
         participant_mask_listener: (
-            ActorWeakAddress<DomainParticipantListenerActor>,
+            ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
     ) {
@@ -1960,7 +1929,7 @@ impl DataReaderActor {
         }
     }
 
-    async fn send_message(&mut self, message_sender_actor: ActorWeakAddress<MessageSenderActor>) {
+    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
         match &mut self.rtps_reader {
             RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor).await,
             RtpsReaderKind::Stateless(_) => (),

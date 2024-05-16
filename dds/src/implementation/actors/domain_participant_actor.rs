@@ -23,7 +23,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -306,8 +306,8 @@ impl DomainParticipantActor {
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<
         Option<(
-            ActorWeakAddress<TopicActor>,
-            ActorWeakAddress<StatusConditionActor>,
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
             String,
         )>,
     > {
@@ -355,8 +355,8 @@ impl DomainParticipantActor {
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> (
-        ActorWeakAddress<PublisherActor>,
-        ActorWeakAddress<StatusConditionActor>,
+        ActorAddress<PublisherActor>,
+        ActorAddress<StatusConditionActor>,
     ) {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
@@ -411,8 +411,8 @@ impl DomainParticipantActor {
         mask: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
     ) -> (
-        ActorWeakAddress<SubscriberActor>,
-        ActorWeakAddress<StatusConditionActor>,
+        ActorAddress<SubscriberActor>,
+        ActorAddress<StatusConditionActor>,
     ) {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
@@ -472,10 +472,7 @@ impl DomainParticipantActor {
         _mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<(
-        ActorWeakAddress<TopicActor>,
-        ActorWeakAddress<StatusConditionActor>,
-    )> {
+    ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
         if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
             let qos = match qos {
                 QosKind::Default => self.default_topic_qos.clone(),
@@ -552,8 +549,8 @@ impl DomainParticipantActor {
         runtime_handle: tokio::runtime::Handle,
     ) -> DdsResult<
         Option<(
-            ActorWeakAddress<TopicActor>,
-            ActorWeakAddress<StatusConditionActor>,
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
             String,
         )>,
     > {
@@ -574,8 +571,8 @@ impl DomainParticipantActor {
         topic_name: String,
     ) -> DdsResult<
         Option<(
-            ActorWeakAddress<TopicActor>,
-            ActorWeakAddress<StatusConditionActor>,
+            ActorAddress<TopicActor>,
+            ActorAddress<StatusConditionActor>,
             String,
         )>,
     > {
@@ -600,10 +597,10 @@ impl DomainParticipantActor {
             self.builtin_subscriber.enable().await?;
 
             for builtin_reader in self.builtin_subscriber.data_reader_list().await? {
-                builtin_reader.upgrade()?.enable().await?;
+                builtin_reader.enable().await?;
             }
             for builtin_writer in self.builtin_publisher.data_writer_list().await? {
-                builtin_writer.upgrade()?.enable().await?;
+                builtin_writer.enable().await?;
             }
             self.enabled = true;
         }
@@ -811,7 +808,7 @@ impl DomainParticipantActor {
         self.domain_id
     }
 
-    pub fn get_built_in_subscriber(&self) -> ActorWeakAddress<SubscriberActor> {
+    pub fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
         self.builtin_subscriber.address()
     }
 
@@ -863,7 +860,7 @@ impl DomainParticipantActor {
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
-    fn get_builtin_publisher(&self) -> ActorWeakAddress<PublisherActor> {
+    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
         self.builtin_publisher.address()
     }
 
@@ -975,11 +972,11 @@ impl DomainParticipantActor {
         self.status_kind = status_kind;
     }
 
-    pub fn get_statuscondition(&self) -> ActorWeakAddress<StatusConditionActor> {
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
 
-    fn get_message_sender(&self) -> ActorWeakAddress<MessageSenderActor> {
+    fn get_message_sender(&self) -> ActorAddress<MessageSenderActor> {
         self.message_sender_actor.address()
     }
 
@@ -1468,50 +1465,48 @@ impl DomainParticipantActor {
             .lookup_datareader(DCPS_PUBLICATION.to_string())
             .await??
         {
-            if let Ok(dr) = sedp_publications_detector.upgrade() {
-                if let Ok(mut discovered_writer_sample_list) = dr
-                    .read(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE.to_vec(),
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    )
-                    .await?
+            if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+                .read(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                )
+                .await?
+            {
+                for (discovered_writer_data, discovered_writer_sample_info) in
+                    discovered_writer_sample_list.drain(..)
                 {
-                    for (discovered_writer_data, discovered_writer_sample_info) in
-                        discovered_writer_sample_list.drain(..)
-                    {
-                        match discovered_writer_sample_info.instance_state {
-                            InstanceStateKind::Alive => {
-                                match DiscoveredWriterData::deserialize_data(
-                                    discovered_writer_data
-                                        .expect("Should contain data")
-                                        .as_ref(),
-                                ) {
-                                    Ok(discovered_writer_data) => {
-                                        self.add_matched_writer(
-                                            discovered_writer_data,
-                                            participant.clone(),
-                                        )
-                                        .await?;
-                                    }
-                                    Err(e) => warn!(
-                                        "Received invalid DiscoveredWriterData sample. Error {:?}",
-                                        e
-                                    ),
+                    match discovered_writer_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match DiscoveredWriterData::deserialize_data(
+                                discovered_writer_data
+                                    .expect("Should contain data")
+                                    .as_ref(),
+                            ) {
+                                Ok(discovered_writer_data) => {
+                                    self.add_matched_writer(
+                                        discovered_writer_data,
+                                        participant.clone(),
+                                    )
+                                    .await?;
                                 }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredWriterData sample. Error {:?}",
+                                    e
+                                ),
                             }
-                            InstanceStateKind::NotAliveDisposed => {
-                                self.remove_matched_writer(
-                                    discovered_writer_sample_info.instance_handle,
-                                    participant.clone(),
-                                )
-                                .await?;
-                            }
-                            InstanceStateKind::NotAliveNoWriters => {
-                                todo!()
-                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_matched_writer(
+                                discovered_writer_sample_info.instance_handle,
+                                participant.clone(),
+                            )
+                            .await?;
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
                         }
                     }
                 }
@@ -1666,50 +1661,48 @@ impl DomainParticipantActor {
             .lookup_datareader(DCPS_SUBSCRIPTION.to_string())
             .await??
         {
-            if let Ok(dr) = sedp_subscriptions_detector.upgrade() {
-                if let Ok(mut discovered_reader_sample_list) = dr
-                    .read(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE.to_vec(),
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    )
-                    .await?
+            if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+                .read(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                )
+                .await?
+            {
+                for (discovered_reader_data, discovered_reader_sample_info) in
+                    discovered_reader_sample_list.drain(..)
                 {
-                    for (discovered_reader_data, discovered_reader_sample_info) in
-                        discovered_reader_sample_list.drain(..)
-                    {
-                        match discovered_reader_sample_info.instance_state {
-                            InstanceStateKind::Alive => {
-                                match DiscoveredReaderData::deserialize_data(
-                                    discovered_reader_data
-                                        .expect("Should contain data")
-                                        .as_ref(),
-                                ) {
-                                    Ok(discovered_reader_data) => {
-                                        self.add_matched_reader(
-                                            discovered_reader_data,
-                                            participant.clone(),
-                                        )
-                                        .await?;
-                                    }
-                                    Err(e) => warn!(
-                                        "Received invalid DiscoveredReaderData sample. Error {:?}",
-                                        e
-                                    ),
+                    match discovered_reader_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match DiscoveredReaderData::deserialize_data(
+                                discovered_reader_data
+                                    .expect("Should contain data")
+                                    .as_ref(),
+                            ) {
+                                Ok(discovered_reader_data) => {
+                                    self.add_matched_reader(
+                                        discovered_reader_data,
+                                        participant.clone(),
+                                    )
+                                    .await?;
                                 }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredReaderData sample. Error {:?}",
+                                    e
+                                ),
                             }
-                            InstanceStateKind::NotAliveDisposed => {
-                                self.remove_matched_reader(
-                                    discovered_reader_sample_info.instance_handle,
-                                    participant.clone(),
-                                )
-                                .await?;
-                            }
-                            InstanceStateKind::NotAliveNoWriters => {
-                                todo!()
-                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_matched_reader(
+                                discovered_reader_sample_info.instance_handle,
+                                participant.clone(),
+                            )
+                            .await?;
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
                         }
                     }
                 }
@@ -1867,38 +1860,36 @@ impl DomainParticipantActor {
             .lookup_datareader(DCPS_TOPIC.to_string())
             .await??
         {
-            if let Ok(dr) = sedp_topics_detector.upgrade() {
-                if let Ok(mut discovered_topic_sample_list) = dr
-                    .read(
-                        i32::MAX,
-                        ANY_SAMPLE_STATE.to_vec(),
-                        ANY_VIEW_STATE.to_vec(),
-                        ANY_INSTANCE_STATE.to_vec(),
-                        None,
-                    )
-                    .await?
+            if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+                .read(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE.to_vec(),
+                    ANY_VIEW_STATE.to_vec(),
+                    ANY_INSTANCE_STATE.to_vec(),
+                    None,
+                )
+                .await?
+            {
+                for (discovered_topic_data, discovered_topic_sample_info) in
+                    discovered_topic_sample_list.drain(..)
                 {
-                    for (discovered_topic_data, discovered_topic_sample_info) in
-                        discovered_topic_sample_list.drain(..)
-                    {
-                        match discovered_topic_sample_info.instance_state {
-                            InstanceStateKind::Alive => {
-                                match DiscoveredTopicData::deserialize_data(
-                                    discovered_topic_data.expect("Should contain data").as_ref(),
-                                ) {
-                                    Ok(discovered_topic_data) => {
-                                        self.add_matched_topic(discovered_topic_data).await;
-                                    }
-                                    Err(e) => warn!(
-                                        "Received invalid DiscoveredTopicData sample. Error {:?}",
-                                        e
-                                    ),
+                    match discovered_topic_sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            match DiscoveredTopicData::deserialize_data(
+                                discovered_topic_data.expect("Should contain data").as_ref(),
+                            ) {
+                                Ok(discovered_topic_data) => {
+                                    self.add_matched_topic(discovered_topic_data).await;
                                 }
+                                Err(e) => warn!(
+                                    "Received invalid DiscoveredTopicData sample. Error {:?}",
+                                    e
+                                ),
                             }
-                            // Discovered topics are not deleted so it is not need to process these messages in any manner
-                            InstanceStateKind::NotAliveDisposed
-                            | InstanceStateKind::NotAliveNoWriters => (),
                         }
+                        // Discovered topics are not deleted so it is not need to process these messages in any manner
+                        InstanceStateKind::NotAliveDisposed
+                        | InstanceStateKind::NotAliveNoWriters => (),
                     }
                 }
             }

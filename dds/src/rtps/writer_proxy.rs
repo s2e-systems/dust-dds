@@ -11,7 +11,7 @@ use super::{
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
 use crate::implementation::{
-    actor::ActorWeakAddress, actors::message_sender_actor::MessageSenderActor,
+    actor::ActorAddress, actors::message_sender_actor::MessageSenderActor,
 };
 use std::{cmp::max, collections::HashMap};
 
@@ -228,7 +228,7 @@ impl RtpsWriterProxy {
     pub async fn send_message(
         &mut self,
         reader_guid: &Guid,
-        message_sender_actor: &ActorWeakAddress<MessageSenderActor>,
+        message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
@@ -281,11 +281,10 @@ impl RtpsWriterProxy {
                 }
             }
 
-            if let Ok(w) = message_sender_actor.upgrade() {
-                w.write(submessages, self.unicast_locator_list().to_vec())
-                    .await
-                    .ok();
-            }
+            message_sender_actor
+                .write(submessages, self.unicast_locator_list().to_vec())
+                .await
+                .ok();
         }
     }
 

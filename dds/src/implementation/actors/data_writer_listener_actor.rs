@@ -2,7 +2,7 @@ use dust_dds_derive::actor_interface;
 
 use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
-    implementation::actor::ActorWeakAddress,
+    implementation::actor::ActorAddress,
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
@@ -25,8 +25,8 @@ impl DataWriterListenerActor {
 impl DataWriterListenerActor {
     async fn trigger_on_offered_incompatible_qos(
         &mut self,
-        writer_address: ActorWeakAddress<DataWriterActor>,
-        status_condition_address: ActorWeakAddress<StatusConditionActor>,
+        writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: OfferedIncompatibleQosStatus,
@@ -45,8 +45,8 @@ impl DataWriterListenerActor {
 
     async fn trigger_on_publication_matched(
         &mut self,
-        writer_address: ActorWeakAddress<DataWriterActor>,
-        status_condition_address: ActorWeakAddress<StatusConditionActor>,
+        writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
         status: PublicationMatchedStatus,

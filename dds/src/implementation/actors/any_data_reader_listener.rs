@@ -5,7 +5,7 @@ use crate::{
         data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync,
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
-    implementation::actor::ActorWeakAddress,
+    implementation::actor::ActorAddress,
 };
 
 use super::{
@@ -17,8 +17,8 @@ pub trait AnyDataReaderListener {
     fn call_listener_function(
         &mut self,
         listener_operation: DataReaderListenerOperation,
-        reader_address: ActorWeakAddress<DataReaderActor>,
-        status_condition_address: ActorWeakAddress<StatusConditionActor>,
+        reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
@@ -31,8 +31,8 @@ where
     fn call_listener_function(
         &mut self,
         listener_operation: DataReaderListenerOperation,
-        reader_address: ActorWeakAddress<DataReaderActor>,
-        status_condition_address: ActorWeakAddress<StatusConditionActor>,
+        reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {

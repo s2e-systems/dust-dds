@@ -17,7 +17,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, ActorWeakAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -386,7 +386,7 @@ impl DomainParticipantFactoryActor {
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<ActorWeakAddress<DomainParticipantActor>> {
+    ) -> DdsResult<ActorAddress<DomainParticipantActor>> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -433,7 +433,7 @@ impl DomainParticipantFactoryActor {
         let status_condition = domain_participant.get_statuscondition();
         let builtin_subscriber = domain_participant.get_built_in_subscriber();
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.upgrade()?.get_statuscondition().await?;
+            builtin_subscriber.get_statuscondition().await?;
 
         let participant_actor = Actor::spawn(
             domain_participant,
@@ -492,11 +492,10 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        p.process_user_defined_rtps_message(message, participant_clone.clone())
-                            .await
-                            .ok();
-                    } else {
+                    let r = participant_address_clone
+                        .process_user_defined_rtps_message(message, participant_clone.clone())
+                        .await;
+                    if r.is_err() {
                         break;
                     }
                 }
@@ -526,11 +525,12 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        process_metatraffic_rtps_message(p, message, &participant_clone).await;
-                    } else {
-                        break;
-                    }
+                    process_metatraffic_rtps_message(
+                        participant_address_clone.clone(),
+                        message,
+                        &participant_clone,
+                    )
+                    .await;
                 }
             }
         });
@@ -555,11 +555,12 @@ impl DomainParticipantFactoryActor {
         runtime_handle.spawn(async move {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
-                    if let Ok(p) = participant_address_clone.upgrade() {
-                        process_metatraffic_rtps_message(p, message, &participant_clone).await;
-                    } else {
-                        break;
-                    };
+                    process_metatraffic_rtps_message(
+                        participant_address_clone.clone(),
+                        message,
+                        &participant_clone,
+                    )
+                    .await;
                 }
             }
         });
@@ -596,7 +597,7 @@ impl DomainParticipantFactoryActor {
     async fn lookup_participant(
         &self,
         domain_id: DomainId,
-    ) -> DdsResult<Option<ActorWeakAddress<DomainParticipantActor>>> {
+    ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
         for dp in self.domain_participant_list.values() {
             if dp.get_domain_id().await? == domain_id {
                 return Ok(Some(dp.address()));

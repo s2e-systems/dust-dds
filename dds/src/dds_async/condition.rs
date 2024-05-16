@@ -1,20 +1,18 @@
 use crate::{
-    implementation::{
-        actor::ActorWeakAddress, actors::status_condition_actor::StatusConditionActor,
-    },
+    implementation::{actor::ActorAddress, actors::status_condition_actor::StatusConditionActor},
     infrastructure::{error::DdsResult, status::StatusKind},
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 #[derive(Clone)]
 pub struct StatusConditionAsync {
-    address: ActorWeakAddress<StatusConditionActor>,
+    address: ActorAddress<StatusConditionActor>,
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl StatusConditionAsync {
     pub(crate) fn new(
-        address: ActorWeakAddress<StatusConditionActor>,
+        address: ActorAddress<StatusConditionActor>,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
@@ -23,7 +21,7 @@ impl StatusConditionAsync {
         }
     }
 
-    pub(crate) fn address(&self) -> &ActorWeakAddress<StatusConditionActor> {
+    pub(crate) fn address(&self) -> &ActorAddress<StatusConditionActor> {
         &self.address
     }
 
@@ -36,16 +34,13 @@ impl StatusConditionAsync {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        self.address.upgrade()?.get_enabled_statuses().await
+        self.address.get_enabled_statuses().await
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        self.address
-            .upgrade()?
-            .set_enabled_statuses(mask.to_vec())
-            .await?;
+        self.address.set_enabled_statuses(mask.to_vec()).await?;
         Ok(())
     }
 
@@ -60,6 +55,6 @@ impl StatusConditionAsync {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
-        self.address.upgrade()?.get_trigger_value().await
+        self.address.get_trigger_value().await
     }
 }
