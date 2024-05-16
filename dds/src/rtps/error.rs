@@ -22,9 +22,10 @@ impl RtpsError {
     }
 }
 
-impl ToString for RtpsError {
-    fn to_string(&self) -> String {
-        format!(
+impl std::fmt::Display for RtpsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
             "{}: {}",
             match self.kind {
                 RtpsErrorKind::InvalidData => "Invalid data",
