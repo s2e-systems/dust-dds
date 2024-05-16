@@ -18,7 +18,8 @@ use crate::{
 };
 
 use super::{
-    status_condition_actor::StatusConditionActor, topic_listener_actor::TopicListenerActor,
+    status_condition_actor::{AddCommunicationState, StatusConditionActor},
+    topic_listener_actor::TopicListenerActor,
 };
 
 impl InconsistentTopicStatus {
@@ -159,8 +160,12 @@ impl TopicActor {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .add_communication_state(StatusKind::InconsistentTopic)
-                .await?;
+                .send_actor_mail(AddCommunicationState {
+                    state: StatusKind::InconsistentTopic,
+                })
+                .await
+                .receive_reply()
+                .await;
         }
         Ok(())
     }

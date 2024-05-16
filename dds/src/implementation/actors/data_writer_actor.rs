@@ -63,8 +63,10 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_listener_actor::DataWriterListenerActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    message_sender_actor::MessageSenderActor, publisher_listener_actor::PublisherListenerActor,
-    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
+    message_sender_actor::MessageSenderActor,
+    publisher_listener_actor::PublisherListenerActor,
+    status_condition_actor::{AddCommunicationState, StatusConditionActor},
+    topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {
@@ -994,8 +996,13 @@ impl DataWriterActor {
         ),
     ) -> DdsResult<()> {
         self.status_condition
-            .add_communication_state(StatusKind::PublicationMatched)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::PublicationMatched,
+            })
+            .await
+            .receive_reply()
+            .await;
+
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let type_name = self.topic_address.get_type_name().await?;
             let topic_name = self.topic_address.get_name().await?;
@@ -1045,8 +1052,13 @@ impl DataWriterActor {
         ),
     ) -> DdsResult<()> {
         self.status_condition
-            .add_communication_state(StatusKind::OfferedIncompatibleQos)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::OfferedIncompatibleQos,
+            })
+            .await
+            .receive_reply()
+            .await;
+
         if self
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)

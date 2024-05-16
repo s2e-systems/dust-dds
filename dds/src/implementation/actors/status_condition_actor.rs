@@ -1,6 +1,11 @@
+use std::future::Future;
+
 use dust_dds_derive::actor_interface;
 
-use crate::infrastructure::status::StatusKind;
+use crate::{
+    implementation::actor::{Mail, MailHandler},
+    infrastructure::status::StatusKind,
+};
 
 #[derive(Debug)]
 pub struct StatusConditionActor {
@@ -31,13 +36,27 @@ impl Default for StatusConditionActor {
     }
 }
 
+pub struct AddCommunicationState {
+    pub state: StatusKind,
+}
+
+impl Mail for AddCommunicationState {
+    type Result = ();
+}
+
+impl MailHandler<AddCommunicationState> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        message: AddCommunicationState,
+    ) -> impl Future<Output = <AddCommunicationState as Mail>::Result> + Send {
+        async move {
+            self.status_changes.push(message.state);
+        }
+    }
+}
+
 #[actor_interface]
 impl StatusConditionActor {
-    #[allow(clippy::unused_unit)]
-    fn add_communication_state(&mut self, state: StatusKind) -> () {
-        self.status_changes.push(state);
-    }
-
     #[allow(clippy::unused_unit)]
     fn remove_communication_state(&mut self, state: StatusKind) -> () {
         self.status_changes.retain(|x| x != &state);

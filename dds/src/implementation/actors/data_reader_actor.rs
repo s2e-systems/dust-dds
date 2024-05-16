@@ -3,7 +3,7 @@ use super::{
     data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
-    status_condition_actor::StatusConditionActor,
+    status_condition_actor::{AddCommunicationState, StatusConditionActor},
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
 };
@@ -395,12 +395,22 @@ impl DataReaderActor {
         subscriber
             .get_statuscondition()
             .address()
-            .add_communication_state(StatusKind::DataOnReaders)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::DataOnReaders,
+            })
+            .await?
+            .receive_reply()
+            .await;
+
         self.status_condition
             .address()
-            .add_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
+            .await?
+            .receive_reply()
+            .await;
+
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
                 .trigger_on_data_on_readers(subscriber.clone())
@@ -749,8 +759,12 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
-            .add_communication_state(StatusKind::SampleLost)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::SampleLost,
+            })
+            .await
+            .receive_reply()
+            .await;
         let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
         if self.status_kind.contains(&StatusKind::SampleLost) {
             let type_name = self.topic_address.get_type_name().await?;
@@ -802,8 +816,13 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
-            .add_communication_state(StatusKind::SubscriptionMatched)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            })
+            .await
+            .receive_reply()
+            .await;
+
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let type_name = self.topic_address.get_type_name().await?;
@@ -860,8 +879,12 @@ impl DataReaderActor {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
         self.status_condition
-            .add_communication_state(StatusKind::SampleRejected)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::SampleRejected,
+            })
+            .await
+            .receive_reply()
+            .await;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
             let type_name = self.topic_address.get_type_name().await?;
             let topic_name = self.topic_address.get_name().await?;
@@ -916,8 +939,12 @@ impl DataReaderActor {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
-            .add_communication_state(StatusKind::RequestedIncompatibleQos)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::RequestedIncompatibleQos,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         if self
             .status_kind
@@ -1388,8 +1415,12 @@ impl DataReaderActor {
                             .await?;
 
                         reader_status_condition
-                            .add_communication_state(StatusKind::RequestedDeadlineMissed)
-                            .await?;
+                            .send_actor_mail(AddCommunicationState {
+                                state: StatusKind::RequestedDeadlineMissed,
+                            })
+                            .await?
+                            .receive_reply()
+                            .await;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
                             let status = requested_deadline_missed_status
                                 .read_requested_deadline_missed_status()
