@@ -397,23 +397,23 @@ impl DataReaderActor {
             .address()
             .upgrade()?
             .add_communication_state(StatusKind::DataOnReaders)
-            .await;
+            .await?;
         self.status_condition
             .address()
             .upgrade()?
             .add_communication_state(StatusKind::DataAvailable)
-            .await;
+            .await?;
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
                 .upgrade()?
                 .trigger_on_data_on_readers(subscriber.clone())
-                .await;
+                .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             let topic = self.topic_address.upgrade()?;
             let participant = subscriber.get_participant();
-            let topic_status_condition_address = topic.get_statuscondition().await;
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnDataAvailable,
@@ -428,7 +428,7 @@ impl DataReaderActor {
                         participant,
                     ),
                 )
-                .await;
+                .await?;
         }
         Ok(())
     }
@@ -755,11 +755,11 @@ impl DataReaderActor {
         let topic = self.topic_address.upgrade()?;
         self.status_condition
             .add_communication_state(StatusKind::SampleLost)
-            .await;
-        let topic_status_condition_address = topic.get_statuscondition().await;
+            .await?;
+        let topic_status_condition_address = topic.get_statuscondition().await?;
         if self.status_kind.contains(&StatusKind::SampleLost) {
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
             let status = self.get_sample_lost_status();
             self.listener
                 .call_listener_function(
@@ -775,19 +775,19 @@ impl DataReaderActor {
                         subscriber.get_participant(),
                     ),
                 )
-                .await;
+                .await?;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
                 .upgrade()?
                 .trigger_on_sample_lost(status)
-                .await;
+                .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
                 .upgrade()?
                 .trigger_on_sample_lost(status)
-                .await;
+                .await?;
         }
 
         Ok(())
@@ -810,15 +810,15 @@ impl DataReaderActor {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
             .add_communication_state(StatusKind::SubscriptionMatched)
-            .await;
+            .await?;
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
-            let status = self.get_subscription_matched_status().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
+            let status = self.get_subscription_matched_status().await?;
 
-            let topic_status_condition_address = topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnSubscriptionMatched(status),
@@ -833,21 +833,21 @@ impl DataReaderActor {
                         subscriber.get_participant(),
                     ),
                 )
-                .await;
+                .await?;
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let status = self.get_subscription_matched_status().await;
+            let status = self.get_subscription_matched_status().await?;
             subscriber_listener_address
                 .upgrade()
                 .expect("Subscriber is guaranteed to exist")
                 .trigger_on_subscription_matched(status)
-                .await;
+                .await?;
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let status = self.get_subscription_matched_status().await;
+            let status = self.get_subscription_matched_status().await?;
             participant_listener_address
                 .upgrade()
                 .expect("Participant is guaranteed to exist")
                 .trigger_on_subscription_matched(status)
-                .await;
+                .await?;
         }
 
         Ok(())
@@ -873,14 +873,14 @@ impl DataReaderActor {
             .increment(instance_handle, rejected_reason);
         self.status_condition
             .add_communication_state(StatusKind::SampleRejected)
-            .await;
+            .await?;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
             let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
             let status = self.get_sample_rejected_status();
 
-            let topic_status_condition_address = topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnSampleRejected(status),
@@ -895,20 +895,20 @@ impl DataReaderActor {
                         subscriber.get_participant(),
                     ),
                 )
-                .await;
+                .await?;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
 
             subscriber_listener_address
                 .upgrade()?
                 .trigger_on_sample_rejected(status)
-                .await;
+                .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
                 .upgrade()?
                 .trigger_on_sample_rejected(status)
-                .await;
+                .await?;
         }
 
         Ok(())
@@ -932,17 +932,17 @@ impl DataReaderActor {
             .increment(incompatible_qos_policy_list);
         self.status_condition
             .add_communication_state(StatusKind::RequestedIncompatibleQos)
-            .await;
+            .await?;
 
         if self
             .status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
             let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
             let status = self.get_requested_incompatible_qos_status();
-            let topic_status_condition_address = topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
             self.listener
                 .call_listener_function(
                     DataReaderListenerOperation::OnRequestedIncompatibleQos(status),
@@ -957,21 +957,21 @@ impl DataReaderActor {
                         subscriber.get_participant(),
                     ),
                 )
-                .await;
+                .await?;
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
                 .upgrade()
                 .expect("Subscriber listener should exist")
                 .trigger_on_requested_incompatible_qos(status)
-                .await;
+                .await?;
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             participant_listener_address
                 .upgrade()
                 .expect("Participant listener should exist")
                 .trigger_on_requested_incompatible_qos(status)
-                .await;
+                .await?;
         }
         Ok(())
     }
@@ -1002,7 +1002,7 @@ impl DataReaderActor {
         } else {
             Ok(ChangeKind::Alive)
         }?;
-        let type_support = self.topic_address.upgrade()?.get_type_support().await;
+        let type_support = self.topic_address.upgrade()?.get_type_support().await?;
         let instance_handle = build_instance_handle(
             &type_support,
             change_kind,
@@ -1395,10 +1395,10 @@ impl DataReaderActor {
             let participant_listener_mask = participant_mask_listener.1.clone();
             let topic = self.topic_address.upgrade()?;
             let topic_address = self.topic_address.clone();
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
             let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1407,17 +1407,17 @@ impl DataReaderActor {
                         requested_deadline_missed_status
                             .upgrade()?
                             .increment_requested_deadline_missed_status(change_instance_handle)
-                            .await;
+                            .await?;
 
                         reader_status_condition
                             .upgrade()?
                             .add_communication_state(StatusKind::RequestedDeadlineMissed)
-                            .await;
+                            .await?;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
                             let status = requested_deadline_missed_status
                                 .upgrade()?
                                 .read_requested_deadline_missed_status()
-                                .await;
+                                .await?;
 
                             reader_listener_address
                                 .upgrade()?
@@ -1434,29 +1434,29 @@ impl DataReaderActor {
                                         subscriber.get_participant(),
                                     ),
                                 )
-                                .await;
+                                .await?;
                         } else if subscriber_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
                                 .upgrade()?
                                 .read_requested_deadline_missed_status()
-                                .await;
+                                .await?;
                             subscriber_listener_address
                                 .upgrade()?
                                 .trigger_on_requested_deadline_missed(status)
-                                .await;
+                                .await?;
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
                                 .upgrade()?
                                 .read_requested_deadline_missed_status()
-                                .await;
+                                .await?;
                             participant_listener_address
                                 .upgrade()?
                                 .trigger_on_requested_deadline_missed(status)
-                                .await;
+                                .await?;
                         }
                         Ok(())
                     }
@@ -1491,7 +1491,7 @@ impl DataReaderActor {
 
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable)
-            .await;
+            .await?;
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -1538,7 +1538,7 @@ impl DataReaderActor {
 
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable)
-            .await;
+            .await?;
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -1581,10 +1581,10 @@ impl DataReaderActor {
     ) -> DdsResult<DiscoveredReaderData> {
         let guid = self.rtps_reader.guid();
         let topic = self.topic_address.upgrade()?;
-        let type_name = topic.get_type_name().await;
-        let topic_name = topic.get_name().await;
-        let topic_qos = topic.get_qos().await;
-        let xml_type = topic.get_type_support().await.xml_type();
+        let type_name = topic.get_type_name().await?;
+        let topic_name = topic.get_name().await?;
+        let topic_qos = topic.get_qos().await?;
+        let xml_type = topic.get_type_support().await?.xml_type();
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
             default_unicast_locator_list
@@ -1698,13 +1698,14 @@ impl DataReaderActor {
         }
     }
 
-    async fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+    async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
         self.status_condition
             .remove_communication_state(StatusKind::SubscriptionMatched)
-            .await;
+            .await?;
 
-        self.subscription_matched_status
-            .read_and_reset(self.matched_publication_list.len() as i32)
+        Ok(self
+            .subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32))
     }
 
     async fn read_next_instance(
@@ -1750,8 +1751,8 @@ impl DataReaderActor {
         ),
     ) -> DdsResult<()> {
         let topic = self.topic_address.upgrade()?;
-        let type_name = topic.get_type_name().await;
-        let topic_name = topic.get_name().await;
+        let type_name = topic.get_type_name().await?;
+        let topic_name = topic.get_name().await?;
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == topic_name
             && publication_builtin_topic_data.get_type_name() == type_name
@@ -1886,11 +1887,11 @@ impl DataReaderActor {
     }
 
     async fn get_topic_name(&mut self) -> DdsResult<String> {
-        Ok(self.topic_address.upgrade()?.get_name().await)
+        self.topic_address.upgrade()?.get_name().await
     }
 
     async fn get_type_name(&self) -> DdsResult<String> {
-        Ok(self.topic_address.upgrade()?.get_type_name().await)
+        self.topic_address.upgrade()?.get_type_name().await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1980,7 +1981,9 @@ impl DataReaderActor {
         self.status_kind = status_kind;
     }
 
-    async fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+    async fn get_requested_deadline_missed_status(
+        &mut self,
+    ) -> DdsResult<RequestedDeadlineMissedStatus> {
         self.requested_deadline_missed_status
             .read_requested_deadline_missed_status()
             .await

@@ -99,12 +99,12 @@ impl<Foo> DataWriterAsync<Foo> {
                 .participant_address()
                 .upgrade()?
                 .get_default_unicast_locator_list()
-                .await;
+                .await?;
             let default_multicast_locator_list = self
                 .participant_address()
                 .upgrade()?
                 .get_default_multicast_locator_list()
-                .await;
+                .await?;
             let discovered_writer_data = self
                 .writer_address
                 .upgrade()?
@@ -113,7 +113,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 )
-                .await?;
+                .await??;
             sedp_publications_announcer
                 .write(&discovered_writer_data, None)
                 .await?;
@@ -133,7 +133,7 @@ where
             .participant_address()
             .upgrade()?
             .get_current_time()
-            .await;
+            .await?;
         self.register_instance_w_timestamp(instance, timestamp)
             .await
     }
@@ -159,7 +159,7 @@ where
             .participant_address()
             .upgrade()?
             .get_current_time()
-            .await;
+            .await?;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
             .await
     }
@@ -177,7 +177,7 @@ where
             .topic_address()
             .upgrade()?
             .get_type_support()
-            .await;
+            .await?;
         let has_key = type_support.has_key();
         if has_key {
             let instance_handle = match handle {
@@ -213,12 +213,12 @@ where
                 .participant_address()
                 .upgrade()?
                 .get_message_sender()
-                .await;
+                .await?;
             let now = self
                 .participant_address()
                 .upgrade()?
                 .get_current_time()
-                .await;
+                .await?;
             let data_writer = self.writer_address.upgrade()?;
 
             data_writer
@@ -230,7 +230,7 @@ where
                     now,
                     self.writer_address.clone(),
                 )
-                .await
+                .await?
         } else {
             Err(DdsError::IllegalOperation)
         }
@@ -254,7 +254,7 @@ where
             .topic_address()
             .upgrade()?
             .get_type_support()
-            .await;
+            .await?;
 
         let mut serialized_foo = Vec::new();
         instance.serialize_data(&mut serialized_foo)?;
@@ -263,7 +263,7 @@ where
         self.writer_address
             .upgrade()?
             .lookup_instance(instance_handle)
-            .await
+            .await?
     }
 
     /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
@@ -273,7 +273,7 @@ where
             .participant_address()
             .upgrade()?
             .get_current_time()
-            .await;
+            .await?;
         self.write_w_timestamp(data, handle, timestamp).await
     }
 
@@ -290,7 +290,7 @@ where
             .topic_address()
             .upgrade()?
             .get_type_support()
-            .await;
+            .await?;
 
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
@@ -300,12 +300,12 @@ where
             .participant_address()
             .upgrade()?
             .get_message_sender()
-            .await;
+            .await?;
         let now = self
             .participant_address()
             .upgrade()?
             .get_current_time()
-            .await;
+            .await?;
         let data_writer = self.writer_address.upgrade()?;
         data_writer
             .write_w_timestamp(
@@ -317,7 +317,7 @@ where
                 now,
                 self.writer_address.clone(),
             )
-            .await?;
+            .await??;
 
         Ok(())
     }
@@ -329,7 +329,7 @@ where
             .participant_address()
             .upgrade()?
             .get_current_time()
-            .await;
+            .await?;
         self.dispose_w_timestamp(data, handle, timestamp).await
     }
 
@@ -371,7 +371,7 @@ where
             .topic_address()
             .upgrade()?
             .get_type_support()
-            .await;
+            .await?;
 
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
@@ -380,12 +380,12 @@ where
             .participant_address()
             .upgrade()?
             .get_message_sender()
-            .await;
+            .await?;
         let now = self
             .participant_address()
             .upgrade()?
             .get_current_time()
-            .await;
+            .await?;
         let data_writer = self.writer_address.upgrade()?;
         data_writer
             .dispose_w_timestamp(
@@ -396,7 +396,7 @@ where
                 now,
                 self.writer_address.clone(),
             )
-            .await
+            .await?
     }
 }
 
@@ -410,7 +410,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     .writer_address
                     .upgrade()?
                     .are_all_changes_acknowledge()
-                    .await
+                    .await?
                 {
                     return Ok(());
                 }
@@ -445,11 +445,10 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_publication_matched_status`](crate::publication::data_writer::DataWriter::get_publication_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        Ok(self
-            .writer_address
+        self.writer_address
             .upgrade()?
             .get_publication_matched_status()
-            .await)
+            .await?
     }
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
@@ -479,18 +478,17 @@ impl<Foo> DataWriterAsync<Foo> {
         self.writer_address
             .upgrade()?
             .get_matched_subscription_data(subscription_handle)
-            .await
+            .await?
             .ok_or(DdsError::BadParameter)
     }
 
     /// Async version of [`get_matched_subscriptions`](crate::publication::data_writer::DataWriter::get_matched_subscriptions).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self
-            .writer_address
+        self.writer_address
             .upgrade()?
             .get_matched_subscriptions()
-            .await)
+            .await
     }
 }
 
@@ -503,14 +501,14 @@ impl<Foo> DataWriterAsync<Foo> {
                 self.publisher_address()
                     .upgrade()?
                     .get_default_datawriter_qos()
-                    .await
+                    .await?
             }
             QosKind::Specific(q) => q,
         };
 
         let writer = self.writer_address.upgrade()?;
-        writer.set_qos(qos).await?;
-        if writer.is_enabled().await {
+        writer.set_qos(qos).await??;
+        if writer.is_enabled().await? {
             self.announce_writer().await?;
         }
 
@@ -520,7 +518,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_qos`](crate::publication::data_writer::DataWriter::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self.writer_address.upgrade()?.get_qos().await)
+        self.writer_address.upgrade()?.get_qos().await
     }
 
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
@@ -542,8 +540,8 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         let writer = self.writer_address().upgrade()?;
-        if !writer.is_enabled().await {
-            writer.enable().await;
+        if !writer.is_enabled().await? {
+            writer.enable().await?;
 
             self.announce_writer().await?;
         }
@@ -553,7 +551,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.writer_address.upgrade()?.get_instance_handle().await)
+        self.writer_address.upgrade()?.get_instance_handle().await
     }
 }
 impl<'a, Foo> DataWriterAsync<Foo>
@@ -574,7 +572,7 @@ where
                 mask.to_vec(),
                 self.runtime_handle().clone(),
             )
-            .await;
+            .await?;
         Ok(())
     }
 }

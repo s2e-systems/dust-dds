@@ -177,13 +177,13 @@ impl PublisherActor {
     async fn lookup_datawriter(
         &self,
         topic_name: String,
-    ) -> Option<ActorWeakAddress<DataWriterActor>> {
+    ) -> DdsResult<Option<ActorWeakAddress<DataWriterActor>>> {
         for dw in self.data_writer_list.values() {
-            if dw.get_topic_name().await.as_ref() == Ok(&topic_name) {
-                return Some(dw.address());
+            if dw.get_topic_name().await?.as_ref() == Ok(&topic_name) {
+                return Ok(Some(dw.address()));
             }
         }
-        None
+        Ok(None)
     }
 
     #[allow(clippy::unused_unit)]
@@ -254,7 +254,8 @@ impl PublisherActor {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .process_rtps_message(message.clone())
-                .await;
+                .await
+                .ok();
         }
     }
 
@@ -262,7 +263,8 @@ impl PublisherActor {
         for data_writer_address in self.data_writer_list.values() {
             data_writer_address
                 .send_message(message_sender_actor.clone())
-                .await;
+                .await
+                .ok();
         }
     }
 
@@ -303,7 +305,7 @@ impl PublisherActor {
                         publisher_mask_listener,
                         participant_mask_listener.clone(),
                     )
-                    .await?;
+                    .await??;
             }
         }
         Ok(())
@@ -334,7 +336,7 @@ impl PublisherActor {
                     publisher_mask_listener,
                     participant_mask_listener.clone(),
                 )
-                .await?;
+                .await??;
         }
         Ok(())
     }

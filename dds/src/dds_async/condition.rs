@@ -36,7 +36,7 @@ impl StatusConditionAsync {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.address.upgrade()?.get_enabled_statuses().await)
+        self.address.upgrade()?.get_enabled_statuses().await
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
@@ -45,7 +45,7 @@ impl StatusConditionAsync {
         self.address
             .upgrade()?
             .set_enabled_statuses(mask.to_vec())
-            .await;
+            .await?;
         Ok(())
     }
 
@@ -60,6 +60,6 @@ impl StatusConditionAsync {
     /// Async version of [`get_trigger_value`](crate::infrastructure::condition::StatusCondition::get_trigger_value).
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
-        Ok(self.address.upgrade()?.get_trigger_value().await)
+        self.address.upgrade()?.get_trigger_value().await
     }
 }

@@ -280,7 +280,7 @@ impl DataWriterActor {
                 tokio::spawn(async move {
                     tokio::time::sleep(change_lifespan.into()).await;
                     if let Ok(w) = writer_address.upgrade() {
-                        w.remove_change(seq_num).await
+                        w.remove_change(seq_num).await.ok();
                     };
                 });
             }
@@ -528,10 +528,10 @@ impl DataWriterActor {
         default_multicast_locator_list: Vec<Locator>,
     ) -> DdsResult<DiscoveredWriterData> {
         let topic = self.topic_address.upgrade()?;
-        let type_name = topic.get_type_name().await;
-        let topic_name = topic.get_name().await;
-        let topic_qos = topic.get_qos().await;
-        let xml_type = topic.get_type_support().await.xml_type();
+        let type_name = topic.get_type_name().await?;
+        let topic_name = topic.get_name().await?;
+        let topic_qos = topic.get_qos().await?;
+        let xml_type = topic.get_type_support().await?.xml_type();
         let writer_qos = &self.qos;
 
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
@@ -571,15 +571,15 @@ impl DataWriterActor {
         ))
     }
 
-    async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
+    async fn get_publication_matched_status(&mut self) -> DdsResult<PublicationMatchedStatus> {
         self.status_condition
             .remove_communication_state(StatusKind::PublicationMatched)
-            .await;
-        self.matched_subscriptions.get_publication_matched_status()
+            .await?;
+        Ok(self.matched_subscriptions.get_publication_matched_status())
     }
 
     async fn get_topic_name(&self) -> DdsResult<String> {
-        Ok(self.topic_address.upgrade()?.get_name().await)
+        self.topic_address.upgrade()?.get_name().await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -611,7 +611,7 @@ impl DataWriterActor {
     }
 
     async fn get_type_name(&self) -> DdsResult<String> {
-        Ok(self.topic_address.upgrade()?.get_type_name().await)
+        self.topic_address.upgrade()?.get_type_name().await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -630,8 +630,8 @@ impl DataWriterActor {
         ),
     ) -> DdsResult<()> {
         let topic = self.topic_address.upgrade()?;
-        let type_name = topic.get_type_name().await;
-        let topic_name = topic.get_name().await;
+        let type_name = topic.get_type_name().await?;
+        let topic_name = topic.get_name().await?;
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
@@ -893,7 +893,8 @@ impl DataWriterActor {
                                     vec![info_ts_submessage, data_submessage],
                                     vec![reader_locator.locator()],
                                 )
-                                .await;
+                                .await
+                                .ok();
                             }
                         } else {
                             let gap_submessage = Box::new(GapSubmessage::new(
@@ -904,7 +905,8 @@ impl DataWriterActor {
                             ));
                             if let Ok(w) = message_sender_actor.upgrade() {
                                 w.write(vec![gap_submessage], vec![reader_locator.locator()])
-                                    .await;
+                                    .await
+                                    .ok();
                             }
                         }
                         reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
@@ -996,14 +998,14 @@ impl DataWriterActor {
     ) -> DdsResult<()> {
         self.status_condition
             .add_communication_state(StatusKind::PublicationMatched)
-            .await;
+            .await?;
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
-            let status = self.get_publication_matched_status().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
+            let status = self.get_publication_matched_status().await?;
             let participant = publisher.get_participant();
-            let topic_status_condition_address = topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
             self.listener
                 .trigger_on_publication_matched(
                     data_writer_address,
@@ -1018,21 +1020,21 @@ impl DataWriterActor {
                     ),
                     status,
                 )
-                .await;
+                .await?;
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await;
+            let status = self.get_publication_matched_status().await?;
             publisher_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_publication_matched(status)
-                .await;
+                .await?;
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await;
+            let status = self.get_publication_matched_status().await?;
             participant_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_publication_matched(status)
-                .await;
+                .await?;
         }
         Ok(())
     }
@@ -1052,17 +1054,17 @@ impl DataWriterActor {
     ) -> DdsResult<()> {
         self.status_condition
             .add_communication_state(StatusKind::OfferedIncompatibleQos)
-            .await;
+            .await?;
         if self
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
             let topic = self.topic_address.upgrade()?;
-            let type_name = topic.get_type_name().await;
-            let topic_name = topic.get_name().await;
+            let type_name = topic.get_type_name().await?;
+            let topic_name = topic.get_name().await?;
             let status = self.get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
-            let topic_status_condition_address = topic.get_statuscondition().await;
+            let topic_status_condition_address = topic.get_statuscondition().await?;
             self.listener
                 .trigger_on_offered_incompatible_qos(
                     data_writer_address,
@@ -1077,21 +1079,21 @@ impl DataWriterActor {
                     ),
                     status,
                 )
-                .await;
+                .await?;
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();
             publisher_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_offered_incompatible_qos(status)
-                .await;
+                .await?;
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();
             participant_listener
                 .upgrade()
                 .expect("Listener should exist")
                 .trigger_on_offered_incompatible_qos(status)
-                .await;
+                .await?;
         }
         Ok(())
     }
@@ -1177,7 +1179,8 @@ async fn send_message_to_reader_proxy_best_effort(
                     vec![gap_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
-                .await;
+                .await
+                .ok();
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = writer_cache
@@ -1207,7 +1210,8 @@ async fn send_message_to_reader_proxy_best_effort(
                             vec![info_dst, info_timestamp, data_frag],
                             reader_proxy.unicast_locator_list().to_vec(),
                         )
-                        .await;
+                        .await
+                        .ok();
                     }
                 }
             } else {
@@ -1228,7 +1232,8 @@ async fn send_message_to_reader_proxy_best_effort(
                         vec![info_dst, info_timestamp, data_submessage],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
-                    .await;
+                    .await
+                    .ok();
                 }
             }
         } else {
@@ -1242,7 +1247,8 @@ async fn send_message_to_reader_proxy_best_effort(
                     ))],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
-                .await;
+                .await
+                .ok();
             }
         }
 
@@ -1281,7 +1287,8 @@ async fn send_message_to_reader_proxy_reliable(
                         vec![gap_submessage, heartbeat_submessage],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
-                    .await;
+                    .await
+                    .ok();
                 }
             } else {
                 send_change_message_reader_proxy_reliable(
@@ -1313,7 +1320,8 @@ async fn send_message_to_reader_proxy_reliable(
                 vec![heartbeat_submessage],
                 reader_proxy.unicast_locator_list().to_vec(),
             )
-            .await;
+            .await
+            .ok();
         }
     }
 
@@ -1372,7 +1380,8 @@ async fn send_change_message_reader_proxy_reliable(
                             vec![info_dst, info_timestamp, data_frag],
                             reader_proxy.unicast_locator_list().to_vec(),
                         )
-                        .await;
+                        .await
+                        .ok();
                     }
                 }
             } else {
@@ -1402,7 +1411,8 @@ async fn send_change_message_reader_proxy_reliable(
                         vec![info_dst, info_timestamp, data_submessage, heartbeat],
                         reader_proxy.unicast_locator_list().to_vec(),
                     )
-                    .await;
+                    .await
+                    .ok();
                 }
             }
         }
@@ -1423,7 +1433,8 @@ async fn send_change_message_reader_proxy_reliable(
                     vec![info_dst, gap_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 )
-                .await;
+                .await
+                .ok();
             }
         }
     }

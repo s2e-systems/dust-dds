@@ -433,7 +433,7 @@ impl DomainParticipantFactoryActor {
         let status_condition = domain_participant.get_statuscondition();
         let builtin_subscriber = domain_participant.get_built_in_subscriber();
         let builtin_subscriber_status_condition_address =
-            builtin_subscriber.upgrade()?.get_statuscondition().await;
+            builtin_subscriber.upgrade()?.get_statuscondition().await?;
 
         let participant_actor = Actor::spawn(
             domain_participant,
@@ -484,7 +484,7 @@ impl DomainParticipantFactoryActor {
             .collect();
         participant_actor
             .set_default_unicast_locator_list(default_unicast_locator_list)
-            .await;
+            .await?;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -494,7 +494,8 @@ impl DomainParticipantFactoryActor {
                 if let Ok(message) = read_message(&mut socket).await {
                     if let Ok(p) = participant_address_clone.upgrade() {
                         p.process_user_defined_rtps_message(message, participant_clone.clone())
-                            .await;
+                            .await
+                            .ok();
                     } else {
                         break;
                     }
@@ -514,7 +515,7 @@ impl DomainParticipantFactoryActor {
             .collect();
         participant_actor
             .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
-            .await;
+            .await?;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -542,7 +543,7 @@ impl DomainParticipantFactoryActor {
         )];
         participant_actor
             .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
-            .await;
+            .await?;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -575,7 +576,7 @@ impl DomainParticipantFactoryActor {
         &mut self,
         handle: InstanceHandle,
     ) -> DdsResult<Actor<DomainParticipantActor>> {
-        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await;
+        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await?;
         if is_participant_empty {
             if let Some(d) = self.domain_participant_list.remove(&handle) {
                 Ok(d)
@@ -597,7 +598,7 @@ impl DomainParticipantFactoryActor {
         domain_id: DomainId,
     ) -> DdsResult<Option<ActorWeakAddress<DomainParticipantActor>>> {
         for dp in self.domain_participant_list.values() {
-            if dp.get_domain_id().await == domain_id {
+            if dp.get_domain_id().await? == domain_id {
                 return Ok(Some(dp.address()));
             }
         }
@@ -903,12 +904,13 @@ async fn process_metatraffic_rtps_message(
                             .remove_discovered_participant(
                                 discovered_participant_sample.sample_info().instance_handle,
                             )
-                            .await;
+                            .await
+                            .ok();
                     }
                 }
             }
         }
     }
 
-    participant_actor.send_message().await;
+    participant_actor.send_message().await.ok();
 }

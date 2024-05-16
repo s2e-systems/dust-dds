@@ -71,7 +71,7 @@ impl TopicAsync {
                 .topic_address
                 .upgrade()?
                 .as_discovered_topic_data()
-                .await;
+                .await?;
             sedp_topics_announcer
                 .write(&discovered_topic_data, None)
                 .await?;
@@ -87,7 +87,7 @@ impl TopicAsync {
         self.topic_address
             .upgrade()?
             .get_inconsistent_topic_status()
-            .await
+            .await?
     }
 }
 
@@ -120,15 +120,15 @@ impl TopicAsync {
                 self.participant_address()
                     .upgrade()?
                     .get_default_topic_qos()
-                    .await
+                    .await?
             }
             QosKind::Specific(q) => q,
         };
 
         let topic = self.topic_address.upgrade()?;
-        topic.set_qos(qos).await?;
+        topic.set_qos(qos).await??;
 
-        if topic.is_enabled().await {
+        if topic.is_enabled().await? {
             self.announce_topic().await?;
         }
         Ok(())
@@ -137,7 +137,7 @@ impl TopicAsync {
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.topic_address.upgrade()?.get_qos().await)
+        self.topic_address.upgrade()?.get_qos().await
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -159,8 +159,8 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         let topic = self.topic_address.upgrade()?;
-        if !topic.is_enabled().await {
-            topic.enable().await;
+        if !topic.is_enabled().await? {
+            topic.enable().await?;
             self.announce_topic().await?;
         }
 
@@ -170,7 +170,7 @@ impl TopicAsync {
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.topic_address.upgrade()?.get_instance_handle().await)
+        self.topic_address.upgrade()?.get_instance_handle().await
     }
 
     /// Async version of [`set_listener`](crate::topic_definition::topic::Topic::set_listener).

@@ -188,13 +188,13 @@ impl SubscriberActor {
     async fn lookup_datareader(
         &self,
         topic_name: String,
-    ) -> Option<ActorWeakAddress<DataReaderActor>> {
+    ) -> DdsResult<Option<ActorWeakAddress<DataReaderActor>>> {
         for dr in self.data_reader_list.values() {
-            if dr.get_topic_name().await.as_ref() == Ok(&topic_name) {
-                return Some(dr.address());
+            if dr.get_topic_name().await?.as_ref() == Ok(&topic_name) {
+                return Ok(Some(dr.address()));
             }
         }
-        None
+        Ok(None)
     }
 
     fn drain_data_reader_list(&mut self) -> Vec<Actor<DataReaderActor>> {
@@ -275,7 +275,8 @@ impl SubscriberActor {
         for data_reader_address in self.data_reader_list.values() {
             data_reader_address
                 .send_message(message_sender_actor.clone())
-                .await;
+                .await
+                .ok();
         }
     }
 
@@ -307,7 +308,8 @@ impl SubscriberActor {
                     subscriber_mask_listener.clone(),
                     participant_mask_listener.clone(),
                 )
-                .await;
+                .await
+                .ok();
         }
     }
 
@@ -344,7 +346,7 @@ impl SubscriberActor {
                         subscriber_mask_listener,
                         participant_mask_listener.clone(),
                     )
-                    .await?;
+                    .await??;
             }
         }
         Ok(())
@@ -375,7 +377,7 @@ impl SubscriberActor {
                     subscriber_mask_listener,
                     participant_mask_listener.clone(),
                 )
-                .await?;
+                .await??;
         }
 
         Ok(())

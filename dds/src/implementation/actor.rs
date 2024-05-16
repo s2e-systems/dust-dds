@@ -27,10 +27,11 @@ impl<A> ActorAddress<A>
 where
     A: ActorHandler,
 {
-    pub async fn send_actor_message(&self, message: A::Message) {
-        self.sender.send(message).await.expect(
-            "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
-        );
+    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
+        match self.sender.send(message).await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DdsError::AlreadyDeleted),
+        }
     }
 }
 
@@ -124,10 +125,11 @@ where
         self.join_handle.await.ok();
     }
 
-    pub async fn send_actor_message(&self, message: A::Message) {
-        self.sender.send(message).await.expect(
-            "Receiver is guaranteed to exist while actor object is alive. Sending must succeed",
-        );
+    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
+        match self.sender.send(message).await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DdsError::AlreadyDeleted),
+        }
     }
 }
 
@@ -165,7 +167,7 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)), 10)
+        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10)
     }
 
     #[test]
@@ -174,9 +176,23 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)), 10);
+        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
 
         runtime.block_on(actor.stop());
+    }
+
+    #[test]
+    fn actor_send_message_after_stop_should_return_error() {
+        let runtime = Runtime::new().unwrap();
+        let my_data = MyData { data: 0 };
+        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
+        let actor_address = actor.address().upgrade().unwrap();
+
+        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
+
+        runtime.block_on(actor.stop());
+
+        assert!(runtime.block_on(actor_address.increment(10)).is_err());
     }
 
     #[test]

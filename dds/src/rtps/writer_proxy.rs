@@ -283,7 +283,8 @@ impl RtpsWriterProxy {
 
             if let Ok(w) = message_sender_actor.upgrade() {
                 w.write(submessages, self.unicast_locator_list().to_vec())
-                    .await;
+                    .await
+                    .ok();
             }
         }
     }
