@@ -1,8 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
-    implementation::actor::ActorAddress,
+    implementation::actor::{ActorAddress, ActorHandler, Mail, MailHandler},
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
@@ -21,45 +19,45 @@ impl DataWriterListenerActor {
     }
 }
 
-#[actor_interface]
-impl DataWriterListenerActor {
-    async fn trigger_on_offered_incompatible_qos(
+pub enum DataWriterListenerOperation {
+    OnOfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    OnPublicationMatched(PublicationMatchedStatus),
+}
+
+pub struct CallListenerFunction {
+    pub listener_operation: DataWriterListenerOperation,
+    pub writer_address: ActorAddress<DataWriterActor>,
+    pub status_condition_address: ActorAddress<StatusConditionActor>,
+    pub publisher: PublisherAsync,
+    pub topic: TopicAsync,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for DataWriterListenerActor {
+    fn handle(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: OfferedIncompatibleQosStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.trigger_on_offered_incompatible_qos(
-                writer_address,
-                status_condition_address,
-                publisher,
-                topic,
-                status,
-            )
-            .await
+        message: CallListenerFunction,
+    ) -> impl std::future::Future<Output = <CallListenerFunction as Mail>::Result> + Send {
+        async move {
+            if let Some(l) = &mut self.listener {
+                l.call_listener_function(
+                    message.listener_operation,
+                    message.writer_address,
+                    message.status_condition_address,
+                    message.publisher,
+                    message.topic,
+                )
+                .await
+            }
         }
     }
+}
 
-    async fn trigger_on_publication_matched(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: PublicationMatchedStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.trigger_on_publication_matched(
-                writer_address,
-                status_condition_address,
-                publisher,
-                topic,
-                status,
-            )
-            .await
-        }
+impl ActorHandler for DataWriterListenerActor {
+    type Message = ();
+
+    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
+        async {}
     }
 }

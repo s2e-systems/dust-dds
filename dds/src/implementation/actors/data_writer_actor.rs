@@ -61,7 +61,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    data_writer_listener_actor::DataWriterListenerActor,
+    data_writer_listener_actor::{self, DataWriterListenerActor, DataWriterListenerOperation},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::{self, MessageSenderActor},
     publisher_listener_actor::PublisherListenerActor,
@@ -1018,20 +1018,20 @@ impl DataWriterActor {
             let participant = publisher.get_participant();
             let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             self.listener
-                .trigger_on_publication_matched(
-                    data_writer_address,
-                    self.status_condition.address(),
+                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
+                    listener_operation: DataWriterListenerOperation::OnPublicationMatched(status),
+                    writer_address: data_writer_address,
+                    status_condition_address: self.status_condition.address(),
                     publisher,
-                    TopicAsync::new(
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
                         topic_status_condition_address,
                         type_name,
                         topic_name,
                         participant,
                     ),
-                    status,
-                )
-                .await?;
+                })
+                .await;
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             publisher_listener
@@ -1077,20 +1077,22 @@ impl DataWriterActor {
             let participant = publisher.get_participant();
             let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
             self.listener
-                .trigger_on_offered_incompatible_qos(
-                    data_writer_address,
-                    self.status_condition.address(),
+                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
+                    listener_operation: DataWriterListenerOperation::OnOfferedIncompatibleQos(
+                        status,
+                    ),
+                    writer_address: data_writer_address,
+                    status_condition_address: self.status_condition.address(),
                     publisher,
-                    TopicAsync::new(
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
                         topic_status_condition_address,
                         type_name,
                         topic_name,
                         participant,
                     ),
-                    status,
-                )
-                .await?;
+                })
+                .await;
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();
             publisher_listener
