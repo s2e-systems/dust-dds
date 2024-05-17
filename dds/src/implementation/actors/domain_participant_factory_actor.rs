@@ -17,7 +17,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -59,7 +59,6 @@ use crate::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
     },
 };
-use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
@@ -387,294 +386,400 @@ pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsM
     }
 }
 
-#[actor_interface]
-impl DomainParticipantFactoryActor {
-    async fn create_participant(
+pub struct CreateParticipant {
+    pub domain_id: DomainId,
+    pub qos: QosKind<DomainParticipantQos>,
+    pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+    pub status_kind: Vec<StatusKind>,
+    pub runtime_handle: tokio::runtime::Handle,
+}
+impl Mail for CreateParticipant {
+    type Result = DdsResult<ActorAddress<DomainParticipantActor>>;
+}
+impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
+    fn handle(
         &mut self,
-        domain_id: DomainId,
-        qos: QosKind<DomainParticipantQos>,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
-        status_kind: Vec<StatusKind>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<ActorAddress<DomainParticipantActor>> {
-        let domain_participant_qos = match qos {
-            QosKind::Default => self.default_participant_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
+        message: CreateParticipant,
+    ) -> impl std::future::Future<Output = <CreateParticipant as Mail>::Result> + Send {
+        async move {
+            let domain_participant_qos = match message.qos {
+                QosKind::Default => self.default_participant_qos.clone(),
+                QosKind::Specific(q) => q,
+            };
 
-        let guid_prefix = self.create_new_guid_prefix();
+            let guid_prefix = self.create_new_guid_prefix();
 
-        let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
-        let message_sender_actor =
-            MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
+            let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
+            let message_sender_actor =
+                MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
 
-        let rtps_participant = RtpsParticipant::new(
-            guid_prefix,
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            PROTOCOLVERSION,
-            VENDOR_ID_S2E,
-        );
-        let participant_guid = rtps_participant.guid();
+            let rtps_participant = RtpsParticipant::new(
+                guid_prefix,
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                PROTOCOLVERSION,
+                VENDOR_ID_S2E,
+            );
+            let participant_guid = rtps_participant.guid();
 
-        let topic_list = self.create_builtin_topics(guid_prefix, &runtime_handle);
-        let builtin_data_writer_list =
-            self.create_builtin_writers(guid_prefix, domain_id, &topic_list, &runtime_handle);
-        let builtin_data_reader_list =
-            self.create_builtin_readers(guid_prefix, &topic_list, &runtime_handle);
+            let topic_list = self.create_builtin_topics(guid_prefix, &message.runtime_handle);
+            let builtin_data_writer_list = self.create_builtin_writers(
+                guid_prefix,
+                message.domain_id,
+                &topic_list,
+                &message.runtime_handle,
+            );
+            let builtin_data_reader_list =
+                self.create_builtin_readers(guid_prefix, &topic_list, &message.runtime_handle);
 
-        let domain_participant = DomainParticipantActor::new(
-            rtps_participant,
-            domain_id,
-            self.configuration.domain_tag().to_string(),
-            domain_participant_qos,
-            self.configuration.fragment_size(),
-            listener,
-            status_kind,
-            topic_list,
-            builtin_data_writer_list,
-            builtin_data_reader_list,
-            message_sender_actor,
-            &runtime_handle,
-        );
+            let domain_participant = DomainParticipantActor::new(
+                rtps_participant,
+                message.domain_id,
+                self.configuration.domain_tag().to_string(),
+                domain_participant_qos,
+                self.configuration.fragment_size(),
+                message.listener,
+                message.status_kind,
+                topic_list,
+                builtin_data_writer_list,
+                builtin_data_reader_list,
+                message_sender_actor,
+                &message.runtime_handle,
+            );
 
-        let status_condition = domain_participant.get_statuscondition();
-        let builtin_subscriber = domain_participant.get_built_in_subscriber();
-        let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
+            let status_condition = domain_participant.get_statuscondition();
+            let builtin_subscriber = domain_participant.get_built_in_subscriber();
+            let builtin_subscriber_status_condition_address =
+                builtin_subscriber.get_statuscondition().await?;
 
-        let participant_actor = Actor::spawn(
-            domain_participant,
-            &runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+            let participant_actor = Actor::spawn(
+                domain_participant,
+                &message.runtime_handle,
+                DEFAULT_ACTOR_BUFFER_SIZE,
+            );
 
-        let participant = DomainParticipantAsync::new(
-            participant_actor.address(),
-            status_condition.clone(),
-            builtin_subscriber,
-            builtin_subscriber_status_condition_address,
-            domain_id,
-            runtime_handle.clone(),
-        );
+            let participant = DomainParticipantAsync::new(
+                participant_actor.address(),
+                status_condition.clone(),
+                builtin_subscriber,
+                builtin_subscriber_status_condition_address,
+                message.domain_id,
+                message.runtime_handle.clone(),
+            );
 
-        // Start the regular participant announcement task
-        let participant_clone = participant.clone();
-        let mut interval =
-            tokio::time::interval(self.configuration.participant_announcement_interval());
-        runtime_handle.spawn(async move {
-            loop {
-                interval.tick().await;
+            // Start the regular participant announcement task
+            let participant_clone = participant.clone();
+            let mut interval =
+                tokio::time::interval(self.configuration.participant_announcement_interval());
+            message.runtime_handle.spawn(async move {
+                loop {
+                    interval.tick().await;
 
-                let r = participant_clone.announce_participant().await;
-                if r.is_err() {
-                    break;
+                    let r = participant_clone.announce_participant().await;
+                    if r.is_err() {
+                        break;
+                    }
                 }
-            }
-        });
-
-        // Open socket for unicast user-defined data
-        let interface_address_list = NetworkInterface::show()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter(|x| {
-                if let Some(if_name) = self.configuration.interface_name() {
-                    &x.name == if_name
-                } else {
-                    true
-                }
-            })
-            .flat_map(|i| {
-                i.addr.into_iter().filter(|a| match a {
-                    #[rustfmt::skip]
-                Addr::V4(_) => true,
-                    _ => false,
-                })
             });
 
-        let default_unicast_socket =
-            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-        default_unicast_socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
-        default_unicast_socket.set_nonblocking(true)?;
-        if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
-            default_unicast_socket.set_recv_buffer_size(buffer_size)?;
-        }
-        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
-        let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
-            .collect();
-        participant_actor
-            .set_default_unicast_locator_list(default_unicast_locator_list)
-            .await?;
+            // Open socket for unicast user-defined data
+            let interface_address_list = NetworkInterface::show()
+                .expect("Could not scan interfaces")
+                .into_iter()
+                .filter(|x| {
+                    if let Some(if_name) = self.configuration.interface_name() {
+                        &x.name == if_name
+                    } else {
+                        true
+                    }
+                })
+                .flat_map(|i| {
+                    i.addr.into_iter().filter(|a| match a {
+                        #[rustfmt::skip]
+                    Addr::V4(_) => true,
+                        _ => false,
+                    })
+                });
 
-        let participant_address_clone = participant_actor.address();
-        let participant_clone = participant.clone();
-        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
-        runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    let r = participant_address_clone
-                        .process_user_defined_rtps_message(message, participant_clone.clone())
+            let default_unicast_socket =
+                socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
+            default_unicast_socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
+            default_unicast_socket.set_nonblocking(true)?;
+            if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
+                default_unicast_socket.set_recv_buffer_size(buffer_size)?;
+            }
+            let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
+            let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
+            let default_unicast_locator_list: Vec<Locator> = interface_address_list
+                .clone()
+                .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
+                .collect();
+            participant_actor
+                .set_default_unicast_locator_list(default_unicast_locator_list)
+                .await?;
+
+            let participant_address_clone = participant_actor.address();
+            let participant_clone = participant.clone();
+            let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
+            message.runtime_handle.spawn(async move {
+                loop {
+                    if let Ok(message) = read_message(&mut socket).await {
+                        let r = participant_address_clone
+                            .process_user_defined_rtps_message(message, participant_clone.clone())
+                            .await;
+                        if r.is_err() {
+                            break;
+                        }
+                    }
+                }
+            });
+
+            // Open socket for unicast metatraffic data
+            let metattrafic_unicast_socket =
+                std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
+            metattrafic_unicast_socket.set_nonblocking(true)?;
+            let metattrafic_unicast_locator_port =
+                metattrafic_unicast_socket.local_addr()?.port().into();
+            let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
+                .clone()
+                .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
+                .collect();
+            participant_actor
+                .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
+                .await?;
+
+            let participant_address_clone = participant_actor.address();
+            let participant_clone = participant.clone();
+            let mut socket =
+                tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
+                    DdsError::Error("Failed to open metattrafic unicast socket".to_string())
+                })?;
+            message.runtime_handle.spawn(async move {
+                loop {
+                    if let Ok(message) = read_message(&mut socket).await {
+                        let r = process_metatraffic_rtps_message(
+                            participant_address_clone.clone(),
+                            message,
+                            &participant_clone,
+                        )
                         .await;
-                    if r.is_err() {
-                        break;
+                        if r.is_err() {
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        // Open socket for unicast metatraffic data
-        let metattrafic_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
-        metattrafic_unicast_socket.set_nonblocking(true)?;
-        let metattrafic_unicast_locator_port =
-            metattrafic_unicast_socket.local_addr()?.port().into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
-            .collect();
-        participant_actor
-            .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
-            .await?;
+            // Open socket for multicast metatraffic data
+            let metatraffic_multicast_locator_list = vec![Locator::new(
+                LOCATOR_KIND_UDP_V4,
+                port_builtin_multicast(message.domain_id) as u32,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+            )];
+            participant_actor
+                .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
+                .await?;
 
-        let participant_address_clone = participant_actor.address();
-        let participant_clone = participant.clone();
-        let mut socket =
-            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
-                DdsError::Error("Failed to open metattrafic unicast socket".to_string())
-            })?;
-        runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    let r = process_metatraffic_rtps_message(
-                        participant_address_clone.clone(),
-                        message,
-                        &participant_clone,
-                    )
-                    .await;
-                    if r.is_err() {
-                        break;
+            let participant_address_clone = participant_actor.address();
+            let participant_clone = participant.clone();
+            let mut socket = get_multicast_socket(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                port_builtin_multicast(message.domain_id),
+                interface_address_list,
+            )?;
+            message.runtime_handle.spawn(async move {
+                loop {
+                    if let Ok(message) = read_message(&mut socket).await {
+                        let r = process_metatraffic_rtps_message(
+                            participant_address_clone.clone(),
+                            message,
+                            &participant_clone,
+                        )
+                        .await;
+                        if r.is_err() {
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        // Open socket for multicast metatraffic data
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-        participant_actor
-            .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
-            .await?;
-
-        let participant_address_clone = participant_actor.address();
-        let participant_clone = participant.clone();
-        let mut socket = get_multicast_socket(
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            port_builtin_multicast(domain_id),
-            interface_address_list,
-        )?;
-        runtime_handle.spawn(async move {
-            loop {
-                if let Ok(message) = read_message(&mut socket).await {
-                    let r = process_metatraffic_rtps_message(
-                        participant_address_clone.clone(),
-                        message,
-                        &participant_clone,
-                    )
-                    .await;
-                    if r.is_err() {
-                        break;
-                    }
-                }
-            }
-        });
-
-        let participant_address = participant_actor.address();
-        self.domain_participant_list.insert(
-            InstanceHandle::new(participant_guid.into()),
-            participant_actor,
-        );
-        Ok(participant_address)
+            let participant_address = participant_actor.address();
+            self.domain_participant_list.insert(
+                InstanceHandle::new(participant_guid.into()),
+                participant_actor,
+            );
+            Ok(participant_address)
+        }
     }
+}
 
-    async fn delete_participant(
+pub struct DeleteParticipant {
+    pub handle: InstanceHandle,
+}
+impl Mail for DeleteParticipant {
+    type Result = DdsResult<Actor<DomainParticipantActor>>;
+}
+impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
+    fn handle(
         &mut self,
-        handle: InstanceHandle,
-    ) -> DdsResult<Actor<DomainParticipantActor>> {
-        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await?;
-        if is_participant_empty {
-            if let Some(d) = self.domain_participant_list.remove(&handle) {
-                Ok(d)
+        message: DeleteParticipant,
+    ) -> impl std::future::Future<Output = <DeleteParticipant as Mail>::Result> + Send {
+        async move {
+            let is_participant_empty = self.domain_participant_list[&message.handle]
+                .is_empty()
+                .await?;
+            if is_participant_empty {
+                if let Some(d) = self.domain_participant_list.remove(&message.handle) {
+                    Ok(d)
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Participant can only be deleted from its parent domain participant factory"
+                            .to_string(),
+                    ))
+                }
             } else {
                 Err(DdsError::PreconditionNotMet(
-                    "Participant can only be deleted from its parent domain participant factory"
-                        .to_string(),
+                    "Domain participant still contains other entities".to_string(),
                 ))
             }
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Domain participant still contains other entities".to_string(),
-            ))
         }
     }
+}
 
-    async fn lookup_participant(
-        &self,
-        domain_id: DomainId,
-    ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
-        for dp in self.domain_participant_list.values() {
-            if dp.get_domain_id().await? == domain_id {
-                return Ok(Some(dp.address()));
+pub struct LookupParticipant {
+    pub domain_id: DomainId,
+}
+impl Mail for LookupParticipant {
+    type Result = DdsResult<Option<ActorAddress<DomainParticipantActor>>>;
+}
+impl MailHandler<LookupParticipant> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        message: LookupParticipant,
+    ) -> impl std::future::Future<Output = <LookupParticipant as Mail>::Result> + Send {
+        async move {
+            for dp in self.domain_participant_list.values() {
+                if dp.get_domain_id().await? == message.domain_id {
+                    return Ok(Some(dp.address()));
+                }
             }
+
+            Ok(None)
         }
-
-        Ok(None)
     }
+}
 
-    fn set_default_participant_qos(&mut self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => DomainParticipantQos::default(),
-            QosKind::Specific(q) => q,
-        };
+pub struct SetDefaultParticipantQos {
+    pub qos: QosKind<DomainParticipantQos>,
+}
+impl Mail for SetDefaultParticipantQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultParticipantQos> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        message: SetDefaultParticipantQos,
+    ) -> impl std::future::Future<Output = <SetDefaultParticipantQos as Mail>::Result> + Send {
+        async move {
+            let qos = match message.qos {
+                QosKind::Default => DomainParticipantQos::default(),
+                QosKind::Specific(q) => q,
+            };
 
-        self.default_participant_qos = qos;
+            self.default_participant_qos = qos;
 
-        Ok(())
+            Ok(())
+        }
     }
+}
 
-    fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        Ok(self.default_participant_qos.clone())
+pub struct GetDefaultParticipantQos;
+impl Mail for GetDefaultParticipantQos {
+    type Result = DomainParticipantQos;
+}
+impl MailHandler<GetDefaultParticipantQos> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        _: GetDefaultParticipantQos,
+    ) -> impl std::future::Future<Output = <GetDefaultParticipantQos as Mail>::Result> + Send {
+        async move { self.default_participant_qos.clone() }
     }
+}
 
-    fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => DomainParticipantFactoryQos::default(),
-            QosKind::Specific(q) => q,
-        };
+pub struct SetQos {
+    pub qos: QosKind<DomainParticipantFactoryQos>,
+}
+impl Mail for SetQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetQos> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        message: SetQos,
+    ) -> impl std::future::Future<Output = <SetQos as Mail>::Result> + Send {
+        async move {
+            let qos = match message.qos {
+                QosKind::Default => DomainParticipantFactoryQos::default(),
+                QosKind::Specific(q) => q,
+            };
 
-        self.qos = qos;
+            self.qos = qos;
 
-        Ok(())
+            Ok(())
+        }
     }
+}
 
-    fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        Ok(self.qos.clone())
+pub struct GetQos;
+impl Mail for GetQos {
+    type Result = DomainParticipantFactoryQos;
+}
+impl MailHandler<GetQos> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        _: GetQos,
+    ) -> impl std::future::Future<Output = <GetQos as Mail>::Result> + Send {
+        async move { self.qos.clone() }
     }
+}
 
-    fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        self.configuration = configuration;
-        Ok(())
+pub struct SetConfiguration {
+    pub configuration: DustDdsConfiguration,
+}
+impl Mail for SetConfiguration {
+    type Result = ();
+}
+impl MailHandler<SetConfiguration> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        message: SetConfiguration,
+    ) -> impl std::future::Future<Output = <SetConfiguration as Mail>::Result> + Send {
+        async move {
+            self.configuration = message.configuration;
+        }
     }
+}
 
-    fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        Ok(self.configuration.clone())
+pub struct GetConfiguration;
+impl Mail for GetConfiguration {
+    type Result = DustDdsConfiguration;
+}
+impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
+    fn handle(
+        &mut self,
+        _: GetConfiguration,
+    ) -> impl std::future::Future<Output = <GetConfiguration as Mail>::Result> + Send {
+        async move { self.configuration.clone() }
+    }
+}
+
+impl ActorHandler for DomainParticipantFactoryActor {
+    type Message = ();
+
+    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
+        async {}
     }
 }
 
