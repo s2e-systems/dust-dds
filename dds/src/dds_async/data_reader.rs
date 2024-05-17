@@ -6,9 +6,11 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
+            any_data_reader_listener::AnyDataReaderListener,
+            data_reader_actor::DataReaderActor,
             domain_participant_actor::DomainParticipantActor,
-            status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
+            status_condition_actor::StatusConditionActor,
+            subscriber_actor::{self, SubscriberActor},
         },
     },
     infrastructure::{
@@ -87,7 +89,12 @@ impl<Foo> DataReaderAsync<Foo> {
             .lookup_datawriter::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
             .await?
         {
-            let subscriber_qos = self.subscriber_address().get_qos().await?;
+            let subscriber_qos = self
+                .subscriber_address()
+                .send_actor_mail(subscriber_actor::GetQos)
+                .await?
+                .receive_reply()
+                .await;
             let default_unicast_locator_list = self
                 .participant_address()
                 .get_default_unicast_locator_list()
@@ -426,8 +433,10 @@ impl<Foo> DataReaderAsync<Foo> {
         let qos = match qos {
             QosKind::Default => {
                 self.subscriber_address()
-                    .get_default_datareader_qos()
+                    .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)
                     .await?
+                    .receive_reply()
+                    .await
             }
             QosKind::Specific(q) => q,
         };

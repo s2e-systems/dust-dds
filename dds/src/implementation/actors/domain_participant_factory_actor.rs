@@ -1,7 +1,7 @@
 use super::{
     data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
     domain_participant_actor::FooTypeSupport, message_sender_actor::MessageSenderActor,
-    topic_actor::TopicActor,
+    subscriber_actor, topic_actor::TopicActor,
 };
 use crate::{
     configuration::DustDdsConfiguration,
@@ -451,8 +451,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
             let status_condition = domain_participant.get_statuscondition();
             let builtin_subscriber = domain_participant.get_built_in_subscriber();
-            let builtin_subscriber_status_condition_address =
-                builtin_subscriber.get_statuscondition().await?;
+            let builtin_subscriber_status_condition_address = builtin_subscriber
+                .send_actor_mail(subscriber_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
 
             let participant_actor = Actor::spawn(
                 domain_participant,

@@ -6,7 +6,10 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, DEFAULT_ACTOR_BUFFER_SIZE},
-        actors::domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+        actors::{
+            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+            subscriber_actor,
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -69,8 +72,11 @@ impl DomainParticipantFactoryAsync {
             .await?;
         let status_condition = participant_address.get_statuscondition().await?;
         let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
-        let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
+        let builtin_subscriber_status_condition_address = builtin_subscriber
+            .send_actor_mail(subscriber_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
@@ -129,8 +135,11 @@ impl DomainParticipantFactoryAsync {
         {
             let status_condition = dp.get_statuscondition().await?;
             let builtin_subscriber = dp.get_built_in_subscriber().await?;
-            let builtin_subscriber_status_condition_address =
-                builtin_subscriber.get_statuscondition().await?;
+            let builtin_subscriber_status_condition_address = builtin_subscriber
+                .send_actor_mail(subscriber_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             Ok(Some(DomainParticipantAsync::new(
                 dp,
                 status_condition,

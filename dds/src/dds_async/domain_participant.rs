@@ -12,7 +12,7 @@ use crate::{
         actors::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
-            subscriber_actor::SubscriberActor,
+            subscriber_actor::{self, SubscriberActor},
             topic_actor::{self, TopicActor},
         },
     },
@@ -379,7 +379,11 @@ impl DomainParticipantAsync {
         for deleted_subscriber in self.participant_address.drain_subscriber_list().await? {
             SubscriberAsync::new(
                 deleted_subscriber.address(),
-                deleted_subscriber.get_statuscondition().await?,
+                deleted_subscriber
+                    .send_actor_mail(subscriber_actor::GetStatuscondition)
+                    .await
+                    .receive_reply()
+                    .await,
                 self.clone(),
             )
             .delete_contained_entities()

@@ -79,7 +79,7 @@ use super::{
     message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
-    topic_actor,
+    subscriber_actor, topic_actor,
 };
 
 const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
@@ -409,7 +409,7 @@ impl DomainParticipantActor {
         }
     }
 
-    fn create_user_defined_subscriber(
+    async fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
@@ -439,10 +439,13 @@ impl DomainParticipantActor {
             &runtime_handle,
         );
 
-        let subscriber_status_condition = subscriber.get_statuscondition();
-
         let subscriber_actor = Actor::spawn(subscriber, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let subscriber_address = subscriber_actor.address();
+        let subscriber_status_condition = subscriber_actor
+            .send_actor_mail(subscriber_actor::GetStatuscondition)
+            .await
+            .receive_reply()
+            .await;
 
         self.user_defined_subscriber_list
             .insert(InstanceHandle::new(guid.into()), subscriber_actor);
@@ -452,7 +455,12 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_subscriber(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(subscriber) = self.user_defined_subscriber_list.get(&handle) {
-            if !subscriber.is_empty().await? {
+            if !subscriber
+                .send_actor_mail(subscriber_actor::IsEmpty)
+                .await
+                .receive_reply()
+                .await
+            {
                 Err(DdsError::PreconditionNotMet(
                     "Subscriber still contains data readers".to_string(),
                 ))
@@ -535,8 +543,12 @@ impl DomainParticipantActor {
 
                 for subscriber in self.user_defined_subscriber_list.values() {
                     if subscriber
-                        .lookup_datareader(topic_name.clone())
-                        .await??
+                        .send_actor_mail(subscriber_actor::LookupDatareader {
+                            topic_name: topic_name.clone(),
+                        })
+                        .await
+                        .receive_reply()
+                        .await?
                         .is_some()
                     {
                         return Err(DdsError::PreconditionNotMet(
@@ -617,9 +629,19 @@ impl DomainParticipantActor {
     async fn enable(&mut self) -> DdsResult<()> {
         if !self.enabled {
             self.builtin_publisher.enable().await?;
-            self.builtin_subscriber.enable().await?;
+            self.builtin_subscriber
+                .send_actor_mail(subscriber_actor::Enable)
+                .await
+                .receive_reply()
+                .await;
 
-            for builtin_reader in self.builtin_subscriber.data_reader_list().await? {
+            for builtin_reader in self
+                .builtin_subscriber
+                .send_actor_mail(subscriber_actor::GetDataReaderList)
+                .await
+                .receive_reply()
+                .await
+            {
                 builtin_reader.enable().await?;
             }
             for builtin_writer in self.builtin_publisher.data_writer_list().await? {
@@ -893,9 +915,10 @@ impl DomainParticipantActor {
             .await
             .ok();
         self.builtin_subscriber
-            .send_message(self.message_sender_actor.address())
-            .await
-            .ok();
+            .send_actor_mail(subscriber_actor::SendMessage {
+                message_sender_actor: self.message_sender_actor.address(),
+            })
+            .await;
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
@@ -906,9 +929,10 @@ impl DomainParticipantActor {
 
         for subscriber in self.user_defined_subscriber_list.values() {
             subscriber
-                .send_message(self.message_sender_actor.address())
-                .await
-                .ok();
+                .send_actor_mail(subscriber_actor::SendMessage {
+                    message_sender_actor: self.message_sender_actor.address(),
+                })
+                .await;
         }
     }
 
@@ -924,15 +948,14 @@ impl DomainParticipantActor {
         let reception_timestamp = self.get_current_time().into();
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber
-            .process_rtps_message(
-                message.clone(),
+            .send_actor_mail(subscriber_actor::ProcessRtpsMessage {
+                rtps_message: message.clone(),
                 reception_timestamp,
-                self.builtin_subscriber.address(),
-                participant.clone(),
+                subscriber_address: self.builtin_subscriber.address(),
+                participant: participant.clone(),
                 participant_mask_listener,
-            )
-            .await
-            .ok();
+            })
+            .await;
 
         self.builtin_publisher
             .process_rtps_message(message)
@@ -952,20 +975,20 @@ impl DomainParticipantActor {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self.user_defined_subscriber_list.values() {
             user_defined_subscriber_address
-                .process_rtps_message(
-                    message.clone(),
-                    self.get_current_time().into(),
-                    user_defined_subscriber_address.address(),
-                    participant.clone(),
-                    participant_mask_listener.clone(),
-                )
-                .await
-                .ok();
+                .send_actor_mail(subscriber_actor::ProcessRtpsMessage {
+                    rtps_message: message.clone(),
+                    reception_timestamp: self.get_current_time().into(),
+                    subscriber_address: user_defined_subscriber_address.address(),
+                    participant: participant.clone(),
+                    participant_mask_listener: participant_mask_listener.clone(),
+                })
+                .await;
 
             user_defined_subscriber_address
-                .send_message(self.message_sender_actor.address())
-                .await
-                .ok();
+                .send_actor_mail(subscriber_actor::SendMessage {
+                    message_sender_actor: self.message_sender_actor.address(),
+                })
+                .await;
         }
 
         for user_defined_publisher_address in self.user_defined_publisher_list.values() {
@@ -1227,15 +1250,17 @@ impl DomainParticipantActor {
             let discovered_writer_data =
                 DiscoveredWriterData::new(dds_publication_data, writer_proxy);
             self.builtin_subscriber
-                .add_matched_writer(
+                .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
-                    vec![],
-                    vec![],
-                    self.builtin_subscriber.address(),
+                    default_unicast_locator_list: vec![],
+                    default_multicast_locator_list: vec![],
+                    subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    (self.listener.address(), self.status_kind.clone()),
-                )
-                .await??;
+                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }
@@ -1346,15 +1371,17 @@ impl DomainParticipantActor {
             let discovered_writer_data =
                 DiscoveredWriterData::new(dds_publication_data, writer_proxy);
             self.builtin_subscriber
-                .add_matched_writer(
+                .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
-                    vec![],
-                    vec![],
-                    self.builtin_subscriber.address(),
+                    default_unicast_locator_list: vec![],
+                    default_multicast_locator_list: vec![],
+                    subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    (self.listener.address(), self.status_kind.clone()),
-                )
-                .await??;
+                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
 
         Ok(())
@@ -1466,15 +1493,17 @@ impl DomainParticipantActor {
             let discovered_writer_data =
                 DiscoveredWriterData::new(dds_publication_data, writer_proxy);
             self.builtin_subscriber
-                .add_matched_writer(
+                .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
-                    vec![],
-                    vec![],
-                    self.builtin_subscriber.address(),
+                    default_unicast_locator_list: vec![],
+                    default_multicast_locator_list: vec![],
+                    subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    (self.listener.address(), self.status_kind.clone()),
-                )
-                .await??;
+                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }
@@ -1485,8 +1514,12 @@ impl DomainParticipantActor {
     ) -> DdsResult<()> {
         if let Some(sedp_publications_detector) = self
             .builtin_subscriber
-            .lookup_datareader(DCPS_PUBLICATION.to_string())
-            .await??
+            .send_actor_mail(subscriber_actor::LookupDatareader {
+                topic_name: DCPS_PUBLICATION.to_string(),
+            })
+            .await
+            .receive_reply()
+            .await?
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
                 .read(
@@ -1582,15 +1615,17 @@ impl DomainParticipantActor {
                     let participant_mask_listener =
                         (self.listener.address(), self.status_kind.clone());
                     subscriber
-                        .add_matched_writer(
-                            discovered_writer_data.clone(),
-                            default_unicast_locator_list.clone(),
-                            default_multicast_locator_list.clone(),
-                            subscriber_address,
-                            participant.clone(),
+                        .send_actor_mail(subscriber_actor::AddMatchedWriter {
+                            discovered_writer_data: discovered_writer_data.clone(),
+                            default_unicast_locator_list: default_unicast_locator_list.clone(),
+                            default_multicast_locator_list: default_multicast_locator_list.clone(),
+                            subscriber_address: subscriber_address,
+                            participant: participant.clone(),
                             participant_mask_listener,
-                        )
-                        .await??;
+                        })
+                        .await
+                        .receive_reply()
+                        .await?;
                 }
 
                 // Add writer topic to discovered topic list using the writer instance handle
@@ -1664,13 +1699,15 @@ impl DomainParticipantActor {
             let subscriber_address = subscriber.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
             subscriber
-                .remove_matched_writer(
+                .send_actor_mail(subscriber_actor::RemoveMatchedWriter {
                     discovered_writer_handle,
                     subscriber_address,
-                    participant.clone(),
+                    participant: participant.clone(),
                     participant_mask_listener,
-                )
-                .await??;
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }
@@ -1681,8 +1718,12 @@ impl DomainParticipantActor {
     ) -> DdsResult<()> {
         if let Some(sedp_subscriptions_detector) = self
             .builtin_subscriber
-            .lookup_datareader(DCPS_SUBSCRIPTION.to_string())
-            .await??
+            .send_actor_mail(subscriber_actor::LookupDatareader {
+                topic_name: DCPS_SUBSCRIPTION.to_string(),
+            })
+            .await
+            .receive_reply()
+            .await?
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
                 .read(
@@ -1880,8 +1921,12 @@ impl DomainParticipantActor {
     async fn process_sedp_topics_discovery(&mut self) -> DdsResult<()> {
         if let Some(sedp_topics_detector) = self
             .builtin_subscriber
-            .lookup_datareader(DCPS_TOPIC.to_string())
-            .await??
+            .send_actor_mail(subscriber_actor::LookupDatareader {
+                topic_name: DCPS_TOPIC.to_string(),
+            })
+            .await
+            .receive_reply()
+            .await?
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
                 .read(
