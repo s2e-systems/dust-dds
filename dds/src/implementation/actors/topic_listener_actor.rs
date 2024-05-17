@@ -1,7 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::{topic::TopicAsync, topic_listener::TopicListenerAsync},
+    implementation::actor::{ActorHandler, Mail, MailHandler},
     infrastructure::status::InconsistentTopicStatus,
 };
 
@@ -15,15 +14,31 @@ impl TopicListenerActor {
     }
 }
 
-#[actor_interface]
-impl TopicListenerActor {
-    async fn on_inconsistent_topic(
+pub struct OnInconsistentTopic {
+    pub the_topic: TopicAsync,
+    pub status: InconsistentTopicStatus,
+}
+impl Mail for OnInconsistentTopic {
+    type Result = ();
+}
+impl MailHandler<OnInconsistentTopic> for TopicListenerActor {
+    fn handle(
         &mut self,
-        the_topic: TopicAsync,
-        status: InconsistentTopicStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.on_inconsistent_topic(the_topic, status).await
+        message: OnInconsistentTopic,
+    ) -> impl std::future::Future<Output = <OnInconsistentTopic as Mail>::Result> + Send {
+        async move {
+            if let Some(l) = &mut self.listener {
+                l.on_inconsistent_topic(message.the_topic, message.status)
+                    .await
+            }
         }
+    }
+}
+
+impl ActorHandler for TopicListenerActor {
+    type Message = ();
+
+    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
+        async {}
     }
 }
