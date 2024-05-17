@@ -79,6 +79,7 @@ use super::{
     message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
+    topic_actor,
 };
 
 const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
@@ -501,10 +502,14 @@ impl DomainParticipantActor {
                 &runtime_handle,
             );
 
-            let topic_status_condition = topic.get_statuscondition();
             let topic_actor: crate::implementation::actor::Actor<TopicActor> =
                 Actor::spawn(topic, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
             let topic_address = topic_actor.address();
+            let topic_status_condition = topic_actor
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await
+                .receive_reply()
+                .await;
             e.insert(topic_actor);
 
             Ok((topic_address, topic_status_condition))
@@ -589,11 +594,17 @@ impl DomainParticipantActor {
         )>,
     > {
         if let Some(topic) = self.topic_list.get(&topic_name) {
-            Ok(Some((
-                topic.address(),
-                topic.get_statuscondition().await?,
-                topic.get_type_name().await?,
-            )))
+            let type_name = topic
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await
+                .receive_reply()
+                .await;
+            let status_condition = topic
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await
+                .receive_reply()
+                .await;
+            Ok(Some((topic.address(), status_condition, type_name)))
         } else {
             Ok(None)
         }
@@ -1916,9 +1927,12 @@ impl DomainParticipantActor {
         if !is_topic_ignored {
             for topic in self.topic_list.values() {
                 topic
-                    .process_discovered_topic(discovered_topic_data.clone())
+                    .send_actor_mail(topic_actor::ProcessDiscoveredTopic {
+                        discovered_topic_data: discovered_topic_data.clone(),
+                    })
                     .await
-                    .ok();
+                    .receive_reply()
+                    .await;
             }
             self.discovered_topic_list.insert(
                 handle,

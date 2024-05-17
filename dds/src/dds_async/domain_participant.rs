@@ -13,7 +13,7 @@ use crate::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::SubscriberActor,
-            topic_actor::TopicActor,
+            topic_actor::{self, TopicActor},
         },
     },
     infrastructure::{
@@ -94,7 +94,11 @@ impl DomainParticipantAsync {
 
         if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
         {
-            let data = topic.as_discovered_topic_data().await?;
+            let data = topic
+                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
+                .await
+                .receive_reply()
+                .await;
             sedp_topics_announcer.dispose(&data, None).await?;
         }
 

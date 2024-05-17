@@ -5,7 +5,7 @@ use crate::{
         actors::{
             any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
-            status_condition_actor::StatusConditionActor,
+            status_condition_actor::StatusConditionActor, topic_actor,
         },
     },
     infrastructure::{
@@ -114,7 +114,13 @@ impl PublisherAsync {
             .await?;
 
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let has_key = a_topic.topic_address().get_type_support().await?.has_key();
+        let has_key = a_topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .has_key();
         let data_writer_address = self
             .publisher_address
             .create_datawriter(

@@ -66,7 +66,7 @@ use super::{
     message_sender_actor::{self, MessageSenderActor},
     publisher_listener_actor::PublisherListenerActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    topic_actor::TopicActor,
+    topic_actor::{self, TopicActor},
 };
 
 struct MatchedSubscriptions {
@@ -528,10 +528,31 @@ impl DataWriterActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
     ) -> DdsResult<DiscoveredWriterData> {
-        let type_name = self.topic_address.get_type_name().await?;
-        let topic_name = self.topic_address.get_name().await?;
-        let topic_qos = self.topic_address.get_qos().await?;
-        let xml_type = self.topic_address.get_type_support().await?.xml_type();
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_qos = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await;
+        let xml_type = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .xml_type();
         let writer_qos = &self.qos;
 
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
@@ -584,7 +605,12 @@ impl DataWriterActor {
     }
 
     async fn get_topic_name(&self) -> DdsResult<String> {
-        self.topic_address.get_name().await
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -616,7 +642,12 @@ impl DataWriterActor {
     }
 
     async fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address.get_type_name().await
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -634,8 +665,18 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let type_name = self.topic_address.get_type_name().await?;
-        let topic_name = self.topic_address.get_name().await?;
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data()
             .topic_name()
@@ -1012,11 +1053,26 @@ impl DataWriterActor {
             .await;
 
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
                 .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
                     listener_operation: DataWriterListenerOperation::OnPublicationMatched(status),
@@ -1071,11 +1127,26 @@ impl DataWriterActor {
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
                 .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
                     listener_operation: DataWriterListenerOperation::OnOfferedIncompatibleQos(

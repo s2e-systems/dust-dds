@@ -10,7 +10,7 @@ use crate::{
         actors::{
             any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
             domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
-            status_condition_actor::StatusConditionActor,
+            status_condition_actor::StatusConditionActor, topic_actor,
         },
     },
     infrastructure::{
@@ -161,7 +161,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
         let has_key = type_support.has_key();
         if has_key {
             let instance_handle = match handle {
@@ -224,7 +230,13 @@ where
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
 
         let mut serialized_foo = Vec::new();
         instance.serialize_data(&mut serialized_foo)?;
@@ -248,7 +260,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
 
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
@@ -311,7 +329,13 @@ where
             }
         }?;
 
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
 
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;

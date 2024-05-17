@@ -5,7 +5,7 @@ use super::{
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     subscriber_listener_actor::SubscriberListenerActor,
-    topic_actor::TopicActor,
+    topic_actor::{self, TopicActor},
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -447,9 +447,24 @@ impl DataReaderActor {
                 .trigger_on_data_on_readers(subscriber.clone())
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::OnDataAvailable,
@@ -795,10 +810,25 @@ impl DataReaderActor {
             .await
             .receive_reply()
             .await;
-        let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+        let topic_status_condition_address = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         if self.status_kind.contains(&StatusKind::SampleLost) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_sample_lost_status();
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
@@ -855,11 +885,26 @@ impl DataReaderActor {
 
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_subscription_matched_status().await?;
 
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::OnSubscriptionMatched(status),
@@ -916,11 +961,26 @@ impl DataReaderActor {
             .receive_reply()
             .await;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_sample_rejected_status();
 
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::OnSampleRejected(status),
@@ -980,10 +1040,25 @@ impl DataReaderActor {
             .status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_requested_incompatible_qos_status();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
 
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
@@ -1042,7 +1117,12 @@ impl DataReaderActor {
         } else {
             Ok(ChangeKind::Alive)
         }?;
-        let type_support = self.topic_address.get_type_support().await?;
+        let type_support = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
         let instance_handle = build_instance_handle(
             &type_support,
             change_kind,
@@ -1434,10 +1514,25 @@ impl DataReaderActor {
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
             let topic_address = self.topic_address.clone();
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -1635,10 +1730,31 @@ impl DataReaderActor {
         default_multicast_locator_list: Vec<Locator>,
     ) -> DdsResult<DiscoveredReaderData> {
         let guid = self.rtps_reader.guid();
-        let type_name = self.topic_address.get_type_name().await?;
-        let topic_name = self.topic_address.get_name().await?;
-        let topic_qos = self.topic_address.get_qos().await?;
-        let xml_type = self.topic_address.get_type_support().await?.xml_type();
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_qos = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await;
+        let xml_type = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .xml_type();
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
             default_unicast_locator_list
@@ -1808,8 +1924,18 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        let type_name = self.topic_address.get_type_name().await?;
-        let topic_name = self.topic_address.get_name().await?;
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
         let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == topic_name
             && publication_builtin_topic_data.get_type_name() == type_name
@@ -1944,11 +2070,21 @@ impl DataReaderActor {
     }
 
     async fn get_topic_name(&mut self) -> DdsResult<String> {
-        self.topic_address.get_name().await
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     async fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address.get_type_name().await
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     #[allow(clippy::too_many_arguments)]

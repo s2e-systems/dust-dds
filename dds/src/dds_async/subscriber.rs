@@ -6,6 +6,7 @@ use crate::{
             any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
+            topic_actor,
         },
     },
     infrastructure::{
@@ -109,7 +110,12 @@ impl SubscriberAsync {
             .await?;
 
         let topic = a_topic.topic_address();
-        let has_key = topic.get_type_support().await?.has_key();
+        let has_key = topic
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .has_key();
 
         let reader_address = self
             .subscriber_address
