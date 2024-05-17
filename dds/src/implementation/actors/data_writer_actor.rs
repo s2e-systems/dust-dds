@@ -63,7 +63,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_listener_actor::DataWriterListenerActor,
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    message_sender_actor::MessageSenderActor,
+    message_sender_actor::{self, MessageSenderActor},
     publisher_listener_actor::PublisherListenerActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
@@ -894,10 +894,10 @@ impl DataWriterActor {
                                 Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
 
                             message_sender_actor
-                                .write(
-                                    vec![info_ts_submessage, data_submessage],
-                                    vec![reader_locator.locator()],
-                                )
+                                .send_actor_mail(message_sender_actor::WriteMessage {
+                                    submessages: vec![info_ts_submessage, data_submessage],
+                                    destination_locator_list: vec![reader_locator.locator()],
+                                })
                                 .await
                                 .ok();
                         } else {
@@ -909,7 +909,10 @@ impl DataWriterActor {
                             ));
 
                             message_sender_actor
-                                .write(vec![gap_submessage], vec![reader_locator.locator()])
+                                .send_actor_mail(message_sender_actor::WriteMessage {
+                                    submessages: vec![gap_submessage],
+                                    destination_locator_list: vec![reader_locator.locator()],
+                                })
                                 .await
                                 .ok();
                         }
@@ -1180,10 +1183,10 @@ async fn send_message_to_reader_proxy_best_effort(
             ));
 
             message_sender_actor
-                .write(
-                    vec![gap_submessage],
-                    reader_proxy.unicast_locator_list().to_vec(),
-                )
+                .send_actor_mail(message_sender_actor::WriteMessage {
+                    submessages: vec![gap_submessage],
+                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                })
                 .await
                 .ok();
 
@@ -1211,10 +1214,10 @@ async fn send_message_to_reader_proxy_best_effort(
                     let data_frag = Box::new(data_frag_submessage);
 
                     message_sender_actor
-                        .write(
-                            vec![info_dst, info_timestamp, data_frag],
-                            reader_proxy.unicast_locator_list().to_vec(),
-                        )
+                        .send_actor_mail(message_sender_actor::WriteMessage {
+                            submessages: vec![info_dst, info_timestamp, data_frag],
+                            destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                        })
                         .await
                         .ok();
                 }
@@ -1233,24 +1236,24 @@ async fn send_message_to_reader_proxy_best_effort(
                 );
 
                 message_sender_actor
-                    .write(
-                        vec![info_dst, info_timestamp, data_submessage],
-                        reader_proxy.unicast_locator_list().to_vec(),
-                    )
+                    .send_actor_mail(message_sender_actor::WriteMessage {
+                        submessages: vec![info_dst, info_timestamp, data_submessage],
+                        destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                    })
                     .await
                     .ok();
             }
         } else {
             message_sender_actor
-                .write(
-                    vec![Box::new(GapSubmessage::new(
+                .send_actor_mail(message_sender_actor::WriteMessage {
+                    submessages: vec![Box::new(GapSubmessage::new(
                         ENTITYID_UNKNOWN,
                         writer_id,
                         next_unsent_change_seq_num,
                         SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
                     ))],
-                    reader_proxy.unicast_locator_list().to_vec(),
-                )
+                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                })
                 .await
                 .ok();
         }
@@ -1285,12 +1288,11 @@ async fn send_message_to_reader_proxy_reliable(
                         .heartbeat_machine()
                         .submessage(writer_id, first_sn, last_sn),
                 );
-
                 message_sender_actor
-                    .write(
-                        vec![gap_submessage, heartbeat_submessage],
-                        reader_proxy.unicast_locator_list().to_vec(),
-                    )
+                    .send_actor_mail(message_sender_actor::WriteMessage {
+                        submessages: vec![gap_submessage, heartbeat_submessage],
+                        destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                    })
                     .await
                     .ok();
             } else {
@@ -1320,10 +1322,10 @@ async fn send_message_to_reader_proxy_reliable(
         );
 
         message_sender_actor
-            .write(
-                vec![heartbeat_submessage],
-                reader_proxy.unicast_locator_list().to_vec(),
-            )
+            .send_actor_mail(message_sender_actor::WriteMessage {
+                submessages: vec![heartbeat_submessage],
+                destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+            })
             .await
             .ok();
     }
@@ -1379,10 +1381,10 @@ async fn send_change_message_reader_proxy_reliable(
                     let data_frag = Box::new(data_frag_submessage);
 
                     message_sender_actor
-                        .write(
-                            vec![info_dst, info_timestamp, data_frag],
-                            reader_proxy.unicast_locator_list().to_vec(),
-                        )
+                        .send_actor_mail(message_sender_actor::WriteMessage {
+                            submessages: vec![info_dst, info_timestamp, data_frag],
+                            destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                        })
                         .await
                         .ok();
                 }
@@ -1409,10 +1411,10 @@ async fn send_change_message_reader_proxy_reliable(
                 );
 
                 message_sender_actor
-                    .write(
-                        vec![info_dst, info_timestamp, data_submessage, heartbeat],
-                        reader_proxy.unicast_locator_list().to_vec(),
-                    )
+                    .send_actor_mail(message_sender_actor::WriteMessage {
+                        submessages: vec![info_dst, info_timestamp, data_submessage, heartbeat],
+                        destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                    })
                     .await
                     .ok();
             }
@@ -1430,10 +1432,10 @@ async fn send_change_message_reader_proxy_reliable(
             ));
 
             message_sender_actor
-                .write(
-                    vec![info_dst, gap_submessage],
-                    reader_proxy.unicast_locator_list().to_vec(),
-                )
+                .send_actor_mail(message_sender_actor::WriteMessage {
+                    submessages: vec![info_dst, gap_submessage],
+                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+                })
                 .await
                 .ok();
         }

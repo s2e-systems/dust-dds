@@ -11,7 +11,8 @@ use super::{
     types::{EntityId, Guid, Locator, SequenceNumber},
 };
 use crate::implementation::{
-    actor::ActorAddress, actors::message_sender_actor::MessageSenderActor,
+    actor::ActorAddress,
+    actors::message_sender_actor::{self, MessageSenderActor},
 };
 use std::{cmp::max, collections::HashMap};
 
@@ -282,7 +283,10 @@ impl RtpsWriterProxy {
             }
 
             message_sender_actor
-                .write(submessages, self.unicast_locator_list().to_vec())
+                .send_actor_mail(message_sender_actor::WriteMessage {
+                    submessages,
+                    destination_locator_list: self.unicast_locator_list().to_vec(),
+                })
                 .await
                 .ok();
         }
