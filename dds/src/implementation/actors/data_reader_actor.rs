@@ -1,7 +1,9 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_listener_actor::{self, DataReaderListenerActor, DataReaderListenerOperation},
-    domain_participant_listener_actor::DomainParticipantListenerActor,
+    domain_participant_listener_actor::{
+        self, DomainParticipantListenerActor, DomainParticipantListenerOperation,
+    },
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     subscriber_listener_actor::{self, SubscriberListenerActor, SubscriberListenerOperation},
@@ -859,7 +861,9 @@ impl DataReaderActor {
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
-                .trigger_on_sample_lost(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation: DomainParticipantListenerOperation::OnSampleLost(status),
+                })
                 .await?;
         }
 
@@ -936,7 +940,11 @@ impl DataReaderActor {
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await?;
             participant_listener_address
-                .trigger_on_subscription_matched(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation: DomainParticipantListenerOperation::OnSubscriptionMatched(
+                        status,
+                    ),
+                })
                 .await?;
         }
 
@@ -1015,7 +1023,11 @@ impl DataReaderActor {
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
-                .trigger_on_sample_rejected(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation: DomainParticipantListenerOperation::OnSampleRejected(
+                        status,
+                    ),
+                })
                 .await?;
         }
 
@@ -1099,7 +1111,10 @@ impl DataReaderActor {
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             participant_listener_address
-                .trigger_on_requested_incompatible_qos(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation:
+                        DomainParticipantListenerOperation::OnRequestedIncompatibleQos(status),
+                })
                 .await?;
         }
         Ok(())
@@ -1616,8 +1631,11 @@ impl DataReaderActor {
                                 .receive_reply()
                                 .await;
                             participant_listener_address
-                                .trigger_on_requested_deadline_missed(status)
-                                .await?;
+                            .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                                listener_operation:
+                                    DomainParticipantListenerOperation::OnRequestedDeadlineMissed(status),
+                            })
+                            .await?;
                         }
                         Ok(())
                     }
