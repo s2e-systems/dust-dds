@@ -64,7 +64,7 @@ use super::{
     data_writer_listener_actor::{self, DataWriterListenerActor, DataWriterListenerOperation},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::{self, MessageSenderActor},
-    publisher_listener_actor::PublisherListenerActor,
+    publisher_listener_actor::{self, PublisherListenerActor, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::{self, TopicActor},
 };
@@ -1091,7 +1091,9 @@ impl DataWriterActor {
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             publisher_listener
-                .trigger_on_publication_matched(status)
+                .send_actor_mail(publisher_listener_actor::CallListenerFunction {
+                    listener_operation: PublisherListenerOperation::OnPublicationMatched(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
@@ -1167,7 +1169,11 @@ impl DataWriterActor {
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();
             publisher_listener
-                .trigger_on_offered_incompatible_qos(status)
+                .send_actor_mail(publisher_listener_actor::CallListenerFunction {
+                    listener_operation: PublisherListenerOperation::OnOfferedIncompatibleQos(
+                        status,
+                    ),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self.get_offered_incompatible_qos_status();

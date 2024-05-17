@@ -4,7 +4,7 @@ use super::{
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    subscriber_listener_actor::SubscriberListenerActor,
+    subscriber_listener_actor::{self, SubscriberListenerActor, SubscriberListenerOperation},
     topic_actor::{self, TopicActor},
 };
 use crate::{
@@ -444,7 +444,11 @@ impl DataReaderActor {
 
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
-                .trigger_on_data_on_readers(subscriber.clone())
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::OnDataOnReaders(
+                        subscriber.clone(),
+                    ),
+                })
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
             let topic_status_condition_address = self
@@ -848,7 +852,9 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
-                .trigger_on_sample_lost(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::OnSampleLost(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
@@ -923,7 +929,9 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await?;
             subscriber_listener_address
-                .trigger_on_subscription_matched(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::OnSubscriptionMatched(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await?;
@@ -1000,7 +1008,9 @@ impl DataReaderActor {
             let status = self.get_sample_rejected_status();
 
             subscriber_listener_address
-                .trigger_on_sample_rejected(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::OnSampleRejected(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
@@ -1080,7 +1090,11 @@ impl DataReaderActor {
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
-                .trigger_on_requested_incompatible_qos(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::OnRequestedIncompatibleQos(
+                        status,
+                    ),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
@@ -1586,7 +1600,12 @@ impl DataReaderActor {
                                 .await;
 
                             subscriber_listener_address
-                                .trigger_on_requested_deadline_missed(status)
+                                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                                    listener_operation:
+                                        SubscriberListenerOperation::OnRequestedDeadlineMissed(
+                                            status,
+                                        ),
+                                })
                                 .await?;
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)

@@ -1,7 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::{subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync},
+    implementation::actor::{ActorHandler, Mail, MailHandler},
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -18,47 +17,56 @@ impl SubscriberListenerActor {
     }
 }
 
-#[actor_interface]
-impl SubscriberListenerActor {
-    async fn trigger_on_data_on_readers(&mut self, subscriber: SubscriberAsync) {
-        if let Some(l) = &mut self.listener {
-            l.on_data_on_readers(subscriber).await
-        }
-    }
-
-    async fn trigger_on_sample_rejected(&mut self, status: SampleRejectedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_sample_rejected(&(), status).await
-        }
-    }
-
-    async fn trigger_on_requested_incompatible_qos(
+pub enum SubscriberListenerOperation {
+    OnDataOnReaders(SubscriberAsync),
+    OnSampleRejected(SampleRejectedStatus),
+    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    OnSubscriptionMatched(SubscriptionMatchedStatus),
+    OnSampleLost(SampleLostStatus),
+}
+pub struct CallListenerFunction {
+    pub listener_operation: SubscriberListenerOperation,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for SubscriberListenerActor {
+    fn handle(
         &mut self,
-        status: RequestedIncompatibleQosStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.on_requested_incompatible_qos(&(), status).await
+        message: CallListenerFunction,
+    ) -> impl std::future::Future<Output = <CallListenerFunction as Mail>::Result> + Send {
+        async move {
+            if let Some(l) = &mut self.listener {
+                match message.listener_operation {
+                    SubscriberListenerOperation::OnDataOnReaders(subscriber) => {
+                        l.on_data_on_readers(subscriber).await
+                    }
+                    SubscriberListenerOperation::OnSampleRejected(status) => {
+                        l.on_sample_rejected(&(), status).await
+                    }
+                    SubscriberListenerOperation::OnRequestedIncompatibleQos(status) => {
+                        l.on_requested_incompatible_qos(&(), status).await
+                    }
+                    SubscriberListenerOperation::OnRequestedDeadlineMissed(status) => {
+                        l.on_requested_deadline_missed(&(), status).await
+                    }
+                    SubscriberListenerOperation::OnSubscriptionMatched(status) => {
+                        l.on_subscription_matched(&(), status).await
+                    }
+                    SubscriberListenerOperation::OnSampleLost(status) => {
+                        l.on_sample_lost(&(), status).await
+                    }
+                }
+            }
         }
     }
+}
 
-    async fn trigger_on_requested_deadline_missed(
-        &mut self,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.on_requested_deadline_missed(&(), status).await
-        }
-    }
+impl ActorHandler for SubscriberListenerActor {
+    type Message = ();
 
-    async fn trigger_on_subscription_matched(&mut self, status: SubscriptionMatchedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_subscription_matched(&(), status).await
-        }
-    }
-
-    async fn trigger_on_sample_lost(&mut self, status: SampleLostStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_sample_lost(&(), status).await
-        }
+    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
+        async {}
     }
 }
