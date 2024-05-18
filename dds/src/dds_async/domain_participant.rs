@@ -11,6 +11,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         actors::{
             domain_participant_actor::{DomainParticipantActor, FooTypeSupport},
+            publisher_actor,
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
             topic_actor::{self, TopicActor},
@@ -369,7 +370,11 @@ impl DomainParticipantAsync {
         for deleted_publisher in self.participant_address.drain_publisher_list().await? {
             PublisherAsync::new(
                 deleted_publisher.address(),
-                deleted_publisher.get_statuscondition().await?,
+                deleted_publisher
+                    .send_actor_mail(publisher_actor::GetStatuscondition)
+                    .await
+                    .receive_reply()
+                    .await,
                 self.clone(),
             )
             .delete_contained_entities()
@@ -557,7 +562,11 @@ impl DomainParticipantAsync {
 impl DomainParticipantAsync {
     pub(crate) async fn get_builtin_publisher(&self) -> DdsResult<PublisherAsync> {
         let publisher_address = self.participant_address.get_builtin_publisher().await?;
-        let publisher_status_condition = publisher_address.get_statuscondition().await?;
+        let publisher_status_condition = publisher_address
+            .send_actor_mail(publisher_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         Ok(PublisherAsync::new(
             publisher_address,
             publisher_status_condition,

@@ -77,7 +77,7 @@ use super::{
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
-    publisher_actor::PublisherActor,
+    publisher_actor::{self, PublisherActor},
     status_condition_actor::StatusConditionActor,
     subscriber_actor, topic_actor,
 };
@@ -349,7 +349,7 @@ impl DomainParticipantActor {
 
 #[actor_interface]
 impl DomainParticipantActor {
-    fn create_user_defined_publisher(
+    async fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
@@ -378,10 +378,13 @@ impl DomainParticipantActor {
             &runtime_handle,
         );
 
-        let publisher_status_condition = publisher.get_statuscondition();
-
         let publisher_actor = Actor::spawn(publisher, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
         let publisher_address = publisher_actor.address();
+        let publisher_status_condition = publisher_actor
+            .send_actor_mail(publisher_actor::GetStatuscondition)
+            .await
+            .receive_reply()
+            .await;
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
 
@@ -390,7 +393,13 @@ impl DomainParticipantActor {
 
     async fn delete_user_defined_publisher(&mut self, handle: InstanceHandle) -> DdsResult<()> {
         if let Some(p) = self.user_defined_publisher_list.get(&handle) {
-            if !p.data_writer_list().await?.is_empty() {
+            if !p
+                .send_actor_mail(publisher_actor::GetDataWriterList)
+                .await
+                .receive_reply()
+                .await
+                .is_empty()
+            {
                 Err(DdsError::PreconditionNotMet(
                     "Publisher still contains data writers".to_string(),
                 ))
@@ -531,8 +540,12 @@ impl DomainParticipantActor {
             if !BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_ref()) {
                 for publisher in self.user_defined_publisher_list.values() {
                     if publisher
-                        .lookup_datawriter(topic_name.clone())
-                        .await??
+                        .send_actor_mail(publisher_actor::LookupDatawriter {
+                            topic_name: topic_name.clone(),
+                        })
+                        .await
+                        .receive_reply()
+                        .await?
                         .is_some()
                     {
                         return Err(DdsError::PreconditionNotMet(
@@ -628,7 +641,11 @@ impl DomainParticipantActor {
 
     async fn enable(&mut self) -> DdsResult<()> {
         if !self.enabled {
-            self.builtin_publisher.enable().await?;
+            self.builtin_publisher
+                .send_actor_mail(publisher_actor::Enable)
+                .await
+                .receive_reply()
+                .await;
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::Enable)
                 .await
@@ -644,7 +661,13 @@ impl DomainParticipantActor {
             {
                 builtin_reader.enable().await?;
             }
-            for builtin_writer in self.builtin_publisher.data_writer_list().await? {
+            for builtin_writer in self
+                .builtin_publisher
+                .send_actor_mail(publisher_actor::GetDataWriterList)
+                .await
+                .receive_reply()
+                .await
+            {
                 builtin_writer.enable().await?;
             }
             self.enabled = true;
@@ -911,9 +934,10 @@ impl DomainParticipantActor {
 
     async fn send_message(&self) {
         self.builtin_publisher
-            .send_message(self.message_sender_actor.address())
-            .await
-            .ok();
+            .send_actor_mail(publisher_actor::SendMessage {
+                message_sender_actor: self.message_sender_actor.address(),
+            })
+            .await;
         self.builtin_subscriber
             .send_actor_mail(subscriber_actor::SendMessage {
                 message_sender_actor: self.message_sender_actor.address(),
@@ -922,9 +946,10 @@ impl DomainParticipantActor {
 
         for publisher in self.user_defined_publisher_list.values() {
             publisher
-                .send_message(self.message_sender_actor.address())
-                .await
-                .ok();
+                .send_actor_mail(publisher_actor::SendMessage {
+                    message_sender_actor: self.message_sender_actor.address(),
+                })
+                .await;
         }
 
         for subscriber in self.user_defined_subscriber_list.values() {
@@ -958,9 +983,10 @@ impl DomainParticipantActor {
             .await;
 
         self.builtin_publisher
-            .process_rtps_message(message)
-            .await
-            .ok();
+            .send_actor_mail(publisher_actor::ProcessRtpsMessage {
+                rtps_message: message,
+            })
+            .await;
 
         self.process_builtin_discovery(participant).await?;
 
@@ -993,13 +1019,15 @@ impl DomainParticipantActor {
 
         for user_defined_publisher_address in self.user_defined_publisher_list.values() {
             user_defined_publisher_address
-                .process_rtps_message(message.clone())
-                .await
-                .ok();
+                .send_actor_mail(publisher_actor::ProcessRtpsMessage {
+                    rtps_message: message.clone(),
+                })
+                .await;
             user_defined_publisher_address
-                .send_message(self.message_sender_actor.address())
-                .await
-                .ok();
+                .send_actor_mail(publisher_actor::SendMessage {
+                    message_sender_actor: self.message_sender_actor.address(),
+                })
+                .await;
         }
     }
 
@@ -1186,19 +1214,23 @@ impl DomainParticipantActor {
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
-                .add_matched_reader(
+                .send_actor_mail(publisher_actor::AddMatchedReader {
                     discovered_reader_data,
-                    self.rtps_participant
+                    default_unicast_locator_list: self
+                        .rtps_participant
                         .default_unicast_locator_list()
                         .to_vec(),
-                    self.rtps_participant
+                    default_multicast_locator_list: self
+                        .rtps_participant
                         .default_multicast_locator_list()
                         .to_vec(),
-                    self.builtin_publisher.address(),
+                    publisher_address: self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener,
-                )
-                .await??;
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }
@@ -1311,15 +1343,17 @@ impl DomainParticipantActor {
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
-                .add_matched_reader(
+                .send_actor_mail(publisher_actor::AddMatchedReader {
                     discovered_reader_data,
-                    vec![],
-                    vec![],
-                    self.builtin_publisher.address(),
+                    default_unicast_locator_list: vec![],
+                    default_multicast_locator_list: vec![],
+                    publisher_address: self.builtin_publisher.address(),
                     participant,
-                    (self.listener.address(), self.status_kind.clone()),
-                )
-                .await??;
+                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }
@@ -1433,15 +1467,17 @@ impl DomainParticipantActor {
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
-                .add_matched_reader(
+                .send_actor_mail(publisher_actor::AddMatchedReader {
                     discovered_reader_data,
-                    vec![],
-                    vec![],
-                    self.builtin_publisher.address(),
+                    default_unicast_locator_list: vec![],
+                    default_multicast_locator_list: vec![],
+                    publisher_address: self.builtin_publisher.address(),
                     participant,
-                    (self.listener.address(), self.status_kind.clone()),
-                )
-                .await??;
+                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }
@@ -1824,15 +1860,17 @@ impl DomainParticipantActor {
                         (self.listener.address(), self.status_kind.clone());
 
                     publisher
-                        .add_matched_reader(
-                            discovered_reader_data.clone(),
-                            default_unicast_locator_list.clone(),
-                            default_multicast_locator_list.clone(),
+                        .send_actor_mail(publisher_actor::AddMatchedReader {
+                            discovered_reader_data: discovered_reader_data.clone(),
+                            default_unicast_locator_list: default_unicast_locator_list.clone(),
+                            default_multicast_locator_list: default_multicast_locator_list.clone(),
                             publisher_address,
-                            participant.clone(),
+                            participant: participant.clone(),
                             participant_mask_listener,
-                        )
-                        .await??;
+                        })
+                        .await
+                        .receive_reply()
+                        .await?;
                 }
 
                 // Add reader topic to discovered topic list using the reader instance handle
@@ -1907,13 +1945,15 @@ impl DomainParticipantActor {
             let publisher_address = publisher.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
             publisher
-                .remove_matched_reader(
+                .send_actor_mail(publisher_actor::RemoveMatchedReader {
                     discovered_reader_handle,
                     publisher_address,
-                    participant.clone(),
+                    participant: participant.clone(),
                     participant_mask_listener,
-                )
-                .await??;
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
         Ok(())
     }

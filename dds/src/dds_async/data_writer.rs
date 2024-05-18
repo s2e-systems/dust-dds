@@ -8,9 +8,12 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
-            domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
-            status_condition_actor::StatusConditionActor, topic_actor,
+            any_data_writer_listener::AnyDataWriterListener,
+            data_writer_actor::DataWriterActor,
+            domain_participant_actor::DomainParticipantActor,
+            publisher_actor::{self, PublisherActor},
+            status_condition_actor::StatusConditionActor,
+            topic_actor,
         },
     },
     infrastructure::{
@@ -442,8 +445,10 @@ impl<Foo> DataWriterAsync<Foo> {
         let qos = match qos {
             QosKind::Default => {
                 self.publisher_address()
-                    .get_default_datawriter_qos()
+                    .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)
                     .await?
+                    .receive_reply()
+                    .await
             }
             QosKind::Specific(q) => q,
         };
