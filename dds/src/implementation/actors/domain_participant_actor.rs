@@ -73,6 +73,7 @@ use std::{
 };
 
 use super::{
+    data_reader_actor,
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -561,7 +562,7 @@ impl DomainParticipantActor {
                         })
                         .await
                         .receive_reply()
-                        .await?
+                        .await
                         .is_some()
                     {
                         return Err(DdsError::PreconditionNotMet(
@@ -659,7 +660,11 @@ impl DomainParticipantActor {
                 .receive_reply()
                 .await
             {
-                builtin_reader.enable().await?;
+                builtin_reader
+                    .send_actor_mail(data_reader_actor::Enable)
+                    .await?
+                    .receive_reply()
+                    .await;
             }
             for builtin_writer in self
                 .builtin_publisher
@@ -1555,17 +1560,19 @@ impl DomainParticipantActor {
             })
             .await
             .receive_reply()
-            .await?
+            .await
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-                .read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE.to_vec(),
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )
+                .send_actor_mail(data_reader_actor::Read {
+                    max_samples: i32::MAX,
+                    sample_states: ANY_SAMPLE_STATE.to_vec(),
+                    view_states: ANY_VIEW_STATE.to_vec(),
+                    instance_states: ANY_INSTANCE_STATE.to_vec(),
+                    specific_instance_handle: None,
+                })
                 .await?
+                .receive_reply()
+                .await
             {
                 for (discovered_writer_data, discovered_writer_sample_info) in
                     discovered_writer_sample_list.drain(..)
@@ -1759,17 +1766,19 @@ impl DomainParticipantActor {
             })
             .await
             .receive_reply()
-            .await?
+            .await
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-                .read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE.to_vec(),
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )
+                .send_actor_mail(data_reader_actor::Read {
+                    max_samples: i32::MAX,
+                    sample_states: ANY_SAMPLE_STATE.to_vec(),
+                    view_states: ANY_VIEW_STATE.to_vec(),
+                    instance_states: ANY_INSTANCE_STATE.to_vec(),
+                    specific_instance_handle: None,
+                })
                 .await?
+                .receive_reply()
+                .await
             {
                 for (discovered_reader_data, discovered_reader_sample_info) in
                     discovered_reader_sample_list.drain(..)
@@ -1966,17 +1975,19 @@ impl DomainParticipantActor {
             })
             .await
             .receive_reply()
-            .await?
+            .await
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-                .read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE.to_vec(),
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )
+                .send_actor_mail(data_reader_actor::Read {
+                    max_samples: i32::MAX,
+                    sample_states: ANY_SAMPLE_STATE.to_vec(),
+                    view_states: ANY_VIEW_STATE.to_vec(),
+                    instance_states: ANY_INSTANCE_STATE.to_vec(),
+                    specific_instance_handle: None,
+                })
                 .await?
+                .receive_reply()
+                .await
             {
                 for (discovered_topic_data, discovered_topic_sample_info) in
                     discovered_topic_sample_list.drain(..)

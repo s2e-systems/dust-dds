@@ -4,8 +4,10 @@ use fnmatch_regex::glob_to_regex;
 use tracing::warn;
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    message_sender_actor::MessageSenderActor, subscriber_listener_actor::SubscriberListenerActor,
+    any_data_reader_listener::AnyDataReaderListener,
+    data_reader_actor::{self, DataReaderActor},
+    message_sender_actor::MessageSenderActor,
+    subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -261,7 +263,7 @@ pub struct LookupDatareader {
     pub topic_name: String,
 }
 impl Mail for LookupDatareader {
-    type Result = DdsResult<Option<ActorAddress<DataReaderActor>>>;
+    type Result = Option<ActorAddress<DataReaderActor>>;
 }
 impl MailHandler<LookupDatareader> for SubscriberActor {
     fn handle(
@@ -270,11 +272,18 @@ impl MailHandler<LookupDatareader> for SubscriberActor {
     ) -> impl std::future::Future<Output = <LookupDatareader as Mail>::Result> + Send {
         async move {
             for dr in self.data_reader_list.values() {
-                if dr.get_topic_name().await?.as_ref() == Ok(&message.topic_name) {
-                    return Ok(Some(dr.address()));
+                if dr
+                    .send_actor_mail(data_reader_actor::GetTopicName)
+                    .await
+                    .receive_reply()
+                    .await
+                    .as_ref()
+                    == Ok(&message.topic_name)
+                {
+                    return Some(dr.address());
                 }
             }
-            Ok(None)
+            None
         }
     }
 }
@@ -495,9 +504,10 @@ impl MailHandler<SendMessage> for SubscriberActor {
         async move {
             for data_reader_address in self.data_reader_list.values() {
                 data_reader_address
-                    .send_message(message.message_sender_actor.clone())
-                    .await
-                    .ok();
+                    .send_actor_mail(data_reader_actor::SendMessage {
+                        message_sender_actor: message.message_sender_actor.clone(),
+                    })
+                    .await;
             }
         }
     }
@@ -526,20 +536,19 @@ impl MailHandler<ProcessRtpsMessage> for SubscriberActor {
 
             for data_reader_address in self.data_reader_list.values() {
                 data_reader_address
-                    .process_rtps_message(
-                        message.rtps_message.clone(),
-                        message.reception_timestamp,
-                        data_reader_address.address(),
-                        SubscriberAsync::new(
+                    .send_actor_mail(data_reader_actor::ProcessRtpsMessage {
+                        rtps_message: message.rtps_message.clone(),
+                        reception_timestamp: message.reception_timestamp,
+                        data_reader_address: data_reader_address.address(),
+                        subscriber: SubscriberAsync::new(
                             message.subscriber_address.clone(),
                             self.status_condition.address(),
                             message.participant.clone(),
                         ),
-                        subscriber_mask_listener.clone(),
-                        message.participant_mask_listener.clone(),
-                    )
-                    .await
-                    .ok();
+                        subscriber_mask_listener: subscriber_mask_listener.clone(),
+                        participant_mask_listener: message.participant_mask_listener.clone(),
+                    })
+                    .await;
             }
         }
     }
@@ -577,21 +586,27 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                     let data_reader_address = data_reader.address();
                     let subscriber_qos = self.qos.clone();
                     data_reader
-                        .add_matched_writer(
-                            message.discovered_writer_data.clone(),
-                            message.default_unicast_locator_list.clone(),
-                            message.default_multicast_locator_list.clone(),
+                        .send_actor_mail(data_reader_actor::AddMatchedWriter {
+                            discovered_writer_data: message.discovered_writer_data.clone(),
+                            default_unicast_locator_list: message
+                                .default_unicast_locator_list
+                                .clone(),
+                            default_multicast_locator_list: message
+                                .default_multicast_locator_list
+                                .clone(),
                             data_reader_address,
-                            SubscriberAsync::new(
+                            subscriber: SubscriberAsync::new(
                                 message.subscriber_address.clone(),
                                 self.status_condition.address(),
                                 message.participant.clone(),
                             ),
                             subscriber_qos,
                             subscriber_mask_listener,
-                            message.participant_mask_listener.clone(),
-                        )
-                        .await??;
+                            participant_mask_listener: message.participant_mask_listener.clone(),
+                        })
+                        .await
+                        .receive_reply()
+                        .await?;
                 }
             }
             Ok(())
@@ -621,18 +636,20 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                 let data_reader_address = data_reader.address();
                 let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
                 data_reader
-                    .remove_matched_writer(
-                        message.discovered_writer_handle,
+                    .send_actor_mail(data_reader_actor::RemoveMatchedWriter {
+                        discovered_writer_handle: message.discovered_writer_handle,
                         data_reader_address,
-                        SubscriberAsync::new(
+                        subscriber: SubscriberAsync::new(
                             message.subscriber_address.clone(),
                             self.status_condition.address(),
                             message.participant.clone(),
                         ),
                         subscriber_mask_listener,
-                        message.participant_mask_listener.clone(),
-                    )
-                    .await??;
+                        participant_mask_listener: message.participant_mask_listener.clone(),
+                    })
+                    .await
+                    .receive_reply()
+                    .await?;
             }
 
             Ok(())

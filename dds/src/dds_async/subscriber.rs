@@ -4,7 +4,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         actors::{
             any_data_reader_listener::AnyDataReaderListener,
-            data_reader_actor::DataReaderActor,
+            data_reader_actor::{self, DataReaderActor},
             domain_participant_actor::DomainParticipantActor,
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
@@ -74,12 +74,14 @@ impl SubscriberAsync {
                 .get_default_multicast_locator_list()
                 .await?;
             let data = reader
-                .as_discovered_reader_data(
+                .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
-                )
-                .await??;
+                })
+                .await
+                .receive_reply()
+                .await?;
             sedp_subscriptions_announcer.dispose(&data, None).await?;
         }
         Ok(())
@@ -135,7 +137,11 @@ impl SubscriberAsync {
             .receive_reply()
             .await?;
 
-        let status_condition = reader_address.get_statuscondition().await?;
+        let status_condition = reader_address
+            .send_actor_mail(data_reader_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         let data_reader = DataReaderAsync::new(
             reader_address,
             status_condition,
@@ -176,7 +182,9 @@ impl SubscriberAsync {
         let message_sender_actor = self.participant_address().get_message_sender().await?;
         a_datareader
             .reader_address()
-            .send_message(message_sender_actor)
+            .send_actor_mail(data_reader_actor::SendMessage {
+                message_sender_actor,
+            })
             .await?;
 
         let deleted_reader = self
@@ -218,9 +226,13 @@ impl SubscriberAsync {
                 })
                 .await?
                 .receive_reply()
-                .await?
+                .await
             {
-                let status_condition = dr.get_statuscondition().await?;
+                let status_condition = dr
+                    .send_actor_mail(data_reader_actor::GetStatuscondition)
+                    .await?
+                    .receive_reply()
+                    .await;
                 Ok(Some(DataReaderAsync::new(
                     dr,
                     status_condition,
@@ -268,8 +280,10 @@ impl SubscriberAsync {
         for deleted_reader_actor in deleted_reader_actor_list {
             // Send messages before deleting the reader
             deleted_reader_actor
-                .send_message(message_sender_actor.clone())
-                .await?;
+                .send_actor_mail(data_reader_actor::SendMessage {
+                    message_sender_actor: message_sender_actor.clone(),
+                })
+                .await;
 
             self.announce_deleted_data_reader(&deleted_reader_actor)
                 .await?;
@@ -392,7 +406,11 @@ impl SubscriberAsync {
                     .receive_reply()
                     .await
                 {
-                    data_reader.enable().await?;
+                    data_reader
+                        .send_actor_mail(data_reader_actor::Enable)
+                        .await?
+                        .receive_reply()
+                        .await;
                 }
             }
         }
