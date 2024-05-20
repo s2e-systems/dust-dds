@@ -74,7 +74,7 @@ use std::{
 
 use super::{
     data_reader_actor,
-    data_writer_actor::DataWriterActor,
+    data_writer_actor::{self, DataWriterActor},
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
@@ -673,7 +673,11 @@ impl DomainParticipantActor {
                 .receive_reply()
                 .await
             {
-                builtin_writer.enable().await?;
+                builtin_writer
+                    .send_actor_mail(data_writer_actor::Enable)
+                    .await?
+                    .receive_reply()
+                    .await;
             }
             self.enabled = true;
         }

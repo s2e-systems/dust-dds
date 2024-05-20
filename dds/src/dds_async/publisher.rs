@@ -4,7 +4,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         actors::{
             any_data_writer_listener::AnyDataWriterListener,
-            data_writer_actor::DataWriterActor,
+            data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::DomainParticipantActor,
             publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
@@ -75,12 +75,14 @@ impl PublisherAsync {
                 .get_default_multicast_locator_list()
                 .await?;
             let data = writer
-                .as_discovered_writer_data(
+                .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
-                )
-                .await??;
+                })
+                .await
+                .receive_reply()
+                .await?;
             sedp_publications_announcer.dispose(&data, None).await?;
         }
         Ok(())
@@ -140,7 +142,11 @@ impl PublisherAsync {
             .await?
             .receive_reply()
             .await?;
-        let status_condition = data_writer_address.get_statuscondition().await?;
+        let status_condition = data_writer_address
+            .send_actor_mail(data_writer_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         let data_writer = DataWriterAsync::new(
             data_writer_address,
             status_condition,
@@ -184,7 +190,9 @@ impl PublisherAsync {
             .await?;
         a_datawriter
             .writer_address()
-            .send_message(message_sender_actor.clone())
+            .send_actor_mail(data_writer_actor::SendMessage {
+                message_sender_actor,
+            })
             .await?;
 
         let deleted_writer = self
@@ -229,7 +237,11 @@ impl PublisherAsync {
                 .receive_reply()
                 .await?
             {
-                let status_condition = dw.get_statuscondition().await?;
+                let status_condition = dw
+                    .send_actor_mail(data_writer_actor::GetStatuscondition)
+                    .await?
+                    .receive_reply()
+                    .await;
                 Ok(Some(DataWriterAsync::new(
                     dw.clone(),
                     status_condition,
@@ -297,8 +309,10 @@ impl PublisherAsync {
 
         for deleted_writer_actor in deleted_writer_actor_list {
             deleted_writer_actor
-                .send_message(message_sender_actor.clone())
-                .await?;
+                .send_actor_mail(data_writer_actor::SendMessage {
+                    message_sender_actor: message_sender_actor.clone(),
+                })
+                .await;
 
             self.announce_deleted_data_writer(&deleted_writer_actor)
                 .await?;

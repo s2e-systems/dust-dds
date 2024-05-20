@@ -34,10 +34,13 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
+    any_data_writer_listener::AnyDataWriterListener,
+    data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
-    message_sender_actor::MessageSenderActor, publisher_listener_actor::PublisherListenerActor,
-    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
+    message_sender_actor::MessageSenderActor,
+    publisher_listener_actor::PublisherListenerActor,
+    status_condition_actor::StatusConditionActor,
+    topic_actor::TopicActor,
 };
 
 pub struct PublisherActor {
@@ -260,7 +263,14 @@ impl MailHandler<LookupDatawriter> for PublisherActor {
     ) -> impl std::future::Future<Output = <LookupDatawriter as Mail>::Result> + Send {
         async move {
             for dw in self.data_writer_list.values() {
-                if dw.get_topic_name().await?.as_ref() == Ok(&message.topic_name) {
+                if dw
+                    .send_actor_mail(data_writer_actor::GetTopicName)
+                    .await
+                    .receive_reply()
+                    .await
+                    .as_ref()
+                    == Ok(&message.topic_name)
+                {
                     return Ok(Some(dw.address()));
                 }
             }
@@ -465,9 +475,10 @@ impl MailHandler<ProcessRtpsMessage> for PublisherActor {
         async move {
             for data_writer_address in self.data_writer_list.values() {
                 data_writer_address
-                    .process_rtps_message(message.rtps_message.clone())
-                    .await
-                    .ok();
+                    .send_actor_mail(data_writer_actor::ProcessRtpsMessage {
+                        rtps_message: message.rtps_message.clone(),
+                    })
+                    .await;
             }
         }
     }
@@ -487,9 +498,10 @@ impl MailHandler<SendMessage> for PublisherActor {
         async move {
             for data_writer_address in self.data_writer_list.values() {
                 data_writer_address
-                    .send_message(message.message_sender_actor.clone())
-                    .await
-                    .ok();
+                    .send_actor_mail(data_writer_actor::SendMessage {
+                        message_sender_actor: message.message_sender_actor.clone(),
+                    })
+                    .await;
             }
         }
     }
@@ -527,21 +539,27 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                         (self.listener.address(), self.status_kind.clone());
 
                     data_writer
-                        .add_matched_reader(
-                            message.discovered_reader_data.clone(),
-                            message.default_unicast_locator_list.clone(),
-                            message.default_multicast_locator_list.clone(),
+                        .send_actor_mail(data_writer_actor::AddMatchedReader {
+                            discovered_reader_data: message.discovered_reader_data.clone(),
+                            default_unicast_locator_list: message
+                                .default_unicast_locator_list
+                                .clone(),
+                            default_multicast_locator_list: message
+                                .default_multicast_locator_list
+                                .clone(),
                             data_writer_address,
-                            PublisherAsync::new(
+                            publisher: PublisherAsync::new(
                                 message.publisher_address.clone(),
                                 self.status_condition.address(),
                                 message.participant.clone(),
                             ),
-                            self.qos.clone(),
+                            publisher_qos: self.qos.clone(),
                             publisher_mask_listener,
-                            message.participant_mask_listener.clone(),
-                        )
-                        .await??;
+                            participant_mask_listener: message.participant_mask_listener.clone(),
+                        })
+                        .await
+                        .receive_reply()
+                        .await?;
                 }
             }
             Ok(())
@@ -571,18 +589,20 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
                 let data_writer_address = data_writer.address();
                 let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
                 data_writer
-                    .remove_matched_reader(
-                        message.discovered_reader_handle,
+                    .send_actor_mail(data_writer_actor::RemoveMatchedReader {
+                        discovered_reader_handle: message.discovered_reader_handle,
                         data_writer_address,
-                        PublisherAsync::new(
+                        publisher: PublisherAsync::new(
                             message.publisher_address.clone(),
                             self.status_condition.address(),
                             message.participant.clone(),
                         ),
                         publisher_mask_listener,
-                        message.participant_mask_listener.clone(),
-                    )
-                    .await??;
+                        participant_mask_listener: message.participant_mask_listener.clone(),
+                    })
+                    .await
+                    .receive_reply()
+                    .await?;
             }
             Ok(())
         }
