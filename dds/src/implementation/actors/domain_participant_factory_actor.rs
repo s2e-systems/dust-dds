@@ -546,6 +546,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         })
                         .await;
 
+                    participant_address_clone
+                        .send_actor_mail(domain_participant_actor::SendMessage)
+                        .await
+                        .ok();
+
                     if r.is_err() {
                         break;
                     }
