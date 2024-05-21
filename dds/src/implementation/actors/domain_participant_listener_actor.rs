@@ -19,13 +19,13 @@ impl DomainParticipantListenerActor {
 }
 
 pub enum DomainParticipantListenerOperation {
-    OnSampleRejected(SampleRejectedStatus),
-    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
-    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
-    OnSubscriptionMatched(SubscriptionMatchedStatus),
-    OnSampleLost(SampleLostStatus),
-    OnOfferedIncompatibleQos(OfferedIncompatibleQosStatus),
-    OnPublicationMatched(PublicationMatchedStatus),
+    SampleRejected(SampleRejectedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
 }
 
 pub struct CallListenerFunction {
@@ -35,34 +35,32 @@ impl Mail for CallListenerFunction {
     type Result = ();
 }
 impl MailHandler<CallListenerFunction> for DomainParticipantListenerActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: CallListenerFunction,
-    ) -> impl std::future::Future<Output = <CallListenerFunction as Mail>::Result> + Send {
-        async move {
-            if let Some(l) = &mut self.listener {
-                match message.listener_operation {
-                    DomainParticipantListenerOperation::OnSampleRejected(status) => {
-                        l.on_sample_rejected(&(), status).await
-                    }
-                    DomainParticipantListenerOperation::OnRequestedIncompatibleQos(status) => {
-                        l.on_requested_incompatible_qos(&(), status).await
-                    }
-                    DomainParticipantListenerOperation::OnRequestedDeadlineMissed(status) => {
-                        l.on_requested_deadline_missed(&(), status).await
-                    }
-                    DomainParticipantListenerOperation::OnSubscriptionMatched(status) => {
-                        l.on_subscription_matched(&(), status).await
-                    }
-                    DomainParticipantListenerOperation::OnSampleLost(status) => {
-                        l.on_sample_lost(&(), status).await
-                    }
-                    DomainParticipantListenerOperation::OnOfferedIncompatibleQos(status) => {
-                        l.on_offered_incompatible_qos(&(), status).await
-                    }
-                    DomainParticipantListenerOperation::OnPublicationMatched(status) => {
-                        l.on_publication_matched(&(), status).await
-                    }
+    ) -> <CallListenerFunction as Mail>::Result {
+        if let Some(l) = &mut self.listener {
+            match message.listener_operation {
+                DomainParticipantListenerOperation::SampleRejected(status) => {
+                    l.on_sample_rejected(&(), status).await
+                }
+                DomainParticipantListenerOperation::RequestedIncompatibleQos(status) => {
+                    l.on_requested_incompatible_qos(&(), status).await
+                }
+                DomainParticipantListenerOperation::RequestedDeadlineMissed(status) => {
+                    l.on_requested_deadline_missed(&(), status).await
+                }
+                DomainParticipantListenerOperation::SubscriptionMatched(status) => {
+                    l.on_subscription_matched(&(), status).await
+                }
+                DomainParticipantListenerOperation::SampleLost(status) => {
+                    l.on_sample_lost(&(), status).await
+                }
+                DomainParticipantListenerOperation::OfferedIncompatibleQos(status) => {
+                    l.on_offered_incompatible_qos(&(), status).await
+                }
+                DomainParticipantListenerOperation::PublicationMatched(status) => {
+                    l.on_publication_matched(&(), status).await
                 }
             }
         }

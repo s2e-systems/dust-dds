@@ -311,7 +311,7 @@ impl DataWriterActor {
             .await;
     }
 
-    fn matched_reader_remove(&mut self, a_reader_guid: Guid) -> () {
+    fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
@@ -569,7 +569,7 @@ impl DataWriterActor {
             let status = self.get_publication_matched_status().await;
             participant_listener
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OnPublicationMatched(
+                    listener_operation: DomainParticipantListenerOperation::PublicationMatched(
                         status,
                     ),
                 })
@@ -659,8 +659,9 @@ impl DataWriterActor {
                 .get_offered_incompatible_qos_status();
             participant_listener
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation:
-                        DomainParticipantListenerOperation::OnOfferedIncompatibleQos(status),
+                    listener_operation: DomainParticipantListenerOperation::OfferedIncompatibleQos(
+                        status,
+                    ),
                 })
                 .await?;
         }
@@ -673,11 +674,8 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetInstanceHandle,
-    ) -> impl std::future::Future<Output = <GetInstanceHandle as Mail>::Result> + Send {
-        async move { self.get_instance_handle() }
+    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+        self.get_instance_handle()
     }
 }
 
@@ -689,14 +687,12 @@ impl Mail for AddMatchedPublication {
     type Result = ();
 }
 impl MailHandler<AddMatchedPublication> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: AddMatchedPublication,
-    ) -> impl std::future::Future<Output = <AddMatchedPublication as Mail>::Result> + Send {
-        async move {
-            self.matched_subscriptions
-                .add_matched_subscription(message.handle, message.subscription_data);
-        }
+    ) -> <AddMatchedPublication as Mail>::Result {
+        self.matched_subscriptions
+            .add_matched_subscription(message.handle, message.subscription_data);
     }
 }
 
@@ -707,14 +703,12 @@ impl Mail for RemoveMatchedSubscription {
     type Result = ();
 }
 impl MailHandler<RemoveMatchedSubscription> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: RemoveMatchedSubscription,
-    ) -> impl std::future::Future<Output = <RemoveMatchedSubscription as Mail>::Result> + Send {
-        async move {
-            self.matched_subscriptions
-                .remove_matched_subscription(message.handle)
-        }
+    ) -> <RemoveMatchedSubscription as Mail>::Result {
+        self.matched_subscriptions
+            .remove_matched_subscription(message.handle)
     }
 }
 
@@ -723,11 +717,11 @@ impl Mail for GetMatchedSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedSubscriptions> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetMatchedSubscriptions,
-    ) -> impl std::future::Future<Output = <GetMatchedSubscriptions as Mail>::Result> + Send {
-        async move { self.matched_subscriptions.get_matched_subscriptions() }
+    ) -> <GetMatchedSubscriptions as Mail>::Result {
+        self.matched_subscriptions.get_matched_subscriptions()
     }
 }
 
@@ -738,16 +732,13 @@ impl Mail for GetMatchedSubscriptionData {
     type Result = Option<SubscriptionBuiltinTopicData>;
 }
 impl MailHandler<GetMatchedSubscriptionData> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: GetMatchedSubscriptionData,
-    ) -> impl std::future::Future<Output = <GetMatchedSubscriptionData as Mail>::Result> + Send
-    {
-        async move {
-            self.matched_subscriptions
-                .get_matched_subscription_data(message.handle)
-                .cloned()
-        }
+    ) -> <GetMatchedSubscriptionData as Mail>::Result {
+        self.matched_subscriptions
+            .get_matched_subscription_data(message.handle)
+            .cloned()
     }
 }
 
@@ -756,15 +747,12 @@ impl Mail for GetOfferedIncompatibleQosStatus {
     type Result = OfferedIncompatibleQosStatus;
 }
 impl MailHandler<GetOfferedIncompatibleQosStatus> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetOfferedIncompatibleQosStatus,
-    ) -> impl std::future::Future<Output = <GetOfferedIncompatibleQosStatus as Mail>::Result> + Send
-    {
-        async move {
-            self.incompatible_subscriptions
-                .get_offered_incompatible_qos_status()
-        }
+    ) -> <GetOfferedIncompatibleQosStatus as Mail>::Result {
+        self.incompatible_subscriptions
+            .get_offered_incompatible_qos_status()
     }
 }
 
@@ -773,15 +761,12 @@ impl Mail for GetIncompatibleSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetIncompatibleSubscriptions> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetIncompatibleSubscriptions,
-    ) -> impl std::future::Future<Output = <GetIncompatibleSubscriptions as Mail>::Result> + Send
-    {
-        async move {
-            self.incompatible_subscriptions
-                .get_incompatible_subscriptions()
-        }
+    ) -> <GetIncompatibleSubscriptions as Mail>::Result {
+        self.incompatible_subscriptions
+            .get_incompatible_subscriptions()
     }
 }
 
@@ -790,13 +775,8 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: Enable,
-    ) -> impl std::future::Future<Output = <Enable as Mail>::Result> + Send {
-        async move {
-            self.enabled = true;
-        }
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+        self.enabled = true;
     }
 }
 
@@ -805,11 +785,8 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: IsEnabled,
-    ) -> impl std::future::Future<Output = <IsEnabled as Mail>::Result> + Send {
-        async move { self.enabled }
+    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+        self.enabled
     }
 }
 
@@ -818,11 +795,8 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetStatuscondition,
-    ) -> impl std::future::Future<Output = <GetStatuscondition as Mail>::Result> + Send {
-        async move { self.status_condition.address() }
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+        self.status_condition.address()
     }
 }
 
@@ -831,11 +805,8 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetGuid,
-    ) -> impl std::future::Future<Output = <GetGuid as Mail>::Result> + Send {
-        async move { self.rtps_writer.guid() }
+    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+        self.rtps_writer.guid()
     }
 }
 
@@ -844,11 +815,8 @@ impl Mail for GetQos {
     type Result = DataWriterQos;
 }
 impl MailHandler<GetQos> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetQos,
-    ) -> impl std::future::Future<Output = <GetQos as Mail>::Result> + Send {
-        async move { self.qos.clone() }
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
     }
 }
 
@@ -859,18 +827,13 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: SetQos,
-    ) -> impl std::future::Future<Output = <SetQos as Mail>::Result> + Send {
-        async move {
-            message.qos.is_consistent()?;
-            if self.enabled {
-                message.qos.check_immutability(&self.qos)?;
-            }
-            self.qos = message.qos;
-            Ok(())
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        message.qos.is_consistent()?;
+        if self.enabled {
+            message.qos.check_immutability(&self.qos)?;
         }
+        self.qos = message.qos;
+        Ok(())
     }
 }
 
@@ -882,12 +845,11 @@ impl Mail for RegisterInstanceWTimestamp {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<RegisterInstanceWTimestamp> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: RegisterInstanceWTimestamp,
-    ) -> impl std::future::Future<Output = <RegisterInstanceWTimestamp as Mail>::Result> + Send
-    {
-        async move { self.register_instance_w_timestamp(message.instance_handle, message.timestamp) }
+    ) -> <RegisterInstanceWTimestamp as Mail>::Result {
+        self.register_instance_w_timestamp(message.instance_handle, message.timestamp)
     }
 }
 
@@ -903,53 +865,50 @@ impl Mail for UnregisterInstanceWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: UnregisterInstanceWTimestamp,
-    ) -> impl std::future::Future<Output = <UnregisterInstanceWTimestamp as Mail>::Result> + Send
-    {
-        async move {
-            if !self.enabled {
-                return Err(DdsError::NotEnabled);
-            }
-
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-            if self
-                .qos
-                .writer_data_lifecycle
-                .autodispose_unregistered_instances
-            {
-                STATUS_INFO_DISPOSED_UNREGISTERED
-                    .serialize(&mut serializer)
-                    .unwrap();
-            } else {
-                STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
-            }
-
-            let inline_qos = ParameterList::new(vec![Parameter::new(
-                PID_STATUS_INFO,
-                ArcSlice::from(serialized_status_info),
-            )]);
-
-            let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
-                ChangeKind::NotAliveUnregistered,
-                message.instance_serialized_key,
-                inline_qos,
-                message.handle.into(),
-                message.timestamp.into(),
-            );
-
-            self.add_change(
-                change,
-                message.message_sender_actor,
-                message.now,
-                message.data_writer_address,
-            )
-            .await;
-            Ok(())
+    ) -> <UnregisterInstanceWTimestamp as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
         }
+
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+        if self
+            .qos
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            STATUS_INFO_DISPOSED_UNREGISTERED
+                .serialize(&mut serializer)
+                .unwrap();
+        } else {
+            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
+        }
+
+        let inline_qos = ParameterList::new(vec![Parameter::new(
+            PID_STATUS_INFO,
+            ArcSlice::from(serialized_status_info),
+        )]);
+
+        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
+            ChangeKind::NotAliveUnregistered,
+            message.instance_serialized_key,
+            inline_qos,
+            message.handle.into(),
+            message.timestamp.into(),
+        );
+
+        self.add_change(
+            change,
+            message.message_sender_actor,
+            message.now,
+            message.data_writer_address,
+        )
+        .await;
+        Ok(())
     }
 }
 
@@ -960,26 +919,21 @@ impl Mail for LookupInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<LookupInstance> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: LookupInstance,
-    ) -> impl std::future::Future<Output = <LookupInstance as Mail>::Result> + Send {
-        async move {
-            if !self.enabled {
-                return Err(DdsError::NotEnabled);
-            }
-
-            Ok(
-                if self
-                    .registered_instance_list
-                    .contains(&message.instance_handle)
-                {
-                    Some(message.instance_handle)
-                } else {
-                    None
-                },
-            )
+    async fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
         }
+
+        Ok(
+            if self
+                .registered_instance_list
+                .contains(&message.instance_handle)
+            {
+                Some(message.instance_handle)
+            } else {
+                None
+            },
+        )
     }
 }
 
@@ -995,43 +949,38 @@ impl Mail for DisposeWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<DisposeWTimestamp> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: DisposeWTimestamp,
-    ) -> impl std::future::Future<Output = <DisposeWTimestamp as Mail>::Result> + Send {
-        async move {
-            if !self.enabled {
-                return Err(DdsError::NotEnabled);
-            }
-
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-            STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
-
-            let inline_qos = ParameterList::new(vec![Parameter::new(
-                PID_STATUS_INFO,
-                ArcSlice::from(serialized_status_info),
-            )]);
-
-            let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
-                ChangeKind::NotAliveDisposed,
-                message.instance_serialized_key,
-                inline_qos,
-                message.handle.into(),
-                message.timestamp.into(),
-            );
-
-            self.add_change(
-                change,
-                message.message_sender_actor,
-                message.now,
-                message.data_writer_address,
-            )
-            .await;
-
-            Ok(())
+    async fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
         }
+
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
+
+        let inline_qos = ParameterList::new(vec![Parameter::new(
+            PID_STATUS_INFO,
+            ArcSlice::from(serialized_status_info),
+        )]);
+
+        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
+            ChangeKind::NotAliveDisposed,
+            message.instance_serialized_key,
+            inline_qos,
+            message.handle.into(),
+            message.timestamp.into(),
+        );
+
+        self.add_change(
+            change,
+            message.message_sender_actor,
+            message.now,
+            message.data_writer_address,
+        )
+        .await;
+
+        Ok(())
     }
 }
 
@@ -1040,16 +989,14 @@ impl Mail for AreAllChangesAcknowledge {
     type Result = bool;
 }
 impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: AreAllChangesAcknowledge,
-    ) -> impl std::future::Future<Output = <AreAllChangesAcknowledge as Mail>::Result> + Send {
-        async move {
-            !self
-                .matched_readers
-                .iter()
-                .any(|rp| rp.unacked_changes(&self.writer_cache))
-        }
+    ) -> <AreAllChangesAcknowledge as Mail>::Result {
+        !self
+            .matched_readers
+            .iter()
+            .any(|rp| rp.unacked_changes(&self.writer_cache))
     }
 }
 
@@ -1062,74 +1009,72 @@ impl Mail for AsDiscoveredWriterData {
     type Result = DdsResult<DiscoveredWriterData>;
 }
 impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: AsDiscoveredWriterData,
-    ) -> impl std::future::Future<Output = <AsDiscoveredWriterData as Mail>::Result> + Send {
-        async move {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
-                .await?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)
-                .await?
-                .receive_reply()
-                .await;
-            let topic_qos = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetQos)
-                .await?
-                .receive_reply()
-                .await;
-            let xml_type = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeSupport)
-                .await?
-                .receive_reply()
-                .await
-                .xml_type();
-            let writer_qos = &self.qos;
+    ) -> <AsDiscoveredWriterData as Mail>::Result {
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_qos = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await;
+        let xml_type = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .xml_type();
+        let writer_qos = &self.qos;
 
-            let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
-                message.default_unicast_locator_list
-            } else {
-                self.rtps_writer.unicast_locator_list().to_vec()
-            };
+        let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
+            message.default_unicast_locator_list
+        } else {
+            self.rtps_writer.unicast_locator_list().to_vec()
+        };
 
-            let multicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
-                message.default_multicast_locator_list
-            } else {
-                self.rtps_writer.multicast_locator_list().to_vec()
-            };
+        let multicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
+            message.default_multicast_locator_list
+        } else {
+            self.rtps_writer.multicast_locator_list().to_vec()
+        };
 
-            Ok(DiscoveredWriterData::new(
-                PublicationBuiltinTopicData::new(
-                    BuiltInTopicKey {
-                        value: self.rtps_writer.guid().into(),
-                    },
-                    BuiltInTopicKey {
-                        value: GUID_UNKNOWN.into(),
-                    },
-                    topic_name,
-                    type_name,
-                    writer_qos.clone(),
-                    message.publisher_qos.clone(),
-                    topic_qos.topic_data,
-                    xml_type,
-                ),
-                WriterProxy::new(
-                    self.rtps_writer.guid(),
-                    EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
-                    unicast_locator_list,
-                    multicast_locator_list,
-                    None,
-                ),
-            ))
-        }
+        Ok(DiscoveredWriterData::new(
+            PublicationBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: self.rtps_writer.guid().into(),
+                },
+                BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                topic_name,
+                type_name,
+                writer_qos.clone(),
+                message.publisher_qos.clone(),
+                topic_qos.topic_data,
+                xml_type,
+            ),
+            WriterProxy::new(
+                self.rtps_writer.guid(),
+                EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
+                unicast_locator_list,
+                multicast_locator_list,
+                None,
+            ),
+        ))
     }
 }
 
@@ -1138,12 +1083,11 @@ impl Mail for GetPublicationMatchedStatus {
     type Result = PublicationMatchedStatus;
 }
 impl MailHandler<GetPublicationMatchedStatus> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetPublicationMatchedStatus,
-    ) -> impl std::future::Future<Output = <GetPublicationMatchedStatus as Mail>::Result> + Send
-    {
-        async move { self.get_publication_matched_status().await }
+    ) -> <GetPublicationMatchedStatus as Mail>::Result {
+        self.get_publication_matched_status().await
     }
 }
 
@@ -1152,18 +1096,13 @@ impl Mail for GetTopicName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTopicName> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetTopicName,
-    ) -> impl std::future::Future<Output = <GetTopicName as Mail>::Result> + Send {
-        async move {
-            Ok(self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)
-                .await?
-                .receive_reply()
-                .await)
-        }
+    async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -1180,32 +1119,27 @@ impl Mail for WriteWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<WriteWTimestamp> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: WriteWTimestamp,
-    ) -> impl std::future::Future<Output = <WriteWTimestamp as Mail>::Result> + Send {
-        async move {
-            let handle = self
-                .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
-                .unwrap_or(HANDLE_NIL);
-            let change = self.rtps_writer.new_change(
-                ChangeKind::Alive,
-                message.serialized_data,
-                ParameterList::empty(),
-                handle.into(),
-                message.timestamp.into(),
-            );
+    async fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+        let handle = self
+            .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.rtps_writer.new_change(
+            ChangeKind::Alive,
+            message.serialized_data,
+            ParameterList::empty(),
+            handle.into(),
+            message.timestamp.into(),
+        );
 
-            self.add_change(
-                change,
-                message.message_sender_actor,
-                message.now,
-                message.data_writer_address,
-            )
-            .await;
+        self.add_change(
+            change,
+            message.message_sender_actor,
+            message.now,
+            message.data_writer_address,
+        )
+        .await;
 
-            Ok(())
-        }
+        Ok(())
     }
 }
 
@@ -1214,18 +1148,13 @@ impl Mail for GetTypeName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTypeName> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetTypeName,
-    ) -> impl std::future::Future<Output = <GetTypeName as Mail>::Result> + Send {
-        async move {
-            Ok(self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
-                .await?
-                .receive_reply()
-                .await)
-        }
+    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -1246,169 +1175,149 @@ impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedReader> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: AddMatchedReader,
-    ) -> impl std::future::Future<Output = <AddMatchedReader as Mail>::Result> + Send {
-        async move {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
-                .await?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)
-                .await?
-                .receive_reply()
-                .await;
-            let is_matched_topic_name = message
-                .discovered_reader_data
-                .subscription_builtin_topic_data()
-                .topic_name()
-                == topic_name;
-            let is_matched_type_name = message
-                .discovered_reader_data
-                .subscription_builtin_topic_data()
-                .get_type_name()
-                == type_name;
+    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let is_matched_topic_name = message
+            .discovered_reader_data
+            .subscription_builtin_topic_data()
+            .topic_name()
+            == topic_name;
+        let is_matched_type_name = message
+            .discovered_reader_data
+            .subscription_builtin_topic_data()
+            .get_type_name()
+            == type_name;
 
-            if is_matched_topic_name && is_matched_type_name {
-                tracing::trace!(
-                    topic_name = topic_name,
-                    type_name = type_name,
-                    "Reader with matched topic and type found",
-                );
-                let incompatible_qos_policy_list =
-                    get_discovered_reader_incompatible_qos_policy_list(
-                        &self.qos,
-                        message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data(),
-                        &message.publisher_qos,
-                    );
-                let instance_handle = InstanceHandle::try_from_key(
-                    &message.discovered_reader_data.get_key().unwrap(),
-                )
-                .unwrap();
+        if is_matched_topic_name && is_matched_type_name {
+            tracing::trace!(
+                topic_name = topic_name,
+                type_name = type_name,
+                "Reader with matched topic and type found",
+            );
+            let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+                &self.qos,
+                message
+                    .discovered_reader_data
+                    .subscription_builtin_topic_data(),
+                &message.publisher_qos,
+            );
+            let instance_handle =
+                InstanceHandle::try_from_key(&message.discovered_reader_data.get_key().unwrap())
+                    .unwrap();
 
-                if incompatible_qos_policy_list.is_empty() {
-                    let unicast_locator_list = if message
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if message
+                    .discovered_reader_data
+                    .reader_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    message.default_unicast_locator_list
+                } else {
+                    message
                         .discovered_reader_data
                         .reader_proxy()
                         .unicast_locator_list()
-                        .is_empty()
-                    {
-                        message.default_unicast_locator_list
-                    } else {
-                        message
-                            .discovered_reader_data
-                            .reader_proxy()
-                            .unicast_locator_list()
-                            .to_vec()
-                    };
+                        .to_vec()
+                };
 
-                    let multicast_locator_list = if message
+                let multicast_locator_list = if message
+                    .discovered_reader_data
+                    .reader_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    message.default_multicast_locator_list
+                } else {
+                    message
                         .discovered_reader_data
                         .reader_proxy()
                         .multicast_locator_list()
-                        .is_empty()
-                    {
-                        message.default_multicast_locator_list
-                    } else {
-                        message
-                            .discovered_reader_data
-                            .reader_proxy()
-                            .multicast_locator_list()
-                            .to_vec()
-                    };
+                        .to_vec()
+                };
 
-                    let proxy_reliability = match message
-                        .discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .reliability()
-                        .kind
-                    {
-                        ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                    };
+                let proxy_reliability = match message
+                    .discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .reliability()
+                    .kind
+                {
+                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                };
 
-                    let first_relevant_sample_seq_num = match message
-                        .discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .durability()
-                        .kind
-                    {
-                        DurabilityQosPolicyKind::Volatile => {
-                            self.writer_cache.get_seq_num_max().unwrap_or(0)
-                        }
-                        DurabilityQosPolicyKind::TransientLocal => 0,
-                    };
-
-                    let reader_proxy = RtpsReaderProxy::new(
-                        message
-                            .discovered_reader_data
-                            .reader_proxy()
-                            .remote_reader_guid(),
-                        message
-                            .discovered_reader_data
-                            .reader_proxy()
-                            .remote_group_entity_id(),
-                        &unicast_locator_list,
-                        &multicast_locator_list,
-                        message
-                            .discovered_reader_data
-                            .reader_proxy()
-                            .expects_inline_qos(),
-                        true,
-                        proxy_reliability,
-                        first_relevant_sample_seq_num,
-                    );
-
-                    if !self
-                        .matched_readers
-                        .iter()
-                        .any(|x| x.remote_reader_guid() == reader_proxy.remote_reader_guid())
-                    {
-                        self.matched_readers.push(reader_proxy)
+                let first_relevant_sample_seq_num = match message
+                    .discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .durability()
+                    .kind
+                {
+                    DurabilityQosPolicyKind::Volatile => {
+                        self.writer_cache.get_seq_num_max().unwrap_or(0)
                     }
+                    DurabilityQosPolicyKind::TransientLocal => 0,
+                };
 
-                    if !self
+                let reader_proxy = RtpsReaderProxy::new(
+                    message
+                        .discovered_reader_data
+                        .reader_proxy()
+                        .remote_reader_guid(),
+                    message
+                        .discovered_reader_data
+                        .reader_proxy()
+                        .remote_group_entity_id(),
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    message
+                        .discovered_reader_data
+                        .reader_proxy()
+                        .expects_inline_qos(),
+                    true,
+                    proxy_reliability,
+                    first_relevant_sample_seq_num,
+                );
+
+                if !self
+                    .matched_readers
+                    .iter()
+                    .any(|x| x.remote_reader_guid() == reader_proxy.remote_reader_guid())
+                {
+                    self.matched_readers.push(reader_proxy)
+                }
+
+                if !self
+                    .matched_subscriptions
+                    .get_matched_subscriptions()
+                    .contains(&instance_handle)
+                    || self
                         .matched_subscriptions
-                        .get_matched_subscriptions()
-                        .contains(&instance_handle)
-                        || self
-                            .matched_subscriptions
-                            .get_matched_subscription_data(instance_handle)
-                            != Some(
-                                message
-                                    .discovered_reader_data
-                                    .subscription_builtin_topic_data(),
-                            )
-                    {
-                        self.matched_subscriptions.add_matched_subscription(
-                            instance_handle,
+                        .get_matched_subscription_data(instance_handle)
+                        != Some(
                             message
                                 .discovered_reader_data
-                                .subscription_builtin_topic_data()
-                                .clone(),
-                        );
-                        self.on_publication_matched(
-                            message.data_writer_address,
-                            message.publisher,
-                            message.publisher_mask_listener,
-                            message.participant_mask_listener,
+                                .subscription_builtin_topic_data(),
                         )
-                        .await?;
-                    }
-                } else {
-                    self.incompatible_subscriptions
-                        .add_offered_incompatible_qos(
-                            instance_handle,
-                            incompatible_qos_policy_list,
-                        );
-                    self.on_offered_incompatible_qos(
+                {
+                    self.matched_subscriptions.add_matched_subscription(
+                        instance_handle,
+                        message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.on_publication_matched(
                         message.data_writer_address,
                         message.publisher,
                         message.publisher_mask_listener,
@@ -1416,9 +1325,19 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     )
                     .await?;
                 }
+            } else {
+                self.incompatible_subscriptions
+                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
+                self.on_offered_incompatible_qos(
+                    message.data_writer_address,
+                    message.publisher,
+                    message.publisher_mask_listener,
+                    message.participant_mask_listener,
+                )
+                .await?;
             }
-            Ok(())
         }
+        Ok(())
     }
 }
 
@@ -1436,31 +1355,29 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: RemoveMatchedReader,
-    ) -> impl std::future::Future<Output = <RemoveMatchedReader as Mail>::Result> + Send {
-        async move {
-            if let Some(r) = self
-                .matched_subscriptions
-                .get_matched_subscription_data(message.discovered_reader_handle)
-            {
-                let handle = r.key().value.into();
-                self.matched_reader_remove(handle);
-                self.matched_subscriptions
-                    .remove_matched_subscription(InstanceHandle::new(handle.into()));
+    ) -> <RemoveMatchedReader as Mail>::Result {
+        if let Some(r) = self
+            .matched_subscriptions
+            .get_matched_subscription_data(message.discovered_reader_handle)
+        {
+            let handle = r.key().value.into();
+            self.matched_reader_remove(handle);
+            self.matched_subscriptions
+                .remove_matched_subscription(InstanceHandle::new(handle.into()));
 
-                self.on_publication_matched(
-                    message.data_writer_address,
-                    message.publisher,
-                    message.publisher_mask_listener,
-                    message.participant_mask_listener,
-                )
-                .await?;
-            }
-
-            Ok(())
+            self.on_publication_matched(
+                message.data_writer_address,
+                message.publisher,
+                message.publisher_mask_listener,
+                message.participant_mask_listener,
+            )
+            .await?;
         }
+
+        Ok(())
     }
 }
 
@@ -1471,26 +1388,24 @@ impl Mail for ProcessRtpsMessage {
     type Result = ();
 }
 impl MailHandler<ProcessRtpsMessage> for DataWriterActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: ProcessRtpsMessage,
-    ) -> impl std::future::Future<Output = <ProcessRtpsMessage as Mail>::Result> + Send {
-        async move {
-            let mut message_receiver = MessageReceiver::new(&message.rtps_message);
-            while let Some(submessage) = message_receiver.next() {
-                match &submessage {
-                    RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
-                        .on_acknack_submessage_received(
-                            acknack_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
-                        .on_nack_frag_submessage_received(
-                            nackfrag_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    _ => (),
-                }
+    ) -> <ProcessRtpsMessage as Mail>::Result {
+        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
+        while let Some(submessage) = message_receiver.next() {
+            match &submessage {
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
+                    .on_acknack_submessage_received(
+                        acknack_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
+                    .on_nack_frag_submessage_received(
+                        nackfrag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
             }
         }
     }
@@ -1503,11 +1418,8 @@ impl Mail for SendMessage {
     type Result = ();
 }
 impl MailHandler<SendMessage> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: SendMessage,
-    ) -> impl std::future::Future<Output = <SendMessage as Mail>::Result> + Send {
-        async move { self.send_message(message.message_sender_actor).await }
+    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+        self.send_message(message.message_sender_actor).await
     }
 }
 
@@ -1520,18 +1432,13 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: SetListener,
-    ) -> impl std::future::Future<Output = <SetListener as Mail>::Result> + Send {
-        async move {
-            self.listener = Actor::spawn(
-                DataWriterListenerActor::new(message.listener),
-                &message.runtime_handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            );
-            self.status_kind = message.status_kind;
-        }
+    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+        self.listener = Actor::spawn(
+            DataWriterListenerActor::new(message.listener),
+            &message.runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        self.status_kind = message.status_kind;
     }
 }
 
@@ -1543,11 +1450,8 @@ impl Mail for RemoveChange {
     type Result = ();
 }
 impl MailHandler<RemoveChange> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: RemoveChange,
-    ) -> impl std::future::Future<Output = <RemoveChange as Mail>::Result> + Send {
-        async move { self.remove_change(message.seq_num) }
+    async fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
+        self.remove_change(message.seq_num)
     }
 }
 

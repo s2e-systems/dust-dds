@@ -35,21 +35,19 @@ impl Mail for CallListenerFunction {
     type Result = ();
 }
 impl MailHandler<CallListenerFunction> for DataWriterListenerActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: CallListenerFunction,
-    ) -> impl std::future::Future<Output = <CallListenerFunction as Mail>::Result> + Send {
-        async move {
-            if let Some(l) = &mut self.listener {
-                l.call_listener_function(
-                    message.listener_operation,
-                    message.writer_address,
-                    message.status_condition_address,
-                    message.publisher,
-                    message.topic,
-                )
-                .await
-            }
+    ) -> <CallListenerFunction as Mail>::Result {
+        if let Some(l) = &mut self.listener {
+            l.call_listener_function(
+                message.listener_operation,
+                message.writer_address,
+                message.status_condition_address,
+                message.publisher,
+                message.topic,
+            )
+            .await
         }
     }
 }

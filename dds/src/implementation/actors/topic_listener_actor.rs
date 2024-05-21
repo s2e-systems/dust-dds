@@ -22,15 +22,13 @@ impl Mail for OnInconsistentTopic {
     type Result = ();
 }
 impl MailHandler<OnInconsistentTopic> for TopicListenerActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: OnInconsistentTopic,
-    ) -> impl std::future::Future<Output = <OnInconsistentTopic as Mail>::Result> + Send {
-        async move {
-            if let Some(l) = &mut self.listener {
-                l.on_inconsistent_topic(message.the_topic, message.status)
-                    .await
-            }
+    ) -> <OnInconsistentTopic as Mail>::Result {
+        if let Some(l) = &mut self.listener {
+            l.on_inconsistent_topic(message.the_topic, message.status)
+                .await
         }
     }
 }

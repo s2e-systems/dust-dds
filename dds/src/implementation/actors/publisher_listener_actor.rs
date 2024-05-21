@@ -26,19 +26,17 @@ impl Mail for CallListenerFunction {
     type Result = ();
 }
 impl MailHandler<CallListenerFunction> for PublisherListenerActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: CallListenerFunction,
-    ) -> impl std::future::Future<Output = <CallListenerFunction as Mail>::Result> + Send {
-        async move {
-            if let Some(l) = &mut self.listener {
-                match message.listener_operation {
-                    PublisherListenerOperation::OnOfferedIncompatibleQos(status) => {
-                        l.on_offered_incompatible_qos(&(), status).await
-                    }
-                    PublisherListenerOperation::OnPublicationMatched(status) => {
-                        l.on_publication_matched(&(), status).await
-                    }
+    ) -> <CallListenerFunction as Mail>::Result {
+        if let Some(l) = &mut self.listener {
+            match message.listener_operation {
+                PublisherListenerOperation::OnOfferedIncompatibleQos(status) => {
+                    l.on_offered_incompatible_qos(&(), status).await
+                }
+                PublisherListenerOperation::OnPublicationMatched(status) => {
+                    l.on_publication_matched(&(), status).await
                 }
             }
         }

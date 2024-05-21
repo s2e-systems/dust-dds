@@ -84,11 +84,8 @@ impl Mail for GetTypeName {
     type Result = String;
 }
 impl MailHandler<GetTypeName> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetTypeName,
-    ) -> impl std::future::Future<Output = <GetTypeName as Mail>::Result> + Send {
-        async { self.type_name.clone() }
+    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+        self.type_name.clone()
     }
 }
 
@@ -97,11 +94,8 @@ impl Mail for GetName {
     type Result = String;
 }
 impl MailHandler<GetName> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetName,
-    ) -> impl std::future::Future<Output = <GetName as Mail>::Result> + Send {
-        async { self.topic_name.clone() }
+    async fn handle(&mut self, _: GetName) -> <GetName as Mail>::Result {
+        self.topic_name.clone()
     }
 }
 
@@ -110,11 +104,8 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetGuid,
-    ) -> impl std::future::Future<Output = <GetGuid as Mail>::Result> + Send {
-        async { self.guid }
+    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+        self.guid
     }
 }
 
@@ -125,21 +116,16 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for TopicActor {
-    fn handle(
-        &mut self,
-        message: SetQos,
-    ) -> impl std::future::Future<Output = <SetQos as Mail>::Result> + Send {
-        async move {
-            message.qos.is_consistent()?;
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        message.qos.is_consistent()?;
 
-            if self.enabled {
-                self.qos.check_immutability(&message.qos)?
-            }
-
-            self.qos = message.qos;
-
-            Ok(())
+        if self.enabled {
+            self.qos.check_immutability(&message.qos)?
         }
+
+        self.qos = message.qos;
+
+        Ok(())
     }
 }
 
@@ -148,11 +134,8 @@ impl Mail for GetQos {
     type Result = TopicQos;
 }
 impl MailHandler<GetQos> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetQos,
-    ) -> impl std::future::Future<Output = <GetQos as Mail>::Result> + Send {
-        async move { self.qos.clone() }
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
     }
 }
 
@@ -161,13 +144,8 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for TopicActor {
-    fn handle(
-        &mut self,
-        _: Enable,
-    ) -> impl std::future::Future<Output = <Enable as Mail>::Result> + Send {
-        async move {
-            self.enabled = true;
-        }
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+        self.enabled = true;
     }
 }
 
@@ -176,11 +154,8 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for TopicActor {
-    fn handle(
-        &mut self,
-        _: IsEnabled,
-    ) -> impl std::future::Future<Output = <IsEnabled as Mail>::Result> + Send {
-        async move { self.enabled }
+    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+        self.enabled
     }
 }
 
@@ -189,11 +164,8 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetInstanceHandle,
-    ) -> impl std::future::Future<Output = <GetInstanceHandle as Mail>::Result> + Send {
-        async move { InstanceHandle::new(self.guid.into()) }
+    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+        InstanceHandle::new(self.guid.into())
     }
 }
 
@@ -202,11 +174,8 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetStatuscondition,
-    ) -> impl std::future::Future<Output = <GetStatuscondition as Mail>::Result> + Send {
-        async move { self.status_condition.address() }
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+        self.status_condition.address()
     }
 }
 
@@ -215,20 +184,18 @@ impl Mail for AsDiscoveredTopicData {
     type Result = DiscoveredTopicData;
 }
 impl MailHandler<AsDiscoveredTopicData> for TopicActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: AsDiscoveredTopicData,
-    ) -> impl std::future::Future<Output = <AsDiscoveredTopicData as Mail>::Result> + Send {
-        async move {
-            DiscoveredTopicData::new(TopicBuiltinTopicData::new(
-                BuiltInTopicKey {
-                    value: self.guid.into(),
-                },
-                self.topic_name.to_string(),
-                self.type_name.to_string(),
-                self.qos.clone(),
-            ))
-        }
+    ) -> <AsDiscoveredTopicData as Mail>::Result {
+        DiscoveredTopicData::new(TopicBuiltinTopicData::new(
+            BuiltInTopicKey {
+                value: self.guid.into(),
+            },
+            self.topic_name.to_string(),
+            self.type_name.to_string(),
+            self.qos.clone(),
+        ))
     }
 }
 
@@ -237,22 +204,19 @@ impl Mail for GetInconsistentTopicStatus {
     type Result = InconsistentTopicStatus;
 }
 impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetInconsistentTopicStatus,
-    ) -> impl std::future::Future<Output = <GetInconsistentTopicStatus as Mail>::Result> + Send
-    {
-        async move {
-            let status = self.inconsistent_topic_status.read_and_reset();
-            self.status_condition
-                .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                    state: StatusKind::InconsistentTopic,
-                })
-                .await
-                .receive_reply()
-                .await;
-            status
-        }
+    ) -> <GetInconsistentTopicStatus as Mail>::Result {
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            })
+            .await
+            .receive_reply()
+            .await;
+        status
     }
 }
 
@@ -263,32 +227,30 @@ impl Mail for ProcessDiscoveredTopic {
     type Result = ();
 }
 impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: ProcessDiscoveredTopic,
-    ) -> impl std::future::Future<Output = <ProcessDiscoveredTopic as Mail>::Result> + Send {
-        async move {
-            if message
+    ) -> <ProcessDiscoveredTopic as Mail>::Result {
+        if message
+            .discovered_topic_data
+            .topic_builtin_topic_data()
+            .get_type_name()
+            == self.type_name
+            && message
                 .discovered_topic_data
                 .topic_builtin_topic_data()
-                .get_type_name()
-                == self.type_name
-                && message
-                    .discovered_topic_data
-                    .topic_builtin_topic_data()
-                    .name()
-                    == self.topic_name
-                && !is_discovered_topic_consistent(&self.qos, &message.discovered_topic_data)
-            {
-                self.inconsistent_topic_status.increment();
-                self.status_condition
-                    .send_actor_mail(AddCommunicationState {
-                        state: StatusKind::InconsistentTopic,
-                    })
-                    .await
-                    .receive_reply()
-                    .await;
-            }
+                .name()
+                == self.topic_name
+            && !is_discovered_topic_consistent(&self.qos, &message.discovered_topic_data)
+        {
+            self.inconsistent_topic_status.increment();
+            self.status_condition
+                .send_actor_mail(AddCommunicationState {
+                    state: StatusKind::InconsistentTopic,
+                })
+                .await
+                .receive_reply()
+                .await;
         }
     }
 }
@@ -298,11 +260,8 @@ impl Mail for GetTypeSupport {
     type Result = Arc<dyn DynamicTypeInterface + Send + Sync>;
 }
 impl MailHandler<GetTypeSupport> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetTypeSupport,
-    ) -> impl std::future::Future<Output = <GetTypeSupport as Mail>::Result> + Send {
-        async move { self.type_support.clone() }
+    async fn handle(&mut self, _: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
+        self.type_support.clone()
     }
 }
 
