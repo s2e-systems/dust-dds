@@ -8,9 +8,7 @@ use derive::{
     parameter_list::{expand_parameter_list_deserialize, expand_parameter_list_serialize},
 };
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span};
-use quote::quote;
-use syn::{parse_macro_input, DeriveInput, FnArg, ItemImpl};
+use syn::{parse_macro_input, DeriveInput};
 
 #[proc_macro_derive(CdrSerialize)]
 pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
