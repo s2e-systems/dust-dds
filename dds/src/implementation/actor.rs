@@ -193,13 +193,6 @@ where
         self.join_handle.await.ok();
     }
 
-    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
-        match self.sender.send(message).await {
-            Ok(_) => Ok(()),
-            Err(_) => Err(DdsError::AlreadyDeleted),
-        }
-    }
-
     pub async fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
     where
         A: MailHandler<M>,
@@ -217,7 +210,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use dust_dds_derive::actor_interface;
     use tokio::runtime::Runtime;
 
     use super::*;
@@ -226,20 +218,29 @@ mod tests {
         data: u8,
     }
 
-    #[actor_interface]
-    impl MyData {
-        async fn increment(&mut self, value: u8) -> u8 {
-            self.data += value;
-            self.data
+    struct Increment {
+        value: u8,
+    }
+    impl Mail for Increment {
+        type Result = u8;
+    }
+    impl MailHandler<Increment> for MyData {
+        fn handle(
+            &mut self,
+            message: Increment,
+        ) -> impl Future<Output = <Increment as Mail>::Result> + Send {
+            async move {
+                self.data += message.value;
+                self.data
+            }
         }
+    }
 
-        async fn decrement(&mut self) {
-            self.data -= 1;
-        }
+    impl ActorHandler for MyData {
+        type Message = ();
 
-        async fn try_increment(&mut self) -> DdsResult<()> {
-            self.data -= 1;
-            Ok(())
+        fn handle_message(&mut self, _: Self::Message) -> impl Future<Output = ()> + Send {
+            async {}
         }
     }
 
@@ -249,7 +250,16 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10)
+        assert_eq!(
+            runtime.block_on(async {
+                actor
+                    .send_actor_mail(Increment { value: 10 })
+                    .await
+                    .receive_reply()
+                    .await
+            }),
+            10
+        )
     }
 
     #[test]
@@ -258,7 +268,16 @@ mod tests {
         let my_data = MyData { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
+        assert_eq!(
+            runtime.block_on(async {
+                actor
+                    .send_actor_mail(Increment { value: 10 })
+                    .await
+                    .receive_reply()
+                    .await
+            }),
+            10
+        );
 
         runtime.block_on(actor.stop());
     }
@@ -270,10 +289,10 @@ mod tests {
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
         let actor_address = actor.address();
 
-        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
-
         runtime.block_on(actor.stop());
 
-        assert!(runtime.block_on(actor_address.increment(10)).is_err());
+        assert!(runtime
+            .block_on(actor_address.send_actor_mail(Increment { value: 10 }))
+            .is_err());
     }
 }
