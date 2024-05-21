@@ -22,7 +22,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -2679,13 +2679,5 @@ impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
         async move {
             self.discovered_participant_list.remove(&message.handle);
         }
-    }
-}
-
-impl ActorHandler for DomainParticipantActor {
-    type Message = ();
-
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
     }
 }

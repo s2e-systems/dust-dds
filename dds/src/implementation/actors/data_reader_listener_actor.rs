@@ -1,6 +1,6 @@
 use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
-    implementation::actor::{ActorAddress, ActorHandler, Mail, MailHandler},
+    implementation::actor::{ActorAddress, Mail, MailHandler},
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -59,13 +59,5 @@ impl MailHandler<CallListenerFunction> for DataReaderListenerActor {
                 .await
             }
         }
-    }
-}
-
-impl ActorHandler for DataReaderListenerActor {
-    type Message = ();
-
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
     }
 }

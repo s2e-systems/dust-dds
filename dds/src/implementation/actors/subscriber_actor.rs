@@ -17,7 +17,7 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
@@ -678,13 +678,5 @@ impl MailHandler<SetListener> for SubscriberActor {
             );
             self.status_kind = message.status_kind;
         }
-    }
-}
-
-impl ActorHandler for SubscriberActor {
-    type Message = ();
-
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
     }
 }

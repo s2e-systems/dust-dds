@@ -20,7 +20,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -813,14 +813,6 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
         _: GetConfiguration,
     ) -> impl std::future::Future<Output = <GetConfiguration as Mail>::Result> + Send {
         async move { self.configuration.clone() }
-    }
-}
-
-impl ActorHandler for DomainParticipantFactoryActor {
-    type Message = ();
-
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
     }
 }
 

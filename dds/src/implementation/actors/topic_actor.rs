@@ -4,9 +4,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::actor::{
-        Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE,
-    },
+    implementation::actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -305,14 +303,6 @@ impl MailHandler<GetTypeSupport> for TopicActor {
         _: GetTypeSupport,
     ) -> impl std::future::Future<Output = <GetTypeSupport as Mail>::Result> + Send {
         async move { self.type_support.clone() }
-    }
-}
-
-impl ActorHandler for TopicActor {
-    type Message = ();
-
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
     }
 }
 

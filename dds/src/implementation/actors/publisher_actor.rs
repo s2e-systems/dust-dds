@@ -9,9 +9,7 @@ use crate::{
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
-    implementation::actor::{
-        Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE,
-    },
+    implementation::actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -643,14 +641,6 @@ impl MailHandler<SetListener> for PublisherActor {
             );
             self.status_kind = message.status_kind;
         }
-    }
-}
-
-impl ActorHandler for PublisherActor {
-    type Message = ();
-
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
     }
 }
 
