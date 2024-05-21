@@ -88,7 +88,7 @@ impl<A> Clone for ActorAddress<A> {
 
 impl<A> ActorAddress<A> {
     pub fn is_closed(&self) -> bool {
-        self.sender.is_closed()
+        self.mail_sender.is_closed()
     }
 
     pub async fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
@@ -187,14 +187,9 @@ mod tests {
         type Result = u8;
     }
     impl MailHandler<Increment> for MyData {
-        fn handle(
-            &mut self,
-            message: Increment,
-        ) -> impl Future<Output = <Increment as Mail>::Result> + Send {
-            async move {
-                self.data += message.value;
-                self.data
-            }
+        async fn handle(&mut self, message: Increment) -> <Increment as Mail>::Result {
+            self.data += message.value;
+            self.data
         }
     }
 
