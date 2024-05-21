@@ -220,7 +220,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
+            .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
                 handle: a_subscriber.get_instance_handle().await?,
             })
             .await?
