@@ -5,7 +5,7 @@ use crate::{
         actors::{
             any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor::{self, DataWriterActor},
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
             topic_actor,
@@ -68,12 +68,16 @@ impl PublisherAsync {
             let publisher_qos = self.get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let data = writer
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
@@ -105,18 +109,24 @@ impl PublisherAsync {
         let default_unicast_locator_list = self
             .participant
             .participant_address()
-            .get_default_unicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
         let default_multicast_locator_list = self
             .participant
             .participant_address()
-            .get_default_multicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
         let data_max_size_serialized = self
             .participant
             .participant_address()
-            .data_max_size_serialized()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDataMaxSizeSerialized)
+            .await?
+            .receive_reply()
+            .await;
 
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let has_key = a_topic
@@ -186,8 +196,10 @@ impl PublisherAsync {
         let message_sender_actor = self
             .participant
             .participant_address()
-            .get_message_sender()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
         a_datawriter
             .writer_address()
             .send_actor_mail(data_writer_actor::SendMessage {
@@ -218,8 +230,12 @@ impl PublisherAsync {
         if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant
             .participant_address()
-            .lookup_topicdescription(topic_name.to_string())
-            .await??
+            .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+                topic_name: topic_name.to_string(),
+            })
+            .await?
+            .receive_reply()
+            .await?
         {
             let topic = TopicAsync::new(
                 topic_address,
@@ -304,8 +320,10 @@ impl PublisherAsync {
         let message_sender_actor = self
             .participant
             .participant_address()
-            .get_message_sender()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
 
         for deleted_writer_actor in deleted_writer_actor_list {
             deleted_writer_actor

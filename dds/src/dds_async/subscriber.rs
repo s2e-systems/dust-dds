@@ -5,7 +5,7 @@ use crate::{
         actors::{
             any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor},
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
             topic_actor,
@@ -67,12 +67,16 @@ impl SubscriberAsync {
             let subscriber_qos = self.get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let data = reader
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
@@ -106,12 +110,17 @@ impl SubscriberAsync {
 
         let default_unicast_locator_list = self
             .participant_address()
-            .get_default_unicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
+
         let default_multicast_locator_list = self
             .participant_address()
-            .get_default_unicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
 
         let topic = a_topic.topic_address();
         let has_key = topic
@@ -179,7 +188,12 @@ impl SubscriberAsync {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
         // Send messages before deleting the reader
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
         a_datareader
             .reader_address()
             .send_actor_mail(data_reader_actor::SendMessage {
@@ -209,8 +223,12 @@ impl SubscriberAsync {
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant_address()
-            .lookup_topicdescription(topic_name.to_string())
-            .await??
+            .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+                topic_name: topic_name.to_string(),
+            })
+            .await?
+            .receive_reply()
+            .await?
         {
             let topic = TopicAsync::new(
                 topic_address,
@@ -275,7 +293,12 @@ impl SubscriberAsync {
             .receive_reply()
             .await;
 
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
 
         for deleted_reader_actor in deleted_reader_actor_list {
             // Send messages before deleting the reader
