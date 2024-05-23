@@ -32,31 +32,29 @@ impl Mail for CallListenerFunction {
     type Result = ();
 }
 impl MailHandler<CallListenerFunction> for SubscriberListenerActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: CallListenerFunction,
-    ) -> impl std::future::Future<Output = <CallListenerFunction as Mail>::Result> + Send {
-        async move {
-            if let Some(l) = &mut self.listener {
-                match message.listener_operation {
-                    SubscriberListenerOperation::OnDataOnReaders(subscriber) => {
-                        l.on_data_on_readers(subscriber).await
-                    }
-                    SubscriberListenerOperation::OnSampleRejected(status) => {
-                        l.on_sample_rejected(&(), status).await
-                    }
-                    SubscriberListenerOperation::OnRequestedIncompatibleQos(status) => {
-                        l.on_requested_incompatible_qos(&(), status).await
-                    }
-                    SubscriberListenerOperation::OnRequestedDeadlineMissed(status) => {
-                        l.on_requested_deadline_missed(&(), status).await
-                    }
-                    SubscriberListenerOperation::OnSubscriptionMatched(status) => {
-                        l.on_subscription_matched(&(), status).await
-                    }
-                    SubscriberListenerOperation::OnSampleLost(status) => {
-                        l.on_sample_lost(&(), status).await
-                    }
+    ) -> <CallListenerFunction as Mail>::Result {
+        if let Some(l) = &mut self.listener {
+            match message.listener_operation {
+                SubscriberListenerOperation::OnDataOnReaders(subscriber) => {
+                    l.on_data_on_readers(subscriber).await
+                }
+                SubscriberListenerOperation::OnSampleRejected(status) => {
+                    l.on_sample_rejected(&(), status).await
+                }
+                SubscriberListenerOperation::OnRequestedIncompatibleQos(status) => {
+                    l.on_requested_incompatible_qos(&(), status).await
+                }
+                SubscriberListenerOperation::OnRequestedDeadlineMissed(status) => {
+                    l.on_requested_deadline_missed(&(), status).await
+                }
+                SubscriberListenerOperation::OnSubscriptionMatched(status) => {
+                    l.on_subscription_matched(&(), status).await
+                }
+                SubscriberListenerOperation::OnSampleLost(status) => {
+                    l.on_sample_lost(&(), status).await
                 }
             }
         }
@@ -66,7 +64,5 @@ impl MailHandler<CallListenerFunction> for SubscriberListenerActor {
 impl ActorHandler for SubscriberListenerActor {
     type Message = ();
 
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
-    }
+    async fn handle_message(&mut self, _: Self::Message) -> () {}
 }

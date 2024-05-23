@@ -224,16 +224,13 @@ impl Mail for IncrementRequestedDeadlineMissedStatus {
     type Result = ();
 }
 impl MailHandler<IncrementRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineMissedStatus {
-    fn handle(
+    async fn handle(
         &mut self,
         message: IncrementRequestedDeadlineMissedStatus,
-    ) -> impl std::future::Future<Output = <IncrementRequestedDeadlineMissedStatus as Mail>::Result> + Send
-    {
-        async move {
-            self.total_count += 1;
-            self.total_count_change += 1;
-            self.last_instance_handle = message.instance_handle;
-        }
+    ) -> <IncrementRequestedDeadlineMissedStatus as Mail>::Result {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_instance_handle = message.instance_handle;
     }
 }
 
@@ -242,31 +239,26 @@ impl Mail for ReadRequestedDeadlineMissedStatus {
     type Result = RequestedDeadlineMissedStatus;
 }
 impl MailHandler<ReadRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineMissedStatus {
-    fn handle(
+    async fn handle(
         &mut self,
         _: ReadRequestedDeadlineMissedStatus,
-    ) -> impl std::future::Future<Output = <ReadRequestedDeadlineMissedStatus as Mail>::Result> + Send
-    {
-        async {
-            let status = RequestedDeadlineMissedStatus {
-                total_count: self.total_count,
-                total_count_change: self.total_count_change,
-                last_instance_handle: self.last_instance_handle,
-            };
+    ) -> <ReadRequestedDeadlineMissedStatus as Mail>::Result {
+        let status = RequestedDeadlineMissedStatus {
+            total_count: self.total_count,
+            total_count_change: self.total_count_change,
+            last_instance_handle: self.last_instance_handle,
+        };
 
-            self.total_count_change = 0;
+        self.total_count_change = 0;
 
-            status
-        }
+        status
     }
 }
 
 impl ActorHandler for ReaderRequestedDeadlineMissedStatus {
     type Message = ();
 
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
-    }
+    async fn handle_message(&mut self, _: Self::Message) -> () {}
 }
 
 impl LivelinessChangedStatus {
@@ -1767,20 +1759,15 @@ impl Mail for Read {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<Read> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: Read,
-    ) -> impl std::future::Future<Output = <Read as Mail>::Result> + Send {
-        async move {
-            self.read(
-                message.max_samples,
-                message.sample_states,
-                message.view_states,
-                message.instance_states,
-                message.specific_instance_handle,
-            )
-            .await
-        }
+    async fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
+        self.read(
+            message.max_samples,
+            message.sample_states,
+            message.view_states,
+            message.instance_states,
+            message.specific_instance_handle,
+        )
+        .await
     }
 }
 
@@ -1795,20 +1782,15 @@ impl Mail for Take {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<Take> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: Take,
-    ) -> impl std::future::Future<Output = <Take as Mail>::Result> + Send {
-        async move {
-            self.take(
-                message.max_samples,
-                message.sample_states,
-                message.view_states,
-                message.instance_states,
-                message.specific_instance_handle,
-            )
-            .await
-        }
+    async fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
+        self.take(
+            message.max_samples,
+            message.sample_states,
+            message.view_states,
+            message.instance_states,
+            message.specific_instance_handle,
+        )
+        .await
     }
 }
 
@@ -1817,26 +1799,24 @@ impl Mail for IsHistoricalDataReceived {
     type Result = DdsResult<bool>;
 }
 impl MailHandler<IsHistoricalDataReceived> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: IsHistoricalDataReceived,
-    ) -> impl std::future::Future<Output = <IsHistoricalDataReceived as Mail>::Result> + Send {
-        async move {
-            if !self.enabled {
-                Err(DdsError::NotEnabled)
-            } else {
-                Ok(())
-            }?;
+    ) -> <IsHistoricalDataReceived as Mail>::Result {
+        if !self.enabled {
+            Err(DdsError::NotEnabled)
+        } else {
+            Ok(())
+        }?;
 
-            match self.qos.durability.kind {
-                DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
-                DurabilityQosPolicyKind::TransientLocal => Ok(()),
-            }?;
+        match self.qos.durability.kind {
+            DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
+            DurabilityQosPolicyKind::TransientLocal => Ok(()),
+        }?;
 
-            match &self.rtps_reader {
-                RtpsReaderKind::Stateful(r) => Ok(r.is_historical_data_received()),
-                RtpsReaderKind::Stateless(_) => Ok(true),
-            }
+        match &self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => Ok(r.is_historical_data_received()),
+            RtpsReaderKind::Stateless(_) => Ok(true),
         }
     }
 }
@@ -1850,72 +1830,70 @@ impl Mail for AsDiscoveredReaderData {
     type Result = DdsResult<DiscoveredReaderData>;
 }
 impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: AsDiscoveredReaderData,
-    ) -> impl std::future::Future<Output = <AsDiscoveredReaderData as Mail>::Result> + Send {
-        async move {
-            let guid = self.rtps_reader.guid();
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
-                .await?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)
-                .await?
-                .receive_reply()
-                .await;
-            let topic_qos = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetQos)
-                .await?
-                .receive_reply()
-                .await;
-            let xml_type = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeSupport)
-                .await?
-                .receive_reply()
-                .await
-                .xml_type();
+    ) -> <AsDiscoveredReaderData as Mail>::Result {
+        let guid = self.rtps_reader.guid();
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_qos = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await;
+        let xml_type = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .xml_type();
 
-            let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-                message.default_unicast_locator_list
-            } else {
-                self.rtps_reader.unicast_locator_list().to_vec()
-            };
+        let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            message.default_unicast_locator_list
+        } else {
+            self.rtps_reader.unicast_locator_list().to_vec()
+        };
 
-            let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-                message.default_multicast_locator_list
-            } else {
-                self.rtps_reader.multicast_locator_list().to_vec()
-            };
+        let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
+            message.default_multicast_locator_list
+        } else {
+            self.rtps_reader.multicast_locator_list().to_vec()
+        };
 
-            Ok(DiscoveredReaderData::new(
-                ReaderProxy::new(
-                    guid,
-                    guid.entity_id(),
-                    unicast_locator_list,
-                    multicast_locator_list,
-                    false,
-                ),
-                SubscriptionBuiltinTopicData::new(
-                    BuiltInTopicKey { value: guid.into() },
-                    BuiltInTopicKey {
-                        value: GUID_UNKNOWN.into(),
-                    },
-                    topic_name,
-                    type_name,
-                    self.qos.clone(),
-                    message.subscriber_qos.clone(),
-                    topic_qos.topic_data,
-                    xml_type,
-                ),
-            ))
-        }
+        Ok(DiscoveredReaderData::new(
+            ReaderProxy::new(
+                guid,
+                guid.entity_id(),
+                unicast_locator_list,
+                multicast_locator_list,
+                false,
+            ),
+            SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey { value: guid.into() },
+                BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                topic_name,
+                type_name,
+                self.qos.clone(),
+                message.subscriber_qos.clone(),
+                topic_qos.topic_data,
+                xml_type,
+            ),
+        ))
     }
 }
 
@@ -1924,11 +1902,8 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: GetInstanceHandle,
-    ) -> impl std::future::Future<Output = <GetInstanceHandle as Mail>::Result> + Send {
-        async move { self.get_instance_handle() }
+    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+        self.get_instance_handle()
     }
 }
 
@@ -1939,18 +1914,13 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: SetQos,
-    ) -> impl std::future::Future<Output = <SetQos as Mail>::Result> + Send {
-        async move {
-            message.qos.is_consistent()?;
-            if self.enabled {
-                message.qos.check_immutability(&self.qos)?;
-            }
-            self.qos = message.qos;
-            Ok(())
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        message.qos.is_consistent()?;
+        if self.enabled {
+            message.qos.check_immutability(&self.qos)?;
         }
+        self.qos = message.qos;
+        Ok(())
     }
 }
 
@@ -1959,11 +1929,8 @@ impl Mail for GetQos {
     type Result = DataReaderQos;
 }
 impl MailHandler<GetQos> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: GetQos,
-    ) -> impl std::future::Future<Output = <GetQos as Mail>::Result> + Send {
-        async move { self.qos.clone() }
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
     }
 }
 
@@ -1974,20 +1941,18 @@ impl Mail for GetMatchedPublicationData {
     type Result = DdsResult<PublicationBuiltinTopicData>;
 }
 impl MailHandler<GetMatchedPublicationData> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: GetMatchedPublicationData,
-    ) -> impl std::future::Future<Output = <GetMatchedPublicationData as Mail>::Result> + Send {
-        async move {
-            if !self.enabled {
-                return Err(DdsError::NotEnabled);
-            }
-
-            self.matched_publication_list
-                .get(&message.publication_handle)
-                .cloned()
-                .ok_or(DdsError::BadParameter)
+    ) -> <GetMatchedPublicationData as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
         }
+
+        self.matched_publication_list
+            .get(&message.publication_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
     }
 }
 
@@ -1996,11 +1961,8 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: IsEnabled,
-    ) -> impl std::future::Future<Output = <IsEnabled as Mail>::Result> + Send {
-        async move { self.enabled }
+    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+        self.enabled
     }
 }
 
@@ -2009,13 +1971,8 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: Enable,
-    ) -> impl std::future::Future<Output = <Enable as Mail>::Result> + Send {
-        async move {
-            self.enabled = true;
-        }
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+        self.enabled = true;
     }
 }
 
@@ -2024,11 +1981,8 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: GetStatuscondition,
-    ) -> impl std::future::Future<Output = <GetStatuscondition as Mail>::Result> + Send {
-        async move { self.status_condition.address() }
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+        self.status_condition.address()
     }
 }
 
@@ -2037,16 +1991,14 @@ impl Mail for GetMatchedPublications {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedPublications> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetMatchedPublications,
-    ) -> impl std::future::Future<Output = <GetMatchedPublications as Mail>::Result> + Send {
-        async move {
-            self.matched_publication_list
-                .iter()
-                .map(|(&key, _)| key)
-                .collect()
-        }
+    ) -> <GetMatchedPublications as Mail>::Result {
+        self.matched_publication_list
+            .iter()
+            .map(|(&key, _)| key)
+            .collect()
     }
 }
 
@@ -2061,28 +2013,23 @@ impl Mail for TakeNextInstance {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<TakeNextInstance> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: TakeNextInstance,
-    ) -> impl std::future::Future<Output = <TakeNextInstance as Mail>::Result> + Send {
-        async move {
-            if !self.enabled {
-                return Err(DdsError::NotEnabled);
-            }
+    async fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
 
-            match self.next_instance(message.previous_handle) {
-                Some(next_handle) => {
-                    self.take(
-                        message.max_samples,
-                        message.sample_states,
-                        message.view_states,
-                        message.instance_states,
-                        Some(next_handle),
-                    )
-                    .await
-                }
-                None => Err(DdsError::NoData),
+        match self.next_instance(message.previous_handle) {
+            Some(next_handle) => {
+                self.take(
+                    message.max_samples,
+                    message.sample_states,
+                    message.view_states,
+                    message.instance_states,
+                    Some(next_handle),
+                )
+                .await
             }
+            None => Err(DdsError::NoData),
         }
     }
 }
@@ -2092,12 +2039,11 @@ impl Mail for GetSubscriptionMatchedStatus {
     type Result = SubscriptionMatchedStatus;
 }
 impl MailHandler<GetSubscriptionMatchedStatus> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetSubscriptionMatchedStatus,
-    ) -> impl std::future::Future<Output = <GetSubscriptionMatchedStatus as Mail>::Result> + Send
-    {
-        async move { self.get_subscription_matched_status().await }
+    ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
+        self.get_subscription_matched_status().await
     }
 }
 
@@ -2112,28 +2058,23 @@ impl Mail for ReadNextInstance {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<ReadNextInstance> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: ReadNextInstance,
-    ) -> impl std::future::Future<Output = <ReadNextInstance as Mail>::Result> + Send {
-        async move {
-            if !self.enabled {
-                return Err(DdsError::NotEnabled);
-            }
+    async fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
 
-            match self.next_instance(message.previous_handle) {
-                Some(next_handle) => {
-                    self.read(
-                        message.max_samples,
-                        message.sample_states,
-                        message.view_states,
-                        message.instance_states,
-                        Some(next_handle),
-                    )
-                    .await
-                }
-                None => Err(DdsError::NoData),
+        match self.next_instance(message.previous_handle) {
+            Some(next_handle) => {
+                self.read(
+                    message.max_samples,
+                    message.sample_states,
+                    message.view_states,
+                    message.instance_states,
+                    Some(next_handle),
+                )
+                .await
             }
+            None => Err(DdsError::NoData),
         }
     }
 }
@@ -2155,135 +2096,128 @@ impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedWriter> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: AddMatchedWriter,
-    ) -> impl std::future::Future<Output = <AddMatchedWriter as Mail>::Result> + Send {
-        async move {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
-                .await?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)
-                .await?
-                .receive_reply()
-                .await;
-            let publication_builtin_topic_data =
-                message.discovered_writer_data.dds_publication_data();
-            if publication_builtin_topic_data.topic_name() == topic_name
-                && publication_builtin_topic_data.get_type_name() == type_name
-            {
-                tracing::trace!(
-                    topic_name = topic_name,
-                    type_name = type_name,
-                    "Writer with matched topic and type found",
+    async fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let publication_builtin_topic_data = message.discovered_writer_data.dds_publication_data();
+        if publication_builtin_topic_data.topic_name() == topic_name
+            && publication_builtin_topic_data.get_type_name() == type_name
+        {
+            tracing::trace!(
+                topic_name = topic_name,
+                type_name = type_name,
+                "Writer with matched topic and type found",
+            );
+            let instance_handle =
+                InstanceHandle::try_from_key(&message.discovered_writer_data.get_key().unwrap())
+                    .unwrap();
+            let incompatible_qos_policy_list = self
+                .get_discovered_writer_incompatible_qos_policy_list(
+                    &message.discovered_writer_data,
+                    &message.subscriber_qos,
                 );
-                let instance_handle = InstanceHandle::try_from_key(
-                    &message.discovered_writer_data.get_key().unwrap(),
-                )
-                .unwrap();
-                let incompatible_qos_policy_list = self
-                    .get_discovered_writer_incompatible_qos_policy_list(
-                        &message.discovered_writer_data,
-                        &message.subscriber_qos,
-                    );
-                if incompatible_qos_policy_list.is_empty() {
-                    let unicast_locator_list = if message
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if message
+                    .discovered_writer_data
+                    .writer_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    message.default_unicast_locator_list
+                } else {
+                    message
                         .discovered_writer_data
                         .writer_proxy()
                         .unicast_locator_list()
-                        .is_empty()
-                    {
-                        message.default_unicast_locator_list
-                    } else {
-                        message
-                            .discovered_writer_data
-                            .writer_proxy()
-                            .unicast_locator_list()
-                            .to_vec()
-                    };
+                        .to_vec()
+                };
 
-                    let multicast_locator_list = if message
+                let multicast_locator_list = if message
+                    .discovered_writer_data
+                    .writer_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    message.default_multicast_locator_list
+                } else {
+                    message
                         .discovered_writer_data
                         .writer_proxy()
                         .multicast_locator_list()
-                        .is_empty()
-                    {
-                        message.default_multicast_locator_list
-                    } else {
-                        message
-                            .discovered_writer_data
-                            .writer_proxy()
-                            .multicast_locator_list()
-                            .to_vec()
-                    };
+                        .to_vec()
+                };
 
-                    let writer_proxy = RtpsWriterProxy::new(
-                        message
-                            .discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid(),
-                        &unicast_locator_list,
-                        &multicast_locator_list,
-                        message
-                            .discovered_writer_data
-                            .writer_proxy()
-                            .data_max_size_serialized(),
-                        message
-                            .discovered_writer_data
-                            .writer_proxy()
-                            .remote_group_entity_id(),
-                    );
+                let writer_proxy = RtpsWriterProxy::new(
+                    message
+                        .discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid(),
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    message
+                        .discovered_writer_data
+                        .writer_proxy()
+                        .data_max_size_serialized(),
+                    message
+                        .discovered_writer_data
+                        .writer_proxy()
+                        .remote_group_entity_id(),
+                );
 
-                    match &mut self.rtps_reader {
-                        RtpsReaderKind::Stateful(r) => r.matched_writer_add(writer_proxy),
-                        RtpsReaderKind::Stateless(_) => (),
-                    }
-
-                    let insert_matched_publication_result = self
-                        .matched_publication_list
-                        .insert(instance_handle, publication_builtin_topic_data.clone());
-                    match insert_matched_publication_result {
-                        Some(value) if &value != publication_builtin_topic_data => {
-                            self.on_subscription_matched(
-                                instance_handle,
-                                message.data_reader_address,
-                                message.subscriber,
-                                &message.subscriber_mask_listener,
-                                &message.participant_mask_listener,
-                            )
-                            .await?;
-                        }
-                        None => {
-                            self.on_subscription_matched(
-                                instance_handle,
-                                message.data_reader_address,
-                                message.subscriber,
-                                &message.subscriber_mask_listener,
-                                &message.participant_mask_listener,
-                            )
-                            .await?;
-                        }
-                        _ => (),
-                    }
-                } else if self.incompatible_writer_list.insert(instance_handle) {
-                    self.on_requested_incompatible_qos(
-                        incompatible_qos_policy_list,
-                        &message.data_reader_address,
-                        &message.subscriber,
-                        &message.subscriber_mask_listener,
-                        &message.participant_mask_listener,
-                    )
-                    .await?;
+                match &mut self.rtps_reader {
+                    RtpsReaderKind::Stateful(r) => r.matched_writer_add(writer_proxy),
+                    RtpsReaderKind::Stateless(_) => (),
                 }
-            }
 
-            Ok(())
+                let insert_matched_publication_result = self
+                    .matched_publication_list
+                    .insert(instance_handle, publication_builtin_topic_data.clone());
+                match insert_matched_publication_result {
+                    Some(value) if &value != publication_builtin_topic_data => {
+                        self.on_subscription_matched(
+                            instance_handle,
+                            message.data_reader_address,
+                            message.subscriber,
+                            &message.subscriber_mask_listener,
+                            &message.participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                    None => {
+                        self.on_subscription_matched(
+                            instance_handle,
+                            message.data_reader_address,
+                            message.subscriber,
+                            &message.subscriber_mask_listener,
+                            &message.participant_mask_listener,
+                        )
+                        .await?;
+                    }
+                    _ => (),
+                }
+            } else if self.incompatible_writer_list.insert(instance_handle) {
+                self.on_requested_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    &message.data_reader_address,
+                    &message.subscriber,
+                    &message.subscriber_mask_listener,
+                    &message.participant_mask_listener,
+                )
+                .await?;
+            }
         }
+
+        Ok(())
     }
 }
 
@@ -2301,31 +2235,29 @@ impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedWriter> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: RemoveMatchedWriter,
-    ) -> impl std::future::Future<Output = <RemoveMatchedWriter as Mail>::Result> + Send {
-        async move {
-            let matched_publication = self
-                .matched_publication_list
-                .remove(&message.discovered_writer_handle);
-            if let Some(w) = matched_publication {
-                match &mut self.rtps_reader {
-                    RtpsReaderKind::Stateful(r) => r.matched_writer_remove(w.key().value.into()),
-                    RtpsReaderKind::Stateless(_) => (),
-                }
-
-                self.on_subscription_matched(
-                    message.discovered_writer_handle,
-                    message.data_reader_address,
-                    message.subscriber,
-                    &message.subscriber_mask_listener,
-                    &message.participant_mask_listener,
-                )
-                .await?;
+    ) -> <RemoveMatchedWriter as Mail>::Result {
+        let matched_publication = self
+            .matched_publication_list
+            .remove(&message.discovered_writer_handle);
+        if let Some(w) = matched_publication {
+            match &mut self.rtps_reader {
+                RtpsReaderKind::Stateful(r) => r.matched_writer_remove(w.key().value.into()),
+                RtpsReaderKind::Stateless(_) => (),
             }
-            Ok(())
+
+            self.on_subscription_matched(
+                message.discovered_writer_handle,
+                message.data_reader_address,
+                message.subscriber,
+                &message.subscriber_mask_listener,
+                &message.participant_mask_listener,
+            )
+            .await?;
         }
+        Ok(())
     }
 }
 
@@ -2334,18 +2266,13 @@ impl Mail for GetTopicName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTopicName> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: GetTopicName,
-    ) -> impl std::future::Future<Output = <GetTopicName as Mail>::Result> + Send {
-        async move {
-            Ok(self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)
-                .await?
-                .receive_reply()
-                .await)
-        }
+    async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -2354,18 +2281,13 @@ impl Mail for GetTypeName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTypeName> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: GetTypeName,
-    ) -> impl std::future::Future<Output = <GetTypeName as Mail>::Result> + Send {
-        async move {
-            Ok(self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
-                .await?
-                .receive_reply()
-                .await)
-        }
+    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -2384,61 +2306,59 @@ impl Mail for ProcessRtpsMessage {
     type Result = ();
 }
 impl MailHandler<ProcessRtpsMessage> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: ProcessRtpsMessage,
-    ) -> impl std::future::Future<Output = <ProcessRtpsMessage as Mail>::Result> + Send {
-        async move {
-            let mut message_receiver = MessageReceiver::new(&message.rtps_message);
+    ) -> <ProcessRtpsMessage as Mail>::Result {
+        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
 
-            while let Some(submessage) = message_receiver.next() {
-                match submessage {
-                    RtpsSubmessageReadKind::Data(data_submessage) => {
-                        self.on_data_submessage_received(
-                            &data_submessage,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                            message.reception_timestamp,
-                            &message.data_reader_address,
-                            &message.subscriber,
-                            &message.subscriber_mask_listener,
-                            &message.participant_mask_listener,
-                        )
-                        .await
-                        .ok();
-                    }
-                    RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                        self.on_data_frag_submessage_received(
-                            &data_frag_submessage,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                            message.reception_timestamp,
-                            &message.data_reader_address,
-                            &message.subscriber,
-                            &message.subscriber_mask_listener,
-                            &message.participant_mask_listener,
-                        )
-                        .await
-                        .ok();
-                    }
-                    RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                        self.on_gap_submessage_received(
-                            &gap_submessage,
-                            message_receiver.source_guid_prefix(),
-                        );
-                    }
-                    RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                        .on_heartbeat_submessage_received(
-                            &heartbeat_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
-                        .on_heartbeat_frag_submessage_received(
-                            &heartbeat_frag_submessage,
-                            message_receiver.source_guid_prefix(),
-                        ),
-                    _ => (),
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    self.on_data_submessage_received(
+                        &data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        message.reception_timestamp,
+                        &message.data_reader_address,
+                        &message.subscriber,
+                        &message.subscriber_mask_listener,
+                        &message.participant_mask_listener,
+                    )
+                    .await
+                    .ok();
                 }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    self.on_data_frag_submessage_received(
+                        &data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                        message.reception_timestamp,
+                        &message.data_reader_address,
+                        &message.subscriber,
+                        &message.subscriber_mask_listener,
+                        &message.participant_mask_listener,
+                    )
+                    .await
+                    .ok();
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.on_gap_submessage_received(
+                        &gap_submessage,
+                        message_receiver.source_guid_prefix(),
+                    );
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
+                    .on_heartbeat_submessage_received(
+                        &heartbeat_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
+                    .on_heartbeat_frag_submessage_received(
+                        &heartbeat_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
+                _ => (),
             }
         }
     }
@@ -2451,15 +2371,10 @@ impl Mail for SendMessage {
     type Result = ();
 }
 impl MailHandler<SendMessage> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: SendMessage,
-    ) -> impl std::future::Future<Output = <SendMessage as Mail>::Result> + Send {
-        async move {
-            match &mut self.rtps_reader {
-                RtpsReaderKind::Stateful(r) => r.send_message(&message.message_sender_actor).await,
-                RtpsReaderKind::Stateless(_) => (),
-            }
+    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => r.send_message(&message.message_sender_actor).await,
+            RtpsReaderKind::Stateless(_) => (),
         }
     }
 }
@@ -2473,18 +2388,13 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: SetListener,
-    ) -> impl std::future::Future<Output = <SetListener as Mail>::Result> + Send {
-        async move {
-            self.listener = Actor::spawn(
-                DataReaderListenerActor::new(message.listener),
-                &message.runtime_handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            );
-            self.status_kind = message.status_kind;
-        }
+    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+        self.listener = Actor::spawn(
+            DataReaderListenerActor::new(message.listener),
+            &message.runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        self.status_kind = message.status_kind;
     }
 }
 
@@ -2493,25 +2403,20 @@ impl Mail for GetRequestedDeadlineMissedStatus {
     type Result = RequestedDeadlineMissedStatus;
 }
 impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetRequestedDeadlineMissedStatus,
-    ) -> impl std::future::Future<Output = <GetRequestedDeadlineMissedStatus as Mail>::Result> + Send
-    {
-        async move {
-            self.requested_deadline_missed_status
-                .send_actor_mail(ReadRequestedDeadlineMissedStatus)
-                .await
-                .receive_reply()
-                .await
-        }
+    ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
+        self.requested_deadline_missed_status
+            .send_actor_mail(ReadRequestedDeadlineMissedStatus)
+            .await
+            .receive_reply()
+            .await
     }
 }
 
 impl ActorHandler for DataReaderActor {
     type Message = ();
 
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
-    }
+    async fn handle_message(&mut self, _: Self::Message) -> () {}
 }

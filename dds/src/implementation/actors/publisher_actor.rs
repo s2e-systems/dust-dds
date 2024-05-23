@@ -165,65 +165,60 @@ impl Mail for CreateDatawriter {
     type Result = DdsResult<ActorAddress<DataWriterActor>>;
 }
 impl MailHandler<CreateDatawriter> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: CreateDatawriter,
-    ) -> impl std::future::Future<Output = <CreateDatawriter as Mail>::Result> + Send {
-        async move {
-            let qos = match message.qos {
-                QosKind::Default => self.default_datawriter_qos.clone(),
-                QosKind::Specific(q) => {
-                    q.is_consistent()?;
-                    q
-                }
-            };
+    async fn handle(&mut self, message: CreateDatawriter) -> <CreateDatawriter as Mail>::Result {
+        let qos = match message.qos {
+            QosKind::Default => self.default_datawriter_qos.clone(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
 
-            let guid_prefix = self.rtps_group.guid().prefix();
-            let (entity_kind, topic_kind) = match message.has_key {
-                true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-                false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
-            };
-            let entity_key = [
-                self.rtps_group.guid().entity_id().entity_key()[0],
-                self.get_unique_writer_id(),
-                0,
-            ];
-            let entity_id = EntityId::new(entity_key, entity_kind);
-            let guid = Guid::new(guid_prefix, entity_id);
+        let guid_prefix = self.rtps_group.guid().prefix();
+        let (entity_kind, topic_kind) = match message.has_key {
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        };
+        let entity_key = [
+            self.rtps_group.guid().entity_id().entity_key()[0],
+            self.get_unique_writer_id(),
+            0,
+        ];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = Guid::new(guid_prefix, entity_id);
 
-            let rtps_writer_impl = RtpsWriter::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    &message.default_unicast_locator_list,
-                    &message.default_multicast_locator_list,
-                ),
-                true,
-                Duration::new(0, 200_000_000).into(),
-                DURATION_ZERO,
-                DURATION_ZERO,
-                message.data_max_size_serialized,
-            );
+        let rtps_writer_impl = RtpsWriter::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                &message.default_unicast_locator_list,
+                &message.default_multicast_locator_list,
+            ),
+            true,
+            Duration::new(0, 200_000_000).into(),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            message.data_max_size_serialized,
+        );
 
-            let data_writer = DataWriterActor::new(
-                rtps_writer_impl,
-                message.topic_address,
-                message.a_listener,
-                message.mask,
-                qos,
-                &message.runtime_handle,
-            );
-            let data_writer_actor = Actor::spawn(
-                data_writer,
-                &message.runtime_handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            );
-            let data_writer_address = data_writer_actor.address();
-            self.data_writer_list
-                .insert(InstanceHandle::new(guid.into()), data_writer_actor);
+        let data_writer = DataWriterActor::new(
+            rtps_writer_impl,
+            message.topic_address,
+            message.a_listener,
+            message.mask,
+            qos,
+            &message.runtime_handle,
+        );
+        let data_writer_actor = Actor::spawn(
+            data_writer,
+            &message.runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        let data_writer_address = data_writer_actor.address();
+        self.data_writer_list
+            .insert(InstanceHandle::new(guid.into()), data_writer_actor);
 
-            Ok(data_writer_address)
-        }
+        Ok(data_writer_address)
     }
 }
 
@@ -234,18 +229,13 @@ impl Mail for DeleteDatawriter {
     type Result = DdsResult<Actor<DataWriterActor>>;
 }
 impl MailHandler<DeleteDatawriter> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: DeleteDatawriter,
-    ) -> impl std::future::Future<Output = <DeleteDatawriter as Mail>::Result> + Send {
-        async move {
-            if let Some(removed_writer) = self.data_writer_list.remove(&message.handle) {
-                Ok(removed_writer)
-            } else {
-                Err(DdsError::PreconditionNotMet(
-                    "Data writer can only be deleted from its parent publisher".to_string(),
-                ))
-            }
+    async fn handle(&mut self, message: DeleteDatawriter) -> <DeleteDatawriter as Mail>::Result {
+        if let Some(removed_writer) = self.data_writer_list.remove(&message.handle) {
+            Ok(removed_writer)
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            ))
         }
     }
 }
@@ -257,25 +247,20 @@ impl Mail for LookupDatawriter {
     type Result = DdsResult<Option<ActorAddress<DataWriterActor>>>;
 }
 impl MailHandler<LookupDatawriter> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: LookupDatawriter,
-    ) -> impl std::future::Future<Output = <LookupDatawriter as Mail>::Result> + Send {
-        async move {
-            for dw in self.data_writer_list.values() {
-                if dw
-                    .send_actor_mail(data_writer_actor::GetTopicName)
-                    .await
-                    .receive_reply()
-                    .await
-                    .as_ref()
-                    == Ok(&message.topic_name)
-                {
-                    return Ok(Some(dw.address()));
-                }
+    async fn handle(&mut self, message: LookupDatawriter) -> <LookupDatawriter as Mail>::Result {
+        for dw in self.data_writer_list.values() {
+            if dw
+                .send_actor_mail(data_writer_actor::GetTopicName)
+                .await
+                .receive_reply()
+                .await
+                .as_ref()
+                == Ok(&message.topic_name)
+            {
+                return Ok(Some(dw.address()));
             }
-            Ok(None)
         }
+        Ok(None)
     }
 }
 
@@ -284,13 +269,8 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: Enable,
-    ) -> impl std::future::Future<Output = <Enable as Mail>::Result> + Send {
-        async move {
-            self.enabled = true;
-        }
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+        self.enabled = true;
     }
 }
 
@@ -299,11 +279,8 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: IsEnabled,
-    ) -> impl std::future::Future<Output = <IsEnabled as Mail>::Result> + Send {
-        async move { self.enabled }
+    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+        self.enabled
     }
 }
 
@@ -312,11 +289,8 @@ impl Mail for IsEmpty {
     type Result = bool;
 }
 impl MailHandler<IsEmpty> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: IsEmpty,
-    ) -> impl std::future::Future<Output = <IsEmpty as Mail>::Result> + Send {
-        async move { self.data_writer_list.is_empty() }
+    async fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+        self.data_writer_list.is_empty()
     }
 }
 
@@ -325,11 +299,8 @@ impl Mail for DrainDataWriterList {
     type Result = Vec<Actor<DataWriterActor>>;
 }
 impl MailHandler<DrainDataWriterList> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: DrainDataWriterList,
-    ) -> impl std::future::Future<Output = <DrainDataWriterList as Mail>::Result> + Send {
-        async move { self.data_writer_list.drain().map(|(_, a)| a).collect() }
+    async fn handle(&mut self, _: DrainDataWriterList) -> <DrainDataWriterList as Mail>::Result {
+        self.data_writer_list.drain().map(|(_, a)| a).collect()
     }
 }
 
@@ -340,13 +311,11 @@ impl Mail for SetDefaultDatawriterQos {
     type Result = ();
 }
 impl MailHandler<SetDefaultDatawriterQos> for PublisherActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: SetDefaultDatawriterQos,
-    ) -> impl std::future::Future<Output = <SetDefaultDatawriterQos as Mail>::Result> + Send {
-        async move {
-            self.default_datawriter_qos = message.qos;
-        }
+    ) -> <SetDefaultDatawriterQos as Mail>::Result {
+        self.default_datawriter_qos = message.qos;
     }
 }
 
@@ -355,11 +324,11 @@ impl Mail for GetDefaultDatawriterQos {
     type Result = DataWriterQos;
 }
 impl MailHandler<GetDefaultDatawriterQos> for PublisherActor {
-    fn handle(
+    async fn handle(
         &mut self,
         _: GetDefaultDatawriterQos,
-    ) -> impl std::future::Future<Output = <GetDefaultDatawriterQos as Mail>::Result> + Send {
-        async move { self.default_datawriter_qos.clone() }
+    ) -> <GetDefaultDatawriterQos as Mail>::Result {
+        self.default_datawriter_qos.clone()
     }
 }
 
@@ -370,24 +339,19 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: SetQos,
-    ) -> impl std::future::Future<Output = <SetQos as Mail>::Result> + Send {
-        async move {
-            let qos = match message.qos {
-                QosKind::Default => Default::default(),
-                QosKind::Specific(q) => q,
-            };
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        let qos = match message.qos {
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
+        };
 
-            if self.enabled {
-                self.qos.check_immutability(&qos)?;
-            }
-
-            self.qos = qos;
-
-            Ok(())
+        if self.enabled {
+            self.qos.check_immutability(&qos)?;
         }
+
+        self.qos = qos;
+
+        Ok(())
     }
 }
 
@@ -396,11 +360,8 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: GetGuid,
-    ) -> impl std::future::Future<Output = <GetGuid as Mail>::Result> + Send {
-        async move { self.rtps_group.guid() }
+    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+        self.rtps_group.guid()
     }
 }
 
@@ -409,11 +370,8 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: GetInstanceHandle,
-    ) -> impl std::future::Future<Output = <GetInstanceHandle as Mail>::Result> + Send {
-        async move { InstanceHandle::new(self.rtps_group.guid().into()) }
+    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+        InstanceHandle::new(self.rtps_group.guid().into())
     }
 }
 
@@ -422,11 +380,8 @@ impl Mail for GetStatusKind {
     type Result = Vec<StatusKind>;
 }
 impl MailHandler<GetStatusKind> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: GetStatusKind,
-    ) -> impl std::future::Future<Output = <GetStatusKind as Mail>::Result> + Send {
-        async move { self.status_kind.clone() }
+    async fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+        self.status_kind.clone()
     }
 }
 
@@ -435,11 +390,8 @@ impl Mail for GetQos {
     type Result = PublisherQos;
 }
 impl MailHandler<GetQos> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: GetQos,
-    ) -> impl std::future::Future<Output = <GetQos as Mail>::Result> + Send {
-        async move { self.qos.clone() }
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
     }
 }
 
@@ -448,16 +400,11 @@ impl Mail for GetDataWriterList {
     type Result = Vec<ActorAddress<DataWriterActor>>;
 }
 impl MailHandler<GetDataWriterList> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: GetDataWriterList,
-    ) -> impl std::future::Future<Output = <GetDataWriterList as Mail>::Result> + Send {
-        async move {
-            self.data_writer_list
-                .values()
-                .map(|x| x.address())
-                .collect()
-        }
+    async fn handle(&mut self, _: GetDataWriterList) -> <GetDataWriterList as Mail>::Result {
+        self.data_writer_list
+            .values()
+            .map(|x| x.address())
+            .collect()
     }
 }
 
@@ -468,18 +415,16 @@ impl Mail for ProcessRtpsMessage {
     type Result = ();
 }
 impl MailHandler<ProcessRtpsMessage> for PublisherActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: ProcessRtpsMessage,
-    ) -> impl std::future::Future<Output = <ProcessRtpsMessage as Mail>::Result> + Send {
-        async move {
-            for data_writer_address in self.data_writer_list.values() {
-                data_writer_address
-                    .send_actor_mail(data_writer_actor::ProcessRtpsMessage {
-                        rtps_message: message.rtps_message.clone(),
-                    })
-                    .await;
-            }
+    ) -> <ProcessRtpsMessage as Mail>::Result {
+        for data_writer_address in self.data_writer_list.values() {
+            data_writer_address
+                .send_actor_mail(data_writer_actor::ProcessRtpsMessage {
+                    rtps_message: message.rtps_message.clone(),
+                })
+                .await;
         }
     }
 }
@@ -491,18 +436,13 @@ impl Mail for SendMessage {
     type Result = ();
 }
 impl MailHandler<SendMessage> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: SendMessage,
-    ) -> impl std::future::Future<Output = <SendMessage as Mail>::Result> + Send {
-        async move {
-            for data_writer_address in self.data_writer_list.values() {
-                data_writer_address
-                    .send_actor_mail(data_writer_actor::SendMessage {
-                        message_sender_actor: message.message_sender_actor.clone(),
-                    })
-                    .await;
-            }
+    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+        for data_writer_address in self.data_writer_list.values() {
+            data_writer_address
+                .send_actor_mail(data_writer_actor::SendMessage {
+                    message_sender_actor: message.message_sender_actor.clone(),
+                })
+                .await;
         }
     }
 }
@@ -522,48 +462,40 @@ impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedReader> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: AddMatchedReader,
-    ) -> impl std::future::Future<Output = <AddMatchedReader as Mail>::Result> + Send {
-        async move {
-            if self.is_partition_matched(
-                message
-                    .discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .partition(),
-            ) {
-                for data_writer in self.data_writer_list.values() {
-                    let data_writer_address = data_writer.address();
-                    let publisher_mask_listener =
-                        (self.listener.address(), self.status_kind.clone());
+    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+        if self.is_partition_matched(
+            message
+                .discovered_reader_data
+                .subscription_builtin_topic_data()
+                .partition(),
+        ) {
+            for data_writer in self.data_writer_list.values() {
+                let data_writer_address = data_writer.address();
+                let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
 
-                    data_writer
-                        .send_actor_mail(data_writer_actor::AddMatchedReader {
-                            discovered_reader_data: message.discovered_reader_data.clone(),
-                            default_unicast_locator_list: message
-                                .default_unicast_locator_list
-                                .clone(),
-                            default_multicast_locator_list: message
-                                .default_multicast_locator_list
-                                .clone(),
-                            data_writer_address,
-                            publisher: PublisherAsync::new(
-                                message.publisher_address.clone(),
-                                self.status_condition.address(),
-                                message.participant.clone(),
-                            ),
-                            publisher_qos: self.qos.clone(),
-                            publisher_mask_listener,
-                            participant_mask_listener: message.participant_mask_listener.clone(),
-                        })
-                        .await
-                        .receive_reply()
-                        .await?;
-                }
+                data_writer
+                    .send_actor_mail(data_writer_actor::AddMatchedReader {
+                        discovered_reader_data: message.discovered_reader_data.clone(),
+                        default_unicast_locator_list: message.default_unicast_locator_list.clone(),
+                        default_multicast_locator_list: message
+                            .default_multicast_locator_list
+                            .clone(),
+                        data_writer_address,
+                        publisher: PublisherAsync::new(
+                            message.publisher_address.clone(),
+                            self.status_condition.address(),
+                            message.participant.clone(),
+                        ),
+                        publisher_qos: self.qos.clone(),
+                        publisher_mask_listener,
+                        participant_mask_listener: message.participant_mask_listener.clone(),
+                    })
+                    .await
+                    .receive_reply()
+                    .await?;
             }
-            Ok(())
         }
+        Ok(())
     }
 }
 
@@ -580,32 +512,30 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for PublisherActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: RemoveMatchedReader,
-    ) -> impl std::future::Future<Output = <RemoveMatchedReader as Mail>::Result> + Send {
-        async move {
-            for data_writer in self.data_writer_list.values() {
-                let data_writer_address = data_writer.address();
-                let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
-                data_writer
-                    .send_actor_mail(data_writer_actor::RemoveMatchedReader {
-                        discovered_reader_handle: message.discovered_reader_handle,
-                        data_writer_address,
-                        publisher: PublisherAsync::new(
-                            message.publisher_address.clone(),
-                            self.status_condition.address(),
-                            message.participant.clone(),
-                        ),
-                        publisher_mask_listener,
-                        participant_mask_listener: message.participant_mask_listener.clone(),
-                    })
-                    .await
-                    .receive_reply()
-                    .await?;
-            }
-            Ok(())
+    ) -> <RemoveMatchedReader as Mail>::Result {
+        for data_writer in self.data_writer_list.values() {
+            let data_writer_address = data_writer.address();
+            let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
+            data_writer
+                .send_actor_mail(data_writer_actor::RemoveMatchedReader {
+                    discovered_reader_handle: message.discovered_reader_handle,
+                    data_writer_address,
+                    publisher: PublisherAsync::new(
+                        message.publisher_address.clone(),
+                        self.status_condition.address(),
+                        message.participant.clone(),
+                    ),
+                    publisher_mask_listener,
+                    participant_mask_listener: message.participant_mask_listener.clone(),
+                })
+                .await
+                .receive_reply()
+                .await?;
         }
+        Ok(())
     }
 }
 
@@ -614,11 +544,8 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for PublisherActor {
-    fn handle(
-        &mut self,
-        _: GetStatuscondition,
-    ) -> impl std::future::Future<Output = <GetStatuscondition as Mail>::Result> + Send {
-        async move { self.status_condition.address() }
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+        self.status_condition.address()
     }
 }
 
@@ -631,27 +558,20 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: SetListener,
-    ) -> impl std::future::Future<Output = <SetListener as Mail>::Result> + Send {
-        async move {
-            self.listener = Actor::spawn(
-                PublisherListenerActor::new(message.listener),
-                &message.runtime_handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            );
-            self.status_kind = message.status_kind;
-        }
+    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+        self.listener = Actor::spawn(
+            PublisherListenerActor::new(message.listener),
+            &message.runtime_handle,
+            DEFAULT_ACTOR_BUFFER_SIZE,
+        );
+        self.status_kind = message.status_kind;
     }
 }
 
 impl ActorHandler for PublisherActor {
     type Message = ();
 
-    fn handle_message(&mut self, _: Self::Message) -> impl std::future::Future<Output = ()> + Send {
-        async {}
-    }
+    async fn handle_message(&mut self, _: Self::Message) -> () {}
 }
 
 impl PublisherQos {
