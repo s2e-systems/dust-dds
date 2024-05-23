@@ -5,7 +5,7 @@ use crate::{
         actors::{
             any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor},
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
             topic_actor,
@@ -209,8 +209,12 @@ impl SubscriberAsync {
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant_address()
-            .lookup_topicdescription(topic_name.to_string())
-            .await??
+            .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+                topic_name: topic_name.to_string(),
+            })
+            .await?
+            .receive_reply()
+            .await?
         {
             let topic = TopicAsync::new(
                 topic_address,

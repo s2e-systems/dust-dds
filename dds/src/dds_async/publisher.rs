@@ -5,7 +5,7 @@ use crate::{
         actors::{
             any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor::{self, DataWriterActor},
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
             topic_actor,
@@ -218,8 +218,12 @@ impl PublisherAsync {
         if let Some((topic_address, topic_status_condition, type_name)) = self
             .participant
             .participant_address()
-            .lookup_topicdescription(topic_name.to_string())
-            .await??
+            .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+                topic_name: topic_name.to_string(),
+            })
+            .await?
+            .receive_reply()
+            .await?
         {
             let topic = TopicAsync::new(
                 topic_address,
