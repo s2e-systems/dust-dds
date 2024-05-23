@@ -2510,7 +2510,7 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
                 message.discovered_participant_data,
             );
 
-            self.send_message();
+            self.send_message().await;
         }
         Ok(())
     }
