@@ -820,40 +820,66 @@ impl MailHandler<IsEnabled> for DomainParticipantActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantActor {
-    fn ignore_participant(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+pub struct IgnoreParticipant {
+    pub handle: InstanceHandle,
+}
+impl Mail for IgnoreParticipant {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<IgnoreParticipant> for DomainParticipantActor {
+    async fn handle(&mut self, message: IgnoreParticipant) -> <IgnoreParticipant as Mail>::Result {
         if self.enabled {
-            self.ignored_participants.insert(handle);
+            self.ignored_participants.insert(message.handle);
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
         }
     }
+}
 
-    fn ignore_subscription(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+pub struct IgnoreSubscription {
+    pub handle: InstanceHandle,
+}
+impl Mail for IgnoreSubscription {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<IgnoreSubscription> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: IgnoreSubscription,
+    ) -> <IgnoreSubscription as Mail>::Result {
         if self.enabled {
-            self.ignored_subcriptions.insert(handle);
+            self.ignored_subcriptions.insert(message.handle);
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
         }
     }
+}
 
-    fn ignore_publication(&mut self, handle: InstanceHandle) -> DdsResult<()> {
+pub struct IgnorePublication {
+    pub handle: InstanceHandle,
+}
+impl Mail for IgnorePublication {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<IgnorePublication> for DomainParticipantActor {
+    async fn handle(&mut self, message: IgnorePublication) -> <IgnorePublication as Mail>::Result {
         if self.enabled {
-            self.ignored_publications.insert(handle);
+            self.ignored_publications.insert(message.handle);
             Ok(())
         } else {
             Err(DdsError::NotEnabled)
         }
     }
+}
 
-    fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
-        todo!()
-    }
-
-    fn is_empty(&self) -> bool {
+pub struct IsEmpty;
+impl Mail for IsEmpty {
+    type Result = bool;
+}
+impl MailHandler<IsEmpty> for DomainParticipantActor {
+    async fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         let no_user_defined_topics = self
             .topic_list
             .keys()
@@ -865,11 +891,20 @@ impl DomainParticipantActor {
             && self.user_defined_subscriber_list.len() == 0
             && no_user_defined_topics
     }
+}
 
-    fn get_qos(&self) -> DomainParticipantQos {
+pub struct GetQos;
+impl Mail for GetQos {
+    type Result = DomainParticipantQos;
+}
+impl MailHandler<GetQos> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
+}
 
+#[actor_interface]
+impl DomainParticipantActor {
     fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .default_unicast_locator_list()

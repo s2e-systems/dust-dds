@@ -142,8 +142,10 @@ impl DomainParticipantAsync {
             .await
             && self
                 .participant_address
-                .get_qos()
+                .send_actor_mail(domain_participant_actor::GetQos)
                 .await?
+                .receive_reply()
+                .await
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -199,8 +201,10 @@ impl DomainParticipantAsync {
             .await
             && self
                 .participant_address
-                .get_qos()
+                .send_actor_mail(domain_participant_actor::GetQos)
                 .await?
+                .receive_reply()
+                .await
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -281,8 +285,10 @@ impl DomainParticipantAsync {
             .await
             && self
                 .participant_address
-                .get_qos()
+                .send_actor_mail(domain_participant_actor::GetQos)
                 .await?
+                .receive_reply()
+                .await
                 .entity_factory
                 .autoenable_created_entities
         {
@@ -382,25 +388,37 @@ impl DomainParticipantAsync {
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address.ignore_participant(handle).await?
+        self.participant_address
+            .send_actor_mail(domain_participant_actor::IgnoreParticipant { handle })
+            .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`ignore_topic`](crate::domain::domain_participant::DomainParticipant::ignore_topic).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address.ignore_topic(handle).await?
+        todo!()
     }
 
     /// Async version of [`ignore_publication`](crate::domain::domain_participant::DomainParticipant::ignore_publication).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address.ignore_publication(handle).await?
+        self.participant_address
+            .send_actor_mail(domain_participant_actor::IgnorePublication { handle })
+            .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`ignore_subscription`](crate::domain::domain_participant::DomainParticipant::ignore_subscription).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.participant_address.ignore_subscription(handle).await?
+        self.participant_address
+            .send_actor_mail(domain_participant_actor::IgnoreSubscription { handle })
+            .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
@@ -556,7 +574,12 @@ impl DomainParticipantAsync {
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        self.participant_address.get_qos().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`set_listener`](crate::domain::domain_participant::DomainParticipant::set_listener).
