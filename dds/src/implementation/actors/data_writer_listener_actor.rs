@@ -20,8 +20,8 @@ impl DataWriterListenerActor {
 }
 
 pub enum DataWriterListenerOperation {
-    OnOfferedIncompatibleQos(OfferedIncompatibleQosStatus),
-    OnPublicationMatched(PublicationMatchedStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
 }
 
 pub struct CallListenerFunction {
@@ -55,5 +55,5 @@ impl MailHandler<CallListenerFunction> for DataWriterListenerActor {
 impl ActorHandler for DataWriterListenerActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

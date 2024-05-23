@@ -15,8 +15,8 @@ impl PublisherListenerActor {
 }
 
 pub enum PublisherListenerOperation {
-    OnOfferedIncompatibleQos(OfferedIncompatibleQosStatus),
-    OnPublicationMatched(PublicationMatchedStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
 }
 
 pub struct CallListenerFunction {
@@ -32,10 +32,10 @@ impl MailHandler<CallListenerFunction> for PublisherListenerActor {
     ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
             match message.listener_operation {
-                PublisherListenerOperation::OnOfferedIncompatibleQos(status) => {
+                PublisherListenerOperation::OfferedIncompatibleQos(status) => {
                     l.on_offered_incompatible_qos(&(), status).await
                 }
-                PublisherListenerOperation::OnPublicationMatched(status) => {
+                PublisherListenerOperation::PublicationMatched(status) => {
                     l.on_publication_matched(&(), status).await
                 }
             }
@@ -46,5 +46,5 @@ impl MailHandler<CallListenerFunction> for PublisherListenerActor {
 impl ActorHandler for PublisherListenerActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

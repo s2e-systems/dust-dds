@@ -606,5 +606,5 @@ impl MailHandler<SetListener> for SubscriberActor {
 impl ActorHandler for SubscriberActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

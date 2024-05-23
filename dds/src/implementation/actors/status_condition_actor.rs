@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use crate::{
     implementation::actor::{ActorHandler, Mail, MailHandler},
     infrastructure::status::StatusKind,
@@ -41,13 +39,11 @@ impl Mail for AddCommunicationState {
     type Result = ();
 }
 impl MailHandler<AddCommunicationState> for StatusConditionActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: AddCommunicationState,
-    ) -> impl Future<Output = <AddCommunicationState as Mail>::Result> + Send {
-        async move {
-            self.status_changes.push(message.state);
-        }
+    ) -> <AddCommunicationState as Mail>::Result {
+        self.status_changes.push(message.state);
     }
 }
 
@@ -58,13 +54,11 @@ impl Mail for RemoveCommunicationState {
     type Result = ();
 }
 impl MailHandler<RemoveCommunicationState> for StatusConditionActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: RemoveCommunicationState,
-    ) -> impl Future<Output = <RemoveCommunicationState as Mail>::Result> + Send {
-        async move {
-            self.status_changes.retain(|x| x != &message.state);
-        }
+    ) -> <RemoveCommunicationState as Mail>::Result {
+        self.status_changes.retain(|x| x != &message.state);
     }
 }
 
@@ -73,11 +67,8 @@ impl Mail for GetEnabledStatuses {
     type Result = Vec<StatusKind>;
 }
 impl MailHandler<GetEnabledStatuses> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        _: GetEnabledStatuses,
-    ) -> impl Future<Output = <GetEnabledStatuses as Mail>::Result> + Send {
-        async move { self.enabled_statuses.clone() }
+    async fn handle(&mut self, _: GetEnabledStatuses) -> <GetEnabledStatuses as Mail>::Result {
+        self.enabled_statuses.clone()
     }
 }
 
@@ -88,13 +79,11 @@ impl Mail for SetEnabledStatuses {
     type Result = ();
 }
 impl MailHandler<SetEnabledStatuses> for StatusConditionActor {
-    fn handle(
+    async fn handle(
         &mut self,
         message: SetEnabledStatuses,
-    ) -> impl Future<Output = <SetEnabledStatuses as Mail>::Result> + Send {
-        async move {
-            self.enabled_statuses = message.mask;
-        }
+    ) -> <SetEnabledStatuses as Mail>::Result {
+        self.enabled_statuses = message.mask;
     }
 }
 
@@ -103,25 +92,18 @@ impl Mail for GetTriggerValue {
     type Result = bool;
 }
 impl MailHandler<GetTriggerValue> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        _message: GetTriggerValue,
-    ) -> impl Future<Output = <GetTriggerValue as Mail>::Result> + Send {
-        async move {
-            for status in &self.status_changes {
-                if self.enabled_statuses.contains(status) {
-                    return true;
-                }
+    async fn handle(&mut self, _message: GetTriggerValue) -> <GetTriggerValue as Mail>::Result {
+        for status in &self.status_changes {
+            if self.enabled_statuses.contains(status) {
+                return true;
             }
-            false
         }
+        false
     }
 }
 
 impl ActorHandler for StatusConditionActor {
     type Message = ();
 
-    fn handle_message(&mut self, _: Self::Message) -> impl Future<Output = ()> + Send {
-        async {}
-    }
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

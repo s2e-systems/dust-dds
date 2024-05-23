@@ -23,13 +23,13 @@ impl DataReaderListenerActor {
 }
 
 pub enum DataReaderListenerOperation {
-    OnDataAvailable,
-    OnSampleRejected(SampleRejectedStatus),
-    _OnLivelinessChanged(LivelinessChangedStatus),
-    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
-    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
-    OnSubscriptionMatched(SubscriptionMatchedStatus),
-    OnSampleLost(SampleLostStatus),
+    DataAvailable,
+    SampleRejected(SampleRejectedStatus),
+    _LivelinessChanged(LivelinessChangedStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
 }
 
 pub struct CallListenerFunction {
@@ -63,5 +63,5 @@ impl MailHandler<CallListenerFunction> for DataReaderListenerActor {
 impl ActorHandler for DataReaderListenerActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

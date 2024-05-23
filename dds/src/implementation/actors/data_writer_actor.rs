@@ -311,7 +311,7 @@ impl DataWriterActor {
             .await;
     }
 
-    fn matched_reader_remove(&mut self, a_reader_guid: Guid) -> () {
+    fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
@@ -545,7 +545,7 @@ impl DataWriterActor {
                 .await;
             self.listener
                 .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
-                    listener_operation: DataWriterListenerOperation::OnPublicationMatched(status),
+                    listener_operation: DataWriterListenerOperation::PublicationMatched(status),
                     writer_address: data_writer_address,
                     status_condition_address: self.status_condition.address(),
                     publisher,
@@ -562,14 +562,14 @@ impl DataWriterActor {
             let status = self.get_publication_matched_status().await;
             publisher_listener
                 .send_actor_mail(publisher_listener_actor::CallListenerFunction {
-                    listener_operation: PublisherListenerOperation::OnPublicationMatched(status),
+                    listener_operation: PublisherListenerOperation::PublicationMatched(status),
                 })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             participant_listener
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OnPublicationMatched(
+                    listener_operation: DomainParticipantListenerOperation::PublicationMatched(
                         status,
                     ),
                 })
@@ -627,9 +627,7 @@ impl DataWriterActor {
                 .await;
             self.listener
                 .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
-                    listener_operation: DataWriterListenerOperation::OnOfferedIncompatibleQos(
-                        status,
-                    ),
+                    listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
                     writer_address: data_writer_address,
                     status_condition_address: self.status_condition.address(),
                     publisher,
@@ -648,9 +646,7 @@ impl DataWriterActor {
                 .get_offered_incompatible_qos_status();
             publisher_listener
                 .send_actor_mail(publisher_listener_actor::CallListenerFunction {
-                    listener_operation: PublisherListenerOperation::OnOfferedIncompatibleQos(
-                        status,
-                    ),
+                    listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
                 })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
@@ -659,8 +655,9 @@ impl DataWriterActor {
                 .get_offered_incompatible_qos_status();
             participant_listener
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation:
-                        DomainParticipantListenerOperation::OnOfferedIncompatibleQos(status),
+                    listener_operation: DomainParticipantListenerOperation::OfferedIncompatibleQos(
+                        status,
+                    ),
                 })
                 .await?;
         }
@@ -1457,7 +1454,7 @@ impl MailHandler<RemoveChange> for DataWriterActor {
 impl ActorHandler for DataWriterActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 fn get_discovered_reader_incompatible_qos_policy_list(

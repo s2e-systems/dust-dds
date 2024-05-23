@@ -40,10 +40,10 @@ where
             let the_writer =
                 DataWriterAsync::new(writer_address, status_condition_address, publisher, topic);
             match listener_operation {
-                DataWriterListenerOperation::OnOfferedIncompatibleQos(status) => {
+                DataWriterListenerOperation::OfferedIncompatibleQos(status) => {
                     self.on_offered_incompatible_qos(the_writer, status).await
                 }
-                DataWriterListenerOperation::OnPublicationMatched(status) => {
+                DataWriterListenerOperation::PublicationMatched(status) => {
                     self.on_publication_matched(the_writer, status).await
                 }
             }

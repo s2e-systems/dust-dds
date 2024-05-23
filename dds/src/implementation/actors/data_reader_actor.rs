@@ -258,7 +258,7 @@ impl MailHandler<ReadRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineM
 impl ActorHandler for ReaderRequestedDeadlineMissedStatus {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 impl LivelinessChangedStatus {
@@ -541,7 +541,7 @@ impl DataReaderActor {
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
                 .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
-                    listener_operation: SubscriberListenerOperation::OnDataOnReaders(
+                    listener_operation: SubscriberListenerOperation::DataOnReaders(
                         subscriber.clone(),
                     ),
                 })
@@ -567,7 +567,7 @@ impl DataReaderActor {
                 .await;
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
-                    listener_operation: DataReaderListenerOperation::OnDataAvailable,
+                    listener_operation: DataReaderListenerOperation::DataAvailable,
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
                     subscriber: subscriber.clone(),
@@ -932,7 +932,7 @@ impl DataReaderActor {
             let status = self.get_sample_lost_status();
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
-                    listener_operation: DataReaderListenerOperation::OnSampleLost(status),
+                    listener_operation: DataReaderListenerOperation::SampleLost(status),
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
                     subscriber: subscriber.clone(),
@@ -949,14 +949,14 @@ impl DataReaderActor {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
                 .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
-                    listener_operation: SubscriberListenerOperation::OnSampleLost(status),
+                    listener_operation: SubscriberListenerOperation::SampleLost(status),
                 })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OnSampleLost(status),
+                    listener_operation: DomainParticipantListenerOperation::SampleLost(status),
                 })
                 .await?;
         }
@@ -1011,7 +1011,7 @@ impl DataReaderActor {
                 .await;
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
-                    listener_operation: DataReaderListenerOperation::OnSubscriptionMatched(status),
+                    listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
                     subscriber: subscriber.clone(),
@@ -1028,14 +1028,14 @@ impl DataReaderActor {
             let status = self.get_subscription_matched_status().await;
             subscriber_listener_address
                 .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
-                    listener_operation: SubscriberListenerOperation::OnSubscriptionMatched(status),
+                    listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
                 })
                 .await?;
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             participant_listener_address
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OnSubscriptionMatched(
+                    listener_operation: DomainParticipantListenerOperation::SubscriptionMatched(
                         status,
                     ),
                 })
@@ -1093,7 +1093,7 @@ impl DataReaderActor {
                 .await;
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
-                    listener_operation: DataReaderListenerOperation::OnSampleRejected(status),
+                    listener_operation: DataReaderListenerOperation::SampleRejected(status),
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
                     subscriber: subscriber.clone(),
@@ -1111,16 +1111,14 @@ impl DataReaderActor {
 
             subscriber_listener_address
                 .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
-                    listener_operation: SubscriberListenerOperation::OnSampleRejected(status),
+                    listener_operation: SubscriberListenerOperation::SampleRejected(status),
                 })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OnSampleRejected(
-                        status,
-                    ),
+                    listener_operation: DomainParticipantListenerOperation::SampleRejected(status),
                 })
                 .await?;
         }
@@ -1178,7 +1176,7 @@ impl DataReaderActor {
 
             self.listener
                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
-                    listener_operation: DataReaderListenerOperation::OnRequestedIncompatibleQos(
+                    listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
                         status,
                     ),
                     reader_address: data_reader_address.clone(),
@@ -1197,7 +1195,7 @@ impl DataReaderActor {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
                 .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
-                    listener_operation: SubscriberListenerOperation::OnRequestedIncompatibleQos(
+                    listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
                         status,
                     ),
                 })
@@ -1207,7 +1205,7 @@ impl DataReaderActor {
             participant_listener_address
                 .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
                     listener_operation:
-                        DomainParticipantListenerOperation::OnRequestedIncompatibleQos(status),
+                        DomainParticipantListenerOperation::RequestedIncompatibleQos(status),
                 })
                 .await?;
         }
@@ -1684,7 +1682,7 @@ impl DataReaderActor {
                             reader_listener_address
                                 .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
                                     listener_operation:
-                                        DataReaderListenerOperation::OnRequestedDeadlineMissed(
+                                        DataReaderListenerOperation::RequestedDeadlineMissed(
                                             status,
                                         ),
                                     reader_address: data_reader_address.clone(),
@@ -1711,7 +1709,7 @@ impl DataReaderActor {
                             subscriber_listener_address
                                 .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
                                     listener_operation:
-                                        SubscriberListenerOperation::OnRequestedDeadlineMissed(
+                                        SubscriberListenerOperation::RequestedDeadlineMissed(
                                             status,
                                         ),
                                 })
@@ -1727,7 +1725,7 @@ impl DataReaderActor {
                             participant_listener_address
                             .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
                                 listener_operation:
-                                    DomainParticipantListenerOperation::OnRequestedDeadlineMissed(status),
+                                    DomainParticipantListenerOperation::RequestedDeadlineMissed(status),
                             })
                             .await?;
                         }
@@ -2418,5 +2416,5 @@ impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
 impl ActorHandler for DataReaderActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

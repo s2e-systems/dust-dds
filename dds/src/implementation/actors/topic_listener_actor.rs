@@ -36,5 +36,5 @@ impl MailHandler<OnInconsistentTopic> for TopicListenerActor {
 impl ActorHandler for TopicListenerActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message)  {}
 }

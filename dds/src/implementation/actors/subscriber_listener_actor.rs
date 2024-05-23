@@ -18,12 +18,12 @@ impl SubscriberListenerActor {
 }
 
 pub enum SubscriberListenerOperation {
-    OnDataOnReaders(SubscriberAsync),
-    OnSampleRejected(SampleRejectedStatus),
-    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
-    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
-    OnSubscriptionMatched(SubscriptionMatchedStatus),
-    OnSampleLost(SampleLostStatus),
+    DataOnReaders(SubscriberAsync),
+    SampleRejected(SampleRejectedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
 }
 pub struct CallListenerFunction {
     pub listener_operation: SubscriberListenerOperation,
@@ -38,22 +38,22 @@ impl MailHandler<CallListenerFunction> for SubscriberListenerActor {
     ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
             match message.listener_operation {
-                SubscriberListenerOperation::OnDataOnReaders(subscriber) => {
+                SubscriberListenerOperation::DataOnReaders(subscriber) => {
                     l.on_data_on_readers(subscriber).await
                 }
-                SubscriberListenerOperation::OnSampleRejected(status) => {
+                SubscriberListenerOperation::SampleRejected(status) => {
                     l.on_sample_rejected(&(), status).await
                 }
-                SubscriberListenerOperation::OnRequestedIncompatibleQos(status) => {
+                SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
                     l.on_requested_incompatible_qos(&(), status).await
                 }
-                SubscriberListenerOperation::OnRequestedDeadlineMissed(status) => {
+                SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
                     l.on_requested_deadline_missed(&(), status).await
                 }
-                SubscriberListenerOperation::OnSubscriptionMatched(status) => {
+                SubscriberListenerOperation::SubscriptionMatched(status) => {
                     l.on_subscription_matched(&(), status).await
                 }
-                SubscriberListenerOperation::OnSampleLost(status) => {
+                SubscriberListenerOperation::SampleLost(status) => {
                     l.on_sample_lost(&(), status).await
                 }
             }
@@ -64,5 +64,5 @@ impl MailHandler<CallListenerFunction> for SubscriberListenerActor {
 impl ActorHandler for SubscriberListenerActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

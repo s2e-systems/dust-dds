@@ -19,13 +19,13 @@ impl DomainParticipantListenerActor {
 }
 
 pub enum DomainParticipantListenerOperation {
-    OnSampleRejected(SampleRejectedStatus),
-    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
-    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
-    OnSubscriptionMatched(SubscriptionMatchedStatus),
-    OnSampleLost(SampleLostStatus),
-    OnOfferedIncompatibleQos(OfferedIncompatibleQosStatus),
-    OnPublicationMatched(PublicationMatchedStatus),
+    SampleRejected(SampleRejectedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
 }
 
 pub struct CallListenerFunction {
@@ -41,25 +41,25 @@ impl MailHandler<CallListenerFunction> for DomainParticipantListenerActor {
     ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
             match message.listener_operation {
-                DomainParticipantListenerOperation::OnSampleRejected(status) => {
+                DomainParticipantListenerOperation::SampleRejected(status) => {
                     l.on_sample_rejected(&(), status).await
                 }
-                DomainParticipantListenerOperation::OnRequestedIncompatibleQos(status) => {
+                DomainParticipantListenerOperation::RequestedIncompatibleQos(status) => {
                     l.on_requested_incompatible_qos(&(), status).await
                 }
-                DomainParticipantListenerOperation::OnRequestedDeadlineMissed(status) => {
+                DomainParticipantListenerOperation::RequestedDeadlineMissed(status) => {
                     l.on_requested_deadline_missed(&(), status).await
                 }
-                DomainParticipantListenerOperation::OnSubscriptionMatched(status) => {
+                DomainParticipantListenerOperation::SubscriptionMatched(status) => {
                     l.on_subscription_matched(&(), status).await
                 }
-                DomainParticipantListenerOperation::OnSampleLost(status) => {
+                DomainParticipantListenerOperation::SampleLost(status) => {
                     l.on_sample_lost(&(), status).await
                 }
-                DomainParticipantListenerOperation::OnOfferedIncompatibleQos(status) => {
+                DomainParticipantListenerOperation::OfferedIncompatibleQos(status) => {
                     l.on_offered_incompatible_qos(&(), status).await
                 }
-                DomainParticipantListenerOperation::OnPublicationMatched(status) => {
+                DomainParticipantListenerOperation::PublicationMatched(status) => {
                     l.on_publication_matched(&(), status).await
                 }
             }
@@ -70,5 +70,5 @@ impl MailHandler<CallListenerFunction> for DomainParticipantListenerActor {
 impl ActorHandler for DomainParticipantListenerActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }

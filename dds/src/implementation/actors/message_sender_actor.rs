@@ -38,7 +38,7 @@ impl MessageSenderActor {
 impl ActorHandler for MessageSenderActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message)  {}
 }
 
 pub struct WriteMessage {

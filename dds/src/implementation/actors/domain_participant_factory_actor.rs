@@ -748,7 +748,7 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
 impl ActorHandler for DomainParticipantFactoryActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message)  {}
 }
 
 type LocatorAddress = [u8; 16];

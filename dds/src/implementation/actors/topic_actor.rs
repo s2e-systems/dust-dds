@@ -270,7 +270,7 @@ impl MailHandler<GetTypeSupport> for TopicActor {
 impl ActorHandler for TopicActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 fn is_discovered_topic_consistent(

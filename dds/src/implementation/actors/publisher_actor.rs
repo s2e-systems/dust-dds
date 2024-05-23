@@ -571,7 +571,7 @@ impl MailHandler<SetListener> for PublisherActor {
 impl ActorHandler for PublisherActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message) -> () {}
+    async fn handle_message(&mut self, _: Self::Message)  {}
 }
 
 impl PublisherQos {
