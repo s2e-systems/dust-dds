@@ -903,20 +903,38 @@ impl MailHandler<GetQos> for DomainParticipantActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantActor {
-    fn get_default_unicast_locator_list(&self) -> Vec<Locator> {
+pub struct GetDefaultUnicastLocatorList;
+impl Mail for GetDefaultUnicastLocatorList {
+    type Result = Vec<Locator>;
+}
+impl MailHandler<GetDefaultUnicastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetDefaultUnicastLocatorList,
+    ) -> <GetDefaultUnicastLocatorList as Mail>::Result {
         self.rtps_participant
             .default_unicast_locator_list()
             .to_vec()
     }
+}
 
-    fn get_default_multicast_locator_list(&self) -> Vec<Locator> {
+pub struct GetDefaultMulticastLocatorList;
+impl Mail for GetDefaultMulticastLocatorList {
+    type Result = Vec<Locator>;
+}
+impl MailHandler<GetDefaultMulticastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetDefaultMulticastLocatorList,
+    ) -> <GetDefaultMulticastLocatorList as Mail>::Result {
         self.rtps_participant
             .default_multicast_locator_list()
             .to_vec()
     }
+}
 
+#[actor_interface]
+impl DomainParticipantActor {
     fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_participant
             .metatraffic_unicast_locator_list()

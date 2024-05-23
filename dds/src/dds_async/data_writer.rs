@@ -10,7 +10,7 @@ use crate::{
         actors::{
             any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor::{self, DataWriterActor},
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
             topic_actor,
@@ -100,12 +100,16 @@ impl<Foo> DataWriterAsync<Foo> {
             let publisher_qos = self.get_publisher().get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let discovered_writer_data = self
                 .writer_address
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {

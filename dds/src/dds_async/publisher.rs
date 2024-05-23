@@ -68,12 +68,16 @@ impl PublisherAsync {
             let publisher_qos = self.get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let data = writer
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
@@ -103,15 +107,17 @@ impl PublisherAsync {
         Foo: 'b,
     {
         let default_unicast_locator_list = self
-            .participant
             .participant_address()
-            .get_default_unicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
         let default_multicast_locator_list = self
-            .participant
             .participant_address()
-            .get_default_multicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
         let data_max_size_serialized = self
             .participant
             .participant_address()

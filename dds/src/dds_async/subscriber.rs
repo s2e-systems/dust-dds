@@ -67,12 +67,16 @@ impl SubscriberAsync {
             let subscriber_qos = self.get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let data = reader
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
@@ -106,12 +110,16 @@ impl SubscriberAsync {
 
         let default_unicast_locator_list = self
             .participant_address()
-            .get_default_unicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
         let default_multicast_locator_list = self
             .participant_address()
-            .get_default_unicast_locator_list()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+            .await?
+            .receive_reply()
+            .await;
 
         let topic = a_topic.topic_address();
         let has_key = topic

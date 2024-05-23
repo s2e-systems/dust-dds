@@ -8,7 +8,7 @@ use crate::{
         actors::{
             any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor},
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
         },
@@ -97,12 +97,16 @@ impl<Foo> DataReaderAsync<Foo> {
                 .await;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let discovered_reader_data = self
                 .reader_address
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
