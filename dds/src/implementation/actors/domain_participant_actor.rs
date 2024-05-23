@@ -1046,7 +1046,7 @@ impl DomainParticipantActor {
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         runtime_handle: tokio::runtime::Handle,
-    )  {
+    ) {
         self.listener = Actor::spawn(
             DomainParticipantListenerActor::new(listener),
             &runtime_handle,
@@ -1666,7 +1666,7 @@ impl DomainParticipantActor {
                             discovered_writer_data: discovered_writer_data.clone(),
                             default_unicast_locator_list: default_unicast_locator_list.clone(),
                             default_multicast_locator_list: default_multicast_locator_list.clone(),
-                            subscriber_address: subscriber_address,
+                            subscriber_address,
                             participant: participant.clone(),
                             participant_mask_listener,
                         })
