@@ -1,7 +1,10 @@
 use super::{
-    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
-    domain_participant_actor::FooTypeSupport, message_sender_actor::MessageSenderActor,
-    subscriber_actor, topic_actor::TopicActor,
+    data_reader_actor::DataReaderActor,
+    data_writer_actor::DataWriterActor,
+    domain_participant_actor::{self, FooTypeSupport},
+    message_sender_actor::MessageSenderActor,
+    subscriber_actor,
+    topic_actor::TopicActor,
 };
 use crate::{
     configuration::DustDdsConfiguration,
@@ -622,8 +625,10 @@ impl Mail for DeleteParticipant {
 impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
     async fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
         let is_participant_empty = self.domain_participant_list[&message.handle]
-            .is_empty()
-            .await?;
+            .send_actor_mail(domain_participant_actor::IsEmpty)
+            .await
+            .receive_reply()
+            .await;
         if is_participant_empty {
             if let Some(d) = self.domain_participant_list.remove(&message.handle) {
                 Ok(d)
@@ -748,7 +753,7 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
 impl ActorHandler for DomainParticipantFactoryActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message)  {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 type LocatorAddress = [u8; 16];
