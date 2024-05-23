@@ -887,8 +887,8 @@ impl MailHandler<IsEmpty> for DomainParticipantActor {
             .count()
             == 0;
 
-        self.user_defined_publisher_list.len() == 0
-            && self.user_defined_subscriber_list.len() == 0
+        self.user_defined_publisher_list.is_empty()
+            && self.user_defined_subscriber_list.is_empty()
             && no_user_defined_topics
     }
 }
