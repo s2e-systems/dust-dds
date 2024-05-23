@@ -594,7 +594,7 @@ impl DomainParticipantAsync {
             .send_actor_mail(domain_participant_actor::Enable)
             .await?
             .receive_reply()
-            .await;
+            .await?;
 
         self.announce_participant().await?;
 
