@@ -1038,8 +1038,5 @@ async fn process_metatraffic_rtps_message(
         }
     }
 
-    participant_actor
-        .send_actor_mail(domain_participant_actor::SendMessage)
-        .await?;
     Ok(())
 }

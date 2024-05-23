@@ -1308,6 +1308,35 @@ impl DomainParticipantActor {
             .expect("Clock time is before Unix epoch start");
         infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
+
+    async fn send_message(&self) {
+        self.builtin_publisher
+            .send_actor_mail(publisher_actor::SendMessage {
+                message_sender_actor: self.message_sender_actor.address(),
+            })
+            .await;
+        self.builtin_subscriber
+            .send_actor_mail(subscriber_actor::SendMessage {
+                message_sender_actor: self.message_sender_actor.address(),
+            })
+            .await;
+
+        for publisher in self.user_defined_publisher_list.values() {
+            publisher
+                .send_actor_mail(publisher_actor::SendMessage {
+                    message_sender_actor: self.message_sender_actor.address(),
+                })
+                .await;
+        }
+
+        for subscriber in self.user_defined_subscriber_list.values() {
+            subscriber
+                .send_actor_mail(subscriber_actor::SendMessage {
+                    message_sender_actor: self.message_sender_actor.address(),
+                })
+                .await;
+        }
+    }
 }
 
 pub struct CreateUserDefinedPublisher {
@@ -2196,32 +2225,7 @@ impl Mail for SendMessage {
 }
 impl MailHandler<SendMessage> for DomainParticipantActor {
     async fn handle(&mut self, _: SendMessage) -> <SendMessage as Mail>::Result {
-        self.builtin_publisher
-            .send_actor_mail(publisher_actor::SendMessage {
-                message_sender_actor: self.message_sender_actor.address(),
-            })
-            .await;
-        self.builtin_subscriber
-            .send_actor_mail(subscriber_actor::SendMessage {
-                message_sender_actor: self.message_sender_actor.address(),
-            })
-            .await;
-
-        for publisher in self.user_defined_publisher_list.values() {
-            publisher
-                .send_actor_mail(publisher_actor::SendMessage {
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
-        }
-
-        for subscriber in self.user_defined_subscriber_list.values() {
-            subscriber
-                .send_actor_mail(subscriber_actor::SendMessage {
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
-        }
+        self.send_message().await
     }
 }
 
@@ -2505,6 +2509,8 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
                 ),
                 message.discovered_participant_data,
             );
+
+            self.send_message();
         }
         Ok(())
     }
