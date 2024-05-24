@@ -6,6 +6,7 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
+    message_sender_actor::MessageSenderActor,
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
 };
@@ -442,6 +443,7 @@ pub struct ProcessRtpsMessage {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
 impl Mail for ProcessRtpsMessage {
     type Result = ();
@@ -466,6 +468,7 @@ impl MailHandler<ProcessRtpsMessage> for SubscriberActor {
                     ),
                     subscriber_mask_listener: subscriber_mask_listener.clone(),
                     participant_mask_listener: message.participant_mask_listener.clone(),
+                    message_sender_actor: message.message_sender_actor.clone(),
                 })
                 .await;
         }

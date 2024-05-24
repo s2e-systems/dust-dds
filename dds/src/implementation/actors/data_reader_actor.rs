@@ -767,10 +767,11 @@ impl DataReaderActor {
         Ok(())
     }
 
-    fn on_heartbeat_submessage_received(
+    async fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
+        message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
@@ -795,6 +796,8 @@ impl DataReaderActor {
                             }
                             writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                             writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+
+                            self.send_message(message_sender_actor).await;
                         }
                     }
                 }
@@ -1744,6 +1747,13 @@ impl DataReaderActor {
         }
         Ok(())
     }
+
+    async fn send_message(&mut self, message_sender_actor: &ActorAddress<MessageSenderActor>) {
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => r.send_message(message_sender_actor).await,
+            RtpsReaderKind::Stateless(_) => (),
+        }
+    }
 }
 
 pub struct Read {
@@ -2299,6 +2309,7 @@ pub struct ProcessRtpsMessage {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
 impl Mail for ProcessRtpsMessage {
     type Result = ();
@@ -2346,11 +2357,14 @@ impl MailHandler<ProcessRtpsMessage> for DataReaderActor {
                         message_receiver.source_guid_prefix(),
                     );
                 }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                    .on_heartbeat_submessage_received(
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                    self.on_heartbeat_submessage_received(
                         &heartbeat_submessage,
                         message_receiver.source_guid_prefix(),
-                    ),
+                        &message.message_sender_actor,
+                    )
+                    .await
+                }
                 RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
                     .on_heartbeat_frag_submessage_received(
                         &heartbeat_frag_submessage,
@@ -2370,10 +2384,7 @@ impl Mail for SendMessage {
 }
 impl MailHandler<SendMessage> for DataReaderActor {
     async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
-        match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => r.send_message(&message.message_sender_actor).await,
-            RtpsReaderKind::Stateless(_) => (),
-        }
+        self.send_message(&message.message_sender_actor).await
     }
 }
 

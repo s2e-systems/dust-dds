@@ -1341,6 +1341,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                 subscriber_address: self.builtin_subscriber.address(),
                 participant: message.participant.clone(),
                 participant_mask_listener,
+                message_sender_actor: self.message_sender_actor.address(),
             })
             .await;
 
@@ -1378,6 +1379,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                     subscriber_address: user_defined_subscriber_address.address(),
                     participant: message.participant.clone(),
                     participant_mask_listener: participant_mask_listener.clone(),
+                    message_sender_actor: self.message_sender_actor.address(),
                 })
                 .await;
         }
