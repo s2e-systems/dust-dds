@@ -38,7 +38,7 @@ use crate::{
             TransportPriorityQosPolicy,
         },
         status::StatusKind,
-        time::Duration,
+        time::{Duration, Time},
     },
     rtps::{
         discovery_types::{
@@ -419,6 +419,14 @@ impl DomainParticipantActor {
         } else {
             Ok(None)
         }
+    }
+
+    fn get_current_time(&self) -> infrastructure::time::Time {
+        let now_system_time = SystemTime::now();
+        let unix_time = now_system_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start");
+        infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 }
 
@@ -1227,9 +1235,15 @@ impl MailHandler<GetBuiltInSubscriber> for DomainParticipantActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantActor {
-    fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+pub struct AsSpdpDiscoveredParticipantData;
+impl Mail for AsSpdpDiscoveredParticipantData {
+    type Result = SpdpDiscoveredParticipantData;
+}
+impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: AsSpdpDiscoveredParticipantData,
+    ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -1264,19 +1278,30 @@ impl DomainParticipantActor {
             self.discovered_participant_list.keys().cloned().collect(),
         )
     }
+}
 
-    fn get_status_kind(&self) -> Vec<StatusKind> {
+pub struct GetStatusKind;
+impl Mail for GetStatusKind {
+    type Result = Vec<StatusKind>;
+}
+impl MailHandler<GetStatusKind> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
+}
 
-    fn get_current_time(&self) -> infrastructure::time::Time {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
+pub struct GetCurrentTime;
+impl Mail for GetCurrentTime {
+    type Result = Time;
+}
+impl MailHandler<GetCurrentTime> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
+        self.get_current_time()
     }
+}
 
+#[actor_interface]
+impl DomainParticipantActor {
     fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
         self.builtin_publisher.address()
     }

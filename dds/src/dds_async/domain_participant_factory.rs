@@ -118,8 +118,10 @@ impl DomainParticipantFactoryAsync {
             .await?
         {
             let data = deleted_participant
-                .as_spdp_discovered_participant_data()
-                .await?;
+                .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
+                .await
+                .receive_reply()
+                .await;
             spdp_participant_writer.dispose(&data, None).await?;
         }
         deleted_participant.stop().await;

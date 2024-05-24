@@ -135,7 +135,12 @@ where
     /// Async version of [`register_instance`](crate::publication::data_writer::DataWriter::register_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.register_instance_w_timestamp(instance, timestamp)
             .await
     }
@@ -157,7 +162,12 @@ where
         instance: &Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
             .await
     }
@@ -209,7 +219,12 @@ where
             let instance_serialized_key =
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
             let message_sender_actor = self.participant_address().get_message_sender().await?;
-            let now = self.participant_address().get_current_time().await?;
+            let now = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetCurrentTime)
+                .await?
+                .receive_reply()
+                .await;
 
             self.writer_address
                 .send_actor_mail(data_writer_actor::UnregisterInstanceWTimestamp {
@@ -263,7 +278,12 @@ where
     /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
     #[tracing::instrument(skip(self, data))]
     pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.write_w_timestamp(data, handle, timestamp).await
     }
 
@@ -288,7 +308,12 @@ where
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         let message_sender_actor = self.participant_address().get_message_sender().await?;
-        let now = self.participant_address().get_current_time().await?;
+        let now = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::WriteWTimestamp {
                 serialized_data,
@@ -309,7 +334,12 @@ where
     /// Async version of [`dispose`](crate::publication::data_writer::DataWriter::dispose).
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.dispose_w_timestamp(data, handle, timestamp).await
     }
 
@@ -358,7 +388,12 @@ where
         data.serialize_data(&mut serialized_foo)?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
         let message_sender_actor = self.participant_address().get_message_sender().await?;
-        let now = self.participant_address().get_current_time().await?;
+        let now = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::DisposeWTimestamp {
                 instance_serialized_key: key,

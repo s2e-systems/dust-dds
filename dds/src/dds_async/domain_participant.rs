@@ -88,8 +88,10 @@ impl DomainParticipantAsync {
             {
                 let data = self
                     .participant_address
-                    .as_spdp_discovered_participant_data()
-                    .await?;
+                    .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
+                    .await?
+                    .receive_reply()
+                    .await;
                 spdp_participant_writer.write(&data, None).await?;
             }
         }
@@ -611,7 +613,12 @@ impl DomainParticipantAsync {
     /// Async version of [`get_current_time`](crate::domain::domain_participant::DomainParticipant::get_current_time).
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
-        self.participant_address.get_current_time().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
