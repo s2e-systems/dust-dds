@@ -36,6 +36,9 @@ use dust_dds::{
 };
 use dust_dds_derive::DdsType;
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
     #[dust_dds(key)]
@@ -45,7 +48,7 @@ struct KeyedData {
 
 #[test]
 fn writer_should_not_send_heartbeat_periodically() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let mock_reader_socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
 
@@ -153,8 +156,25 @@ fn writer_should_not_send_heartbeat_periodically() {
     waitset_builtin_reader
         .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
         .unwrap();
+
+    let dcps_participant_reader = builtin_subscriber
+        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .unwrap()
+        .unwrap();
+    let dcps_sample_list = dcps_participant_reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    let metatraffic_port = dcps_sample_list[0]
+        .data()
+        .unwrap()
+        .participant_proxy()
+        .metatraffic_unicast_locator_list()[0]
+        .port();
     mock_reader_socket
-        .send_to(discovered_reader_rtps_message.buffer(), "127.0.0.1:7400")
+        .send_to(
+            discovered_reader_rtps_message.buffer(),
+            ("127.0.0.1", metatraffic_port as u16),
+        )
         .unwrap();
 
     let mut waitset_writer = WaitSet::new();
@@ -205,7 +225,7 @@ fn writer_should_not_send_heartbeat_periodically() {
 
 #[test]
 fn writer_should_not_send_heartbeat_after_acknack() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let mock_reader_socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
 
@@ -312,8 +332,25 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     waitset_builtin_reader
         .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
         .unwrap();
+
+    let dcps_participant_reader = builtin_subscriber
+        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .unwrap()
+        .unwrap();
+    let dcps_sample_list = dcps_participant_reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    let metatraffic_port = dcps_sample_list[0]
+        .data()
+        .unwrap()
+        .participant_proxy()
+        .metatraffic_unicast_locator_list()[0]
+        .port();
     mock_reader_socket
-        .send_to(discovered_reader_rtps_message.buffer(), "127.0.0.1:7400")
+        .send_to(
+            discovered_reader_rtps_message.buffer(),
+            ("127.0.0.1", metatraffic_port as u16),
+        )
         .unwrap();
 
     let mut waitset_writer = WaitSet::new();
@@ -383,7 +420,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
 
 #[test]
 fn writer_should_resend_data_after_acknack_request() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let mock_reader_socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
 
@@ -490,8 +527,31 @@ fn writer_should_resend_data_after_acknack_request() {
     waitset_builtin_reader
         .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
         .unwrap();
+
+    let dcps_participant_reader = builtin_subscriber
+        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .unwrap()
+        .unwrap();
+    let dcps_sample_list = dcps_participant_reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    let metatraffic_port = dcps_sample_list[0]
+        .data()
+        .unwrap()
+        .participant_proxy()
+        .metatraffic_unicast_locator_list()[0]
+        .port();
+    let user_defined_traffic_port = dcps_sample_list[0]
+        .data()
+        .unwrap()
+        .participant_proxy()
+        .default_unicast_locator_list()[0]
+        .port();
     mock_reader_socket
-        .send_to(discovered_reader_rtps_message.buffer(), "127.0.0.1:7400")
+        .send_to(
+            discovered_reader_rtps_message.buffer(),
+            ("127.0.0.1", metatraffic_port as u16),
+        )
         .unwrap();
 
     let mut waitset_writer = WaitSet::new();
@@ -513,20 +573,6 @@ fn writer_should_resend_data_after_acknack_request() {
         .set_read_timeout(Some(std::time::Duration::from_secs(10)))
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
-
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-        .unwrap()
-        .unwrap();
-    let dcps_sample_list = dcps_subscription_reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-    let unicast_port = dcps_sample_list[0]
-        .data()
-        .unwrap()
-        .participant_proxy()
-        .default_unicast_locator_list()[0]
-        .port();
 
     let received_data_heartbeat = RtpsMessageRead::new(Arc::from(buffer))
         .unwrap()
@@ -550,7 +596,10 @@ fn writer_should_resend_data_after_acknack_request() {
     let acknack_message =
         RtpsMessageWrite::new(&rtps_message_header, &[Box::new(reader_acknack_submessage)]);
     mock_reader_socket
-        .send_to(acknack_message.buffer(), ("127.0.0.1", unicast_port as u16))
+        .send_to(
+            acknack_message.buffer(),
+            ("127.0.0.1", user_defined_traffic_port as u16),
+        )
         .unwrap();
 
     // Default heartbeat period is 200ms
