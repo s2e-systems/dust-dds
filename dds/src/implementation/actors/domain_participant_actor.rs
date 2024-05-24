@@ -1300,13 +1300,22 @@ impl MailHandler<GetCurrentTime> for DomainParticipantActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantActor {
-    fn get_builtin_publisher(&self) -> ActorAddress<PublisherActor> {
+pub struct GetBuiltinPublisher;
+impl Mail for GetBuiltinPublisher {
+    type Result = ActorAddress<PublisherActor>;
+}
+impl MailHandler<GetBuiltinPublisher> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetBuiltinPublisher) -> <GetBuiltinPublisher as Mail>::Result {
         self.builtin_publisher.address()
     }
+}
 
-    async fn send_message(&self) {
+pub struct SendMessage;
+impl Mail for SendMessage {
+    type Result = ();
+}
+impl MailHandler<SendMessage> for DomainParticipantActor {
+    async fn handle(&mut self, _: SendMessage) -> <SendMessage as Mail>::Result {
         self.builtin_publisher
             .send_actor_mail(publisher_actor::SendMessage {
                 message_sender_actor: self.message_sender_actor.address(),
@@ -1334,52 +1343,68 @@ impl DomainParticipantActor {
                 .await;
         }
     }
+}
 
-    async fn process_metatraffic_rtps_message(
+pub struct ProcessMetatrafficRtpsMessage {
+    pub rtps_message: RtpsMessageRead,
+    pub participant: DomainParticipantAsync,
+}
+impl Mail for ProcessMetatrafficRtpsMessage {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
+    async fn handle(
         &mut self,
-        message: RtpsMessageRead,
-        participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
+        message: ProcessMetatrafficRtpsMessage,
+    ) -> <ProcessMetatrafficRtpsMessage as Mail>::Result {
         tracing::trace!(
-            rtps_message = ?message,
+            rtps_message = ?message.rtps_message,
             "Received metatraffic RTPS message"
         );
         let reception_timestamp = self.get_current_time().into();
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         self.builtin_subscriber
             .send_actor_mail(subscriber_actor::ProcessRtpsMessage {
-                rtps_message: message.clone(),
+                rtps_message: message.rtps_message.clone(),
                 reception_timestamp,
                 subscriber_address: self.builtin_subscriber.address(),
-                participant: participant.clone(),
+                participant: message.participant.clone(),
                 participant_mask_listener,
             })
             .await;
 
         self.builtin_publisher
             .send_actor_mail(publisher_actor::ProcessRtpsMessage {
-                rtps_message: message,
+                rtps_message: message.rtps_message,
             })
             .await;
 
-        self.process_builtin_discovery(participant).await?;
+        self.process_builtin_discovery(message.participant).await?;
 
         Ok(())
     }
+}
 
-    async fn process_user_defined_rtps_message(
-        &self,
-        message: RtpsMessageRead,
-        participant: DomainParticipantAsync,
-    ) {
+pub struct ProcessUserDefinedRtpsMessage {
+    pub rtps_message: RtpsMessageRead,
+    pub participant: DomainParticipantAsync,
+}
+impl Mail for ProcessUserDefinedRtpsMessage {
+    type Result = ();
+}
+impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: ProcessUserDefinedRtpsMessage,
+    ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
         let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
         for user_defined_subscriber_address in self.user_defined_subscriber_list.values() {
             user_defined_subscriber_address
                 .send_actor_mail(subscriber_actor::ProcessRtpsMessage {
-                    rtps_message: message.clone(),
+                    rtps_message: message.rtps_message.clone(),
                     reception_timestamp: self.get_current_time().into(),
                     subscriber_address: user_defined_subscriber_address.address(),
-                    participant: participant.clone(),
+                    participant: message.participant.clone(),
                     participant_mask_listener: participant_mask_listener.clone(),
                 })
                 .await;
@@ -1394,7 +1419,7 @@ impl DomainParticipantActor {
         for user_defined_publisher_address in self.user_defined_publisher_list.values() {
             user_defined_publisher_address
                 .send_actor_mail(publisher_actor::ProcessRtpsMessage {
-                    rtps_message: message.clone(),
+                    rtps_message: message.rtps_message.clone(),
                 })
                 .await;
             user_defined_publisher_address
@@ -1404,7 +1429,10 @@ impl DomainParticipantActor {
                 .await;
         }
     }
+}
 
+#[actor_interface]
+impl DomainParticipantActor {
     #[allow(clippy::unused_unit)]
     fn set_listener(
         &mut self,

@@ -533,7 +533,10 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             loop {
                 if let Ok(message) = read_message(&mut socket).await {
                     let r = participant_address_clone
-                        .process_user_defined_rtps_message(message, participant_clone.clone())
+                        .send_actor_mail(domain_participant_actor::ProcessUserDefinedRtpsMessage {
+                            rtps_message: message,
+                            participant: participant_clone.clone(),
+                        })
                         .await;
                     if r.is_err() {
                         break;
@@ -959,8 +962,13 @@ async fn process_metatraffic_rtps_message(
     participant: &DomainParticipantAsync,
 ) -> DdsResult<()> {
     participant_actor
-        .process_metatraffic_rtps_message(message, participant.clone())
-        .await??;
+        .send_actor_mail(domain_participant_actor::ProcessMetatrafficRtpsMessage {
+            rtps_message: message,
+            participant: participant.clone(),
+        })
+        .await?
+        .receive_reply()
+        .await;
 
     let builtin_subscriber = participant.get_builtin_subscriber();
 
@@ -1003,5 +1011,9 @@ async fn process_metatraffic_rtps_message(
         }
     }
 
-    participant_actor.send_message().await
+    participant_actor
+        .send_actor_mail(domain_participant_actor::SendMessage)
+        .await?;
+
+    Ok(())
 }

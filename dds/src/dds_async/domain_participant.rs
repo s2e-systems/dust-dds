@@ -706,7 +706,12 @@ impl DomainParticipantAsync {
 
 impl DomainParticipantAsync {
     pub(crate) async fn get_builtin_publisher(&self) -> DdsResult<PublisherAsync> {
-        let publisher_address = self.participant_address.get_builtin_publisher().await?;
+        let publisher_address = self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetBuiltinPublisher)
+            .await?
+            .receive_reply()
+            .await;
         let publisher_status_condition = publisher_address
             .send_actor_mail(publisher_actor::GetStatuscondition)
             .await?
