@@ -27,6 +27,7 @@ fn main() {
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
+    println!("Handle {:?}", participant.get_instance_handle().unwrap());
 
     let topic = participant
         .create_topic::<HelloWorldType>(
