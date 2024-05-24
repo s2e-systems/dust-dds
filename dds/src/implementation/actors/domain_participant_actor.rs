@@ -1316,41 +1316,6 @@ impl MailHandler<GetBuiltinPublisher> for DomainParticipantActor {
     }
 }
 
-pub struct SendMessage;
-impl Mail for SendMessage {
-    type Result = ();
-}
-impl MailHandler<SendMessage> for DomainParticipantActor {
-    async fn handle(&mut self, _: SendMessage) -> <SendMessage as Mail>::Result {
-        self.builtin_publisher
-            .send_actor_mail(publisher_actor::SendMessage {
-                message_sender_actor: self.message_sender_actor.address(),
-            })
-            .await;
-        self.builtin_subscriber
-            .send_actor_mail(subscriber_actor::SendMessage {
-                message_sender_actor: self.message_sender_actor.address(),
-            })
-            .await;
-
-        for publisher in self.user_defined_publisher_list.values() {
-            publisher
-                .send_actor_mail(publisher_actor::SendMessage {
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
-        }
-
-        for subscriber in self.user_defined_subscriber_list.values() {
-            subscriber
-                .send_actor_mail(subscriber_actor::SendMessage {
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
-        }
-    }
-}
-
 pub struct ProcessMetatrafficRtpsMessage {
     pub rtps_message: RtpsMessageRead,
     pub participant: DomainParticipantAsync,
@@ -1415,23 +1380,12 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                     participant_mask_listener: participant_mask_listener.clone(),
                 })
                 .await;
-
-            user_defined_subscriber_address
-                .send_actor_mail(subscriber_actor::SendMessage {
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
         }
 
         for user_defined_publisher_address in self.user_defined_publisher_list.values() {
             user_defined_publisher_address
                 .send_actor_mail(publisher_actor::ProcessRtpsMessage {
                     rtps_message: message.rtps_message.clone(),
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
-            user_defined_publisher_address
-                .send_actor_mail(publisher_actor::SendMessage {
                     message_sender_actor: self.message_sender_actor.address(),
                 })
                 .await;

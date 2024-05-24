@@ -431,24 +431,6 @@ impl MailHandler<ProcessRtpsMessage> for PublisherActor {
     }
 }
 
-pub struct SendMessage {
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-}
-impl Mail for SendMessage {
-    type Result = ();
-}
-impl MailHandler<SendMessage> for PublisherActor {
-    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
-        for data_writer_address in self.data_writer_list.values() {
-            data_writer_address
-                .send_actor_mail(data_writer_actor::SendMessage {
-                    message_sender_actor: message.message_sender_actor.clone(),
-                })
-                .await;
-        }
-    }
-}
-
 pub struct AddMatchedReader {
     pub discovered_reader_data: DiscoveredReaderData,
     pub default_unicast_locator_list: Vec<Locator>,

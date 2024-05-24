@@ -6,7 +6,6 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
-    message_sender_actor::MessageSenderActor,
     subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
 };
@@ -431,24 +430,6 @@ impl Mail for GetStatusKind {
 impl MailHandler<GetStatusKind> for SubscriberActor {
     async fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
-    }
-}
-
-pub struct SendMessage {
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-}
-impl Mail for SendMessage {
-    type Result = ();
-}
-impl MailHandler<SendMessage> for SubscriberActor {
-    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
-        for data_reader_address in self.data_reader_list.values() {
-            data_reader_address
-                .send_actor_mail(data_reader_actor::SendMessage {
-                    message_sender_actor: message.message_sender_actor.clone(),
-                })
-                .await;
-        }
     }
 }
 
