@@ -430,7 +430,13 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_contained_entities`](crate::domain::domain_participant::DomainParticipant::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        for deleted_publisher in self.participant_address.drain_publisher_list().await? {
+        for deleted_publisher in self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::DrainPublisherList)
+            .await?
+            .receive_reply()
+            .await
+        {
             PublisherAsync::new(
                 deleted_publisher.address(),
                 deleted_publisher
@@ -444,7 +450,13 @@ impl DomainParticipantAsync {
             .await?;
         }
 
-        for deleted_subscriber in self.participant_address.drain_subscriber_list().await? {
+        for deleted_subscriber in self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::DrainSubscriberList)
+            .await?
+            .receive_reply()
+            .await
+        {
             SubscriberAsync::new(
                 deleted_subscriber.address(),
                 deleted_subscriber
@@ -458,7 +470,13 @@ impl DomainParticipantAsync {
             .await?;
         }
 
-        for deleted_topic in self.participant_address.drain_topic_list().await? {
+        for deleted_topic in self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::DrainTopicList)
+            .await?
+            .receive_reply()
+            .await
+        {
             self.announce_deleted_topic(deleted_topic).await?;
         }
 
@@ -475,46 +493,74 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.participant_address
-            .set_default_publisher_qos(qos)
+            .send_actor_mail(domain_participant_actor::SetDefaultPublisherQos { qos })
             .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.participant_address.get_default_publisher_qos().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetDefaultPublisherQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.participant_address
-            .set_default_subscriber_qos(qos)
+            .send_actor_mail(domain_participant_actor::SetDefaultSubscriberQos { qos })
             .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.participant_address.get_default_subscriber_qos().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetDefaultSubscriberQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.participant_address.set_default_topic_qos(qos).await?
+        self.participant_address
+            .send_actor_mail(domain_participant_actor::SetDefaultTopicQos { qos })
+            .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.participant_address.get_default_topic_qos().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address.get_discovered_participants().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetDiscoveredParticipants)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
@@ -524,14 +570,23 @@ impl DomainParticipantAsync {
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         self.participant_address
-            .get_discovered_participant_data(participant_handle)
+            .send_actor_mail(domain_participant_actor::GetDiscoveredParticipantData {
+                participant_handle,
+            })
             .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.participant_address.get_discovered_topics().await
+        Ok(self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetDiscoveredTopics)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
@@ -541,8 +596,10 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.participant_address
-            .get_discovered_topic_data(topic_handle)
+            .send_actor_mail(domain_participant_actor::GetDiscoveredTopicData { topic_handle })
             .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`contains_entity`](crate::domain::domain_participant::DomainParticipant::contains_entity).
@@ -567,7 +624,11 @@ impl DomainParticipantAsync {
             QosKind::Specific(q) => q,
         };
 
-        self.participant_address.set_qos(qos).await??;
+        self.participant_address
+            .send_actor_mail(domain_participant_actor::SetQos { qos })
+            .await?
+            .receive_reply()
+            .await?;
         self.announce_participant().await
     }
 

@@ -449,18 +449,22 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
 
         let status_condition = domain_participant.get_statuscondition();
-        let builtin_subscriber = domain_participant.get_built_in_subscriber();
-        let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_actor_mail(subscriber_actor::GetStatuscondition)
-            .await?
-            .receive_reply()
-            .await;
 
         let participant_actor = Actor::spawn(
             domain_participant,
             &message.runtime_handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
+        let builtin_subscriber = participant_actor
+            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+            .await
+            .receive_reply()
+            .await;
+        let builtin_subscriber_status_condition_address = builtin_subscriber
+            .send_actor_mail(subscriber_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
 
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
@@ -655,7 +659,13 @@ impl Mail for LookupParticipant {
 impl MailHandler<LookupParticipant> for DomainParticipantFactoryActor {
     async fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Mail>::Result {
         for dp in self.domain_participant_list.values() {
-            if dp.get_domain_id().await? == message.domain_id {
+            if dp
+                .send_actor_mail(domain_participant_actor::GetDomainId)
+                .await
+                .receive_reply()
+                .await
+                == message.domain_id
+            {
                 return Ok(Some(dp.address()));
             }
         }

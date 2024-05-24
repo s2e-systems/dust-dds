@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
@@ -120,7 +120,13 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self.participant_address().get_default_topic_qos().await?,
+            QosKind::Default => {
+                self.participant_address()
+                    .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)
+                    .await?
+                    .receive_reply()
+                    .await
+            }
             QosKind::Specific(q) => q,
         };
 

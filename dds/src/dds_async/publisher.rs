@@ -121,8 +121,10 @@ impl PublisherAsync {
         let data_max_size_serialized = self
             .participant
             .participant_address()
-            .data_max_size_serialized()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetDataMaxSizeSerialized)
+            .await?
+            .receive_reply()
+            .await;
 
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let has_key = a_topic

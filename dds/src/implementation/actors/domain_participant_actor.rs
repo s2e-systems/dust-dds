@@ -933,39 +933,81 @@ impl MailHandler<GetDefaultMulticastLocatorList> for DomainParticipantActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantActor {
-    fn get_metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+pub struct GetMetatrafficUnicastLocatorList;
+impl Mail for GetMetatrafficUnicastLocatorList {
+    type Result = Vec<Locator>;
+}
+impl MailHandler<GetMetatrafficUnicastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetMetatrafficUnicastLocatorList,
+    ) -> <GetMetatrafficUnicastLocatorList as Mail>::Result {
         self.rtps_participant
             .metatraffic_unicast_locator_list()
             .to_vec()
     }
+}
 
-    fn get_metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+pub struct GetMetatrafficMulticastLocatorList;
+impl Mail for GetMetatrafficMulticastLocatorList {
+    type Result = Vec<Locator>;
+}
+impl MailHandler<GetMetatrafficMulticastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetMetatrafficMulticastLocatorList,
+    ) -> <GetMetatrafficMulticastLocatorList as Mail>::Result {
         self.rtps_participant
             .metatraffic_multicast_locator_list()
             .to_vec()
     }
+}
 
-    fn data_max_size_serialized(&self) -> usize {
+pub struct GetDataMaxSizeSerialized;
+impl Mail for GetDataMaxSizeSerialized {
+    type Result = usize;
+}
+impl MailHandler<GetDataMaxSizeSerialized> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetDataMaxSizeSerialized,
+    ) -> <GetDataMaxSizeSerialized as Mail>::Result {
         self.data_max_size_serialized
     }
+}
 
-    async fn drain_subscriber_list(&mut self) -> Vec<Actor<SubscriberActor>> {
+pub struct DrainSubscriberList;
+impl Mail for DrainSubscriberList {
+    type Result = Vec<Actor<SubscriberActor>>;
+}
+impl MailHandler<DrainSubscriberList> for DomainParticipantActor {
+    async fn handle(&mut self, _: DrainSubscriberList) -> <DrainSubscriberList as Mail>::Result {
         self.user_defined_subscriber_list
             .drain()
             .map(|(_, a)| a)
             .collect()
     }
+}
 
-    async fn drain_publisher_list(&mut self) -> Vec<Actor<PublisherActor>> {
+pub struct DrainPublisherList;
+impl Mail for DrainPublisherList {
+    type Result = Vec<Actor<PublisherActor>>;
+}
+impl MailHandler<DrainPublisherList> for DomainParticipantActor {
+    async fn handle(&mut self, _: DrainPublisherList) -> <DrainPublisherList as Mail>::Result {
         self.user_defined_publisher_list
             .drain()
             .map(|(_, a)| a)
             .collect()
     }
+}
 
-    async fn drain_topic_list(&mut self) -> Vec<Actor<TopicActor>> {
+pub struct DrainTopicList;
+impl Mail for DrainTopicList {
+    type Result = Vec<Actor<TopicActor>>;
+}
+impl MailHandler<DrainTopicList> for DomainParticipantActor {
+    async fn handle(&mut self, _: DrainTopicList) -> <DrainTopicList as Mail>::Result {
         let mut drained_topic_list = Vec::new();
         let user_defined_topic_name_list: Vec<String> = self
             .topic_list
@@ -980,9 +1022,20 @@ impl DomainParticipantActor {
         }
         drained_topic_list
     }
+}
 
-    fn set_default_publisher_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        let qos = match qos {
+pub struct SetDefaultPublisherQos {
+    pub qos: QosKind<PublisherQos>,
+}
+impl Mail for SetDefaultPublisherQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultPublisherQos> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: SetDefaultPublisherQos,
+    ) -> <SetDefaultPublisherQos as Mail>::Result {
+        let qos = match message.qos {
             QosKind::Default => PublisherQos::default(),
             QosKind::Specific(q) => q,
         };
@@ -991,13 +1044,20 @@ impl DomainParticipantActor {
 
         Ok(())
     }
+}
 
-    fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.default_publisher_qos.clone()
-    }
-
-    fn set_default_subscriber_qos(&mut self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        let qos = match qos {
+pub struct SetDefaultSubscriberQos {
+    pub qos: QosKind<SubscriberQos>,
+}
+impl Mail for SetDefaultSubscriberQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultSubscriberQos> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: SetDefaultSubscriberQos,
+    ) -> <SetDefaultSubscriberQos as Mail>::Result {
+        let qos = match message.qos {
             QosKind::Default => SubscriberQos::default(),
             QosKind::Specific(q) => q,
         };
@@ -1006,13 +1066,20 @@ impl DomainParticipantActor {
 
         Ok(())
     }
+}
 
-    fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        self.default_subscriber_qos.clone()
-    }
-
-    fn set_default_topic_qos(&mut self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let qos = match qos {
+pub struct SetDefaultTopicQos {
+    pub qos: QosKind<TopicQos>,
+}
+impl Mail for SetDefaultTopicQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: SetDefaultTopicQos,
+    ) -> <SetDefaultTopicQos as Mail>::Result {
+        let qos = match message.qos {
             QosKind::Default => TopicQos::default(),
             QosKind::Specific(q) => {
                 q.is_consistent()?;
@@ -1024,58 +1091,144 @@ impl DomainParticipantActor {
 
         Ok(())
     }
+}
 
-    fn get_default_topic_qos(&self) -> TopicQos {
+pub struct GetDefaultPublisherQos;
+impl Mail for GetDefaultPublisherQos {
+    type Result = PublisherQos;
+}
+impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetDefaultPublisherQos,
+    ) -> <GetDefaultPublisherQos as Mail>::Result {
+        self.default_publisher_qos.clone()
+    }
+}
+
+pub struct GetDefaultSubscriberQos;
+impl Mail for GetDefaultSubscriberQos {
+    type Result = SubscriberQos;
+}
+impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetDefaultSubscriberQos,
+    ) -> <GetDefaultSubscriberQos as Mail>::Result {
+        self.default_subscriber_qos.clone()
+    }
+}
+
+pub struct GetDefaultTopicQos;
+impl Mail for GetDefaultTopicQos {
+    type Result = TopicQos;
+}
+impl MailHandler<GetDefaultTopicQos> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetDefaultTopicQos) -> <GetDefaultTopicQos as Mail>::Result {
         self.default_topic_qos.clone()
     }
+}
 
-    fn get_discovered_participants(&self) -> Vec<InstanceHandle> {
+pub struct GetDiscoveredParticipants;
+impl Mail for GetDiscoveredParticipants {
+    type Result = Vec<InstanceHandle>;
+}
+impl MailHandler<GetDiscoveredParticipants> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        _: GetDiscoveredParticipants,
+    ) -> <GetDiscoveredParticipants as Mail>::Result {
         self.discovered_participant_list.keys().cloned().collect()
     }
+}
 
-    fn get_discovered_participant_data(
-        &self,
-        participant_handle: InstanceHandle,
-    ) -> DdsResult<ParticipantBuiltinTopicData> {
+pub struct GetDiscoveredParticipantData {
+    pub participant_handle: InstanceHandle,
+}
+impl Mail for GetDiscoveredParticipantData {
+    type Result = DdsResult<ParticipantBuiltinTopicData>;
+}
+impl MailHandler<GetDiscoveredParticipantData> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: GetDiscoveredParticipantData,
+    ) -> <GetDiscoveredParticipantData as Mail>::Result {
         Ok(self
             .discovered_participant_list
-            .get(&participant_handle)
+            .get(&message.participant_handle)
             .ok_or(DdsError::PreconditionNotMet(
                 "Participant with this instance handle not discovered".to_owned(),
             ))?
             .dds_participant_data()
             .clone())
     }
+}
 
-    fn get_discovered_topics(&self) -> Vec<InstanceHandle> {
+pub struct GetDiscoveredTopics;
+impl Mail for GetDiscoveredTopics {
+    type Result = Vec<InstanceHandle>;
+}
+impl MailHandler<GetDiscoveredTopics> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetDiscoveredTopics) -> <GetDiscoveredTopics as Mail>::Result {
         self.discovered_topic_list.keys().cloned().collect()
     }
+}
 
-    fn get_discovered_topic_data(
-        &self,
-        topic_handle: InstanceHandle,
-    ) -> DdsResult<TopicBuiltinTopicData> {
+pub struct GetDiscoveredTopicData {
+    pub topic_handle: InstanceHandle,
+}
+impl Mail for GetDiscoveredTopicData {
+    type Result = DdsResult<TopicBuiltinTopicData>;
+}
+impl MailHandler<GetDiscoveredTopicData> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: GetDiscoveredTopicData,
+    ) -> <GetDiscoveredTopicData as Mail>::Result {
         self.discovered_topic_list
-            .get(&topic_handle)
+            .get(&message.topic_handle)
             .cloned()
             .ok_or(DdsError::PreconditionNotMet(
                 "Topic with this handle not discovered".to_owned(),
             ))
     }
+}
 
-    fn set_qos(&mut self, qos: DomainParticipantQos) -> DdsResult<()> {
-        self.qos = qos;
+pub struct SetQos {
+    pub qos: DomainParticipantQos,
+}
+impl Mail for SetQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetQos> for DomainParticipantActor {
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        self.qos = message.qos;
         Ok(())
     }
+}
 
-    fn get_domain_id(&self) -> DomainId {
+pub struct GetDomainId;
+impl Mail for GetDomainId {
+    type Result = DomainId;
+}
+impl MailHandler<GetDomainId> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetDomainId) -> <GetDomainId as Mail>::Result {
         self.domain_id
     }
+}
 
-    pub fn get_built_in_subscriber(&self) -> ActorAddress<SubscriberActor> {
+pub struct GetBuiltInSubscriber;
+impl Mail for GetBuiltInSubscriber {
+    type Result = ActorAddress<SubscriberActor>;
+}
+impl MailHandler<GetBuiltInSubscriber> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetBuiltInSubscriber) -> <GetBuiltInSubscriber as Mail>::Result {
         self.builtin_subscriber.address()
     }
+}
 
+#[actor_interface]
+impl DomainParticipantActor {
     fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
         SpdpDiscoveredParticipantData::new(
             ParticipantBuiltinTopicData::new(

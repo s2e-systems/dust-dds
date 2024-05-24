@@ -7,6 +7,7 @@ use crate::{
     implementation::{
         actor::{Actor, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::{
+            domain_participant_actor,
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
             subscriber_actor,
         },
@@ -71,7 +72,11 @@ impl DomainParticipantFactoryAsync {
             .receive_reply()
             .await?;
         let status_condition = participant_address.get_statuscondition().await?;
-        let builtin_subscriber = participant_address.get_built_in_subscriber().await?;
+        let builtin_subscriber = participant_address
+            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+            .await?
+            .receive_reply()
+            .await;
         let builtin_subscriber_status_condition_address = builtin_subscriber
             .send_actor_mail(subscriber_actor::GetStatuscondition)
             .await?
@@ -134,7 +139,11 @@ impl DomainParticipantFactoryAsync {
             .await?
         {
             let status_condition = dp.get_statuscondition().await?;
-            let builtin_subscriber = dp.get_built_in_subscriber().await?;
+            let builtin_subscriber = dp
+                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+                .await?
+                .receive_reply()
+                .await;
             let builtin_subscriber_status_condition_address = builtin_subscriber
                 .send_actor_mail(subscriber_actor::GetStatuscondition)
                 .await?
