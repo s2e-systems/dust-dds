@@ -778,6 +778,10 @@ const PB: i32 = 7400;
 const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
+const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
+const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
+const DEFAULT_NACK_SUPPRESSION_DURATION: Duration =
+    Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
 
 fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + d0) as u16
@@ -870,11 +874,6 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
-    const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
-    const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-    const DEFAULT_NACK_SUPPRESSION_DURATION: Duration =
-        Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
-
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
     let topic_kind = TopicKind::WithKey;
@@ -900,6 +899,9 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
 }
 
 fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
+    let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
+    let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY.into();
+    let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION.into();
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
@@ -911,9 +913,9 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
             multicast_locator_list,
         ),
         true,
-        DURATION_ZERO,
-        DURATION_ZERO,
-        DURATION_ZERO,
+        heartbeat_period,
+        nack_response_delay,
+        nack_suppression_duration,
         usize::MAX,
     )
 }

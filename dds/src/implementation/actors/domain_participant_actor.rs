@@ -768,12 +768,14 @@ impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
     }
 }
 
-pub struct Enable;
+pub struct Enable {
+    pub runtime_handle: tokio::runtime::Handle,
+}
 impl Mail for Enable {
     type Result = DdsResult<()>;
 }
 impl MailHandler<Enable> for DomainParticipantActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    async fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         if !self.enabled {
             self.builtin_publisher
                 .send_actor_mail(publisher_actor::Enable)
@@ -807,7 +809,11 @@ impl MailHandler<Enable> for DomainParticipantActor {
                 .await
             {
                 builtin_writer
-                    .send_actor_mail(data_writer_actor::Enable)
+                    .send_actor_mail(data_writer_actor::Enable {
+                        data_writer_address: builtin_writer.clone(),
+                        message_sender_actor: self.message_sender_actor.address(),
+                        runtime_handle: message.runtime_handle.clone(),
+                    })
                     .await?
                     .receive_reply()
                     .await;

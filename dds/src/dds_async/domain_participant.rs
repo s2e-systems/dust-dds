@@ -682,7 +682,9 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::Enable)
+            .send_actor_mail(domain_participant_actor::Enable {
+                runtime_handle: self.runtime_handle.clone(),
+            })
             .await?
             .receive_reply()
             .await?;

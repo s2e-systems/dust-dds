@@ -15,12 +15,8 @@ use dust_dds::{
     },
     rtps::{
         discovery_types::{
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         },
         messages::{
             overall_structure::{
@@ -46,7 +42,7 @@ struct KeyedData {
 }
 
 #[test]
-fn writer_should_not_send_heartbeat_after_acknack() {
+fn writer_should_not_send_heartbeat_periodically() {
     let domain_id = 0;
 
     let mock_reader_socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
@@ -191,6 +187,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .is_some());
 
+    // Default heartbeat period is 200ms
     let mut buffer = [0; 65535];
     mock_reader_socket
         .set_read_timeout(Some(std::time::Duration::from_millis(300)))

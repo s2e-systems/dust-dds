@@ -766,13 +766,39 @@ impl MailHandler<GetIncompatibleSubscriptions> for DataWriterActor {
     }
 }
 
-pub struct Enable;
+pub struct Enable {
+    pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
+    pub runtime_handle: tokio::runtime::Handle,
+}
 impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for DataWriterActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    async fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
+
+        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let half_heartbeat_period =
+                std::time::Duration::from(Duration::from(self.rtps_writer.heartbeat_period())) / 2;
+            let mut interval = tokio::time::interval(half_heartbeat_period);
+            let message_sender_actor = message.message_sender_actor;
+            let data_writer_address = message.data_writer_address;
+            message.runtime_handle.spawn(async move {
+                loop {
+                    interval.tick().await;
+
+                    let r = data_writer_address
+                        .send_actor_mail(SendMessage {
+                            message_sender_actor: message_sender_actor.clone(),
+                        })
+                        .await;
+                    if r.is_err() {
+                        break;
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -1637,7 +1663,7 @@ async fn send_message_to_reader_proxy_reliable(
                 let heartbeat_submessage = Box::new(
                     reader_proxy
                         .heartbeat_machine()
-                        .submessage(writer_id, first_sn, last_sn),
+                        .generate_new_heartbeat(writer_id, first_sn, last_sn),
                 );
                 message_sender_actor
                     .send_actor_mail(message_sender_actor::WriteMessage {
@@ -1669,7 +1695,7 @@ async fn send_message_to_reader_proxy_reliable(
         let heartbeat_submessage = Box::new(
             reader_proxy
                 .heartbeat_machine()
-                .submessage(writer_id, first_sn, last_sn),
+                .generate_new_heartbeat(writer_id, first_sn, last_sn),
         );
 
         message_sender_actor
@@ -1758,7 +1784,7 @@ async fn send_change_message_reader_proxy_reliable(
                 let heartbeat = Box::new(
                     reader_proxy
                         .heartbeat_machine()
-                        .submessage(writer_id, first_sn, last_sn),
+                        .generate_new_heartbeat(writer_id, first_sn, last_sn),
                 );
 
                 message_sender_actor

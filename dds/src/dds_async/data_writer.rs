@@ -578,8 +578,13 @@ impl<Foo> DataWriterAsync<Foo> {
             .receive_reply()
             .await
         {
+            let message_sender_actor = self.participant_address().get_message_sender().await?;
             writer
-                .send_actor_mail(data_writer_actor::Enable)
+                .send_actor_mail(data_writer_actor::Enable {
+                    data_writer_address: writer.clone(),
+                    message_sender_actor,
+                    runtime_handle: self.runtime_handle().clone(),
+                })
                 .await?
                 .receive_reply()
                 .await;

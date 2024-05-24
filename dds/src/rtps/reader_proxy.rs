@@ -24,7 +24,7 @@ impl HeartbeatMachine {
     pub fn is_time_for_heartbeat(&self, heartbeat_period: std::time::Duration) -> bool {
         self.timer.elapsed() >= heartbeat_period
     }
-    pub fn submessage(
+    pub fn generate_new_heartbeat(
         &mut self,
         writer_id: EntityId,
         first_sn: SequenceNumber,
