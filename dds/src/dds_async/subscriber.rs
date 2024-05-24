@@ -187,7 +187,12 @@ impl SubscriberAsync {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
         // Send messages before deleting the reader
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
         a_datareader
             .reader_address()
             .send_actor_mail(data_reader_actor::SendMessage {
@@ -287,7 +292,12 @@ impl SubscriberAsync {
             .receive_reply()
             .await;
 
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
 
         for deleted_reader_actor in deleted_reader_actor_list {
             // Send messages before deleting the reader

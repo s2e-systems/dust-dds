@@ -17,7 +17,7 @@ use crate::{
     },
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -253,12 +253,6 @@ impl MailHandler<ReadRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineM
 
         status
     }
-}
-
-impl ActorHandler for ReaderRequestedDeadlineMissedStatus {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 impl LivelinessChangedStatus {
@@ -2422,10 +2416,4 @@ impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
             .receive_reply()
             .await
     }
-}
-
-impl ActorHandler for DataReaderActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }

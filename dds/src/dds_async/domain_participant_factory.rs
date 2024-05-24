@@ -71,7 +71,11 @@ impl DomainParticipantFactoryAsync {
             .await
             .receive_reply()
             .await?;
-        let status_condition = participant_address.get_statuscondition().await?;
+        let status_condition = participant_address
+            .send_actor_mail(domain_participant_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         let builtin_subscriber = participant_address
             .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
             .await?
@@ -140,7 +144,11 @@ impl DomainParticipantFactoryAsync {
             .receive_reply()
             .await?
         {
-            let status_condition = dp.get_statuscondition().await?;
+            let status_condition = dp
+                .send_actor_mail(domain_participant_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             let builtin_subscriber = dp
                 .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
                 .await?

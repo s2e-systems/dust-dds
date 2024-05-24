@@ -6,7 +6,7 @@ use crate::{
     },
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
             types::{
@@ -1485,12 +1485,6 @@ impl MailHandler<RemoveChange> for DataWriterActor {
     async fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
         self.remove_change(message.seq_num)
     }
-}
-
-impl ActorHandler for DataWriterActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 fn get_discovered_reader_incompatible_qos_policy_list(

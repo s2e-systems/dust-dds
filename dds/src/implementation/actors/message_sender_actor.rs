@@ -2,7 +2,7 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use crate::{
-    implementation::actor::{ActorHandler, Mail, MailHandler},
+    implementation::actor::{Mail, MailHandler},
     rtps::{
         messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
         types::{
@@ -33,12 +33,6 @@ impl MessageSenderActor {
             guid_prefix,
         }
     }
-}
-
-impl ActorHandler for MessageSenderActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message)  {}
 }
 
 pub struct WriteMessage {

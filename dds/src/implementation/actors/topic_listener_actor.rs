@@ -1,6 +1,6 @@
 use crate::{
     dds_async::{topic::TopicAsync, topic_listener::TopicListenerAsync},
-    implementation::actor::{ActorHandler, Mail, MailHandler},
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::InconsistentTopicStatus,
 };
 
@@ -31,10 +31,4 @@ impl MailHandler<OnInconsistentTopic> for TopicListenerActor {
                 .await
         }
     }
-}
-
-impl ActorHandler for TopicListenerActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message)  {}
 }

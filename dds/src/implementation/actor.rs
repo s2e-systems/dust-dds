@@ -74,32 +74,21 @@ where
 }
 
 #[derive(Debug)]
-pub struct ActorAddress<A>
-where
-    A: ActorHandler,
-{
-    sender: tokio::sync::mpsc::Sender<A::Message>,
+pub struct ActorAddress<A> {
     mail_sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
 }
 
-impl<A> Clone for ActorAddress<A>
-where
-    A: ActorHandler,
-{
+impl<A> Clone for ActorAddress<A> {
     fn clone(&self) -> Self {
         Self {
-            sender: self.sender.clone(),
             mail_sender: self.mail_sender.clone(),
         }
     }
 }
 
-impl<A> ActorAddress<A>
-where
-    A: ActorHandler,
-{
+impl<A> ActorAddress<A> {
     pub fn is_closed(&self) -> bool {
-        self.sender.is_closed()
+        self.mail_sender.is_closed()
     }
 
     pub async fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
@@ -115,26 +104,9 @@ where
             .map_err(|_| DdsError::AlreadyDeleted)?;
         Ok(ReplyReceiver { reply_receiver })
     }
-
-    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
-        match self.sender.send(message).await {
-            Ok(_) => Ok(()),
-            Err(_) => Err(DdsError::AlreadyDeleted),
-        }
-    }
 }
 
-pub trait ActorHandler {
-    type Message;
-
-    fn handle_message(&mut self, message: Self::Message) -> impl Future<Output = ()> + Send;
-}
-
-pub struct Actor<A>
-where
-    A: ActorHandler,
-{
-    sender: tokio::sync::mpsc::Sender<A::Message>,
+pub struct Actor<A> {
     mail_sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     notify_stop: Arc<tokio::sync::Notify>,
@@ -142,11 +114,9 @@ where
 
 impl<A> Actor<A>
 where
-    A: ActorHandler + Send + 'static,
-    A::Message: Send,
+    A: Send + 'static,
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle, buffer_size: usize) -> Self {
-        let (sender, mut mailbox) = tokio::sync::mpsc::channel::<A::Message>(buffer_size);
         let (mail_sender, mut mailbox_recv) =
             tokio::sync::mpsc::channel::<Box<dyn GenericHandlerDyn<A> + Send>>(buffer_size);
         let notify_stop = Arc::new(tokio::sync::Notify::new());
@@ -155,12 +125,6 @@ where
         let join_handle = runtime.spawn(async move {
             loop {
                 tokio::select! {
-                    m = mailbox.recv() => {
-                        match m {
-                            Some(message) => actor.handle_message(message).await,
-                            None => break,
-                        }
-                    }
                     m = mailbox_recv.recv() => {
                         match m {
                             Some(message) => message.handle(&mut actor).await,
@@ -168,13 +132,12 @@ where
                         }
                     }
                     _ = notify_clone.notified() => {
-                        mailbox.close();
+                        mailbox_recv.close();
                     }
                 }
             }
         });
         Actor {
-            sender,
             mail_sender,
             join_handle,
             notify_stop,
@@ -183,7 +146,6 @@ where
 
     pub fn address(&self) -> ActorAddress<A> {
         ActorAddress {
-            sender: self.sender.clone(),
             mail_sender: self.mail_sender.clone(),
         }
     }
@@ -191,13 +153,6 @@ where
     pub async fn stop(self) {
         self.notify_stop.notify_one();
         self.join_handle.await.ok();
-    }
-
-    pub async fn send_actor_message(&self, message: A::Message) -> DdsResult<()> {
-        match self.sender.send(message).await {
-            Ok(_) => Ok(()),
-            Err(_) => Err(DdsError::AlreadyDeleted),
-        }
     }
 
     pub async fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
@@ -217,48 +172,61 @@ where
 
 #[cfg(test)]
 mod tests {
-    use dust_dds_derive::actor_interface;
     use tokio::runtime::Runtime;
 
     use super::*;
 
-    pub struct MyData {
+    pub struct MyActor {
         data: u8,
     }
 
-    #[actor_interface]
-    impl MyData {
-        async fn increment(&mut self, value: u8) -> u8 {
-            self.data += value;
+    pub struct Increment {
+        value: u8,
+    }
+    impl Mail for Increment {
+        type Result = u8;
+    }
+    impl MailHandler<Increment> for MyActor {
+        async fn handle(&mut self, message: Increment) -> <Increment as Mail>::Result {
+            self.data += message.value;
             self.data
-        }
-
-        async fn decrement(&mut self) {
-            self.data -= 1;
-        }
-
-        async fn try_increment(&mut self) -> DdsResult<()> {
-            self.data -= 1;
-            Ok(())
         }
     }
 
     #[test]
     fn actor_increment() {
         let runtime = Runtime::new().unwrap();
-        let my_data = MyData { data: 0 };
+        let my_data = MyActor { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10)
+        assert_eq!(
+            runtime.block_on(async {
+                actor
+                    .send_actor_mail(Increment { value: 10 })
+                    .await
+                    .receive_reply()
+                    .await
+            }),
+            10
+        )
     }
 
     #[test]
     fn actor_stop_should_not_block() {
         let runtime = Runtime::new().unwrap();
-        let my_data = MyData { data: 0 };
+        let my_data = MyActor { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
 
-        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
+        assert_eq!(
+            runtime.block_on(async {
+                actor
+                    .send_actor_mail(Increment { value: 10 })
+                    .await
+                    .receive_reply()
+                    .await
+            }),
+            10
+        );
 
         runtime.block_on(actor.stop());
     }
@@ -266,14 +234,25 @@ mod tests {
     #[test]
     fn actor_send_message_after_stop_should_return_error() {
         let runtime = Runtime::new().unwrap();
-        let my_data = MyData { data: 0 };
+        let my_data = MyActor { data: 0 };
         let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
         let actor_address = actor.address();
 
-        assert_eq!(runtime.block_on(actor.increment(10)).unwrap(), 10);
+        assert_eq!(
+            runtime.block_on(async {
+                actor
+                    .send_actor_mail(Increment { value: 10 })
+                    .await
+                    .receive_reply()
+                    .await
+            }),
+            10
+        );
 
         runtime.block_on(actor.stop());
 
-        assert!(runtime.block_on(actor_address.increment(10)).is_err());
+        assert!(runtime
+            .block_on(async { actor_address.send_actor_mail(Increment { value: 10 }).await })
+            .is_err());
     }
 }

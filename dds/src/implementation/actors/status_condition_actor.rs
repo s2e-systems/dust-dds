@@ -1,5 +1,5 @@
 use crate::{
-    implementation::actor::{ActorHandler, Mail, MailHandler},
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::StatusKind,
 };
 
@@ -100,10 +100,4 @@ impl MailHandler<GetTriggerValue> for StatusConditionActor {
         }
         false
     }
-}
-
-impl ActorHandler for StatusConditionActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }

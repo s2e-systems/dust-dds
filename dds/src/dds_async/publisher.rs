@@ -194,8 +194,11 @@ impl PublisherAsync {
         let message_sender_actor = self
             .participant
             .participant_address()
-            .get_message_sender()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
+
         a_datawriter
             .writer_address()
             .send_actor_mail(data_writer_actor::SendMessage {
@@ -316,8 +319,10 @@ impl PublisherAsync {
         let message_sender_actor = self
             .participant
             .participant_address()
-            .get_message_sender()
-            .await?;
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
 
         for deleted_writer_actor in deleted_writer_actor_list {
             deleted_writer_actor

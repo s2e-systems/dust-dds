@@ -1,4 +1,3 @@
-use dust_dds_derive::actor_interface;
 use tracing::warn;
 
 use crate::{
@@ -1395,55 +1394,121 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantActor {
-    #[allow(clippy::unused_unit)]
-    fn set_listener(
-        &mut self,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
-        status_kind: Vec<StatusKind>,
-        runtime_handle: tokio::runtime::Handle,
-    ) {
+pub struct SetListener {
+    pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+    pub status_kind: Vec<StatusKind>,
+    pub runtime_handle: tokio::runtime::Handle,
+}
+impl Mail for SetListener {
+    type Result = ();
+}
+impl MailHandler<SetListener> for DomainParticipantActor {
+    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = Actor::spawn(
-            DomainParticipantListenerActor::new(listener),
-            &runtime_handle,
+            DomainParticipantListenerActor::new(message.listener),
+            &message.runtime_handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
-        self.status_kind = status_kind;
+        self.status_kind = message.status_kind;
     }
+}
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+pub struct GetStatuscondition;
+impl Mail for GetStatuscondition {
+    type Result = ActorAddress<StatusConditionActor>;
+}
+impl MailHandler<GetStatuscondition> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
+}
 
-    fn get_message_sender(&self) -> ActorAddress<MessageSenderActor> {
+pub struct GetMessageSender;
+impl Mail for GetMessageSender {
+    type Result = ActorAddress<MessageSenderActor>;
+}
+impl MailHandler<GetMessageSender> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetMessageSender) -> <GetMessageSender as Mail>::Result {
         self.message_sender_actor.address()
     }
+}
 
-    pub fn set_default_unicast_locator_list(&mut self, list: Vec<Locator>) {
-        self.rtps_participant.set_default_unicast_locator_list(list)
-    }
-
-    pub fn set_default_multicast_locator_list(&mut self, list: Vec<Locator>) {
-        self.rtps_participant
-            .set_default_multicast_locator_list(list)
-    }
-
-    pub fn set_metatraffic_unicast_locator_list(&mut self, list: Vec<Locator>) {
-        self.rtps_participant
-            .set_metatraffic_unicast_locator_list(list)
-    }
-
-    pub fn set_metatraffic_multicast_locator_list(&mut self, list: Vec<Locator>) {
-        self.rtps_participant
-            .set_metatraffic_multicast_locator_list(list)
-    }
-
-    async fn add_discovered_participant(
+pub struct SetDefaultUnicastLocatorList {
+    pub list: Vec<Locator>,
+}
+impl Mail for SetDefaultUnicastLocatorList {
+    type Result = ();
+}
+impl MailHandler<SetDefaultUnicastLocatorList> for DomainParticipantActor {
+    async fn handle(
         &mut self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
+        message: SetDefaultUnicastLocatorList,
+    ) -> <SetDefaultUnicastLocatorList as Mail>::Result {
+        self.rtps_participant
+            .set_default_unicast_locator_list(message.list)
+    }
+}
+
+pub struct SetDefaultMulticastLocatorList {
+    pub list: Vec<Locator>,
+}
+impl Mail for SetDefaultMulticastLocatorList {
+    type Result = ();
+}
+impl MailHandler<SetDefaultMulticastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: SetDefaultMulticastLocatorList,
+    ) -> <SetDefaultMulticastLocatorList as Mail>::Result {
+        self.rtps_participant
+            .set_default_multicast_locator_list(message.list)
+    }
+}
+
+pub struct SetMetatrafficUnicastLocatorList {
+    pub list: Vec<Locator>,
+}
+impl Mail for SetMetatrafficUnicastLocatorList {
+    type Result = ();
+}
+impl MailHandler<SetMetatrafficUnicastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: SetMetatrafficUnicastLocatorList,
+    ) -> <SetMetatrafficUnicastLocatorList as Mail>::Result {
+        self.rtps_participant
+            .set_metatraffic_unicast_locator_list(message.list)
+    }
+}
+
+pub struct SetMetatrafficMulticastLocatorList {
+    pub list: Vec<Locator>,
+}
+impl Mail for SetMetatrafficMulticastLocatorList {
+    type Result = ();
+}
+impl MailHandler<SetMetatrafficMulticastLocatorList> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: SetMetatrafficMulticastLocatorList,
+    ) -> <SetMetatrafficMulticastLocatorList as Mail>::Result {
+        self.rtps_participant
+            .set_metatraffic_multicast_locator_list(message.list)
+    }
+}
+
+pub struct AddDiscoveredParticipant {
+    pub discovered_participant_data: SpdpDiscoveredParticipantData,
+    pub participant: DomainParticipantAsync,
+}
+impl Mail for AddDiscoveredParticipant {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: AddDiscoveredParticipant,
+    ) -> <AddDiscoveredParticipant as Mail>::Result {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
@@ -1453,15 +1518,20 @@ impl DomainParticipantActor {
         // communicate with the discovered participant.
         // IN CASE no domain id was transmitted the a local domain id is assumed
         // (as specified in Table 9.19 - ParameterId mapping and default values)
-        let is_domain_id_matching = discovered_participant_data
+        let is_domain_id_matching = message
+            .discovered_participant_data
             .participant_proxy()
             .domain_id()
             .unwrap_or(self.domain_id)
             == self.domain_id;
-        let is_domain_tag_matching =
-            discovered_participant_data.participant_proxy().domain_tag() == self.domain_tag;
+        let is_domain_tag_matching = message
+            .discovered_participant_data
+            .participant_proxy()
+            .domain_tag()
+            == self.domain_tag;
         let discovered_participant_handle = InstanceHandle::new(
-            discovered_participant_data
+            message
+                .discovered_participant_data
                 .dds_participant_data()
                 .key()
                 .value,
@@ -1478,45 +1548,63 @@ impl DomainParticipantActor {
             && !is_participant_discovered
         {
             self.add_matched_publications_detector(
-                &discovered_participant_data,
-                participant.clone(),
+                &message.discovered_participant_data,
+                message.participant.clone(),
             )
             .await?;
             self.add_matched_publications_announcer(
-                &discovered_participant_data,
-                participant.clone(),
+                &message.discovered_participant_data,
+                message.participant.clone(),
             )
             .await?;
             self.add_matched_subscriptions_detector(
-                &discovered_participant_data,
-                participant.clone(),
+                &message.discovered_participant_data,
+                message.participant.clone(),
             )
             .await?;
             self.add_matched_subscriptions_announcer(
-                &discovered_participant_data,
-                participant.clone(),
+                &message.discovered_participant_data,
+                message.participant.clone(),
             )
             .await?;
-            self.add_matched_topics_detector(&discovered_participant_data, participant.clone())
-                .await?;
-            self.add_matched_topics_announcer(&discovered_participant_data, participant.clone())
-                .await?;
+            self.add_matched_topics_detector(
+                &message.discovered_participant_data,
+                message.participant.clone(),
+            )
+            .await?;
+            self.add_matched_topics_announcer(
+                &message.discovered_participant_data,
+                message.participant.clone(),
+            )
+            .await?;
 
             self.discovered_participant_list.insert(
                 InstanceHandle::new(
-                    discovered_participant_data
+                    message
+                        .discovered_participant_data
                         .dds_participant_data()
                         .key()
                         .value,
                 ),
-                discovered_participant_data,
+                message.discovered_participant_data,
             );
         }
         Ok(())
     }
+}
 
-    async fn remove_discovered_participant(&mut self, handle: InstanceHandle) {
-        self.discovered_participant_list.remove(&handle);
+pub struct RemoveDiscoveredParticipant {
+    pub handle: InstanceHandle,
+}
+impl Mail for RemoveDiscoveredParticipant {
+    type Result = ();
+}
+impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: RemoveDiscoveredParticipant,
+    ) -> <RemoveDiscoveredParticipant as Mail>::Result {
+        self.discovered_participant_list.remove(&message.handle);
     }
 }
 

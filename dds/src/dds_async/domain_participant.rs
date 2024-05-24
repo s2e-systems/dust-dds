@@ -658,8 +658,14 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
-            .set_listener(a_listener, mask.to_vec(), self.runtime_handle.clone())
-            .await?;
+            .send_actor_mail(domain_participant_actor::SetListener {
+                listener: a_listener,
+                status_kind: mask.to_vec(),
+                runtime_handle: self.runtime_handle.clone(),
+            })
+            .await?
+            .receive_reply()
+            .await;
         Ok(())
     }
 

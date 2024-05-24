@@ -20,7 +20,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, ActorHandler, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -451,13 +451,16 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             &message.runtime_handle,
         );
 
-        let status_condition = domain_participant.get_statuscondition();
-
         let participant_actor = Actor::spawn(
             domain_participant,
             &message.runtime_handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
+        let status_condition = participant_actor
+            .send_actor_mail(domain_participant_actor::GetStatuscondition)
+            .await
+            .receive_reply()
+            .await;
         let builtin_subscriber = participant_actor
             .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
             .await
@@ -526,8 +529,12 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
         participant_actor
-            .set_default_unicast_locator_list(default_unicast_locator_list)
-            .await?;
+            .send_actor_mail(domain_participant_actor::SetDefaultUnicastLocatorList {
+                list: default_unicast_locator_list,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -559,8 +566,12 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
             .collect();
         participant_actor
-            .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
-            .await?;
+            .send_actor_mail(domain_participant_actor::SetMetatrafficUnicastLocatorList {
+                list: metatraffic_unicast_locator_list,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -591,8 +602,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
         participant_actor
-            .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
-            .await?;
+            .send_actor_mail(
+                domain_participant_actor::SetMetatrafficMulticastLocatorList {
+                    list: metatraffic_multicast_locator_list,
+                },
+            )
+            .await
+            .receive_reply()
+            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -764,12 +781,6 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     async fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
         self.configuration.clone()
     }
-}
-
-impl ActorHandler for DomainParticipantFactoryActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 type LocatorAddress = [u8; 16];
@@ -997,19 +1008,29 @@ async fn process_metatraffic_rtps_message(
                             discovered_participant_sample.data()
                         {
                             participant_actor
-                                .add_discovered_participant(
-                                    discovered_participant_data,
-                                    participant.clone(),
+                                .send_actor_mail(
+                                    domain_participant_actor::AddDiscoveredParticipant {
+                                        discovered_participant_data,
+                                        participant: participant.clone(),
+                                    },
                                 )
-                                .await??;
+                                .await?
+                                .receive_reply()
+                                .await?;
                         }
                     }
                     InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
                         participant_actor
-                            .remove_discovered_participant(
-                                discovered_participant_sample.sample_info().instance_handle,
+                            .send_actor_mail(
+                                domain_participant_actor::RemoveDiscoveredParticipant {
+                                    handle: discovered_participant_sample
+                                        .sample_info()
+                                        .instance_handle,
+                                },
                             )
                             .await?
+                            .receive_reply()
+                            .await;
                     }
                 }
             }

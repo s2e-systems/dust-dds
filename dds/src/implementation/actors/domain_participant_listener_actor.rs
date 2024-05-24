@@ -1,6 +1,6 @@
 use crate::{
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
-    implementation::actor::{ActorHandler, Mail, MailHandler},
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
@@ -65,10 +65,4 @@ impl MailHandler<CallListenerFunction> for DomainParticipantListenerActor {
             }
         }
     }
-}
-
-impl ActorHandler for DomainParticipantListenerActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }

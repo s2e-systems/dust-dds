@@ -1,6 +1,6 @@
 use crate::{
     dds_async::publisher_listener::PublisherListenerAsync,
-    implementation::actor::{ActorHandler, Mail, MailHandler},
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
@@ -41,10 +41,4 @@ impl MailHandler<CallListenerFunction> for PublisherListenerActor {
             }
         }
     }
-}
-
-impl ActorHandler for PublisherListenerActor {
-    type Message = ();
-
-    async fn handle_message(&mut self, _: Self::Message) {}
 }

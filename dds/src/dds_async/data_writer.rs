@@ -218,7 +218,12 @@ where
             instance.serialize_data(&mut serialized_foo)?;
             let instance_serialized_key =
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-            let message_sender_actor = self.participant_address().get_message_sender().await?;
+            let message_sender_actor = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetMessageSender)
+                .await?
+                .receive_reply()
+                .await;
             let now = self
                 .participant_address()
                 .send_actor_mail(domain_participant_actor::GetCurrentTime)
@@ -307,7 +312,12 @@ where
         data.serialize_data(&mut serialized_data)?;
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
         let now = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetCurrentTime)
@@ -387,7 +397,12 @@ where
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
         let now = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetCurrentTime)
@@ -578,7 +593,12 @@ impl<Foo> DataWriterAsync<Foo> {
             .receive_reply()
             .await
         {
-            let message_sender_actor = self.participant_address().get_message_sender().await?;
+            let message_sender_actor = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetMessageSender)
+                .await?
+                .receive_reply()
+                .await;
             writer
                 .send_actor_mail(data_writer_actor::Enable {
                     data_writer_address: writer.clone(),
