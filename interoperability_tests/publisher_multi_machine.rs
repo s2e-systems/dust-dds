@@ -76,9 +76,9 @@ fn main() {
     }
 
     let publication_matched_status = writer.get_publication_matched_status().unwrap();
-    assert_ne!(
+    assert_eq!(
         publication_matched_status.current_count, 2,
-        "Two subscribers not matched"
+        "Two subscribers should have been matched"
     );
 
     let hello_world = HelloWorldType {
