@@ -968,7 +968,7 @@ async fn process_metatraffic_rtps_message(
         })
         .await?
         .receive_reply()
-        .await;
+        .await?;
 
     let builtin_subscriber = participant.get_builtin_subscriber();
 
