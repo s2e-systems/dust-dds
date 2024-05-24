@@ -104,9 +104,12 @@ impl DomainParticipantFactoryActor {
                     true
                 }
             })
-            .flat_map(|i| i.addr.into_iter().filter(|a| matches!(a, Addr::V4(_))))
+            .flat_map(|i| {
+                i.addr
+                    .into_iter()
+                    .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
+            })
             .next();
-
         let host_id = if let Some(interface) = interface_address {
             match interface.ip() {
                 IpAddr::V4(a) => a.octets(),
