@@ -1593,6 +1593,7 @@ impl DomainParticipantActor {
                     publisher_address: self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener,
+                    message_sender_actor: self.message_sender_actor.address(),
                 })
                 .await
                 .receive_reply()
@@ -1716,6 +1717,7 @@ impl DomainParticipantActor {
                     publisher_address: self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    message_sender_actor: self.message_sender_actor.address(),
                 })
                 .await
                 .receive_reply()
@@ -1840,6 +1842,7 @@ impl DomainParticipantActor {
                     publisher_address: self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    message_sender_actor: self.message_sender_actor.address(),
                 })
                 .await
                 .receive_reply()
@@ -2237,6 +2240,7 @@ impl DomainParticipantActor {
                             publisher_address,
                             participant: participant.clone(),
                             participant_mask_listener,
+                            message_sender_actor: self.message_sender_actor.address(),
                         })
                         .await
                         .receive_reply()

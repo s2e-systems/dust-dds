@@ -1195,6 +1195,7 @@ pub struct AddMatchedReader {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -1350,6 +1351,8 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     )
                     .await?;
                 }
+
+                self.send_message(message.message_sender_actor).await;
             } else {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);

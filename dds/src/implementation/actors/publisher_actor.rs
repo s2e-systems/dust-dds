@@ -441,6 +441,7 @@ pub struct AddMatchedReader {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -473,6 +474,7 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                         publisher_qos: self.qos.clone(),
                         publisher_mask_listener,
                         participant_mask_listener: message.participant_mask_listener.clone(),
+                        message_sender_actor: message.message_sender_actor.clone(),
                     })
                     .await
                     .receive_reply()
