@@ -410,6 +410,7 @@ impl MailHandler<GetDataWriterList> for PublisherActor {
 
 pub struct ProcessRtpsMessage {
     pub rtps_message: RtpsMessageRead,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
 impl Mail for ProcessRtpsMessage {
     type Result = ();
@@ -423,6 +424,7 @@ impl MailHandler<ProcessRtpsMessage> for PublisherActor {
             data_writer_address
                 .send_actor_mail(data_writer_actor::ProcessRtpsMessage {
                     rtps_message: message.rtps_message.clone(),
+                    message_sender_actor: message.message_sender_actor.clone(),
                 })
                 .await;
         }
@@ -571,7 +573,7 @@ impl MailHandler<SetListener> for PublisherActor {
 impl ActorHandler for PublisherActor {
     type Message = ();
 
-    async fn handle_message(&mut self, _: Self::Message)  {}
+    async fn handle_message(&mut self, _: Self::Message) {}
 }
 
 impl PublisherQos {

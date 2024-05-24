@@ -1382,6 +1382,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
         self.builtin_publisher
             .send_actor_mail(publisher_actor::ProcessRtpsMessage {
                 rtps_message: message.rtps_message,
+                message_sender_actor: self.message_sender_actor.address(),
             })
             .await;
 
@@ -1426,6 +1427,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
             user_defined_publisher_address
                 .send_actor_mail(publisher_actor::ProcessRtpsMessage {
                     rtps_message: message.rtps_message.clone(),
+                    message_sender_actor: self.message_sender_actor.address(),
                 })
                 .await;
             user_defined_publisher_address

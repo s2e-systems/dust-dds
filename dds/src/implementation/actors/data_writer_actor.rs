@@ -347,10 +347,11 @@ impl DataWriterActor {
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    fn on_acknack_submessage_received(
+    async fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
+        message_sender_actor: ActorAddress<MessageSenderActor>,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -371,6 +372,8 @@ impl DataWriterActor {
 
                             reader_proxy
                                 .set_last_received_acknack_count(acknack_submessage.count());
+
+                            self.send_message(message_sender_actor).await;
                         }
                     }
                 }
@@ -1405,6 +1408,7 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
 
 pub struct ProcessRtpsMessage {
     pub rtps_message: RtpsMessageRead,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
 impl Mail for ProcessRtpsMessage {
     type Result = ();
@@ -1417,11 +1421,14 @@ impl MailHandler<ProcessRtpsMessage> for DataWriterActor {
         let mut message_receiver = MessageReceiver::new(&message.rtps_message);
         while let Some(submessage) = message_receiver.next() {
             match &submessage {
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => self
-                    .on_acknack_submessage_received(
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
+                    self.on_acknack_submessage_received(
                         acknack_submessage,
                         message_receiver.source_guid_prefix(),
-                    ),
+                        message.message_sender_actor.clone(),
+                    )
+                    .await
+                }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
                     .on_nack_frag_submessage_received(
                         nackfrag_submessage,
