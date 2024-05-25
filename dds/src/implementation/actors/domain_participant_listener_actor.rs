@@ -1,7 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
@@ -19,53 +18,51 @@ impl DomainParticipantListenerActor {
     }
 }
 
-#[actor_interface]
-impl DomainParticipantListenerActor {
-    async fn trigger_on_sample_rejected(&mut self, status: SampleRejectedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_sample_rejected(&(), status).await
-        }
-    }
+pub enum DomainParticipantListenerOperation {
+    SampleRejected(SampleRejectedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
+}
 
-    async fn trigger_on_requested_incompatible_qos(
+pub struct CallListenerFunction {
+    pub listener_operation: DomainParticipantListenerOperation,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for DomainParticipantListenerActor {
+    async fn handle(
         &mut self,
-        status: RequestedIncompatibleQosStatus,
-    ) {
+        message: CallListenerFunction,
+    ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
-            l.on_requested_incompatible_qos(&(), status).await
-        }
-    }
-
-    async fn trigger_on_offered_incompatible_qos(&mut self, status: OfferedIncompatibleQosStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_offered_incompatible_qos(&(), status).await
-        }
-    }
-
-    async fn trigger_on_publication_matched(&mut self, status: PublicationMatchedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_publication_matched(&(), status).await
-        }
-    }
-
-    async fn trigger_on_requested_deadline_missed(
-        &mut self,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.on_requested_deadline_missed(&(), status).await
-        }
-    }
-
-    async fn trigger_on_subscription_matched(&mut self, status: SubscriptionMatchedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_subscription_matched(&(), status).await
-        }
-    }
-
-    async fn trigger_on_sample_lost(&mut self, status: SampleLostStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_sample_lost(&(), status).await
+            match message.listener_operation {
+                DomainParticipantListenerOperation::SampleRejected(status) => {
+                    l.on_sample_rejected(&(), status).await
+                }
+                DomainParticipantListenerOperation::RequestedIncompatibleQos(status) => {
+                    l.on_requested_incompatible_qos(&(), status).await
+                }
+                DomainParticipantListenerOperation::RequestedDeadlineMissed(status) => {
+                    l.on_requested_deadline_missed(&(), status).await
+                }
+                DomainParticipantListenerOperation::SubscriptionMatched(status) => {
+                    l.on_subscription_matched(&(), status).await
+                }
+                DomainParticipantListenerOperation::SampleLost(status) => {
+                    l.on_sample_lost(&(), status).await
+                }
+                DomainParticipantListenerOperation::OfferedIncompatibleQos(status) => {
+                    l.on_offered_incompatible_qos(&(), status).await
+                }
+                DomainParticipantListenerOperation::PublicationMatched(status) => {
+                    l.on_publication_matched(&(), status).await
+                }
+            }
         }
     }
 }

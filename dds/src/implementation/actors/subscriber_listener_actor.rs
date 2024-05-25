@@ -1,7 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::{subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync},
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -18,47 +17,46 @@ impl SubscriberListenerActor {
     }
 }
 
-#[actor_interface]
-impl SubscriberListenerActor {
-    async fn trigger_on_data_on_readers(&mut self, subscriber: SubscriberAsync) {
-        if let Some(l) = &mut self.listener {
-            l.on_data_on_readers(subscriber).await
-        }
-    }
-
-    async fn trigger_on_sample_rejected(&mut self, status: SampleRejectedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_sample_rejected(&(), status).await
-        }
-    }
-
-    async fn trigger_on_requested_incompatible_qos(
+pub enum SubscriberListenerOperation {
+    DataOnReaders(SubscriberAsync),
+    SampleRejected(SampleRejectedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+}
+pub struct CallListenerFunction {
+    pub listener_operation: SubscriberListenerOperation,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for SubscriberListenerActor {
+    async fn handle(
         &mut self,
-        status: RequestedIncompatibleQosStatus,
-    ) {
+        message: CallListenerFunction,
+    ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
-            l.on_requested_incompatible_qos(&(), status).await
-        }
-    }
-
-    async fn trigger_on_requested_deadline_missed(
-        &mut self,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.on_requested_deadline_missed(&(), status).await
-        }
-    }
-
-    async fn trigger_on_subscription_matched(&mut self, status: SubscriptionMatchedStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_subscription_matched(&(), status).await
-        }
-    }
-
-    async fn trigger_on_sample_lost(&mut self, status: SampleLostStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_sample_lost(&(), status).await
+            match message.listener_operation {
+                SubscriberListenerOperation::DataOnReaders(subscriber) => {
+                    l.on_data_on_readers(subscriber).await
+                }
+                SubscriberListenerOperation::SampleRejected(status) => {
+                    l.on_sample_rejected(&(), status).await
+                }
+                SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
+                    l.on_requested_incompatible_qos(&(), status).await
+                }
+                SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
+                    l.on_requested_deadline_missed(&(), status).await
+                }
+                SubscriberListenerOperation::SubscriptionMatched(status) => {
+                    l.on_subscription_matched(&(), status).await
+                }
+                SubscriberListenerOperation::SampleLost(status) => {
+                    l.on_sample_lost(&(), status).await
+                }
+            }
         }
     }
 }

@@ -6,9 +6,11 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-            domain_participant_actor::DomainParticipantActor,
-            status_condition_actor::StatusConditionActor, subscriber_actor::SubscriberActor,
+            any_data_reader_listener::AnyDataReaderListener,
+            data_reader_actor::{self, DataReaderActor},
+            domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
+            subscriber_actor::{self, SubscriberActor},
         },
     },
     infrastructure::{
@@ -87,23 +89,35 @@ impl<Foo> DataReaderAsync<Foo> {
             .lookup_datawriter::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
             .await?
         {
-            let subscriber_qos = self.subscriber_address().get_qos().await?;
+            let subscriber_qos = self
+                .subscriber_address()
+                .send_actor_mail(subscriber_actor::GetQos)
+                .await?
+                .receive_reply()
+                .await;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let discovered_reader_data = self
                 .reader_address
-                .as_discovered_reader_data(
+                .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
-                )
-                .await??;
+                })
+                .await?
+                .receive_reply()
+                .await?;
+
             sedp_subscriptions_announcer
                 .write(&discovered_reader_data, None)
                 .await?;
@@ -136,14 +150,16 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
-            .read(
+            .send_actor_mail(data_reader_actor::Read {
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                None,
-            )
-            .await??;
+                sample_states: sample_states.to_vec(),
+                view_states: view_states.to_vec(),
+                instance_states: instance_states.to_vec(),
+                specific_instance_handle: None,
+            })
+            .await?
+            .receive_reply()
+            .await?;
 
         Ok(samples
             .into_iter()
@@ -162,14 +178,16 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
-            .take(
+            .send_actor_mail(data_reader_actor::Take {
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                None,
-            )
-            .await??;
+                sample_states: sample_states.to_vec(),
+                view_states: view_states.to_vec(),
+                instance_states: instance_states.to_vec(),
+                specific_instance_handle: None,
+            })
+            .await?
+            .receive_reply()
+            .await?;
 
         Ok(samples
             .into_iter()
@@ -180,17 +198,18 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`read_next_sample`](crate::subscription::data_reader::DataReader::read_next_sample).
     #[tracing::instrument(skip(self))]
     pub async fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let mut samples = {
-            self.reader_address
-                .read(
-                    1,
-                    vec![SampleStateKind::NotRead],
-                    ANY_VIEW_STATE.to_vec(),
-                    ANY_INSTANCE_STATE.to_vec(),
-                    None,
-                )
-                .await??
-        };
+        let mut samples = self
+            .reader_address
+            .send_actor_mail(data_reader_actor::Read {
+                max_samples: 1,
+                sample_states: vec![SampleStateKind::NotRead],
+                view_states: ANY_VIEW_STATE.to_vec(),
+                instance_states: ANY_INSTANCE_STATE.to_vec(),
+                specific_instance_handle: None,
+            })
+            .await?
+            .receive_reply()
+            .await?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
     }
@@ -200,14 +219,16 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = self
             .reader_address
-            .take(
-                1,
-                vec![SampleStateKind::NotRead],
-                ANY_VIEW_STATE.to_vec(),
-                ANY_INSTANCE_STATE.to_vec(),
-                None,
-            )
-            .await??;
+            .send_actor_mail(data_reader_actor::Take {
+                max_samples: 1,
+                sample_states: vec![SampleStateKind::NotRead],
+                view_states: ANY_VIEW_STATE.to_vec(),
+                instance_states: ANY_INSTANCE_STATE.to_vec(),
+                specific_instance_handle: None,
+            })
+            .await?
+            .receive_reply()
+            .await?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
     }
@@ -224,14 +245,16 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
-            .read(
+            .send_actor_mail(data_reader_actor::Read {
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                Some(a_handle),
-            )
-            .await??;
+                sample_states: sample_states.to_vec(),
+                view_states: view_states.to_vec(),
+                instance_states: instance_states.to_vec(),
+                specific_instance_handle: Some(a_handle),
+            })
+            .await?
+            .receive_reply()
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -250,14 +273,17 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
-            .take(
+            .send_actor_mail(data_reader_actor::Take {
                 max_samples,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-                Some(a_handle),
-            )
-            .await??;
+                sample_states: sample_states.to_vec(),
+                view_states: view_states.to_vec(),
+                instance_states: instance_states.to_vec(),
+                specific_instance_handle: Some(a_handle),
+            })
+            .await?
+            .receive_reply()
+            .await?;
+
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -276,14 +302,16 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
-            .read_next_instance(
+            .send_actor_mail(data_reader_actor::ReadNextInstance {
                 max_samples,
                 previous_handle,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-            )
-            .await??;
+                sample_states: sample_states.to_vec(),
+                view_states: view_states.to_vec(),
+                instance_states: instance_states.to_vec(),
+            })
+            .await?
+            .receive_reply()
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -302,14 +330,16 @@ impl<Foo> DataReaderAsync<Foo> {
     ) -> DdsResult<Vec<Sample<Foo>>> {
         let samples = self
             .reader_address
-            .take_next_instance(
+            .send_actor_mail(data_reader_actor::TakeNextInstance {
                 max_samples,
                 previous_handle,
-                sample_states.to_vec(),
-                view_states.to_vec(),
-                instance_states.to_vec(),
-            )
-            .await??;
+                sample_states: sample_states.to_vec(),
+                view_states: view_states.to_vec(),
+                instance_states: instance_states.to_vec(),
+            })
+            .await?
+            .receive_reply()
+            .await?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -371,9 +401,12 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_subscription_matched_status`](crate::subscription::data_reader::DataReader::get_subscription_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.reader_address
-            .get_subscription_matched_status()
+        Ok(self
+            .reader_address
+            .send_actor_mail(data_reader_actor::GetSubscriptionMatchedStatus)
             .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
@@ -393,7 +426,13 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         tokio::time::timeout(max_wait.into(), async {
             loop {
-                if self.reader_address.is_historical_data_received().await?? {
+                if self
+                    .reader_address
+                    .send_actor_mail(data_reader_actor::IsHistoricalDataReceived)
+                    .await?
+                    .receive_reply()
+                    .await?
+                {
                     return Ok(());
                 }
             }
@@ -409,14 +448,21 @@ impl<Foo> DataReaderAsync<Foo> {
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         self.reader_address
-            .get_matched_publication_data(publication_handle)
+            .send_actor_mail(data_reader_actor::GetMatchedPublicationData { publication_handle })
             .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`get_matched_publications`](crate::subscription::data_reader::DataReader::get_matched_publications).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.reader_address.get_matched_publications().await
+        Ok(self
+            .reader_address
+            .send_actor_mail(data_reader_actor::GetMatchedPublications)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -426,14 +472,26 @@ impl<Foo> DataReaderAsync<Foo> {
         let qos = match qos {
             QosKind::Default => {
                 self.subscriber_address()
-                    .get_default_datareader_qos()
+                    .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)
                     .await?
+                    .receive_reply()
+                    .await
             }
             QosKind::Specific(q) => q,
         };
 
-        self.reader_address.set_qos(qos).await??;
-        if self.reader_address.is_enabled().await? {
+        self.reader_address
+            .send_actor_mail(data_reader_actor::SetQos { qos })
+            .await?
+            .receive_reply()
+            .await?;
+        if self
+            .reader_address
+            .send_actor_mail(data_reader_actor::IsEnabled)
+            .await?
+            .receive_reply()
+            .await
+        {
             self.announce_reader().await?;
         }
 
@@ -443,7 +501,12 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_qos`](crate::subscription::data_reader::DataReader::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.reader_address.get_qos().await
+        Ok(self
+            .reader_address
+            .send_actor_mail(data_reader_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
@@ -464,8 +527,18 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`enable`](crate::subscription::data_reader::DataReader::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.reader_address.is_enabled().await? {
-            self.reader_address.enable().await?;
+        if !self
+            .reader_address
+            .send_actor_mail(data_reader_actor::IsEnabled)
+            .await?
+            .receive_reply()
+            .await
+        {
+            self.reader_address
+                .send_actor_mail(data_reader_actor::Enable)
+                .await?
+                .receive_reply()
+                .await;
 
             self.announce_reader().await?;
         }
@@ -475,7 +548,12 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_instance_handle`](crate::subscription::data_reader::DataReader::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.reader_address.get_instance_handle().await
+        Ok(self
+            .reader_address
+            .send_actor_mail(data_reader_actor::GetInstanceHandle)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -491,12 +569,15 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_address
-            .set_listener(
-                a_listener.map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
-                mask.to_vec(),
-                self.runtime_handle().clone(),
-            )
-            .await?;
+            .send_actor_mail(data_reader_actor::SetListener {
+                listener: a_listener
+                    .map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
+                status_kind: mask.to_vec(),
+                runtime_handle: self.runtime_handle().clone(),
+            })
+            .await?
+            .receive_reply()
+            .await;
         Ok(())
     }
 }

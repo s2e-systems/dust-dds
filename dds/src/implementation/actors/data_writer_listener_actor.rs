@@ -1,8 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
-    implementation::actor::ActorAddress,
+    implementation::actor::{ActorAddress, Mail, MailHandler},
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
@@ -21,43 +19,33 @@ impl DataWriterListenerActor {
     }
 }
 
-#[actor_interface]
-impl DataWriterListenerActor {
-    async fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: OfferedIncompatibleQosStatus,
-    ) {
-        if let Some(l) = &mut self.listener {
-            l.trigger_on_offered_incompatible_qos(
-                writer_address,
-                status_condition_address,
-                publisher,
-                topic,
-                status,
-            )
-            .await
-        }
-    }
+pub enum DataWriterListenerOperation {
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
+}
 
-    async fn trigger_on_publication_matched(
+pub struct CallListenerFunction {
+    pub listener_operation: DataWriterListenerOperation,
+    pub writer_address: ActorAddress<DataWriterActor>,
+    pub status_condition_address: ActorAddress<StatusConditionActor>,
+    pub publisher: PublisherAsync,
+    pub topic: TopicAsync,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for DataWriterListenerActor {
+    async fn handle(
         &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: PublicationMatchedStatus,
-    ) {
+        message: CallListenerFunction,
+    ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
-            l.trigger_on_publication_matched(
-                writer_address,
-                status_condition_address,
-                publisher,
-                topic,
-                status,
+            l.call_listener_function(
+                message.listener_operation,
+                message.writer_address,
+                message.status_condition_address,
+                message.publisher,
+                message.topic,
             )
             .await
         }

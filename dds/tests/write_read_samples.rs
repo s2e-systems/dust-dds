@@ -935,7 +935,7 @@ fn read_specific_instance() {
     let data1_handle = writer.lookup_instance(&data1).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader

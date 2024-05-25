@@ -1,7 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::publisher_listener::PublisherListenerAsync,
+    implementation::actor::{Mail, MailHandler},
     infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
@@ -15,17 +14,31 @@ impl PublisherListenerActor {
     }
 }
 
-#[actor_interface]
-impl PublisherListenerActor {
-    async fn trigger_on_offered_incompatible_qos(&mut self, status: OfferedIncompatibleQosStatus) {
-        if let Some(l) = &mut self.listener {
-            l.on_offered_incompatible_qos(&(), status).await
-        }
-    }
+pub enum PublisherListenerOperation {
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
+}
 
-    async fn trigger_on_publication_matched(&mut self, status: PublicationMatchedStatus) {
+pub struct CallListenerFunction {
+    pub listener_operation: PublisherListenerOperation,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for PublisherListenerActor {
+    async fn handle(
+        &mut self,
+        message: CallListenerFunction,
+    ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
-            l.on_publication_matched(&(), status).await
+            match message.listener_operation {
+                PublisherListenerOperation::OfferedIncompatibleQos(status) => {
+                    l.on_offered_incompatible_qos(&(), status).await
+                }
+                PublisherListenerOperation::PublicationMatched(status) => {
+                    l.on_publication_matched(&(), status).await
+                }
+            }
         }
     }
 }
