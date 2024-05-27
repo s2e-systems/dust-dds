@@ -1,3 +1,5 @@
+use crate::rtps::error::{RtpsError, RtpsErrorKind};
+
 use super::super::super::{
     error::RtpsResult,
     messages::{
@@ -29,6 +31,12 @@ impl DataSubmessage {
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
     ) -> RtpsResult<Self> {
+        if submessage_header.submessage_length() as usize > data.len() {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Submessage header length value bigger than actual data in the buffer",
+            ));
+        }
         let mut slice = data.as_ref();
         let endianness = submessage_header.endianness();
         let inline_qos_flag = submessage_header.flags()[1];
@@ -42,6 +50,12 @@ impl DataSubmessage {
         let writer_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
         let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
 
+        if octets_to_inline_qos < submessage_header.submessage_length() as usize {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Invalid octets to inline qos",
+            ));
+        }
         let mut data_starting_at_inline_qos =
             data.sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
         let inline_qos = if inline_qos_flag {
@@ -469,5 +483,16 @@ mod tests {
             DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
+    }
+
+    #[test]
+    fn fuzz_test_input() {
+        let mut data = &[
+            0x00, 0x32, 0x00, 0x00, 0xa2, 0xa2, 0xa2, 0x0a, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+            0x00, 0x00, 0xa2, 0xa2, 0xa2, 0xa2, 0xa2, 0xa2, 0xa2, 0xa2, 0x0a,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
     }
 }
