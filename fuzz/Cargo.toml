@@ -9,11 +9,25 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-dust_dds = { path = "../dds"}
+dust_dds = { path = "../dds" }
 
 [[bin]]
-name = "fuzz_rtps_submessages"
-path = "fuzz_targets/fuzz_rtps_submessages.rs"
+name = "fuzz_data_submessage"
+path = "fuzz_targets/fuzz_data_submessages.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_gap_submessage"
+path = "fuzz_targets/fuzz_gap_submessages.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_heartbeat_submessage"
+path = "fuzz_targets/fuzz_heartbeat_submessages.rs"
 test = false
 doc = false
 bench = false
