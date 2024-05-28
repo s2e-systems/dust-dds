@@ -84,7 +84,7 @@ impl SubmessageHeaderRead {
     pub fn try_read_from_arc_slice(data: &mut ArcSlice) -> RtpsResult<Self> {
         let mut data_slice = data.as_ref();
         let this = Self::try_read_from_bytes(&mut data_slice)?;
-        data.consume(4);
+        data.consume(4)?;
         Ok(this)
     }
 
@@ -234,14 +234,16 @@ impl RtpsMessageRead {
                     }
                     PAD => PadSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::Pad),
-                    _ => {
-                        data.consume(submessage_length);
-                        continue;
-                    }
+                    _ => Err(RtpsError::new(
+                        RtpsErrorKind::InvalidData,
+                        "Unknown message",
+                    )),
                 };
-                data.consume(submessage_length);
                 if let Ok(submessage) = submessage {
                     submessages.push(submessage);
+                }
+                if let Err(_) = data.consume(submessage_length) {
+                    break;
                 }
             }
         }

@@ -235,31 +235,37 @@ impl Parameter {
     fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> RtpsResult<Self> {
         let mut slice = data.as_ref();
         let len = slice.len();
-        if len >= 4 {
-            let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
-            let length = i16::try_read_from_bytes(&mut slice, endianness)?;
-            data.consume(len - slice.len());
-            if parameter_id != PID_SENTINEL && length % 4 != 0 {
-                return Err(RtpsError::new(
-                    RtpsErrorKind::InvalidData,
-                    "Parameter length not multiple of 4",
-                ));
-            }
-            let value = if parameter_id == PID_SENTINEL {
-                ArcSlice::empty()
-            } else {
-                let value = data.sub_slice(0..length as usize)?;
-                data.consume(length as usize);
-                value
-            };
-
-            Ok(Self::new(parameter_id, value))
-        } else {
-            Err(RtpsError::new(
+        if len < 4 {
+            return Err(RtpsError::new(
                 RtpsErrorKind::NotEnoughData,
                 "At least 4 bytes required for parameter",
-            ))
+            ));
         }
+        let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
+        let length = i16::try_read_from_bytes(&mut slice, endianness)?;
+        data.consume(4)?;
+
+        if parameter_id != PID_SENTINEL && length % 4 != 0 {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Parameter length not multiple of 4",
+            ));
+        }
+        let value = if parameter_id == PID_SENTINEL {
+            ArcSlice::empty()
+        } else {
+            let value = data.sub_slice(0..length as usize)?;
+            if length as usize > value.len() {
+                return Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "Parameter length bigger than available data",
+                ));
+            }
+            data.consume(length as usize)?;
+            value
+        };
+
+        Ok(Self::new(parameter_id, value))
     }
 }
 
@@ -369,8 +375,16 @@ impl ArcSlice {
         }
     }
 
-    pub fn consume(&mut self, amt: usize) {
-        self.range.start += amt;
+    pub fn consume(&mut self, amt: usize) -> RtpsResult<()> {
+        if self.range.start + amt > self.range.end {
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "Consuming more data than available on slice",
+            ))
+        } else {
+            self.range.start += amt;
+            Ok(())
+        }
     }
 }
 

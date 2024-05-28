@@ -486,7 +486,7 @@ mod tests {
     }
 
     #[test]
-    fn fuzz_test_input() {
+    fn fuzz_test_input_1() {
         let mut data = &[
             0x00, 0x32, 0x00, 0x00, // Submessage header
             0xa2, 0xa2, 0xa2, 0x0a, // extraFlags, octetsToInlineQos
@@ -495,6 +495,24 @@ mod tests {
             0xa2, 0xa2, 0xa2, 0xa2, // writerSN: high
             0xa2, 0xa2, 0xa2, 0xa2, // writerSN: low
             0x0a,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
+    }
+
+    #[test]
+    fn fuzz_test_input_2() {
+        let mut data = &[
+            0, 6, 0, 8, // Submessage header
+            1, 0, 0, 0, // extraFlags, octetsToInlineQos
+            0, 0, 0, 16, // readerId: value[4]
+            122, 0, 0, 0, // writerId: value[4]
+            1, 0, 0, 0, // writerSN: high
+            0, 0, 36, 0, // writerSN: low
+            45, 0, 0, 3, // Other data
+            32, 0, 0, 0, // Other data
+            0, 0, 189, 0, // Other data
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
