@@ -50,7 +50,7 @@ impl DataSubmessage {
         let writer_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
         let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
 
-        if octets_to_inline_qos < submessage_header.submessage_length() as usize {
+        if octets_to_inline_qos > submessage_header.submessage_length() as usize {
             return Err(RtpsError::new(
                 RtpsErrorKind::InvalidData,
                 "Invalid octets to inline qos",
