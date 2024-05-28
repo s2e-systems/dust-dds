@@ -518,4 +518,16 @@ mod tests {
         // Should not panic with this input
         let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
     }
+
+    #[test]
+    fn fuzz_test_input_3() {
+        let mut data = &[
+            0, 6, 0, 51, 9, 0, 0, 0, 0, 45, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 252, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 9, 0,
+            0, 0, 45, 110, 0, 0, 8, 0, 2, 0, 0, 0, 1, 0,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
+    }
 }

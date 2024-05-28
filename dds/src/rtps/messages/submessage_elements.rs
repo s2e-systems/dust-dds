@@ -242,7 +242,8 @@ impl Parameter {
             ));
         }
         let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
-        let length = i16::try_read_from_bytes(&mut slice, endianness)?;
+        // This value shouldn't be negative otherwise when converting to usize it overflows
+        let length = u16::try_read_from_bytes(&mut slice, endianness)?;
         data.consume(4)?;
 
         if parameter_id != PID_SENTINEL && length % 4 != 0 {
