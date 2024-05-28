@@ -13,21 +13,35 @@ dust_dds = { path = "../dds" }
 
 [[bin]]
 name = "fuzz_data_submessage"
-path = "fuzz_targets/fuzz_data_submessages.rs"
+path = "fuzz_targets/fuzz_data_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_data_frag_submessage"
+path = "fuzz_targets/fuzz_data_frag_submessage.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
 name = "fuzz_gap_submessage"
-path = "fuzz_targets/fuzz_gap_submessages.rs"
+path = "fuzz_targets/fuzz_gap_submessage.rs"
 test = false
 doc = false
 bench = false
 
 [[bin]]
 name = "fuzz_heartbeat_submessage"
-path = "fuzz_targets/fuzz_heartbeat_submessages.rs"
+path = "fuzz_targets/fuzz_heartbeat_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_heartbeat_frag_submessage"
+path = "fuzz_targets/fuzz_heartbeat_frag_submessage.rs"
 test = false
 doc = false
 bench = false
