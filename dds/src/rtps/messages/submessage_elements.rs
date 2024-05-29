@@ -256,6 +256,12 @@ impl Parameter {
         let value = if parameter_id == PID_SENTINEL {
             ArcSlice::empty()
         } else {
+            if data.len() < length as usize {
+                return Err(RtpsError::new(
+                    RtpsErrorKind::NotEnoughData,
+                    "Available data for parameter less than length",
+                ));
+            }
             let value = ArcSlice::from(&data[0..length as usize]);
             if length as usize > value.len() {
                 return Err(RtpsError::new(

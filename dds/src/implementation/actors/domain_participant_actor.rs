@@ -48,7 +48,11 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         group::RtpsGroup,
-        messages::{overall_structure::RtpsMessageRead, types::Count},
+        message_receiver::MessageReceiver,
+        messages::{
+            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+            types::Count,
+        },
         participant::RtpsParticipant,
         types::{
             EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
@@ -1332,24 +1336,84 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
             "Received metatraffic RTPS message"
         );
         let reception_timestamp = self.get_current_time().into();
-        let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-        self.builtin_subscriber
-            .send_actor_mail(subscriber_actor::ProcessRtpsMessage {
-                rtps_message: message.rtps_message.clone(),
-                reception_timestamp,
-                subscriber_address: self.builtin_subscriber.address(),
-                participant: message.participant.clone(),
-                participant_mask_listener,
-                message_sender_actor: self.message_sender_actor.address(),
-            })
-            .await;
-
-        self.builtin_publisher
-            .send_actor_mail(publisher_actor::ProcessRtpsMessage {
-                rtps_message: message.rtps_message,
-                message_sender_actor: self.message_sender_actor.address(),
-            })
-            .await;
+        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    let participant_mask_listener =
+                        (self.listener.address(), self.status_kind.clone());
+                    self.builtin_subscriber
+                        .send_actor_mail(subscriber_actor::ProcessDataSubmessage {
+                            data_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                            source_timestamp: message_receiver.source_timestamp(),
+                            reception_timestamp,
+                            subscriber_address: self.builtin_subscriber.address(),
+                            participant: message.participant.clone(),
+                            participant_mask_listener,
+                        })
+                        .await;
+                }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    let participant_mask_listener =
+                        (self.listener.address(), self.status_kind.clone());
+                    self.builtin_subscriber
+                        .send_actor_mail(subscriber_actor::ProcessDataFragSubmessage {
+                            data_frag_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                            source_timestamp: message_receiver.source_timestamp(),
+                            reception_timestamp,
+                            subscriber_address: self.builtin_subscriber.address(),
+                            participant: message.participant.clone(),
+                            participant_mask_listener,
+                        })
+                        .await;
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    self.builtin_subscriber
+                        .send_actor_mail(subscriber_actor::ProcessGapSubmessage {
+                            gap_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                        })
+                        .await;
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                    self.builtin_subscriber
+                        .send_actor_mail(subscriber_actor::ProcessHeartbeatSubmessage {
+                            heartbeat_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                            message_sender_actor: self.message_sender_actor.address(),
+                        })
+                        .await;
+                }
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                    self.builtin_subscriber
+                        .send_actor_mail(subscriber_actor::ProcessHeartbeatFragSubmessage {
+                            heartbeat_frag_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                        })
+                        .await;
+                }
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
+                    self.builtin_publisher
+                        .send_actor_mail(publisher_actor::ProcessAckNackSubmessage {
+                            acknack_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                            message_sender_actor: self.message_sender_actor.address(),
+                        })
+                        .await;
+                }
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
+                    self.builtin_publisher
+                        .send_actor_mail(publisher_actor::ProcessNackFragSubmessage {
+                            nackfrag_submessage,
+                            source_guid_prefix: message_receiver.source_guid_prefix(),
+                        })
+                        .await;
+                }
+                _ => (),
+            }
+        }
 
         self.process_builtin_discovery(message.participant).await?;
 
@@ -1369,27 +1433,103 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
         &mut self,
         message: ProcessUserDefinedRtpsMessage,
     ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
-        let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-        for user_defined_subscriber_address in self.user_defined_subscriber_list.values() {
-            user_defined_subscriber_address
-                .send_actor_mail(subscriber_actor::ProcessRtpsMessage {
-                    rtps_message: message.rtps_message.clone(),
-                    reception_timestamp: self.get_current_time().into(),
-                    subscriber_address: user_defined_subscriber_address.address(),
-                    participant: message.participant.clone(),
-                    participant_mask_listener: participant_mask_listener.clone(),
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
-        }
-
-        for user_defined_publisher_address in self.user_defined_publisher_list.values() {
-            user_defined_publisher_address
-                .send_actor_mail(publisher_actor::ProcessRtpsMessage {
-                    rtps_message: message.rtps_message.clone(),
-                    message_sender_actor: self.message_sender_actor.address(),
-                })
-                .await;
+        let reception_timestamp = self.get_current_time().into();
+        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
+        while let Some(submessage) = message_receiver.next() {
+            match submessage {
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
+                    {
+                        let participant_mask_listener =
+                            (self.listener.address(), self.status_kind.clone());
+                        user_defined_subscriber_actor
+                            .send_actor_mail(subscriber_actor::ProcessDataSubmessage {
+                                data_submessage: data_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                                source_timestamp: message_receiver.source_timestamp(),
+                                reception_timestamp,
+                                subscriber_address: user_defined_subscriber_actor.address(),
+                                participant: message.participant.clone(),
+                                participant_mask_listener,
+                            })
+                            .await;
+                    }
+                }
+                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
+                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
+                    {
+                        let participant_mask_listener =
+                            (self.listener.address(), self.status_kind.clone());
+                        user_defined_subscriber_actor
+                            .send_actor_mail(subscriber_actor::ProcessDataFragSubmessage {
+                                data_frag_submessage: data_frag_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                                source_timestamp: message_receiver.source_timestamp(),
+                                reception_timestamp,
+                                subscriber_address: user_defined_subscriber_actor.address(),
+                                participant: message.participant.clone(),
+                                participant_mask_listener,
+                            })
+                            .await;
+                    }
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
+                    {
+                        user_defined_subscriber_actor
+                            .send_actor_mail(subscriber_actor::ProcessGapSubmessage {
+                                gap_submessage: gap_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                            })
+                            .await;
+                    }
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
+                    {
+                        user_defined_subscriber_actor
+                            .send_actor_mail(subscriber_actor::ProcessHeartbeatSubmessage {
+                                heartbeat_submessage: heartbeat_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                                message_sender_actor: self.message_sender_actor.address(),
+                            })
+                            .await;
+                    }
+                }
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
+                    {
+                        user_defined_subscriber_actor
+                            .send_actor_mail(subscriber_actor::ProcessHeartbeatFragSubmessage {
+                                heartbeat_frag_submessage: heartbeat_frag_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                            })
+                            .await;
+                    }
+                }
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
+                    for user_defined_publisher_actor in self.user_defined_publisher_list.values() {
+                        user_defined_publisher_actor
+                            .send_actor_mail(publisher_actor::ProcessAckNackSubmessage {
+                                acknack_submessage: acknack_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                                message_sender_actor: self.message_sender_actor.address(),
+                            })
+                            .await;
+                    }
+                }
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
+                    for user_defined_publisher_actor in self.user_defined_publisher_list.values() {
+                        user_defined_publisher_actor
+                            .send_actor_mail(publisher_actor::ProcessNackFragSubmessage {
+                                nackfrag_submessage: nackfrag_submessage.clone(),
+                                source_guid_prefix: message_receiver.source_guid_prefix(),
+                            })
+                            .await;
+                    }
+                }
+                _ => (),
+            }
         }
     }
 }

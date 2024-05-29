@@ -33,9 +33,7 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::{
-        message_receiver::MessageReceiver,
         messages::{
-            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
             submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
             submessages::{
                 ack_nack::AckNackSubmessage, gap::GapSubmessage,
@@ -1409,37 +1407,44 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
     }
 }
 
-pub struct ProcessRtpsMessage {
-    pub rtps_message: RtpsMessageRead,
+pub struct ProcessAckNackSubmessage {
+    pub acknack_submessage: AckNackSubmessage,
+    pub source_guid_prefix: GuidPrefix,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
-impl Mail for ProcessRtpsMessage {
+impl Mail for ProcessAckNackSubmessage {
     type Result = ();
 }
-impl MailHandler<ProcessRtpsMessage> for DataWriterActor {
+impl MailHandler<ProcessAckNackSubmessage> for DataWriterActor {
     async fn handle(
         &mut self,
-        message: ProcessRtpsMessage,
-    ) -> <ProcessRtpsMessage as Mail>::Result {
-        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
-        while let Some(submessage) = message_receiver.next() {
-            match &submessage {
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    self.on_acknack_submessage_received(
-                        acknack_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message.message_sender_actor.clone(),
-                    )
-                    .await
-                }
-                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => self
-                    .on_nack_frag_submessage_received(
-                        nackfrag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
-            }
-        }
+        message: ProcessAckNackSubmessage,
+    ) -> <ProcessAckNackSubmessage as Mail>::Result {
+        self.on_acknack_submessage_received(
+            &message.acknack_submessage,
+            message.source_guid_prefix,
+            message.message_sender_actor,
+        )
+        .await
+    }
+}
+
+pub struct ProcessNackFragSubmessage {
+    pub nackfrag_submessage: NackFragSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+}
+impl Mail for ProcessNackFragSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessNackFragSubmessage> for DataWriterActor {
+    async fn handle(
+        &mut self,
+        message: ProcessNackFragSubmessage,
+    ) -> <ProcessNackFragSubmessage as Mail>::Result {
+        self.on_nack_frag_submessage_received(
+            &message.nackfrag_submessage,
+            message.source_guid_prefix,
+        )
     }
 }
 

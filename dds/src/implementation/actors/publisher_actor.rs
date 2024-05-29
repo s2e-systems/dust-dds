@@ -22,9 +22,9 @@ use crate::{
         behavior_types::DURATION_ZERO,
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        messages::overall_structure::RtpsMessageRead,
+        messages::submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
         types::{
-            EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            EntityId, Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
         writer::RtpsWriter,
@@ -406,23 +406,48 @@ impl MailHandler<GetDataWriterList> for PublisherActor {
     }
 }
 
-pub struct ProcessRtpsMessage {
-    pub rtps_message: RtpsMessageRead,
+pub struct ProcessAckNackSubmessage {
+    pub acknack_submessage: AckNackSubmessage,
+    pub source_guid_prefix: GuidPrefix,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
-impl Mail for ProcessRtpsMessage {
+impl Mail for ProcessAckNackSubmessage {
     type Result = ();
 }
-impl MailHandler<ProcessRtpsMessage> for PublisherActor {
+impl MailHandler<ProcessAckNackSubmessage> for PublisherActor {
     async fn handle(
         &mut self,
-        message: ProcessRtpsMessage,
-    ) -> <ProcessRtpsMessage as Mail>::Result {
-        for data_writer_address in self.data_writer_list.values() {
-            data_writer_address
-                .send_actor_mail(data_writer_actor::ProcessRtpsMessage {
-                    rtps_message: message.rtps_message.clone(),
+        message: ProcessAckNackSubmessage,
+    ) -> <ProcessAckNackSubmessage as Mail>::Result {
+        for data_writer_actor in self.data_writer_list.values() {
+            data_writer_actor
+                .send_actor_mail(data_writer_actor::ProcessAckNackSubmessage {
+                    acknack_submessage: message.acknack_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
                     message_sender_actor: message.message_sender_actor.clone(),
+                })
+                .await;
+        }
+    }
+}
+
+pub struct ProcessNackFragSubmessage {
+    pub nackfrag_submessage: NackFragSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+}
+impl Mail for ProcessNackFragSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessNackFragSubmessage> for PublisherActor {
+    async fn handle(
+        &mut self,
+        message: ProcessNackFragSubmessage,
+    ) -> <ProcessNackFragSubmessage as Mail>::Result {
+        for data_writer_actor in self.data_writer_list.values() {
+            data_writer_actor
+                .send_actor_mail(data_writer_actor::ProcessNackFragSubmessage {
+                    nackfrag_submessage: message.nackfrag_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
                 })
                 .await;
         }
