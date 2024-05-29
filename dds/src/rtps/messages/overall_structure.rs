@@ -242,7 +242,7 @@ impl RtpsMessageRead {
                 if let Ok(submessage) = submessage {
                     submessages.push(submessage);
                 }
-                if let Err(_) = data.consume(submessage_length) {
+                if data.consume(submessage_length).is_err() {
                     break;
                 }
             }
