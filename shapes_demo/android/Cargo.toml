@@ -11,7 +11,7 @@ description = "Dust DDS Shapes Demo"
 
 [lib]
 path = "app/src/lib.rs"
-crate_type = ["cdylib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 dust_dds_shapes_demo = { path = "../" }

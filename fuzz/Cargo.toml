@@ -1,0 +1,55 @@
+[package]
+name = "dust_dds-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+dust_dds = { path = "../dds" }
+
+
+[[bin]]
+name = "fuzz_ack_nack_submessage"
+path = "fuzz_targets/fuzz_ack_nack_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_data_submessage"
+path = "fuzz_targets/fuzz_data_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_data_frag_submessage"
+path = "fuzz_targets/fuzz_data_frag_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_gap_submessage"
+path = "fuzz_targets/fuzz_gap_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_heartbeat_submessage"
+path = "fuzz_targets/fuzz_heartbeat_submessage.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_heartbeat_frag_submessage"
+path = "fuzz_targets/fuzz_heartbeat_frag_submessage.rs"
+test = false
+doc = false
+bench = false

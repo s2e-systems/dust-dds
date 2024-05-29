@@ -83,6 +83,12 @@ impl TryReadFromBytes for SequenceNumberSet {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let base = SequenceNumber::try_read_from_bytes(data, endianness)?;
         let num_bits = u32::try_read_from_bytes(data, endianness)?;
+        if num_bits > 256 {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Maximum number of bits in SequenceNumberSet is 256",
+            ));
+        }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard referred to as "M"
         let mut bitmap = [0; 8];
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
@@ -229,9 +235,17 @@ impl Parameter {
     fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> RtpsResult<Self> {
         let mut slice = data.as_ref();
         let len = slice.len();
+        if len < 4 {
+            return Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "At least 4 bytes required for parameter",
+            ));
+        }
         let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
-        let length = i16::try_read_from_bytes(&mut slice, endianness)?;
-        data.consume(len - slice.len());
+        // This value shouldn't be negative otherwise when converting to usize it overflows
+        let length = u16::try_read_from_bytes(&mut slice, endianness)?;
+        data.consume(4)?;
+
         if parameter_id != PID_SENTINEL && length % 4 != 0 {
             return Err(RtpsError::new(
                 RtpsErrorKind::InvalidData,
@@ -242,7 +256,13 @@ impl Parameter {
             ArcSlice::empty()
         } else {
             let value = data.sub_slice(0..length as usize)?;
-            data.consume(length as usize);
+            if length as usize > value.len() {
+                return Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "Parameter length bigger than available data",
+                ));
+            }
+            data.consume(length as usize)?;
             value
         };
 
@@ -356,8 +376,16 @@ impl ArcSlice {
         }
     }
 
-    pub fn consume(&mut self, amt: usize) {
-        self.range.start += amt;
+    pub fn consume(&mut self, amt: usize) -> RtpsResult<()> {
+        if self.range.start + amt > self.range.end {
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "Consuming more data than available on slice",
+            ))
+        } else {
+            self.range.start += amt;
+            Ok(())
+        }
     }
 }
 
@@ -722,6 +750,17 @@ mod tests {
             0, 0, 0, 0, // numBits (unsigned long)
         ][..], &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_too_many_bits() {
+        #[rustfmt::skip]
+        let result = SequenceNumberSet::try_read_from_bytes(&mut &[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0xff, 0xff, 0xff, 0xff, // numBits (unsigned long)
+        ][..], &Endianness::LittleEndian);
+        assert!(result.is_err());
     }
 
     #[test]

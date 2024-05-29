@@ -32,6 +32,13 @@ impl DataFragSubmessage {
         submessage_header: &SubmessageHeaderRead,
         data: ArcSlice,
     ) -> RtpsResult<Self> {
+        if submessage_header.submessage_length() as usize > data.len() {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Submessage header length value bigger than actual data in the buffer",
+            ));
+        }
+
         let mut slice = data.as_ref();
         if data.len() >= 32 {
             let endianness = submessage_header.endianness();
@@ -50,6 +57,13 @@ impl DataFragSubmessage {
             let fragments_in_submessage = u16::try_read_from_bytes(&mut slice, endianness)?;
             let fragment_size = u16::try_read_from_bytes(&mut slice, endianness)?;
             let data_size = u32::try_read_from_bytes(&mut slice, endianness)?;
+
+            if octets_to_inline_qos > submessage_header.submessage_length() as usize {
+                return Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "Invalid octets to inline qos",
+                ));
+            }
 
             let mut data_starting_at_inline_qos = data
                 .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
@@ -397,5 +411,17 @@ mod tests {
             &expected_serialized_payload,
             submessage.serialized_payload()
         );
+    }
+
+    #[test]
+    fn fuzz_test_input_1() {
+        let mut data = &[
+            159, 10, 0, 0, 0, 0, 247, 0, 0, 0, 0, 199, 199, 199, 199, 199, 199, 199, 199, 199, 199,
+            199, 199, 199, 199, 199, 199, 10, 0, 0, 0, 0, 0, 37, 159, 31, 36, 93, 159, 159, 159,
+            10,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataFragSubmessage::try_from_arc_slice(&submessage_header, data.into());
     }
 }
