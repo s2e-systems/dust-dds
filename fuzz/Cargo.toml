@@ -11,6 +11,14 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 dust_dds = { path = "../dds" }
 
+
+[[bin]]
+name = "fuzz_ack_nack_submessage"
+path = "fuzz_targets/fuzz_ack_nack_submessage.rs"
+test = false
+doc = false
+bench = false
+
 [[bin]]
 name = "fuzz_data_submessage"
 path = "fuzz_targets/fuzz_data_submessage.rs"
