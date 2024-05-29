@@ -65,18 +65,15 @@ impl DataFragSubmessage {
                 ));
             }
 
-            let mut data_starting_at_inline_qos = data
-                .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
+            let mut data_starting_at_inline_qos =
+                &data[octets_to_inline_qos..submessage_header.submessage_length() as usize];
 
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_read_from_arc_slice(
-                    &mut data_starting_at_inline_qos,
-                    endianness,
-                )?
+                ParameterList::try_read_from_bytes(&mut data_starting_at_inline_qos, endianness)?
             } else {
                 ParameterList::empty()
             };
-            let serialized_payload = Data::new(data_starting_at_inline_qos);
+            let serialized_payload = Data::new(data_starting_at_inline_qos.into());
 
             Ok(Self {
                 inline_qos_flag,

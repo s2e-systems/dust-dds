@@ -7,7 +7,7 @@ use super::super::super::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
             WriteIntoBytes,
         },
-        submessage_elements::{ArcSlice, Data, ParameterList},
+        submessage_elements::{Data, ParameterList},
         types::{SubmessageFlag, SubmessageKind},
     },
     types::{EntityId, SequenceNumber},
@@ -27,9 +27,9 @@ pub struct DataSubmessage {
 }
 
 impl DataSubmessage {
-    pub fn try_from_arc_slice(
+    pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: ArcSlice,
+        data: &[u8],
     ) -> RtpsResult<Self> {
         if submessage_header.submessage_length() as usize > data.len() {
             return Err(RtpsError::new(
@@ -57,9 +57,9 @@ impl DataSubmessage {
             ));
         }
         let mut data_starting_at_inline_qos =
-            data.sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
+            &data[octets_to_inline_qos..submessage_header.submessage_length() as usize];
         let inline_qos = if inline_qos_flag {
-            ParameterList::try_read_from_arc_slice(
+            ParameterList::try_read_from_bytes(
                 &mut data_starting_at_inline_qos,
                 submessage_header.endianness(),
             )?
@@ -68,7 +68,7 @@ impl DataSubmessage {
         };
 
         let serialized_payload = if data_flag || key_flag {
-            Data::new(data_starting_at_inline_qos)
+            Data::new(data_starting_at_inline_qos.into())
         } else {
             Data::empty()
         };
@@ -355,8 +355,7 @@ mod tests {
             5, 0, 0, 0, // writerSN: low
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(inline_qos_flag, data_submessage._inline_qos_flag());
         assert_eq!(data_flag, data_submessage._data_flag());
@@ -385,8 +384,7 @@ mod tests {
             123, 123, 123 // Following data
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
             &expected_serialized_payload,
@@ -417,8 +415,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(&inline_qos, data_submessage.inline_qos());
         assert_eq!(&serialized_payload, data_submessage.serialized_payload());
     }
@@ -447,8 +444,7 @@ mod tests {
             1, 2, 3, 4, // SerializedPayload
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
@@ -479,8 +475,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
     }
@@ -498,7 +493,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
-        let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
+        let _ = DataSubmessage::try_from_bytes(&submessage_header, data);
     }
 
     #[test]
@@ -516,7 +511,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
-        let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
+        let _ = DataSubmessage::try_from_bytes(&submessage_header, data);
     }
 
     #[test]
@@ -528,6 +523,6 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
-        let _ = DataSubmessage::try_from_arc_slice(&submessage_header, data.into());
+        let _ = DataSubmessage::try_from_bytes(&submessage_header, data);
     }
 }

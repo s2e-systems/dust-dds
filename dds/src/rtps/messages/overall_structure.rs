@@ -145,24 +145,6 @@ pub struct RtpsMessageRead {
 }
 
 impl RtpsMessageRead {
-    pub fn new(data: Arc<[u8]>) -> RtpsResult<Self> {
-        if data.len() >= 20 {
-            if b"RTPS" == &[data[0], data[1], data[2], data[3]] {
-                Ok(Self { data })
-            } else {
-                Err(RtpsError::new(
-                    RtpsErrorKind::InvalidData,
-                    "RTPS not in data",
-                ))
-            }
-        } else {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Rtps message header",
-            ))
-        }
-    }
-
     pub fn header(&self) -> RtpsMessageHeader {
         let v = &self.data;
         let major = v[4];
@@ -196,7 +178,7 @@ impl RtpsMessageRead {
                 let submessage = match submessage_header.submessage_id() {
                     ACKNACK => AckNackSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::AckNack),
-                    DATA => DataSubmessage::try_from_arc_slice(&submessage_header, data.clone())
+                    DATA => DataSubmessage::try_from_bytes(&submessage_header, data.as_ref())
                         .map(RtpsSubmessageReadKind::Data),
                     DATA_FRAG => {
                         DataFragSubmessage::try_from_arc_slice(&submessage_header, data.clone())
@@ -248,6 +230,50 @@ impl RtpsMessageRead {
             }
         }
         submessages
+    }
+}
+
+impl TryFrom<Arc<[u8]>> for RtpsMessageRead {
+    type Error = RtpsError;
+
+    fn try_from(data: Arc<[u8]>) -> RtpsResult<Self> {
+        if data.len() >= 20 {
+            if b"RTPS" == &[data[0], data[1], data[2], data[3]] {
+                Ok(Self { data })
+            } else {
+                Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "RTPS not in data",
+                ))
+            }
+        } else {
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "Rtps message header",
+            ))
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for RtpsMessageRead {
+    type Error = RtpsError;
+
+    fn try_from(data: &[u8]) -> RtpsResult<Self> {
+        if data.len() >= 20 {
+            if b"RTPS" == &[data[0], data[1], data[2], data[3]] {
+                Ok(Self { data: data.into() })
+            } else {
+                Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "RTPS not in data",
+                ))
+            }
+        } else {
+            Err(RtpsError::new(
+                RtpsErrorKind::NotEnoughData,
+                "Rtps message header",
+            ))
+        }
     }
 }
 
@@ -523,14 +549,14 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data = [
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-        ]);
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        ];
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
         assert_eq!(rtps_message.header(), header);
         assert_eq!(rtps_message.submessages(), vec![]);
     }
@@ -538,7 +564,7 @@ mod tests {
     #[test]
     fn deserialize_rtps_message_too_high_submessage_length() {
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data = [
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -546,8 +572,8 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
             4, 0, 0, 0, // Time (half only)
-        ]);
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        ];
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
         assert_eq!(rtps_message.submessages(), vec![]);
     }
 
@@ -560,7 +586,7 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data = [
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -585,9 +611,9 @@ mod tests {
             0, 0, 0, 0, // lastSN: SequenceNumberSet: high
             7, 0, 0, 0, // lastSN: SequenceNumberSet: low
             2, 0, 0, 0, // count: Count: value (long)
-        ]);
+        ];
 
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
         assert_eq!(rtps_message.header(), expected_header);
         assert_eq!(rtps_message.submessages().len(), 2);
         assert!(matches!(
@@ -620,7 +646,7 @@ mod tests {
         let expected_submessages = vec![expected_data_submessage];
 
         #[rustfmt::skip]
-        let data = Arc::new([
+        let data = [
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -639,9 +665,9 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-        ]);
+        ];
 
-        let rtps_message = RtpsMessageRead::new(data).unwrap();
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
         assert_eq!(expected_submessages, rtps_message.submessages());
     }
 }

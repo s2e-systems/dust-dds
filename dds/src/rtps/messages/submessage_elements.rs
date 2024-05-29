@@ -8,6 +8,7 @@ use super::{
     types::ParameterId,
 };
 use std::{
+    io::BufRead,
     ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };
@@ -232,7 +233,7 @@ impl Parameter {
         self.value.len() as i16
     }
 
-    fn try_read_from_arc_slice(data: &mut ArcSlice, endianness: &Endianness) -> RtpsResult<Self> {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let mut slice = data.as_ref();
         let len = slice.len();
         if len < 4 {
@@ -244,7 +245,7 @@ impl Parameter {
         let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
         // This value shouldn't be negative otherwise when converting to usize it overflows
         let length = u16::try_read_from_bytes(&mut slice, endianness)?;
-        data.consume(4)?;
+        data.consume(4);
 
         if parameter_id != PID_SENTINEL && length % 4 != 0 {
             return Err(RtpsError::new(
@@ -255,14 +256,14 @@ impl Parameter {
         let value = if parameter_id == PID_SENTINEL {
             ArcSlice::empty()
         } else {
-            let value = data.sub_slice(0..length as usize)?;
+            let value = ArcSlice::from(&data[0..length as usize]);
             if length as usize > value.len() {
                 return Err(RtpsError::new(
                     RtpsErrorKind::InvalidData,
                     "Parameter length bigger than available data",
                 ));
             }
-            data.consume(length as usize)?;
+            data.consume(length as usize);
             value
         };
 
@@ -288,15 +289,12 @@ impl ParameterList {
         self.parameter.as_ref()
     }
 
-    pub fn try_read_from_arc_slice(
-        data: &mut ArcSlice,
-        endianness: &Endianness,
-    ) -> RtpsResult<Self> {
+    pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i = Parameter::try_read_from_arc_slice(data, endianness)?;
+            let parameter_i = Parameter::try_read_from_bytes(data, endianness)?;
             if parameter_i.parameter_id() == PID_SENTINEL {
                 break;
             } else {
@@ -867,14 +865,13 @@ mod tests {
     #[test]
     fn deserialize_parameter() {
         let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12].into());
-        let result = Parameter::try_read_from_arc_slice(
+        let result = Parameter::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
                 5, 6, 7, 8, // value
                 9, 10, 11, 12, // value
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -885,7 +882,7 @@ mod tests {
     fn deserialize_parameter_non_multiple_of_4() {
         // Note: the padding 0 is part of the resulting parameter (this may seems wrong but is specified in RTPS 2.5).
         let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0].into());
-        let result = Parameter::try_read_from_arc_slice(
+        let result = Parameter::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
                 5, 6, 7, 8, // value | value | value | value
@@ -893,8 +890,7 @@ mod tests {
                 0, // value | value | value | padding
                    //13, 13, 13, 13, // other data
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -903,13 +899,12 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_faulty_non_multiple_of_4_length() {
-        let result = Parameter::try_read_from_arc_slice(
+        let result = Parameter::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 3, 0, // Parameter ID | length
                 5, 6, 7, 8, // value
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         );
         assert!(result.is_err());
@@ -917,13 +912,12 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_faulty_to_large_length() {
-        let result = Parameter::try_read_from_arc_slice(
+        let result = Parameter::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
                 5, 6, 7, 8, // value
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         );
         assert!(result.is_err());
@@ -932,12 +926,11 @@ mod tests {
     #[test]
     fn deserialize_parameter_sentinel_length_should_be_ignored() {
         let expected = Parameter::new(1, vec![].into());
-        let result = Parameter::try_read_from_arc_slice(
+        let result = Parameter::try_read_from_bytes(
             &mut [
                 0x01, 0x00, 3, 0, // Parameter ID | length
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -950,7 +943,7 @@ mod tests {
             Parameter::new(2, vec![15, 16, 17, 18].into()),
             Parameter::new(3, vec![25, 26, 27, 28].into()),
         ]);
-        let result = ParameterList::try_read_from_arc_slice(
+        let result = ParameterList::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 4, 0, // Parameter ID | length
                 15, 16, 17, 18, // value
@@ -958,8 +951,7 @@ mod tests {
                 25, 26, 27, 28, // value
                 0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -979,7 +971,7 @@ mod tests {
 
         let expected =
             ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected.into())]);
-        let result = ParameterList::try_read_from_arc_slice(
+        let result = ParameterList::try_read_from_bytes(
             &mut [
                 0x32, 0x00, 24, 0x00, // Parameter ID | length
                 0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -990,8 +982,7 @@ mod tests {
                 0x01, 0x01, 0x01, 0x01, // Parameter value
                 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
             ]
-            .as_slice()
-            .into(),
+            .as_slice(),
             &Endianness::LittleEndian,
         )
         .unwrap();
@@ -1024,7 +1015,7 @@ mod tests {
             Parameter::new(0x32, parameter_value_expected2.into()),
         ]);
         #[rustfmt::skip]
-        let result = ParameterList::try_read_from_arc_slice(&mut [
+        let result = ParameterList::try_read_from_bytes(&mut [
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -1040,7 +1031,7 @@ mod tests {
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ].as_slice().into(), &Endianness::LittleEndian).unwrap();
+        ].as_slice(), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 }

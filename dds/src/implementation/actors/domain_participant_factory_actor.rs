@@ -386,7 +386,9 @@ pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsM
     let (bytes, _) = socket.recv_from(&mut buf).await?;
     buf.truncate(bytes);
     if bytes > 0 {
-        Ok(RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()))?)
+        Ok(RtpsMessageRead::try_from(Arc::from(
+            buf.into_boxed_slice(),
+        ))?)
     } else {
         Err(DdsError::NoData)
     }
