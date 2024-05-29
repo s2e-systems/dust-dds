@@ -1336,7 +1336,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
             "Received metatraffic RTPS message"
         );
         let reception_timestamp = self.get_current_time().into();
-        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
+        let mut message_receiver = MessageReceiver::new(message.rtps_message);
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
@@ -1434,7 +1434,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
         message: ProcessUserDefinedRtpsMessage,
     ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
         let reception_timestamp = self.get_current_time().into();
-        let mut message_receiver = MessageReceiver::new(&message.rtps_message);
+        let mut message_receiver = MessageReceiver::new(message.rtps_message);
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {

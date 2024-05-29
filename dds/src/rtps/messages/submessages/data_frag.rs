@@ -5,7 +5,7 @@ use super::super::super::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
             WriteIntoBytes,
         },
-        submessage_elements::{ArcSlice, Data, ParameterList},
+        submessage_elements::{Data, ParameterList},
         types::{FragmentNumber, SubmessageFlag, SubmessageKind},
     },
     types::{EntityId, SequenceNumber},
@@ -28,9 +28,9 @@ pub struct DataFragSubmessage {
 }
 
 impl DataFragSubmessage {
-    pub fn try_from_arc_slice(
+    pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: ArcSlice,
+        data: &[u8],
     ) -> RtpsResult<Self> {
         if submessage_header.submessage_length() as usize > data.len() {
             return Err(RtpsError::new(
@@ -305,9 +305,7 @@ mod tests {
             4, 0, 0, 0, // sampleSize
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            DataFragSubmessage::try_from_arc_slice(&submessage_header, ArcSlice::from(data))
-                .unwrap();
+        let submessage = DataFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
@@ -368,7 +366,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            DataFragSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataFragSubmessage::try_from_bytes(&submessage_header, data.into()).unwrap();
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;
@@ -419,6 +417,6 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
-        let _ = DataFragSubmessage::try_from_arc_slice(&submessage_header, data.into());
+        let _ = DataFragSubmessage::try_from_bytes(&submessage_header, data.into());
     }
 }

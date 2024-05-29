@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use dust_dds::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     data_representation_builtin_endpoints::{
@@ -200,14 +198,13 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
 
-    let received_data_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
-    assert!(received_data_heartbeat
-        .submessages()
+    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
+    let submessages = received_data_heartbeat.submessages();
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
         .is_some());
-    assert!(received_data_heartbeat
-        .submessages()
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .is_some());
@@ -218,7 +215,7 @@ fn writer_should_send_heartbeat_periodically() {
         .set_read_timeout(Some(std::time::Duration::from_millis(300)))
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
-    let received_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
+    let received_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     assert!(received_heartbeat
         .submessages()
         .iter()
@@ -390,7 +387,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .default_unicast_locator_list()[0]
         .port();
 
-    let received_data_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer))
+    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice())
         .unwrap()
         .submessages();
     let received_heartbeat = received_data_heartbeat
@@ -577,7 +574,7 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
 
-    let received_data_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer))
+    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice())
         .unwrap()
         .submessages();
     let received_heartbeat = received_data_heartbeat
@@ -611,14 +608,13 @@ fn writer_should_resend_data_after_acknack_request() {
         .set_read_timeout(Some(std::time::Duration::from_millis(300)))
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
-    let received_data_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
-    assert!(received_data_heartbeat
-        .submessages()
+    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
+    let submessages = received_data_heartbeat.submessages();
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
         .is_some());
-    assert!(received_data_heartbeat
-        .submessages()
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .is_some());
@@ -775,7 +771,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
 
-    let received_gap = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
+    let received_gap = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     assert!(received_gap
         .submessages()
         .iter()
@@ -788,7 +784,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .set_read_timeout(Some(std::time::Duration::from_millis(300)))
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
-    let received_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
+    let received_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
     assert!(received_heartbeat
         .submessages()
         .iter()
@@ -953,14 +949,13 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
 
-    let received_data_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
-    assert!(received_data_heartbeat
-        .submessages()
+    let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
+    let submessages = received_data_heartbeat.submessages();
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Data(_)))
         .is_some());
-    assert!(received_data_heartbeat
-        .submessages()
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .is_some());
@@ -971,9 +966,9 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .set_read_timeout(Some(std::time::Duration::from_millis(300)))
         .unwrap();
     mock_reader_socket.recv(&mut buffer).unwrap();
-    let received_heartbeat = RtpsMessageRead::try_from(Arc::from(buffer)).unwrap();
-    assert!(received_heartbeat
-        .submessages()
+    let received_heartbeat = RtpsMessageRead::try_from(buffer.as_slice()).unwrap();
+    let submessages = received_heartbeat.submessages();
+    assert!(submessages
         .iter()
         .find(|s| matches!(s, RtpsSubmessageReadKind::Heartbeat(_)))
         .is_some());
