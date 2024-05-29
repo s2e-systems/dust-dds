@@ -387,7 +387,7 @@ pub async fn read_message(
 ) -> DdsResult<RtpsMessageRead> {
     let (bytes, _) = socket.recv_from(buf).await?;
     if bytes > 0 {
-        Ok(RtpsMessageRead::try_from(buf.as_ref())?)
+        Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
     } else {
         Err(DdsError::NoData)
     }
