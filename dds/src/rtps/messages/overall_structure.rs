@@ -181,48 +181,37 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                             break;
                         }
                         let submessage = match submessage_header.submessage_id() {
-                            ACKNACK => {
-                                AckNackSubmessage::try_from_bytes(&submessage_header, &mut v)
-                                    .map(RtpsSubmessageReadKind::AckNack)
-                            }
-                            DATA => DataSubmessage::try_from_bytes(&submessage_header, &mut v)
+                            ACKNACK => AckNackSubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::AckNack),
+                            DATA => DataSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Data),
-                            DATA_FRAG => {
-                                DataFragSubmessage::try_from_bytes(&submessage_header, &mut v)
-                                    .map(RtpsSubmessageReadKind::DataFrag)
-                            }
-                            GAP => GapSubmessage::try_from_bytes(&submessage_header, &mut v)
+                            DATA_FRAG => DataFragSubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::DataFrag),
+                            GAP => GapSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Gap),
-                            HEARTBEAT => {
-                                HeartbeatSubmessage::try_from_bytes(&submessage_header, &mut v)
-                                    .map(RtpsSubmessageReadKind::Heartbeat)
-                            }
+                            HEARTBEAT => HeartbeatSubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::Heartbeat),
                             HEARTBEAT_FRAG => {
-                                HeartbeatFragSubmessage::try_from_bytes(&submessage_header, &mut v)
+                                HeartbeatFragSubmessage::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::HeartbeatFrag)
                             }
-                            INFO_DST => InfoDestinationSubmessage::try_from_bytes(
-                                &submessage_header,
-                                &mut v,
-                            )
-                            .map(RtpsSubmessageReadKind::InfoDestination),
+                            INFO_DST => {
+                                InfoDestinationSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::InfoDestination)
+                            }
                             INFO_REPLY => {
-                                InfoReplySubmessage::try_from_bytes(&submessage_header, &mut v)
+                                InfoReplySubmessage::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoReply)
                             }
-                            INFO_SRC => {
-                                InfoSourceSubmessage::try_from_bytes(&submessage_header, &mut v)
-                                    .map(RtpsSubmessageReadKind::InfoSource)
-                            }
+                            INFO_SRC => InfoSourceSubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::InfoSource),
                             INFO_TS => {
-                                InfoTimestampSubmessage::try_from_bytes(&submessage_header, &mut v)
+                                InfoTimestampSubmessage::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoTimestamp)
                             }
-                            NACK_FRAG => {
-                                NackFragSubmessage::try_from_bytes(&submessage_header, &mut v)
-                                    .map(RtpsSubmessageReadKind::NackFrag)
-                            }
-                            PAD => PadSubmessage::try_from_bytes(&submessage_header, &mut v)
+                            NACK_FRAG => NackFragSubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::NackFrag),
+                            PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
                             _ => Err(RtpsError::new(
                                 RtpsErrorKind::InvalidData,

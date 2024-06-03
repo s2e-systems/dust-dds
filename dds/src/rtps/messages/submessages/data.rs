@@ -37,7 +37,7 @@ impl DataSubmessage {
                 "Submessage header length value bigger than actual data in the buffer",
             ));
         }
-        let mut slice = data.as_ref();
+        let mut slice = data;
         let endianness = submessage_header.endianness();
         let inline_qos_flag = submessage_header.flags()[1];
         let data_flag = submessage_header.flags()[2];

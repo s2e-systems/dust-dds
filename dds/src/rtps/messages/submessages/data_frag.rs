@@ -39,7 +39,7 @@ impl DataFragSubmessage {
             ));
         }
 
-        let mut slice = data.as_ref();
+        let mut slice = data;
         if data.len() >= 32 {
             let endianness = submessage_header.endianness();
             let inline_qos_flag = submessage_header.flags()[1];
