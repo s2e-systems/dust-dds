@@ -201,6 +201,23 @@ where
         Ok(())
     }
 
+    fn serialize_bytes(&mut self, v: &[u8]) -> Result<(), std::io::Error> {
+        let l = v.len();
+        if l > u32::MAX as usize {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("String too long. String size {}, maximum {}", l, u32::MAX,),
+            ))
+        } else {
+            self.serialize_u32(l as u32)?;
+            self.writer.write_all(v)
+        }
+    }
+
+    fn serialize_byte_array<const N: usize>(&mut self, v: &[u8; N]) -> Result<(), std::io::Error> {
+        self.writer.write_all(v)
+    }
+
     fn serialize_unit(&mut self) -> Result<(), std::io::Error> {
         Ok(())
     }

@@ -50,6 +50,12 @@ pub trait CdrSerializer {
         v: &[impl CdrSerialize; N],
     ) -> Result<(), std::io::Error>;
 
+    /// Serialize a variable sized sequence of bytes.
+    fn serialize_bytes(&mut self, v: &[u8]) -> Result<(), std::io::Error>;
+
+    /// Serialize an array of bytes.
+    fn serialize_byte_array<const N: usize>(&mut self, v: &[u8; N]) -> Result<(), std::io::Error>;
+
     /// Serialize a unit value.
     fn serialize_unit(&mut self) -> Result<(), std::io::Error>;
 }
