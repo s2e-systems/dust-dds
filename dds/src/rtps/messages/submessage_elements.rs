@@ -230,7 +230,7 @@ impl Parameter {
     }
 
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
-        let mut slice = data.as_ref();
+        let mut slice = *data;
         let len = slice.len();
         if len < 4 {
             return Err(RtpsError::new(
