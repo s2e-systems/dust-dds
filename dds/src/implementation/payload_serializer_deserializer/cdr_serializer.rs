@@ -210,11 +210,13 @@ where
             ))
         } else {
             self.serialize_u32(l as u32)?;
+            self.add_pos(l);
             self.writer.write_all(v)
         }
     }
 
     fn serialize_byte_array<const N: usize>(&mut self, v: &[u8; N]) -> Result<(), std::io::Error> {
+        self.add_pos(N);
         self.writer.write_all(v)
     }
 
@@ -696,6 +698,30 @@ mod tests {
                 0x47, 0x4f, 0x4f, 0x44, 0x42, 0x59, 0x45, 0x00,
             ]
         );
+    }
+
+    #[test]
+    fn serialize_byte_sequence() {
+        let v = vec![1u8, 2, 3, 4, 5];
+        let mut writer = Vec::new();
+        let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        serializer.serialize_bytes(&v).unwrap();
+        assert_eq!(
+            writer,
+            vec![
+                0x00, 0x00, 0x00, 0x05, //
+                0x01, 0x02, 0x03, 0x04, 0x05
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_byte_array() {
+        let v = [1u8, 2, 3, 4, 5];
+        let mut writer = Vec::new();
+        let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
+        serializer.serialize_byte_array(&v).unwrap();
+        assert_eq!(writer, vec![0x01, 0x02, 0x03, 0x04, 0x05]);
     }
 
     #[test]
