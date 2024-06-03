@@ -7,11 +7,7 @@ use super::{
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     types::ParameterId,
 };
-use std::{
-    io::BufRead,
-    ops::{Index, Range, RangeFrom, RangeTo},
-    sync::Arc,
-};
+use std::{io::BufRead, sync::Arc};
 ///
 /// This files shall only contain the types as listed in the DDS-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -210,11 +206,11 @@ impl WriteIntoBytes for LocatorList {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
     parameter_id: ParameterId,
-    value: ArcSlice,
+    value: Arc<[u8]>,
 }
 
 impl Parameter {
-    pub fn new(parameter_id: ParameterId, value: ArcSlice) -> Self {
+    pub fn new(parameter_id: ParameterId, value: Arc<[u8]>) -> Self {
         Self {
             parameter_id,
             value,
@@ -254,7 +250,7 @@ impl Parameter {
             ));
         }
         let value = if parameter_id == PID_SENTINEL {
-            ArcSlice::empty()
+            Arc::new([])
         } else {
             if data.len() < length as usize {
                 return Err(RtpsError::new(
@@ -262,7 +258,7 @@ impl Parameter {
                     "Available data for parameter less than length",
                 ));
             }
-            let value = ArcSlice::from(&data[0..length as usize]);
+            let value: Arc<[u8]> = Arc::from(&data[0..length as usize]);
             if length as usize > value.len() {
                 return Err(RtpsError::new(
                     RtpsErrorKind::InvalidData,
@@ -337,118 +333,11 @@ impl WriteIntoBytes for ParameterList {
     }
 }
 
-#[derive(Eq, Clone)]
-pub struct ArcSlice {
-    data: Arc<[u8]>,
-    range: Range<usize>,
-}
-
-impl std::fmt::Debug for ArcSlice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_ref().fmt(f)
-    }
-}
-
-impl ArcSlice {
-    pub fn new(data: Arc<[u8]>, range: Range<usize>) -> Self {
-        Self { data, range }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            data: Arc::new([]),
-            range: Default::default(),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.range.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.range.len() == 0
-    }
-
-    pub fn sub_slice(&self, range: Range<usize>) -> RtpsResult<ArcSlice> {
-        if self.data.len() >= self.range.start + range.end {
-            Ok(ArcSlice {
-                data: self.data.clone(),
-                range: range.start + self.range.start..self.range.start + range.end,
-            })
-        } else {
-            Err(RtpsError::new(RtpsErrorKind::NotEnoughData, "ArcSlice"))
-        }
-    }
-
-    pub fn consume(&mut self, amt: usize) -> RtpsResult<()> {
-        if self.range.start + amt > self.range.end {
-            Err(RtpsError::new(
-                RtpsErrorKind::NotEnoughData,
-                "Consuming more data than available on slice",
-            ))
-        } else {
-            self.range.start += amt;
-            Ok(())
-        }
-    }
-}
-
-impl PartialEq for ArcSlice {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_ref() == other.as_ref()
-    }
-}
-
-impl AsRef<[u8]> for ArcSlice {
-    fn as_ref(&self) -> &[u8] {
-        &self.data[self.range.clone()]
-    }
-}
-
-impl Index<Range<usize>> for ArcSlice {
-    type Output = [u8];
-    fn index(&self, index: Range<usize>) -> &Self::Output {
-        &self.data[self.range.clone()][index]
-    }
-}
-impl Index<RangeFrom<usize>> for ArcSlice {
-    type Output = [u8];
-    fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
-        &self.data[self.range.clone()][index]
-    }
-}
-impl Index<RangeTo<usize>> for ArcSlice {
-    type Output = [u8];
-    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
-        &self.data[self.range.clone()][index]
-    }
-}
-
-impl From<&[u8]> for ArcSlice {
-    fn from(data: &[u8]) -> Self {
-        let range = 0..data.len();
-        Self {
-            data: data.into(),
-            range,
-        }
-    }
-}
-
-impl From<Vec<u8>> for ArcSlice {
-    fn from(value: Vec<u8>) -> Self {
-        let range = 0..value.len();
-        Self {
-            data: value.into(),
-            range,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Data(ArcSlice);
+pub struct Data(Arc<[u8]>);
 
 impl Data {
-    pub fn new(data: ArcSlice) -> Self {
+    pub fn new(data: Arc<[u8]>) -> Self {
         Self(data)
     }
 
@@ -461,7 +350,7 @@ impl Data {
     }
 
     pub fn empty() -> Self {
-        Self(ArcSlice::empty())
+        Self(Arc::new([]))
     }
 }
 
@@ -490,15 +379,6 @@ mod tests {
         messages::{overall_structure::write_into_bytes_vec, types::Count},
         types::{GuidPrefix, ProtocolVersion, VendorId},
     };
-
-    #[test]
-    fn arc_slice_sub_slice() {
-        let data = ArcSlice::from([0, 1, 2, 3, 4, 5].as_slice());
-        let sub_data = data.sub_slice(1..5).unwrap();
-        assert_eq!(&sub_data[0..], &[1, 2, 3, 4]);
-        let sub_sub_data = sub_data.sub_slice(1..3).unwrap();
-        assert_eq!(&sub_sub_data[0..], &[2, 3]);
-    }
 
     #[test]
     fn sequence_number_set_methods() {

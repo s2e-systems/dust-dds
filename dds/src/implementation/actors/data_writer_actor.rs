@@ -34,7 +34,7 @@ use crate::{
     },
     rtps::{
         messages::{
-            submessage_elements::{ArcSlice, Parameter, ParameterList, SequenceNumberSet},
+            submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
             submessages::{
                 ack_nack::AckNackSubmessage, gap::GapSubmessage,
                 info_destination::InfoDestinationSubmessage,
@@ -53,7 +53,10 @@ use crate::{
     serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
@@ -913,7 +916,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            ArcSlice::from(serialized_status_info),
+            Arc::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -984,7 +987,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
 
         let inline_qos = ParameterList::new(vec![Parameter::new(
             PID_STATUS_INFO,
-            ArcSlice::from(serialized_status_info),
+            Arc::from(serialized_status_info),
         )]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
