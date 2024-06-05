@@ -74,6 +74,8 @@ use std::{
 };
 use tracing::{info, warn};
 
+const MAX_DATAGRAM_SIZE: usize = 65507;
+
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -541,7 +543,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant_clone = participant.clone();
         let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
         message.runtime_handle.spawn(async move {
-            let mut buf = Box::new([0; 65507]);
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
                 if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = participant_address_clone
@@ -582,7 +584,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 DdsError::Error("Failed to open metattrafic unicast socket".to_string())
             })?;
         message.runtime_handle.spawn(async move {
-            let mut buf = Box::new([0; 65507]);
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
                 if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = process_metatraffic_rtps_message(
@@ -622,7 +624,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             interface_address_list,
         )?;
         message.runtime_handle.spawn(async move {
-            let mut buf = Box::new([0; 65507]);
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
                 if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = process_metatraffic_rtps_message(
