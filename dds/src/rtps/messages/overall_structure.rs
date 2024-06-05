@@ -25,8 +25,6 @@ use std::{
     sync::Arc,
 };
 
-const BUFFER_SIZE: usize = 65000;
-
 pub enum Endianness {
     BigEndian,
     LittleEndian,
