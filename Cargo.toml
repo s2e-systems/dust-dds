@@ -8,6 +8,7 @@ members = [
     "shapes_demo",
     "shapes_demo/android",
     "telescope",
+    "fuzz",
 ]
 default-members = ["dds", "dds_derive", "dds_gen"]
 resolver = "2"

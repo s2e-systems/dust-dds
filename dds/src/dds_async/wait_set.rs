@@ -51,6 +51,8 @@ impl WaitSetAsync {
                 if finished {
                     return Ok(trigger_conditions);
                 }
+
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
             }
         })
         .await

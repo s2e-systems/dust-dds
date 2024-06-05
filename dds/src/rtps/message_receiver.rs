@@ -59,11 +59,12 @@ impl Iterator for MessageReceiver {
 }
 
 impl MessageReceiver {
-    pub fn new(message: &RtpsMessageRead) -> Self {
+    pub fn new(message: RtpsMessageRead) -> Self {
+        let header = message.header();
         Self {
-            source_version: message.header().version(),
-            source_vendor_id: message.header().vendor_id(),
-            source_guid_prefix: message.header().guid_prefix(),
+            source_version: header.version(),
+            source_vendor_id: header.vendor_id(),
+            source_guid_prefix: header.guid_prefix(),
             dest_guid_prefix: GUIDPREFIX_UNKNOWN,
             _unicast_reply_locator_list: Vec::new(),
             _multicast_reply_locator_list: Vec::new(),

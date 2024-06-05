@@ -5,11 +5,12 @@ use super::super::super::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
             WriteIntoBytes,
         },
-        submessage_elements::{ArcSlice, Data, ParameterList},
+        submessage_elements::{Data, ParameterList},
         types::{FragmentNumber, SubmessageFlag, SubmessageKind},
     },
     types::{EntityId, SequenceNumber},
 };
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessage {
@@ -28,11 +29,18 @@ pub struct DataFragSubmessage {
 }
 
 impl DataFragSubmessage {
-    pub fn try_from_arc_slice(
+    pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: ArcSlice,
+        data: &[u8],
     ) -> RtpsResult<Self> {
-        let mut slice = data.as_ref();
+        if submessage_header.submessage_length() as usize > data.len() {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Submessage header length value bigger than actual data in the buffer",
+            ));
+        }
+
+        let mut slice = data;
         if data.len() >= 32 {
             let endianness = submessage_header.endianness();
             let inline_qos_flag = submessage_header.flags()[1];
@@ -51,18 +59,22 @@ impl DataFragSubmessage {
             let fragment_size = u16::try_read_from_bytes(&mut slice, endianness)?;
             let data_size = u32::try_read_from_bytes(&mut slice, endianness)?;
 
-            let mut data_starting_at_inline_qos = data
-                .sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
+            if octets_to_inline_qos > submessage_header.submessage_length() as usize {
+                return Err(RtpsError::new(
+                    RtpsErrorKind::InvalidData,
+                    "Invalid octets to inline qos",
+                ));
+            }
+
+            let mut data_starting_at_inline_qos =
+                &data[octets_to_inline_qos..submessage_header.submessage_length() as usize];
 
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_read_from_arc_slice(
-                    &mut data_starting_at_inline_qos,
-                    endianness,
-                )?
+                ParameterList::try_read_from_bytes(&mut data_starting_at_inline_qos, endianness)?
             } else {
                 ParameterList::empty()
             };
-            let serialized_payload = Data::new(data_starting_at_inline_qos);
+            let serialized_payload = Data::new(data_starting_at_inline_qos.into());
 
             Ok(Self {
                 inline_qos_flag,
@@ -169,7 +181,7 @@ impl DataFragSubmessage {
 }
 
 impl Submessage for DataFragSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
             &[
@@ -179,10 +191,10 @@ impl Submessage for DataFragSubmessage {
             ],
             octets_to_next_header,
         )
-        .write_into_bytes(&mut buf)
+        .write_into_bytes(buf);
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 28;
         EXTRA_FLAGS.write_into_bytes(buf);
@@ -205,7 +217,9 @@ impl Submessage for DataFragSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::{overall_structure::write_into_bytes_vec, submessage_elements::Parameter},
+        messages::{
+            overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
+        },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -228,7 +242,7 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x16_u8, 0b_0000_0001, 32, 0, // Submessage header
                 0, 0, 28, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -261,7 +275,7 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
                 0, 0, 28, 0, // extraFlags | octetsToInlineQos
                 1, 2, 3, 4, // readerId
@@ -294,9 +308,7 @@ mod tests {
             4, 0, 0, 0, // sampleSize
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            DataFragSubmessage::try_from_arc_slice(&submessage_header, ArcSlice::from(data))
-                .unwrap();
+        let submessage = DataFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
@@ -357,7 +369,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            DataFragSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+            DataFragSubmessage::try_from_bytes(&submessage_header, data.into()).unwrap();
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;
@@ -397,5 +409,17 @@ mod tests {
             &expected_serialized_payload,
             submessage.serialized_payload()
         );
+    }
+
+    #[test]
+    fn fuzz_test_input_1() {
+        let mut data = &[
+            159, 10, 0, 0, 0, 0, 247, 0, 0, 0, 0, 199, 199, 199, 199, 199, 199, 199, 199, 199, 199,
+            199, 199, 199, 199, 199, 199, 10, 0, 0, 0, 0, 0, 37, 159, 31, 36, 93, 159, 159, 159,
+            10,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataFragSubmessage::try_from_bytes(&submessage_header, data.into());
     }
 }

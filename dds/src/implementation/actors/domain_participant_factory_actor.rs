@@ -1,6 +1,9 @@
 use super::{
-    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
-    domain_participant_actor::FooTypeSupport, message_sender_actor::MessageSenderActor,
+    data_reader_actor::DataReaderActor,
+    data_writer_actor::DataWriterActor,
+    domain_participant_actor::{self, FooTypeSupport},
+    message_sender_actor::MessageSenderActor,
+    subscriber_actor,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -17,7 +20,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -59,7 +62,6 @@ use crate::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
     },
 };
-use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
@@ -71,6 +73,8 @@ use std::{
     },
 };
 use tracing::{info, warn};
+
+const MAX_DATAGRAM_SIZE: usize = 65507;
 
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
@@ -102,9 +106,12 @@ impl DomainParticipantFactoryActor {
                     true
                 }
             })
-            .flat_map(|i| i.addr.into_iter().filter(|a| matches!(a, Addr::V4(_))))
+            .flat_map(|i| {
+                i.addr
+                    .into_iter()
+                    .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
+            })
             .next();
-
         let host_id = if let Some(interface) = interface_address {
             match interface.ip() {
                 IpAddr::V4(a) => a.octets(),
@@ -376,28 +383,31 @@ impl DomainParticipantFactoryActor {
     }
 }
 
-pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsMessageRead> {
-    let mut buf = vec![0; 65507];
-    let (bytes, _) = socket.recv_from(&mut buf).await?;
-    buf.truncate(bytes);
+pub async fn read_message(
+    socket: &mut tokio::net::UdpSocket,
+    buf: &mut [u8],
+) -> DdsResult<RtpsMessageRead> {
+    let (bytes, _) = socket.recv_from(buf).await?;
     if bytes > 0 {
-        Ok(RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()))?)
+        Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
     } else {
         Err(DdsError::NoData)
     }
 }
 
-#[actor_interface]
-impl DomainParticipantFactoryActor {
-    async fn create_participant(
-        &mut self,
-        domain_id: DomainId,
-        qos: QosKind<DomainParticipantQos>,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
-        status_kind: Vec<StatusKind>,
-        runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<ActorAddress<DomainParticipantActor>> {
-        let domain_participant_qos = match qos {
+pub struct CreateParticipant {
+    pub domain_id: DomainId,
+    pub qos: QosKind<DomainParticipantQos>,
+    pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+    pub status_kind: Vec<StatusKind>,
+    pub runtime_handle: tokio::runtime::Handle,
+}
+impl Mail for CreateParticipant {
+    type Result = DdsResult<ActorAddress<DomainParticipantActor>>;
+}
+impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
+        let domain_participant_qos = match message.qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
         };
@@ -419,52 +429,66 @@ impl DomainParticipantFactoryActor {
         );
         let participant_guid = rtps_participant.guid();
 
-        let topic_list = self.create_builtin_topics(guid_prefix, &runtime_handle);
-        let builtin_data_writer_list =
-            self.create_builtin_writers(guid_prefix, domain_id, &topic_list, &runtime_handle);
+        let topic_list = self.create_builtin_topics(guid_prefix, &message.runtime_handle);
+        let builtin_data_writer_list = self.create_builtin_writers(
+            guid_prefix,
+            message.domain_id,
+            &topic_list,
+            &message.runtime_handle,
+        );
         let builtin_data_reader_list =
-            self.create_builtin_readers(guid_prefix, &topic_list, &runtime_handle);
+            self.create_builtin_readers(guid_prefix, &topic_list, &message.runtime_handle);
 
         let domain_participant = DomainParticipantActor::new(
             rtps_participant,
-            domain_id,
+            message.domain_id,
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
             self.configuration.fragment_size(),
-            listener,
-            status_kind,
+            message.listener,
+            message.status_kind,
             topic_list,
             builtin_data_writer_list,
             builtin_data_reader_list,
             message_sender_actor,
-            &runtime_handle,
+            &message.runtime_handle,
         );
-
-        let status_condition = domain_participant.get_statuscondition();
-        let builtin_subscriber = domain_participant.get_built_in_subscriber();
-        let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_statuscondition().await?;
 
         let participant_actor = Actor::spawn(
             domain_participant,
-            &runtime_handle,
+            &message.runtime_handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
+        let status_condition = participant_actor
+            .send_actor_mail(domain_participant_actor::GetStatuscondition)
+            .await
+            .receive_reply()
+            .await;
+        let builtin_subscriber = participant_actor
+            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+            .await
+            .receive_reply()
+            .await;
+        let builtin_subscriber_status_condition_address = builtin_subscriber
+            .send_actor_mail(subscriber_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
 
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
             status_condition.clone(),
             builtin_subscriber,
             builtin_subscriber_status_condition_address,
-            domain_id,
-            runtime_handle.clone(),
+            message.domain_id,
+            message.runtime_handle.clone(),
         );
 
         // Start the regular participant announcement task
         let participant_clone = participant.clone();
         let mut interval =
             tokio::time::interval(self.configuration.participant_announcement_interval());
-        runtime_handle.spawn(async move {
+        message.runtime_handle.spawn(async move {
             loop {
                 interval.tick().await;
 
@@ -489,7 +513,7 @@ impl DomainParticipantFactoryActor {
             .flat_map(|i| {
                 i.addr.into_iter().filter(|a| match a {
                     #[rustfmt::skip]
-                Addr::V4(_) => true,
+                    Addr::V4(_) => true,
                     _ => false,
                 })
             });
@@ -508,17 +532,25 @@ impl DomainParticipantFactoryActor {
             .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
         participant_actor
-            .set_default_unicast_locator_list(default_unicast_locator_list)
-            .await?;
+            .send_actor_mail(domain_participant_actor::SetDefaultUnicastLocatorList {
+                list: default_unicast_locator_list,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
         let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
-        runtime_handle.spawn(async move {
+        message.runtime_handle.spawn(async move {
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = participant_address_clone
-                        .process_user_defined_rtps_message(message, participant_clone.clone())
+                        .send_actor_mail(domain_participant_actor::ProcessUserDefinedRtpsMessage {
+                            rtps_message: message,
+                            participant: participant_clone.clone(),
+                        })
                         .await;
                     if r.is_err() {
                         break;
@@ -538,8 +570,12 @@ impl DomainParticipantFactoryActor {
             .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
             .collect();
         participant_actor
-            .set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list)
-            .await?;
+            .send_actor_mail(domain_participant_actor::SetMetatrafficUnicastLocatorList {
+                list: metatraffic_unicast_locator_list,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -547,9 +583,10 @@ impl DomainParticipantFactoryActor {
             tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
                 DdsError::Error("Failed to open metattrafic unicast socket".to_string())
             })?;
-        runtime_handle.spawn(async move {
+        message.runtime_handle.spawn(async move {
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = process_metatraffic_rtps_message(
                         participant_address_clone.clone(),
                         message,
@@ -566,23 +603,30 @@ impl DomainParticipantFactoryActor {
         // Open socket for multicast metatraffic data
         let metatraffic_multicast_locator_list = vec![Locator::new(
             LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id) as u32,
+            port_builtin_multicast(message.domain_id) as u32,
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
         participant_actor
-            .set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list)
-            .await?;
+            .send_actor_mail(
+                domain_participant_actor::SetMetatrafficMulticastLocatorList {
+                    list: metatraffic_multicast_locator_list,
+                },
+            )
+            .await
+            .receive_reply()
+            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
         let mut socket = get_multicast_socket(
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            port_builtin_multicast(domain_id),
+            port_builtin_multicast(message.domain_id),
             interface_address_list,
         )?;
-        runtime_handle.spawn(async move {
+        message.runtime_handle.spawn(async move {
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = process_metatraffic_rtps_message(
                         participant_address_clone.clone(),
                         message,
@@ -603,14 +647,23 @@ impl DomainParticipantFactoryActor {
         );
         Ok(participant_address)
     }
+}
 
-    async fn delete_participant(
-        &mut self,
-        handle: InstanceHandle,
-    ) -> DdsResult<Actor<DomainParticipantActor>> {
-        let is_participant_empty = self.domain_participant_list[&handle].is_empty().await?;
+pub struct DeleteParticipant {
+    pub handle: InstanceHandle,
+}
+impl Mail for DeleteParticipant {
+    type Result = DdsResult<Actor<DomainParticipantActor>>;
+}
+impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
+        let is_participant_empty = self.domain_participant_list[&message.handle]
+            .send_actor_mail(domain_participant_actor::IsEmpty)
+            .await
+            .receive_reply()
+            .await;
         if is_participant_empty {
-            if let Some(d) = self.domain_participant_list.remove(&handle) {
+            if let Some(d) = self.domain_participant_list.remove(&message.handle) {
                 Ok(d)
             } else {
                 Err(DdsError::PreconditionNotMet(
@@ -624,22 +677,44 @@ impl DomainParticipantFactoryActor {
             ))
         }
     }
+}
 
-    async fn lookup_participant(
-        &self,
-        domain_id: DomainId,
-    ) -> DdsResult<Option<ActorAddress<DomainParticipantActor>>> {
+pub struct LookupParticipant {
+    pub domain_id: DomainId,
+}
+impl Mail for LookupParticipant {
+    type Result = DdsResult<Option<ActorAddress<DomainParticipantActor>>>;
+}
+impl MailHandler<LookupParticipant> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Mail>::Result {
         for dp in self.domain_participant_list.values() {
-            if dp.get_domain_id().await? == domain_id {
+            if dp
+                .send_actor_mail(domain_participant_actor::GetDomainId)
+                .await
+                .receive_reply()
+                .await
+                == message.domain_id
+            {
                 return Ok(Some(dp.address()));
             }
         }
 
         Ok(None)
     }
+}
 
-    fn set_default_participant_qos(&mut self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        let qos = match qos {
+pub struct SetDefaultParticipantQos {
+    pub qos: QosKind<DomainParticipantQos>,
+}
+impl Mail for SetDefaultParticipantQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultParticipantQos> for DomainParticipantFactoryActor {
+    async fn handle(
+        &mut self,
+        message: SetDefaultParticipantQos,
+    ) -> <SetDefaultParticipantQos as Mail>::Result {
+        let qos = match message.qos {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
         };
@@ -648,13 +723,30 @@ impl DomainParticipantFactoryActor {
 
         Ok(())
     }
+}
 
-    fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        Ok(self.default_participant_qos.clone())
+pub struct GetDefaultParticipantQos;
+impl Mail for GetDefaultParticipantQos {
+    type Result = DomainParticipantQos;
+}
+impl MailHandler<GetDefaultParticipantQos> for DomainParticipantFactoryActor {
+    async fn handle(
+        &mut self,
+        _: GetDefaultParticipantQos,
+    ) -> <GetDefaultParticipantQos as Mail>::Result {
+        self.default_participant_qos.clone()
     }
+}
 
-    fn set_qos(&mut self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        let qos = match qos {
+pub struct SetQos {
+    pub qos: QosKind<DomainParticipantFactoryQos>,
+}
+impl Mail for SetQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetQos> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        let qos = match message.qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
         };
@@ -663,18 +755,37 @@ impl DomainParticipantFactoryActor {
 
         Ok(())
     }
+}
 
-    fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        Ok(self.qos.clone())
+pub struct GetQos;
+impl Mail for GetQos {
+    type Result = DomainParticipantFactoryQos;
+}
+impl MailHandler<GetQos> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+        self.qos.clone()
     }
+}
 
-    fn set_configuration(&mut self, configuration: DustDdsConfiguration) -> DdsResult<()> {
-        self.configuration = configuration;
-        Ok(())
+pub struct SetConfiguration {
+    pub configuration: DustDdsConfiguration,
+}
+impl Mail for SetConfiguration {
+    type Result = ();
+}
+impl MailHandler<SetConfiguration> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, message: SetConfiguration) -> <SetConfiguration as Mail>::Result {
+        self.configuration = message.configuration;
     }
+}
 
-    fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
-        Ok(self.configuration.clone())
+pub struct GetConfiguration;
+impl Mail for GetConfiguration {
+    type Result = DustDdsConfiguration;
+}
+impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
+        self.configuration.clone()
     }
 }
 
@@ -687,6 +798,10 @@ const PB: i32 = 7400;
 const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
+const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
+const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
+const DEFAULT_NACK_SUPPRESSION_DURATION: Duration =
+    Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
 
 fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + d0) as u16
@@ -779,11 +894,6 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
-    const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
-    const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-    const DEFAULT_NACK_SUPPRESSION_DURATION: Duration =
-        Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
-
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
     let topic_kind = TopicKind::WithKey;
@@ -809,6 +919,9 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
 }
 
 fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
+    let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
+    let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY.into();
+    let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION.into();
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
@@ -820,9 +933,9 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
             multicast_locator_list,
         ),
         true,
-        DURATION_ZERO,
-        DURATION_ZERO,
-        DURATION_ZERO,
+        heartbeat_period,
+        nack_response_delay,
+        nack_suppression_duration,
         usize::MAX,
     )
 }
@@ -871,8 +984,13 @@ async fn process_metatraffic_rtps_message(
     participant: &DomainParticipantAsync,
 ) -> DdsResult<()> {
     participant_actor
-        .process_metatraffic_rtps_message(message, participant.clone())
-        .await??;
+        .send_actor_mail(domain_participant_actor::ProcessMetatrafficRtpsMessage {
+            rtps_message: message,
+            participant: participant.clone(),
+        })
+        .await?
+        .receive_reply()
+        .await?;
 
     let builtin_subscriber = participant.get_builtin_subscriber();
 
@@ -896,24 +1014,34 @@ async fn process_metatraffic_rtps_message(
                             discovered_participant_sample.data()
                         {
                             participant_actor
-                                .add_discovered_participant(
-                                    discovered_participant_data,
-                                    participant.clone(),
+                                .send_actor_mail(
+                                    domain_participant_actor::AddDiscoveredParticipant {
+                                        discovered_participant_data,
+                                        participant: participant.clone(),
+                                    },
                                 )
-                                .await??;
+                                .await?
+                                .receive_reply()
+                                .await?;
                         }
                     }
                     InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
                         participant_actor
-                            .remove_discovered_participant(
-                                discovered_participant_sample.sample_info().instance_handle,
+                            .send_actor_mail(
+                                domain_participant_actor::RemoveDiscoveredParticipant {
+                                    handle: discovered_participant_sample
+                                        .sample_info()
+                                        .instance_handle,
+                                },
                             )
                             .await?
+                            .receive_reply()
+                            .await;
                     }
                 }
             }
         }
     }
 
-    participant_actor.send_message().await
+    Ok(())
 }

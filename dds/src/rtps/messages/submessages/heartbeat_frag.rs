@@ -9,8 +9,9 @@ use super::super::super::{
     },
     types::{EntityId, SequenceNumber},
 };
+use std::io::Write;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HeartbeatFragSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
@@ -74,12 +75,12 @@ impl HeartbeatFragSubmessage {
 }
 
 impl Submessage for HeartbeatFragSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::HEARTBEAT_FRAG, &[], octets_to_next_header)
-            .write_into_bytes(&mut buf);
+            .write_into_bytes(buf);
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
         self.writer_sn.write_into_bytes(buf);
@@ -92,7 +93,7 @@ impl Submessage for HeartbeatFragSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::overall_structure::write_into_bytes_vec,
+        messages::overall_structure::write_submessage_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -106,7 +107,7 @@ mod tests {
             2,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x13_u8, 0b_0000_0001, 24, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]

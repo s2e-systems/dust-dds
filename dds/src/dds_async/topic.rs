@@ -5,8 +5,9 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            domain_participant_actor::DomainParticipantActor,
-            status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
+            domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
+            topic_actor::{self, TopicActor},
         },
     },
     infrastructure::{
@@ -67,7 +68,12 @@ impl TopicAsync {
             .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
             .await?
         {
-            let discovered_topic_data = self.topic_address.as_discovered_topic_data().await?;
+            let discovered_topic_data = self
+                .topic_address
+                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
+                .await?
+                .receive_reply()
+                .await;
             sedp_topics_announcer
                 .write(&discovered_topic_data, None)
                 .await?;
@@ -80,7 +86,12 @@ impl TopicAsync {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.topic_address.get_inconsistent_topic_status().await?
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetInconsistentTopicStatus)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -109,13 +120,29 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            QosKind::Default => self.participant_address().get_default_topic_qos().await?,
+            QosKind::Default => {
+                self.participant_address()
+                    .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)
+                    .await?
+                    .receive_reply()
+                    .await
+            }
             QosKind::Specific(q) => q,
         };
 
-        self.topic_address.set_qos(qos).await??;
+        self.topic_address
+            .send_actor_mail(topic_actor::SetQos { qos })
+            .await?
+            .receive_reply()
+            .await?;
 
-        if self.topic_address.is_enabled().await? {
+        if self
+            .topic_address
+            .send_actor_mail(topic_actor::IsEnabled)
+            .await?
+            .receive_reply()
+            .await
+        {
             self.announce_topic().await?;
         }
         Ok(())
@@ -124,7 +151,12 @@ impl TopicAsync {
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.topic_address.get_qos().await
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -145,8 +177,18 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self.topic_address.is_enabled().await? {
-            self.topic_address.enable().await?;
+        if !self
+            .topic_address
+            .send_actor_mail(topic_actor::IsEnabled)
+            .await?
+            .receive_reply()
+            .await
+        {
+            self.topic_address
+                .send_actor_mail(topic_actor::Enable)
+                .await?
+                .receive_reply()
+                .await;
             self.announce_topic().await?;
         }
 
@@ -156,7 +198,12 @@ impl TopicAsync {
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.topic_address.get_instance_handle().await
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetInstanceHandle)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`set_listener`](crate::topic_definition::topic::Topic::set_listener).

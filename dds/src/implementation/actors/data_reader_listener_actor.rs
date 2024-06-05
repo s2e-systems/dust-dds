@@ -1,8 +1,6 @@
-use dust_dds_derive::actor_interface;
-
 use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
-    implementation::actor::ActorAddress,
+    implementation::actor::{ActorAddress, Mail, MailHandler},
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -25,32 +23,37 @@ impl DataReaderListenerActor {
 }
 
 pub enum DataReaderListenerOperation {
-    OnDataAvailable,
-    OnSampleRejected(SampleRejectedStatus),
-    _OnLivelinessChanged(LivelinessChangedStatus),
-    OnRequestedDeadlineMissed(RequestedDeadlineMissedStatus),
-    OnRequestedIncompatibleQos(RequestedIncompatibleQosStatus),
-    OnSubscriptionMatched(SubscriptionMatchedStatus),
-    OnSampleLost(SampleLostStatus),
+    DataAvailable,
+    SampleRejected(SampleRejectedStatus),
+    _LivelinessChanged(LivelinessChangedStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
 }
 
-#[actor_interface]
-impl DataReaderListenerActor {
-    async fn call_listener_function(
+pub struct CallListenerFunction {
+    pub listener_operation: DataReaderListenerOperation,
+    pub reader_address: ActorAddress<DataReaderActor>,
+    pub status_condition_address: ActorAddress<StatusConditionActor>,
+    pub subscriber: SubscriberAsync,
+    pub topic: TopicAsync,
+}
+impl Mail for CallListenerFunction {
+    type Result = ();
+}
+impl MailHandler<CallListenerFunction> for DataReaderListenerActor {
+    async fn handle(
         &mut self,
-        listener_operation: DataReaderListenerOperation,
-        reader_address: ActorAddress<DataReaderActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        subscriber: SubscriberAsync,
-        topic: TopicAsync,
-    ) {
+        message: CallListenerFunction,
+    ) -> <CallListenerFunction as Mail>::Result {
         if let Some(l) = &mut self.listener {
             l.call_listener_function(
-                listener_operation,
-                reader_address,
-                status_condition_address,
-                subscriber,
-                topic,
+                message.listener_operation,
+                message.reader_address,
+                message.status_condition_address,
+                message.subscriber,
+                message.topic,
             )
             .await
         }

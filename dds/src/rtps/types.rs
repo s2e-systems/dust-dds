@@ -4,7 +4,10 @@ use super::{
 };
 use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
 use network_interface::Addr;
-use std::{io::Read, net::IpAddr};
+use std::{
+    io::{Read, Write},
+    net::IpAddr,
+};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -16,58 +19,44 @@ pub type Long = i32;
 pub type UnsignedLong = u32;
 
 impl WriteIntoBytes for Octet {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(1);
-        a[0] = *self;
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(&[*self]).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for Long {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(4);
-        a.copy_from_slice(self.to_le_bytes().as_slice());
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for UnsignedLong {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(4);
-        a.copy_from_slice(self.to_le_bytes().as_slice());
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for u16 {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(2);
-        a.copy_from_slice(self.to_le_bytes().as_slice());
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for i16 {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(2);
-        a.copy_from_slice(self.to_le_bytes().as_slice());
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
     }
 }
 
 impl<const N: usize> WriteIntoBytes for [Octet; N] {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(N);
-        a.copy_from_slice(self);
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for &[u8] {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (a, b) = std::mem::take(buf).split_at_mut(self.len());
-        a.copy_from_slice(self);
-        *buf = b;
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        buf.write_all(self).expect("buffer big enough");
     }
 }
 
@@ -201,7 +190,7 @@ pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOW
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
 impl WriteIntoBytes for EntityId {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.entity_key().write_into_bytes(buf);
         self.entity_kind().write_into_bytes(buf);
     }
@@ -245,7 +234,7 @@ impl TryReadFromBytes for SequenceNumber {
 }
 
 impl WriteIntoBytes for SequenceNumber {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         let high = (*self >> 32) as Long;
         let low = *self as UnsignedLong;
         high.write_into_bytes(buf);
@@ -265,7 +254,7 @@ pub struct Locator {
 }
 
 impl WriteIntoBytes for Locator {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.kind.write_into_bytes(buf);
         self.port.write_into_bytes(buf);
         self.address.write_into_bytes(buf);
@@ -413,7 +402,7 @@ impl TryReadFromBytes for ProtocolVersion {
 }
 
 impl WriteIntoBytes for ProtocolVersion {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.bytes.write_into_bytes(buf);
     }
 }

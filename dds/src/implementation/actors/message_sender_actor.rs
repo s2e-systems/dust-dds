@@ -1,11 +1,14 @@
-use dust_dds_derive::actor_interface;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs};
 
-use crate::rtps::{
-    messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
-    types::{
-        GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6,
+use crate::{
+    implementation::actor::{Mail, MailHandler},
+    rtps::{
+        messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
+        types::{
+            GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_KIND_UDP_V4,
+            LOCATOR_KIND_UDP_V6,
+        },
     },
 };
 
@@ -32,19 +35,21 @@ impl MessageSenderActor {
     }
 }
 
-#[actor_interface]
-impl MessageSenderActor {
-    pub fn write(
-        &self,
-        submessages: Vec<Box<dyn Submessage + Send>>,
-        destination_locator_list: Vec<Locator>,
-    ) {
+pub struct WriteMessage {
+    pub submessages: Vec<Box<dyn Submessage + Send>>,
+    pub destination_locator_list: Vec<Locator>,
+}
+impl Mail for WriteMessage {
+    type Result = ();
+}
+impl MailHandler<WriteMessage> for MessageSenderActor {
+    async fn handle(&mut self, message: WriteMessage) -> <WriteMessage as Mail>::Result {
         let header =
             RtpsMessageHeader::new(self.protocol_version, self.vendor_id, self.guid_prefix);
-        let message = RtpsMessageWrite::new(&header, &submessages);
-        let buf = message.buffer();
+        let rtpmessage = RtpsMessageWrite::new(&header, &message.submessages);
+        let buf = rtpmessage.buffer();
 
-        for destination_locator in destination_locator_list {
+        for destination_locator in message.destination_locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
                 let interface_addresses = NetworkInterface::show();

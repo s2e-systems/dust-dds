@@ -8,9 +8,12 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
-            domain_participant_actor::DomainParticipantActor, publisher_actor::PublisherActor,
+            any_data_writer_listener::AnyDataWriterListener,
+            data_writer_actor::{self, DataWriterActor},
+            domain_participant_actor::{self, DomainParticipantActor},
+            publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
+            topic_actor,
         },
     },
     infrastructure::{
@@ -97,20 +100,26 @@ impl<Foo> DataWriterAsync<Foo> {
             let publisher_qos = self.get_publisher().get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .get_default_unicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .get_default_multicast_locator_list()
-                .await?;
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .await?
+                .receive_reply()
+                .await;
             let discovered_writer_data = self
                 .writer_address
-                .as_discovered_writer_data(
+                .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
-                )
-                .await??;
+                })
+                .await?
+                .receive_reply()
+                .await?;
             sedp_publications_announcer
                 .write(&discovered_writer_data, None)
                 .await?;
@@ -126,7 +135,12 @@ where
     /// Async version of [`register_instance`](crate::publication::data_writer::DataWriter::register_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.register_instance_w_timestamp(instance, timestamp)
             .await
     }
@@ -148,7 +162,12 @@ where
         instance: &Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
             .await
     }
@@ -161,7 +180,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
         let has_key = type_support.has_key();
         if has_key {
             let instance_handle = match handle {
@@ -193,19 +218,31 @@ where
             instance.serialize_data(&mut serialized_foo)?;
             let instance_serialized_key =
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-            let message_sender_actor = self.participant_address().get_message_sender().await?;
-            let now = self.participant_address().get_current_time().await?;
+            let message_sender_actor = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetMessageSender)
+                .await?
+                .receive_reply()
+                .await;
+            let now = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetCurrentTime)
+                .await?
+                .receive_reply()
+                .await;
 
             self.writer_address
-                .unregister_instance_w_timestamp(
+                .send_actor_mail(data_writer_actor::UnregisterInstanceWTimestamp {
                     instance_serialized_key,
-                    instance_handle,
+                    handle: instance_handle,
                     timestamp,
                     message_sender_actor,
                     now,
-                    self.writer_address.clone(),
-                )
+                    data_writer_address: self.writer_address.clone(),
+                })
                 .await?
+                .receive_reply()
+                .await
         } else {
             Err(DdsError::IllegalOperation)
         }
@@ -224,19 +261,34 @@ where
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
 
         let mut serialized_foo = Vec::new();
         instance.serialize_data(&mut serialized_foo)?;
         let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
 
-        self.writer_address.lookup_instance(instance_handle).await?
+        self.writer_address
+            .send_actor_mail(data_writer_actor::LookupInstance { instance_handle })
+            .await?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
     #[tracing::instrument(skip(self, data))]
     pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.write_w_timestamp(data, handle, timestamp).await
     }
 
@@ -248,25 +300,43 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
 
         let mut serialized_data = Vec::new();
         data.serialize_data(&mut serialized_data)?;
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
-        let now = self.participant_address().get_current_time().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
+        let now = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.writer_address
-            .write_w_timestamp(
+            .send_actor_mail(data_writer_actor::WriteWTimestamp {
                 serialized_data,
-                key,
-                handle,
+                instance_handle: key,
+                _handle: handle,
                 timestamp,
                 message_sender_actor,
                 now,
-                self.writer_address.clone(),
-            )
-            .await??;
+                data_writer_address: self.writer_address.clone(),
+            })
+            .await?
+            .receive_reply()
+            .await?;
 
         Ok(())
     }
@@ -274,7 +344,12 @@ where
     /// Async version of [`dispose`](crate::publication::data_writer::DataWriter::dispose).
     #[tracing::instrument(skip(self, data))]
     pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self.participant_address().get_current_time().await?;
+        let timestamp = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.dispose_w_timestamp(data, handle, timestamp).await
     }
 
@@ -311,23 +386,41 @@ where
             }
         }?;
 
-        let type_support = self.topic.topic_address().get_type_support().await?;
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
 
         let mut serialized_foo = Vec::new();
         data.serialize_data(&mut serialized_foo)?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
-        let message_sender_actor = self.participant_address().get_message_sender().await?;
-        let now = self.participant_address().get_current_time().await?;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .await?
+            .receive_reply()
+            .await;
+        let now = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .await?
+            .receive_reply()
+            .await;
         self.writer_address
-            .dispose_w_timestamp(
-                key,
-                instance_handle,
+            .send_actor_mail(data_writer_actor::DisposeWTimestamp {
+                instance_serialized_key: key,
+                handle: instance_handle,
                 timestamp,
                 message_sender_actor,
                 now,
-                self.writer_address.clone(),
-            )
+                data_writer_address: self.writer_address.clone(),
+            })
             .await?
+            .receive_reply()
+            .await
     }
 }
 
@@ -337,7 +430,13 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         tokio::time::timeout(max_wait.into(), async {
             loop {
-                if self.writer_address.are_all_changes_acknowledge().await? {
+                if self
+                    .writer_address
+                    .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)
+                    .await?
+                    .receive_reply()
+                    .await
+                {
                     return Ok(());
                 }
             }
@@ -371,7 +470,12 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_publication_matched_status`](crate::publication::data_writer::DataWriter::get_publication_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.writer_address.get_publication_matched_status().await?
+        Ok(self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetPublicationMatchedStatus)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
@@ -399,15 +503,24 @@ impl<Foo> DataWriterAsync<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.writer_address
-            .get_matched_subscription_data(subscription_handle)
+            .send_actor_mail(data_writer_actor::GetMatchedSubscriptionData {
+                handle: subscription_handle,
+            })
             .await?
+            .receive_reply()
+            .await
             .ok_or(DdsError::BadParameter)
     }
 
     /// Async version of [`get_matched_subscriptions`](crate::publication::data_writer::DataWriter::get_matched_subscriptions).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.writer_address.get_matched_subscriptions().await
+        Ok(self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetMatchedSubscriptions)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 
@@ -418,14 +531,26 @@ impl<Foo> DataWriterAsync<Foo> {
         let qos = match qos {
             QosKind::Default => {
                 self.publisher_address()
-                    .get_default_datawriter_qos()
+                    .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)
                     .await?
+                    .receive_reply()
+                    .await
             }
             QosKind::Specific(q) => q,
         };
 
-        self.writer_address.set_qos(qos).await??;
-        if self.writer_address.is_enabled().await? {
+        self.writer_address
+            .send_actor_mail(data_writer_actor::SetQos { qos })
+            .await?
+            .receive_reply()
+            .await?;
+        if self
+            .writer_address
+            .send_actor_mail(data_writer_actor::IsEnabled)
+            .await?
+            .receive_reply()
+            .await
+        {
             self.announce_writer().await?;
         }
 
@@ -435,7 +560,12 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_qos`](crate::publication::data_writer::DataWriter::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        self.writer_address.get_qos().await
+        Ok(self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await)
     }
 
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
@@ -457,8 +587,27 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         let writer = self.writer_address();
-        if !writer.is_enabled().await? {
-            writer.enable().await?;
+        if !writer
+            .send_actor_mail(data_writer_actor::IsEnabled)
+            .await?
+            .receive_reply()
+            .await
+        {
+            let message_sender_actor = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetMessageSender)
+                .await?
+                .receive_reply()
+                .await;
+            writer
+                .send_actor_mail(data_writer_actor::Enable {
+                    data_writer_address: writer.clone(),
+                    message_sender_actor,
+                    runtime_handle: self.runtime_handle().clone(),
+                })
+                .await?
+                .receive_reply()
+                .await;
 
             self.announce_writer().await?;
         }
@@ -468,7 +617,12 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.writer_address.get_instance_handle().await
+        Ok(self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetInstanceHandle)
+            .await?
+            .receive_reply()
+            .await)
     }
 }
 impl<'a, Foo> DataWriterAsync<Foo>
@@ -483,12 +637,15 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address
-            .set_listener(
-                a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
-                mask.to_vec(),
-                self.runtime_handle().clone(),
-            )
-            .await?;
+            .send_actor_mail(data_writer_actor::SetListener {
+                listener: a_listener
+                    .map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
+                status_kind: mask.to_vec(),
+                runtime_handle: self.runtime_handle().clone(),
+            })
+            .await?
+            .receive_reply()
+            .await;
         Ok(())
     }
 }

@@ -2,7 +2,7 @@ use super::{
     super::error::RtpsResult,
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use std::io::Read;
+use std::io::{Read, Write};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages
@@ -67,7 +67,7 @@ pub enum ProtocolId {
 }
 
 impl WriteIntoBytes for ProtocolId {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         b"RTPS".write_into_bytes(buf);
     }
 }
@@ -113,7 +113,7 @@ pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
 
 impl WriteIntoBytes for SubmessageKind {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         let data = match self {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
@@ -171,7 +171,7 @@ pub const TIME_INVALID: Time = Time::new(0xffffffff, 0xffffffff);
 pub const TIME_INFINITE: Time = Time::new(0xffffffff, 0xfffffffe);
 
 impl WriteIntoBytes for Time {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.seconds.write_into_bytes(buf);
         self.fraction.write_into_bytes(buf);
     }

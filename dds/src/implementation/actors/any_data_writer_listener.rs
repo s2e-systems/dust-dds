@@ -6,48 +6,21 @@ use crate::{
         publisher::PublisherAsync, topic::TopicAsync,
     },
     implementation::actor::ActorAddress,
-    infrastructure::status::{
-        LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-        PublicationMatchedStatus,
-    },
 };
 
-use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
+use super::{
+    data_writer_actor::DataWriterActor, data_writer_listener_actor::DataWriterListenerOperation,
+    status_condition_actor::StatusConditionActor,
+};
 
 pub trait AnyDataWriterListener {
-    #[allow(dead_code)]
-    fn trigger_on_liveliness_lost(
+    fn call_listener_function(
         &mut self,
+        listener_operation: DataWriterListenerOperation,
         writer_address: ActorAddress<DataWriterActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
-        status: LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
-    #[allow(dead_code)]
-    fn trigger_on_offered_deadline_missed(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
-    fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
-    fn trigger_on_publication_matched(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 }
 
@@ -55,71 +28,25 @@ impl<'a, Foo> AnyDataWriterListener for Box<dyn DataWriterListenerAsync<Foo = Fo
 where
     Foo: 'a,
 {
-    fn trigger_on_liveliness_lost(
+    fn call_listener_function(
         &mut self,
+        listener_operation: DataWriterListenerOperation,
         writer_address: ActorAddress<DataWriterActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
-        status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async {
-            self.on_liveliness_lost(
-                DataWriterAsync::new(writer_address, status_condition_address, publisher, topic),
-                status,
-            )
-            .await
-        })
-    }
-
-    fn trigger_on_offered_deadline_missed(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            self.on_offered_deadline_missed(
-                DataWriterAsync::new(writer_address, status_condition_address, publisher, topic),
-                status,
-            )
-            .await
-        })
-    }
-
-    fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            self.on_offered_incompatible_qos(
-                DataWriterAsync::new(writer_address, status_condition_address, publisher, topic),
-                status,
-            )
-            .await
-        })
-    }
-
-    fn trigger_on_publication_matched(
-        &mut self,
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-        status: PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            self.on_publication_matched(
-                DataWriterAsync::new(writer_address, status_condition_address, publisher, topic),
-                status,
-            )
-            .await
+            let the_writer =
+                DataWriterAsync::new(writer_address, status_condition_address, publisher, topic);
+            match listener_operation {
+                DataWriterListenerOperation::OfferedIncompatibleQos(status) => {
+                    self.on_offered_incompatible_qos(the_writer, status).await
+                }
+                DataWriterListenerOperation::PublicationMatched(status) => {
+                    self.on_publication_matched(the_writer, status).await
+                }
+            }
         })
     }
 }

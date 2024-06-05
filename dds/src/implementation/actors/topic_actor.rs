@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
-use dust_dds_derive::actor_interface;
-
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+    implementation::actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -18,7 +16,8 @@ use crate::{
 };
 
 use super::{
-    status_condition_actor::StatusConditionActor, topic_listener_actor::TopicListenerActor,
+    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
+    topic_listener_actor::TopicListenerActor,
 };
 
 impl InconsistentTopicStatus {
@@ -80,54 +79,115 @@ impl TopicActor {
     }
 }
 
-#[actor_interface]
-impl TopicActor {
-    fn get_type_name(&self) -> String {
+pub struct GetTypeName;
+impl Mail for GetTypeName {
+    type Result = String;
+}
+impl MailHandler<GetTypeName> for TopicActor {
+    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
         self.type_name.clone()
     }
+}
 
-    fn get_name(&self) -> String {
+pub struct GetName;
+impl Mail for GetName {
+    type Result = String;
+}
+impl MailHandler<GetName> for TopicActor {
+    async fn handle(&mut self, _: GetName) -> <GetName as Mail>::Result {
         self.topic_name.clone()
     }
+}
 
-    fn guid(&self) -> Guid {
+pub struct GetGuid;
+impl Mail for GetGuid {
+    type Result = Guid;
+}
+impl MailHandler<GetGuid> for TopicActor {
+    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.guid
     }
+}
 
-    fn set_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
-        qos.is_consistent()?;
+pub struct SetQos {
+    pub qos: TopicQos,
+}
+impl Mail for SetQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetQos> for TopicActor {
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        message.qos.is_consistent()?;
 
         if self.enabled {
-            self.qos.check_immutability(&qos)?
+            self.qos.check_immutability(&message.qos)?
         }
 
-        self.qos = qos;
+        self.qos = message.qos;
 
         Ok(())
     }
+}
 
-    fn get_qos(&self) -> TopicQos {
+pub struct GetQos;
+impl Mail for GetQos {
+    type Result = TopicQos;
+}
+impl MailHandler<GetQos> for TopicActor {
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
+}
 
-    #[allow(clippy::unused_unit)]
-    fn enable(&mut self) -> () {
+pub struct Enable;
+impl Mail for Enable {
+    type Result = ();
+}
+impl MailHandler<Enable> for TopicActor {
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
     }
+}
 
-    fn is_enabled(&self) -> bool {
+pub struct IsEnabled;
+impl Mail for IsEnabled {
+    type Result = bool;
+}
+impl MailHandler<IsEnabled> for TopicActor {
+    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
+}
 
-    fn get_instance_handle(&self) -> InstanceHandle {
+pub struct GetInstanceHandle;
+impl Mail for GetInstanceHandle {
+    type Result = InstanceHandle;
+}
+impl MailHandler<GetInstanceHandle> for TopicActor {
+    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         InstanceHandle::new(self.guid.into())
     }
+}
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+pub struct GetStatuscondition;
+impl Mail for GetStatuscondition {
+    type Result = ActorAddress<StatusConditionActor>;
+}
+impl MailHandler<GetStatuscondition> for TopicActor {
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
+}
 
-    fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
+pub struct AsDiscoveredTopicData;
+impl Mail for AsDiscoveredTopicData {
+    type Result = DiscoveredTopicData;
+}
+impl MailHandler<AsDiscoveredTopicData> for TopicActor {
+    async fn handle(
+        &mut self,
+        _: AsDiscoveredTopicData,
+    ) -> <AsDiscoveredTopicData as Mail>::Result {
         DiscoveredTopicData::new(TopicBuiltinTopicData::new(
             BuiltInTopicKey {
                 value: self.guid.into(),
@@ -137,35 +197,70 @@ impl TopicActor {
             self.qos.clone(),
         ))
     }
+}
 
-    async fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
+pub struct GetInconsistentTopicStatus;
+impl Mail for GetInconsistentTopicStatus {
+    type Result = InconsistentTopicStatus;
+}
+impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
+    async fn handle(
+        &mut self,
+        _: GetInconsistentTopicStatus,
+    ) -> <GetInconsistentTopicStatus as Mail>::Result {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
-            .remove_communication_state(StatusKind::InconsistentTopic)
-            .await?;
-        Ok(status)
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            })
+            .await
+            .receive_reply()
+            .await;
+        status
     }
+}
 
-    async fn process_discovered_topic(
+pub struct ProcessDiscoveredTopic {
+    pub discovered_topic_data: DiscoveredTopicData,
+}
+impl Mail for ProcessDiscoveredTopic {
+    type Result = ();
+}
+impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
+    async fn handle(
         &mut self,
-        discovered_topic_data: DiscoveredTopicData,
-    ) -> DdsResult<()> {
-        if discovered_topic_data
+        message: ProcessDiscoveredTopic,
+    ) -> <ProcessDiscoveredTopic as Mail>::Result {
+        if message
+            .discovered_topic_data
             .topic_builtin_topic_data()
             .get_type_name()
-            == self.get_type_name()
-            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
-            && !is_discovered_topic_consistent(&self.qos, &discovered_topic_data)
+            == self.type_name
+            && message
+                .discovered_topic_data
+                .topic_builtin_topic_data()
+                .name()
+                == self.topic_name
+            && !is_discovered_topic_consistent(&self.qos, &message.discovered_topic_data)
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .add_communication_state(StatusKind::InconsistentTopic)
-                .await?;
+                .send_actor_mail(AddCommunicationState {
+                    state: StatusKind::InconsistentTopic,
+                })
+                .await
+                .receive_reply()
+                .await;
         }
-        Ok(())
     }
+}
 
-    fn get_type_support(&self) -> Arc<dyn DynamicTypeInterface + Send + Sync> {
+pub struct GetTypeSupport;
+impl Mail for GetTypeSupport {
+    type Result = Arc<dyn DynamicTypeInterface + Send + Sync>;
+}
+impl MailHandler<GetTypeSupport> for TopicActor {
+    async fn handle(&mut self, _: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
         self.type_support.clone()
     }
 }

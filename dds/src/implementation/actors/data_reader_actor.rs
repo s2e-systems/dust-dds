@@ -1,11 +1,13 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    data_reader_listener_actor::{DataReaderListenerActor, DataReaderListenerOperation},
-    domain_participant_listener_actor::DomainParticipantListenerActor,
+    data_reader_listener_actor::{self, DataReaderListenerActor, DataReaderListenerOperation},
+    domain_participant_listener_actor::{
+        self, DomainParticipantListenerActor, DomainParticipantListenerOperation,
+    },
     message_sender_actor::MessageSenderActor,
-    status_condition_actor::StatusConditionActor,
-    subscriber_listener_actor::SubscriberListenerActor,
-    topic_actor::TopicActor,
+    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
+    subscriber_listener_actor::{self, SubscriberListenerActor, SubscriberListenerOperation},
+    topic_actor::{self, TopicActor},
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -15,7 +17,7 @@ use crate::{
     },
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -48,9 +50,7 @@ use crate::{
     rtps::{
         self,
         cache_change::RtpsCacheChange,
-        message_receiver::MessageReceiver,
         messages::{
-            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{
                 data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
@@ -65,7 +65,6 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{DdsKey, DynamicTypeInterface},
 };
-use dust_dds_derive::actor_interface;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -216,15 +215,32 @@ struct ReaderRequestedDeadlineMissedStatus {
     last_instance_handle: InstanceHandle,
 }
 
-#[actor_interface]
-impl ReaderRequestedDeadlineMissedStatus {
-    fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
+pub struct IncrementRequestedDeadlineMissedStatus {
+    instance_handle: InstanceHandle,
+}
+impl Mail for IncrementRequestedDeadlineMissedStatus {
+    type Result = ();
+}
+impl MailHandler<IncrementRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineMissedStatus {
+    async fn handle(
+        &mut self,
+        message: IncrementRequestedDeadlineMissedStatus,
+    ) -> <IncrementRequestedDeadlineMissedStatus as Mail>::Result {
         self.total_count += 1;
         self.total_count_change += 1;
-        self.last_instance_handle = instance_handle;
+        self.last_instance_handle = message.instance_handle;
     }
+}
 
-    fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+pub struct ReadRequestedDeadlineMissedStatus;
+impl Mail for ReadRequestedDeadlineMissedStatus {
+    type Result = RequestedDeadlineMissedStatus;
+}
+impl MailHandler<ReadRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineMissedStatus {
+    async fn handle(
+        &mut self,
+        _: ReadRequestedDeadlineMissedStatus,
+    ) -> <ReadRequestedDeadlineMissedStatus as Mail>::Result {
         let status = RequestedDeadlineMissedStatus {
             total_count: self.total_count,
             total_count_change: self.total_count_change,
@@ -371,6 +387,10 @@ impl DataReaderActor {
         }
     }
 
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        InstanceHandle::new(self.rtps_reader.guid().into())
+    }
+
     fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
         self.requested_incompatible_qos_status.read_and_reset()
     }
@@ -381,6 +401,105 @@ impl DataReaderActor {
 
     fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         self.sample_rejected_status.read_and_reset()
+    }
+
+    async fn read(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
+            .await
+            .receive_reply()
+            .await;
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        let change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        for index in change_index_list {
+            self.changes[index].sample_state = SampleStateKind::Read;
+        }
+
+        Ok(samples)
+    }
+
+    async fn take(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
+            .await
+            .receive_reply()
+            .await;
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.changes.remove(index);
+        }
+
+        Ok(samples)
+    }
+
+    async fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            })
+            .await
+            .receive_reply()
+            .await;
+
+        self.subscription_matched_status
+            .read_and_reset(self.matched_publication_list.len() as i32)
     }
 
     async fn on_data_available(
@@ -395,36 +514,64 @@ impl DataReaderActor {
         subscriber
             .get_statuscondition()
             .address()
-            .add_communication_state(StatusKind::DataOnReaders)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::DataOnReaders,
+            })
+            .await?
+            .receive_reply()
+            .await;
+
         self.status_condition
             .address()
-            .add_communication_state(StatusKind::DataAvailable)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::DataAvailable,
+            })
+            .await?
+            .receive_reply()
+            .await;
+
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             subscriber_listener_address
-                .trigger_on_data_on_readers(subscriber.clone())
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::DataOnReaders(
+                        subscriber.clone(),
+                    ),
+                })
                 .await?;
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
-            let participant = subscriber.get_participant();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
-                .call_listener_function(
-                    DataReaderListenerOperation::OnDataAvailable,
-                    data_reader_address.clone(),
-                    self.status_condition.address(),
-                    subscriber.clone(),
-                    TopicAsync::new(
+                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+                    listener_operation: DataReaderListenerOperation::DataAvailable,
+                    reader_address: data_reader_address.clone(),
+                    status_condition_address: self.status_condition.address(),
+                    subscriber: subscriber.clone(),
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
-                        participant,
+                        topic_status_condition_address.clone(),
+                        type_name.clone(),
+                        topic_name.clone(),
+                        subscriber.get_participant(),
                     ),
-                )
-                .await?;
+                })
+                .await;
         }
         Ok(())
     }
@@ -612,10 +759,11 @@ impl DataReaderActor {
         Ok(())
     }
 
-    fn on_heartbeat_submessage_received(
+    async fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
+        message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
@@ -640,6 +788,8 @@ impl DataReaderActor {
                             }
                             writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                             writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+
+                            self.send_message(message_sender_actor).await;
                         }
                     }
                 }
@@ -749,37 +899,60 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
-            .add_communication_state(StatusKind::SampleLost)
-            .await?;
-        let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::SampleLost,
+            })
+            .await
+            .receive_reply()
+            .await;
+        let topic_status_condition_address = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetStatuscondition)
+            .await?
+            .receive_reply()
+            .await;
         if self.status_kind.contains(&StatusKind::SampleLost) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_sample_lost_status();
             self.listener
-                .call_listener_function(
-                    DataReaderListenerOperation::OnSampleLost(status),
-                    data_reader_address.clone(),
-                    self.status_condition.address(),
-                    subscriber.clone(),
-                    TopicAsync::new(
+                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+                    listener_operation: DataReaderListenerOperation::SampleLost(status),
+                    reader_address: data_reader_address.clone(),
+                    status_condition_address: self.status_condition.address(),
+                    subscriber: subscriber.clone(),
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
+                        topic_status_condition_address.clone(),
+                        type_name.clone(),
+                        topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                )
-                .await?;
+                })
+                .await;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
-                .trigger_on_sample_lost(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::SampleLost(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             participant_listener_address
-                .trigger_on_sample_lost(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation: DomainParticipantListenerOperation::SampleLost(status),
+                })
                 .await?;
         }
 
@@ -802,39 +975,65 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
-            .add_communication_state(StatusKind::SubscriptionMatched)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            })
+            .await
+            .receive_reply()
+            .await;
+
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
         if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
-            let status = self.get_subscription_matched_status().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
+            let status = self.get_subscription_matched_status().await;
 
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
-                .call_listener_function(
-                    DataReaderListenerOperation::OnSubscriptionMatched(status),
-                    data_reader_address,
-                    self.status_condition.address(),
-                    subscriber.clone(),
-                    TopicAsync::new(
+                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+                    listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+                    reader_address: data_reader_address.clone(),
+                    status_condition_address: self.status_condition.address(),
+                    subscriber: subscriber.clone(),
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
+                        topic_status_condition_address.clone(),
+                        type_name.clone(),
+                        topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                )
-                .await?;
+                })
+                .await;
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let status = self.get_subscription_matched_status().await?;
+            let status = self.get_subscription_matched_status().await;
             subscriber_listener_address
-                .trigger_on_subscription_matched(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let status = self.get_subscription_matched_status().await?;
+            let status = self.get_subscription_matched_status().await;
             participant_listener_address
-                .trigger_on_subscription_matched(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation: DomainParticipantListenerOperation::SubscriptionMatched(
+                        status,
+                    ),
+                })
                 .await?;
         }
 
@@ -860,39 +1059,62 @@ impl DataReaderActor {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
         self.status_condition
-            .add_communication_state(StatusKind::SampleRejected)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::SampleRejected,
+            })
+            .await
+            .receive_reply()
+            .await;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_sample_rejected_status();
 
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             self.listener
-                .call_listener_function(
-                    DataReaderListenerOperation::OnSampleRejected(status),
-                    data_reader_address.clone(),
-                    self.status_condition.address(),
-                    subscriber.clone(),
-                    TopicAsync::new(
+                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+                    listener_operation: DataReaderListenerOperation::SampleRejected(status),
+                    reader_address: data_reader_address.clone(),
+                    status_condition_address: self.status_condition.address(),
+                    subscriber: subscriber.clone(),
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
+                        topic_status_condition_address.clone(),
+                        type_name.clone(),
+                        topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                )
-                .await?;
+                })
+                .await;
         } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
 
             subscriber_listener_address
-                .trigger_on_sample_rejected(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::SampleRejected(status),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
             participant_listener_address
-                .trigger_on_sample_rejected(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation: DomainParticipantListenerOperation::SampleRejected(status),
+                })
                 .await?;
         }
 
@@ -916,41 +1138,70 @@ impl DataReaderActor {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
-            .add_communication_state(StatusKind::RequestedIncompatibleQos)
-            .await?;
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::RequestedIncompatibleQos,
+            })
+            .await
+            .receive_reply()
+            .await;
 
         if self
             .status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status = self.get_requested_incompatible_qos_status();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
+
             self.listener
-                .call_listener_function(
-                    DataReaderListenerOperation::OnRequestedIncompatibleQos(status),
-                    data_reader_address.clone(),
-                    self.status_condition.address(),
-                    subscriber.clone(),
-                    TopicAsync::new(
+                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+                    listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
+                        status,
+                    ),
+                    reader_address: data_reader_address.clone(),
+                    status_condition_address: self.status_condition.address(),
+                    subscriber: subscriber.clone(),
+                    topic: TopicAsync::new(
                         self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
+                        topic_status_condition_address.clone(),
+                        type_name.clone(),
+                        topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                )
-                .await?;
+                })
+                .await;
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
-                .trigger_on_requested_incompatible_qos(status)
+                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                    listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
+                        status,
+                    ),
+                })
                 .await?;
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             participant_listener_address
-                .trigger_on_requested_incompatible_qos(status)
+                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                    listener_operation:
+                        DomainParticipantListenerOperation::RequestedIncompatibleQos(status),
+                })
                 .await?;
         }
         Ok(())
@@ -982,7 +1233,12 @@ impl DataReaderActor {
         } else {
             Ok(ChangeKind::Alive)
         }?;
-        let type_support = self.topic_address.get_type_support().await?;
+        let type_support = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await;
         let instance_handle = build_instance_handle(
             &type_support,
             change_kind,
@@ -1374,60 +1630,99 @@ impl DataReaderActor {
             let participant_listener_address = participant_mask_listener.0.clone();
             let participant_listener_mask = participant_mask_listener.1.clone();
             let topic_address = self.topic_address.clone();
-            let type_name = self.topic_address.get_type_name().await?;
-            let topic_name = self.topic_address.get_name().await?;
+            let type_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetTypeName)
+                .await?
+                .receive_reply()
+                .await;
+            let topic_name = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetName)
+                .await?
+                .receive_reply()
+                .await;
             let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = self.topic_address.get_statuscondition().await?;
+            let topic_status_condition_address = self
+                .topic_address
+                .send_actor_mail(topic_actor::GetStatuscondition)
+                .await?
+                .receive_reply()
+                .await;
             let deadline_missed_task = tokio::spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
 
                     let r: DdsResult<()> = async {
                         requested_deadline_missed_status
-                            .increment_requested_deadline_missed_status(change_instance_handle)
+                            .send_actor_mail(IncrementRequestedDeadlineMissedStatus {
+                                instance_handle: change_instance_handle,
+                            })
                             .await?;
 
                         reader_status_condition
-                            .add_communication_state(StatusKind::RequestedDeadlineMissed)
-                            .await?;
+                            .send_actor_mail(AddCommunicationState {
+                                state: StatusKind::RequestedDeadlineMissed,
+                            })
+                            .await?
+                            .receive_reply()
+                            .await;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
                             let status = requested_deadline_missed_status
-                                .read_requested_deadline_missed_status()
-                                .await?;
+                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)
+                                .await?
+                                .receive_reply()
+                                .await;
 
                             reader_listener_address
-                                .call_listener_function(
-                                    DataReaderListenerOperation::OnRequestedDeadlineMissed(status),
-                                    data_reader_address.clone(),
-                                    status_condition_address.clone(),
-                                    subscriber.clone(),
-                                    TopicAsync::new(
+                                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+                                    listener_operation:
+                                        DataReaderListenerOperation::RequestedDeadlineMissed(
+                                            status,
+                                        ),
+                                    reader_address: data_reader_address.clone(),
+                                    status_condition_address: status_condition_address.clone(),
+                                    subscriber: subscriber.clone(),
+                                    topic: TopicAsync::new(
                                         topic_address.clone(),
                                         topic_status_condition_address.clone(),
                                         type_name.clone(),
                                         topic_name.clone(),
                                         subscriber.get_participant(),
                                     ),
-                                )
+                                })
                                 .await?;
                         } else if subscriber_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
-                                .read_requested_deadline_missed_status()
-                                .await?;
+                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)
+                                .await?
+                                .receive_reply()
+                                .await;
+
                             subscriber_listener_address
-                                .trigger_on_requested_deadline_missed(status)
+                                .send_actor_mail(subscriber_listener_actor::CallListenerFunction {
+                                    listener_operation:
+                                        SubscriberListenerOperation::RequestedDeadlineMissed(
+                                            status,
+                                        ),
+                                })
                                 .await?;
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = requested_deadline_missed_status
-                                .read_requested_deadline_missed_status()
-                                .await?;
+                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)
+                                .await?
+                                .receive_reply()
+                                .await;
                             participant_listener_address
-                                .trigger_on_requested_deadline_missed(status)
-                                .await?;
+                            .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+                                listener_operation:
+                                    DomainParticipantListenerOperation::RequestedDeadlineMissed(status),
+                            })
+                            .await?;
                         }
                         Ok(())
                     }
@@ -1444,89 +1739,70 @@ impl DataReaderActor {
         }
         Ok(())
     }
+
+    async fn send_message(&mut self, message_sender_actor: &ActorAddress<MessageSenderActor>) {
+        match &mut self.rtps_reader {
+            RtpsReaderKind::Stateful(r) => r.send_message(message_sender_actor).await,
+            RtpsReaderKind::Stateless(_) => (),
+        }
+    }
 }
 
-#[actor_interface]
-impl DataReaderActor {
-    async fn read(
-        &mut self,
-        max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable)
-            .await?;
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
-            max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
-            specific_instance_handle,
-        )?;
-
-        let change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        for index in change_index_list {
-            self.changes[index].sample_state = SampleStateKind::Read;
-        }
-
-        Ok(samples)
+pub struct Read {
+    pub max_samples: i32,
+    pub sample_states: Vec<SampleStateKind>,
+    pub view_states: Vec<ViewStateKind>,
+    pub instance_states: Vec<InstanceStateKind>,
+    pub specific_instance_handle: Option<InstanceHandle>,
+}
+impl Mail for Read {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+impl MailHandler<Read> for DataReaderActor {
+    async fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
+        self.read(
+            message.max_samples,
+            message.sample_states,
+            message.view_states,
+            message.instance_states,
+            message.specific_instance_handle,
+        )
+        .await
     }
+}
 
-    async fn take(
-        &mut self,
-        max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-        specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let indexed_sample_list = self.create_indexed_sample_collection(
-            max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
-            specific_instance_handle,
-        )?;
-
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable)
-            .await?;
-
-        let mut change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        while let Some(index) = change_index_list.pop() {
-            self.changes.remove(index);
-        }
-
-        Ok(samples)
+pub struct Take {
+    pub max_samples: i32,
+    pub sample_states: Vec<SampleStateKind>,
+    pub view_states: Vec<ViewStateKind>,
+    pub instance_states: Vec<InstanceStateKind>,
+    pub specific_instance_handle: Option<InstanceHandle>,
+}
+impl Mail for Take {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+impl MailHandler<Take> for DataReaderActor {
+    async fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
+        self.take(
+            message.max_samples,
+            message.sample_states,
+            message.view_states,
+            message.instance_states,
+            message.specific_instance_handle,
+        )
+        .await
     }
+}
 
-    fn is_historical_data_received(&self) -> DdsResult<bool> {
+pub struct IsHistoricalDataReceived;
+impl Mail for IsHistoricalDataReceived {
+    type Result = DdsResult<bool>;
+}
+impl MailHandler<IsHistoricalDataReceived> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        _: IsHistoricalDataReceived,
+    ) -> <IsHistoricalDataReceived as Mail>::Result {
         if !self.enabled {
             Err(DdsError::NotEnabled)
         } else {
@@ -1543,27 +1819,56 @@ impl DataReaderActor {
             RtpsReaderKind::Stateless(_) => Ok(true),
         }
     }
+}
 
-    async fn as_discovered_reader_data(
-        &self,
-        subscriber_qos: SubscriberQos,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-    ) -> DdsResult<DiscoveredReaderData> {
+pub struct AsDiscoveredReaderData {
+    pub subscriber_qos: SubscriberQos,
+    pub default_unicast_locator_list: Vec<Locator>,
+    pub default_multicast_locator_list: Vec<Locator>,
+}
+impl Mail for AsDiscoveredReaderData {
+    type Result = DdsResult<DiscoveredReaderData>;
+}
+impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        message: AsDiscoveredReaderData,
+    ) -> <AsDiscoveredReaderData as Mail>::Result {
         let guid = self.rtps_reader.guid();
-        let type_name = self.topic_address.get_type_name().await?;
-        let topic_name = self.topic_address.get_name().await?;
-        let topic_qos = self.topic_address.get_qos().await?;
-        let xml_type = self.topic_address.get_type_support().await?.xml_type();
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_qos = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetQos)
+            .await?
+            .receive_reply()
+            .await;
+        let xml_type = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)
+            .await?
+            .receive_reply()
+            .await
+            .xml_type();
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-            default_unicast_locator_list
+            message.default_unicast_locator_list
         } else {
             self.rtps_reader.unicast_locator_list().to_vec()
         };
 
         let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-            default_multicast_locator_list
+            message.default_multicast_locator_list
         } else {
             self.rtps_reader.multicast_locator_list().to_vec()
         };
@@ -1584,82 +1889,142 @@ impl DataReaderActor {
                 topic_name,
                 type_name,
                 self.qos.clone(),
-                subscriber_qos.clone(),
+                message.subscriber_qos.clone(),
                 topic_qos.topic_data,
                 xml_type,
             ),
         ))
     }
+}
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.rtps_reader.guid().into())
+pub struct GetInstanceHandle;
+impl Mail for GetInstanceHandle {
+    type Result = InstanceHandle;
+}
+impl MailHandler<GetInstanceHandle> for DataReaderActor {
+    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+        self.get_instance_handle()
     }
+}
 
-    fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
-        qos.is_consistent()?;
+pub struct SetQos {
+    pub qos: DataReaderQos,
+}
+impl Mail for SetQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetQos> for DataReaderActor {
+    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+        message.qos.is_consistent()?;
         if self.enabled {
-            qos.check_immutability(&self.qos)?;
+            message.qos.check_immutability(&self.qos)?;
         }
-        self.qos = qos;
+        self.qos = message.qos;
         Ok(())
     }
+}
 
-    fn get_qos(&self) -> DataReaderQos {
+pub struct GetQos;
+impl Mail for GetQos {
+    type Result = DataReaderQos;
+}
+impl MailHandler<GetQos> for DataReaderActor {
+    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
+}
 
-    fn get_matched_publication_data(
-        &self,
-        publication_handle: InstanceHandle,
-    ) -> DdsResult<PublicationBuiltinTopicData> {
+pub struct GetMatchedPublicationData {
+    pub publication_handle: InstanceHandle,
+}
+impl Mail for GetMatchedPublicationData {
+    type Result = DdsResult<PublicationBuiltinTopicData>;
+}
+impl MailHandler<GetMatchedPublicationData> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        message: GetMatchedPublicationData,
+    ) -> <GetMatchedPublicationData as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
         self.matched_publication_list
-            .get(&publication_handle)
+            .get(&message.publication_handle)
             .cloned()
             .ok_or(DdsError::BadParameter)
     }
+}
 
-    fn is_enabled(&self) -> bool {
+pub struct IsEnabled;
+impl Mail for IsEnabled {
+    type Result = bool;
+}
+impl MailHandler<IsEnabled> for DataReaderActor {
+    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
+}
 
-    fn enable(&mut self) {
+pub struct Enable;
+impl Mail for Enable {
+    type Result = ();
+}
+impl MailHandler<Enable> for DataReaderActor {
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
     }
+}
 
-    fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+pub struct GetStatuscondition;
+impl Mail for GetStatuscondition {
+    type Result = ActorAddress<StatusConditionActor>;
+}
+impl MailHandler<GetStatuscondition> for DataReaderActor {
+    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
+}
 
-    fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+pub struct GetMatchedPublications;
+impl Mail for GetMatchedPublications {
+    type Result = Vec<InstanceHandle>;
+}
+impl MailHandler<GetMatchedPublications> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        _: GetMatchedPublications,
+    ) -> <GetMatchedPublications as Mail>::Result {
         self.matched_publication_list
             .iter()
             .map(|(&key, _)| key)
             .collect()
     }
+}
 
-    async fn take_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+pub struct TakeNextInstance {
+    pub max_samples: i32,
+    pub previous_handle: Option<InstanceHandle>,
+    pub sample_states: Vec<SampleStateKind>,
+    pub view_states: Vec<ViewStateKind>,
+    pub instance_states: Vec<InstanceStateKind>,
+}
+impl Mail for TakeNextInstance {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+impl MailHandler<TakeNextInstance> for DataReaderActor {
+    async fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        match self.next_instance(previous_handle) {
+        match self.next_instance(message.previous_handle) {
             Some(next_handle) => {
                 self.take(
-                    max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
+                    message.max_samples,
+                    message.sample_states,
+                    message.view_states,
+                    message.instance_states,
                     Some(next_handle),
                 )
                 .await
@@ -1667,36 +2032,44 @@ impl DataReaderActor {
             None => Err(DdsError::NoData),
         }
     }
+}
 
-    async fn get_subscription_matched_status(&mut self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.status_condition
-            .remove_communication_state(StatusKind::SubscriptionMatched)
-            .await?;
-
-        Ok(self
-            .subscription_matched_status
-            .read_and_reset(self.matched_publication_list.len() as i32))
-    }
-
-    async fn read_next_instance(
+pub struct GetSubscriptionMatchedStatus;
+impl Mail for GetSubscriptionMatchedStatus {
+    type Result = SubscriptionMatchedStatus;
+}
+impl MailHandler<GetSubscriptionMatchedStatus> for DataReaderActor {
+    async fn handle(
         &mut self,
-        max_samples: i32,
-        previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        _: GetSubscriptionMatchedStatus,
+    ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
+        self.get_subscription_matched_status().await
+    }
+}
+
+pub struct ReadNextInstance {
+    pub max_samples: i32,
+    pub previous_handle: Option<InstanceHandle>,
+    pub sample_states: Vec<SampleStateKind>,
+    pub view_states: Vec<ViewStateKind>,
+    pub instance_states: Vec<InstanceStateKind>,
+}
+impl Mail for ReadNextInstance {
+    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+}
+impl MailHandler<ReadNextInstance> for DataReaderActor {
+    async fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        match self.next_instance(previous_handle) {
+        match self.next_instance(message.previous_handle) {
             Some(next_handle) => {
                 self.read(
-                    max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
+                    message.max_samples,
+                    message.sample_states,
+                    message.view_states,
+                    message.instance_states,
                     Some(next_handle),
                 )
                 .await
@@ -1704,25 +2077,39 @@ impl DataReaderActor {
             None => Err(DdsError::NoData),
         }
     }
+}
 
-    #[allow(clippy::too_many_arguments)]
-    async fn add_matched_writer(
-        &mut self,
-        discovered_writer_data: DiscoveredWriterData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber: SubscriberAsync,
-        subscriber_qos: SubscriberQos,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
-        let type_name = self.topic_address.get_type_name().await?;
-        let topic_name = self.topic_address.get_name().await?;
-        let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
+pub struct AddMatchedWriter {
+    pub discovered_writer_data: DiscoveredWriterData,
+    pub default_unicast_locator_list: Vec<Locator>,
+    pub default_multicast_locator_list: Vec<Locator>,
+    pub data_reader_address: ActorAddress<DataReaderActor>,
+    pub subscriber: SubscriberAsync,
+    pub subscriber_qos: SubscriberQos,
+    pub subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        ActorAddress<DomainParticipantListenerActor>,
+        Vec<StatusKind>,
+    ),
+}
+impl Mail for AddMatchedWriter {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AddMatchedWriter> for DataReaderActor {
+    async fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+        let type_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await;
+        let topic_name = self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await;
+        let publication_builtin_topic_data = message.discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == topic_name
             && publication_builtin_topic_data.get_type_name() == type_name
         {
@@ -1732,47 +2119,57 @@ impl DataReaderActor {
                 "Writer with matched topic and type found",
             );
             let instance_handle =
-                InstanceHandle::try_from_key(&discovered_writer_data.get_key().unwrap()).unwrap();
+                InstanceHandle::try_from_key(&message.discovered_writer_data.get_key().unwrap())
+                    .unwrap();
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
-                    &discovered_writer_data,
-                    &subscriber_qos,
+                    &message.discovered_writer_data,
+                    &message.subscriber_qos,
                 );
             if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if discovered_writer_data
+                let unicast_locator_list = if message
+                    .discovered_writer_data
                     .writer_proxy()
                     .unicast_locator_list()
                     .is_empty()
                 {
-                    default_unicast_locator_list
+                    message.default_unicast_locator_list
                 } else {
-                    discovered_writer_data
+                    message
+                        .discovered_writer_data
                         .writer_proxy()
                         .unicast_locator_list()
                         .to_vec()
                 };
 
-                let multicast_locator_list = if discovered_writer_data
+                let multicast_locator_list = if message
+                    .discovered_writer_data
                     .writer_proxy()
                     .multicast_locator_list()
                     .is_empty()
                 {
-                    default_multicast_locator_list
+                    message.default_multicast_locator_list
                 } else {
-                    discovered_writer_data
+                    message
+                        .discovered_writer_data
                         .writer_proxy()
                         .multicast_locator_list()
                         .to_vec()
                 };
 
                 let writer_proxy = RtpsWriterProxy::new(
-                    discovered_writer_data.writer_proxy().remote_writer_guid(),
+                    message
+                        .discovered_writer_data
+                        .writer_proxy()
+                        .remote_writer_guid(),
                     &unicast_locator_list,
                     &multicast_locator_list,
-                    discovered_writer_data
+                    message
+                        .discovered_writer_data
                         .writer_proxy()
                         .data_max_size_serialized(),
-                    discovered_writer_data
+                    message
+                        .discovered_writer_data
                         .writer_proxy()
                         .remote_group_entity_id(),
                 );
@@ -1789,20 +2186,20 @@ impl DataReaderActor {
                     Some(value) if &value != publication_builtin_topic_data => {
                         self.on_subscription_matched(
                             instance_handle,
-                            data_reader_address,
-                            subscriber,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
+                            message.data_reader_address,
+                            message.subscriber,
+                            &message.subscriber_mask_listener,
+                            &message.participant_mask_listener,
                         )
                         .await?;
                     }
                     None => {
                         self.on_subscription_matched(
                             instance_handle,
-                            data_reader_address,
-                            subscriber,
-                            &subscriber_mask_listener,
-                            &participant_mask_listener,
+                            message.data_reader_address,
+                            message.subscriber,
+                            &message.subscriber_mask_listener,
+                            &message.participant_mask_listener,
                         )
                         .await?;
                     }
@@ -1811,10 +2208,10 @@ impl DataReaderActor {
             } else if self.incompatible_writer_list.insert(instance_handle) {
                 self.on_requested_incompatible_qos(
                     incompatible_qos_policy_list,
-                    &data_reader_address,
-                    &subscriber,
-                    &subscriber_mask_listener,
-                    &participant_mask_listener,
+                    &message.data_reader_address,
+                    &message.subscriber,
+                    &message.subscriber_mask_listener,
+                    &message.participant_mask_listener,
                 )
                 .await?;
             }
@@ -1822,21 +2219,29 @@ impl DataReaderActor {
 
         Ok(())
     }
+}
 
-    async fn remove_matched_writer(
+pub struct RemoveMatchedWriter {
+    pub discovered_writer_handle: InstanceHandle,
+    pub data_reader_address: ActorAddress<DataReaderActor>,
+    pub subscriber: SubscriberAsync,
+    pub subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        ActorAddress<DomainParticipantListenerActor>,
+        Vec<StatusKind>,
+    ),
+}
+impl Mail for RemoveMatchedWriter {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<RemoveMatchedWriter> for DataReaderActor {
+    async fn handle(
         &mut self,
-        discovered_writer_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber: SubscriberAsync,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
+        message: RemoveMatchedWriter,
+    ) -> <RemoveMatchedWriter as Mail>::Result {
         let matched_publication = self
             .matched_publication_list
-            .remove(&discovered_writer_handle);
+            .remove(&message.discovered_writer_handle);
         if let Some(w) = matched_publication {
             match &mut self.rtps_reader {
                 RtpsReaderKind::Stateful(r) => r.matched_writer_remove(w.key().value.into()),
@@ -1844,117 +2249,221 @@ impl DataReaderActor {
             }
 
             self.on_subscription_matched(
-                discovered_writer_handle,
-                data_reader_address,
-                subscriber,
-                &subscriber_mask_listener,
-                &participant_mask_listener,
+                message.discovered_writer_handle,
+                message.data_reader_address,
+                message.subscriber,
+                &message.subscriber_mask_listener,
+                &message.participant_mask_listener,
             )
             .await?;
         }
         Ok(())
     }
+}
 
-    async fn get_topic_name(&mut self) -> DdsResult<String> {
-        self.topic_address.get_name().await
+pub struct GetTopicName;
+impl Mail for GetTopicName {
+    type Result = DdsResult<String>;
+}
+impl MailHandler<GetTopicName> for DataReaderActor {
+    async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetName)
+            .await?
+            .receive_reply()
+            .await)
     }
+}
 
-    async fn get_type_name(&self) -> DdsResult<String> {
-        self.topic_address.get_type_name().await
+pub struct GetTypeName;
+impl Mail for GetTypeName {
+    type Result = DdsResult<String>;
+}
+impl MailHandler<GetTypeName> for DataReaderActor {
+    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeName)
+            .await?
+            .receive_reply()
+            .await)
     }
+}
 
-    #[allow(clippy::too_many_arguments)]
-    async fn process_rtps_message(
+pub struct ProcessDataSubmessage {
+    pub data_submessage: DataSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+    pub source_timestamp: Option<rtps::messages::types::Time>,
+    pub reception_timestamp: rtps::messages::types::Time,
+    pub data_reader_address: ActorAddress<DataReaderActor>,
+    pub subscriber: SubscriberAsync,
+    pub subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        ActorAddress<DomainParticipantListenerActor>,
+        Vec<StatusKind>,
+    ),
+}
+impl Mail for ProcessDataSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessDataSubmessage> for DataReaderActor {
+    async fn handle(
         &mut self,
-        message: RtpsMessageRead,
-        reception_timestamp: rtps::messages::types::Time,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber: SubscriberAsync,
-        subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
-        participant_mask_listener: (
-            ActorAddress<DomainParticipantListenerActor>,
-            Vec<StatusKind>,
-        ),
-    ) {
-        let mut message_receiver = MessageReceiver::new(&message);
-
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    self.on_data_submessage_received(
-                        &data_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    )
-                    .await
-                    .ok();
-                }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    self.on_data_frag_submessage_received(
-                        &data_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                        message_receiver.source_timestamp(),
-                        reception_timestamp,
-                        &data_reader_address,
-                        &subscriber,
-                        &subscriber_mask_listener,
-                        &participant_mask_listener,
-                    )
-                    .await
-                    .ok();
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.on_gap_submessage_received(
-                        &gap_submessage,
-                        message_receiver.source_guid_prefix(),
-                    );
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => self
-                    .on_heartbeat_submessage_received(
-                        &heartbeat_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => self
-                    .on_heartbeat_frag_submessage_received(
-                        &heartbeat_frag_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-                _ => (),
-            }
-        }
+        message: ProcessDataSubmessage,
+    ) -> <ProcessDataSubmessage as Mail>::Result {
+        self.on_data_submessage_received(
+            &message.data_submessage,
+            message.source_guid_prefix,
+            message.source_timestamp,
+            message.reception_timestamp,
+            &message.data_reader_address,
+            &message.subscriber,
+            &message.subscriber_mask_listener,
+            &message.participant_mask_listener,
+        )
+        .await
+        .ok();
     }
+}
 
-    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
-        match &mut self.rtps_reader {
-            RtpsReaderKind::Stateful(r) => r.send_message(&message_sender_actor).await,
-            RtpsReaderKind::Stateless(_) => (),
-        }
-    }
-
-    fn set_listener(
+pub struct ProcessDataFragSubmessage {
+    pub data_frag_submessage: DataFragSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+    pub source_timestamp: Option<rtps::messages::types::Time>,
+    pub reception_timestamp: rtps::messages::types::Time,
+    pub data_reader_address: ActorAddress<DataReaderActor>,
+    pub subscriber: SubscriberAsync,
+    pub subscriber_mask_listener: (ActorAddress<SubscriberListenerActor>, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        ActorAddress<DomainParticipantListenerActor>,
+        Vec<StatusKind>,
+    ),
+}
+impl Mail for ProcessDataFragSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessDataFragSubmessage> for DataReaderActor {
+    async fn handle(
         &mut self,
-        listener: Option<Box<dyn AnyDataReaderListener + Send>>,
-        status_kind: Vec<StatusKind>,
-        runtime_handle: tokio::runtime::Handle,
-    ) {
+        message: ProcessDataFragSubmessage,
+    ) -> <ProcessDataFragSubmessage as Mail>::Result {
+        self.on_data_frag_submessage_received(
+            &message.data_frag_submessage,
+            message.source_guid_prefix,
+            message.source_timestamp,
+            message.reception_timestamp,
+            &message.data_reader_address,
+            &message.subscriber,
+            &message.subscriber_mask_listener,
+            &message.participant_mask_listener,
+        )
+        .await
+        .ok();
+    }
+}
+
+pub struct ProcessGapSubmessage {
+    pub gap_submessage: GapSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+}
+impl Mail for ProcessGapSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessGapSubmessage> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        message: ProcessGapSubmessage,
+    ) -> <ProcessGapSubmessage as Mail>::Result {
+        self.on_gap_submessage_received(&message.gap_submessage, message.source_guid_prefix);
+    }
+}
+
+pub struct ProcessHeartbeatSubmessage {
+    pub heartbeat_submessage: HeartbeatSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
+}
+impl Mail for ProcessHeartbeatSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessHeartbeatSubmessage> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        message: ProcessHeartbeatSubmessage,
+    ) -> <ProcessHeartbeatSubmessage as Mail>::Result {
+        self.on_heartbeat_submessage_received(
+            &message.heartbeat_submessage,
+            message.source_guid_prefix,
+            &message.message_sender_actor,
+        )
+        .await;
+    }
+}
+
+pub struct ProcessHeartbeatFragSubmessage {
+    pub heartbeat_frag_submessage: HeartbeatFragSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+}
+impl Mail for ProcessHeartbeatFragSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessHeartbeatFragSubmessage> for DataReaderActor {
+    async fn handle(
+        &mut self,
+        message: ProcessHeartbeatFragSubmessage,
+    ) -> <ProcessHeartbeatFragSubmessage as Mail>::Result {
+        self.on_heartbeat_frag_submessage_received(
+            &message.heartbeat_frag_submessage,
+            message.source_guid_prefix,
+        )
+    }
+}
+
+pub struct SendMessage {
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
+}
+impl Mail for SendMessage {
+    type Result = ();
+}
+impl MailHandler<SendMessage> for DataReaderActor {
+    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+        self.send_message(&message.message_sender_actor).await
+    }
+}
+
+pub struct SetListener {
+    pub listener: Option<Box<dyn AnyDataReaderListener + Send>>,
+    pub status_kind: Vec<StatusKind>,
+    pub runtime_handle: tokio::runtime::Handle,
+}
+impl Mail for SetListener {
+    type Result = ();
+}
+impl MailHandler<SetListener> for DataReaderActor {
+    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = Actor::spawn(
-            DataReaderListenerActor::new(listener),
-            &runtime_handle,
+            DataReaderListenerActor::new(message.listener),
+            &message.runtime_handle,
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
-        self.status_kind = status_kind;
+        self.status_kind = message.status_kind;
     }
+}
 
-    async fn get_requested_deadline_missed_status(
+pub struct GetRequestedDeadlineMissedStatus;
+impl Mail for GetRequestedDeadlineMissedStatus {
+    type Result = RequestedDeadlineMissedStatus;
+}
+impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
+    async fn handle(
         &mut self,
-    ) -> DdsResult<RequestedDeadlineMissedStatus> {
+        _: GetRequestedDeadlineMissedStatus,
+    ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
         self.requested_deadline_missed_status
-            .read_requested_deadline_missed_status()
+            .send_actor_mail(ReadRequestedDeadlineMissedStatus)
+            .await
+            .receive_reply()
             .await
     }
 }

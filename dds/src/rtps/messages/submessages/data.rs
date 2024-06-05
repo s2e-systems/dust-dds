@@ -5,13 +5,15 @@ use super::super::super::{
             Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
             WriteIntoBytes,
         },
-        submessage_elements::{ArcSlice, Data, ParameterList},
+        submessage_elements::{Data, ParameterList},
         types::{SubmessageFlag, SubmessageKind},
     },
     types::{EntityId, SequenceNumber},
 };
+use crate::rtps::error::{RtpsError, RtpsErrorKind};
+use std::io::Write;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataSubmessage {
     inline_qos_flag: bool,
     data_flag: bool,
@@ -25,11 +27,17 @@ pub struct DataSubmessage {
 }
 
 impl DataSubmessage {
-    pub fn try_from_arc_slice(
+    pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: ArcSlice,
+        data: &[u8],
     ) -> RtpsResult<Self> {
-        let mut slice = data.as_ref();
+        if submessage_header.submessage_length() as usize > data.len() {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Submessage header length value bigger than actual data in the buffer",
+            ));
+        }
+        let mut slice = data;
         let endianness = submessage_header.endianness();
         let inline_qos_flag = submessage_header.flags()[1];
         let data_flag = submessage_header.flags()[2];
@@ -42,10 +50,16 @@ impl DataSubmessage {
         let writer_id = EntityId::try_read_from_bytes(&mut slice, endianness)?;
         let writer_sn = SequenceNumber::try_read_from_bytes(&mut slice, endianness)?;
 
+        if octets_to_inline_qos > submessage_header.submessage_length() as usize {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Invalid octets to inline qos",
+            ));
+        }
         let mut data_starting_at_inline_qos =
-            data.sub_slice(octets_to_inline_qos..submessage_header.submessage_length() as usize)?;
+            &data[octets_to_inline_qos..submessage_header.submessage_length() as usize];
         let inline_qos = if inline_qos_flag {
-            ParameterList::try_read_from_arc_slice(
+            ParameterList::try_read_from_bytes(
                 &mut data_starting_at_inline_qos,
                 submessage_header.endianness(),
             )?
@@ -54,7 +68,7 @@ impl DataSubmessage {
         };
 
         let serialized_payload = if data_flag || key_flag {
-            Data::new(data_starting_at_inline_qos)
+            Data::new(data_starting_at_inline_qos.into())
         } else {
             Data::empty()
         };
@@ -135,7 +149,7 @@ impl DataSubmessage {
 }
 
 impl Submessage for DataSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
             &[
@@ -146,10 +160,10 @@ impl Submessage for DataSubmessage {
             ],
             octets_to_next_header,
         )
-        .write_into_bytes(&mut buf)
+        .write_into_bytes(buf)
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         EXTRA_FLAGS.write_into_bytes(buf);
@@ -170,7 +184,9 @@ impl Submessage for DataSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::{overall_structure::write_into_bytes_vec, submessage_elements::Parameter},
+        messages::{
+            overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
+        },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -197,7 +213,7 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -234,7 +250,7 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15, 0b_0000_0011, 40, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -273,7 +289,7 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -308,7 +324,7 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -341,8 +357,7 @@ mod tests {
             5, 0, 0, 0, // writerSN: low
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(inline_qos_flag, data_submessage._inline_qos_flag());
         assert_eq!(data_flag, data_submessage._data_flag());
@@ -371,8 +386,7 @@ mod tests {
             123, 123, 123 // Following data
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
             &expected_serialized_payload,
@@ -403,8 +417,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(&inline_qos, data_submessage.inline_qos());
         assert_eq!(&serialized_payload, data_submessage.serialized_payload());
     }
@@ -433,8 +446,7 @@ mod tests {
             1, 2, 3, 4, // SerializedPayload
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
@@ -465,9 +477,54 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let data_submessage =
-            DataSubmessage::try_from_arc_slice(&submessage_header, data.into()).unwrap();
+        let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
+    }
+
+    #[test]
+    fn fuzz_test_input_1() {
+        let mut data = &[
+            0x00, 0x32, 0x00, 0x00, // Submessage header
+            0xa2, 0xa2, 0xa2, 0x0a, // extraFlags, octetsToInlineQos
+            0x00, 0x00, 0x00, 0x10, // readerId: value[4]
+            0x00, 0x00, 0x00, 0x00, // writerId: value[4]
+            0xa2, 0xa2, 0xa2, 0xa2, // writerSN: high
+            0xa2, 0xa2, 0xa2, 0xa2, // writerSN: low
+            0x0a,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataSubmessage::try_from_bytes(&submessage_header, data);
+    }
+
+    #[test]
+    fn fuzz_test_input_2() {
+        let mut data = &[
+            0, 6, 0, 8, // Submessage header
+            1, 0, 0, 0, // extraFlags, octetsToInlineQos
+            0, 0, 0, 16, // readerId: value[4]
+            122, 0, 0, 0, // writerId: value[4]
+            1, 0, 0, 0, // writerSN: high
+            0, 0, 36, 0, // writerSN: low
+            45, 0, 0, 3, // Other data
+            32, 0, 0, 0, // Other data
+            0, 0, 189, 0, // Other data
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataSubmessage::try_from_bytes(&submessage_header, data);
+    }
+
+    #[test]
+    fn fuzz_test_input_3() {
+        let mut data = &[
+            0, 6, 0, 51, 9, 0, 0, 0, 0, 45, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 252, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 9, 0,
+            0, 0, 45, 110, 0, 0, 8, 0, 2, 0, 0, 0, 1, 0,
+        ][..];
+        let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
+        // Should not panic with this input
+        let _ = DataSubmessage::try_from_bytes(&submessage_header, data);
     }
 }

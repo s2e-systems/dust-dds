@@ -10,8 +10,9 @@ use super::super::super::{
     },
     types::EntityId,
 };
+use std::io::Write;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AckNackSubmessage {
     final_flag: SubmessageFlag,
     reader_id: EntityId,
@@ -75,20 +76,20 @@ impl AckNackSubmessage {
 }
 
 impl Submessage for AckNackSubmessage {
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
         self.reader_sn_state.write_into_bytes(buf);
         self.count.write_into_bytes(buf);
     }
 
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::ACKNACK,
             &[self.final_flag],
             octets_to_next_header,
         )
-        .write_into_bytes(&mut buf);
+        .write_into_bytes(buf);
     }
 }
 
@@ -96,7 +97,7 @@ impl Submessage for AckNackSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::overall_structure::write_into_bytes_vec,
+        messages::overall_structure::write_submessage_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -113,7 +114,7 @@ mod tests {
             14,
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -138,8 +139,7 @@ mod tests {
             2, 0, 0, 0, // count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            AckNackSubmessage::try_from_bytes(&submessage_header, data.as_ref()).unwrap();
+        let submessage = AckNackSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
