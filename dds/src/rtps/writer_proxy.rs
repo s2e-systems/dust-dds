@@ -1,7 +1,7 @@
 use super::{
     messages::{
         overall_structure::Submessage,
-        submessage_elements::{ArcSlice, Data, FragmentNumberSet, SequenceNumberSet},
+        submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
             info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
@@ -14,7 +14,7 @@ use crate::implementation::{
     actor::ActorAddress,
     actors::message_sender_actor::{self, MessageSenderActor},
 };
-use std::{cmp::max, collections::HashMap};
+use std::{cmp::max, collections::HashMap, sync::Arc};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
     let data_size = data_frag_submessage.data_size();
@@ -112,7 +112,7 @@ impl RtpsWriterProxy {
                     writer_id,
                     writer_sn,
                     inline_qos,
-                    Data::new(ArcSlice::from(data)),
+                    Data::new(Arc::from(data)),
                 ))
             } else {
                 None

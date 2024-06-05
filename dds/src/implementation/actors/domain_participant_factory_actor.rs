@@ -74,6 +74,8 @@ use std::{
 };
 use tracing::{info, warn};
 
+const MAX_DATAGRAM_SIZE: usize = 65507;
+
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
     domain_participant_list: HashMap<InstanceHandle, Actor<DomainParticipantActor>>,
@@ -381,12 +383,13 @@ impl DomainParticipantFactoryActor {
     }
 }
 
-pub async fn read_message(socket: &mut tokio::net::UdpSocket) -> DdsResult<RtpsMessageRead> {
-    let mut buf = vec![0; 65507];
-    let (bytes, _) = socket.recv_from(&mut buf).await?;
-    buf.truncate(bytes);
+pub async fn read_message(
+    socket: &mut tokio::net::UdpSocket,
+    buf: &mut [u8],
+) -> DdsResult<RtpsMessageRead> {
+    let (bytes, _) = socket.recv_from(buf).await?;
     if bytes > 0 {
-        Ok(RtpsMessageRead::new(Arc::from(buf.into_boxed_slice()))?)
+        Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
     } else {
         Err(DdsError::NoData)
     }
@@ -540,8 +543,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant_clone = participant.clone();
         let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
         message.runtime_handle.spawn(async move {
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = participant_address_clone
                         .send_actor_mail(domain_participant_actor::ProcessUserDefinedRtpsMessage {
                             rtps_message: message,
@@ -580,8 +584,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 DdsError::Error("Failed to open metattrafic unicast socket".to_string())
             })?;
         message.runtime_handle.spawn(async move {
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = process_metatraffic_rtps_message(
                         participant_address_clone.clone(),
                         message,
@@ -619,8 +624,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             interface_address_list,
         )?;
         message.runtime_handle.spawn(async move {
+            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket).await {
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
                     let r = process_metatraffic_rtps_message(
                         participant_address_clone.clone(),
                         message,

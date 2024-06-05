@@ -35,10 +35,13 @@ use crate::{
         behavior_types::DURATION_ZERO,
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        messages::overall_structure::RtpsMessageRead,
+        messages::submessages::{
+            data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
+            heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
+        },
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader},
         types::{
-            EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
+            EntityId, Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
             USER_DEFINED_READER_WITH_KEY,
         },
     },
@@ -434,8 +437,10 @@ impl MailHandler<GetStatusKind> for SubscriberActor {
     }
 }
 
-pub struct ProcessRtpsMessage {
-    pub rtps_message: RtpsMessageRead,
+pub struct ProcessDataSubmessage {
+    pub data_submessage: DataSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+    pub source_timestamp: Option<rtps::messages::types::Time>,
     pub reception_timestamp: rtps::messages::types::Time,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
@@ -443,32 +448,144 @@ pub struct ProcessRtpsMessage {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
 }
-impl Mail for ProcessRtpsMessage {
+impl Mail for ProcessDataSubmessage {
     type Result = ();
 }
-impl MailHandler<ProcessRtpsMessage> for SubscriberActor {
+impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
     async fn handle(
         &mut self,
-        message: ProcessRtpsMessage,
-    ) -> <ProcessRtpsMessage as Mail>::Result {
-        let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-
-        for data_reader_address in self.data_reader_list.values() {
-            data_reader_address
-                .send_actor_mail(data_reader_actor::ProcessRtpsMessage {
-                    rtps_message: message.rtps_message.clone(),
+        message: ProcessDataSubmessage,
+    ) -> <ProcessDataSubmessage as Mail>::Result {
+        for data_reader_actor in self.data_reader_list.values() {
+            let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
+            data_reader_actor
+                .send_actor_mail(data_reader_actor::ProcessDataSubmessage {
+                    data_submessage: message.data_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
+                    source_timestamp: message.source_timestamp,
                     reception_timestamp: message.reception_timestamp,
-                    data_reader_address: data_reader_address.address(),
+                    data_reader_address: data_reader_actor.address(),
                     subscriber: SubscriberAsync::new(
                         message.subscriber_address.clone(),
                         self.status_condition.address(),
                         message.participant.clone(),
                     ),
-                    subscriber_mask_listener: subscriber_mask_listener.clone(),
+                    subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
+                })
+                .await;
+        }
+    }
+}
+
+pub struct ProcessDataFragSubmessage {
+    pub data_frag_submessage: DataFragSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+    pub source_timestamp: Option<rtps::messages::types::Time>,
+    pub reception_timestamp: rtps::messages::types::Time,
+    pub subscriber_address: ActorAddress<SubscriberActor>,
+    pub participant: DomainParticipantAsync,
+    pub participant_mask_listener: (
+        ActorAddress<DomainParticipantListenerActor>,
+        Vec<StatusKind>,
+    ),
+}
+impl Mail for ProcessDataFragSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
+    async fn handle(
+        &mut self,
+        message: ProcessDataFragSubmessage,
+    ) -> <ProcessDataFragSubmessage as Mail>::Result {
+        for data_reader_actor in self.data_reader_list.values() {
+            let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
+            data_reader_actor
+                .send_actor_mail(data_reader_actor::ProcessDataFragSubmessage {
+                    data_frag_submessage: message.data_frag_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
+                    source_timestamp: message.source_timestamp,
+                    reception_timestamp: message.reception_timestamp,
+                    data_reader_address: data_reader_actor.address(),
+                    subscriber: SubscriberAsync::new(
+                        message.subscriber_address.clone(),
+                        self.status_condition.address(),
+                        message.participant.clone(),
+                    ),
+                    subscriber_mask_listener,
+                    participant_mask_listener: message.participant_mask_listener.clone(),
+                })
+                .await;
+        }
+    }
+}
+
+pub struct ProcessGapSubmessage {
+    pub gap_submessage: GapSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+}
+impl Mail for ProcessGapSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessGapSubmessage> for SubscriberActor {
+    async fn handle(
+        &mut self,
+        message: ProcessGapSubmessage,
+    ) -> <ProcessGapSubmessage as Mail>::Result {
+        for data_reader_actor in self.data_reader_list.values() {
+            data_reader_actor
+                .send_actor_mail(data_reader_actor::ProcessGapSubmessage {
+                    gap_submessage: message.gap_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
+                })
+                .await;
+        }
+    }
+}
+
+pub struct ProcessHeartbeatSubmessage {
+    pub heartbeat_submessage: HeartbeatSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
+}
+impl Mail for ProcessHeartbeatSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessHeartbeatSubmessage> for SubscriberActor {
+    async fn handle(
+        &mut self,
+        message: ProcessHeartbeatSubmessage,
+    ) -> <ProcessHeartbeatSubmessage as Mail>::Result {
+        for data_reader_actor in self.data_reader_list.values() {
+            data_reader_actor
+                .send_actor_mail(data_reader_actor::ProcessHeartbeatSubmessage {
+                    heartbeat_submessage: message.heartbeat_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
                     message_sender_actor: message.message_sender_actor.clone(),
+                })
+                .await;
+        }
+    }
+}
+
+pub struct ProcessHeartbeatFragSubmessage {
+    pub heartbeat_frag_submessage: HeartbeatFragSubmessage,
+    pub source_guid_prefix: GuidPrefix,
+}
+impl Mail for ProcessHeartbeatFragSubmessage {
+    type Result = ();
+}
+impl MailHandler<ProcessHeartbeatFragSubmessage> for SubscriberActor {
+    async fn handle(
+        &mut self,
+        message: ProcessHeartbeatFragSubmessage,
+    ) -> <ProcessHeartbeatFragSubmessage as Mail>::Result {
+        for data_reader_actor in self.data_reader_list.values() {
+            data_reader_actor
+                .send_actor_mail(data_reader_actor::ProcessHeartbeatFragSubmessage {
+                    heartbeat_frag_submessage: message.heartbeat_frag_submessage.clone(),
+                    source_guid_prefix: message.source_guid_prefix,
                 })
                 .await;
         }

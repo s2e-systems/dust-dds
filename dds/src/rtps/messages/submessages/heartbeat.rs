@@ -11,7 +11,7 @@ use super::super::super::{
 };
 use std::io::Write;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HeartbeatSubmessage {
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,

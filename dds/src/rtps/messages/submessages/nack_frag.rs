@@ -12,7 +12,7 @@ use super::super::super::{
 };
 use std::io::Write;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NackFragSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
