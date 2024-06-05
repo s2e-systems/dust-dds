@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "My No Activity Application"
+rootProject.name = "Shapes Demo"
 include ':app'

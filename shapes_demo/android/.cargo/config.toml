@@ -1,0 +1,17 @@
+#[build]
+#target = "i686-linux-android"
+#target = "x86_64-linux-android"
+#target = "armv7-linux-androideabi"
+#target = "aarch64-linux-android"
+
+#[target.'cfg(target_os = "android")']
+#linker = "C:/Users/StefanKimmer/AppData/Local/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/windows-x86_64/bin/clang"
+
+# [target.i686-linux-android]
+# rustflags = ["-C", "link-arg=--target=i686-linux-android34"]
+# [target.x86_64-linux-android]
+# rustflags = ["-C", "link-arg=--target=x86_64-linux-android34"]
+# [target.armv7-linux-androideabi]
+# rustflags = ["-C", "link-arg=--target=armv7a-linux-androideabi34"]
+# [target.aarch64-linux-android]
+# rustflags = ["-C", "link-arg=--target=aarch64-linux-android34"]

@@ -1,16 +1,11 @@
 plugins {
     id 'com.android.application'
-    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.3"
-}
-
-tasks.configureEach { task ->
-    if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
-        task.dependsOn 'cargoBuild'
-    }
+    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.4"
 }
 
 android {
     namespace 'com.s2e_systems.dustddsshapesdemo'
+    ndkVersion "26.3.11579264"
     compileSdk 34
 
     defaultConfig {
@@ -35,11 +30,15 @@ android {
     apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
 
     cargo {
-        module = "../"
+        module = "."
         targets = ["x86", "x86_64", "arm", "arm64"]
         libname = "shapes_demo_app"
+        verbose = true
+        prebuiltToolchains = true
+        targetDirectory = "../../../target"
     }
 }
 
 dependencies {
+    preBuild.dependsOn "cargoBuild"
 }
