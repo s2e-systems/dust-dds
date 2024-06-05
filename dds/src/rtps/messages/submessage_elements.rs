@@ -8,7 +8,7 @@ use super::{
     types::ParameterId,
 };
 use std::{
-    io::{Cursor, Write},
+    io::Write,
     ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };

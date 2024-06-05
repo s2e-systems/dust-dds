@@ -7,7 +7,7 @@ use super::super::super::{
         types::SubmessageKind,
     },
 };
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PadSubmessage {}
@@ -46,7 +46,7 @@ impl Submessage for PadSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::messages::overall_structure::{
-        write_into_bytes_vec, write_submessage_into_bytes_vec, SubmessageHeaderRead,
+        write_submessage_into_bytes_vec, SubmessageHeaderRead,
     };
 
     #[test]

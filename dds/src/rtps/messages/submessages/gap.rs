@@ -10,7 +10,7 @@ use super::super::super::{
     },
     types::{EntityId, SequenceNumber},
 };
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct GapSubmessage {
@@ -84,7 +84,7 @@ impl Submessage for GapSubmessage {
 #[cfg(test)]
 mod tests {
     use crate::rtps::{
-        messages::overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
+        messages::overall_structure::write_submessage_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -128,7 +128,7 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = GapSubmessage::try_from_bytes(&&submessage_header, data.as_ref()).unwrap();
+        let submessage = GapSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(expected_reader_id, submessage._reader_id());
         assert_eq!(expected_writer_id, submessage.writer_id());
         assert_eq!(expected_gap_start, submessage.gap_start());

@@ -5,7 +5,7 @@ use super::{
 use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
 use network_interface::Addr;
 use std::{
-    io::{Cursor, Read, Write},
+    io::{Read, Write},
     net::IpAddr,
 };
 

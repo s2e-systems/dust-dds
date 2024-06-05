@@ -11,7 +11,7 @@ use super::super::super::{
     types::{EntityId, SequenceNumber},
 };
 use crate::rtps::error::{RtpsError, RtpsErrorKind};
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessage {
@@ -185,8 +185,7 @@ mod tests {
     use super::*;
     use crate::rtps::{
         messages::{
-            overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
-            submessage_elements::Parameter,
+            overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
         },
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };

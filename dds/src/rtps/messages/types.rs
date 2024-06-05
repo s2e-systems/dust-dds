@@ -2,7 +2,7 @@ use super::{
     super::error::RtpsResult,
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages

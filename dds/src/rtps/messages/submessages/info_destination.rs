@@ -9,7 +9,7 @@ use super::super::super::{
     },
     types::GuidPrefix,
 };
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessage {
@@ -55,8 +55,7 @@ impl Submessage for InfoDestinationSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
-        types::GUIDPREFIX_UNKNOWN,
+        messages::overall_structure::write_submessage_into_bytes_vec, types::GUIDPREFIX_UNKNOWN,
     };
 
     #[test]

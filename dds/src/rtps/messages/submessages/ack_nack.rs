@@ -10,7 +10,7 @@ use super::super::super::{
     },
     types::EntityId,
 };
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessage {
@@ -97,7 +97,7 @@ impl Submessage for AckNackSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
+        messages::overall_structure::write_submessage_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -139,8 +139,7 @@ mod tests {
             2, 0, 0, 0, // count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage =
-            AckNackSubmessage::try_from_bytes(&submessage_header, data.as_ref()).unwrap();
+        let submessage = AckNackSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

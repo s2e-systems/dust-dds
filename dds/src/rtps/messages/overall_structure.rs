@@ -247,7 +247,7 @@ impl RtpsMessageRead {
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
-pub fn write_into_bytes_vec<'a>(value: impl WriteIntoBytes) -> Vec<u8> {
+pub fn write_into_bytes_vec(value: impl WriteIntoBytes) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let mut cursor = Cursor::new(buf.as_mut_slice());
     value.write_into_bytes(&mut cursor);
@@ -256,7 +256,7 @@ pub fn write_into_bytes_vec<'a>(value: impl WriteIntoBytes) -> Vec<u8> {
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
-pub fn write_submessage_into_bytes_vec<'a>(value: &(dyn Submessage + Send)) -> Vec<u8> {
+pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u8> {
     let buf = Vec::new();
     let mut cursor = Cursor::new(buf);
     value.write_submessage_into_bytes(&mut cursor);
@@ -276,7 +276,6 @@ impl RtpsMessageWrite {
         for submessage in submessages {
             submessage.write_submessage_into_bytes(&mut cursor);
         }
-        let len = cursor.position() as usize;
         Self {
             data: Arc::from(cursor.into_inner().into_boxed_slice()),
         }

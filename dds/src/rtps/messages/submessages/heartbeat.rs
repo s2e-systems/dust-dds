@@ -9,7 +9,7 @@ use super::super::super::{
     },
     types::{EntityId, SequenceNumber},
 };
-use std::io::{Cursor, Write};
+use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatSubmessage {
@@ -113,7 +113,7 @@ impl Submessage for HeartbeatSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
+        messages::overall_structure::write_submessage_into_bytes_vec,
         types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
