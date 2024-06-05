@@ -13,6 +13,14 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
+          name: Build Android Docker image
+          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_android:1.75.0 .
+      - run:
+          name: Push Android image to DockerHub
+          command: |
+            echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
+            docker push s2esystems/dust_dds_android:1.75.0
+      - run:
           name: Build Docker image
           command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.65.0 .
       - run:
@@ -41,7 +49,7 @@ jobs:
       # Performance regression is not explicitly checked due to measurement instability issues
       - store_artifacts:
           path: ./target/criterion
-  build:
+  tests:
     docker:
       - image: cimg/rust:1.75.0
     resource_class: large
@@ -225,15 +233,23 @@ jobs:
       - checkout
       - run:
           name: Build
-          command: |
-            cargo build --package dust_dds_shapes_demo
+          command: cargo build --package dust_dds_shapes_demo
+
+  shapes_demo_android_build:
+    docker:
+      - image: s2esystems/dust_dds_android:1.75.0
+    steps:
+      - checkout
+      - run:
+          name: Build_Android
+          command: ./android/gradlew --project-dir android bundleDebug
 
 workflows:
   build_docker_image_and_run_tests:
     when: << pipeline.parameters.build_docker_image >>
     jobs:
       - build_and_push_docker_image
-      - build
+      - tests
       - benchmark
       - compilation_times
       - clippy
@@ -242,14 +258,16 @@ workflows:
             - build_and_push_docker_image
       - multi_machine_tests
       - shapes_demo_build
+      - shapes_demo_android_build
   run_tests:
     when:
       not: << pipeline.parameters.build_docker_image >>
     jobs:
-      - build
+      - tests
       - benchmark
       - compilation_times
       - clippy
       - interoperability_tests
       - multi_machine_tests
       - shapes_demo_build
+      - shapes_demo_android_build
