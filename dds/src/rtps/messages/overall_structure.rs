@@ -248,17 +248,14 @@ impl RtpsMessageRead {
 
 #[allow(dead_code)] // Only used as convenience in tests
 pub fn write_into_bytes_vec(value: impl WriteIntoBytes) -> Vec<u8> {
-    let mut buf = [0u8; BUFFER_SIZE];
-    let mut cursor = Cursor::new(buf.as_mut_slice());
+    let mut cursor = Cursor::new(Vec::new());
     value.write_into_bytes(&mut cursor);
-    let len = cursor.position() as usize;
-    Vec::from(&buf[..len])
+    cursor.into_inner()
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
 pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u8> {
-    let buf = Vec::new();
-    let mut cursor = Cursor::new(buf);
+    let mut cursor = Cursor::new(Vec::new());
     value.write_submessage_into_bytes(&mut cursor);
     cursor.into_inner()
 }
