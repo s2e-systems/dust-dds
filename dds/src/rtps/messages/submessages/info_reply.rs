@@ -9,7 +9,7 @@ use super::super::super::{
         types::{SubmessageFlag, SubmessageKind},
     },
 };
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoReplySubmessage {
@@ -52,12 +52,12 @@ impl InfoReplySubmessage {
 }
 
 impl Submessage for InfoReplySubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
-            .write_into_bytes(&mut Cursor::new(buf));
+            .write_into_bytes(buf);
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.unicast_locator_list.write_into_bytes(buf);
         if self.multicast_flag {
             self.multicast_locator_list.write_into_bytes(buf);
@@ -82,7 +82,10 @@ impl InfoReplySubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{messages::overall_structure::write_into_bytes_vec, types::Locator};
+    use crate::rtps::{
+        messages::overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
+        types::Locator,
+    };
 
     #[test]
     fn serialize_info_reply() {
@@ -93,7 +96,7 @@ mod tests {
             LocatorList::new(vec![]),
         );
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x0f, 0b_0000_0001, 28, 0, // Submessage header
                 1, 0, 0, 0, //numLocators
                 11, 0, 0, 0, //kind

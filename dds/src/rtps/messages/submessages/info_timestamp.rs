@@ -7,7 +7,7 @@ use super::super::super::{
         types::{SubmessageFlag, SubmessageKind, Time, TIME_INVALID},
     },
 };
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoTimestampSubmessage {
@@ -51,16 +51,16 @@ impl InfoTimestampSubmessage {
 }
 
 impl Submessage for InfoTimestampSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::INFO_TS,
             &[self.invalidate_flag],
             octets_to_next_header,
         )
-        .write_into_bytes(&mut Cursor::new(buf));
+        .write_into_bytes(buf);
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         if !self.invalidate_flag {
             self.timestamp.write_into_bytes(buf);
         }
@@ -70,13 +70,15 @@ impl Submessage for InfoTimestampSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::messages::overall_structure::write_into_bytes_vec;
+    use crate::rtps::messages::overall_structure::{
+        write_into_bytes_vec, write_submessage_into_bytes_vec,
+    };
 
     #[test]
     fn serialize_info_timestamp_valid_time() {
         let submessage = InfoTimestampSubmessage::new(false, Time::new(4, 0));
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
                 4, 0, 0, 0, // Time
                 0, 0, 0, 0, // Time
@@ -88,7 +90,7 @@ mod tests {
     fn serialize_info_timestamp_invalid_time() {
         let submessage = InfoTimestampSubmessage::new(true, TIME_INVALID);
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
             ]
         );

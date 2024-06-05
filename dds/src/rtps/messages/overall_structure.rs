@@ -20,7 +20,10 @@ use super::{
     },
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
-use std::{io::{BufRead, Cursor}, sync::Arc};
+use std::{
+    io::{BufRead, Cursor, Write},
+    sync::Arc,
+};
 
 const BUFFER_SIZE: usize = 65000;
 
@@ -43,16 +46,16 @@ pub trait TryReadFromBytes: Sized {
 }
 
 pub trait WriteIntoBytes {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>);
+    fn write_into_bytes(&self, buf: &mut dyn Write);
 }
 
 pub trait Submessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]);
-    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>);
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write);
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write);
 }
 
-impl<T: ?Sized + Send + Submessage> WriteIntoBytes for T {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+impl dyn Submessage + Send + '_ {
+    fn write_submessage_into_bytes(&self, buf: &mut Cursor<Vec<u8>>) {
         let header_position: u64 = buf.position();
         let elements_position = header_position + 4;
         buf.set_position(elements_position);
@@ -60,7 +63,7 @@ impl<T: ?Sized + Send + Submessage> WriteIntoBytes for T {
         let pos = buf.position();
         buf.set_position(header_position);
         let len = pos - elements_position;
-        self.write_submessage_header_into_bytes(len as u16, &mut buf.get_mut()[header_position as usize ..]);
+        self.write_submessage_header_into_bytes(len as u16, buf);
         buf.set_position(pos);
     }
 }
@@ -244,12 +247,20 @@ impl RtpsMessageRead {
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
-pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
+pub fn write_into_bytes_vec<'a>(value: impl WriteIntoBytes) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
     let mut cursor = Cursor::new(buf.as_mut_slice());
     value.write_into_bytes(&mut cursor);
     let len = cursor.position() as usize;
     Vec::from(&buf[..len])
+}
+
+#[allow(dead_code)] // Only used as convenience in tests
+pub fn write_submessage_into_bytes_vec<'a>(value: &(dyn Submessage + Send)) -> Vec<u8> {
+    let buf = Vec::new();
+    let mut cursor = Cursor::new(buf);
+    value.write_submessage_into_bytes(&mut cursor);
+    cursor.into_inner()
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -259,15 +270,15 @@ pub struct RtpsMessageWrite {
 
 impl RtpsMessageWrite {
     pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage + Send>]) -> Self {
-        let mut buffer = [0; BUFFER_SIZE];
-        let mut cursor = Cursor::new(buffer.as_mut_slice());
+        let buffer = Vec::new();
+        let mut cursor = Cursor::new(buffer);
         header.write_into_bytes(&mut cursor);
         for submessage in submessages {
-            submessage.write_into_bytes(&mut cursor);
+            submessage.write_submessage_into_bytes(&mut cursor);
         }
         let len = cursor.position() as usize;
         Self {
-            data: Arc::from(&buffer[..len]),
+            data: Arc::from(cursor.into_inner().into_boxed_slice()),
         }
     }
 
@@ -321,7 +332,7 @@ impl RtpsMessageHeader {
 }
 
 impl WriteIntoBytes for RtpsMessageHeader {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         ProtocolId::PROTOCOL_RTPS.write_into_bytes(buf);
         self.version.write_into_bytes(buf);
         self.vendor_id.write_into_bytes(buf);
@@ -359,7 +370,7 @@ impl SubmessageHeaderWrite {
 }
 
 impl WriteIntoBytes for SubmessageHeaderWrite {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.submessage_id.write_into_bytes(buf);
         self.flags_octet.write_into_bytes(buf);
         self.submessage_length.write_into_bytes(buf);

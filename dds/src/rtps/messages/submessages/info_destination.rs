@@ -9,7 +9,7 @@ use super::super::super::{
     },
     types::GuidPrefix,
 };
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessage {
@@ -41,12 +41,12 @@ impl InfoDestinationSubmessage {
 }
 
 impl Submessage for InfoDestinationSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_DST, &[], octets_to_next_header)
-            .write_into_bytes(&mut Cursor::new(buf));
+            .write_into_bytes(buf);
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.guid_prefix.write_into_bytes(buf);
     }
 }
@@ -55,7 +55,8 @@ impl Submessage for InfoDestinationSubmessage {
 mod tests {
     use super::*;
     use crate::rtps::{
-        messages::overall_structure::write_into_bytes_vec, types::GUIDPREFIX_UNKNOWN,
+        messages::overall_structure::{write_into_bytes_vec, write_submessage_into_bytes_vec},
+        types::GUIDPREFIX_UNKNOWN,
     };
 
     #[test]
@@ -63,7 +64,7 @@ mod tests {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let submessage = InfoDestinationSubmessage::new(guid_prefix);
         #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(submessage), vec![
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
               0x0e, 0b_0000_0001, 12, 0, // Submessage header
                 1, 2, 3, 4, //guid_prefix
                 5, 6, 7, 8, //guid_prefix

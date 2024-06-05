@@ -8,7 +8,7 @@ use super::{
     types::ParameterId,
 };
 use std::{
-    io::Cursor,
+    io::{Cursor, Write},
     ops::{Index, Range, RangeFrom, RangeTo},
     sync::Arc,
 };
@@ -104,7 +104,7 @@ impl TryReadFromBytes for SequenceNumberSet {
 }
 
 impl WriteIntoBytes for SequenceNumberSet {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; //In standard referred to as "M"
 
         self.base.write_into_bytes(buf);
@@ -150,7 +150,7 @@ impl FragmentNumberSet {
 }
 
 impl WriteIntoBytes for FragmentNumberSet {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
@@ -198,7 +198,7 @@ impl TryReadFromBytes for LocatorList {
 }
 
 impl WriteIntoBytes for LocatorList {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         let num_locators = self.value().len() as u32;
         num_locators.write_into_bytes(buf);
         for locator in self.value().iter() {
@@ -309,7 +309,7 @@ impl ParameterList {
 }
 
 impl WriteIntoBytes for Parameter {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         let padding = match self.value().len() % 4 {
             1 => &[0_u8; 3][..],
             2 => &[0_u8; 2][..],
@@ -325,7 +325,7 @@ impl WriteIntoBytes for Parameter {
 }
 
 impl WriteIntoBytes for ParameterList {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         for parameter in self.parameter().iter() {
             parameter.write_into_bytes(buf);
         }
@@ -469,7 +469,7 @@ impl AsRef<[u8]> for Data {
 }
 
 impl WriteIntoBytes for Data {
-    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.0.as_ref().write_into_bytes(buf);
         match self.0.len() % 4 {
             1 => [0_u8; 3].write_into_bytes(buf),
