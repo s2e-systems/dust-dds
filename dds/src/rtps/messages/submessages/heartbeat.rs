@@ -10,7 +10,7 @@ use super::super::super::{
     types::{EntityId, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HeartbeatSubmessage {
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,

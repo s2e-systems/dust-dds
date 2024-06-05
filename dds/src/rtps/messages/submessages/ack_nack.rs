@@ -11,7 +11,7 @@ use super::super::super::{
     types::EntityId,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AckNackSubmessage {
     final_flag: SubmessageFlag,
     reader_id: EntityId,

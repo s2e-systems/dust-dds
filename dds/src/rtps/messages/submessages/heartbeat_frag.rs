@@ -10,7 +10,7 @@ use super::super::super::{
     types::{EntityId, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HeartbeatFragSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
