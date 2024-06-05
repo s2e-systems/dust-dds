@@ -1,5 +1,3 @@
-use crate::rtps::error::{RtpsError, RtpsErrorKind};
-
 use super::super::super::{
     error::RtpsResult,
     messages::{
@@ -12,6 +10,8 @@ use super::super::super::{
     },
     types::{EntityId, SequenceNumber},
 };
+use crate::rtps::error::{RtpsError, RtpsErrorKind};
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessage {
@@ -149,7 +149,7 @@ impl DataSubmessage {
 }
 
 impl Submessage for DataSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
             &[
@@ -160,10 +160,10 @@ impl Submessage for DataSubmessage {
             ],
             octets_to_next_header,
         )
-        .write_into_bytes(&mut buf)
+        .write_into_bytes(&mut Cursor::new(buf))
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
         const EXTRA_FLAGS: u16 = 0;
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         EXTRA_FLAGS.write_into_bytes(buf);

@@ -10,6 +10,7 @@ use super::super::super::{
     },
     types::{EntityId, SequenceNumber},
 };
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessage {
@@ -75,12 +76,12 @@ impl NackFragSubmessage {
 }
 
 impl Submessage for NackFragSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
-            .write_into_bytes(&mut buf);
+            .write_into_bytes(&mut Cursor::new(buf));
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
         self.writer_sn.write_into_bytes(buf);

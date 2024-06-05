@@ -9,6 +9,7 @@ use super::super::super::{
         types::{SubmessageFlag, SubmessageKind},
     },
 };
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoReplySubmessage {
@@ -51,12 +52,12 @@ impl InfoReplySubmessage {
 }
 
 impl Submessage for InfoReplySubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
-            .write_into_bytes(&mut buf);
+            .write_into_bytes(&mut Cursor::new(buf));
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
         self.unicast_locator_list.write_into_bytes(buf);
         if self.multicast_flag {
             self.multicast_locator_list.write_into_bytes(buf);

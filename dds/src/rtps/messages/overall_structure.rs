@@ -20,7 +20,7 @@ use super::{
     },
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
-use std::{io::BufRead, sync::Arc};
+use std::{io::{BufRead, Cursor}, sync::Arc};
 
 const BUFFER_SIZE: usize = 65000;
 
@@ -43,33 +43,25 @@ pub trait TryReadFromBytes: Sized {
 }
 
 pub trait WriteIntoBytes {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]);
+    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>);
 }
 
 pub trait Submessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]);
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]);
+    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>);
 }
 
-impl<T: Submessage> WriteIntoBytes for T {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (header, mut elements) = std::mem::take(buf).split_at_mut(4);
-        let len_before = elements.len();
-        self.write_submessage_elements_into_bytes(&mut elements);
-        let len = len_before - elements.len();
-        self.write_submessage_header_into_bytes(len as u16, header);
-        *buf = elements;
-    }
-}
-
-impl WriteIntoBytes for dyn Submessage + Send {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
-        let (header, mut elements) = std::mem::take(buf).split_at_mut(4);
-        let len_before = elements.len();
-        self.write_submessage_elements_into_bytes(&mut elements);
-        let len = len_before - elements.len();
-        self.write_submessage_header_into_bytes(len as u16, header);
-        *buf = elements;
+impl<T: ?Sized + Send + Submessage> WriteIntoBytes for T {
+    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
+        let header_position: u64 = buf.position();
+        let elements_position = header_position + 4;
+        buf.set_position(elements_position);
+        self.write_submessage_elements_into_bytes(buf);
+        let pos = buf.position();
+        buf.set_position(header_position);
+        let len = pos - elements_position;
+        self.write_submessage_header_into_bytes(len as u16, &mut buf.get_mut()[header_position as usize ..]);
+        buf.set_position(pos);
     }
 }
 
@@ -254,9 +246,9 @@ impl RtpsMessageRead {
 #[allow(dead_code)] // Only used as convenience in tests
 pub fn write_into_bytes_vec<T: WriteIntoBytes>(value: T) -> Vec<u8> {
     let mut buf = [0u8; BUFFER_SIZE];
-    let mut slice = buf.as_mut_slice();
-    value.write_into_bytes(&mut slice);
-    let len = BUFFER_SIZE - slice.len();
+    let mut cursor = Cursor::new(buf.as_mut_slice());
+    value.write_into_bytes(&mut cursor);
+    let len = cursor.position() as usize;
     Vec::from(&buf[..len])
 }
 
@@ -268,12 +260,12 @@ pub struct RtpsMessageWrite {
 impl RtpsMessageWrite {
     pub fn new(header: &RtpsMessageHeader, submessages: &[Box<dyn Submessage + Send>]) -> Self {
         let mut buffer = [0; BUFFER_SIZE];
-        let mut slice = buffer.as_mut_slice();
-        header.write_into_bytes(&mut slice);
+        let mut cursor = Cursor::new(buffer.as_mut_slice());
+        header.write_into_bytes(&mut cursor);
         for submessage in submessages {
-            submessage.write_into_bytes(&mut slice);
+            submessage.write_into_bytes(&mut cursor);
         }
-        let len = BUFFER_SIZE - slice.len();
+        let len = cursor.position() as usize;
         Self {
             data: Arc::from(&buffer[..len]),
         }
@@ -329,7 +321,7 @@ impl RtpsMessageHeader {
 }
 
 impl WriteIntoBytes for RtpsMessageHeader {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
         ProtocolId::PROTOCOL_RTPS.write_into_bytes(buf);
         self.version.write_into_bytes(buf);
         self.vendor_id.write_into_bytes(buf);
@@ -367,7 +359,7 @@ impl SubmessageHeaderWrite {
 }
 
 impl WriteIntoBytes for SubmessageHeaderWrite {
-    fn write_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
         self.submessage_id.write_into_bytes(buf);
         self.flags_octet.write_into_bytes(buf);
         self.submessage_length.write_into_bytes(buf);

@@ -9,6 +9,7 @@ use super::super::super::{
     },
     types::{GuidPrefix, Long, ProtocolVersion, VendorId},
 };
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoSourceSubmessage {
@@ -59,12 +60,12 @@ impl InfoSourceSubmessage {
 }
 
 impl Submessage for InfoSourceSubmessage {
-    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, mut buf: &mut [u8]) {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut [u8]) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
-            .write_into_bytes(&mut buf);
+            .write_into_bytes(&mut Cursor::new(buf));
     }
 
-    fn write_submessage_elements_into_bytes(&self, buf: &mut &mut [u8]) {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut Cursor<&mut [u8]>) {
         0_u32.write_into_bytes(buf);
         self.protocol_version.write_into_bytes(buf);
         self.vendor_id.write_into_bytes(buf);
