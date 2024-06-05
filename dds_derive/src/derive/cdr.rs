@@ -22,12 +22,28 @@ pub fn expand_cdr_serialize(input: &DeriveInput) -> Result<TokenStream> {
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 match &field.ident {
                     Some(field_name) => {
-                        field_serialization
+                        if is_field_byte_array(field) {
+                            field_serialization
+                            .extend(quote! {dust_dds::serialized_payload::cdr::serializer::CdrSerializer::serialize_byte_array(serializer, &self.#field_name)?;});
+                        } else if is_field_byte_vec(field) {
+                            field_serialization
+                            .extend(quote! {dust_dds::serialized_payload::cdr::serializer::CdrSerializer::serialize_bytes(serializer, &self.#field_name)?;});
+                        } else {
+                            field_serialization
                             .extend(quote! {dust_dds::serialized_payload::cdr::serialize::CdrSerialize::serialize(&self.#field_name, serializer)?;});
+                        }
                     }
                     None => {
                         let index = Index::from(field_index);
-                        field_serialization.extend(quote! {dust_dds::serialized_payload::cdr::serialize::CdrSerialize::serialize(&self.#index, serializer)?;});
+                        if is_field_byte_array(field) {
+                            field_serialization
+                            .extend(quote! {dust_dds::serialized_payload::cdr::serializer::CdrSerializer::serialize_byte_array(serializer, &self.#index)?;});
+                        } else if is_field_byte_vec(field) {
+                            field_serialization
+                            .extend(quote! {dust_dds::serialized_payload::cdr::serializer::CdrSerializer::serialize_bytes(serializer, &self.#index)?;});
+                        } else {
+                            field_serialization.extend(quote! {dust_dds::serialized_payload::cdr::serialize::CdrSerialize::serialize(&self.#index, serializer)?;});
+                        }
                     }
                 }
             }
@@ -122,14 +138,26 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         .ident
                         .is_none();
                     if is_tuple {
-                        for _ in data_struct.fields.iter() {
-                            field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
+                        for field in data_struct.fields.iter() {
+                            if is_field_byte_array(field) {
+                                field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_byte_array(deserializer)?.clone(),});
+                            } else if is_field_byte_vec(field) {
+                                field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_bytes(deserializer)?.into(),});
+                            } else {
+                                field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
+                            }
                         }
                         struct_deserialization.extend(quote! {Self(#field_deserialization)})
                     } else {
                         for field in data_struct.fields.iter() {
                             let field_name = field.ident.as_ref().expect("Is not a tuple");
-                            field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
+                            if is_field_byte_array(field) {
+                                field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_byte_array(deserializer)?.clone(),});
+                            } else if is_field_byte_vec(field) {
+                                field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_bytes(deserializer)?.into(),});
+                            } else {
+                                field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,});
+                            }
                         }
                         struct_deserialization.extend(quote! {Self{
                             #field_deserialization
@@ -195,6 +223,28 @@ pub fn expand_cdr_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             "Union not supported",
         )),
     }
+}
+
+fn is_field_byte_array(field: &syn::Field) -> bool {
+    if let syn::Type::Array(t) = &field.ty {
+        if let syn::Type::Path(t) = t.elem.as_ref() {
+            return t.path.is_ident("u8");
+        }
+    }
+    false
+}
+
+fn is_field_byte_vec(field: &syn::Field) -> bool {
+    if let syn::Type::Path(t) = &field.ty {
+        if t.path.segments[0].ident == "Vec" {
+            if let syn::PathArguments::AngleBracketed(a) = &t.path.segments[0].arguments {
+                if let syn::GenericArgument::Type(syn::Type::Path(vec_t)) = &a.args[0] {
+                    return vec_t.path.is_ident("u8");
+                }
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -321,6 +371,84 @@ mod tests {
                     Ok(Self {
                         x: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
                         y: dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize::deserialize(deserializer)?,
+                    })
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn cdr_deserialize_byte_array() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            pub struct MyByteArray {
+                a: [u8;10],
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_cdr_deserialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de> dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for MyByteArray {
+                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                    Ok(Self {
+                        a: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_byte_array(deserializer)?.clone(),
+                    })
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn cdr_deserialize_bytes() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            pub struct MyBytes {
+                a: Vec<u8>,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_cdr_deserialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de> dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize<'__de> for MyBytes {
+                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                    Ok(Self {
+                        a: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_bytes(deserializer)?.into(),
                     })
                 }
             }
