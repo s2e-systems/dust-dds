@@ -252,7 +252,7 @@ jobs:
       - checkout
       - run:
           name: Build_Android
-          command: ./android/gradlew --project-dir android bundleDebug
+          command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleDebug
 
 workflows:
   build_docker_image_and_run_tests:
