@@ -210,10 +210,11 @@ impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
     ) -> <GetInconsistentTopicStatus as Mail>::Result {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
             })
-            .await
             .receive_reply()
             .await;
         status
@@ -245,10 +246,11 @@ impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
+                .reserve()
+                .await
                 .send_actor_mail(AddCommunicationState {
                     state: StatusKind::InconsistentTopic,
                 })
-                .await
                 .receive_reply()
                 .await;
         }

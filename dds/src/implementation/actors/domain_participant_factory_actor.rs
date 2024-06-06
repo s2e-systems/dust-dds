@@ -460,13 +460,15 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             DEFAULT_ACTOR_BUFFER_SIZE,
         );
         let status_condition = participant_actor
-            .send_actor_mail(domain_participant_actor::GetStatuscondition)
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_actor::GetStatuscondition)
             .receive_reply()
             .await;
         let builtin_subscriber = participant_actor
-            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
             .receive_reply()
             .await;
         let builtin_subscriber_status_condition_address = builtin_subscriber
@@ -532,10 +534,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
         participant_actor
+            .reserve()
+            .await
             .send_actor_mail(domain_participant_actor::SetDefaultUnicastLocatorList {
                 list: default_unicast_locator_list,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -570,10 +573,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
             .collect();
         participant_actor
+            .reserve()
+            .await
             .send_actor_mail(domain_participant_actor::SetMetatrafficUnicastLocatorList {
                 list: metatraffic_unicast_locator_list,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -607,12 +611,13 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
         participant_actor
+            .reserve()
+            .await
             .send_actor_mail(
                 domain_participant_actor::SetMetatrafficMulticastLocatorList {
                     list: metatraffic_multicast_locator_list,
                 },
             )
-            .await
             .receive_reply()
             .await;
 
@@ -658,8 +663,9 @@ impl Mail for DeleteParticipant {
 impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
     async fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
         let is_participant_empty = self.domain_participant_list[&message.handle]
-            .send_actor_mail(domain_participant_actor::IsEmpty)
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_actor::IsEmpty)
             .receive_reply()
             .await;
         if is_participant_empty {
@@ -689,8 +695,9 @@ impl MailHandler<LookupParticipant> for DomainParticipantFactoryActor {
     async fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Mail>::Result {
         for dp in self.domain_participant_list.values() {
             if dp
-                .send_actor_mail(domain_participant_actor::GetDomainId)
+                .reserve()
                 .await
+                .send_actor_mail(domain_participant_actor::GetDomainId)
                 .receive_reply()
                 .await
                 == message.domain_id

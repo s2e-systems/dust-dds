@@ -78,12 +78,13 @@ impl SubscriberAsync {
                 .receive_reply()
                 .await;
             let data = reader
+                .reserve()
+                .await
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 })
-                .await
                 .receive_reply()
                 .await?;
             sedp_subscriptions_announcer.dispose(&data, None).await?;
@@ -302,10 +303,11 @@ impl SubscriberAsync {
         for deleted_reader_actor in deleted_reader_actor_list {
             // Send messages before deleting the reader
             deleted_reader_actor
+                .reserve()
+                .await
                 .send_actor_mail(data_reader_actor::SendMessage {
                     message_sender_actor: message_sender_actor.clone(),
-                })
-                .await;
+                });
 
             self.announce_deleted_data_reader(&deleted_reader_actor)
                 .await?;

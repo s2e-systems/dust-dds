@@ -416,10 +416,11 @@ impl DataReaderActor {
         }
 
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -467,10 +468,11 @@ impl DataReaderActor {
         )?;
 
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::DataAvailable,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -491,10 +493,11 @@ impl DataReaderActor {
 
     async fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::SubscriptionMatched,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -557,8 +560,8 @@ impl DataReaderActor {
                 .await?
                 .receive_reply()
                 .await;
-            self.listener
-                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::DataAvailable,
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
@@ -570,8 +573,8 @@ impl DataReaderActor {
                         topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                })
-                .await;
+                },
+            );
         }
         Ok(())
     }
@@ -899,10 +902,11 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SampleLost,
             })
-            .await
             .receive_reply()
             .await;
         let topic_status_condition_address = self
@@ -925,8 +929,8 @@ impl DataReaderActor {
                 .receive_reply()
                 .await;
             let status = self.get_sample_lost_status();
-            self.listener
-                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::SampleLost(status),
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
@@ -938,8 +942,8 @@ impl DataReaderActor {
                         topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                })
-                .await;
+                },
+            );
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
             subscriber_listener_address
@@ -975,10 +979,11 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -1004,8 +1009,8 @@ impl DataReaderActor {
                 .await?
                 .receive_reply()
                 .await;
-            self.listener
-                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
@@ -1017,8 +1022,8 @@ impl DataReaderActor {
                         topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                })
-                .await;
+                },
+            );
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status().await;
             subscriber_listener_address
@@ -1059,10 +1064,11 @@ impl DataReaderActor {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SampleRejected,
             })
-            .await
             .receive_reply()
             .await;
         if self.status_kind.contains(&StatusKind::SampleRejected) {
@@ -1086,8 +1092,8 @@ impl DataReaderActor {
                 .await?
                 .receive_reply()
                 .await;
-            self.listener
-                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::SampleRejected(status),
                     reader_address: data_reader_address.clone(),
                     status_condition_address: self.status_condition.address(),
@@ -1099,8 +1105,8 @@ impl DataReaderActor {
                         topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                })
-                .await;
+                },
+            );
         } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
 
@@ -1138,10 +1144,11 @@ impl DataReaderActor {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::RequestedIncompatibleQos,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -1169,8 +1176,8 @@ impl DataReaderActor {
                 .receive_reply()
                 .await;
 
-            self.listener
-                .send_actor_mail(data_reader_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_reader_listener_actor::CallListenerFunction {
                     listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
                         status,
                     ),
@@ -1184,8 +1191,8 @@ impl DataReaderActor {
                         topic_name.clone(),
                         subscriber.get_participant(),
                     ),
-                })
-                .await;
+                },
+            );
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
             subscriber_listener_address
@@ -2461,8 +2468,9 @@ impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
         _: GetRequestedDeadlineMissedStatus,
     ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
         self.requested_deadline_missed_status
-            .send_actor_mail(ReadRequestedDeadlineMissedStatus)
+            .reserve()
             .await
+            .send_actor_mail(ReadRequestedDeadlineMissedStatus)
             .receive_reply()
             .await
     }

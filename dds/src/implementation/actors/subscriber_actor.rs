@@ -262,8 +262,9 @@ impl MailHandler<LookupDatareader> for SubscriberActor {
     async fn handle(&mut self, message: LookupDatareader) -> <LookupDatareader as Mail>::Result {
         for dr in self.data_reader_list.values() {
             if dr
-                .send_actor_mail(data_reader_actor::GetTopicName)
+                .reserve()
                 .await
+                .send_actor_mail(data_reader_actor::GetTopicName)
                 .receive_reply()
                 .await
                 .as_ref()
@@ -459,8 +460,8 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
     ) -> <ProcessDataSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessDataSubmessage {
+            data_reader_actor.reserve().await.send_actor_mail(
+                data_reader_actor::ProcessDataSubmessage {
                     data_submessage: message.data_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
                     source_timestamp: message.source_timestamp,
@@ -473,8 +474,8 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
                     ),
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -501,8 +502,8 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
     ) -> <ProcessDataFragSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessDataFragSubmessage {
+            data_reader_actor.reserve().await.send_actor_mail(
+                data_reader_actor::ProcessDataFragSubmessage {
                     data_frag_submessage: message.data_frag_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
                     source_timestamp: message.source_timestamp,
@@ -515,8 +516,8 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
                     ),
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -534,12 +535,12 @@ impl MailHandler<ProcessGapSubmessage> for SubscriberActor {
         message: ProcessGapSubmessage,
     ) -> <ProcessGapSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessGapSubmessage {
+            data_reader_actor.reserve().await.send_actor_mail(
+                data_reader_actor::ProcessGapSubmessage {
                     gap_submessage: message.gap_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -558,13 +559,13 @@ impl MailHandler<ProcessHeartbeatSubmessage> for SubscriberActor {
         message: ProcessHeartbeatSubmessage,
     ) -> <ProcessHeartbeatSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessHeartbeatSubmessage {
+            data_reader_actor.reserve().await.send_actor_mail(
+                data_reader_actor::ProcessHeartbeatSubmessage {
                     heartbeat_submessage: message.heartbeat_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
                     message_sender_actor: message.message_sender_actor.clone(),
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -582,12 +583,12 @@ impl MailHandler<ProcessHeartbeatFragSubmessage> for SubscriberActor {
         message: ProcessHeartbeatFragSubmessage,
     ) -> <ProcessHeartbeatFragSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessHeartbeatFragSubmessage {
+            data_reader_actor.reserve().await.send_actor_mail(
+                data_reader_actor::ProcessHeartbeatFragSubmessage {
                     heartbeat_frag_submessage: message.heartbeat_frag_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -619,6 +620,8 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader
+                    .reserve()
+                    .await
                     .send_actor_mail(data_reader_actor::AddMatchedWriter {
                         discovered_writer_data: message.discovered_writer_data.clone(),
                         default_unicast_locator_list: message.default_unicast_locator_list.clone(),
@@ -635,7 +638,6 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                         subscriber_mask_listener,
                         participant_mask_listener: message.participant_mask_listener.clone(),
                     })
-                    .await
                     .receive_reply()
                     .await?;
             }
@@ -665,6 +667,8 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
             data_reader
+                .reserve()
+                .await
                 .send_actor_mail(data_reader_actor::RemoveMatchedWriter {
                     discovered_writer_handle: message.discovered_writer_handle,
                     data_reader_address,
@@ -676,7 +680,6 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }

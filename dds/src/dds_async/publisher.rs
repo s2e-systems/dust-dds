@@ -79,12 +79,13 @@ impl PublisherAsync {
                 .receive_reply()
                 .await;
             let data = writer
+                .reserve()
+                .await
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 })
-                .await
                 .receive_reply()
                 .await?;
             sedp_publications_announcer.dispose(&data, None).await?;
@@ -326,10 +327,11 @@ impl PublisherAsync {
 
         for deleted_writer_actor in deleted_writer_actor_list {
             deleted_writer_actor
+                .reserve()
+                .await
                 .send_actor_mail(data_writer_actor::SendMessage {
                     message_sender_actor: message_sender_actor.clone(),
-                })
-                .await;
+                });
 
             self.announce_deleted_data_writer(&deleted_writer_actor)
                 .await?;

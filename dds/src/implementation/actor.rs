@@ -41,6 +41,23 @@ where
     }
 }
 
+pub struct ActorSenderPermit<'a, A> {
+    permit: tokio::sync::mpsc::Permit<'a, Box<dyn GenericHandlerDyn<A> + Send>>,
+}
+
+impl<'a, A> ActorSenderPermit<'a, A> {
+    pub fn send_actor_mail<M>(self, mail: M) -> ReplyReceiver<M>
+    where
+        A: MailHandler<M> + Send,
+        M: Mail + Send + 'static,
+        M::Result: Send,
+    {
+        let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
+        self.permit.send(Box::new(ReplyMail { mail, reply_sender }));
+        ReplyReceiver { reply_receiver }
+    }
+}
+
 pub trait GenericHandlerDyn<A> {
     fn handle<'a, 'b>(
         self: Box<Self>,
@@ -89,6 +106,14 @@ impl<A> Clone for ActorAddress<A> {
 impl<A> ActorAddress<A> {
     pub fn is_closed(&self) -> bool {
         self.mail_sender.is_closed()
+    }
+
+    pub async fn reserve(&self) -> DdsResult<ActorSenderPermit<'_, A>> {
+        if let Ok(permit) = self.mail_sender.reserve().await {
+            Ok(ActorSenderPermit { permit })
+        } else {
+            Err(DdsError::AlreadyDeleted)
+        }
     }
 
     pub async fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
@@ -155,18 +180,14 @@ where
         self.join_handle.await.ok();
     }
 
-    pub async fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
-    where
-        A: MailHandler<M>,
-        M: Mail + Send + 'static,
-        M::Result: Send,
-    {
-        let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
-        self.mail_sender
-            .send(Box::new(ReplyMail { mail, reply_sender }))
-            .await
-            .expect("Message will always be sent when actor exists");
-        ReplyReceiver { reply_receiver }
+    pub async fn reserve(&self) -> ActorSenderPermit<'_, A> {
+        ActorSenderPermit {
+            permit: self
+                .mail_sender
+                .reserve()
+                .await
+                .expect("Permit will always be given when actor exists"),
+        }
     }
 }
 
@@ -202,8 +223,9 @@ mod tests {
         assert_eq!(
             runtime.block_on(async {
                 actor
-                    .send_actor_mail(Increment { value: 10 })
+                    .reserve()
                     .await
+                    .send_actor_mail(Increment { value: 10 })
                     .receive_reply()
                     .await
             }),
@@ -220,8 +242,9 @@ mod tests {
         assert_eq!(
             runtime.block_on(async {
                 actor
-                    .send_actor_mail(Increment { value: 10 })
+                    .reserve()
                     .await
+                    .send_actor_mail(Increment { value: 10 })
                     .receive_reply()
                     .await
             }),
@@ -241,8 +264,9 @@ mod tests {
         assert_eq!(
             runtime.block_on(async {
                 actor
-                    .send_actor_mail(Increment { value: 10 })
+                    .reserve()
                     .await
+                    .send_actor_mail(Increment { value: 10 })
                     .receive_reply()
                     .await
             }),

@@ -338,10 +338,11 @@ impl DataWriterActor {
 
     async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -519,10 +520,11 @@ impl DataWriterActor {
         ),
     ) -> DdsResult<()> {
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::PublicationMatched,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -547,8 +549,8 @@ impl DataWriterActor {
                 .await?
                 .receive_reply()
                 .await;
-            self.listener
-                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_writer_listener_actor::CallListenerFunction {
                     listener_operation: DataWriterListenerOperation::PublicationMatched(status),
                     writer_address: data_writer_address,
                     status_condition_address: self.status_condition.address(),
@@ -560,8 +562,8 @@ impl DataWriterActor {
                         topic_name,
                         participant,
                     ),
-                })
-                .await;
+                },
+            );
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
             publisher_listener
@@ -596,10 +598,11 @@ impl DataWriterActor {
         ),
     ) -> DdsResult<()> {
         self.status_condition
+            .reserve()
+            .await
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::OfferedIncompatibleQos,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -629,8 +632,8 @@ impl DataWriterActor {
                 .await?
                 .receive_reply()
                 .await;
-            self.listener
-                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
+            self.listener.reserve().await.send_actor_mail(
+                data_writer_listener_actor::CallListenerFunction {
                     listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
                     writer_address: data_writer_address,
                     status_condition_address: self.status_condition.address(),
@@ -642,8 +645,8 @@ impl DataWriterActor {
                         topic_name,
                         participant,
                     ),
-                })
-                .await;
+                },
+            );
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
                 .incompatible_subscriptions

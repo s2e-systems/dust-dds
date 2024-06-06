@@ -61,6 +61,8 @@ impl DomainParticipantFactoryAsync {
         let runtime_handle = self.runtime_handle.clone();
         let participant_address = self
             .domain_participant_factory_actor
+            .reserve()
+            .await
             .send_actor_mail(domain_participant_factory_actor::CreateParticipant {
                 domain_id,
                 qos,
@@ -68,7 +70,6 @@ impl DomainParticipantFactoryAsync {
                 status_kind,
                 runtime_handle,
             })
-            .await
             .receive_reply()
             .await?;
         let status_condition = participant_address
@@ -112,8 +113,9 @@ impl DomainParticipantFactoryAsync {
         let handle = participant.get_instance_handle().await?;
         let deleted_participant = self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
             .receive_reply()
             .await?;
         let builtin_publisher = participant.get_builtin_publisher().await?;
@@ -122,8 +124,9 @@ impl DomainParticipantFactoryAsync {
             .await?
         {
             let data = deleted_participant
-                .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
+                .reserve()
                 .await
+                .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
                 .receive_reply()
                 .await;
             spdp_participant_writer.dispose(&data, None).await?;
@@ -139,8 +142,9 @@ impl DomainParticipantFactoryAsync {
     ) -> DdsResult<Option<DomainParticipantAsync>> {
         if let Some(dp) = self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::LookupParticipant { domain_id })
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::LookupParticipant { domain_id })
             .receive_reply()
             .await?
         {
@@ -178,8 +182,9 @@ impl DomainParticipantFactoryAsync {
         qos: QosKind<DomainParticipantQos>,
     ) -> DdsResult<()> {
         self.domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::SetDefaultParticipantQos { qos })
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::SetDefaultParticipantQos { qos })
             .receive_reply()
             .await
     }
@@ -188,8 +193,9 @@ impl DomainParticipantFactoryAsync {
     pub async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         Ok(self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::GetDefaultParticipantQos)
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::GetDefaultParticipantQos)
             .receive_reply()
             .await)
     }
@@ -197,8 +203,9 @@ impl DomainParticipantFactoryAsync {
     /// Async version of [`set_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         self.domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::SetQos { qos })
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::SetQos { qos })
             .receive_reply()
             .await
     }
@@ -207,8 +214,9 @@ impl DomainParticipantFactoryAsync {
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
         Ok(self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::GetQos)
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::GetQos)
             .receive_reply()
             .await)
     }
@@ -216,8 +224,9 @@ impl DomainParticipantFactoryAsync {
     /// Async version of [`set_configuration`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_configuration).
     pub async fn set_configuration(&self, configuration: DustDdsConfiguration) -> DdsResult<()> {
         self.domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::SetConfiguration { configuration })
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::SetConfiguration { configuration })
             .receive_reply()
             .await;
         Ok(())
@@ -227,8 +236,9 @@ impl DomainParticipantFactoryAsync {
     pub async fn get_configuration(&self) -> DdsResult<DustDdsConfiguration> {
         Ok(self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::GetConfiguration)
+            .reserve()
             .await
+            .send_actor_mail(domain_participant_factory_actor::GetConfiguration)
             .receive_reply()
             .await)
     }

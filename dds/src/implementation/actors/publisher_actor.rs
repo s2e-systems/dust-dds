@@ -248,8 +248,9 @@ impl MailHandler<LookupDatawriter> for PublisherActor {
     async fn handle(&mut self, message: LookupDatawriter) -> <LookupDatawriter as Mail>::Result {
         for dw in self.data_writer_list.values() {
             if dw
-                .send_actor_mail(data_writer_actor::GetTopicName)
+                .reserve()
                 .await
+                .send_actor_mail(data_writer_actor::GetTopicName)
                 .receive_reply()
                 .await
                 .as_ref()
@@ -420,13 +421,13 @@ impl MailHandler<ProcessAckNackSubmessage> for PublisherActor {
         message: ProcessAckNackSubmessage,
     ) -> <ProcessAckNackSubmessage as Mail>::Result {
         for data_writer_actor in self.data_writer_list.values() {
-            data_writer_actor
-                .send_actor_mail(data_writer_actor::ProcessAckNackSubmessage {
+            data_writer_actor.reserve().await.send_actor_mail(
+                data_writer_actor::ProcessAckNackSubmessage {
                     acknack_submessage: message.acknack_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
                     message_sender_actor: message.message_sender_actor.clone(),
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -444,12 +445,12 @@ impl MailHandler<ProcessNackFragSubmessage> for PublisherActor {
         message: ProcessNackFragSubmessage,
     ) -> <ProcessNackFragSubmessage as Mail>::Result {
         for data_writer_actor in self.data_writer_list.values() {
-            data_writer_actor
-                .send_actor_mail(data_writer_actor::ProcessNackFragSubmessage {
+            data_writer_actor.reserve().await.send_actor_mail(
+                data_writer_actor::ProcessNackFragSubmessage {
                     nackfrag_submessage: message.nackfrag_submessage.clone(),
                     source_guid_prefix: message.source_guid_prefix,
-                })
-                .await;
+                },
+            );
         }
     }
 }
@@ -482,6 +483,8 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                 let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
 
                 data_writer
+                    .reserve()
+                    .await
                     .send_actor_mail(data_writer_actor::AddMatchedReader {
                         discovered_reader_data: message.discovered_reader_data.clone(),
                         default_unicast_locator_list: message.default_unicast_locator_list.clone(),
@@ -499,7 +502,6 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                         participant_mask_listener: message.participant_mask_listener.clone(),
                         message_sender_actor: message.message_sender_actor.clone(),
                     })
-                    .await
                     .receive_reply()
                     .await?;
             }
@@ -529,6 +531,8 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
             let data_writer_address = data_writer.address();
             let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
             data_writer
+                .reserve()
+                .await
                 .send_actor_mail(data_writer_actor::RemoveMatchedReader {
                     discovered_reader_handle: message.discovered_reader_handle,
                     data_writer_address,
@@ -540,7 +544,6 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
                     publisher_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }

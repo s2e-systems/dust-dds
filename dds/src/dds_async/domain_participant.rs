@@ -104,8 +104,9 @@ impl DomainParticipantAsync {
         if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
         {
             let data = topic
-                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
+                .reserve()
                 .await
+                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
                 .receive_reply()
                 .await;
             sedp_topics_announcer.dispose(&data, None).await?;
@@ -442,8 +443,9 @@ impl DomainParticipantAsync {
             PublisherAsync::new(
                 deleted_publisher.address(),
                 deleted_publisher
-                    .send_actor_mail(publisher_actor::GetStatuscondition)
+                    .reserve()
                     .await
+                    .send_actor_mail(publisher_actor::GetStatuscondition)
                     .receive_reply()
                     .await,
                 self.clone(),
@@ -462,8 +464,9 @@ impl DomainParticipantAsync {
             SubscriberAsync::new(
                 deleted_subscriber.address(),
                 deleted_subscriber
-                    .send_actor_mail(subscriber_actor::GetStatuscondition)
+                    .reserve()
                     .await
+                    .send_actor_mail(subscriber_actor::GetStatuscondition)
                     .receive_reply()
                     .await,
                 self.clone(),
