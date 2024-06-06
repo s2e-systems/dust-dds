@@ -255,36 +255,39 @@ jobs:
           command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleDebug
 
 workflows:
-  build_docker_image_and_run_tests:
-    when:
-      condition:
-        - or: [ << pipeline.parameters.build_docker_image >>, << pipeline.parameters.build_android_docker_image >> ]
+  build_and_run_tests:
     jobs:
-      - build_and_push_android_docker_image
-      - build_and_push_docker_image
       - tests
       - benchmark
       - compilation_times
       - clippy
+      - multi_machine_tests
+      - shapes_demo_build
+
+  build_docker_image_and_run_interoperability_tests:
+    when: << pipeline.parameters.build_docker_image >>
+    jobs:
+      - build_and_push_docker_image
       - interoperability_tests:
           requires:
             - build_and_push_docker_image
-      - multi_machine_tests
-      - shapes_demo_build
+
+  run_interoperability_tests:
+    when:
+      not: << pipeline.parameters.build_docker_image >>
+    jobs:
+      - interoperability_tests
+
+  build_docker_image_and_android:
+    when:  << pipeline.parameters.build_android_docker_image >>
+    jobs:
+      - build_and_push_android_docker_image
       - shapes_demo_android_build:
           requires:
             - build_and_push_android_docker_image
-  run_tests:
+
+  run_android_build:
     when:
-      and:
-        - not: << pipeline.parameters.build_docker_image >>
-        - not: << pipeline.parameters.build_android_docker_image >>
+      not: << pipeline.parameters.build_android_docker_image >>
     jobs:
-      - tests
-      - benchmark
-      - compilation_times
-      - clippy
-      - interoperability_tests
-      - multi_machine_tests
-      - shapes_demo_build
       - shapes_demo_android_build
