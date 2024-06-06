@@ -1642,18 +1642,16 @@ async fn send_message_to_reader_proxy_best_effort(
                     });
                 }
             }
-        } else {
-            if let Ok(p) = message_sender_actor.reserve().await {
-                p.send_actor_mail(message_sender_actor::WriteMessage {
-                    submessages: vec![Box::new(GapSubmessage::new(
-                        ENTITYID_UNKNOWN,
-                        writer_id,
-                        next_unsent_change_seq_num,
-                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
-                    ))],
-                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                });
-            }
+        } else if let Ok(p) = message_sender_actor.reserve().await {
+            p.send_actor_mail(message_sender_actor::WriteMessage {
+                submessages: vec![Box::new(GapSubmessage::new(
+                    ENTITYID_UNKNOWN,
+                    writer_id,
+                    next_unsent_change_seq_num,
+                    SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
+                ))],
+                destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
+            });
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
