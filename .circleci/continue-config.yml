@@ -31,7 +31,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Android Docker image
-          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_android:1.75.0 .
+          command: docker build --file .circleci/android/Dockerfile --tag s2esystems/dust_dds_android:1.75.0 .
       - run:
           name: Push Android image to DockerHub
           command: |
