@@ -4,9 +4,26 @@ parameters:
   build_docker_image:
     type: boolean
     default: false
+  build_android_docker_image:
+    type: boolean
+    default: false
 
 jobs:
   build_and_push_docker_image:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.65.0 .
+      - run:
+          name: Push image to DockerHub
+          command: |
+            echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
+            docker push s2esystems/dust_dds_interoperability:1.65.0
+  build_and_push_android_docker_image:
     docker:
       - image: cimg/base:current
     steps:
@@ -20,14 +37,7 @@ jobs:
           command: |
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
             docker push s2esystems/dust_dds_android:1.75.0
-      - run:
-          name: Build Docker image
-          command: docker build --file .circleci/Dockerfile --tag s2esystems/dust_dds_interoperability:1.65.0 .
-      - run:
-          name: Push image to DockerHub
-          command: |
-            echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
-            docker push s2esystems/dust_dds_interoperability:1.65.0
+
   clippy:
     docker:
       - image: cimg/rust:1.75.0
@@ -246,8 +256,11 @@ jobs:
 
 workflows:
   build_docker_image_and_run_tests:
-    when: << pipeline.parameters.build_docker_image >>
+    when:
+      condition:
+        - or: [ << pipeline.parameters.build_docker_image >>, << pipeline.parameters.build_android_docker_image >> ]
     jobs:
+      - build_and_push_android_docker_image
       - build_and_push_docker_image
       - tests
       - benchmark
@@ -258,10 +271,14 @@ workflows:
             - build_and_push_docker_image
       - multi_machine_tests
       - shapes_demo_build
-      - shapes_demo_android_build
+      - shapes_demo_android_build:
+          requires:
+            - build_and_push_android_docker_image
   run_tests:
     when:
-      not: << pipeline.parameters.build_docker_image >>
+      and:
+        - not: << pipeline.parameters.build_docker_image >>
+        - not: << pipeline.parameters.build_android_docker_image >>
     jobs:
       - tests
       - benchmark

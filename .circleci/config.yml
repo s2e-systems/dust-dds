@@ -13,4 +13,4 @@ workflows:
           config-path: .circleci/continue-config.yml
           mapping: |
             .circleci/Dockerfile build_docker_image true
-            .circleci/android/Dockerfile build_docker_image true
+            .circleci/android/Dockerfile build_android_docker_image true
