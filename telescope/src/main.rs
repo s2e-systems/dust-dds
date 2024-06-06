@@ -50,7 +50,7 @@ fn main() {
     println!("Starting Dust DDS Telescope");
     loop {
         let received_size = socket.recv(&mut buf).unwrap();
-        if let Ok(m) = RtpsMessageRead::new(buf[0..received_size].into()) {
+        if let Ok(m) = RtpsMessageRead::try_from(&buf[0..received_size]) {
             for submessage in m.submessages() {
                 if let RtpsSubmessageReadKind::Data(d) = submessage {
                     if let Ok(discovered_participant) =
