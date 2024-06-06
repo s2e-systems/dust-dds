@@ -14,9 +14,8 @@ path = "src/lib.rs"
 
 [dependencies]
 dust_dds = { path = "../dds"}
-eframe = "0.26"
-egui_extras = { version = "0.26", features = ["image"] }
-image = { version = "0.25", features = ["png"] }
+eframe = {version = "0.27.2"}
+egui_extras = { version = "0.27.2", features = ["image"] }
 
 [build-dependencies]
 dust_dds_gen = { path = "../dds_gen"}

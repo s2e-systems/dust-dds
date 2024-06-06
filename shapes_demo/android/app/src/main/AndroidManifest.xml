@@ -10,7 +10,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        android:hasCode="false" >
+        android:hasCode="false"
+        android:exported="true">
         <activity
             android:name="android.app.NativeActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
