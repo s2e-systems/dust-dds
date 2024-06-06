@@ -282,13 +282,12 @@ impl RtpsWriterProxy {
                 }
             }
 
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
+            if let Ok(p) = message_sender_actor.reserve().await {
+                p.send_actor_mail(message_sender_actor::WriteMessage {
                     submessages,
                     destination_locator_list: self.unicast_locator_list().to_vec(),
-                })
-                .await
-                .ok();
+                });
+            }
         }
     }
 

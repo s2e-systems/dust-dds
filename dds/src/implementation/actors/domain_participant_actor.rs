@@ -811,8 +811,9 @@ impl MailHandler<Enable> for DomainParticipantActor {
                 .await
             {
                 builtin_reader
-                    .send_actor_mail(data_reader_actor::Enable)
+                    .reserve()
                     .await?
+                    .send_actor_mail(data_reader_actor::Enable)
                     .receive_reply()
                     .await;
             }
@@ -825,12 +826,13 @@ impl MailHandler<Enable> for DomainParticipantActor {
                 .await
             {
                 builtin_writer
+                    .reserve()
+                    .await?
                     .send_actor_mail(data_writer_actor::Enable {
                         data_writer_address: builtin_writer.clone(),
                         message_sender_actor: self.message_sender_actor.address(),
                         runtime_handle: message.runtime_handle.clone(),
                     })
-                    .await?
                     .receive_reply()
                     .await;
             }
@@ -2182,6 +2184,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+                .reserve()
+                .await?
                 .send_actor_mail(data_reader_actor::Read {
                     max_samples: i32::MAX,
                     sample_states: ANY_SAMPLE_STATE.to_vec(),
@@ -2189,7 +2193,6 @@ impl DomainParticipantActor {
                     instance_states: ANY_INSTANCE_STATE.to_vec(),
                     specific_instance_handle: None,
                 })
-                .await?
                 .receive_reply()
                 .await
             {
@@ -2391,6 +2394,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+                .reserve()
+                .await?
                 .send_actor_mail(data_reader_actor::Read {
                     max_samples: i32::MAX,
                     sample_states: ANY_SAMPLE_STATE.to_vec(),
@@ -2398,7 +2403,6 @@ impl DomainParticipantActor {
                     instance_states: ANY_INSTANCE_STATE.to_vec(),
                     specific_instance_handle: None,
                 })
-                .await?
                 .receive_reply()
                 .await
             {
@@ -2604,6 +2608,8 @@ impl DomainParticipantActor {
             .await
         {
             if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+                .reserve()
+                .await?
                 .send_actor_mail(data_reader_actor::Read {
                     max_samples: i32::MAX,
                     sample_states: ANY_SAMPLE_STATE.to_vec(),
@@ -2611,7 +2617,6 @@ impl DomainParticipantActor {
                     instance_states: ANY_INSTANCE_STATE.to_vec(),
                     specific_instance_handle: None,
                 })
-                .await?
                 .receive_reply()
                 .await
             {

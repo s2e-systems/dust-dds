@@ -283,10 +283,9 @@ impl DataWriterActor {
                 tokio::spawn(async move {
                     tokio::time::sleep(change_lifespan.into()).await;
 
-                    writer_address
-                        .send_actor_mail(RemoveChange { seq_num })
-                        .await
-                        .ok();
+                    if let Ok(p) = writer_address.reserve().await {
+                        p.send_actor_mail(RemoveChange { seq_num });
+                    }
                 });
             }
         } else {
@@ -409,13 +408,12 @@ impl DataWriterActor {
                             let data_submessage =
                                 Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
 
-                            message_sender_actor
-                                .send_actor_mail(message_sender_actor::WriteMessage {
+                            if let Ok(p) = message_sender_actor.reserve().await {
+                                p.send_actor_mail(message_sender_actor::WriteMessage {
                                     submessages: vec![info_ts_submessage, data_submessage],
                                     destination_locator_list: vec![reader_locator.locator()],
-                                })
-                                .await
-                                .ok();
+                                });
+                            }
                         } else {
                             let gap_submessage = Box::new(GapSubmessage::new(
                                 ENTITYID_UNKNOWN,
@@ -424,13 +422,12 @@ impl DataWriterActor {
                                 SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                             ));
 
-                            message_sender_actor
-                                .send_actor_mail(message_sender_actor::WriteMessage {
+                            if let Ok(p) = message_sender_actor.reserve().await {
+                                p.send_actor_mail(message_sender_actor::WriteMessage {
                                     submessages: vec![gap_submessage],
                                     destination_locator_list: vec![reader_locator.locator()],
-                                })
-                                .await
-                                .ok();
+                                });
+                            }
                         }
                         reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
                     }
@@ -531,22 +528,25 @@ impl DataWriterActor {
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
             let type_name = self
                 .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::GetTypeName)
                 .receive_reply()
                 .await;
             let topic_name = self
                 .topic_address
-                .send_actor_mail(topic_actor::GetName)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::GetName)
                 .receive_reply()
                 .await;
             let status = self.get_publication_matched_status().await;
             let participant = publisher.get_participant();
             let topic_status_condition_address = self
                 .topic_address
-                .send_actor_mail(topic_actor::GetStatuscondition)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::GetStatuscondition)
                 .receive_reply()
                 .await;
             self.listener.reserve().await.send_actor_mail(
@@ -566,20 +566,20 @@ impl DataWriterActor {
             );
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
-            publisher_listener
-                .send_actor_mail(publisher_listener_actor::CallListenerFunction {
+            publisher_listener.reserve().await?.send_actor_mail(
+                publisher_listener_actor::CallListenerFunction {
                     listener_operation: PublisherListenerOperation::PublicationMatched(status),
-                })
-                .await?;
+                },
+            );
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status().await;
-            participant_listener
-                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+            participant_listener.reserve().await?.send_actor_mail(
+                domain_participant_listener_actor::CallListenerFunction {
                     listener_operation: DomainParticipantListenerOperation::PublicationMatched(
                         status,
                     ),
-                })
-                .await?;
+                },
+            );
         }
         Ok(())
     }
@@ -612,14 +612,16 @@ impl DataWriterActor {
         {
             let type_name = self
                 .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::GetTypeName)
                 .receive_reply()
                 .await;
             let topic_name = self
                 .topic_address
-                .send_actor_mail(topic_actor::GetName)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::GetName)
                 .receive_reply()
                 .await;
             let status = self
@@ -628,8 +630,9 @@ impl DataWriterActor {
             let participant = publisher.get_participant();
             let topic_status_condition_address = self
                 .topic_address
-                .send_actor_mail(topic_actor::GetStatuscondition)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::GetStatuscondition)
                 .receive_reply()
                 .await;
             self.listener.reserve().await.send_actor_mail(
@@ -651,22 +654,22 @@ impl DataWriterActor {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            publisher_listener
-                .send_actor_mail(publisher_listener_actor::CallListenerFunction {
+            publisher_listener.reserve().await?.send_actor_mail(
+                publisher_listener_actor::CallListenerFunction {
                     listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
-                })
-                .await?;
+                },
+            );
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            participant_listener
-                .send_actor_mail(domain_participant_listener_actor::CallListenerFunction {
+            participant_listener.reserve().await?.send_actor_mail(
+                domain_participant_listener_actor::CallListenerFunction {
                     listener_operation: DomainParticipantListenerOperation::OfferedIncompatibleQos(
                         status,
                     ),
-                })
-                .await?;
+                },
+            );
         }
         Ok(())
     }
@@ -795,12 +798,11 @@ impl MailHandler<Enable> for DataWriterActor {
                 loop {
                     interval.tick().await;
 
-                    let r = data_writer_address
-                        .send_actor_mail(SendMessage {
+                    if let Ok(p) = data_writer_address.reserve().await {
+                        p.send_actor_mail(SendMessage {
                             message_sender_actor: message_sender_actor.clone(),
-                        })
-                        .await;
-                    if r.is_err() {
+                        });
+                    } else {
                         break;
                     }
                 }
@@ -1044,26 +1046,30 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
     ) -> <AsDiscoveredWriterData as Mail>::Result {
         let type_name = self
             .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeName)
             .receive_reply()
             .await;
         let topic_name = self
             .topic_address
-            .send_actor_mail(topic_actor::GetName)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetName)
             .receive_reply()
             .await;
         let topic_qos = self
             .topic_address
-            .send_actor_mail(topic_actor::GetQos)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetQos)
             .receive_reply()
             .await;
         let xml_type = self
             .topic_address
-            .send_actor_mail(topic_actor::GetTypeSupport)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeSupport)
             .receive_reply()
             .await
             .xml_type();
@@ -1128,8 +1134,9 @@ impl MailHandler<GetTopicName> for DataWriterActor {
     async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
         Ok(self
             .topic_address
-            .send_actor_mail(topic_actor::GetName)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetName)
             .receive_reply()
             .await)
     }
@@ -1180,8 +1187,9 @@ impl MailHandler<GetTypeName> for DataWriterActor {
     async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
         Ok(self
             .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeName)
             .receive_reply()
             .await)
     }
@@ -1208,14 +1216,16 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
     async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
         let type_name = self
             .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeName)
             .receive_reply()
             .await;
         let topic_name = self
             .topic_address
-            .send_actor_mail(topic_actor::GetName)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetName)
             .receive_reply()
             .await;
         let is_matched_topic_name = message
@@ -1574,13 +1584,12 @@ async fn send_message_to_reader_proxy_best_effort(
                 SequenceNumberSet::new(gap_end_sequence_number + 1, []),
             ));
 
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
+            if let Ok(p) = message_sender_actor.reserve().await {
+                p.send_actor_mail(message_sender_actor::WriteMessage {
                     submessages: vec![gap_submessage],
                     destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                })
-                .await
-                .ok();
+                });
+            }
 
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         } else if let Some(cache_change) = writer_cache
@@ -1605,13 +1614,12 @@ async fn send_message_to_reader_proxy_best_effort(
 
                     let data_frag = Box::new(data_frag_submessage);
 
-                    message_sender_actor
-                        .send_actor_mail(message_sender_actor::WriteMessage {
+                    if let Ok(p) = message_sender_actor.reserve().await {
+                        p.send_actor_mail(message_sender_actor::WriteMessage {
                             submessages: vec![info_dst, info_timestamp, data_frag],
                             destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                        })
-                        .await
-                        .ok();
+                        });
+                    }
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -1627,17 +1635,16 @@ async fn send_message_to_reader_proxy_best_effort(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
 
-                message_sender_actor
-                    .send_actor_mail(message_sender_actor::WriteMessage {
+                if let Ok(p) = message_sender_actor.reserve().await {
+                    p.send_actor_mail(message_sender_actor::WriteMessage {
                         submessages: vec![info_dst, info_timestamp, data_submessage],
                         destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                    })
-                    .await
-                    .ok();
+                    });
+                }
             }
         } else {
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
+            if let Ok(p) = message_sender_actor.reserve().await {
+                p.send_actor_mail(message_sender_actor::WriteMessage {
                     submessages: vec![Box::new(GapSubmessage::new(
                         ENTITYID_UNKNOWN,
                         writer_id,
@@ -1645,9 +1652,8 @@ async fn send_message_to_reader_proxy_best_effort(
                         SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
                     ))],
                     destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                })
-                .await
-                .ok();
+                });
+            }
         }
 
         reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -1680,13 +1686,12 @@ async fn send_message_to_reader_proxy_reliable(
                         .heartbeat_machine()
                         .generate_new_heartbeat(writer_id, first_sn, last_sn),
                 );
-                message_sender_actor
-                    .send_actor_mail(message_sender_actor::WriteMessage {
+                if let Ok(p) = message_sender_actor.reserve().await {
+                    p.send_actor_mail(message_sender_actor::WriteMessage {
                         submessages: vec![gap_submessage, heartbeat_submessage],
                         destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                    })
-                    .await
-                    .ok();
+                    });
+                }
             } else {
                 send_change_message_reader_proxy_reliable(
                     reader_proxy,
@@ -1713,13 +1718,12 @@ async fn send_message_to_reader_proxy_reliable(
                 .generate_new_heartbeat(writer_id, first_sn, last_sn),
         );
 
-        message_sender_actor
-            .send_actor_mail(message_sender_actor::WriteMessage {
+        if let Ok(p) = message_sender_actor.reserve().await {
+            p.send_actor_mail(message_sender_actor::WriteMessage {
                 submessages: vec![heartbeat_submessage],
                 destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-            })
-            .await
-            .ok();
+            });
+        }
     }
 
     // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -1772,13 +1776,12 @@ async fn send_change_message_reader_proxy_reliable(
 
                     let data_frag = Box::new(data_frag_submessage);
 
-                    message_sender_actor
-                        .send_actor_mail(message_sender_actor::WriteMessage {
+                    if let Ok(p) = message_sender_actor.reserve().await {
+                        p.send_actor_mail(message_sender_actor::WriteMessage {
                             submessages: vec![info_dst, info_timestamp, data_frag],
                             destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                        })
-                        .await
-                        .ok();
+                        });
+                    }
                 }
             } else {
                 let info_dst = Box::new(InfoDestinationSubmessage::new(
@@ -1802,13 +1805,12 @@ async fn send_change_message_reader_proxy_reliable(
                         .generate_new_heartbeat(writer_id, first_sn, last_sn),
                 );
 
-                message_sender_actor
-                    .send_actor_mail(message_sender_actor::WriteMessage {
+                if let Ok(p) = message_sender_actor.reserve().await {
+                    p.send_actor_mail(message_sender_actor::WriteMessage {
                         submessages: vec![info_dst, info_timestamp, data_submessage, heartbeat],
                         destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                    })
-                    .await
-                    .ok();
+                    });
+                }
             }
         }
         _ => {
@@ -1823,13 +1825,12 @@ async fn send_change_message_reader_proxy_reliable(
                 SequenceNumberSet::new(change_seq_num + 1, []),
             ));
 
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
+            if let Ok(p) = message_sender_actor.reserve().await {
+                p.send_actor_mail(message_sender_actor::WriteMessage {
                     submessages: vec![info_dst, gap_submessage],
                     destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                })
-                .await
-                .ok();
+                });
+            }
         }
     }
 }

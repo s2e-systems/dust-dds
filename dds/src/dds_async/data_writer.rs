@@ -100,24 +100,27 @@ impl<Foo> DataWriterAsync<Foo> {
             let publisher_qos = self.get_publisher().get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
                 .receive_reply()
                 .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
                 .receive_reply()
                 .await;
             let discovered_writer_data = self
                 .writer_address
+                .reserve()
+                .await?
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 })
-                .await?
                 .receive_reply()
                 .await?;
             sedp_publications_announcer
@@ -137,8 +140,9 @@ where
     pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
             .receive_reply()
             .await;
         self.register_instance_w_timestamp(instance, timestamp)
@@ -164,8 +168,9 @@ where
     ) -> DdsResult<()> {
         let timestamp = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
             .receive_reply()
             .await;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
@@ -183,8 +188,9 @@ where
         let type_support = self
             .topic
             .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeSupport)
             .receive_reply()
             .await;
         let has_key = type_support.has_key();
@@ -220,18 +226,22 @@ where
                 type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
             let message_sender_actor = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetMessageSender)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetMessageSender)
                 .receive_reply()
                 .await;
             let now = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetCurrentTime)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetCurrentTime)
                 .receive_reply()
                 .await;
 
             self.writer_address
+                .reserve()
+                .await?
                 .send_actor_mail(data_writer_actor::UnregisterInstanceWTimestamp {
                     instance_serialized_key,
                     handle: instance_handle,
@@ -240,7 +250,6 @@ where
                     now,
                     data_writer_address: self.writer_address.clone(),
                 })
-                .await?
                 .receive_reply()
                 .await
         } else {
@@ -264,8 +273,9 @@ where
         let type_support = self
             .topic
             .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeSupport)
             .receive_reply()
             .await;
 
@@ -274,8 +284,9 @@ where
         let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address
-            .send_actor_mail(data_writer_actor::LookupInstance { instance_handle })
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::LookupInstance { instance_handle })
             .receive_reply()
             .await
     }
@@ -285,8 +296,9 @@ where
     pub async fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
             .receive_reply()
             .await;
         self.write_w_timestamp(data, handle, timestamp).await
@@ -303,8 +315,9 @@ where
         let type_support = self
             .topic
             .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeSupport)
             .receive_reply()
             .await;
 
@@ -314,17 +327,21 @@ where
 
         let message_sender_actor = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
             .receive_reply()
             .await;
         let now = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
             .receive_reply()
             .await;
         self.writer_address
+            .reserve()
+            .await?
             .send_actor_mail(data_writer_actor::WriteWTimestamp {
                 serialized_data,
                 instance_handle: key,
@@ -334,7 +351,6 @@ where
                 now,
                 data_writer_address: self.writer_address.clone(),
             })
-            .await?
             .receive_reply()
             .await?;
 
@@ -346,8 +362,9 @@ where
     pub async fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
             .receive_reply()
             .await;
         self.dispose_w_timestamp(data, handle, timestamp).await
@@ -389,8 +406,9 @@ where
         let type_support = self
             .topic
             .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetTypeSupport)
             .receive_reply()
             .await;
 
@@ -399,17 +417,21 @@ where
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
         let message_sender_actor = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetMessageSender)
             .receive_reply()
             .await;
         let now = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)
             .receive_reply()
             .await;
         self.writer_address
+            .reserve()
+            .await?
             .send_actor_mail(data_writer_actor::DisposeWTimestamp {
                 instance_serialized_key: key,
                 handle: instance_handle,
@@ -418,7 +440,6 @@ where
                 now,
                 data_writer_address: self.writer_address.clone(),
             })
-            .await?
             .receive_reply()
             .await
     }
@@ -432,8 +453,9 @@ impl<Foo> DataWriterAsync<Foo> {
             loop {
                 if self
                     .writer_address
-                    .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)
+                    .reserve()
                     .await?
+                    .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)
                     .receive_reply()
                     .await
                 {
@@ -472,8 +494,9 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         Ok(self
             .writer_address
-            .send_actor_mail(data_writer_actor::GetPublicationMatchedStatus)
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::GetPublicationMatchedStatus)
             .receive_reply()
             .await)
     }
@@ -503,10 +526,11 @@ impl<Foo> DataWriterAsync<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.writer_address
+            .reserve()
+            .await?
             .send_actor_mail(data_writer_actor::GetMatchedSubscriptionData {
                 handle: subscription_handle,
             })
-            .await?
             .receive_reply()
             .await
             .ok_or(DdsError::BadParameter)
@@ -517,8 +541,9 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         Ok(self
             .writer_address
-            .send_actor_mail(data_writer_actor::GetMatchedSubscriptions)
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::GetMatchedSubscriptions)
             .receive_reply()
             .await)
     }
@@ -531,8 +556,9 @@ impl<Foo> DataWriterAsync<Foo> {
         let qos = match qos {
             QosKind::Default => {
                 self.publisher_address()
-                    .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)
+                    .reserve()
                     .await?
+                    .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)
                     .receive_reply()
                     .await
             }
@@ -540,14 +566,16 @@ impl<Foo> DataWriterAsync<Foo> {
         };
 
         self.writer_address
-            .send_actor_mail(data_writer_actor::SetQos { qos })
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::SetQos { qos })
             .receive_reply()
             .await?;
         if self
             .writer_address
-            .send_actor_mail(data_writer_actor::IsEnabled)
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::IsEnabled)
             .receive_reply()
             .await
         {
@@ -562,8 +590,9 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
         Ok(self
             .writer_address
-            .send_actor_mail(data_writer_actor::GetQos)
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::GetQos)
             .receive_reply()
             .await)
     }
@@ -588,24 +617,27 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn enable(&self) -> DdsResult<()> {
         let writer = self.writer_address();
         if !writer
-            .send_actor_mail(data_writer_actor::IsEnabled)
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::IsEnabled)
             .receive_reply()
             .await
         {
             let message_sender_actor = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetMessageSender)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetMessageSender)
                 .receive_reply()
                 .await;
             writer
+                .reserve()
+                .await?
                 .send_actor_mail(data_writer_actor::Enable {
                     data_writer_address: writer.clone(),
                     message_sender_actor,
                     runtime_handle: self.runtime_handle().clone(),
                 })
-                .await?
                 .receive_reply()
                 .await;
 
@@ -619,8 +651,9 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self
             .writer_address
-            .send_actor_mail(data_writer_actor::GetInstanceHandle)
+            .reserve()
             .await?
+            .send_actor_mail(data_writer_actor::GetInstanceHandle)
             .receive_reply()
             .await)
     }
@@ -637,13 +670,14 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address
+            .reserve()
+            .await?
             .send_actor_mail(data_writer_actor::SetListener {
                 listener: a_listener
                     .map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
                 status_kind: mask.to_vec(),
                 runtime_handle: self.runtime_handle().clone(),
             })
-            .await?
             .receive_reply()
             .await;
         Ok(())

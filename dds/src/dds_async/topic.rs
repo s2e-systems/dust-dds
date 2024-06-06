@@ -70,8 +70,9 @@ impl TopicAsync {
         {
             let discovered_topic_data = self
                 .topic_address
-                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
                 .receive_reply()
                 .await;
             sedp_topics_announcer
@@ -88,8 +89,9 @@ impl TopicAsync {
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         Ok(self
             .topic_address
-            .send_actor_mail(topic_actor::GetInconsistentTopicStatus)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetInconsistentTopicStatus)
             .receive_reply()
             .await)
     }
@@ -122,8 +124,9 @@ impl TopicAsync {
         let qos = match qos {
             QosKind::Default => {
                 self.participant_address()
-                    .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)
+                    .reserve()
                     .await?
+                    .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)
                     .receive_reply()
                     .await
             }
@@ -131,15 +134,17 @@ impl TopicAsync {
         };
 
         self.topic_address
-            .send_actor_mail(topic_actor::SetQos { qos })
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::SetQos { qos })
             .receive_reply()
             .await?;
 
         if self
             .topic_address
-            .send_actor_mail(topic_actor::IsEnabled)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::IsEnabled)
             .receive_reply()
             .await
         {
@@ -153,8 +158,9 @@ impl TopicAsync {
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
         Ok(self
             .topic_address
-            .send_actor_mail(topic_actor::GetQos)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetQos)
             .receive_reply()
             .await)
     }
@@ -179,14 +185,16 @@ impl TopicAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         if !self
             .topic_address
-            .send_actor_mail(topic_actor::IsEnabled)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::IsEnabled)
             .receive_reply()
             .await
         {
             self.topic_address
-                .send_actor_mail(topic_actor::Enable)
+                .reserve()
                 .await?
+                .send_actor_mail(topic_actor::Enable)
                 .receive_reply()
                 .await;
             self.announce_topic().await?;
@@ -200,8 +208,9 @@ impl TopicAsync {
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self
             .topic_address
-            .send_actor_mail(topic_actor::GetInstanceHandle)
+            .reserve()
             .await?
+            .send_actor_mail(topic_actor::GetInstanceHandle)
             .receive_reply()
             .await)
     }

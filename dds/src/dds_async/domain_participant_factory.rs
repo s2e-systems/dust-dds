@@ -73,18 +73,21 @@ impl DomainParticipantFactoryAsync {
             .receive_reply()
             .await?;
         let status_condition = participant_address
-            .send_actor_mail(domain_participant_actor::GetStatuscondition)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetStatuscondition)
             .receive_reply()
             .await;
         let builtin_subscriber = participant_address
-            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+            .reserve()
             .await?
+            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
             .receive_reply()
             .await;
         let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_actor_mail(subscriber_actor::GetStatuscondition)
+            .reserve()
             .await?
+            .send_actor_mail(subscriber_actor::GetStatuscondition)
             .receive_reply()
             .await;
         let domain_participant = DomainParticipantAsync::new(
@@ -149,18 +152,21 @@ impl DomainParticipantFactoryAsync {
             .await?
         {
             let status_condition = dp
-                .send_actor_mail(domain_participant_actor::GetStatuscondition)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetStatuscondition)
                 .receive_reply()
                 .await;
             let builtin_subscriber = dp
-                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
+                .reserve()
                 .await?
+                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
                 .receive_reply()
                 .await;
             let builtin_subscriber_status_condition_address = builtin_subscriber
-                .send_actor_mail(subscriber_actor::GetStatuscondition)
+                .reserve()
                 .await?
+                .send_actor_mail(subscriber_actor::GetStatuscondition)
                 .receive_reply()
                 .await;
             Ok(Some(DomainParticipantAsync::new(

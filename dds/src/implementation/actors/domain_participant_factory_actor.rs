@@ -472,8 +472,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .receive_reply()
             .await;
         let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_actor_mail(subscriber_actor::GetStatuscondition)
+            .reserve()
             .await?
+            .send_actor_mail(subscriber_actor::GetStatuscondition)
             .receive_reply()
             .await;
 
@@ -549,13 +550,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
                 if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
-                    let r = participant_address_clone
-                        .send_actor_mail(domain_participant_actor::ProcessUserDefinedRtpsMessage {
-                            rtps_message: message,
-                            participant: participant_clone.clone(),
-                        })
-                        .await;
-                    if r.is_err() {
+                    if let Ok(p) = participant_address_clone.reserve().await {
+                        p.send_actor_mail(
+                            domain_participant_actor::ProcessUserDefinedRtpsMessage {
+                                rtps_message: message,
+                                participant: participant_clone.clone(),
+                            },
+                        );
+                    } else {
                         break;
                     }
                 }
@@ -991,11 +993,12 @@ async fn process_metatraffic_rtps_message(
     participant: &DomainParticipantAsync,
 ) -> DdsResult<()> {
     participant_actor
+        .reserve()
+        .await?
         .send_actor_mail(domain_participant_actor::ProcessMetatrafficRtpsMessage {
             rtps_message: message,
             participant: participant.clone(),
         })
-        .await?
         .receive_reply()
         .await?;
 
@@ -1021,19 +1024,22 @@ async fn process_metatraffic_rtps_message(
                             discovered_participant_sample.data()
                         {
                             participant_actor
+                                .reserve()
+                                .await?
                                 .send_actor_mail(
                                     domain_participant_actor::AddDiscoveredParticipant {
                                         discovered_participant_data,
                                         participant: participant.clone(),
                                     },
                                 )
-                                .await?
                                 .receive_reply()
                                 .await?;
                         }
                     }
                     InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
                         participant_actor
+                            .reserve()
+                            .await?
                             .send_actor_mail(
                                 domain_participant_actor::RemoveDiscoveredParticipant {
                                     handle: discovered_participant_sample
@@ -1041,7 +1047,6 @@ async fn process_metatraffic_rtps_message(
                                         .instance_handle,
                                 },
                             )
-                            .await?
                             .receive_reply()
                             .await;
                     }

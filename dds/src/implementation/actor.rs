@@ -115,20 +115,6 @@ impl<A> ActorAddress<A> {
             Err(DdsError::AlreadyDeleted)
         }
     }
-
-    pub async fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
-    where
-        A: MailHandler<M> + Send,
-        M: Mail + Send + 'static,
-        M::Result: Send,
-    {
-        let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
-        self.mail_sender
-            .send(Box::new(ReplyMail { mail, reply_sender }))
-            .await
-            .map_err(|_| DdsError::AlreadyDeleted)?;
-        Ok(ReplyReceiver { reply_receiver })
-    }
 }
 
 pub struct Actor<A> {
@@ -276,7 +262,7 @@ mod tests {
         runtime.block_on(actor.stop());
 
         assert!(runtime
-            .block_on(async { actor_address.send_actor_mail(Increment { value: 10 }).await })
+            .block_on(async { actor_address.reserve().await })
             .is_err());
     }
 }
