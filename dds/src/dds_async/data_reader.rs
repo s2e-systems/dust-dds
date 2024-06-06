@@ -91,20 +91,17 @@ impl<Foo> DataReaderAsync<Foo> {
         {
             let subscriber_qos = self
                 .subscriber_address()
-                .send_actor_mail(subscriber_actor::GetQos)
-                .await?
+                .send_actor_mail(subscriber_actor::GetQos)?
                 .receive_reply()
                 .await;
             let default_unicast_locator_list = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
-                .await?
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
                 .receive_reply()
                 .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
-                .await?
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
             let discovered_reader_data = self
@@ -113,8 +110,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     subscriber_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
-                })
-                .await?
+                })?
                 .receive_reply()
                 .await?;
 
@@ -156,8 +152,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states: view_states.to_vec(),
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: None,
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
 
@@ -184,8 +179,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states: view_states.to_vec(),
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: None,
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
 
@@ -206,8 +200,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states: ANY_VIEW_STATE.to_vec(),
                 instance_states: ANY_INSTANCE_STATE.to_vec(),
                 specific_instance_handle: None,
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
@@ -225,8 +218,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states: ANY_VIEW_STATE.to_vec(),
                 instance_states: ANY_INSTANCE_STATE.to_vec(),
                 specific_instance_handle: None,
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
@@ -251,8 +243,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states: view_states.to_vec(),
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: Some(a_handle),
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
         Ok(samples
@@ -279,8 +270,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 view_states: view_states.to_vec(),
                 instance_states: instance_states.to_vec(),
                 specific_instance_handle: Some(a_handle),
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
 
@@ -308,8 +298,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 sample_states: sample_states.to_vec(),
                 view_states: view_states.to_vec(),
                 instance_states: instance_states.to_vec(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
         Ok(samples
@@ -336,8 +325,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 sample_states: sample_states.to_vec(),
                 view_states: view_states.to_vec(),
                 instance_states: instance_states.to_vec(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
         Ok(samples
@@ -403,8 +391,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         Ok(self
             .reader_address
-            .send_actor_mail(data_reader_actor::GetSubscriptionMatchedStatus)
-            .await?
+            .send_actor_mail(data_reader_actor::GetSubscriptionMatchedStatus)?
             .receive_reply()
             .await)
     }
@@ -428,8 +415,7 @@ impl<Foo> DataReaderAsync<Foo> {
             loop {
                 if self
                     .reader_address
-                    .send_actor_mail(data_reader_actor::IsHistoricalDataReceived)
-                    .await?
+                    .send_actor_mail(data_reader_actor::IsHistoricalDataReceived)?
                     .receive_reply()
                     .await?
                 {
@@ -448,8 +434,7 @@ impl<Foo> DataReaderAsync<Foo> {
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         self.reader_address
-            .send_actor_mail(data_reader_actor::GetMatchedPublicationData { publication_handle })
-            .await?
+            .send_actor_mail(data_reader_actor::GetMatchedPublicationData { publication_handle })?
             .receive_reply()
             .await
     }
@@ -459,8 +444,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         Ok(self
             .reader_address
-            .send_actor_mail(data_reader_actor::GetMatchedPublications)
-            .await?
+            .send_actor_mail(data_reader_actor::GetMatchedPublications)?
             .receive_reply()
             .await)
     }
@@ -472,8 +456,7 @@ impl<Foo> DataReaderAsync<Foo> {
         let qos = match qos {
             QosKind::Default => {
                 self.subscriber_address()
-                    .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)
-                    .await?
+                    .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)?
                     .receive_reply()
                     .await
             }
@@ -481,14 +464,12 @@ impl<Foo> DataReaderAsync<Foo> {
         };
 
         self.reader_address
-            .send_actor_mail(data_reader_actor::SetQos { qos })
-            .await?
+            .send_actor_mail(data_reader_actor::SetQos { qos })?
             .receive_reply()
             .await?;
         if self
             .reader_address
-            .send_actor_mail(data_reader_actor::IsEnabled)
-            .await?
+            .send_actor_mail(data_reader_actor::IsEnabled)?
             .receive_reply()
             .await
         {
@@ -503,8 +484,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
         Ok(self
             .reader_address
-            .send_actor_mail(data_reader_actor::GetQos)
-            .await?
+            .send_actor_mail(data_reader_actor::GetQos)?
             .receive_reply()
             .await)
     }
@@ -529,14 +509,12 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn enable(&self) -> DdsResult<()> {
         if !self
             .reader_address
-            .send_actor_mail(data_reader_actor::IsEnabled)
-            .await?
+            .send_actor_mail(data_reader_actor::IsEnabled)?
             .receive_reply()
             .await
         {
             self.reader_address
-                .send_actor_mail(data_reader_actor::Enable)
-                .await?
+                .send_actor_mail(data_reader_actor::Enable)?
                 .receive_reply()
                 .await;
 
@@ -550,8 +528,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self
             .reader_address
-            .send_actor_mail(data_reader_actor::GetInstanceHandle)
-            .await?
+            .send_actor_mail(data_reader_actor::GetInstanceHandle)?
             .receive_reply()
             .await)
     }
@@ -574,8 +551,7 @@ where
                     .map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
                 status_kind: mask.to_vec(),
                 runtime_handle: self.runtime_handle().clone(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await;
         Ok(())

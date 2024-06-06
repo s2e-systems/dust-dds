@@ -39,8 +39,7 @@ impl StatusConditionAsync {
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
         Ok(self
             .address
-            .send_actor_mail(status_condition_actor::GetEnabledStatuses)
-            .await?
+            .send_actor_mail(status_condition_actor::GetEnabledStatuses)?
             .receive_reply()
             .await)
     }
@@ -51,8 +50,7 @@ impl StatusConditionAsync {
         self.address
             .send_actor_mail(status_condition_actor::SetEnabledStatuses {
                 mask: mask.to_vec(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await;
         Ok(())
@@ -71,8 +69,7 @@ impl StatusConditionAsync {
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         Ok(self
             .address
-            .send_actor_mail(status_condition_actor::GetTriggerValue)
-            .await?
+            .send_actor_mail(status_condition_actor::GetTriggerValue)?
             .receive_reply()
             .await)
     }

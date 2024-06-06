@@ -22,7 +22,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
@@ -240,7 +240,6 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         let builtin_publisher = Actor::spawn(
@@ -256,7 +255,6 @@ impl DomainParticipantActor {
                 handle,
             ),
             handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         Self {
@@ -285,22 +283,10 @@ impl DomainParticipantActor {
             ignored_subcriptions: HashSet::new(),
             ignored_topic_list: HashSet::new(),
             data_max_size_serialized,
-            listener: Actor::spawn(
-                DomainParticipantListenerActor::new(listener),
-                handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            ),
+            listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
             status_kind,
-            status_condition: Actor::spawn(
-                StatusConditionActor::default(),
-                handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            ),
-            message_sender_actor: Actor::spawn(
-                message_sender_actor,
-                handle,
-                128, /*Message sender is used by every writer and reader so uses a bigger buffer to prevent blocking on the full channel */
-            ),
+            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
+            message_sender_actor: Actor::spawn(message_sender_actor, handle),
         }
     }
 
@@ -382,11 +368,10 @@ impl DomainParticipantActor {
             );
 
             let topic_actor: crate::implementation::actor::Actor<TopicActor> =
-                Actor::spawn(topic, &runtime_handle, DEFAULT_ACTOR_BUFFER_SIZE);
+                Actor::spawn(topic, &runtime_handle);
             let topic_address = topic_actor.address();
             let topic_status_condition = topic_actor
                 .send_actor_mail(topic_actor::GetStatuscondition)
-                .await
                 .receive_reply()
                 .await;
             e.insert(topic_actor);
@@ -410,12 +395,10 @@ impl DomainParticipantActor {
         if let Some(topic) = self.topic_list.get(&topic_name) {
             let type_name = topic
                 .send_actor_mail(topic_actor::GetTypeName)
-                .await
                 .receive_reply()
                 .await;
             let status_condition = topic
                 .send_actor_mail(topic_actor::GetStatuscondition)
-                .await
                 .receive_reply()
                 .await;
             Ok(Some((topic.address(), status_condition, type_name)))
@@ -469,15 +452,10 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             &message.runtime_handle,
         );
 
-        let publisher_actor = Actor::spawn(
-            publisher,
-            &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let publisher_actor = Actor::spawn(publisher, &message.runtime_handle);
         let publisher_address = publisher_actor.address();
         let publisher_status_condition = publisher_actor
             .send_actor_mail(publisher_actor::GetStatuscondition)
-            .await
             .receive_reply()
             .await;
         self.user_defined_publisher_list
@@ -501,7 +479,6 @@ impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
         if let Some(p) = self.user_defined_publisher_list.get(&message.handle) {
             if !p
                 .send_actor_mail(publisher_actor::GetDataWriterList)
-                .await
                 .receive_reply()
                 .await
                 .is_empty()
@@ -562,15 +539,10 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             &message.runtime_handle,
         );
 
-        let subscriber_actor = Actor::spawn(
-            subscriber,
-            &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let subscriber_actor = Actor::spawn(subscriber, &message.runtime_handle);
         let subscriber_address = subscriber_actor.address();
         let subscriber_status_condition = subscriber_actor
             .send_actor_mail(subscriber_actor::GetStatuscondition)
-            .await
             .receive_reply()
             .await;
 
@@ -595,7 +567,6 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
         if let Some(subscriber) = self.user_defined_subscriber_list.get(&message.handle) {
             if !subscriber
                 .send_actor_mail(subscriber_actor::IsEmpty)
-                .await
                 .receive_reply()
                 .await
             {
@@ -666,7 +637,6 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
                         .send_actor_mail(publisher_actor::LookupDatawriter {
                             topic_name: message.topic_name.clone(),
                         })
-                        .await
                         .receive_reply()
                         .await?
                         .is_some()
@@ -682,7 +652,6 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
                         .send_actor_mail(subscriber_actor::LookupDatareader {
                             topic_name: message.topic_name.clone(),
                         })
-                        .await
                         .receive_reply()
                         .await
                         .is_some()
@@ -782,32 +751,27 @@ impl MailHandler<Enable> for DomainParticipantActor {
         if !self.enabled {
             self.builtin_publisher
                 .send_actor_mail(publisher_actor::Enable)
-                .await
                 .receive_reply()
                 .await;
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::Enable)
-                .await
                 .receive_reply()
                 .await;
 
             for builtin_reader in self
                 .builtin_subscriber
                 .send_actor_mail(subscriber_actor::GetDataReaderList)
-                .await
                 .receive_reply()
                 .await
             {
                 builtin_reader
-                    .send_actor_mail(data_reader_actor::Enable)
-                    .await?
+                    .send_actor_mail(data_reader_actor::Enable)?
                     .receive_reply()
                     .await;
             }
             for builtin_writer in self
                 .builtin_publisher
                 .send_actor_mail(publisher_actor::GetDataWriterList)
-                .await
                 .receive_reply()
                 .await
             {
@@ -816,8 +780,7 @@ impl MailHandler<Enable> for DomainParticipantActor {
                         data_writer_address: builtin_writer.clone(),
                         message_sender_actor: self.message_sender_actor.address(),
                         runtime_handle: message.runtime_handle.clone(),
-                    })
-                    .await?
+                    })?
                     .receive_reply()
                     .await;
             }
@@ -1342,8 +1305,8 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
                     let participant_mask_listener =
                         (self.listener.address(), self.status_kind.clone());
-                    self.builtin_subscriber
-                        .send_actor_mail(subscriber_actor::ProcessDataSubmessage {
+                    self.builtin_subscriber.send_actor_mail(
+                        subscriber_actor::ProcessDataSubmessage {
                             data_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
                             source_timestamp: message_receiver.source_timestamp(),
@@ -1351,14 +1314,14 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                             subscriber_address: self.builtin_subscriber.address(),
                             participant: message.participant.clone(),
                             participant_mask_listener,
-                        })
-                        .await;
+                        },
+                    );
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     let participant_mask_listener =
                         (self.listener.address(), self.status_kind.clone());
-                    self.builtin_subscriber
-                        .send_actor_mail(subscriber_actor::ProcessDataFragSubmessage {
+                    self.builtin_subscriber.send_actor_mail(
+                        subscriber_actor::ProcessDataFragSubmessage {
                             data_frag_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
                             source_timestamp: message_receiver.source_timestamp(),
@@ -1366,50 +1329,50 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                             subscriber_address: self.builtin_subscriber.address(),
                             participant: message.participant.clone(),
                             participant_mask_listener,
-                        })
-                        .await;
+                        },
+                    );
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.builtin_subscriber
-                        .send_actor_mail(subscriber_actor::ProcessGapSubmessage {
+                    self.builtin_subscriber.send_actor_mail(
+                        subscriber_actor::ProcessGapSubmessage {
                             gap_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
-                        })
-                        .await;
+                        },
+                    );
                 }
                 RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    self.builtin_subscriber
-                        .send_actor_mail(subscriber_actor::ProcessHeartbeatSubmessage {
+                    self.builtin_subscriber.send_actor_mail(
+                        subscriber_actor::ProcessHeartbeatSubmessage {
                             heartbeat_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
                             message_sender_actor: self.message_sender_actor.address(),
-                        })
-                        .await;
+                        },
+                    );
                 }
                 RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                    self.builtin_subscriber
-                        .send_actor_mail(subscriber_actor::ProcessHeartbeatFragSubmessage {
+                    self.builtin_subscriber.send_actor_mail(
+                        subscriber_actor::ProcessHeartbeatFragSubmessage {
                             heartbeat_frag_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
-                        })
-                        .await;
+                        },
+                    );
                 }
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    self.builtin_publisher
-                        .send_actor_mail(publisher_actor::ProcessAckNackSubmessage {
+                    self.builtin_publisher.send_actor_mail(
+                        publisher_actor::ProcessAckNackSubmessage {
                             acknack_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
                             message_sender_actor: self.message_sender_actor.address(),
-                        })
-                        .await;
+                        },
+                    );
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                    self.builtin_publisher
-                        .send_actor_mail(publisher_actor::ProcessNackFragSubmessage {
+                    self.builtin_publisher.send_actor_mail(
+                        publisher_actor::ProcessNackFragSubmessage {
                             nackfrag_submessage,
                             source_guid_prefix: message_receiver.source_guid_prefix(),
-                        })
-                        .await;
+                        },
+                    );
                 }
                 _ => (),
             }
@@ -1442,8 +1405,8 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                     {
                         let participant_mask_listener =
                             (self.listener.address(), self.status_kind.clone());
-                        user_defined_subscriber_actor
-                            .send_actor_mail(subscriber_actor::ProcessDataSubmessage {
+                        user_defined_subscriber_actor.send_actor_mail(
+                            subscriber_actor::ProcessDataSubmessage {
                                 data_submessage: data_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
                                 source_timestamp: message_receiver.source_timestamp(),
@@ -1451,8 +1414,8 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                                 subscriber_address: user_defined_subscriber_actor.address(),
                                 participant: message.participant.clone(),
                                 participant_mask_listener,
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
@@ -1460,8 +1423,8 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                     {
                         let participant_mask_listener =
                             (self.listener.address(), self.status_kind.clone());
-                        user_defined_subscriber_actor
-                            .send_actor_mail(subscriber_actor::ProcessDataFragSubmessage {
+                        user_defined_subscriber_actor.send_actor_mail(
+                            subscriber_actor::ProcessDataFragSubmessage {
                                 data_frag_submessage: data_frag_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
                                 source_timestamp: message_receiver.source_timestamp(),
@@ -1469,63 +1432,63 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                                 subscriber_address: user_defined_subscriber_actor.address(),
                                 participant: message.participant.clone(),
                                 participant_mask_listener,
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
-                        user_defined_subscriber_actor
-                            .send_actor_mail(subscriber_actor::ProcessGapSubmessage {
+                        user_defined_subscriber_actor.send_actor_mail(
+                            subscriber_actor::ProcessGapSubmessage {
                                 gap_submessage: gap_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
-                        user_defined_subscriber_actor
-                            .send_actor_mail(subscriber_actor::ProcessHeartbeatSubmessage {
+                        user_defined_subscriber_actor.send_actor_mail(
+                            subscriber_actor::ProcessHeartbeatSubmessage {
                                 heartbeat_submessage: heartbeat_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
                                 message_sender_actor: self.message_sender_actor.address(),
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
-                        user_defined_subscriber_actor
-                            .send_actor_mail(subscriber_actor::ProcessHeartbeatFragSubmessage {
+                        user_defined_subscriber_actor.send_actor_mail(
+                            subscriber_actor::ProcessHeartbeatFragSubmessage {
                                 heartbeat_frag_submessage: heartbeat_frag_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
                     for user_defined_publisher_actor in self.user_defined_publisher_list.values() {
-                        user_defined_publisher_actor
-                            .send_actor_mail(publisher_actor::ProcessAckNackSubmessage {
+                        user_defined_publisher_actor.send_actor_mail(
+                            publisher_actor::ProcessAckNackSubmessage {
                                 acknack_submessage: acknack_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
                                 message_sender_actor: self.message_sender_actor.address(),
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
                     for user_defined_publisher_actor in self.user_defined_publisher_list.values() {
-                        user_defined_publisher_actor
-                            .send_actor_mail(publisher_actor::ProcessNackFragSubmessage {
+                        user_defined_publisher_actor.send_actor_mail(
+                            publisher_actor::ProcessNackFragSubmessage {
                                 nackfrag_submessage: nackfrag_submessage.clone(),
                                 source_guid_prefix: message_receiver.source_guid_prefix(),
-                            })
-                            .await;
+                            },
+                        );
                     }
                 }
                 _ => (),
@@ -1547,7 +1510,6 @@ impl MailHandler<SetListener> for DomainParticipantActor {
         self.listener = Actor::spawn(
             DomainParticipantListenerActor::new(message.listener),
             &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = message.status_kind;
     }
@@ -1823,7 +1785,6 @@ impl DomainParticipantActor {
                     participant_mask_listener,
                     message_sender_actor: self.message_sender_actor.address(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -1885,7 +1846,6 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -1947,7 +1907,6 @@ impl DomainParticipantActor {
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                     message_sender_actor: self.message_sender_actor.address(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -2009,7 +1968,6 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -2072,7 +2030,6 @@ impl DomainParticipantActor {
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                     message_sender_actor: self.message_sender_actor.address(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -2134,7 +2091,6 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -2150,7 +2106,6 @@ impl DomainParticipantActor {
             .send_actor_mail(subscriber_actor::LookupDatareader {
                 topic_name: DCPS_PUBLICATION.to_string(),
             })
-            .await
             .receive_reply()
             .await
         {
@@ -2161,8 +2116,7 @@ impl DomainParticipantActor {
                     view_states: ANY_VIEW_STATE.to_vec(),
                     instance_states: ANY_INSTANCE_STATE.to_vec(),
                     specific_instance_handle: None,
-                })
-                .await?
+                })?
                 .receive_reply()
                 .await
             {
@@ -2258,7 +2212,6 @@ impl DomainParticipantActor {
                             participant: participant.clone(),
                             participant_mask_listener,
                         })
-                        .await
                         .receive_reply()
                         .await?;
                 }
@@ -2340,7 +2293,6 @@ impl DomainParticipantActor {
                     participant: participant.clone(),
                     participant_mask_listener,
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -2356,7 +2308,6 @@ impl DomainParticipantActor {
             .send_actor_mail(subscriber_actor::LookupDatareader {
                 topic_name: DCPS_SUBSCRIPTION.to_string(),
             })
-            .await
             .receive_reply()
             .await
         {
@@ -2367,8 +2318,7 @@ impl DomainParticipantActor {
                     view_states: ANY_VIEW_STATE.to_vec(),
                     instance_states: ANY_INSTANCE_STATE.to_vec(),
                     specific_instance_handle: None,
-                })
-                .await?
+                })?
                 .receive_reply()
                 .await
             {
@@ -2470,7 +2420,6 @@ impl DomainParticipantActor {
                             participant_mask_listener,
                             message_sender_actor: self.message_sender_actor.address(),
                         })
-                        .await
                         .receive_reply()
                         .await?;
                 }
@@ -2553,7 +2502,6 @@ impl DomainParticipantActor {
                     participant: participant.clone(),
                     participant_mask_listener,
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -2566,7 +2514,6 @@ impl DomainParticipantActor {
             .send_actor_mail(subscriber_actor::LookupDatareader {
                 topic_name: DCPS_TOPIC.to_string(),
             })
-            .await
             .receive_reply()
             .await
         {
@@ -2577,8 +2524,7 @@ impl DomainParticipantActor {
                     view_states: ANY_VIEW_STATE.to_vec(),
                     instance_states: ANY_INSTANCE_STATE.to_vec(),
                     specific_instance_handle: None,
-                })
-                .await?
+                })?
                 .receive_reply()
                 .await
             {
@@ -2619,7 +2565,6 @@ impl DomainParticipantActor {
                     .send_actor_mail(topic_actor::ProcessDiscoveredTopic {
                         discovered_topic_data: discovered_topic_data.clone(),
                     })
-                    .await
                     .receive_reply()
                     .await;
             }

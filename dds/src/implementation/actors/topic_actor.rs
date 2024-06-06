@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+    implementation::actor::{Actor, ActorAddress, Mail, MailHandler},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -55,16 +55,8 @@ impl TopicActor {
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        let listener = Actor::spawn(
-            TopicListenerActor::new(listener),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(TopicListenerActor::new(listener), handle);
         Self {
             guid,
             qos,
@@ -213,7 +205,6 @@ impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
             })
-            .await
             .receive_reply()
             .await;
         status
@@ -248,7 +239,6 @@ impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
                 .send_actor_mail(AddCommunicationState {
                     state: StatusKind::InconsistentTopic,
                 })
-                .await
                 .receive_reply()
                 .await;
         }

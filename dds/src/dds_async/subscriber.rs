@@ -67,14 +67,12 @@ impl SubscriberAsync {
             let subscriber_qos = self.get_qos().await?;
             let default_unicast_locator_list = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
-                .await?
+                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
                 .receive_reply()
                 .await;
             let default_multicast_locator_list = self
                 .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
-                .await?
+                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
             let data = reader
@@ -83,7 +81,6 @@ impl SubscriberAsync {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                 })
-                .await
                 .receive_reply()
                 .await?;
             sedp_subscriptions_announcer.dispose(&data, None).await?;
@@ -110,21 +107,18 @@ impl SubscriberAsync {
 
         let default_unicast_locator_list = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)
-            .await?
+            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
             .receive_reply()
             .await;
         let default_multicast_locator_list = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)
-            .await?
+            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
             .receive_reply()
             .await;
 
         let topic = a_topic.topic_address();
         let has_key = topic
-            .send_actor_mail(topic_actor::GetTypeSupport)
-            .await?
+            .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
             .await
             .has_key();
@@ -140,14 +134,12 @@ impl SubscriberAsync {
                 default_unicast_locator_list,
                 default_multicast_locator_list,
                 runtime_handle: self.runtime_handle().clone(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
 
         let status_condition = reader_address
-            .send_actor_mail(data_reader_actor::GetStatuscondition)
-            .await?
+            .send_actor_mail(data_reader_actor::GetStatuscondition)?
             .receive_reply()
             .await;
         let data_reader = DataReaderAsync::new(
@@ -159,14 +151,12 @@ impl SubscriberAsync {
 
         if self
             .subscriber_address
-            .send_actor_mail(subscriber_actor::IsEnabled)
-            .await?
+            .send_actor_mail(subscriber_actor::IsEnabled)?
             .receive_reply()
             .await
             && self
                 .subscriber_address
-                .send_actor_mail(subscriber_actor::GetQos)
-                .await?
+                .send_actor_mail(subscriber_actor::GetQos)?
                 .receive_reply()
                 .await
                 .entity_factory
@@ -189,23 +179,20 @@ impl SubscriberAsync {
         // Send messages before deleting the reader
         let message_sender_actor = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)
-            .await?
+            .send_actor_mail(domain_participant_actor::GetMessageSender)?
             .receive_reply()
             .await;
         a_datareader
             .reader_address()
             .send_actor_mail(data_reader_actor::SendMessage {
                 message_sender_actor,
-            })
-            .await?;
+            })?;
 
         let deleted_reader = self
             .subscriber_address
             .send_actor_mail(subscriber_actor::DeleteDatareader {
                 handle: reader_handle,
-            })
-            .await?
+            })?
             .receive_reply()
             .await?;
 
@@ -224,8 +211,7 @@ impl SubscriberAsync {
             .participant_address()
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_string(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await?
         {
@@ -240,14 +226,12 @@ impl SubscriberAsync {
                 .subscriber_address
                 .send_actor_mail(subscriber_actor::LookupDatareader {
                     topic_name: topic_name.to_string(),
-                })
-                .await?
+                })?
                 .receive_reply()
                 .await
             {
                 let status_condition = dr
-                    .send_actor_mail(data_reader_actor::GetStatuscondition)
-                    .await?
+                    .send_actor_mail(data_reader_actor::GetStatuscondition)?
                     .receive_reply()
                     .await;
                 Ok(Some(DataReaderAsync::new(
@@ -287,25 +271,21 @@ impl SubscriberAsync {
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         let deleted_reader_actor_list = self
             .subscriber_address
-            .send_actor_mail(subscriber_actor::DrainDataReaderList)
-            .await?
+            .send_actor_mail(subscriber_actor::DrainDataReaderList)?
             .receive_reply()
             .await;
 
         let message_sender_actor = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)
-            .await?
+            .send_actor_mail(domain_participant_actor::GetMessageSender)?
             .receive_reply()
             .await;
 
         for deleted_reader_actor in deleted_reader_actor_list {
             // Send messages before deleting the reader
-            deleted_reader_actor
-                .send_actor_mail(data_reader_actor::SendMessage {
-                    message_sender_actor: message_sender_actor.clone(),
-                })
-                .await;
+            deleted_reader_actor.send_actor_mail(data_reader_actor::SendMessage {
+                message_sender_actor: message_sender_actor.clone(),
+            });
 
             self.announce_deleted_data_reader(&deleted_reader_actor)
                 .await?;
@@ -318,8 +298,7 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         self.subscriber_address
-            .send_actor_mail(subscriber_actor::SetDefaultDatareaderQos { qos })
-            .await?
+            .send_actor_mail(subscriber_actor::SetDefaultDatareaderQos { qos })?
             .receive_reply()
             .await
     }
@@ -329,8 +308,7 @@ impl SubscriberAsync {
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         Ok(self
             .subscriber_address
-            .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)
-            .await?
+            .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)?
             .receive_reply()
             .await)
     }
@@ -355,8 +333,7 @@ impl SubscriberAsync {
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
         Ok(self
             .subscriber_address
-            .send_actor_mail(subscriber_actor::GetQos)
-            .await?
+            .send_actor_mail(subscriber_actor::GetQos)?
             .receive_reply()
             .await)
     }
@@ -373,8 +350,7 @@ impl SubscriberAsync {
                 listener: a_listener,
                 status_kind: mask.to_vec(),
                 runtime_handle: self.runtime_handle().clone(),
-            })
-            .await?
+            })?
             .receive_reply()
             .await;
 
@@ -401,21 +377,18 @@ impl SubscriberAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         if !self
             .subscriber_address
-            .send_actor_mail(subscriber_actor::IsEnabled)
-            .await?
+            .send_actor_mail(subscriber_actor::IsEnabled)?
             .receive_reply()
             .await
         {
             self.subscriber_address
-                .send_actor_mail(subscriber_actor::Enable)
-                .await?
+                .send_actor_mail(subscriber_actor::Enable)?
                 .receive_reply()
                 .await;
 
             if self
                 .subscriber_address
-                .send_actor_mail(subscriber_actor::GetQos)
-                .await?
+                .send_actor_mail(subscriber_actor::GetQos)?
                 .receive_reply()
                 .await
                 .entity_factory
@@ -423,14 +396,12 @@ impl SubscriberAsync {
             {
                 for data_reader in self
                     .subscriber_address
-                    .send_actor_mail(subscriber_actor::GetDataReaderList)
-                    .await?
+                    .send_actor_mail(subscriber_actor::GetDataReaderList)?
                     .receive_reply()
                     .await
                 {
                     data_reader
-                        .send_actor_mail(data_reader_actor::Enable)
-                        .await?
+                        .send_actor_mail(data_reader_actor::Enable)?
                         .receive_reply()
                         .await;
                 }
@@ -445,8 +416,7 @@ impl SubscriberAsync {
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(self
             .subscriber_address
-            .send_actor_mail(subscriber_actor::GetInstanceHandle)
-            .await?
+            .send_actor_mail(subscriber_actor::GetInstanceHandle)?
             .receive_reply()
             .await)
     }
