@@ -82,10 +82,9 @@ where
         Self: 'b,
         'a: 'b,
     {
-        let this = *self;
-        Box::pin(async {
-            let result = <A as MailHandler<M>>::handle(actor, this.mail).await;
-            this.reply_sender.send(result).ok();
+        Box::pin(async move {
+            let result = <A as MailHandler<M>>::handle(actor, self.mail).await;
+            self.reply_sender.send(result).ok();
         })
     }
 }
