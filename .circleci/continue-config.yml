@@ -208,6 +208,20 @@ jobs:
             pid=$!
             build/cyclone_dds/CycloneDdsPublisherDispose
             wait $pid
+      - run:
+          name: Cyclone publisher nested interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberNested &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_nested
+            wait $pid
+      - run:
+          name: Cyclone subscriber nested interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_nested &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherNested
+            wait $pid
 
   multi_machine_tests:
     docker:
@@ -289,7 +303,7 @@ workflows:
       - interoperability_tests
 
   build_docker_image_and_android:
-    when:  << pipeline.parameters.build_android_docker_image >>
+    when: << pipeline.parameters.build_android_docker_image >>
     jobs:
       - build_and_push_android_docker_image
       - shapes_demo_android_build:
