@@ -5,6 +5,7 @@ find_package(CycloneDDS REQUIRED)
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
 idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
+idlc_generate(TARGET NestedTypeGeneratedIdl FILES ../NestedType.idl)
 
 add_executable(CycloneDdsSubscriber
   cyclone_dds_subscriber.c
@@ -54,4 +55,20 @@ add_executable(CycloneDdsPublisherDispose
 target_link_libraries(CycloneDdsPublisherDispose PRIVATE
   CycloneDDS::ddsc
   DisposeDataGeneratedIdl
+)
+
+add_executable(CycloneDdsPublisherNested
+  cyclone_dds_publisher_nested.c
+)
+target_link_libraries(CycloneDdsPublisherNested PRIVATE
+  CycloneDDS::ddsc
+  NestedTypeGeneratedIdl
+)
+
+add_executable(CycloneDdsSubscriberNested
+  cyclone_dds_subscriber_nested.c
+)
+target_link_libraries(CycloneDdsSubscriberNested PRIVATE
+  CycloneDDS::ddsc
+  NestedTypeGeneratedIdl
 )
