@@ -8,4 +8,6 @@ struct Nested {
     Inner inner;
     int64 level;
     int32 other;
+    sequence <int64, 100> value_list;
+    int32 last;
 };

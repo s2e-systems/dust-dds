@@ -60,6 +60,8 @@ fn main() {
         inner: nested_type::Inner { a: 1, b: 2, c: 3 },
         level: 10,
         other: 20,
+        value_list: vec![30, 40, 50],
+        last: 60,
     };
     writer.write(&data, None).unwrap();
 

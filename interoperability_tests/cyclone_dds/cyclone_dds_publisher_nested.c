@@ -54,7 +54,14 @@ int main(int argc, char *argv[])
 	}
 
 	Inner msg_inner = {.a = 1, .b = 2, .c = 3};
-	Nested msg = {.inner = msg_inner, .level = 10, .other = 20};
+	Nested msg = {.inner = msg_inner, .level = 10, .other = 20, .last = 70};
+	msg.value_list._buffer = dds_sequence_int64_allocbuf(3);
+	msg.value_list._length = 3;
+	msg.value_list._release = true;
+	msg.value_list._buffer[0] = 30;
+	msg.value_list._buffer[1] = 40;
+	msg.value_list._buffer[2] = 50;
+
 	dds_write(data_writer, &msg);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));

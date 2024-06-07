@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 	if ((rc > 0) && (infos[0].valid_data))
 	{
 		msg = (Nested *)samples[0];
-		printf("Received: Nested { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\"  }\n", msg->inner.a, msg->inner.b, msg->inner.a, msg->level, msg->other);
+		printf("Received: Nested { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\", last: \"%d\"  }\n", msg->inner.a, msg->inner.b, msg->inner.a, msg->level, msg->other, msg->last);
 	}
 
 	// Sleep to allow sending acknowledgements
