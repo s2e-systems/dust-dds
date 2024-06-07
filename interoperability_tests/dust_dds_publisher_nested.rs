@@ -25,13 +25,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<nested_type::Nested>(
-            "Nested",
-            "NestedType",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic::<nested_type::Nested>("Nested", "Nested", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
