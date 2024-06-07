@@ -1,0 +1,11 @@
+struct Inner {
+    uint8 a;
+    uint32 b;
+    uint16 c;
+};
+
+struct Nested {
+    Inner inner;
+    int64 level;
+    int32 other;
+};
