@@ -9,7 +9,7 @@ use crate::{
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
-    implementation::actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+    implementation::actor::{Actor, ActorAddress, Mail, MailHandler},
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -64,12 +64,7 @@ impl PublisherActor {
     ) -> Self {
         let data_writer_list = data_writer_list
             .into_iter()
-            .map(|dw| {
-                (
-                    dw.get_instance_handle(),
-                    Actor::spawn(dw, handle, DEFAULT_ACTOR_BUFFER_SIZE),
-                )
-            })
+            .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
             .collect();
         Self {
             qos,
@@ -78,17 +73,9 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener: Actor::spawn(
-                PublisherListenerActor::new(listener),
-                handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            ),
+            listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
             status_kind,
-            status_condition: Actor::spawn(
-                StatusConditionActor::default(),
-                handle,
-                DEFAULT_ACTOR_BUFFER_SIZE,
-            ),
+            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
     }
 
@@ -207,11 +194,7 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
             qos,
             &message.runtime_handle,
         );
-        let data_writer_actor = Actor::spawn(
-            data_writer,
-            &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let data_writer_actor = Actor::spawn(data_writer, &message.runtime_handle);
         let data_writer_address = data_writer_actor.address();
         self.data_writer_list
             .insert(InstanceHandle::new(guid.into()), data_writer_actor);
@@ -249,7 +232,6 @@ impl MailHandler<LookupDatawriter> for PublisherActor {
         for dw in self.data_writer_list.values() {
             if dw
                 .send_actor_mail(data_writer_actor::GetTopicName)
-                .await
                 .receive_reply()
                 .await
                 .as_ref()
@@ -420,13 +402,11 @@ impl MailHandler<ProcessAckNackSubmessage> for PublisherActor {
         message: ProcessAckNackSubmessage,
     ) -> <ProcessAckNackSubmessage as Mail>::Result {
         for data_writer_actor in self.data_writer_list.values() {
-            data_writer_actor
-                .send_actor_mail(data_writer_actor::ProcessAckNackSubmessage {
-                    acknack_submessage: message.acknack_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                    message_sender_actor: message.message_sender_actor.clone(),
-                })
-                .await;
+            data_writer_actor.send_actor_mail(data_writer_actor::ProcessAckNackSubmessage {
+                acknack_submessage: message.acknack_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+                message_sender_actor: message.message_sender_actor.clone(),
+            });
         }
     }
 }
@@ -444,12 +424,10 @@ impl MailHandler<ProcessNackFragSubmessage> for PublisherActor {
         message: ProcessNackFragSubmessage,
     ) -> <ProcessNackFragSubmessage as Mail>::Result {
         for data_writer_actor in self.data_writer_list.values() {
-            data_writer_actor
-                .send_actor_mail(data_writer_actor::ProcessNackFragSubmessage {
-                    nackfrag_submessage: message.nackfrag_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                })
-                .await;
+            data_writer_actor.send_actor_mail(data_writer_actor::ProcessNackFragSubmessage {
+                nackfrag_submessage: message.nackfrag_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+            });
         }
     }
 }
@@ -499,7 +477,6 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                         participant_mask_listener: message.participant_mask_listener.clone(),
                         message_sender_actor: message.message_sender_actor.clone(),
                     })
-                    .await
                     .receive_reply()
                     .await?;
             }
@@ -540,7 +517,6 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
                     publisher_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -571,7 +547,6 @@ impl MailHandler<SetListener> for PublisherActor {
         self.listener = Actor::spawn(
             PublisherListenerActor::new(message.listener),
             &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = message.status_kind;
     }

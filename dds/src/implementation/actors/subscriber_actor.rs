@@ -17,7 +17,7 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::{
             domain_participant_listener_actor::DomainParticipantListenerActor,
             status_condition_actor::StatusConditionActor,
@@ -68,24 +68,11 @@ impl SubscriberActor {
         data_reader_list: Vec<DataReaderActor>,
         handle: &tokio::runtime::Handle,
     ) -> Self {
-        let status_condition = Actor::spawn(
-            StatusConditionActor::default(),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
-        let listener = Actor::spawn(
-            SubscriberListenerActor::new(listener),
-            handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
         let data_reader_list = data_reader_list
             .into_iter()
-            .map(|dr| {
-                (
-                    dr.get_instance_handle(),
-                    Actor::spawn(dr, handle, DEFAULT_ACTOR_BUFFER_SIZE),
-                )
-            })
+            .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
             .collect();
         SubscriberActor {
             qos,
@@ -221,11 +208,7 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             &message.runtime_handle,
         );
 
-        let reader_actor = Actor::spawn(
-            data_reader,
-            &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let reader_actor = Actor::spawn(data_reader, &message.runtime_handle);
         let reader_address = reader_actor.address();
         self.data_reader_list
             .insert(InstanceHandle::new(guid.into()), reader_actor);
@@ -263,7 +246,6 @@ impl MailHandler<LookupDatareader> for SubscriberActor {
         for dr in self.data_reader_list.values() {
             if dr
                 .send_actor_mail(data_reader_actor::GetTopicName)
-                .await
                 .receive_reply()
                 .await
                 .as_ref()
@@ -459,22 +441,20 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
     ) -> <ProcessDataSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessDataSubmessage {
-                    data_submessage: message.data_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                    source_timestamp: message.source_timestamp,
-                    reception_timestamp: message.reception_timestamp,
-                    data_reader_address: data_reader_actor.address(),
-                    subscriber: SubscriberAsync::new(
-                        message.subscriber_address.clone(),
-                        self.status_condition.address(),
-                        message.participant.clone(),
-                    ),
-                    subscriber_mask_listener,
-                    participant_mask_listener: message.participant_mask_listener.clone(),
-                })
-                .await;
+            data_reader_actor.send_actor_mail(data_reader_actor::ProcessDataSubmessage {
+                data_submessage: message.data_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+                source_timestamp: message.source_timestamp,
+                reception_timestamp: message.reception_timestamp,
+                data_reader_address: data_reader_actor.address(),
+                subscriber: SubscriberAsync::new(
+                    message.subscriber_address.clone(),
+                    self.status_condition.address(),
+                    message.participant.clone(),
+                ),
+                subscriber_mask_listener,
+                participant_mask_listener: message.participant_mask_listener.clone(),
+            });
         }
     }
 }
@@ -501,22 +481,20 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
     ) -> <ProcessDataFragSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessDataFragSubmessage {
-                    data_frag_submessage: message.data_frag_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                    source_timestamp: message.source_timestamp,
-                    reception_timestamp: message.reception_timestamp,
-                    data_reader_address: data_reader_actor.address(),
-                    subscriber: SubscriberAsync::new(
-                        message.subscriber_address.clone(),
-                        self.status_condition.address(),
-                        message.participant.clone(),
-                    ),
-                    subscriber_mask_listener,
-                    participant_mask_listener: message.participant_mask_listener.clone(),
-                })
-                .await;
+            data_reader_actor.send_actor_mail(data_reader_actor::ProcessDataFragSubmessage {
+                data_frag_submessage: message.data_frag_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+                source_timestamp: message.source_timestamp,
+                reception_timestamp: message.reception_timestamp,
+                data_reader_address: data_reader_actor.address(),
+                subscriber: SubscriberAsync::new(
+                    message.subscriber_address.clone(),
+                    self.status_condition.address(),
+                    message.participant.clone(),
+                ),
+                subscriber_mask_listener,
+                participant_mask_listener: message.participant_mask_listener.clone(),
+            });
         }
     }
 }
@@ -534,12 +512,10 @@ impl MailHandler<ProcessGapSubmessage> for SubscriberActor {
         message: ProcessGapSubmessage,
     ) -> <ProcessGapSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessGapSubmessage {
-                    gap_submessage: message.gap_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                })
-                .await;
+            data_reader_actor.send_actor_mail(data_reader_actor::ProcessGapSubmessage {
+                gap_submessage: message.gap_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+            });
         }
     }
 }
@@ -558,13 +534,11 @@ impl MailHandler<ProcessHeartbeatSubmessage> for SubscriberActor {
         message: ProcessHeartbeatSubmessage,
     ) -> <ProcessHeartbeatSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessHeartbeatSubmessage {
-                    heartbeat_submessage: message.heartbeat_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                    message_sender_actor: message.message_sender_actor.clone(),
-                })
-                .await;
+            data_reader_actor.send_actor_mail(data_reader_actor::ProcessHeartbeatSubmessage {
+                heartbeat_submessage: message.heartbeat_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+                message_sender_actor: message.message_sender_actor.clone(),
+            });
         }
     }
 }
@@ -582,12 +556,10 @@ impl MailHandler<ProcessHeartbeatFragSubmessage> for SubscriberActor {
         message: ProcessHeartbeatFragSubmessage,
     ) -> <ProcessHeartbeatFragSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            data_reader_actor
-                .send_actor_mail(data_reader_actor::ProcessHeartbeatFragSubmessage {
-                    heartbeat_frag_submessage: message.heartbeat_frag_submessage.clone(),
-                    source_guid_prefix: message.source_guid_prefix,
-                })
-                .await;
+            data_reader_actor.send_actor_mail(data_reader_actor::ProcessHeartbeatFragSubmessage {
+                heartbeat_frag_submessage: message.heartbeat_frag_submessage.clone(),
+                source_guid_prefix: message.source_guid_prefix,
+            });
         }
     }
 }
@@ -635,7 +607,6 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                         subscriber_mask_listener,
                         participant_mask_listener: message.participant_mask_listener.clone(),
                     })
-                    .await
                     .receive_reply()
                     .await?;
             }
@@ -676,7 +647,6 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
                 })
-                .await
                 .receive_reply()
                 .await?;
         }
@@ -698,7 +668,6 @@ impl MailHandler<SetListener> for SubscriberActor {
         self.listener = Actor::spawn(
             SubscriberListenerActor::new(message.listener),
             &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         self.status_kind = message.status_kind;
     }

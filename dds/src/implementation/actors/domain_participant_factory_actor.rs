@@ -20,7 +20,7 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler, DEFAULT_ACTOR_BUFFER_SIZE},
+        actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
     },
     infrastructure::{
@@ -161,7 +161,6 @@ impl DomainParticipantFactoryActor {
                 handle,
             ),
             handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
@@ -178,7 +177,6 @@ impl DomainParticipantFactoryActor {
                 handle,
             ),
             handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
@@ -195,7 +193,6 @@ impl DomainParticipantFactoryActor {
                 handle,
             ),
             handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
 
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
@@ -213,7 +210,6 @@ impl DomainParticipantFactoryActor {
                 handle,
             ),
             handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
         );
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
@@ -454,24 +450,17 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             &message.runtime_handle,
         );
 
-        let participant_actor = Actor::spawn(
-            domain_participant,
-            &message.runtime_handle,
-            DEFAULT_ACTOR_BUFFER_SIZE,
-        );
+        let participant_actor = Actor::spawn(domain_participant, &message.runtime_handle);
         let status_condition = participant_actor
             .send_actor_mail(domain_participant_actor::GetStatuscondition)
-            .await
             .receive_reply()
             .await;
         let builtin_subscriber = participant_actor
             .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
-            .await
             .receive_reply()
             .await;
         let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_actor_mail(subscriber_actor::GetStatuscondition)
-            .await?
+            .send_actor_mail(subscriber_actor::GetStatuscondition)?
             .receive_reply()
             .await;
 
@@ -535,7 +524,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .send_actor_mail(domain_participant_actor::SetDefaultUnicastLocatorList {
                 list: default_unicast_locator_list,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -546,12 +534,12 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
                 if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
-                    let r = participant_address_clone
-                        .send_actor_mail(domain_participant_actor::ProcessUserDefinedRtpsMessage {
+                    let r = participant_address_clone.send_actor_mail(
+                        domain_participant_actor::ProcessUserDefinedRtpsMessage {
                             rtps_message: message,
                             participant: participant_clone.clone(),
-                        })
-                        .await;
+                        },
+                    );
                     if r.is_err() {
                         break;
                     }
@@ -573,7 +561,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .send_actor_mail(domain_participant_actor::SetMetatrafficUnicastLocatorList {
                 list: metatraffic_unicast_locator_list,
             })
-            .await
             .receive_reply()
             .await;
 
@@ -612,7 +599,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                     list: metatraffic_multicast_locator_list,
                 },
             )
-            .await
             .receive_reply()
             .await;
 
@@ -659,7 +645,6 @@ impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
     async fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
         let is_participant_empty = self.domain_participant_list[&message.handle]
             .send_actor_mail(domain_participant_actor::IsEmpty)
-            .await
             .receive_reply()
             .await;
         if is_participant_empty {
@@ -690,7 +675,6 @@ impl MailHandler<LookupParticipant> for DomainParticipantFactoryActor {
         for dp in self.domain_participant_list.values() {
             if dp
                 .send_actor_mail(domain_participant_actor::GetDomainId)
-                .await
                 .receive_reply()
                 .await
                 == message.domain_id
@@ -987,8 +971,7 @@ async fn process_metatraffic_rtps_message(
         .send_actor_mail(domain_participant_actor::ProcessMetatrafficRtpsMessage {
             rtps_message: message,
             participant: participant.clone(),
-        })
-        .await?
+        })?
         .receive_reply()
         .await?;
 
@@ -1019,8 +1002,7 @@ async fn process_metatraffic_rtps_message(
                                         discovered_participant_data,
                                         participant: participant.clone(),
                                     },
-                                )
-                                .await?
+                                )?
                                 .receive_reply()
                                 .await?;
                         }
@@ -1033,8 +1015,7 @@ async fn process_metatraffic_rtps_message(
                                         .sample_info()
                                         .instance_handle,
                                 },
-                            )
-                            .await?
+                            )?
                             .receive_reply()
                             .await;
                     }

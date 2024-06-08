@@ -287,7 +287,6 @@ impl RtpsWriterProxy {
                     submessages,
                     destination_locator_list: self.unicast_locator_list().to_vec(),
                 })
-                .await
                 .ok();
         }
     }

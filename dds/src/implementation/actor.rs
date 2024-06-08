@@ -2,8 +2,6 @@ use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
-pub const DEFAULT_ACTOR_BUFFER_SIZE: usize = 16;
-
 pub trait Mail {
     type Result;
 }
@@ -75,7 +73,7 @@ where
 
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    mail_sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
+    mail_sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandlerDyn<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -91,7 +89,7 @@ impl<A> ActorAddress<A> {
         self.mail_sender.is_closed()
     }
 
-    pub async fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
+    pub fn send_actor_mail<M>(&self, mail: M) -> DdsResult<ReplyReceiver<M>>
     where
         A: MailHandler<M> + Send,
         M: Mail + Send + 'static,
@@ -100,14 +98,13 @@ impl<A> ActorAddress<A> {
         let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
         self.mail_sender
             .send(Box::new(ReplyMail { mail, reply_sender }))
-            .await
             .map_err(|_| DdsError::AlreadyDeleted)?;
         Ok(ReplyReceiver { reply_receiver })
     }
 }
 
 pub struct Actor<A> {
-    mail_sender: tokio::sync::mpsc::Sender<Box<dyn GenericHandlerDyn<A> + Send>>,
+    mail_sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandlerDyn<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
     notify_stop: Arc<tokio::sync::Notify>,
 }
@@ -116,9 +113,9 @@ impl<A> Actor<A>
 where
     A: Send + 'static,
 {
-    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle, buffer_size: usize) -> Self {
+    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (mail_sender, mut mailbox_recv) =
-            tokio::sync::mpsc::channel::<Box<dyn GenericHandlerDyn<A> + Send>>(buffer_size);
+            tokio::sync::mpsc::unbounded_channel::<Box<dyn GenericHandlerDyn<A> + Send>>();
         let notify_stop = Arc::new(tokio::sync::Notify::new());
         let notify_clone = notify_stop.clone();
 
@@ -155,7 +152,7 @@ where
         self.join_handle.await.ok();
     }
 
-    pub async fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
+    pub fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
     where
         A: MailHandler<M>,
         M: Mail + Send + 'static,
@@ -164,7 +161,6 @@ where
         let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
         self.mail_sender
             .send(Box::new(ReplyMail { mail, reply_sender }))
-            .await
             .expect("Message will always be sent when actor exists");
         ReplyReceiver { reply_receiver }
     }
@@ -197,13 +193,12 @@ mod tests {
     fn actor_increment() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
+        let actor = Actor::spawn(my_data, runtime.handle());
 
         assert_eq!(
             runtime.block_on(async {
                 actor
                     .send_actor_mail(Increment { value: 10 })
-                    .await
                     .receive_reply()
                     .await
             }),
@@ -215,13 +210,12 @@ mod tests {
     fn actor_stop_should_not_block() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
+        let actor = Actor::spawn(my_data, runtime.handle());
 
         assert_eq!(
             runtime.block_on(async {
                 actor
                     .send_actor_mail(Increment { value: 10 })
-                    .await
                     .receive_reply()
                     .await
             }),
@@ -235,14 +229,13 @@ mod tests {
     fn actor_send_message_after_stop_should_return_error() {
         let runtime = Runtime::new().unwrap();
         let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle(), DEFAULT_ACTOR_BUFFER_SIZE);
+        let actor = Actor::spawn(my_data, runtime.handle());
         let actor_address = actor.address();
 
         assert_eq!(
             runtime.block_on(async {
                 actor
                     .send_actor_mail(Increment { value: 10 })
-                    .await
                     .receive_reply()
                     .await
             }),
@@ -251,8 +244,8 @@ mod tests {
 
         runtime.block_on(actor.stop());
 
-        assert!(runtime
-            .block_on(async { actor_address.send_actor_mail(Increment { value: 10 }).await })
+        assert!(actor_address
+            .send_actor_mail(Increment { value: 10 })
             .is_err());
     }
 }
