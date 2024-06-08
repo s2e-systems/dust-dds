@@ -643,24 +643,12 @@ impl Mail for DeleteParticipant {
 }
 impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
     async fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
-        let is_participant_empty = self.domain_participant_list[&message.handle]
-            .send_actor_mail(domain_participant_actor::IsEmpty)
-            .receive_reply()
-            .await;
-        if is_participant_empty {
-            if let Some(d) = self.domain_participant_list.remove(&message.handle) {
-                Ok(d)
-            } else {
-                Err(DdsError::PreconditionNotMet(
-                    "Participant can only be deleted from its parent domain participant factory"
-                        .to_string(),
-                ))
-            }
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Domain participant still contains other entities".to_string(),
+        self.domain_participant_list
+            .remove(&message.handle)
+            .ok_or(DdsError::PreconditionNotMet(
+                "Participant can only be deleted from its parent domain participant factory"
+                    .to_string(),
             ))
-        }
     }
 }
 
