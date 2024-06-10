@@ -67,7 +67,7 @@ use super::{
     message_sender_actor::{self, MessageSenderActor},
     publisher_listener_actor::{self, PublisherListenerActor, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    topic_actor::{self, TopicActor},
+    topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {
@@ -211,6 +211,7 @@ pub struct DataWriterActor {
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
+    topic_status_condition: ActorAddress<StatusConditionActor>,
     listener: Actor<DataWriterListenerActor>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
@@ -224,6 +225,7 @@ impl DataWriterActor {
         topic_address: ActorAddress<TopicActor>,
         topic_name: String,
         type_name: String,
+        topic_status_condition: ActorAddress<StatusConditionActor>,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -242,6 +244,7 @@ impl DataWriterActor {
             topic_address,
             topic_name,
             type_name,
+            topic_status_condition,
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
@@ -493,7 +496,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn on_publication_matched(
+    fn on_publication_matched(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
@@ -516,11 +519,7 @@ impl DataWriterActor {
             let topic_name = self.topic_name.clone();
             let status = self.get_publication_matched_status();
             let participant = publisher.get_participant();
-            let topic_status_condition_address = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetStatuscondition)?
-                .receive_reply()
-                .await;
+            let topic_status_condition_address = self.topic_status_condition.clone();
             self.listener
                 .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
                     listener_operation: DataWriterListenerOperation::PublicationMatched(status),
@@ -553,7 +552,7 @@ impl DataWriterActor {
         Ok(())
     }
 
-    async fn on_offered_incompatible_qos(
+    fn on_offered_incompatible_qos(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
@@ -581,11 +580,7 @@ impl DataWriterActor {
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
-            let topic_status_condition_address = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetStatuscondition)?
-                .receive_reply()
-                .await;
+            let topic_status_condition_address = self.topic_status_condition.clone();
             self.listener
                 .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
                     listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
@@ -1257,8 +1252,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         message.publisher,
                         message.publisher_mask_listener,
                         message.participant_mask_listener,
-                    )
-                    .await?;
+                    )?;
                 }
 
                 self.send_message(message.message_sender_actor);
@@ -1270,8 +1264,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message.publisher,
                     message.publisher_mask_listener,
                     message.participant_mask_listener,
-                )
-                .await?;
+                )?;
             }
         }
         Ok(())
@@ -1310,8 +1303,7 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
                 message.publisher,
                 message.publisher_mask_listener,
                 message.participant_mask_listener,
-            )
-            .await?;
+            )?;
         }
 
         Ok(())
