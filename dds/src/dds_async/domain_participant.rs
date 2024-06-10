@@ -10,7 +10,9 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
-            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
+            domain_participant_actor::{
+                self, DomainParticipantActor, FooTypeSupport, BUILT_IN_TOPIC_NAME_LIST,
+            },
             publisher_actor,
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
@@ -154,12 +156,32 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_publisher`](crate::domain::domain_participant::DomainParticipant::delete_publisher).
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
-                handle: a_publisher.get_instance_handle().await?,
-            })?
+        if a_publisher
+            .publisher_address()
+            .send_actor_mail(publisher_actor::IsEmpty)?
             .receive_reply()
             .await
+        {
+            if let Some(deleted_publisher) = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
+                    handle: a_publisher.get_instance_handle().await?,
+                })?
+                .receive_reply()
+                .await
+            {
+                deleted_publisher.stop().await;
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Publisher can only be deleted from its parent participant".to_string(),
+                ))
+            }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ))
+        }
     }
 
     /// Async version of [`create_subscriber`](crate::domain::domain_participant::DomainParticipant::create_subscriber).
@@ -209,12 +231,32 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_subscriber`](crate::domain::domain_participant::DomainParticipant::delete_subscriber).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
-                handle: a_subscriber.get_instance_handle().await?,
-            })?
+        if a_subscriber
+            .subscriber_address()
+            .send_actor_mail(subscriber_actor::IsEmpty)?
             .receive_reply()
             .await
+        {
+            if let Some(deleted_subscriber) = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
+                    handle: a_subscriber.get_instance_handle().await?,
+                })?
+                .receive_reply()
+                .await
+            {
+                deleted_subscriber.stop().await;
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Subscriber can only be deleted from its parent participant".to_string(),
+                ))
+            }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ))
+        }
     }
 
     /// Async version of [`create_topic`](crate::domain::domain_participant::DomainParticipant::create_topic).
@@ -292,12 +334,63 @@ impl DomainParticipantAsync {
         if a_topic.topic_address().is_closed() {
             Err(DdsError::AlreadyDeleted)
         } else {
-            self.participant_address
+            if BUILT_IN_TOPIC_NAME_LIST.contains(&a_topic.get_name().as_str()) {
+                return Ok(());
+            }
+            let publisher_list = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetPublisherList)?
+                .receive_reply()
+                .await;
+            for publisher in publisher_list {
+                if publisher
+                    .send_actor_mail(publisher_actor::LookupDatawriter {
+                        topic_name: a_topic.get_name(),
+                    })?
+                    .receive_reply()
+                    .await?
+                    .is_some()
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data writer".to_string(),
+                    ));
+                }
+            }
+
+            let subscriber_list = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetSubscriberList)?
+                .receive_reply()
+                .await;
+            for subscriber in subscriber_list {
+                if subscriber
+                    .send_actor_mail(subscriber_actor::LookupDatareader {
+                        topic_name: a_topic.get_name(),
+                    })?
+                    .receive_reply()
+                    .await
+                    .is_some()
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader".to_string(),
+                    ));
+                }
+            }
+            if let Some(deleted_topic) = self
+                .participant_address
                 .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
                     topic_name: a_topic.get_name(),
                 })?
                 .receive_reply()
                 .await
+            {
+                deleted_topic.stop().await;
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Topic can only be deleted from its parent participant".to_string(),
+                ))
+            }
         }
     }
 

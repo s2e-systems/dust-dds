@@ -86,7 +86,7 @@ use super::{
     subscriber_actor, topic_actor,
 };
 
-const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
+pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
     DCPS_PUBLICATION,
@@ -442,36 +442,27 @@ pub struct DeleteUserDefinedPublisher {
     pub handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedPublisher {
-    type Result = DdsResult<()>;
+    type Result = Option<Actor<PublisherActor>>;
 }
 impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
     async fn handle(
         &mut self,
         message: DeleteUserDefinedPublisher,
     ) -> <DeleteUserDefinedPublisher as Mail>::Result {
-        if let Some(p) = self.user_defined_publisher_list.get(&message.handle) {
-            if !p
-                .send_actor_mail(publisher_actor::GetDataWriterList)
-                .receive_reply()
-                .await
-                .is_empty()
-            {
-                Err(DdsError::PreconditionNotMet(
-                    "Publisher still contains data writers".to_string(),
-                ))
-            } else {
-                let d = self
-                    .user_defined_publisher_list
-                    .remove(&message.handle)
-                    .expect("Publisher is guaranteed to exist");
-                d.stop().await;
-                Ok(())
-            }
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ))
-        }
+        self.user_defined_publisher_list.remove(&message.handle)
+    }
+}
+
+pub struct GetPublisherList;
+impl Mail for GetPublisherList {
+    type Result = Vec<ActorAddress<PublisherActor>>;
+}
+impl MailHandler<GetPublisherList> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetPublisherList) -> <GetPublisherList as Mail>::Result {
+        self.user_defined_publisher_list
+            .values()
+            .map(|p| p.address())
+            .collect()
     }
 }
 
@@ -528,35 +519,27 @@ pub struct DeleteUserDefinedSubscriber {
     pub handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedSubscriber {
-    type Result = DdsResult<()>;
+    type Result = Option<Actor<SubscriberActor>>;
 }
 impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
     async fn handle(
         &mut self,
         message: DeleteUserDefinedSubscriber,
     ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
-        if let Some(subscriber) = self.user_defined_subscriber_list.get(&message.handle) {
-            if !subscriber
-                .send_actor_mail(subscriber_actor::IsEmpty)
-                .receive_reply()
-                .await
-            {
-                Err(DdsError::PreconditionNotMet(
-                    "Subscriber still contains data readers".to_string(),
-                ))
-            } else {
-                let d = self
-                    .user_defined_subscriber_list
-                    .remove(&message.handle)
-                    .expect("Subscriber is guaranteed to exist");
-                d.stop().await;
-                Ok(())
-            }
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ))
-        }
+        self.user_defined_subscriber_list.remove(&message.handle)
+    }
+}
+
+pub struct GetSubscriberList;
+impl Mail for GetSubscriberList {
+    type Result = Vec<ActorAddress<SubscriberActor>>;
+}
+impl MailHandler<GetSubscriberList> for DomainParticipantActor {
+    async fn handle(&mut self, _: GetSubscriberList) -> <GetSubscriberList as Mail>::Result {
+        self.user_defined_subscriber_list
+            .values()
+            .map(|p| p.address())
+            .collect()
     }
 }
 
@@ -593,57 +576,14 @@ pub struct DeleteUserDefinedTopic {
     pub topic_name: String,
 }
 impl Mail for DeleteUserDefinedTopic {
-    type Result = DdsResult<()>;
+    type Result = Option<Actor<TopicActor>>;
 }
 impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
     async fn handle(
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
-        if self.topic_list.contains_key(&message.topic_name) {
-            if !BUILT_IN_TOPIC_NAME_LIST.contains(&message.topic_name.as_ref()) {
-                for publisher in self.user_defined_publisher_list.values() {
-                    if publisher
-                        .send_actor_mail(publisher_actor::LookupDatawriter {
-                            topic_name: message.topic_name.clone(),
-                        })
-                        .receive_reply()
-                        .await?
-                        .is_some()
-                    {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data writer".to_string(),
-                        ));
-                    }
-                }
-
-                for subscriber in self.user_defined_subscriber_list.values() {
-                    if subscriber
-                        .send_actor_mail(subscriber_actor::LookupDatareader {
-                            topic_name: message.topic_name.clone(),
-                        })
-                        .receive_reply()
-                        .await
-                        .is_some()
-                    {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data reader".to_string(),
-                        ));
-                    }
-                }
-
-                let (d, _) = self
-                    .topic_list
-                    .remove(&message.topic_name)
-                    .expect("Topic is guaranteed to exist");
-                d.stop().await;
-            }
-            Ok(())
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant".to_string(),
-            ))
-        }
+        self.topic_list.remove(&message.topic_name).map(|t| t.0)
     }
 }
 
