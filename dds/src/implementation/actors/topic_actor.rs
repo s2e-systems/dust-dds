@@ -54,20 +54,24 @@ impl TopicActor {
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         handle: &tokio::runtime::Handle,
-    ) -> Self {
+    ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let status_condition_address = status_condition.address();
         let listener = Actor::spawn(TopicListenerActor::new(listener), handle);
-        Self {
-            guid,
-            qos,
-            type_name,
-            topic_name: topic_name.to_string(),
-            enabled: false,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition,
-            _listener: listener,
-            type_support,
-        }
+        (
+            Self {
+                guid,
+                qos,
+                type_name,
+                topic_name: topic_name.to_string(),
+                enabled: false,
+                inconsistent_topic_status: InconsistentTopicStatus::default(),
+                status_condition,
+                _listener: listener,
+                type_support,
+            },
+            status_condition_address,
+        )
     }
 }
 

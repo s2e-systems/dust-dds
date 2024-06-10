@@ -3,6 +3,7 @@ use super::{
     data_writer_actor::DataWriterActor,
     domain_participant_actor::{self, FooTypeSupport},
     message_sender_actor::MessageSenderActor,
+    status_condition_actor::StatusConditionActor,
     subscriber_actor,
     topic_actor::TopicActor,
 };
@@ -145,73 +146,85 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         handle: &tokio::runtime::Handle,
-    ) -> HashMap<String, Actor<TopicActor>> {
+    ) -> HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)> {
         let mut topic_list = HashMap::new();
 
         let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let spdp_topic_participant = Actor::spawn(
-            TopicActor::new(
-                spdp_topic_guid,
-                TopicQos::default(),
-                "SpdpDiscoveredParticipantData".to_string(),
-                DCPS_PARTICIPANT,
-                None,
-                Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
-                handle,
-            ),
+        let (spdp_topic_participant, spdp_topic_participant_status_condition) = TopicActor::new(
+            spdp_topic_guid,
+            TopicQos::default(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            DCPS_PARTICIPANT,
+            None,
+            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
             handle,
         );
-        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
+        topic_list.insert(
+            DCPS_PARTICIPANT.to_owned(),
+            (
+                Actor::spawn(spdp_topic_participant, handle),
+                spdp_topic_participant_status_condition,
+            ),
+        );
 
         let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
         let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let sedp_topic_topics = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_topics_guid,
-                TopicQos::default(),
-                "DiscoveredTopicData".to_string(),
-                DCPS_TOPIC,
-                None,
-                Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
-                handle,
-            ),
+        let (sedp_topic_topics, sedp_topic_topics_status_condition) = TopicActor::new(
+            sedp_topic_topics_guid,
+            TopicQos::default(),
+            "DiscoveredTopicData".to_string(),
+            DCPS_TOPIC,
+            None,
+            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
             handle,
         );
-        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
+        topic_list.insert(
+            DCPS_TOPIC.to_owned(),
+            (
+                Actor::spawn(sedp_topic_topics, handle),
+                sedp_topic_topics_status_condition,
+            ),
+        );
 
         let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let sedp_topic_publications = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_publications_guid,
-                TopicQos::default(),
-                "DiscoveredWriterData".to_string(),
-                DCPS_PUBLICATION,
-                None,
-                Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
-                handle,
-            ),
+        let (sedp_topic_publications, sedp_topic_publications_status_condition) = TopicActor::new(
+            sedp_topic_publications_guid,
+            TopicQos::default(),
+            "DiscoveredWriterData".to_string(),
+            DCPS_PUBLICATION,
+            None,
+            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
             handle,
         );
 
-        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
+        topic_list.insert(
+            DCPS_PUBLICATION.to_owned(),
+            (
+                Actor::spawn(sedp_topic_publications, handle),
+                sedp_topic_publications_status_condition,
+            ),
+        );
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
         let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let sedp_topic_subscriptions = Actor::spawn(
-            TopicActor::new(
-                sedp_topic_subscriptions_guid,
-                TopicQos::default(),
-                "DiscoveredReaderData".to_string(),
-                DCPS_SUBSCRIPTION,
-                None,
-                Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
-                handle,
-            ),
+        let (sedp_topic_subscriptions, sedp_topic_subscriptions_status_condition) = TopicActor::new(
+            sedp_topic_subscriptions_guid,
+            TopicQos::default(),
+            "DiscoveredReaderData".to_string(),
+            DCPS_SUBSCRIPTION,
+            None,
+            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
             handle,
         );
-        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
+        topic_list.insert(
+            DCPS_SUBSCRIPTION.to_owned(),
+            (
+                Actor::spawn(sedp_topic_subscriptions, handle),
+                sedp_topic_subscriptions_status_condition,
+            ),
+        );
 
         topic_list
     }
@@ -219,7 +232,7 @@ impl DomainParticipantFactoryActor {
     fn create_builtin_readers(
         &self,
         guid_prefix: GuidPrefix,
-        topic_list: &HashMap<String, Actor<TopicActor>>,
+        topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         handle: &tokio::runtime::Handle,
     ) -> Vec<DataReaderActor> {
         let spdp_reader_qos = DataReaderQos {
@@ -242,7 +255,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader = DataReaderActor::new(
             create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
-            topic_list[DCPS_PARTICIPANT].address(),
+            topic_list[DCPS_PARTICIPANT].0.address(),
             spdp_reader_qos,
             None,
             vec![],
@@ -253,7 +266,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
-            topic_list[DCPS_TOPIC].address(),
+            topic_list[DCPS_TOPIC].0.address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -264,7 +277,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
-            topic_list[DCPS_PUBLICATION].address(),
+            topic_list[DCPS_PUBLICATION].0.address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -275,7 +288,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
-            topic_list[DCPS_SUBSCRIPTION].address(),
+            topic_list[DCPS_SUBSCRIPTION].0.address(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -294,7 +307,7 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
-        topic_list: &HashMap<String, Actor<TopicActor>>,
+        topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         handle: &tokio::runtime::Handle,
     ) -> Vec<DataWriterActor> {
         let spdp_writer_qos = DataWriterQos {
@@ -317,7 +330,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let mut spdp_builtin_participant_writer = DataWriterActor::new(
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
-            topic_list[DCPS_PARTICIPANT].address(),
+            topic_list[DCPS_PARTICIPANT].0.address(),
             DCPS_PARTICIPANT.to_string(),
             "SpdpDiscoveredParticipantData".to_string(),
             None,
@@ -343,7 +356,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
-            topic_list[DCPS_TOPIC].address(),
+            topic_list[DCPS_TOPIC].0.address(),
             DCPS_TOPIC.to_string(),
             "DiscoveredTopicData".to_string(),
             None,
@@ -356,7 +369,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
-            topic_list[DCPS_PUBLICATION].address(),
+            topic_list[DCPS_PUBLICATION].0.address(),
             DCPS_PUBLICATION.to_string(),
             "DiscoveredWriterData".to_string(),
             None,
@@ -369,7 +382,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
-            topic_list[DCPS_SUBSCRIPTION].address(),
+            topic_list[DCPS_SUBSCRIPTION].0.address(),
             DCPS_SUBSCRIPTION.to_string(),
             "DiscoveredReaderData".to_string(),
             None,

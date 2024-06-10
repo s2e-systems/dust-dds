@@ -189,7 +189,7 @@ pub struct DomainParticipantActor {
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_list: HashMap<String, Actor<TopicActor>>,
+    topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
@@ -218,7 +218,7 @@ impl DomainParticipantActor {
         data_max_size_serialized: usize,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
-        topic_list: HashMap<String, Actor<TopicActor>>,
+        topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         builtin_data_writer_list: Vec<DataWriterActor>,
         builtin_data_reader_list: Vec<DataReaderActor>,
         message_sender_actor: MessageSenderActor,
@@ -357,7 +357,7 @@ impl DomainParticipantActor {
             let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
             let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
 
-            let topic = TopicActor::new(
+            let (topic, topic_status_condition) = TopicActor::new(
                 guid,
                 qos,
                 type_name,
@@ -370,11 +370,8 @@ impl DomainParticipantActor {
             let topic_actor: crate::implementation::actor::Actor<TopicActor> =
                 Actor::spawn(topic, &runtime_handle);
             let topic_address = topic_actor.address();
-            let topic_status_condition = topic_actor
-                .send_actor_mail(topic_actor::GetStatuscondition)
-                .receive_reply()
-                .await;
-            e.insert(topic_actor);
+
+            e.insert((topic_actor, topic_status_condition.clone()));
 
             Ok((topic_address, topic_status_condition))
         } else {
@@ -392,16 +389,17 @@ impl DomainParticipantActor {
             String,
         )>,
     > {
-        if let Some(topic) = self.topic_list.get(&topic_name) {
+        if let Some((topic, topic_status_condition)) = self.topic_list.get(&topic_name) {
             let type_name = topic
                 .send_actor_mail(topic_actor::GetTypeName)
                 .receive_reply()
                 .await;
-            let status_condition = topic
-                .send_actor_mail(topic_actor::GetStatuscondition)
-                .receive_reply()
-                .await;
-            Ok(Some((topic.address(), status_condition, type_name)))
+
+            Ok(Some((
+                topic.address(),
+                topic_status_condition.clone(),
+                type_name,
+            )))
         } else {
             Ok(None)
         }
@@ -662,7 +660,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
                     }
                 }
 
-                let d = self
+                let (d, _) = self
                     .topic_list
                     .remove(&message.topic_name)
                     .expect("Topic is guaranteed to exist");
@@ -996,7 +994,7 @@ impl MailHandler<DrainTopicList> for DomainParticipantActor {
             .cloned()
             .collect();
         for t in user_defined_topic_name_list {
-            if let Some(removed_topic) = self.topic_list.remove(&t) {
+            if let Some((removed_topic, _)) = self.topic_list.remove(&t) {
                 drained_topic_list.push(removed_topic);
             }
         }
@@ -2560,7 +2558,7 @@ impl DomainParticipantActor {
             InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
-            for topic in self.topic_list.values() {
+            for (topic, _) in self.topic_list.values() {
                 topic
                     .send_actor_mail(topic_actor::ProcessDiscoveredTopic {
                         discovered_topic_data: discovered_topic_data.clone(),
