@@ -108,12 +108,28 @@ impl<Foo> DataWriterAsync<Foo> {
                 .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
+            let topic_data = self
+                .topic
+                .topic_address()
+                .send_actor_mail(topic_actor::GetQos)?
+                .receive_reply()
+                .await
+                .topic_data;
+            let xml_type = self
+                .topic
+                .topic_address()
+                .send_actor_mail(topic_actor::GetTypeSupport)?
+                .receive_reply()
+                .await
+                .xml_type();
             let discovered_writer_data = self
                 .writer_address
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
+                    topic_data,
+                    xml_type,
                 })?
                 .receive_reply()
                 .await?;

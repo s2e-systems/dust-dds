@@ -23,9 +23,9 @@ use crate::{
         qos::{DataWriterQos, PublisherQos},
         qos_policy::{
             DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            TopicDataQosPolicy, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
+            DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
         status::{
             OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -980,6 +980,8 @@ pub struct AsDiscoveredWriterData {
     pub publisher_qos: PublisherQos,
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
+    pub topic_data: TopicDataQosPolicy,
+    pub xml_type: String,
 }
 impl Mail for AsDiscoveredWriterData {
     type Result = DdsResult<DiscoveredWriterData>;
@@ -991,17 +993,6 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
     ) -> <AsDiscoveredWriterData as Mail>::Result {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
-        let topic_qos = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetQos)?
-            .receive_reply()
-            .await;
-        let xml_type = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeSupport)?
-            .receive_reply()
-            .await
-            .xml_type();
         let writer_qos = &self.qos;
 
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
@@ -1028,8 +1019,8 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
                 type_name,
                 writer_qos.clone(),
                 message.publisher_qos.clone(),
-                topic_qos.topic_data,
-                xml_type,
+                message.topic_data,
+                message.xml_type,
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),
@@ -1407,6 +1398,16 @@ impl Mail for RemoveChange {
 impl MailHandler<RemoveChange> for DataWriterActor {
     async fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
         self.remove_change(message.seq_num)
+    }
+}
+
+pub struct GetTopicAddress;
+impl Mail for GetTopicAddress {
+    type Result = ActorAddress<TopicActor>;
+}
+impl MailHandler<GetTopicAddress> for DataWriterActor {
+    async fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
+        self.topic_address.clone()
     }
 }
 

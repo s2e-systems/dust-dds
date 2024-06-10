@@ -8,7 +8,7 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
-            topic_actor,
+            topic_actor::{self, TopicActor},
         },
     },
     infrastructure::{
@@ -59,7 +59,11 @@ impl PublisherAsync {
         self.participant.runtime_handle()
     }
 
-    async fn announce_deleted_data_writer(&self, writer: &Actor<DataWriterActor>) -> DdsResult<()> {
+    async fn announce_deleted_data_writer(
+        &self,
+        writer: &Actor<DataWriterActor>,
+        topic: &ActorAddress<TopicActor>,
+    ) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_publications_announcer) = builtin_publisher
             .lookup_datawriter(DCPS_PUBLICATION)
@@ -76,11 +80,23 @@ impl PublisherAsync {
                 .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
+            let topic_data = topic
+                .send_actor_mail(topic_actor::GetQos)?
+                .receive_reply()
+                .await
+                .topic_data;
+            let xml_type = topic
+                .send_actor_mail(topic_actor::GetTypeSupport)?
+                .receive_reply()
+                .await
+                .xml_type();
             let data = writer
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
+                    topic_data,
+                    xml_type,
                 })
                 .receive_reply()
                 .await?;
@@ -196,6 +212,7 @@ impl PublisherAsync {
             .send_actor_mail(data_writer_actor::SendMessage {
                 message_sender_actor,
             })?;
+        let topic = a_datawriter.get_topic();
 
         let deleted_writer = self
             .publisher_address
@@ -205,7 +222,8 @@ impl PublisherAsync {
             .receive_reply()
             .await?;
 
-        self.announce_deleted_data_writer(&deleted_writer).await?;
+        self.announce_deleted_data_writer(&deleted_writer, topic.topic_address())
+            .await?;
         deleted_writer.stop().await;
         Ok(())
     }
@@ -310,11 +328,15 @@ impl PublisherAsync {
             .await;
 
         for deleted_writer_actor in deleted_writer_actor_list {
+            let topic_address = deleted_writer_actor
+                .send_actor_mail(data_writer_actor::GetTopicAddress)
+                .receive_reply()
+                .await;
             deleted_writer_actor.send_actor_mail(data_writer_actor::SendMessage {
                 message_sender_actor: message_sender_actor.clone(),
             });
 
-            self.announce_deleted_data_writer(&deleted_writer_actor)
+            self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
                 .await?;
             deleted_writer_actor.stop().await;
         }
