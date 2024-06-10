@@ -4,7 +4,6 @@ use super::{
     domain_participant_actor::{self, FooTypeSupport},
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
-    subscriber_actor,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -455,7 +454,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let message_sender_actor =
             MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
 
-        let rtps_participant = RtpsParticipant::new(
+        let mut rtps_participant = RtpsParticipant::new(
             guid_prefix,
             vec![],
             vec![],
@@ -475,59 +474,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         let builtin_data_reader_list =
             self.create_builtin_readers(guid_prefix, &topic_list, &message.runtime_handle);
-
-        let domain_participant = DomainParticipantActor::new(
-            rtps_participant,
-            message.domain_id,
-            self.configuration.domain_tag().to_string(),
-            domain_participant_qos,
-            self.configuration.fragment_size(),
-            message.listener,
-            message.status_kind,
-            topic_list,
-            builtin_data_writer_list,
-            builtin_data_reader_list,
-            message_sender_actor,
-            &message.runtime_handle,
-        );
-
-        let participant_actor = Actor::spawn(domain_participant, &message.runtime_handle);
-        let status_condition = participant_actor
-            .send_actor_mail(domain_participant_actor::GetStatuscondition)
-            .receive_reply()
-            .await;
-        let builtin_subscriber = participant_actor
-            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)
-            .receive_reply()
-            .await;
-        let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_actor_mail(subscriber_actor::GetStatuscondition)?
-            .receive_reply()
-            .await;
-
-        let participant = DomainParticipantAsync::new(
-            participant_actor.address(),
-            status_condition.clone(),
-            builtin_subscriber,
-            builtin_subscriber_status_condition_address,
-            message.domain_id,
-            message.runtime_handle.clone(),
-        );
-
-        // Start the regular participant announcement task
-        let participant_clone = participant.clone();
-        let mut interval =
-            tokio::time::interval(self.configuration.participant_announcement_interval());
-        message.runtime_handle.spawn(async move {
-            loop {
-                interval.tick().await;
-
-                let r = participant_clone.announce_participant().await;
-                if r.is_err() {
-                    break;
-                }
-            }
-        });
 
         // Open socket for unicast user-defined data
         let interface_address_list = NetworkInterface::show()
@@ -561,12 +507,56 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .clone()
             .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
             .collect();
-        participant_actor
-            .send_actor_mail(domain_participant_actor::SetDefaultUnicastLocatorList {
-                list: default_unicast_locator_list,
-            })
-            .receive_reply()
-            .await;
+        rtps_participant.set_default_unicast_locator_list(default_unicast_locator_list);
+
+        // Open socket for unicast metatraffic data
+        let metattrafic_unicast_socket =
+            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
+        metattrafic_unicast_socket.set_nonblocking(true)?;
+        let metattrafic_unicast_locator_port =
+            metattrafic_unicast_socket.local_addr()?.port().into();
+        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
+            .clone()
+            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
+            .collect();
+        rtps_participant.set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list);
+
+        // Open socket for multicast metatraffic data
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(message.domain_id) as u32,
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
+        rtps_participant.set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list);
+        //****** Spawn the participant actor and tasks **********//
+        let (
+            domain_participant,
+            status_condition,
+            builtin_subscriber,
+            builtin_subscriber_status_condition_address,
+        ) = DomainParticipantActor::new(
+            rtps_participant,
+            message.domain_id,
+            self.configuration.domain_tag().to_string(),
+            domain_participant_qos,
+            self.configuration.fragment_size(),
+            message.listener,
+            message.status_kind,
+            topic_list,
+            builtin_data_writer_list,
+            builtin_data_reader_list,
+            message_sender_actor,
+            &message.runtime_handle,
+        );
+        let participant_actor = Actor::spawn(domain_participant, &message.runtime_handle);
+        let participant = DomainParticipantAsync::new(
+            participant_actor.address(),
+            status_condition.clone(),
+            builtin_subscriber,
+            builtin_subscriber_status_condition_address,
+            message.domain_id,
+            message.runtime_handle.clone(),
+        );
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -588,22 +578,20 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             }
         });
 
-        // Open socket for unicast metatraffic data
-        let metattrafic_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
-        metattrafic_unicast_socket.set_nonblocking(true)?;
-        let metattrafic_unicast_locator_port =
-            metattrafic_unicast_socket.local_addr()?.port().into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
-            .collect();
-        participant_actor
-            .send_actor_mail(domain_participant_actor::SetMetatrafficUnicastLocatorList {
-                list: metatraffic_unicast_locator_list,
-            })
-            .receive_reply()
-            .await;
+        // Start the regular participant announcement task
+        let participant_clone = participant.clone();
+        let mut interval =
+            tokio::time::interval(self.configuration.participant_announcement_interval());
+        message.runtime_handle.spawn(async move {
+            loop {
+                interval.tick().await;
+
+                let r = participant_clone.announce_participant().await;
+                if r.is_err() {
+                    break;
+                }
+            }
+        });
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
@@ -627,21 +615,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 }
             }
         });
-
-        // Open socket for multicast metatraffic data
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(message.domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-        participant_actor
-            .send_actor_mail(
-                domain_participant_actor::SetMetatrafficMulticastLocatorList {
-                    list: metatraffic_multicast_locator_list,
-                },
-            )
-            .receive_reply()
-            .await;
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();

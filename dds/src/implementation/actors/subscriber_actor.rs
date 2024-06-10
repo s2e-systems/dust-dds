@@ -68,28 +68,28 @@ impl SubscriberActor {
         status_kind: Vec<StatusKind>,
         data_reader_list: Vec<DataReaderActor>,
         handle: &tokio::runtime::Handle,
-    ) -> Self {
+    ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
         let data_reader_list = data_reader_list
             .into_iter()
             .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
             .collect();
-        SubscriberActor {
-            qos,
-            rtps_group,
-            data_reader_list,
-            enabled: false,
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: Default::default(),
-            status_condition,
-            listener,
-            status_kind,
-        }
-    }
-
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
-        self.status_condition.address()
+        let status_condition_address = status_condition.address();
+        (
+            SubscriberActor {
+                qos,
+                rtps_group,
+                data_reader_list,
+                enabled: false,
+                user_defined_data_reader_counter: 0,
+                default_data_reader_qos: Default::default(),
+                status_condition,
+                listener,
+                status_kind,
+            },
+            status_condition_address,
+        )
     }
 
     fn get_unique_reader_id(&mut self) -> u8 {

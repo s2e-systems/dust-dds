@@ -217,24 +217,28 @@ impl DomainParticipantActor {
         builtin_data_reader_list: Vec<DataReaderActor>,
         message_sender_actor: MessageSenderActor,
         handle: &tokio::runtime::Handle,
-    ) -> Self {
+    ) -> (
+        Self,
+        ActorAddress<StatusConditionActor>,
+        ActorAddress<SubscriberActor>,
+        ActorAddress<StatusConditionActor>,
+    ) {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
 
-        let builtin_subscriber = Actor::spawn(
-            SubscriberActor::new(
-                SubscriberQos::default(),
-                RtpsGroup::new(Guid::new(
-                    guid_prefix,
-                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-                )),
-                None,
-                vec![],
-                builtin_data_reader_list,
-                handle,
-            ),
+        let (builtin_subscriber, builtin_subscriber_status_condition) = SubscriberActor::new(
+            SubscriberQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            None,
+            vec![],
+            builtin_data_reader_list,
             handle,
         );
+        let builtin_subscriber = Actor::spawn(builtin_subscriber, handle);
+        let builtin_subscriber_address = builtin_subscriber.address();
 
         let builtin_publisher = Actor::spawn(
             PublisherActor::new(
@@ -251,37 +255,44 @@ impl DomainParticipantActor {
             handle,
         );
 
-        Self {
-            rtps_participant,
-            domain_id,
-            domain_tag,
-            qos: domain_participant_qos,
-            builtin_subscriber,
-            builtin_publisher,
-            user_defined_subscriber_list: HashMap::new(),
-            user_defined_subscriber_counter: 0,
-            default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: HashMap::new(),
-            user_defined_publisher_counter: 0,
-            default_publisher_qos: PublisherQos::default(),
-            topic_list,
-            user_defined_topic_counter: 0,
-            default_topic_qos: TopicQos::default(),
-            manual_liveliness_count: 0,
-            lease_duration,
-            discovered_participant_list: HashMap::new(),
-            discovered_topic_list: HashMap::new(),
-            enabled: false,
-            ignored_participants: HashSet::new(),
-            ignored_publications: HashSet::new(),
-            ignored_subcriptions: HashSet::new(),
-            ignored_topic_list: HashSet::new(),
-            data_max_size_serialized,
-            listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
-            status_kind,
-            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
-            message_sender_actor: Actor::spawn(message_sender_actor, handle),
-        }
+        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let status_condition_address = status_condition.address();
+        (
+            Self {
+                rtps_participant,
+                domain_id,
+                domain_tag,
+                qos: domain_participant_qos,
+                builtin_subscriber,
+                builtin_publisher,
+                user_defined_subscriber_list: HashMap::new(),
+                user_defined_subscriber_counter: 0,
+                default_subscriber_qos: SubscriberQos::default(),
+                user_defined_publisher_list: HashMap::new(),
+                user_defined_publisher_counter: 0,
+                default_publisher_qos: PublisherQos::default(),
+                topic_list,
+                user_defined_topic_counter: 0,
+                default_topic_qos: TopicQos::default(),
+                manual_liveliness_count: 0,
+                lease_duration,
+                discovered_participant_list: HashMap::new(),
+                discovered_topic_list: HashMap::new(),
+                enabled: false,
+                ignored_participants: HashSet::new(),
+                ignored_publications: HashSet::new(),
+                ignored_subcriptions: HashSet::new(),
+                ignored_topic_list: HashSet::new(),
+                data_max_size_serialized,
+                listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
+                status_kind,
+                status_condition,
+                message_sender_actor: Actor::spawn(message_sender_actor, handle),
+            },
+            status_condition_address,
+            builtin_subscriber_address,
+            builtin_subscriber_status_condition,
+        )
     }
 
     fn lookup_discovered_topic(
@@ -488,7 +499,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = message.mask.to_vec();
 
-        let subscriber = SubscriberActor::new(
+        let (subscriber, subscriber_status_condition) = SubscriberActor::new(
             subscriber_qos,
             rtps_group,
             message.a_listener,
@@ -497,8 +508,6 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             &message.runtime_handle,
         );
 
-        let subscriber_status_condition: ActorAddress<StatusConditionActor> =
-            subscriber.get_statuscondition();
         let subscriber_actor = Actor::spawn(subscriber, &message.runtime_handle);
         let subscriber_address = subscriber_actor.address();
 
