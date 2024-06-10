@@ -7,7 +7,7 @@ use super::{
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     subscriber_listener_actor::{self, SubscriberListenerActor, SubscriberListenerOperation},
-    topic_actor::{self, TopicActor},
+    topic_actor::TopicActor,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -318,6 +318,7 @@ pub struct DataReaderActor {
     topic_name: String,
     type_name: String,
     topic_status_condition: ActorAddress<StatusConditionActor>,
+    type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -342,6 +343,7 @@ impl DataReaderActor {
         topic_name: String,
         type_name: String,
         topic_status_condition: ActorAddress<StatusConditionActor>,
+        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
@@ -357,6 +359,7 @@ impl DataReaderActor {
             topic_name,
             type_name,
             topic_status_condition,
+            type_support,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
@@ -547,7 +550,7 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn on_data_submessage_received(
+    fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -588,7 +591,7 @@ impl DataReaderActor {
                                                 data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
-                                            ).await {
+                                            ) {
                                                 Ok(change) => {
                                                     self.add_change(
                                                         change,
@@ -622,7 +625,7 @@ impl DataReaderActor {
                                                 data_submessage.serialized_payload().clone(),
                                                 source_timestamp,
                                                 reception_timestamp,
-                                            ).await {
+                                            ) {
                                                 Ok(change) => {
                                                     self.add_change(
                                                         change,
@@ -655,16 +658,13 @@ impl DataReaderActor {
                 {
                     // Stateless reader behavior. We add the change if the data is correct. No error is printed
                     // because all readers would get changes marked with ENTITYID_UNKNOWN
-                    if let Ok(change) = self
-                        .convert_received_data_to_cache_change(
-                            writer_guid,
-                            data_submessage.inline_qos().clone(),
-                            data_submessage.serialized_payload().clone(),
-                            source_timestamp,
-                            reception_timestamp,
-                        )
-                        .await
-                    {
+                    if let Ok(change) = self.convert_received_data_to_cache_change(
+                        writer_guid,
+                        data_submessage.inline_qos().clone(),
+                        data_submessage.serialized_payload().clone(),
+                        source_timestamp,
+                        reception_timestamp,
+                    ) {
                         self.add_change(
                             change,
                             data_reader_address,
@@ -681,7 +681,7 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn on_data_frag_submessage_received(
+    fn on_data_frag_submessage_received(
         &mut self,
         data_frag_submessage: &DataFragSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -714,8 +714,7 @@ impl DataReaderActor {
                             subscriber,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                        )
-                        .await?;
+                        )?;
                     }
                 }
             }
@@ -725,7 +724,7 @@ impl DataReaderActor {
         Ok(())
     }
 
-    async fn on_heartbeat_submessage_received(
+    fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -1098,7 +1097,7 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn convert_received_data_to_cache_change(
+    fn convert_received_data_to_cache_change(
         &mut self,
         writer_guid: Guid,
         inline_qos: ParameterList,
@@ -1123,13 +1122,9 @@ impl DataReaderActor {
         } else {
             Ok(ChangeKind::Alive)
         }?;
-        let type_support = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeSupport)?
-            .receive_reply()
-            .await;
+
         let instance_handle = build_instance_handle(
-            &type_support,
+            &self.type_support,
             change_kind,
             data.as_ref(),
             inline_qos.parameter(),
@@ -2090,11 +2085,7 @@ impl Mail for GetTopicName {
 }
 impl MailHandler<GetTopicName> for DataReaderActor {
     async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await)
+        Ok(self.topic_name.clone())
     }
 }
 
@@ -2139,7 +2130,6 @@ impl MailHandler<ProcessDataSubmessage> for DataReaderActor {
             &message.subscriber_mask_listener,
             &message.participant_mask_listener,
         )
-        .await
         .ok();
     }
 }
@@ -2175,7 +2165,6 @@ impl MailHandler<ProcessDataFragSubmessage> for DataReaderActor {
             &message.subscriber_mask_listener,
             &message.participant_mask_listener,
         )
-        .await
         .ok();
     }
 }
@@ -2213,8 +2202,7 @@ impl MailHandler<ProcessHeartbeatSubmessage> for DataReaderActor {
             &message.heartbeat_submessage,
             message.source_guid_prefix,
             &message.message_sender_actor,
-        )
-        .await;
+        );
     }
 }
 

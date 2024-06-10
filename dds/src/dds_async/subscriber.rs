@@ -136,11 +136,11 @@ impl SubscriberAsync {
         let topic_name = a_topic.get_name();
         let type_name = a_topic.get_type_name();
         let topic_status_condition = a_topic.get_statuscondition().address().clone();
-        let has_key = topic
+        let type_support = topic
             .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
-            .await
-            .has_key();
+            .await;
+        let has_key = type_support.has_key();
 
         let reader_address = self
             .subscriber_address
@@ -149,6 +149,7 @@ impl SubscriberAsync {
                 topic_name,
                 type_name,
                 topic_status_condition,
+                type_support,
                 has_key,
                 qos,
                 a_listener: listener,

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use fnmatch_regex::glob_to_regex;
 use tracing::warn;
@@ -45,6 +45,7 @@ use crate::{
             USER_DEFINED_READER_WITH_KEY,
         },
     },
+    topic_definition::type_support::DynamicTypeInterface,
 };
 
 pub struct SubscriberActor {
@@ -148,6 +149,7 @@ pub struct CreateDatareader {
     pub topic_name: String,
     pub type_name: String,
     pub topic_status_condition: ActorAddress<StatusConditionActor>,
+    pub type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
     pub has_key: bool,
     pub qos: QosKind<DataReaderQos>,
     pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
@@ -208,6 +210,7 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             message.topic_name,
             message.type_name,
             message.topic_status_condition,
+            message.type_support,
             qos,
             message.a_listener,
             status_kind,
