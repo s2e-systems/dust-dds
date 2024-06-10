@@ -11,6 +11,7 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
+            topic_actor,
         },
     },
     infrastructure::{
@@ -104,12 +105,28 @@ impl<Foo> DataReaderAsync<Foo> {
                 .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
+            let topic_data = self
+                .topic
+                .topic_address()
+                .send_actor_mail(topic_actor::GetQos)?
+                .receive_reply()
+                .await
+                .topic_data;
+            let xml_type = self
+                .topic
+                .topic_address()
+                .send_actor_mail(topic_actor::GetTypeSupport)?
+                .receive_reply()
+                .await
+                .xml_type();
             let discovered_reader_data = self
                 .reader_address
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
+                    topic_data,
+                    xml_type,
                 })?
                 .receive_reply()
                 .await?;

@@ -36,7 +36,7 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         qos_policy::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
-            QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -1689,6 +1689,8 @@ pub struct AsDiscoveredReaderData {
     pub subscriber_qos: SubscriberQos,
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
+    pub topic_data: TopicDataQosPolicy,
+    pub xml_type: String,
 }
 impl Mail for AsDiscoveredReaderData {
     type Result = DdsResult<DiscoveredReaderData>;
@@ -1701,17 +1703,6 @@ impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
         let guid = self.rtps_reader.guid();
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
-        let topic_qos = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetQos)?
-            .receive_reply()
-            .await;
-        let xml_type = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeSupport)?
-            .receive_reply()
-            .await
-            .xml_type();
 
         let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
             message.default_unicast_locator_list
@@ -1742,8 +1733,8 @@ impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
                 type_name,
                 self.qos.clone(),
                 message.subscriber_qos.clone(),
-                topic_qos.topic_data,
-                xml_type,
+                message.topic_data,
+                message.xml_type,
             ),
         ))
     }
@@ -2286,5 +2277,15 @@ impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
         _: GetRequestedDeadlineMissedStatus,
     ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
         self.read_requested_deadline_missed_status()
+    }
+}
+
+pub struct GetTopicAddress;
+impl Mail for GetTopicAddress {
+    type Result = ActorAddress<TopicActor>;
+}
+impl MailHandler<GetTopicAddress> for DataReaderActor {
+    async fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
+        self.topic_address.clone()
     }
 }

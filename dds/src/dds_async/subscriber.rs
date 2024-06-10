@@ -8,7 +8,7 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
-            topic_actor,
+            topic_actor::{self, TopicActor},
         },
     },
     infrastructure::{
@@ -58,7 +58,11 @@ impl SubscriberAsync {
         self.participant.runtime_handle()
     }
 
-    async fn announce_deleted_data_reader(&self, reader: &Actor<DataReaderActor>) -> DdsResult<()> {
+    async fn announce_deleted_data_reader(
+        &self,
+        reader: &Actor<DataReaderActor>,
+        topic: &ActorAddress<TopicActor>,
+    ) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_subscriptions_announcer) = builtin_publisher
             .lookup_datawriter(DCPS_SUBSCRIPTION)
@@ -75,11 +79,23 @@ impl SubscriberAsync {
                 .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
+            let topic_data = topic
+                .send_actor_mail(topic_actor::GetQos)?
+                .receive_reply()
+                .await
+                .topic_data;
+            let xml_type = topic
+                .send_actor_mail(topic_actor::GetTypeSupport)?
+                .receive_reply()
+                .await
+                .xml_type();
             let data = reader
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
+                    topic_data,
+                    xml_type,
                 })
                 .receive_reply()
                 .await?;
@@ -194,6 +210,8 @@ impl SubscriberAsync {
                 message_sender_actor,
             })?;
 
+        let topic = a_datareader.get_topicdescription().topic_address().clone();
+
         let deleted_reader = self
             .subscriber_address
             .send_actor_mail(subscriber_actor::DeleteDatareader {
@@ -202,7 +220,8 @@ impl SubscriberAsync {
             .receive_reply()
             .await?;
 
-        self.announce_deleted_data_reader(&deleted_reader).await?;
+        self.announce_deleted_data_reader(&deleted_reader, &topic)
+            .await?;
         deleted_reader.stop().await;
         Ok(())
     }
@@ -288,12 +307,17 @@ impl SubscriberAsync {
             .await;
 
         for deleted_reader_actor in deleted_reader_actor_list {
+            let topic = deleted_reader_actor
+                .send_actor_mail(data_reader_actor::GetTopicAddress)
+                .receive_reply()
+                .await;
+
             // Send messages before deleting the reader
             deleted_reader_actor.send_actor_mail(data_reader_actor::SendMessage {
                 message_sender_actor: message_sender_actor.clone(),
             });
 
-            self.announce_deleted_data_reader(&deleted_reader_actor)
+            self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
                 .await?;
             deleted_reader_actor.stop().await;
         }
