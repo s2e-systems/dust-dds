@@ -599,25 +599,20 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                 let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
-                data_reader
-                    .send_actor_mail(data_reader_actor::AddMatchedWriter {
-                        discovered_writer_data: message.discovered_writer_data.clone(),
-                        default_unicast_locator_list: message.default_unicast_locator_list.clone(),
-                        default_multicast_locator_list: message
-                            .default_multicast_locator_list
-                            .clone(),
-                        data_reader_address,
-                        subscriber: SubscriberAsync::new(
-                            message.subscriber_address.clone(),
-                            self.status_condition.address(),
-                            message.participant.clone(),
-                        ),
-                        subscriber_qos,
-                        subscriber_mask_listener,
-                        participant_mask_listener: message.participant_mask_listener.clone(),
-                    })
-                    .receive_reply()
-                    .await?;
+                data_reader.send_actor_mail(data_reader_actor::AddMatchedWriter {
+                    discovered_writer_data: message.discovered_writer_data.clone(),
+                    default_unicast_locator_list: message.default_unicast_locator_list.clone(),
+                    default_multicast_locator_list: message.default_multicast_locator_list.clone(),
+                    data_reader_address,
+                    subscriber: SubscriberAsync::new(
+                        message.subscriber_address.clone(),
+                        self.status_condition.address(),
+                        message.participant.clone(),
+                    ),
+                    subscriber_qos,
+                    subscriber_mask_listener,
+                    participant_mask_listener: message.participant_mask_listener.clone(),
+                });
             }
         }
         Ok(())
@@ -644,20 +639,17 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
-            data_reader
-                .send_actor_mail(data_reader_actor::RemoveMatchedWriter {
-                    discovered_writer_handle: message.discovered_writer_handle,
-                    data_reader_address,
-                    subscriber: SubscriberAsync::new(
-                        message.subscriber_address.clone(),
-                        self.status_condition.address(),
-                        message.participant.clone(),
-                    ),
-                    subscriber_mask_listener,
-                    participant_mask_listener: message.participant_mask_listener.clone(),
-                })
-                .receive_reply()
-                .await?;
+            data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
+                discovered_writer_handle: message.discovered_writer_handle,
+                data_reader_address,
+                subscriber: SubscriberAsync::new(
+                    message.subscriber_address.clone(),
+                    self.status_condition.address(),
+                    message.participant.clone(),
+                ),
+                subscriber_mask_listener,
+                participant_mask_listener: message.participant_mask_listener.clone(),
+            });
         }
 
         Ok(())
