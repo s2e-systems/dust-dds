@@ -318,6 +318,8 @@ impl DomainParticipantFactoryActor {
         let mut spdp_builtin_participant_writer = DataWriterActor::new(
             create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
             topic_list[DCPS_PARTICIPANT].address(),
+            DCPS_PARTICIPANT.to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
             None,
             vec![],
             spdp_writer_qos,
@@ -342,6 +344,8 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_topics_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             topic_list[DCPS_TOPIC].address(),
+            DCPS_TOPIC.to_string(),
+            "DiscoveredTopicData".to_string(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -353,6 +357,8 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_publications_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             topic_list[DCPS_PUBLICATION].address(),
+            DCPS_PUBLICATION.to_string(),
+            "DiscoveredWriterData".to_string(),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -364,6 +370,8 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
             create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             topic_list[DCPS_SUBSCRIPTION].address(),
+            DCPS_SUBSCRIPTION.to_string(),
+            "DiscoveredReaderData".to_string(),
             None,
             vec![],
             sedp_data_writer_qos(),

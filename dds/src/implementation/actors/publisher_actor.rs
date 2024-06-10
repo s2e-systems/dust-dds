@@ -137,6 +137,8 @@ impl PublisherActor {
 
 pub struct CreateDatawriter {
     pub topic_address: ActorAddress<TopicActor>,
+    pub topic_name: String,
+    pub type_name: String,
     pub has_key: bool,
     pub data_max_size_serialized: usize,
     pub qos: QosKind<DataWriterQos>,
@@ -189,6 +191,8 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
         let data_writer = DataWriterActor::new(
             rtps_writer_impl,
             message.topic_address,
+            message.topic_name,
+            message.type_name,
             message.a_listener,
             message.mask,
             qos,

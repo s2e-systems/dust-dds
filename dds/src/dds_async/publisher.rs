@@ -127,10 +127,14 @@ impl PublisherAsync {
             .receive_reply()
             .await
             .has_key();
+        let topic_name = a_topic.get_name();
+        let type_name = a_topic.get_type_name();
         let data_writer_address = self
             .publisher_address
             .send_actor_mail(publisher_actor::CreateDatawriter {
                 topic_address: a_topic.topic_address().clone(),
+                topic_name,
+                type_name,
                 has_key,
                 data_max_size_serialized,
                 qos,

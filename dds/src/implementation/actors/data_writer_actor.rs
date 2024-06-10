@@ -205,6 +205,8 @@ pub struct DataWriterActor {
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
     topic_address: ActorAddress<TopicActor>,
+    topic_name: String,
+    type_name: String,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
@@ -220,6 +222,8 @@ impl DataWriterActor {
     pub fn new(
         rtps_writer: RtpsWriter,
         topic_address: ActorAddress<TopicActor>,
+        topic_name: String,
+        type_name: String,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
@@ -236,6 +240,8 @@ impl DataWriterActor {
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
             topic_address,
+            topic_name,
+            type_name,
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
@@ -257,7 +263,7 @@ impl DataWriterActor {
         self.reader_locators.push(locator);
     }
 
-    async fn add_change(
+    fn add_change(
         &mut self,
         change: RtpsWriterCacheChange,
         message_sender_actor: ActorAddress<MessageSenderActor>,
@@ -284,7 +290,7 @@ impl DataWriterActor {
             self.writer_cache.add_change(change);
         }
 
-        self.send_message(message_sender_actor).await;
+        self.send_message(message_sender_actor);
     }
 
     fn remove_change(&mut self, seq_num: SequenceNumber) {
@@ -296,11 +302,9 @@ impl DataWriterActor {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
-    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
-        self.send_message_to_reader_locators(&message_sender_actor)
-            .await;
-        self.send_message_to_reader_proxies(&message_sender_actor)
-            .await;
+    fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
+        self.send_message_to_reader_locators(&message_sender_actor);
+        self.send_message_to_reader_proxies(&message_sender_actor);
     }
 
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
@@ -327,18 +331,16 @@ impl DataWriterActor {
         Ok(Some(instance_handle))
     }
 
-    async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
+    fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
-            })
-            .receive_reply()
-            .await;
+            });
 
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    async fn on_acknack_submessage_received(
+    fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -364,7 +366,7 @@ impl DataWriterActor {
                             reader_proxy
                                 .set_last_received_acknack_count(acknack_submessage.count());
 
-                            self.send_message(message_sender_actor).await;
+                            self.send_message(message_sender_actor);
                         }
                     }
                 }
@@ -372,7 +374,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message_to_reader_locators(
+    fn send_message_to_reader_locators(
         &mut self,
         message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
@@ -429,7 +431,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message_to_reader_proxies(
+    fn send_message_to_reader_proxies(
         &mut self,
         message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
@@ -443,7 +445,6 @@ impl DataWriterActor {
                         &self.writer_cache,
                         message_sender_actor,
                     )
-                    .await
                 }
                 (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
                     send_message_to_reader_proxy_reliable(
@@ -453,7 +454,6 @@ impl DataWriterActor {
                         self.rtps_writer.heartbeat_period().into(),
                         message_sender_actor,
                     )
-                    .await
                 }
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
                     panic!("Impossible combination. Should not be matched")
@@ -509,22 +509,12 @@ impl DataWriterActor {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::PublicationMatched,
-            })
-            .receive_reply()
-            .await;
+            });
 
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)?
-                .receive_reply()
-                .await;
-            let status = self.get_publication_matched_status().await;
+            let type_name = self.type_name.clone();
+            let topic_name = self.topic_name.clone();
+            let status = self.get_publication_matched_status();
             let participant = publisher.get_participant();
             let topic_status_condition_address = self
                 .topic_address
@@ -546,12 +536,12 @@ impl DataWriterActor {
                     ),
                 });
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await;
+            let status = self.get_publication_matched_status();
             publisher_listener.send_actor_mail(publisher_listener_actor::CallListenerFunction {
                 listener_operation: PublisherListenerOperation::PublicationMatched(status),
             })?;
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await;
+            let status = self.get_publication_matched_status();
             participant_listener.send_actor_mail(
                 domain_participant_listener_actor::CallListenerFunction {
                     listener_operation: DomainParticipantListenerOperation::PublicationMatched(
@@ -579,24 +569,14 @@ impl DataWriterActor {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::OfferedIncompatibleQos,
-            })
-            .receive_reply()
-            .await;
+            });
 
         if self
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)?
-                .receive_reply()
-                .await;
+            let type_name = self.type_name.clone();
+            let topic_name = self.topic_name.clone();
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
@@ -904,8 +884,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
-        )
-        .await;
+        );
         Ok(())
     }
 }
@@ -975,8 +954,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
-        )
-        .await;
+        );
 
         Ok(())
     }
@@ -1011,16 +989,8 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
         &mut self,
         message: AsDiscoveredWriterData,
     ) -> <AsDiscoveredWriterData as Mail>::Result {
-        let type_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)?
-            .receive_reply()
-            .await;
-        let topic_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await;
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
         let topic_qos = self
             .topic_address
             .send_actor_mail(topic_actor::GetQos)?
@@ -1081,7 +1051,7 @@ impl MailHandler<GetPublicationMatchedStatus> for DataWriterActor {
         &mut self,
         _: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
-        self.get_publication_matched_status().await
+        self.get_publication_matched_status()
     }
 }
 
@@ -1091,11 +1061,7 @@ impl Mail for GetTopicName {
 }
 impl MailHandler<GetTopicName> for DataWriterActor {
     async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await)
+        Ok(self.topic_name.clone())
     }
 }
 
@@ -1129,8 +1095,7 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
-        )
-        .await;
+        );
 
         Ok(())
     }
@@ -1142,11 +1107,7 @@ impl Mail for GetTypeName {
 }
 impl MailHandler<GetTypeName> for DataWriterActor {
     async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)?
-            .receive_reply()
-            .await)
+        Ok(self.type_name.clone())
     }
 }
 
@@ -1169,16 +1130,8 @@ impl Mail for AddMatchedReader {
 }
 impl MailHandler<AddMatchedReader> for DataWriterActor {
     async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
-        let type_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)?
-            .receive_reply()
-            .await;
-        let topic_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await;
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
         let is_matched_topic_name = message
             .discovered_reader_data
             .subscription_builtin_topic_data()
@@ -1317,7 +1270,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     .await?;
                 }
 
-                self.send_message(message.message_sender_actor).await;
+                self.send_message(message.message_sender_actor);
             } else {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
@@ -1392,7 +1345,6 @@ impl MailHandler<ProcessAckNackSubmessage> for DataWriterActor {
             message.source_guid_prefix,
             message.message_sender_actor,
         )
-        .await
     }
 }
 
@@ -1423,7 +1375,7 @@ impl Mail for SendMessage {
 }
 impl MailHandler<SendMessage> for DataWriterActor {
     async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
-        self.send_message(message.message_sender_actor).await
+        self.send_message(message.message_sender_actor)
     }
 }
 
@@ -1493,7 +1445,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     incompatible_qos_policy_list
 }
 
-async fn send_message_to_reader_proxy_best_effort(
+fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1610,7 +1562,7 @@ async fn send_message_to_reader_proxy_best_effort(
     }
 }
 
-async fn send_message_to_reader_proxy_reliable(
+fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1649,8 +1601,7 @@ async fn send_message_to_reader_proxy_reliable(
                     writer_cache,
                     next_unsent_change_seq_num,
                     message_sender_actor,
-                )
-                .await;
+                );
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -1690,13 +1641,12 @@ async fn send_message_to_reader_proxy_reliable(
                 writer_cache,
                 next_requested_change_seq_num,
                 message_sender_actor,
-            )
-            .await;
+            );
         }
     }
 }
 
-async fn send_change_message_reader_proxy_reliable(
+fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
