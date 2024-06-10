@@ -77,7 +77,7 @@ use std::{
 
 use super::{
     data_reader_actor,
-    data_writer_actor::{self, DataWriterActor},
+    data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
@@ -641,45 +641,9 @@ impl Mail for Enable {
     type Result = DdsResult<()>;
 }
 impl MailHandler<Enable> for DomainParticipantActor {
-    async fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        if !self.enabled {
-            self.builtin_publisher
-                .send_actor_mail(publisher_actor::Enable)
-                .receive_reply()
-                .await;
-            self.builtin_subscriber
-                .send_actor_mail(subscriber_actor::Enable)
-                .receive_reply()
-                .await;
+    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+        self.enabled = true;
 
-            for builtin_reader in self
-                .builtin_subscriber
-                .send_actor_mail(subscriber_actor::GetDataReaderList)
-                .receive_reply()
-                .await
-            {
-                builtin_reader
-                    .send_actor_mail(data_reader_actor::Enable)?
-                    .receive_reply()
-                    .await;
-            }
-            for builtin_writer in self
-                .builtin_publisher
-                .send_actor_mail(publisher_actor::GetDataWriterList)
-                .receive_reply()
-                .await
-            {
-                builtin_writer
-                    .send_actor_mail(data_writer_actor::Enable {
-                        data_writer_address: builtin_writer.clone(),
-                        message_sender_actor: self.message_sender_actor.address(),
-                        runtime_handle: message.runtime_handle.clone(),
-                    })?
-                    .receive_reply()
-                    .await;
-            }
-            self.enabled = true;
-        }
         Ok(())
     }
 }

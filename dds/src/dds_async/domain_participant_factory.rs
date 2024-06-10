@@ -140,35 +140,42 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        if let Some(dp) = self
+        let domain_participant_list = self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::LookupParticipant { domain_id })
+            .send_actor_mail(domain_participant_factory_actor::GetParticipantList)
             .receive_reply()
-            .await?
-        {
-            let status_condition = dp
-                .send_actor_mail(domain_participant_actor::GetStatuscondition)?
+            .await;
+        for dp in domain_participant_list {
+            if dp
+                .send_actor_mail(domain_participant_actor::GetDomainId)?
                 .receive_reply()
-                .await;
-            let builtin_subscriber = dp
-                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
-                .receive_reply()
-                .await;
-            let builtin_subscriber_status_condition_address = builtin_subscriber
-                .send_actor_mail(subscriber_actor::GetStatuscondition)?
-                .receive_reply()
-                .await;
-            Ok(Some(DomainParticipantAsync::new(
-                dp,
-                status_condition,
-                builtin_subscriber,
-                builtin_subscriber_status_condition_address,
-                domain_id,
-                self.runtime_handle.clone(),
-            )))
-        } else {
-            Ok(None)
+                .await
+                == domain_id
+            {
+                let status_condition = dp
+                    .send_actor_mail(domain_participant_actor::GetStatuscondition)?
+                    .receive_reply()
+                    .await;
+                let builtin_subscriber = dp
+                    .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
+                    .receive_reply()
+                    .await;
+                let builtin_subscriber_status_condition_address = builtin_subscriber
+                    .send_actor_mail(subscriber_actor::GetStatuscondition)?
+                    .receive_reply()
+                    .await;
+                return Ok(Some(DomainParticipantAsync::new(
+                    dp,
+                    status_condition,
+                    builtin_subscriber,
+                    builtin_subscriber_status_condition_address,
+                    domain_id,
+                    self.runtime_handle.clone(),
+                )));
+            }
         }
+
+        Ok(None)
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

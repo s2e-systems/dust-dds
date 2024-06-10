@@ -693,26 +693,16 @@ impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
     }
 }
 
-pub struct LookupParticipant {
-    pub domain_id: DomainId,
+pub struct GetParticipantList;
+impl Mail for GetParticipantList {
+    type Result = Vec<ActorAddress<DomainParticipantActor>>;
 }
-impl Mail for LookupParticipant {
-    type Result = DdsResult<Option<ActorAddress<DomainParticipantActor>>>;
-}
-impl MailHandler<LookupParticipant> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, message: LookupParticipant) -> <LookupParticipant as Mail>::Result {
-        for dp in self.domain_participant_list.values() {
-            if dp
-                .send_actor_mail(domain_participant_actor::GetDomainId)
-                .receive_reply()
-                .await
-                == message.domain_id
-            {
-                return Ok(Some(dp.address()));
-            }
-        }
-
-        Ok(None)
+impl MailHandler<GetParticipantList> for DomainParticipantFactoryActor {
+    async fn handle(&mut self, _: GetParticipantList) -> <GetParticipantList as Mail>::Result {
+        self.domain_participant_list
+            .values()
+            .map(|a| a.address())
+            .collect()
     }
 }
 

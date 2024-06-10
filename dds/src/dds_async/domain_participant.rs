@@ -10,6 +10,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
+            data_reader_actor, data_writer_actor,
             domain_participant_actor::{
                 self, DomainParticipantActor, FooTypeSupport, BUILT_IN_TOPIC_NAME_LIST,
             },
@@ -749,15 +750,71 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::Enable {
-                runtime_handle: self.runtime_handle.clone(),
-            })?
+        if !self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::IsEnabled)?
             .receive_reply()
-            .await?;
+            .await
+        {
+            let builtin_publisher = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetBuiltinPublisher)?
+                .receive_reply()
+                .await;
+            builtin_publisher
+                .send_actor_mail(publisher_actor::Enable)?
+                .receive_reply()
+                .await;
 
-        self.announce_participant().await?;
+            let builtin_subscriber = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
+                .receive_reply()
+                .await;
+            builtin_subscriber
+                .send_actor_mail(subscriber_actor::Enable)?
+                .receive_reply()
+                .await;
 
+            self.participant_address
+                .send_actor_mail(domain_participant_actor::Enable {
+                    runtime_handle: self.runtime_handle.clone(),
+                })?
+                .receive_reply()
+                .await?;
+
+            for builtin_reader in builtin_subscriber
+                .send_actor_mail(subscriber_actor::GetDataReaderList)?
+                .receive_reply()
+                .await
+            {
+                builtin_reader
+                    .send_actor_mail(data_reader_actor::Enable)?
+                    .receive_reply()
+                    .await;
+            }
+            for builtin_writer in builtin_publisher
+                .send_actor_mail(publisher_actor::GetDataWriterList)?
+                .receive_reply()
+                .await
+            {
+                let message_sender_actor = self
+                    .participant_address
+                    .send_actor_mail(domain_participant_actor::GetMessageSender)?
+                    .receive_reply()
+                    .await;
+                builtin_writer
+                    .send_actor_mail(data_writer_actor::Enable {
+                        data_writer_address: builtin_writer.clone(),
+                        message_sender_actor,
+                        runtime_handle: self.runtime_handle.clone(),
+                    })?
+                    .receive_reply()
+                    .await;
+            }
+
+            self.announce_participant().await?;
+        }
         Ok(())
     }
 
