@@ -1,5 +1,3 @@
-use tracing::warn;
-
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
@@ -60,12 +58,9 @@ use crate::{
             USER_DEFINED_WRITER_GROUP,
         },
     },
-    subscription::sample_info::{
-        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-    },
     topic_definition::type_support::{
-        deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsDeserialize, DdsHasKey,
-        DdsKey, DdsTypeXml, DynamicTypeInterface,
+        deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsTypeXml,
+        DynamicTypeInterface,
     },
 };
 
@@ -76,7 +71,6 @@ use std::{
 };
 
 use super::{
-    data_reader_actor,
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     domain_participant_listener_actor::DomainParticipantListenerActor,
@@ -1236,8 +1230,6 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
             }
         }
 
-        self.process_builtin_discovery(message.participant).await?;
-
         Ok(())
     }
 }
@@ -1730,17 +1722,207 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
     }
 }
 
-impl DomainParticipantActor {
-    async fn process_builtin_discovery(
-        &mut self,
-        participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
-        self.process_sedp_subscriptions_discovery(participant.clone())
-            .await?;
-        self.process_sedp_topics_discovery().await?;
+pub struct AddMatchedReader {
+    pub discovered_reader_data: DiscoveredReaderData,
+    pub participant: DomainParticipantAsync,
+}
+impl Mail for AddMatchedReader {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AddMatchedReader> for DomainParticipantActor {
+    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+            Guid::new(
+                message
+                    .discovered_reader_data
+                    .reader_proxy()
+                    .remote_reader_guid()
+                    .prefix(),
+                ENTITYID_PARTICIPANT,
+            )
+            .into(),
+        ));
+        let is_subscription_ignored = self.ignored_subcriptions.contains(&InstanceHandle::new(
+            message
+                .discovered_reader_data
+                .subscription_builtin_topic_data()
+                .key()
+                .value,
+        ));
+        if !is_subscription_ignored && !is_participant_ignored {
+            if let Some(discovered_participant_data) =
+                self.discovered_participant_list.get(&InstanceHandle::new(
+                    Guid::new(
+                        message
+                            .discovered_reader_data
+                            .reader_proxy()
+                            .remote_reader_guid()
+                            .prefix(),
+                        ENTITYID_PARTICIPANT,
+                    )
+                    .into(),
+                ))
+            {
+                let default_unicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_unicast_locator_list()
+                    .to_vec();
+                let default_multicast_locator_list = discovered_participant_data
+                    .participant_proxy()
+                    .default_multicast_locator_list()
+                    .to_vec();
+
+                for publisher in self.user_defined_publisher_list.values() {
+                    let publisher_address = publisher.address();
+                    let participant_mask_listener =
+                        (self.listener.address(), self.status_kind.clone());
+
+                    publisher.send_actor_mail(publisher_actor::AddMatchedReader {
+                        discovered_reader_data: message.discovered_reader_data.clone(),
+                        default_unicast_locator_list: default_unicast_locator_list.clone(),
+                        default_multicast_locator_list: default_multicast_locator_list.clone(),
+                        publisher_address,
+                        participant: message.participant.clone(),
+                        participant_mask_listener,
+                        message_sender_actor: self.message_sender_actor.address(),
+                    });
+                }
+
+                // Add reader topic to discovered topic list using the reader instance handle
+                let topic_instance_handle = InstanceHandle::new(
+                    message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .key()
+                        .value,
+                );
+                let reader_topic = TopicBuiltinTopicData::new(
+                    BuiltInTopicKey::default(),
+                    message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .topic_name()
+                        .to_string(),
+                    message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .get_type_name()
+                        .to_string(),
+                    TopicQos {
+                        topic_data: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .topic_data()
+                            .clone(),
+                        durability: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .durability()
+                            .clone(),
+                        deadline: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .deadline()
+                            .clone(),
+                        latency_budget: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .latency_budget()
+                            .clone(),
+                        liveliness: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .liveliness()
+                            .clone(),
+                        reliability: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .reliability()
+                            .clone(),
+                        destination_order: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .destination_order()
+                            .clone(),
+                        history: HistoryQosPolicy::default(),
+                        resource_limits: ResourceLimitsQosPolicy::default(),
+                        transport_priority: TransportPriorityQosPolicy::default(),
+                        lifespan: LifespanQosPolicy::default(),
+                        ownership: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .ownership()
+                            .clone(),
+                    },
+                );
+                self.discovered_topic_list
+                    .insert(topic_instance_handle, reader_topic);
+            }
+        }
         Ok(())
     }
+}
 
+pub struct RemoveMatchedReader {
+    pub discovered_reader_handle: InstanceHandle,
+    pub participant: DomainParticipantAsync,
+}
+impl Mail for RemoveMatchedReader {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
+    async fn handle(
+        &mut self,
+        message: RemoveMatchedReader,
+    ) -> <RemoveMatchedReader as Mail>::Result {
+        for publisher in self.user_defined_publisher_list.values() {
+            let publisher_address = publisher.address();
+            let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
+            publisher.send_actor_mail(publisher_actor::RemoveMatchedReader {
+                discovered_reader_handle: message.discovered_reader_handle,
+                publisher_address,
+                participant: message.participant.clone(),
+                participant_mask_listener,
+            });
+        }
+        Ok(())
+    }
+}
+
+pub struct AddMatchedTopic {
+    pub discovered_topic_data: DiscoveredTopicData,
+}
+impl Mail for AddMatchedTopic {
+    type Result = ();
+}
+impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
+    async fn handle(&mut self, message: AddMatchedTopic) -> <AddMatchedTopic as Mail>::Result {
+        let handle = InstanceHandle::new(
+            message
+                .discovered_topic_data
+                .topic_builtin_topic_data()
+                .key()
+                .value,
+        );
+        let is_topic_ignored = self.ignored_topic_list.contains(&handle);
+        if !is_topic_ignored {
+            for (topic, _) in self.topic_list.values() {
+                topic.send_actor_mail(topic_actor::ProcessDiscoveredTopic {
+                    discovered_topic_data: message.discovered_topic_data.clone(),
+                });
+            }
+            self.discovered_topic_list.insert(
+                handle,
+                message
+                    .discovered_topic_data
+                    .topic_builtin_topic_data()
+                    .clone(),
+            );
+        }
+    }
+}
+
+impl DomainParticipantActor {
     fn add_matched_publications_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -2101,270 +2283,5 @@ impl DomainParticipantActor {
                 });
         }
         Ok(())
-    }
-
-    async fn process_sedp_subscriptions_discovery(
-        &mut self,
-        participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
-        if let Some(sedp_subscriptions_detector) = self
-            .builtin_subscriber
-            .send_actor_mail(subscriber_actor::LookupDatareader {
-                topic_name: DCPS_SUBSCRIPTION.to_string(),
-            })
-            .receive_reply()
-            .await
-        {
-            if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-                .send_actor_mail(data_reader_actor::Read {
-                    max_samples: i32::MAX,
-                    sample_states: ANY_SAMPLE_STATE.to_vec(),
-                    view_states: ANY_VIEW_STATE.to_vec(),
-                    instance_states: ANY_INSTANCE_STATE.to_vec(),
-                    specific_instance_handle: None,
-                })?
-                .receive_reply()
-                .await
-            {
-                for (discovered_reader_data, discovered_reader_sample_info) in
-                    discovered_reader_sample_list.drain(..)
-                {
-                    match discovered_reader_sample_info.instance_state {
-                        InstanceStateKind::Alive => {
-                            match DiscoveredReaderData::deserialize_data(
-                                discovered_reader_data
-                                    .expect("Should contain data")
-                                    .as_ref(),
-                            ) {
-                                Ok(discovered_reader_data) => {
-                                    self.add_matched_reader(
-                                        discovered_reader_data,
-                                        participant.clone(),
-                                    )?;
-                                }
-                                Err(e) => warn!(
-                                    "Received invalid DiscoveredReaderData sample. Error {:?}",
-                                    e
-                                ),
-                            }
-                        }
-                        InstanceStateKind::NotAliveDisposed => {
-                            self.remove_matched_reader(
-                                discovered_reader_sample_info.instance_handle,
-                                participant.clone(),
-                            )?;
-                        }
-                        InstanceStateKind::NotAliveNoWriters => {
-                            todo!()
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn add_matched_reader(
-        &mut self,
-        discovered_reader_data: DiscoveredReaderData,
-        participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
-        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
-            Guid::new(
-                discovered_reader_data
-                    .reader_proxy()
-                    .remote_reader_guid()
-                    .prefix(),
-                ENTITYID_PARTICIPANT,
-            )
-            .into(),
-        ));
-        let is_subscription_ignored = self.ignored_subcriptions.contains(&InstanceHandle::new(
-            discovered_reader_data
-                .subscription_builtin_topic_data()
-                .key()
-                .value,
-        ));
-        if !is_subscription_ignored && !is_participant_ignored {
-            if let Some(discovered_participant_data) =
-                self.discovered_participant_list.get(&InstanceHandle::new(
-                    Guid::new(
-                        discovered_reader_data
-                            .reader_proxy()
-                            .remote_reader_guid()
-                            .prefix(),
-                        ENTITYID_PARTICIPANT,
-                    )
-                    .into(),
-                ))
-            {
-                let default_unicast_locator_list = discovered_participant_data
-                    .participant_proxy()
-                    .default_unicast_locator_list()
-                    .to_vec();
-                let default_multicast_locator_list = discovered_participant_data
-                    .participant_proxy()
-                    .default_multicast_locator_list()
-                    .to_vec();
-
-                for publisher in self.user_defined_publisher_list.values() {
-                    let publisher_address = publisher.address();
-                    let participant_mask_listener =
-                        (self.listener.address(), self.status_kind.clone());
-
-                    publisher.send_actor_mail(publisher_actor::AddMatchedReader {
-                        discovered_reader_data: discovered_reader_data.clone(),
-                        default_unicast_locator_list: default_unicast_locator_list.clone(),
-                        default_multicast_locator_list: default_multicast_locator_list.clone(),
-                        publisher_address,
-                        participant: participant.clone(),
-                        participant_mask_listener,
-                        message_sender_actor: self.message_sender_actor.address(),
-                    });
-                }
-
-                // Add reader topic to discovered topic list using the reader instance handle
-                let topic_instance_handle = InstanceHandle::new(
-                    discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .key()
-                        .value,
-                );
-                let reader_topic = TopicBuiltinTopicData::new(
-                    BuiltInTopicKey::default(),
-                    discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .topic_name()
-                        .to_string(),
-                    discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .get_type_name()
-                        .to_string(),
-                    TopicQos {
-                        topic_data: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .topic_data()
-                            .clone(),
-                        durability: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .durability()
-                            .clone(),
-                        deadline: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .deadline()
-                            .clone(),
-                        latency_budget: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .latency_budget()
-                            .clone(),
-                        liveliness: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .liveliness()
-                            .clone(),
-                        reliability: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .reliability()
-                            .clone(),
-                        destination_order: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .destination_order()
-                            .clone(),
-                        history: HistoryQosPolicy::default(),
-                        resource_limits: ResourceLimitsQosPolicy::default(),
-                        transport_priority: TransportPriorityQosPolicy::default(),
-                        lifespan: LifespanQosPolicy::default(),
-                        ownership: discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .ownership()
-                            .clone(),
-                    },
-                );
-                self.discovered_topic_list
-                    .insert(topic_instance_handle, reader_topic);
-            }
-        }
-        Ok(())
-    }
-
-    fn remove_matched_reader(
-        &self,
-        discovered_reader_handle: InstanceHandle,
-        participant: DomainParticipantAsync,
-    ) -> DdsResult<()> {
-        for publisher in self.user_defined_publisher_list.values() {
-            let publisher_address = publisher.address();
-            let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-            publisher.send_actor_mail(publisher_actor::RemoveMatchedReader {
-                discovered_reader_handle,
-                publisher_address,
-                participant: participant.clone(),
-                participant_mask_listener,
-            });
-        }
-        Ok(())
-    }
-
-    async fn process_sedp_topics_discovery(&mut self) -> DdsResult<()> {
-        if let Some(sedp_topics_detector) = self
-            .builtin_subscriber
-            .send_actor_mail(subscriber_actor::LookupDatareader {
-                topic_name: DCPS_TOPIC.to_string(),
-            })
-            .receive_reply()
-            .await
-        {
-            if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-                .send_actor_mail(data_reader_actor::Read {
-                    max_samples: i32::MAX,
-                    sample_states: ANY_SAMPLE_STATE.to_vec(),
-                    view_states: ANY_VIEW_STATE.to_vec(),
-                    instance_states: ANY_INSTANCE_STATE.to_vec(),
-                    specific_instance_handle: None,
-                })?
-                .receive_reply()
-                .await
-            {
-                for (discovered_topic_data, discovered_topic_sample_info) in
-                    discovered_topic_sample_list.drain(..)
-                {
-                    match discovered_topic_sample_info.instance_state {
-                        InstanceStateKind::Alive => {
-                            match DiscoveredTopicData::deserialize_data(
-                                discovered_topic_data.expect("Should contain data").as_ref(),
-                            ) {
-                                Ok(discovered_topic_data) => {
-                                    self.add_matched_topic(discovered_topic_data);
-                                }
-                                Err(e) => warn!(
-                                    "Received invalid DiscoveredTopicData sample. Error {:?}",
-                                    e
-                                ),
-                            }
-                        }
-                        // Discovered topics are not deleted so it is not need to process these messages in any manner
-                        InstanceStateKind::NotAliveDisposed
-                        | InstanceStateKind::NotAliveNoWriters => (),
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn add_matched_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
-        let handle =
-            InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
-        let is_topic_ignored = self.ignored_topic_list.contains(&handle);
-        if !is_topic_ignored {
-            for (topic, _) in self.topic_list.values() {
-                topic.send_actor_mail(topic_actor::ProcessDiscoveredTopic {
-                    discovered_topic_data: discovered_topic_data.clone(),
-                });
-            }
-            self.discovered_topic_list.insert(
-                handle,
-                discovered_topic_data.topic_builtin_topic_data().clone(),
-            );
-        }
     }
 }

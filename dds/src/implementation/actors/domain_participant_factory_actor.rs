@@ -996,8 +996,8 @@ async fn process_metatraffic_rtps_message(
 
     process_spdp_participant_discovery(participant).await?;
     process_sedp_publications_discovery(participant).await?;
-
-    Ok(())
+    process_sedp_subscriptions_discovery(participant).await?;
+    process_sedp_topics_discovery(participant).await
 }
 
 async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
@@ -1101,6 +1101,100 @@ async fn process_sedp_publications_discovery(
                     }
                     InstanceStateKind::NotAliveNoWriters => {
                         todo!()
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn process_sedp_subscriptions_discovery(
+    participant: &DomainParticipantAsync,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+
+    if let Some(sedp_subscriptions_detector) = builtin_subscriber
+        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .await?
+    {
+        if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+                match discovered_reader_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => match discovered_reader_sample.data() {
+                        Ok(discovered_reader_data) => {
+                            participant.participant_address().send_actor_mail(
+                                domain_participant_actor::AddMatchedReader {
+                                    discovered_reader_data,
+                                    participant: participant.clone(),
+                                },
+                            )?;
+                        }
+                        Err(e) => warn!(
+                            "Received invalid DiscoveredReaderData sample. Error {:?}",
+                            e
+                        ),
+                    },
+                    InstanceStateKind::NotAliveDisposed => {
+                        participant.participant_address().send_actor_mail(
+                            domain_participant_actor::RemoveMatchedReader {
+                                discovered_reader_handle: discovered_reader_sample
+                                    .sample_info()
+                                    .instance_handle,
+                                participant: participant.clone(),
+                            },
+                        )?;
+                    }
+                    InstanceStateKind::NotAliveNoWriters => {
+                        todo!()
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn process_sedp_topics_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+    if let Some(sedp_topics_detector) = builtin_subscriber
+        .lookup_datareader::<DiscoveredTopicData>(DCPS_TOPIC)
+        .await?
+    {
+        if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_topic_sample in discovered_topic_sample_list.drain(..) {
+                match discovered_topic_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => match discovered_topic_sample.data() {
+                        Ok(discovered_topic_data) => {
+                            participant.participant_address().send_actor_mail(
+                                domain_participant_actor::AddMatchedTopic {
+                                    discovered_topic_data,
+                                },
+                            )?;
+                        }
+                        Err(e) => {
+                            warn!("Received invalid DiscoveredTopicData sample. Error {:?}", e)
+                        }
+                    },
+                    // Discovered topics are not deleted so it is not need to process these messages in any manner
+                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
+                        ()
                     }
                 }
             }
