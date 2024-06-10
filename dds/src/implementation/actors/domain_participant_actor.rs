@@ -290,7 +290,7 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn lookup_discovered_topic(
+    fn lookup_discovered_topic(
         &mut self,
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
@@ -319,17 +319,15 @@ impl DomainParticipantActor {
                     ownership: discovered_topic_data.ownership().clone(),
                 };
                 let type_name = discovered_topic_data.get_type_name().to_owned();
-                let (topic_address, status_condition_address) = self
-                    .create_user_defined_topic(
-                        topic_name,
-                        type_name.clone(),
-                        QosKind::Specific(qos),
-                        None,
-                        vec![],
-                        type_support,
-                        runtime_handle,
-                    )
-                    .await?;
+                let (topic_address, status_condition_address) = self.create_user_defined_topic(
+                    topic_name,
+                    type_name.clone(),
+                    QosKind::Specific(qos),
+                    None,
+                    vec![],
+                    type_support,
+                    runtime_handle,
+                )?;
                 return Ok(Some((topic_address, status_condition_address, type_name)));
             }
         }
@@ -337,7 +335,7 @@ impl DomainParticipantActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn create_user_defined_topic(
+    fn create_user_defined_topic(
         &mut self,
         topic_name: String,
         type_name: String,
@@ -613,7 +611,6 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             message.type_support,
             message.runtime_handle,
         )
-        .await
     }
 }
 
@@ -702,7 +699,6 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                 message.type_support.clone(),
                 message.runtime_handle.clone(),
             )
-            .await
         }
     }
 }
@@ -1650,33 +1646,27 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
             self.add_matched_publications_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-            )
-            .await?;
+            )?;
             self.add_matched_publications_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-            )
-            .await?;
+            )?;
             self.add_matched_subscriptions_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-            )
-            .await?;
+            )?;
             self.add_matched_subscriptions_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-            )
-            .await?;
+            )?;
             self.add_matched_topics_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-            )
-            .await?;
+            )?;
             self.add_matched_topics_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-            )
-            .await?;
+            )?;
 
             self.discovered_participant_list.insert(
                 InstanceHandle::new(
@@ -1721,7 +1711,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn add_matched_publications_detector(
+    fn add_matched_publications_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -1782,14 +1772,12 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener,
                     message_sender_actor: self.message_sender_actor.address(),
-                })
-                .receive_reply()
-                .await?;
+                });
         }
         Ok(())
     }
 
-    async fn add_matched_publications_announcer(
+    fn add_matched_publications_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -1843,14 +1831,12 @@ impl DomainParticipantActor {
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
-                })
-                .receive_reply()
-                .await?;
+                });
         }
         Ok(())
     }
 
-    async fn add_matched_subscriptions_detector(
+    fn add_matched_subscriptions_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -1904,14 +1890,12 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                     message_sender_actor: self.message_sender_actor.address(),
-                })
-                .receive_reply()
-                .await?;
+                });
         }
         Ok(())
     }
 
-    async fn add_matched_subscriptions_announcer(
+    fn add_matched_subscriptions_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -1965,15 +1949,13 @@ impl DomainParticipantActor {
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
-                })
-                .receive_reply()
-                .await?;
+                });
         }
 
         Ok(())
     }
 
-    async fn add_matched_topics_detector(
+    fn add_matched_topics_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -2027,14 +2009,12 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
                     message_sender_actor: self.message_sender_actor.address(),
-                })
-                .receive_reply()
-                .await?;
+                });
         }
         Ok(())
     }
 
-    async fn add_matched_topics_announcer(
+    fn add_matched_topics_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
@@ -2088,9 +2068,7 @@ impl DomainParticipantActor {
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
                     participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
-                })
-                .receive_reply()
-                .await?;
+                });
         }
         Ok(())
     }
@@ -2132,8 +2110,7 @@ impl DomainParticipantActor {
                                     self.add_matched_writer(
                                         discovered_writer_data,
                                         participant.clone(),
-                                    )
-                                    .await?;
+                                    )?;
                                 }
                                 Err(e) => warn!(
                                     "Received invalid DiscoveredWriterData sample. Error {:?}",
@@ -2145,8 +2122,7 @@ impl DomainParticipantActor {
                             self.remove_matched_writer(
                                 discovered_writer_sample_info.instance_handle,
                                 participant.clone(),
-                            )
-                            .await?;
+                            )?;
                         }
                         InstanceStateKind::NotAliveNoWriters => {
                             todo!()
@@ -2158,7 +2134,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn add_matched_writer(
+    fn add_matched_writer(
         &mut self,
         discovered_writer_data: DiscoveredWriterData,
         participant: DomainParticipantAsync,
@@ -2201,17 +2177,14 @@ impl DomainParticipantActor {
                     let subscriber_address = subscriber.address();
                     let participant_mask_listener =
                         (self.listener.address(), self.status_kind.clone());
-                    subscriber
-                        .send_actor_mail(subscriber_actor::AddMatchedWriter {
-                            discovered_writer_data: discovered_writer_data.clone(),
-                            default_unicast_locator_list: default_unicast_locator_list.clone(),
-                            default_multicast_locator_list: default_multicast_locator_list.clone(),
-                            subscriber_address,
-                            participant: participant.clone(),
-                            participant_mask_listener,
-                        })
-                        .receive_reply()
-                        .await?;
+                    subscriber.send_actor_mail(subscriber_actor::AddMatchedWriter {
+                        discovered_writer_data: discovered_writer_data.clone(),
+                        default_unicast_locator_list: default_unicast_locator_list.clone(),
+                        default_multicast_locator_list: default_multicast_locator_list.clone(),
+                        subscriber_address,
+                        participant: participant.clone(),
+                        participant_mask_listener,
+                    });
                 }
 
                 // Add writer topic to discovered topic list using the writer instance handle
@@ -2276,7 +2249,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn remove_matched_writer(
+    fn remove_matched_writer(
         &self,
         discovered_writer_handle: InstanceHandle,
         participant: DomainParticipantAsync,
@@ -2284,15 +2257,12 @@ impl DomainParticipantActor {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-            subscriber
-                .send_actor_mail(subscriber_actor::RemoveMatchedWriter {
-                    discovered_writer_handle,
-                    subscriber_address,
-                    participant: participant.clone(),
-                    participant_mask_listener,
-                })
-                .receive_reply()
-                .await?;
+            subscriber.send_actor_mail(subscriber_actor::RemoveMatchedWriter {
+                discovered_writer_handle,
+                subscriber_address,
+                participant: participant.clone(),
+                participant_mask_listener,
+            });
         }
         Ok(())
     }
@@ -2408,18 +2378,15 @@ impl DomainParticipantActor {
                     let participant_mask_listener =
                         (self.listener.address(), self.status_kind.clone());
 
-                    publisher
-                        .send_actor_mail(publisher_actor::AddMatchedReader {
-                            discovered_reader_data: discovered_reader_data.clone(),
-                            default_unicast_locator_list: default_unicast_locator_list.clone(),
-                            default_multicast_locator_list: default_multicast_locator_list.clone(),
-                            publisher_address,
-                            participant: participant.clone(),
-                            participant_mask_listener,
-                            message_sender_actor: self.message_sender_actor.address(),
-                        })
-                        .receive_reply()
-                        .await?;
+                    publisher.send_actor_mail(publisher_actor::AddMatchedReader {
+                        discovered_reader_data: discovered_reader_data.clone(),
+                        default_unicast_locator_list: default_unicast_locator_list.clone(),
+                        default_multicast_locator_list: default_multicast_locator_list.clone(),
+                        publisher_address,
+                        participant: participant.clone(),
+                        participant_mask_listener,
+                        message_sender_actor: self.message_sender_actor.address(),
+                    });
                 }
 
                 // Add reader topic to discovered topic list using the reader instance handle
@@ -2493,15 +2460,12 @@ impl DomainParticipantActor {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
             let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
-            publisher
-                .send_actor_mail(publisher_actor::RemoveMatchedReader {
-                    discovered_reader_handle,
-                    publisher_address,
-                    participant: participant.clone(),
-                    participant_mask_listener,
-                })
-                .receive_reply()
-                .await?;
+            publisher.send_actor_mail(publisher_actor::RemoveMatchedReader {
+                discovered_reader_handle,
+                publisher_address,
+                participant: participant.clone(),
+                participant_mask_listener,
+            });
         }
         Ok(())
     }
@@ -2535,7 +2499,7 @@ impl DomainParticipantActor {
                                 discovered_topic_data.expect("Should contain data").as_ref(),
                             ) {
                                 Ok(discovered_topic_data) => {
-                                    self.add_matched_topic(discovered_topic_data).await;
+                                    self.add_matched_topic(discovered_topic_data);
                                 }
                                 Err(e) => warn!(
                                     "Received invalid DiscoveredTopicData sample. Error {:?}",
@@ -2553,18 +2517,15 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn add_matched_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
+    fn add_matched_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
         let handle =
             InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data().key().value);
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
             for (topic, _) in self.topic_list.values() {
-                topic
-                    .send_actor_mail(topic_actor::ProcessDiscoveredTopic {
-                        discovered_topic_data: discovered_topic_data.clone(),
-                    })
-                    .receive_reply()
-                    .await;
+                topic.send_actor_mail(topic_actor::ProcessDiscoveredTopic {
+                    discovered_topic_data: discovered_topic_data.clone(),
+                });
             }
             self.discovered_topic_list.insert(
                 handle,
