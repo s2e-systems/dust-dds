@@ -245,34 +245,38 @@ impl PublisherAsync {
             .receive_reply()
             .await?
         {
-            let topic = TopicAsync::new(
-                topic_address,
-                topic_status_condition,
-                topic_name.to_string(),
-                type_name,
-                self.participant.clone(),
-            );
-            if let Some(dw) = self
+            let data_writer_list = self
                 .publisher_address
-                .send_actor_mail(publisher_actor::LookupDatawriter {
-                    topic_name: topic_name.to_string(),
-                })?
+                .send_actor_mail(publisher_actor::GetDataWriterList)?
                 .receive_reply()
-                .await?
-            {
-                let status_condition = dw
-                    .send_actor_mail(data_writer_actor::GetStatuscondition)?
+                .await;
+            for dw in data_writer_list {
+                if dw
+                    .send_actor_mail(data_writer_actor::GetTopicName)?
                     .receive_reply()
-                    .await;
-                Ok(Some(DataWriterAsync::new(
-                    dw.clone(),
-                    status_condition,
-                    self.clone(),
-                    topic,
-                )))
-            } else {
-                Ok(None)
+                    .await?
+                    == topic_name
+                {
+                    let topic = TopicAsync::new(
+                        topic_address,
+                        topic_status_condition,
+                        topic_name.to_string(),
+                        type_name,
+                        self.participant.clone(),
+                    );
+                    let status_condition = dw
+                        .send_actor_mail(data_writer_actor::GetStatuscondition)?
+                        .receive_reply()
+                        .await;
+                    return Ok(Some(DataWriterAsync::new(
+                        dw.clone(),
+                        status_condition,
+                        self.clone(),
+                        topic,
+                    )));
+                }
             }
+            Ok(None)
         } else {
             Err(DdsError::BadParameter)
         }

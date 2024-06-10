@@ -465,26 +465,21 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                 let data_writer_address = data_writer.address();
                 let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
 
-                data_writer
-                    .send_actor_mail(data_writer_actor::AddMatchedReader {
-                        discovered_reader_data: message.discovered_reader_data.clone(),
-                        default_unicast_locator_list: message.default_unicast_locator_list.clone(),
-                        default_multicast_locator_list: message
-                            .default_multicast_locator_list
-                            .clone(),
-                        data_writer_address,
-                        publisher: PublisherAsync::new(
-                            message.publisher_address.clone(),
-                            self.status_condition.address(),
-                            message.participant.clone(),
-                        ),
-                        publisher_qos: self.qos.clone(),
-                        publisher_mask_listener,
-                        participant_mask_listener: message.participant_mask_listener.clone(),
-                        message_sender_actor: message.message_sender_actor.clone(),
-                    })
-                    .receive_reply()
-                    .await?;
+                data_writer.send_actor_mail(data_writer_actor::AddMatchedReader {
+                    discovered_reader_data: message.discovered_reader_data.clone(),
+                    default_unicast_locator_list: message.default_unicast_locator_list.clone(),
+                    default_multicast_locator_list: message.default_multicast_locator_list.clone(),
+                    data_writer_address,
+                    publisher: PublisherAsync::new(
+                        message.publisher_address.clone(),
+                        self.status_condition.address(),
+                        message.participant.clone(),
+                    ),
+                    publisher_qos: self.qos.clone(),
+                    publisher_mask_listener,
+                    participant_mask_listener: message.participant_mask_listener.clone(),
+                    message_sender_actor: message.message_sender_actor.clone(),
+                });
             }
         }
         Ok(())
@@ -511,20 +506,17 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
             let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
-            data_writer
-                .send_actor_mail(data_writer_actor::RemoveMatchedReader {
-                    discovered_reader_handle: message.discovered_reader_handle,
-                    data_writer_address,
-                    publisher: PublisherAsync::new(
-                        message.publisher_address.clone(),
-                        self.status_condition.address(),
-                        message.participant.clone(),
-                    ),
-                    publisher_mask_listener,
-                    participant_mask_listener: message.participant_mask_listener.clone(),
-                })
-                .receive_reply()
-                .await?;
+            data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
+                discovered_reader_handle: message.discovered_reader_handle,
+                data_writer_address,
+                publisher: PublisherAsync::new(
+                    message.publisher_address.clone(),
+                    self.status_condition.address(),
+                    message.participant.clone(),
+                ),
+                publisher_mask_listener,
+                participant_mask_listener: message.participant_mask_listener.clone(),
+            });
         }
         Ok(())
     }
