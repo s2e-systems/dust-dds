@@ -221,14 +221,14 @@ pub struct IncrementRequestedDeadlineMissedStatus {
 impl Mail for IncrementRequestedDeadlineMissedStatus {
     type Result = ();
 }
-impl MailHandler<IncrementRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineMissedStatus {
+impl MailHandler<IncrementRequestedDeadlineMissedStatus> for DataReaderActor {
     async fn handle(
         &mut self,
         message: IncrementRequestedDeadlineMissedStatus,
     ) -> <IncrementRequestedDeadlineMissedStatus as Mail>::Result {
-        self.total_count += 1;
-        self.total_count_change += 1;
-        self.last_instance_handle = message.instance_handle;
+        self.requested_deadline_missed_status.total_count += 1;
+        self.requested_deadline_missed_status.total_count_change += 1;
+        self.requested_deadline_missed_status.last_instance_handle = message.instance_handle;
     }
 }
 
@@ -236,20 +236,12 @@ pub struct ReadRequestedDeadlineMissedStatus;
 impl Mail for ReadRequestedDeadlineMissedStatus {
     type Result = RequestedDeadlineMissedStatus;
 }
-impl MailHandler<ReadRequestedDeadlineMissedStatus> for ReaderRequestedDeadlineMissedStatus {
+impl MailHandler<ReadRequestedDeadlineMissedStatus> for DataReaderActor {
     async fn handle(
         &mut self,
         _: ReadRequestedDeadlineMissedStatus,
     ) -> <ReadRequestedDeadlineMissedStatus as Mail>::Result {
-        let status = RequestedDeadlineMissedStatus {
-            total_count: self.total_count,
-            total_count_change: self.total_count_change,
-            last_instance_handle: self.last_instance_handle,
-        };
-
-        self.total_count_change = 0;
-
-        status
+        self.read_requested_deadline_missed_status()
     }
 }
 
@@ -327,7 +319,7 @@ pub struct DataReaderActor {
     type_name: String,
     topic_status_condition: ActorAddress<StatusConditionActor>,
     _liveliness_changed_status: LivelinessChangedStatus,
-    requested_deadline_missed_status: Actor<ReaderRequestedDeadlineMissedStatus>,
+    requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_lost_status: SampleLostStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -366,10 +358,7 @@ impl DataReaderActor {
             type_name,
             topic_status_condition,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: Actor::spawn(
-                ReaderRequestedDeadlineMissedStatus::default(),
-                handle,
-            ),
+            requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
             sample_lost_status: SampleLostStatus::default(),
             sample_rejected_status: SampleRejectedStatus::default(),
@@ -401,6 +390,18 @@ impl DataReaderActor {
 
     fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         self.sample_rejected_status.read_and_reset()
+    }
+
+    fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+        let status = RequestedDeadlineMissedStatus {
+            total_count: self.requested_deadline_missed_status.total_count,
+            total_count_change: self.requested_deadline_missed_status.total_count_change,
+            last_instance_handle: self.requested_deadline_missed_status.last_instance_handle,
+        };
+
+        self.requested_deadline_missed_status.total_count_change = 0;
+
+        status
     }
 
     fn read(
@@ -1505,7 +1506,6 @@ impl DataReaderActor {
                 deadline_missed_period.nanosec(),
             ));
             let reader_status_condition = self.status_condition.address();
-            let requested_deadline_missed_status = self.requested_deadline_missed_status.address();
             let reader_listener_address = self.listener.address();
             let reader_listener_mask = self.status_kind.clone();
             let subscriber_listener_address = subscriber_mask_listener.0.clone();
@@ -1522,7 +1522,7 @@ impl DataReaderActor {
                     deadline_missed_interval.tick().await;
 
                     let r: DdsResult<()> = async {
-                        requested_deadline_missed_status.send_actor_mail(
+                        data_reader_address.send_actor_mail(
                             IncrementRequestedDeadlineMissedStatus {
                                 instance_handle: change_instance_handle,
                             },
@@ -1535,7 +1535,7 @@ impl DataReaderActor {
                             .receive_reply()
                             .await;
                         if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                            let status = requested_deadline_missed_status
+                            let status = data_reader_address
                                 .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
                                 .receive_reply()
                                 .await;
@@ -1561,7 +1561,7 @@ impl DataReaderActor {
                         } else if subscriber_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
-                            let status = requested_deadline_missed_status
+                            let status = data_reader_address
                                 .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
                                 .receive_reply()
                                 .await;
@@ -1577,7 +1577,7 @@ impl DataReaderActor {
                         } else if participant_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
                         {
-                            let status = requested_deadline_missed_status
+                            let status = data_reader_address
                                 .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
                                 .receive_reply()
                                 .await;
@@ -2285,9 +2285,6 @@ impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
         &mut self,
         _: GetRequestedDeadlineMissedStatus,
     ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
-        self.requested_deadline_missed_status
-            .send_actor_mail(ReadRequestedDeadlineMissedStatus)
-            .receive_reply()
-            .await
+        self.read_requested_deadline_missed_status()
     }
 }
