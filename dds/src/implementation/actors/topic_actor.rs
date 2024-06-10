@@ -208,9 +208,7 @@ impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
         self.status_condition
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
-            })
-            .receive_reply()
-            .await;
+            });
         status
     }
 }
@@ -242,9 +240,7 @@ impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
             self.status_condition
                 .send_actor_mail(AddCommunicationState {
                     state: StatusKind::InconsistentTopic,
-                })
-                .receive_reply()
-                .await;
+                });
         }
     }
 }
