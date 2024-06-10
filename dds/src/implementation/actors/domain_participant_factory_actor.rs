@@ -60,7 +60,7 @@ use crate::{
         writer::RtpsWriter,
     },
     subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
+        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -994,6 +994,13 @@ async fn process_metatraffic_rtps_message(
         .receive_reply()
         .await?;
 
+    process_spdp_participant_discovery(participant).await?;
+    process_sedp_publications_discovery(participant).await?;
+
+    Ok(())
+}
+
+async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
     let builtin_subscriber = participant.get_builtin_subscriber();
 
     if let Ok(Some(spdp_participant_reader)) = builtin_subscriber
@@ -1015,7 +1022,8 @@ async fn process_metatraffic_rtps_message(
                         if let Ok(discovered_participant_data) =
                             discovered_participant_sample.data()
                         {
-                            participant_actor
+                            participant
+                                .participant_address()
                                 .send_actor_mail(
                                     domain_participant_actor::AddDiscoveredParticipant {
                                         discovered_participant_data,
@@ -1027,7 +1035,8 @@ async fn process_metatraffic_rtps_message(
                         }
                     }
                     InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
-                        participant_actor
+                        participant
+                            .participant_address()
                             .send_actor_mail(
                                 domain_participant_actor::RemoveDiscoveredParticipant {
                                     handle: discovered_participant_sample
@@ -1043,5 +1052,59 @@ async fn process_metatraffic_rtps_message(
         }
     }
 
+    Ok(())
+}
+
+async fn process_sedp_publications_discovery(
+    participant: &DomainParticipantAsync,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+
+    if let Some(sedp_publications_detector) = builtin_subscriber
+        .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
+        .await?
+    {
+        if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+                match discovered_writer_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => match discovered_writer_sample.data() {
+                        Ok(discovered_writer_data) => {
+                            participant.participant_address().send_actor_mail(
+                                domain_participant_actor::AddMatchedWriter {
+                                    discovered_writer_data,
+                                    participant: participant.clone(),
+                                },
+                            )?;
+                        }
+                        Err(e) => warn!(
+                            "Received invalid DiscoveredWriterData sample. Error {:?}",
+                            e
+                        ),
+                    },
+                    InstanceStateKind::NotAliveDisposed => {
+                        participant.participant_address().send_actor_mail(
+                            domain_participant_actor::RemoveMatchedWriter {
+                                discovered_writer_handle: discovered_writer_sample
+                                    .sample_info()
+                                    .instance_handle,
+                                participant: participant.clone(),
+                            },
+                        )?;
+                    }
+                    InstanceStateKind::NotAliveNoWriters => {
+                        todo!()
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
