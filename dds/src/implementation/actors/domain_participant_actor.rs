@@ -295,13 +295,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         runtime_handle: tokio::runtime::Handle,
-    ) -> DdsResult<
-        Option<(
-            ActorAddress<TopicActor>,
-            ActorAddress<StatusConditionActor>,
-            String,
-        )>,
-    > {
+    ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
         for discovered_topic_data in self.discovered_topic_list.values() {
             if discovered_topic_data.name() == topic_name {
                 let qos = TopicQos {
@@ -328,7 +322,7 @@ impl DomainParticipantActor {
                     type_support,
                     runtime_handle,
                 )?;
-                return Ok(Some((topic_address, status_condition_address, type_name)));
+                return Ok(Some((topic_address, status_condition_address)));
             }
         }
         Ok(None)
@@ -377,27 +371,12 @@ impl DomainParticipantActor {
         }
     }
 
-    async fn lookup_topicdescription(
+    fn lookup_topicdescription(
         &self,
         topic_name: String,
-    ) -> DdsResult<
-        Option<(
-            ActorAddress<TopicActor>,
-            ActorAddress<StatusConditionActor>,
-            String,
-        )>,
-    > {
+    ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
         if let Some((topic, topic_status_condition)) = self.topic_list.get(&topic_name) {
-            let type_name = topic
-                .send_actor_mail(topic_actor::GetTypeName)
-                .receive_reply()
-                .await;
-
-            Ok(Some((
-                topic.address(),
-                topic_status_condition.clone(),
-                type_name,
-            )))
+            Ok(Some((topic.address(), topic_status_condition.clone())))
         } else {
             Ok(None)
         }
@@ -448,12 +427,10 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             &message.runtime_handle,
         );
 
+        let publisher_status_condition = publisher.get_statuscondition();
         let publisher_actor = Actor::spawn(publisher, &message.runtime_handle);
         let publisher_address = publisher_actor.address();
-        let publisher_status_condition = publisher_actor
-            .send_actor_mail(publisher_actor::GetStatuscondition)
-            .receive_reply()
-            .await;
+
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
 
@@ -535,12 +512,10 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             &message.runtime_handle,
         );
 
+        let subscriber_status_condition: ActorAddress<StatusConditionActor> =
+            subscriber.get_statuscondition();
         let subscriber_actor = Actor::spawn(subscriber, &message.runtime_handle);
         let subscriber_address = subscriber_actor.address();
-        let subscriber_status_condition = subscriber_actor
-            .send_actor_mail(subscriber_actor::GetStatuscondition)
-            .receive_reply()
-            .await;
 
         self.user_defined_subscriber_list
             .insert(InstanceHandle::new(guid.into()), subscriber_actor);
@@ -678,20 +653,11 @@ pub struct FindTopic {
     pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for FindTopic {
-    type Result = DdsResult<
-        Option<(
-            ActorAddress<TopicActor>,
-            ActorAddress<StatusConditionActor>,
-            String,
-        )>,
-    >;
+    type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
 }
 impl MailHandler<FindTopic> for DomainParticipantActor {
     async fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
-        if let Some(r) = self
-            .lookup_topicdescription(message.topic_name.clone())
-            .await?
-        {
+        if let Some(r) = self.lookup_topicdescription(message.topic_name.clone())? {
             Ok(Some(r))
         } else {
             self.lookup_discovered_topic(
@@ -707,20 +673,14 @@ pub struct LookupTopicdescription {
     pub topic_name: String,
 }
 impl Mail for LookupTopicdescription {
-    type Result = DdsResult<
-        Option<(
-            ActorAddress<TopicActor>,
-            ActorAddress<StatusConditionActor>,
-            String,
-        )>,
-    >;
+    type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
 }
 impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     async fn handle(
         &mut self,
         message: LookupTopicdescription,
     ) -> <LookupTopicdescription as Mail>::Result {
-        self.lookup_topicdescription(message.topic_name).await
+        self.lookup_topicdescription(message.topic_name)
     }
 }
 
@@ -2304,8 +2264,7 @@ impl DomainParticipantActor {
                                     self.add_matched_reader(
                                         discovered_reader_data,
                                         participant.clone(),
-                                    )
-                                    .await?;
+                                    )?;
                                 }
                                 Err(e) => warn!(
                                     "Received invalid DiscoveredReaderData sample. Error {:?}",
@@ -2317,8 +2276,7 @@ impl DomainParticipantActor {
                             self.remove_matched_reader(
                                 discovered_reader_sample_info.instance_handle,
                                 participant.clone(),
-                            )
-                            .await?;
+                            )?;
                         }
                         InstanceStateKind::NotAliveNoWriters => {
                             todo!()
@@ -2330,7 +2288,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn add_matched_reader(
+    fn add_matched_reader(
         &mut self,
         discovered_reader_data: DiscoveredReaderData,
         participant: DomainParticipantAsync,
@@ -2452,7 +2410,7 @@ impl DomainParticipantActor {
         Ok(())
     }
 
-    async fn remove_matched_reader(
+    fn remove_matched_reader(
         &self,
         discovered_reader_handle: InstanceHandle,
         participant: DomainParticipantAsync,

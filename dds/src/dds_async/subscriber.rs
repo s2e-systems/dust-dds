@@ -233,7 +233,7 @@ impl SubscriberAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
-        if let Some((topic_address, topic_status_condition, type_name)) = self
+        if let Some((topic_address, topic_status_condition)) = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_string(),
@@ -253,6 +253,10 @@ impl SubscriberAsync {
                     .await?
                     == topic_name
                 {
+                    let type_name = topic_address
+                        .send_actor_mail(topic_actor::GetTypeName)?
+                        .receive_reply()
+                        .await;
                     let topic = TopicAsync::new(
                         topic_address,
                         topic_status_condition,

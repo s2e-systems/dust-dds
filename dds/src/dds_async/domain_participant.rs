@@ -313,7 +313,7 @@ impl DomainParticipantAsync {
     {
         tokio::time::timeout(timeout.into(), async {
             loop {
-                if let Some((topic_address, status_condition_address, type_name)) = self
+                if let Some((topic_address, status_condition_address)) = self
                     .participant_address
                     .send_actor_mail(domain_participant_actor::FindTopic {
                         topic_name: topic_name.to_owned(),
@@ -323,6 +323,10 @@ impl DomainParticipantAsync {
                     .receive_reply()
                     .await?
                 {
+                    let type_name = topic_address
+                        .send_actor_mail(topic_actor::GetTypeName)?
+                        .receive_reply()
+                        .await;
                     return Ok(TopicAsync::new(
                         topic_address,
                         status_condition_address,
@@ -340,7 +344,7 @@ impl DomainParticipantAsync {
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        if let Some((topic_address, status_condition_address, type_name)) = self
+        if let Some((topic_address, status_condition_address)) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
@@ -348,6 +352,10 @@ impl DomainParticipantAsync {
             .receive_reply()
             .await?
         {
+            let type_name = topic_address
+                .send_actor_mail(topic_actor::GetTypeName)?
+                .receive_reply()
+                .await;
             Ok(Some(TopicAsync::new(
                 topic_address,
                 status_condition_address,

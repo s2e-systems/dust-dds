@@ -79,6 +79,10 @@ impl PublisherActor {
         }
     }
 
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
+    }
+
     fn get_unique_writer_id(&mut self) -> u8 {
         let counter = self.user_defined_data_writer_counter;
         self.user_defined_data_writer_counter += 1;

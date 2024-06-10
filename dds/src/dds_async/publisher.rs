@@ -236,7 +236,7 @@ impl PublisherAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
-        if let Some((topic_address, topic_status_condition, type_name)) = self
+        if let Some((topic_address, topic_status_condition)) = self
             .participant
             .participant_address()
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
@@ -257,6 +257,10 @@ impl PublisherAsync {
                     .await?
                     == topic_name
                 {
+                    let type_name = topic_address
+                        .send_actor_mail(topic_actor::GetTypeName)?
+                        .receive_reply()
+                        .await;
                     let topic = TopicAsync::new(
                         topic_address,
                         topic_status_condition,

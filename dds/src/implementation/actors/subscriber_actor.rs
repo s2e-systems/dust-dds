@@ -88,6 +88,10 @@ impl SubscriberActor {
         }
     }
 
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
+    }
+
     fn get_unique_reader_id(&mut self) -> u8 {
         let counter = self.user_defined_data_reader_counter;
         self.user_defined_data_reader_counter += 1;
