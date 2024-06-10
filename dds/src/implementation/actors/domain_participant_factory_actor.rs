@@ -256,6 +256,9 @@ impl DomainParticipantFactoryActor {
         let spdp_builtin_participant_reader = DataReaderActor::new(
             create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
             topic_list[DCPS_PARTICIPANT].0.address(),
+            DCPS_PARTICIPANT.to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            topic_list[DCPS_PARTICIPANT].1.clone(),
             spdp_reader_qos,
             None,
             vec![],
@@ -267,6 +270,9 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_topics_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             topic_list[DCPS_TOPIC].0.address(),
+            DCPS_TOPIC.to_string(),
+            "DiscoveredTopicData".to_string(),
+            topic_list[DCPS_TOPIC].1.clone(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -278,6 +284,9 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_publications_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
             topic_list[DCPS_PUBLICATION].0.address(),
+            DCPS_PUBLICATION.to_string(),
+            "DiscoveredWriterData".to_string(),
+            topic_list[DCPS_PUBLICATION].1.clone(),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -289,6 +298,9 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_subscriptions_reader = DataReaderActor::new(
             create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
             topic_list[DCPS_SUBSCRIPTION].0.address(),
+            DCPS_SUBSCRIPTION.to_string(),
+            "DiscoveredReaderData".to_string(),
+            topic_list[DCPS_SUBSCRIPTION].1.clone(),
             sedp_data_reader_qos(),
             None,
             vec![],

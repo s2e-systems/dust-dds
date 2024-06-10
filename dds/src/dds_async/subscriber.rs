@@ -117,6 +117,9 @@ impl SubscriberAsync {
             .await;
 
         let topic = a_topic.topic_address();
+        let topic_name = a_topic.get_name();
+        let type_name = a_topic.get_type_name();
+        let topic_status_condition = a_topic.get_statuscondition().address().clone();
         let has_key = topic
             .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
@@ -127,6 +130,9 @@ impl SubscriberAsync {
             .subscriber_address
             .send_actor_mail(subscriber_actor::CreateDatareader {
                 topic_address: a_topic.topic_address().clone(),
+                topic_name,
+                type_name,
+                topic_status_condition,
                 has_key,
                 qos,
                 a_listener: listener,
