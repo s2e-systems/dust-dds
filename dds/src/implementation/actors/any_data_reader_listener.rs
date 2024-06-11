@@ -6,12 +6,23 @@ use crate::{
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
     implementation::actor::ActorAddress,
+    infrastructure::status::{
+        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+    },
 };
 
-use super::{
-    data_reader_actor::DataReaderActor, data_reader_listener_actor::DataReaderListenerOperation,
-    status_condition_actor::StatusConditionActor,
-};
+use super::{data_reader_actor::DataReaderActor, status_condition_actor::StatusConditionActor};
+
+pub enum DataReaderListenerOperation {
+    DataAvailable,
+    SampleRejected(SampleRejectedStatus),
+    _LivelinessChanged(LivelinessChangedStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+}
 
 pub trait AnyDataReaderListener {
     fn call_listener_function(

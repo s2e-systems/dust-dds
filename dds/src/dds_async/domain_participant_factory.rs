@@ -13,7 +13,7 @@ use crate::{
         },
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -102,25 +102,37 @@ impl DomainParticipantFactoryAsync {
 
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
-        let handle = participant.get_instance_handle().await?;
-        let deleted_participant = self
-            .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
+        let is_participant_empty = participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::IsEmpty)?
             .receive_reply()
-            .await?;
-        let builtin_publisher = participant.get_builtin_publisher().await?;
-        if let Some(spdp_participant_writer) = builtin_publisher
-            .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-            .await?
-        {
-            let data = deleted_participant
-                .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
+            .await;
+        if is_participant_empty {
+            let handle = participant.get_instance_handle().await?;
+
+            let deleted_participant = self
+                .domain_participant_factory_actor
+                .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
                 .receive_reply()
-                .await;
-            spdp_participant_writer.dispose(&data, None).await?;
+                .await?;
+            let builtin_publisher = participant.get_builtin_publisher().await?;
+            if let Some(spdp_participant_writer) = builtin_publisher
+                .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+                .await?
+            {
+                let data = deleted_participant
+                    .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
+                    .receive_reply()
+                    .await;
+                spdp_participant_writer.dispose(&data, None).await?;
+            }
+            deleted_participant.stop().await;
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Domain participant still contains other entities".to_string(),
+            ))
         }
-        deleted_participant.stop().await;
-        Ok(())
     }
 
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
@@ -128,35 +140,42 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        if let Some(dp) = self
+        let domain_participant_list = self
             .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::LookupParticipant { domain_id })
+            .send_actor_mail(domain_participant_factory_actor::GetParticipantList)
             .receive_reply()
-            .await?
-        {
-            let status_condition = dp
-                .send_actor_mail(domain_participant_actor::GetStatuscondition)?
+            .await;
+        for dp in domain_participant_list {
+            if dp
+                .send_actor_mail(domain_participant_actor::GetDomainId)?
                 .receive_reply()
-                .await;
-            let builtin_subscriber = dp
-                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
-                .receive_reply()
-                .await;
-            let builtin_subscriber_status_condition_address = builtin_subscriber
-                .send_actor_mail(subscriber_actor::GetStatuscondition)?
-                .receive_reply()
-                .await;
-            Ok(Some(DomainParticipantAsync::new(
-                dp,
-                status_condition,
-                builtin_subscriber,
-                builtin_subscriber_status_condition_address,
-                domain_id,
-                self.runtime_handle.clone(),
-            )))
-        } else {
-            Ok(None)
+                .await
+                == domain_id
+            {
+                let status_condition = dp
+                    .send_actor_mail(domain_participant_actor::GetStatuscondition)?
+                    .receive_reply()
+                    .await;
+                let builtin_subscriber = dp
+                    .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
+                    .receive_reply()
+                    .await;
+                let builtin_subscriber_status_condition_address = builtin_subscriber
+                    .send_actor_mail(subscriber_actor::GetStatuscondition)?
+                    .receive_reply()
+                    .await;
+                return Ok(Some(DomainParticipantAsync::new(
+                    dp,
+                    status_condition,
+                    builtin_subscriber,
+                    builtin_subscriber_status_condition_address,
+                    domain_id,
+                    self.runtime_handle.clone(),
+                )));
+            }
         }
+
+        Ok(None)
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

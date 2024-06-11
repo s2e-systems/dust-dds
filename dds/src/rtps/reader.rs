@@ -101,11 +101,9 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub async fn send_message(&mut self, message_sender_actor: &ActorAddress<MessageSenderActor>) {
+    pub fn send_message(&mut self, message_sender_actor: &ActorAddress<MessageSenderActor>) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy
-                .send_message(&self.rtps_reader.guid(), message_sender_actor)
-                .await
+            writer_proxy.send_message(&self.rtps_reader.guid(), message_sender_actor)
         }
     }
 }

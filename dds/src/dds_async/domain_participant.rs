@@ -10,7 +10,10 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
-            domain_participant_actor::{self, DomainParticipantActor, FooTypeSupport},
+            data_reader_actor, data_writer_actor,
+            domain_participant_actor::{
+                self, DomainParticipantActor, FooTypeSupport, BUILT_IN_TOPIC_NAME_LIST,
+            },
             publisher_actor,
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
@@ -154,12 +157,32 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_publisher`](crate::domain::domain_participant::DomainParticipant::delete_publisher).
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
-                handle: a_publisher.get_instance_handle().await?,
-            })?
+        if a_publisher
+            .publisher_address()
+            .send_actor_mail(publisher_actor::IsEmpty)?
             .receive_reply()
             .await
+        {
+            if let Some(deleted_publisher) = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
+                    handle: a_publisher.get_instance_handle().await?,
+                })?
+                .receive_reply()
+                .await
+            {
+                deleted_publisher.stop().await;
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Publisher can only be deleted from its parent participant".to_string(),
+                ))
+            }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ))
+        }
     }
 
     /// Async version of [`create_subscriber`](crate::domain::domain_participant::DomainParticipant::create_subscriber).
@@ -209,12 +232,32 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_subscriber`](crate::domain::domain_participant::DomainParticipant::delete_subscriber).
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
-                handle: a_subscriber.get_instance_handle().await?,
-            })?
+        if a_subscriber
+            .subscriber_address()
+            .send_actor_mail(subscriber_actor::IsEmpty)?
             .receive_reply()
             .await
+        {
+            if let Some(deleted_subscriber) = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
+                    handle: a_subscriber.get_instance_handle().await?,
+                })?
+                .receive_reply()
+                .await
+            {
+                deleted_subscriber.stop().await;
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Subscriber can only be deleted from its parent participant".to_string(),
+                ))
+            }
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ))
+        }
     }
 
     /// Async version of [`create_topic`](crate::domain::domain_participant::DomainParticipant::create_topic).
@@ -292,12 +335,72 @@ impl DomainParticipantAsync {
         if a_topic.topic_address().is_closed() {
             Err(DdsError::AlreadyDeleted)
         } else {
-            self.participant_address
+            let topic_name = a_topic.get_name();
+            if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
+                return Ok(());
+            }
+            let publisher_list = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetPublisherList)?
+                .receive_reply()
+                .await;
+            for publisher in publisher_list {
+                let data_writer_list = publisher
+                    .send_actor_mail(publisher_actor::GetDataWriterList)?
+                    .receive_reply()
+                    .await;
+                for dw in data_writer_list {
+                    if dw
+                        .send_actor_mail(data_writer_actor::GetTopicName)?
+                        .receive_reply()
+                        .await?
+                        == topic_name
+                    {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data writer".to_string(),
+                        ));
+                    }
+                }
+            }
+
+            let subscriber_list = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetSubscriberList)?
+                .receive_reply()
+                .await;
+            for subscriber in subscriber_list {
+                let data_reader_list = subscriber
+                    .send_actor_mail(subscriber_actor::GetDataReaderList)?
+                    .receive_reply()
+                    .await;
+                for dr in data_reader_list {
+                    if dr
+                        .send_actor_mail(data_reader_actor::GetTopicName)?
+                        .receive_reply()
+                        .await?
+                        == topic_name
+                    {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data reader".to_string(),
+                        ));
+                    }
+                }
+            }
+            if let Some(deleted_topic) = self
+                .participant_address
                 .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
                     topic_name: a_topic.get_name(),
                 })?
                 .receive_reply()
                 .await
+            {
+                deleted_topic.stop().await;
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Topic can only be deleted from its parent participant".to_string(),
+                ))
+            }
         }
     }
 
@@ -313,7 +416,7 @@ impl DomainParticipantAsync {
     {
         tokio::time::timeout(timeout.into(), async {
             loop {
-                if let Some((topic_address, status_condition_address, type_name)) = self
+                if let Some((topic_address, status_condition_address)) = self
                     .participant_address
                     .send_actor_mail(domain_participant_actor::FindTopic {
                         topic_name: topic_name.to_owned(),
@@ -323,6 +426,10 @@ impl DomainParticipantAsync {
                     .receive_reply()
                     .await?
                 {
+                    let type_name = topic_address
+                        .send_actor_mail(topic_actor::GetTypeName)?
+                        .receive_reply()
+                        .await;
                     return Ok(TopicAsync::new(
                         topic_address,
                         status_condition_address,
@@ -340,7 +447,7 @@ impl DomainParticipantAsync {
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        if let Some((topic_address, status_condition_address, type_name)) = self
+        if let Some((topic_address, status_condition_address)) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
@@ -348,6 +455,10 @@ impl DomainParticipantAsync {
             .receive_reply()
             .await?
         {
+            let type_name = topic_address
+                .send_actor_mail(topic_actor::GetTypeName)?
+                .receive_reply()
+                .await;
             Ok(Some(TopicAsync::new(
                 topic_address,
                 status_condition_address,
@@ -648,15 +759,71 @@ impl DomainParticipantAsync {
     /// Async version of [`enable`](crate::domain::domain_participant::DomainParticipant::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::Enable {
-                runtime_handle: self.runtime_handle.clone(),
-            })?
+        if !self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::IsEnabled)?
             .receive_reply()
-            .await?;
+            .await
+        {
+            let builtin_publisher = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetBuiltinPublisher)?
+                .receive_reply()
+                .await;
+            builtin_publisher
+                .send_actor_mail(publisher_actor::Enable)?
+                .receive_reply()
+                .await;
 
-        self.announce_participant().await?;
+            let builtin_subscriber = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
+                .receive_reply()
+                .await;
+            builtin_subscriber
+                .send_actor_mail(subscriber_actor::Enable)?
+                .receive_reply()
+                .await;
 
+            self.participant_address
+                .send_actor_mail(domain_participant_actor::Enable {
+                    runtime_handle: self.runtime_handle.clone(),
+                })?
+                .receive_reply()
+                .await?;
+
+            for builtin_reader in builtin_subscriber
+                .send_actor_mail(subscriber_actor::GetDataReaderList)?
+                .receive_reply()
+                .await
+            {
+                builtin_reader
+                    .send_actor_mail(data_reader_actor::Enable)?
+                    .receive_reply()
+                    .await;
+            }
+            for builtin_writer in builtin_publisher
+                .send_actor_mail(publisher_actor::GetDataWriterList)?
+                .receive_reply()
+                .await
+            {
+                let message_sender_actor = self
+                    .participant_address
+                    .send_actor_mail(domain_participant_actor::GetMessageSender)?
+                    .receive_reply()
+                    .await;
+                builtin_writer
+                    .send_actor_mail(data_writer_actor::Enable {
+                        data_writer_address: builtin_writer.clone(),
+                        message_sender_actor,
+                        runtime_handle: self.runtime_handle.clone(),
+                    })?
+                    .receive_reply()
+                    .await;
+            }
+
+            self.announce_participant().await?;
+        }
         Ok(())
     }
 

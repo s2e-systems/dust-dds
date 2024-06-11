@@ -23,9 +23,9 @@ use crate::{
         qos::{DataWriterQos, PublisherQos},
         qos_policy::{
             DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            TopicDataQosPolicy, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
+            DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
         status::{
             OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -59,15 +59,12 @@ use std::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_listener_actor::{self, DataWriterListenerActor, DataWriterListenerOperation},
-    domain_participant_listener_actor::{
-        self, DomainParticipantListenerActor, DomainParticipantListenerOperation,
-    },
+    any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
+    domain_participant_actor::ParticipantListenerType,
     message_sender_actor::{self, MessageSenderActor},
-    publisher_listener_actor::{self, PublisherListenerActor, PublisherListenerOperation},
+    publisher_actor::PublisherListenerType,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    topic_actor::{self, TopicActor},
+    topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {
@@ -205,11 +202,14 @@ pub struct DataWriterActor {
     reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
     topic_address: ActorAddress<TopicActor>,
+    topic_name: String,
+    type_name: String,
+    topic_status_condition: ActorAddress<StatusConditionActor>,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener: Actor<DataWriterListenerActor>,
+    listener: Option<Arc<tokio::sync::Mutex<Box<dyn AnyDataWriterListener + Send>>>>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
@@ -217,16 +217,20 @@ pub struct DataWriterActor {
 }
 
 impl DataWriterActor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_writer: RtpsWriter,
         topic_address: ActorAddress<TopicActor>,
+        topic_name: String,
+        type_name: String,
+        topic_status_condition: ActorAddress<StatusConditionActor>,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         let max_changes = match qos.history.kind {
             HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
             HistoryQosPolicyKind::KeepAll => None,
@@ -236,6 +240,9 @@ impl DataWriterActor {
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
             topic_address,
+            topic_name,
+            type_name,
+            topic_status_condition,
             matched_subscriptions: MatchedSubscriptions::new(),
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
@@ -257,7 +264,7 @@ impl DataWriterActor {
         self.reader_locators.push(locator);
     }
 
-    async fn add_change(
+    fn add_change(
         &mut self,
         change: RtpsWriterCacheChange,
         message_sender_actor: ActorAddress<MessageSenderActor>,
@@ -284,7 +291,7 @@ impl DataWriterActor {
             self.writer_cache.add_change(change);
         }
 
-        self.send_message(message_sender_actor).await;
+        self.send_message(message_sender_actor);
     }
 
     fn remove_change(&mut self, seq_num: SequenceNumber) {
@@ -296,11 +303,9 @@ impl DataWriterActor {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
 
-    async fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
-        self.send_message_to_reader_locators(&message_sender_actor)
-            .await;
-        self.send_message_to_reader_proxies(&message_sender_actor)
-            .await;
+    fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
+        self.send_message_to_reader_locators(&message_sender_actor);
+        self.send_message_to_reader_proxies(&message_sender_actor);
     }
 
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
@@ -327,18 +332,16 @@ impl DataWriterActor {
         Ok(Some(instance_handle))
     }
 
-    async fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
+    fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::PublicationMatched,
-            })
-            .receive_reply()
-            .await;
+            });
 
         self.matched_subscriptions.get_publication_matched_status()
     }
 
-    async fn on_acknack_submessage_received(
+    fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -364,7 +367,7 @@ impl DataWriterActor {
                             reader_proxy
                                 .set_last_received_acknack_count(acknack_submessage.count());
 
-                            self.send_message(message_sender_actor).await;
+                            self.send_message(message_sender_actor);
                         }
                     }
                 }
@@ -372,7 +375,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message_to_reader_locators(
+    fn send_message_to_reader_locators(
         &mut self,
         message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
@@ -429,7 +432,7 @@ impl DataWriterActor {
         }
     }
 
-    async fn send_message_to_reader_proxies(
+    fn send_message_to_reader_proxies(
         &mut self,
         message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
@@ -443,7 +446,6 @@ impl DataWriterActor {
                         &self.writer_cache,
                         message_sender_actor,
                     )
-                    .await
                 }
                 (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
                     send_message_to_reader_proxy_reliable(
@@ -453,7 +455,6 @@ impl DataWriterActor {
                         self.rtps_writer.heartbeat_period().into(),
                         message_sender_actor,
                     )
-                    .await
                 }
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
                     panic!("Impossible combination. Should not be matched")
@@ -493,151 +494,156 @@ impl DataWriterActor {
         }
     }
 
-    async fn on_publication_matched(
+    fn on_publication_matched(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (
-            ActorAddress<PublisherListenerActor>,
-            Vec<StatusKind>,
-        ),
+        (publisher_listener, publisher_listener_mask): (PublisherListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): (
-            ActorAddress<DomainParticipantListenerActor>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
+        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::PublicationMatched,
-            })
-            .receive_reply()
-            .await;
+            });
 
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)?
-                .receive_reply()
-                .await;
-            let status = self.get_publication_matched_status().await;
+            let type_name = self.type_name.clone();
+            let topic_name = self.topic_name.clone();
+            let status = self.get_publication_matched_status();
             let participant = publisher.get_participant();
-            let topic_status_condition_address = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetStatuscondition)?
-                .receive_reply()
-                .await;
-            self.listener
-                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
-                    listener_operation: DataWriterListenerOperation::PublicationMatched(status),
-                    writer_address: data_writer_address,
-                    status_condition_address: self.status_condition.address(),
-                    publisher,
-                    topic: TopicAsync::new(
-                        self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
-                        participant,
-                    ),
+            let status_condition_address = self.status_condition.address();
+            let topic_status_condition_address = self.topic_status_condition.clone();
+            let topic = TopicAsync::new(
+                self.topic_address.clone(),
+                topic_status_condition_address,
+                type_name,
+                topic_name,
+                participant,
+            );
+            if let Some(l) = &self.listener {
+                let listener = l.clone();
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .call_listener_function(
+                            DataWriterListenerOperation::PublicationMatched(status),
+                            data_writer_address,
+                            status_condition_address,
+                            publisher,
+                            topic,
+                        )
+                        .await
                 });
+            }
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await;
-            publisher_listener.send_actor_mail(publisher_listener_actor::CallListenerFunction {
-                listener_operation: PublisherListenerOperation::PublicationMatched(status),
-            })?;
+            let status = self.get_publication_matched_status();
+            if let Some(listener) = publisher_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_publication_matched(&(), status)
+                        .await;
+                });
+            }
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status().await;
-            participant_listener.send_actor_mail(
-                domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::PublicationMatched(
-                        status,
-                    ),
-                },
-            )?;
+            let status = self.get_publication_matched_status();
+            if let Some(listener) = participant_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_publication_matched(&(), status)
+                        .await;
+                });
+            }
         }
         Ok(())
     }
 
-    async fn on_offered_incompatible_qos(
+    fn on_offered_incompatible_qos(
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (
-            ActorAddress<PublisherListenerActor>,
-            Vec<StatusKind>,
-        ),
+        (publisher_listener, publisher_listener_mask): (PublisherListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): (
-            ActorAddress<DomainParticipantListenerActor>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
+        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::OfferedIncompatibleQos,
-            })
-            .receive_reply()
-            .await;
+            });
 
         if self
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let type_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetTypeName)?
-                .receive_reply()
-                .await;
-            let topic_name = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetName)?
-                .receive_reply()
-                .await;
+            let type_name = self.type_name.clone();
+            let topic_name = self.topic_name.clone();
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
-            let topic_status_condition_address = self
-                .topic_address
-                .send_actor_mail(topic_actor::GetStatuscondition)?
-                .receive_reply()
-                .await;
-            self.listener
-                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
-                    listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
-                    writer_address: data_writer_address,
-                    status_condition_address: self.status_condition.address(),
-                    publisher,
-                    topic: TopicAsync::new(
-                        self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
-                        participant,
-                    ),
+            let status_condition_address = self.status_condition.address();
+            let topic_status_condition_address = self.topic_status_condition.clone();
+            let topic = TopicAsync::new(
+                self.topic_address.clone(),
+                topic_status_condition_address,
+                type_name,
+                topic_name,
+                participant,
+            );
+
+            if let Some(l) = &self.listener {
+                let listener = l.clone();
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .call_listener_function(
+                            DataWriterListenerOperation::OfferedIncompatibleQos(status),
+                            data_writer_address,
+                            status_condition_address,
+                            publisher,
+                            topic,
+                        )
+                        .await;
                 });
+            }
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            publisher_listener.send_actor_mail(publisher_listener_actor::CallListenerFunction {
-                listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
-            })?;
+            if let Some(listener) = publisher_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_offered_incompatible_qos(&(), status)
+                        .await;
+                });
+            }
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            participant_listener.send_actor_mail(
-                domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OfferedIncompatibleQos(
-                        status,
-                    ),
-                },
-            )?;
+            if let Some(listener) = participant_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_offered_incompatible_qos(&(), status)
+                        .await;
+                });
+            }
         }
         Ok(())
     }
@@ -648,7 +654,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for DataWriterActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         self.get_instance_handle()
     }
 }
@@ -661,7 +667,7 @@ impl Mail for AddMatchedPublication {
     type Result = ();
 }
 impl MailHandler<AddMatchedPublication> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AddMatchedPublication,
     ) -> <AddMatchedPublication as Mail>::Result {
@@ -677,7 +683,7 @@ impl Mail for RemoveMatchedSubscription {
     type Result = ();
 }
 impl MailHandler<RemoveMatchedSubscription> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveMatchedSubscription,
     ) -> <RemoveMatchedSubscription as Mail>::Result {
@@ -691,7 +697,7 @@ impl Mail for GetMatchedSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedSubscriptions> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetMatchedSubscriptions,
     ) -> <GetMatchedSubscriptions as Mail>::Result {
@@ -706,7 +712,7 @@ impl Mail for GetMatchedSubscriptionData {
     type Result = Option<SubscriptionBuiltinTopicData>;
 }
 impl MailHandler<GetMatchedSubscriptionData> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: GetMatchedSubscriptionData,
     ) -> <GetMatchedSubscriptionData as Mail>::Result {
@@ -721,7 +727,7 @@ impl Mail for GetOfferedIncompatibleQosStatus {
     type Result = OfferedIncompatibleQosStatus;
 }
 impl MailHandler<GetOfferedIncompatibleQosStatus> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetOfferedIncompatibleQosStatus,
     ) -> <GetOfferedIncompatibleQosStatus as Mail>::Result {
@@ -735,7 +741,7 @@ impl Mail for GetIncompatibleSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetIncompatibleSubscriptions> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetIncompatibleSubscriptions,
     ) -> <GetIncompatibleSubscriptions as Mail>::Result {
@@ -753,7 +759,7 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for DataWriterActor {
-    async fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
 
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
@@ -783,7 +789,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for DataWriterActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -793,7 +799,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for DataWriterActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -803,7 +809,7 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for DataWriterActor {
-    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.rtps_writer.guid()
     }
 }
@@ -813,7 +819,7 @@ impl Mail for GetQos {
     type Result = DataWriterQos;
 }
 impl MailHandler<GetQos> for DataWriterActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -825,7 +831,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DataWriterActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         message.qos.is_consistent()?;
         if self.enabled {
             message.qos.check_immutability(&self.qos)?;
@@ -843,7 +849,7 @@ impl Mail for RegisterInstanceWTimestamp {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<RegisterInstanceWTimestamp> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RegisterInstanceWTimestamp,
     ) -> <RegisterInstanceWTimestamp as Mail>::Result {
@@ -863,7 +869,7 @@ impl Mail for UnregisterInstanceWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: UnregisterInstanceWTimestamp,
     ) -> <UnregisterInstanceWTimestamp as Mail>::Result {
@@ -904,8 +910,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
-        )
-        .await;
+        );
         Ok(())
     }
 }
@@ -917,7 +922,7 @@ impl Mail for LookupInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<LookupInstance> for DataWriterActor {
-    async fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
+    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -947,7 +952,7 @@ impl Mail for DisposeWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<DisposeWTimestamp> for DataWriterActor {
-    async fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
+    fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -975,8 +980,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
-        )
-        .await;
+        );
 
         Ok(())
     }
@@ -987,7 +991,7 @@ impl Mail for AreAllChangesAcknowledge {
     type Result = bool;
 }
 impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: AreAllChangesAcknowledge,
     ) -> <AreAllChangesAcknowledge as Mail>::Result {
@@ -1002,36 +1006,19 @@ pub struct AsDiscoveredWriterData {
     pub publisher_qos: PublisherQos,
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
+    pub topic_data: TopicDataQosPolicy,
+    pub xml_type: String,
 }
 impl Mail for AsDiscoveredWriterData {
     type Result = DdsResult<DiscoveredWriterData>;
 }
 impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AsDiscoveredWriterData,
     ) -> <AsDiscoveredWriterData as Mail>::Result {
-        let type_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)?
-            .receive_reply()
-            .await;
-        let topic_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await;
-        let topic_qos = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetQos)?
-            .receive_reply()
-            .await;
-        let xml_type = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeSupport)?
-            .receive_reply()
-            .await
-            .xml_type();
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
         let writer_qos = &self.qos;
 
         let unicast_locator_list = if self.rtps_writer.unicast_locator_list().is_empty() {
@@ -1058,8 +1045,8 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
                 type_name,
                 writer_qos.clone(),
                 message.publisher_qos.clone(),
-                topic_qos.topic_data,
-                xml_type,
+                message.topic_data,
+                message.xml_type,
             ),
             WriterProxy::new(
                 self.rtps_writer.guid(),
@@ -1077,11 +1064,11 @@ impl Mail for GetPublicationMatchedStatus {
     type Result = PublicationMatchedStatus;
 }
 impl MailHandler<GetPublicationMatchedStatus> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
-        self.get_publication_matched_status().await
+        self.get_publication_matched_status()
     }
 }
 
@@ -1090,12 +1077,8 @@ impl Mail for GetTopicName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTopicName> for DataWriterActor {
-    async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await)
+    fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
+        Ok(self.topic_name.clone())
     }
 }
 
@@ -1112,7 +1095,7 @@ impl Mail for WriteWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<WriteWTimestamp> for DataWriterActor {
-    async fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+    fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
         let handle = self
             .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
             .unwrap_or(HANDLE_NIL);
@@ -1129,8 +1112,7 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
-        )
-        .await;
+        );
 
         Ok(())
     }
@@ -1141,12 +1123,8 @@ impl Mail for GetTypeName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTypeName> for DataWriterActor {
-    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)?
-            .receive_reply()
-            .await)
+    fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+        Ok(self.type_name.clone())
     }
 }
 
@@ -1157,28 +1135,18 @@ pub struct AddMatchedReader {
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
     pub publisher_qos: PublisherQos,
-    pub publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
-    pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
-        Vec<StatusKind>,
-    ),
+    pub publisher_mask_listener: (PublisherListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedReader> for DataWriterActor {
-    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
-        let type_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeName)?
-            .receive_reply()
-            .await;
-        let topic_name = self
-            .topic_address
-            .send_actor_mail(topic_actor::GetName)?
-            .receive_reply()
-            .await;
+    fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
         let is_matched_topic_name = message
             .discovered_reader_data
             .subscription_builtin_topic_data()
@@ -1313,11 +1281,11 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         message.publisher,
                         message.publisher_mask_listener,
                         message.participant_mask_listener,
-                    )
-                    .await?;
+                        &message.handle,
+                    )?;
                 }
 
-                self.send_message(message.message_sender_actor).await;
+                self.send_message(message.message_sender_actor);
             } else {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
@@ -1326,8 +1294,8 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message.publisher,
                     message.publisher_mask_listener,
                     message.participant_mask_listener,
-                )
-                .await?;
+                    &message.handle,
+                )?;
             }
         }
         Ok(())
@@ -1338,17 +1306,15 @@ pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
-    pub publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
-    pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
-        Vec<StatusKind>,
-    ),
+    pub publisher_mask_listener: (PublisherListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveMatchedReader,
     ) -> <RemoveMatchedReader as Mail>::Result {
@@ -1366,8 +1332,8 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
                 message.publisher,
                 message.publisher_mask_listener,
                 message.participant_mask_listener,
-            )
-            .await?;
+                &message.handle,
+            )?;
         }
 
         Ok(())
@@ -1383,7 +1349,7 @@ impl Mail for ProcessAckNackSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessAckNackSubmessage> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessAckNackSubmessage,
     ) -> <ProcessAckNackSubmessage as Mail>::Result {
@@ -1392,7 +1358,6 @@ impl MailHandler<ProcessAckNackSubmessage> for DataWriterActor {
             message.source_guid_prefix,
             message.message_sender_actor,
         )
-        .await
     }
 }
 
@@ -1404,7 +1369,7 @@ impl Mail for ProcessNackFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessNackFragSubmessage> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessNackFragSubmessage,
     ) -> <ProcessNackFragSubmessage as Mail>::Result {
@@ -1422,8 +1387,8 @@ impl Mail for SendMessage {
     type Result = ();
 }
 impl MailHandler<SendMessage> for DataWriterActor {
-    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
-        self.send_message(message.message_sender_actor).await
+    fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+        self.send_message(message.message_sender_actor)
     }
 }
 
@@ -1436,11 +1401,10 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for DataWriterActor {
-    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = Actor::spawn(
-            DataWriterListenerActor::new(message.listener),
-            &message.runtime_handle,
-        );
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+        self.listener = message
+            .listener
+            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         self.status_kind = message.status_kind;
     }
 }
@@ -1453,8 +1417,18 @@ impl Mail for RemoveChange {
     type Result = ();
 }
 impl MailHandler<RemoveChange> for DataWriterActor {
-    async fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
+    fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
         self.remove_change(message.seq_num)
+    }
+}
+
+pub struct GetTopicAddress;
+impl Mail for GetTopicAddress {
+    type Result = ActorAddress<TopicActor>;
+}
+impl MailHandler<GetTopicAddress> for DataWriterActor {
+    fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
+        self.topic_address.clone()
     }
 }
 
@@ -1493,7 +1467,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     incompatible_qos_policy_list
 }
 
-async fn send_message_to_reader_proxy_best_effort(
+fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1610,7 +1584,7 @@ async fn send_message_to_reader_proxy_best_effort(
     }
 }
 
-async fn send_message_to_reader_proxy_reliable(
+fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
@@ -1649,8 +1623,7 @@ async fn send_message_to_reader_proxy_reliable(
                     writer_cache,
                     next_unsent_change_seq_num,
                     message_sender_actor,
-                )
-                .await;
+                );
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
@@ -1690,13 +1663,12 @@ async fn send_message_to_reader_proxy_reliable(
                 writer_cache,
                 next_requested_change_seq_num,
                 message_sender_actor,
-            )
-            .await;
+            );
         }
     }
 }
 
-async fn send_change_message_reader_proxy_reliable(
+fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,

@@ -15,10 +15,7 @@ use crate::{
     topic_definition::type_support::DynamicTypeInterface,
 };
 
-use super::{
-    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    topic_listener_actor::TopicListenerActor,
-};
+use super::status_condition_actor::{self, AddCommunicationState, StatusConditionActor};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -41,7 +38,7 @@ pub struct TopicActor {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    _listener: Actor<TopicListenerActor>,
+    _listener: Option<Arc<tokio::sync::Mutex<Box<dyn TopicListenerAsync + Send>>>>,
     type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
 }
 
@@ -54,20 +51,24 @@ impl TopicActor {
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
         handle: &tokio::runtime::Handle,
-    ) -> Self {
+    ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(TopicListenerActor::new(listener), handle);
-        Self {
-            guid,
-            qos,
-            type_name,
-            topic_name: topic_name.to_string(),
-            enabled: false,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition,
-            _listener: listener,
-            type_support,
-        }
+        let status_condition_address = status_condition.address();
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        (
+            Self {
+                guid,
+                qos,
+                type_name,
+                topic_name: topic_name.to_string(),
+                enabled: false,
+                inconsistent_topic_status: InconsistentTopicStatus::default(),
+                status_condition,
+                _listener: listener,
+                type_support,
+            },
+            status_condition_address,
+        )
     }
 }
 
@@ -76,7 +77,7 @@ impl Mail for GetTypeName {
     type Result = String;
 }
 impl MailHandler<GetTypeName> for TopicActor {
-    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+    fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
         self.type_name.clone()
     }
 }
@@ -86,7 +87,7 @@ impl Mail for GetName {
     type Result = String;
 }
 impl MailHandler<GetName> for TopicActor {
-    async fn handle(&mut self, _: GetName) -> <GetName as Mail>::Result {
+    fn handle(&mut self, _: GetName) -> <GetName as Mail>::Result {
         self.topic_name.clone()
     }
 }
@@ -96,7 +97,7 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for TopicActor {
-    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.guid
     }
 }
@@ -108,7 +109,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for TopicActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         message.qos.is_consistent()?;
 
         if self.enabled {
@@ -126,7 +127,7 @@ impl Mail for GetQos {
     type Result = TopicQos;
 }
 impl MailHandler<GetQos> for TopicActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -136,7 +137,7 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for TopicActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
     }
 }
@@ -146,7 +147,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for TopicActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -156,7 +157,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for TopicActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         InstanceHandle::new(self.guid.into())
     }
 }
@@ -166,7 +167,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for TopicActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -176,7 +177,7 @@ impl Mail for AsDiscoveredTopicData {
     type Result = DiscoveredTopicData;
 }
 impl MailHandler<AsDiscoveredTopicData> for TopicActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: AsDiscoveredTopicData,
     ) -> <AsDiscoveredTopicData as Mail>::Result {
@@ -196,7 +197,7 @@ impl Mail for GetInconsistentTopicStatus {
     type Result = InconsistentTopicStatus;
 }
 impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetInconsistentTopicStatus,
     ) -> <GetInconsistentTopicStatus as Mail>::Result {
@@ -204,9 +205,7 @@ impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
         self.status_condition
             .send_actor_mail(status_condition_actor::RemoveCommunicationState {
                 state: StatusKind::InconsistentTopic,
-            })
-            .receive_reply()
-            .await;
+            });
         status
     }
 }
@@ -218,7 +217,7 @@ impl Mail for ProcessDiscoveredTopic {
     type Result = ();
 }
 impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessDiscoveredTopic,
     ) -> <ProcessDiscoveredTopic as Mail>::Result {
@@ -238,9 +237,7 @@ impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
             self.status_condition
                 .send_actor_mail(AddCommunicationState {
                     state: StatusKind::InconsistentTopic,
-                })
-                .receive_reply()
-                .await;
+                });
         }
     }
 }
@@ -250,7 +247,7 @@ impl Mail for GetTypeSupport {
     type Result = Arc<dyn DynamicTypeInterface + Send + Sync>;
 }
 impl MailHandler<GetTypeSupport> for TopicActor {
-    async fn handle(&mut self, _: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
+    fn handle(&mut self, _: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
         self.type_support.clone()
     }
 }
