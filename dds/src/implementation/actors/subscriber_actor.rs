@@ -443,6 +443,7 @@ pub struct ProcessDataSubmessage {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataSubmessage {
     type Result = ();
@@ -467,6 +468,7 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
+                handle: message.handle.clone(),
             });
         }
     }
@@ -483,6 +485,7 @@ pub struct ProcessDataFragSubmessage {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataFragSubmessage {
     type Result = ();
@@ -507,6 +510,7 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
+                handle: message.handle.clone(),
             });
         }
     }
@@ -587,6 +591,7 @@ pub struct AddMatchedWriter {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -616,6 +621,7 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                     subscriber_qos,
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
+                    handle: message.handle.clone(),
                 });
             }
         }
@@ -631,6 +637,7 @@ pub struct RemoveMatchedWriter {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -653,6 +660,7 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
+                handle: message.handle.clone(),
             });
         }
 

@@ -569,6 +569,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         domain_participant_actor::ProcessUserDefinedRtpsMessage {
                             rtps_message: message,
                             participant: participant_clone.clone(),
+                            handle: participant_clone.runtime_handle().clone(),
                         },
                     );
                     if r.is_err() {
@@ -963,6 +964,7 @@ async fn process_metatraffic_rtps_message(
         .send_actor_mail(domain_participant_actor::ProcessMetatrafficRtpsMessage {
             rtps_message: message,
             participant: participant.clone(),
+            handle: participant.runtime_handle().clone(),
         })?
         .receive_reply()
         .await?;
@@ -1055,6 +1057,7 @@ async fn process_sedp_publications_discovery(
                                 domain_participant_actor::AddMatchedWriter {
                                     discovered_writer_data,
                                     participant: participant.clone(),
+                                    handle: participant.runtime_handle().clone(),
                                 },
                             )?;
                         }
@@ -1070,6 +1073,7 @@ async fn process_sedp_publications_discovery(
                                     .sample_info()
                                     .instance_handle,
                                 participant: participant.clone(),
+                                handle: participant.runtime_handle().clone(),
                             },
                         )?;
                     }
