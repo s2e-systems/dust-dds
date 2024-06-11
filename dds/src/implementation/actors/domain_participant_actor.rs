@@ -73,7 +73,6 @@ use std::{
 use super::{
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
-    domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
     publisher_actor::{self, PublisherActor},
     status_condition_actor::StatusConditionActor,
@@ -196,7 +195,7 @@ pub struct DomainParticipantActor {
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    listener: Actor<DomainParticipantListenerActor>,
+    listener: Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,
@@ -257,6 +256,7 @@ impl DomainParticipantActor {
 
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let status_condition_address = status_condition.address();
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         (
             Self {
                 rtps_participant,
@@ -284,7 +284,7 @@ impl DomainParticipantActor {
                 ignored_subcriptions: HashSet::new(),
                 ignored_topic_list: HashSet::new(),
                 data_max_size_serialized,
-                listener: Actor::spawn(DomainParticipantListenerActor::new(listener), handle),
+                listener,
                 status_kind,
                 status_condition,
                 message_sender_actor: Actor::spawn(message_sender_actor, handle),
@@ -1166,7 +1166,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
                     let participant_mask_listener =
-                        (self.listener.address(), self.status_kind.clone());
+                        (self.listener.clone(), self.status_kind.clone());
                     self.builtin_subscriber.send_actor_mail(
                         subscriber_actor::ProcessDataSubmessage {
                             data_submessage,
@@ -1182,7 +1182,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     let participant_mask_listener =
-                        (self.listener.address(), self.status_kind.clone());
+                        (self.listener.clone(), self.status_kind.clone());
                     self.builtin_subscriber.send_actor_mail(
                         subscriber_actor::ProcessDataFragSubmessage {
                             data_frag_submessage,
@@ -1267,7 +1267,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
                         let participant_mask_listener =
-                            (self.listener.address(), self.status_kind.clone());
+                            (self.listener.clone(), self.status_kind.clone());
                         user_defined_subscriber_actor.send_actor_mail(
                             subscriber_actor::ProcessDataSubmessage {
                                 data_submessage: data_submessage.clone(),
@@ -1286,7 +1286,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
                         let participant_mask_listener =
-                            (self.listener.address(), self.status_kind.clone());
+                            (self.listener.clone(), self.status_kind.clone());
                         user_defined_subscriber_actor.send_actor_mail(
                             subscriber_actor::ProcessDataFragSubmessage {
                                 data_frag_submessage: data_frag_submessage.clone(),
@@ -1372,10 +1372,9 @@ impl Mail for SetListener {
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
     async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = Actor::spawn(
-            DomainParticipantListenerActor::new(message.listener),
-            &message.runtime_handle,
-        );
+        self.listener = message
+            .listener
+            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         self.status_kind = message.status_kind;
     }
 }
@@ -1629,7 +1628,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                 for subscriber in self.user_defined_subscriber_list.values() {
                     let subscriber_address = subscriber.address();
                     let participant_mask_listener =
-                        (self.listener.address(), self.status_kind.clone());
+                        (self.listener.clone(), self.status_kind.clone());
                     subscriber.send_actor_mail(subscriber_actor::AddMatchedWriter {
                         discovered_writer_data: message.discovered_writer_data.clone(),
                         default_unicast_locator_list: default_unicast_locator_list.clone(),
@@ -1735,7 +1734,7 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
     ) -> <RemoveMatchedWriter as Mail>::Result {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
-            let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
             subscriber.send_actor_mail(subscriber_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
                 subscriber_address,
@@ -1802,7 +1801,7 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                 for publisher in self.user_defined_publisher_list.values() {
                     let publisher_address = publisher.address();
                     let participant_mask_listener =
-                        (self.listener.address(), self.status_kind.clone());
+                        (self.listener.clone(), self.status_kind.clone());
 
                     publisher.send_actor_mail(publisher_actor::AddMatchedReader {
                         discovered_reader_data: message.discovered_reader_data.clone(),
@@ -1906,7 +1905,7 @@ impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
     ) -> <RemoveMatchedReader as Mail>::Result {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
-            let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
             publisher.send_actor_mail(publisher_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
                 publisher_address,
@@ -1964,7 +1963,7 @@ impl DomainParticipantActor {
             .available_builtin_endpoints()
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
         {
-            let participant_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
             let remote_reader_guid = Guid::new(
                 discovered_participant_data
                     .participant_proxy()
@@ -2075,7 +2074,7 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
                     handle,
                 });
         }
@@ -2135,7 +2134,7 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     publisher_address: self.builtin_publisher.address(),
                     participant,
-                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
                     message_sender_actor: self.message_sender_actor.address(),
                     handle,
                 });
@@ -2197,7 +2196,7 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
                     handle,
                 });
         }
@@ -2258,7 +2257,7 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     publisher_address: self.builtin_publisher.address(),
                     participant,
-                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
                     message_sender_actor: self.message_sender_actor.address(),
                     handle,
                 });
@@ -2320,7 +2319,7 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    participant_mask_listener: (self.listener.address(), self.status_kind.clone()),
+                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
                     handle,
                 });
         }

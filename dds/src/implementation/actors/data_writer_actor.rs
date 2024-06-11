@@ -5,7 +5,8 @@ use crate::{
         discovered_writer_data::{DiscoveredWriterData, WriterProxy},
     },
     dds_async::{
-        publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
+        publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -62,9 +63,6 @@ use std::{
 
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    domain_participant_listener_actor::{
-        self, DomainParticipantListenerActor, DomainParticipantListenerOperation,
-    },
     message_sender_actor::{self, MessageSenderActor},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
@@ -505,7 +503,7 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
-            ActorAddress<DomainParticipantListenerActor>,
+            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -558,13 +556,15 @@ impl DataWriterActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
-            participant_listener.send_actor_mail(
-                domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::PublicationMatched(
-                        status,
-                    ),
-                },
-            )?;
+            if let Some(listener) = participant_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_publication_matched(&(), status)
+                        .await;
+                });
+            }
         }
         Ok(())
     }
@@ -578,7 +578,7 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
-            ActorAddress<DomainParticipantListenerActor>,
+            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -641,13 +641,15 @@ impl DataWriterActor {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            participant_listener.send_actor_mail(
-                domain_participant_listener_actor::CallListenerFunction {
-                    listener_operation: DomainParticipantListenerOperation::OfferedIncompatibleQos(
-                        status,
-                    ),
-                },
-            )?;
+            if let Some(listener) = participant_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_offered_incompatible_qos(&(), status)
+                        .await;
+                });
+            }
         }
         Ok(())
     }
@@ -1144,7 +1146,7 @@ pub struct AddMatchedReader {
         Vec<StatusKind>,
     ),
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
@@ -1321,7 +1323,7 @@ pub struct RemoveMatchedReader {
         Vec<StatusKind>,
     ),
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,

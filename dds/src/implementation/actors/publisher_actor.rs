@@ -6,7 +6,8 @@ use tracing::warn;
 use crate::{
     data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     dds_async::{
-        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
+        domain_participant::DomainParticipantAsync,
+        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
     implementation::actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -34,7 +35,6 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
@@ -449,7 +449,7 @@ pub struct AddMatchedReader {
     pub publisher_address: ActorAddress<PublisherActor>,
     pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
@@ -497,7 +497,7 @@ pub struct RemoveMatchedReader {
     pub publisher_address: ActorAddress<PublisherActor>,
     pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,

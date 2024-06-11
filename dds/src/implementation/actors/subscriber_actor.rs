@@ -12,15 +12,13 @@ use super::{
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_async::{
-        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
+        domain_participant::DomainParticipantAsync,
+        domain_participant_listener::DomainParticipantListenerAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::{
-            domain_participant_listener_actor::DomainParticipantListenerActor,
-            status_condition_actor::StatusConditionActor,
-        },
+        actors::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -439,7 +437,7 @@ pub struct ProcessDataSubmessage {
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
@@ -481,7 +479,7 @@ pub struct ProcessDataFragSubmessage {
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
@@ -587,7 +585,7 @@ pub struct AddMatchedWriter {
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
@@ -633,7 +631,7 @@ pub struct RemoveMatchedWriter {
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
-        ActorAddress<DomainParticipantListenerActor>,
+        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
