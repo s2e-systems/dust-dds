@@ -1001,6 +1001,7 @@ async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync
                                     domain_participant_actor::AddDiscoveredParticipant {
                                         discovered_participant_data,
                                         participant: participant.clone(),
+                                        handle: participant.runtime_handle().clone(),
                                     },
                                 )?
                                 .receive_reply()
@@ -1108,6 +1109,7 @@ async fn process_sedp_subscriptions_discovery(
                                 domain_participant_actor::AddMatchedReader {
                                     discovered_reader_data,
                                     participant: participant.clone(),
+                                    handle: participant.runtime_handle().clone(),
                                 },
                             )?;
                         }
@@ -1123,6 +1125,7 @@ async fn process_sedp_subscriptions_discovery(
                                     .sample_info()
                                     .instance_handle,
                                 participant: participant.clone(),
+                                handle: participant.runtime_handle().clone(),
                             },
                         )?;
                     }

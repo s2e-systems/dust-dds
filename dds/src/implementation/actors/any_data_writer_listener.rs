@@ -6,12 +6,15 @@ use crate::{
         publisher::PublisherAsync, topic::TopicAsync,
     },
     implementation::actor::ActorAddress,
+    infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
 };
 
-use super::{
-    data_writer_actor::DataWriterActor, data_writer_listener_actor::DataWriterListenerOperation,
-    status_condition_actor::StatusConditionActor,
-};
+use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
+
+pub enum DataWriterListenerOperation {
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
+}
 
 pub trait AnyDataWriterListener {
     fn call_listener_function(

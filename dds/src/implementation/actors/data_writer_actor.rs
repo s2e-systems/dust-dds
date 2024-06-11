@@ -59,8 +59,7 @@ use std::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_listener_actor::{self, DataWriterListenerActor, DataWriterListenerOperation},
+    any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
     domain_participant_listener_actor::{
         self, DomainParticipantListenerActor, DomainParticipantListenerOperation,
     },
@@ -212,7 +211,7 @@ pub struct DataWriterActor {
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener: Actor<DataWriterListenerActor>,
+    listener: Option<Arc<tokio::sync::Mutex<Box<dyn AnyDataWriterListener + Send>>>>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
@@ -232,7 +231,7 @@ impl DataWriterActor {
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(DataWriterListenerActor::new(listener), handle);
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         let max_changes = match qos.history.kind {
             HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
             HistoryQosPolicyKind::KeepAll => None,
@@ -508,6 +507,7 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
@@ -519,21 +519,31 @@ impl DataWriterActor {
             let topic_name = self.topic_name.clone();
             let status = self.get_publication_matched_status();
             let participant = publisher.get_participant();
+            let status_condition_address = self.status_condition.address();
             let topic_status_condition_address = self.topic_status_condition.clone();
-            self.listener
-                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
-                    listener_operation: DataWriterListenerOperation::PublicationMatched(status),
-                    writer_address: data_writer_address,
-                    status_condition_address: self.status_condition.address(),
-                    publisher,
-                    topic: TopicAsync::new(
-                        self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
-                        participant,
-                    ),
+            let topic = TopicAsync::new(
+                self.topic_address.clone(),
+                topic_status_condition_address,
+                type_name,
+                topic_name,
+                participant,
+            );
+            if let Some(l) = &self.listener {
+                let listener = l.clone();
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .call_listener_function(
+                            DataWriterListenerOperation::PublicationMatched(status),
+                            data_writer_address,
+                            status_condition_address,
+                            publisher,
+                            topic,
+                        )
+                        .await
                 });
+            }
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
             publisher_listener.send_actor_mail(publisher_listener_actor::CallListenerFunction {
@@ -564,6 +574,7 @@ impl DataWriterActor {
             ActorAddress<DomainParticipantListenerActor>,
             Vec<StatusKind>,
         ),
+        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
@@ -580,21 +591,32 @@ impl DataWriterActor {
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
             let participant = publisher.get_participant();
+            let status_condition_address = self.status_condition.address();
             let topic_status_condition_address = self.topic_status_condition.clone();
-            self.listener
-                .send_actor_mail(data_writer_listener_actor::CallListenerFunction {
-                    listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
-                    writer_address: data_writer_address,
-                    status_condition_address: self.status_condition.address(),
-                    publisher,
-                    topic: TopicAsync::new(
-                        self.topic_address.clone(),
-                        topic_status_condition_address,
-                        type_name,
-                        topic_name,
-                        participant,
-                    ),
+            let topic = TopicAsync::new(
+                self.topic_address.clone(),
+                topic_status_condition_address,
+                type_name,
+                topic_name,
+                participant,
+            );
+
+            if let Some(l) = &self.listener {
+                let listener = l.clone();
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .call_listener_function(
+                            DataWriterListenerOperation::OfferedIncompatibleQos(status),
+                            data_writer_address,
+                            status_condition_address,
+                            publisher,
+                            topic,
+                        )
+                        .await;
                 });
+            }
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
                 .incompatible_subscriptions
@@ -1110,6 +1132,7 @@ pub struct AddMatchedReader {
         Vec<StatusKind>,
     ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -1252,6 +1275,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         message.publisher,
                         message.publisher_mask_listener,
                         message.participant_mask_listener,
+                        &message.handle,
                     )?;
                 }
 
@@ -1264,6 +1288,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message.publisher,
                     message.publisher_mask_listener,
                     message.participant_mask_listener,
+                    &message.handle,
                 )?;
             }
         }
@@ -1280,6 +1305,7 @@ pub struct RemoveMatchedReader {
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
     ),
+    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -1303,6 +1329,7 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
                 message.publisher,
                 message.publisher_mask_listener,
                 message.participant_mask_listener,
+                &message.handle,
             )?;
         }
 
@@ -1372,10 +1399,9 @@ impl Mail for SetListener {
 }
 impl MailHandler<SetListener> for DataWriterActor {
     async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = Actor::spawn(
-            DataWriterListenerActor::new(message.listener),
-            &message.runtime_handle,
-        );
+        self.listener = message
+            .listener
+            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         self.status_kind = message.status_kind;
     }
 }
