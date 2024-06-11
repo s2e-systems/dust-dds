@@ -885,7 +885,7 @@ impl DataReaderActor {
             Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
-        (participant_listener_address, participant_listener_mask): &(
+        (participant_listener, participant_listener_mask): &(
             Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
@@ -936,7 +936,7 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
-            if let Some(l) = participant_listener_address {
+            if let Some(l) = participant_listener {
                 let listener = l.clone();
                 handle
                     .spawn(async move { listener.lock().await.on_sample_lost(&(), status).await });
@@ -955,7 +955,7 @@ impl DataReaderActor {
             Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
-        (participant_listener_address, participant_listener_mask): &(
+        (participant_listener, participant_listener_mask): &(
             Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
@@ -1014,7 +1014,7 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status();
-            if let Some(l) = participant_listener_address {
+            if let Some(l) = participant_listener {
                 let listener = l.clone();
                 handle.spawn(async move {
                     listener
@@ -1040,7 +1040,7 @@ impl DataReaderActor {
             Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
-        (participant_listener_address, participant_listener_mask): &(
+        (participant_listener, participant_listener_mask): &(
             Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
@@ -1094,7 +1094,7 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
-            if let Some(l) = participant_listener_address {
+            if let Some(l) = participant_listener {
                 let listener = l.clone();
                 handle.spawn(
                     async move { listener.lock().await.on_sample_rejected(&(), status).await },
@@ -1114,7 +1114,7 @@ impl DataReaderActor {
             Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
-        (participant_listener_address, participant_listener_mask): &(
+        (participant_listener, participant_listener_mask): &(
             Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
@@ -1175,7 +1175,7 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
-            if let Some(l) = participant_listener_address {
+            if let Some(l) = participant_listener {
                 let listener = l.clone();
                 handle.spawn(async move {
                     listener
