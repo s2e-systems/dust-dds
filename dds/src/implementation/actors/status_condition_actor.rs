@@ -39,7 +39,7 @@ impl Mail for AddCommunicationState {
     type Result = ();
 }
 impl MailHandler<AddCommunicationState> for StatusConditionActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AddCommunicationState,
     ) -> <AddCommunicationState as Mail>::Result {
@@ -54,7 +54,7 @@ impl Mail for RemoveCommunicationState {
     type Result = ();
 }
 impl MailHandler<RemoveCommunicationState> for StatusConditionActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveCommunicationState,
     ) -> <RemoveCommunicationState as Mail>::Result {
@@ -67,7 +67,7 @@ impl Mail for GetEnabledStatuses {
     type Result = Vec<StatusKind>;
 }
 impl MailHandler<GetEnabledStatuses> for StatusConditionActor {
-    async fn handle(&mut self, _: GetEnabledStatuses) -> <GetEnabledStatuses as Mail>::Result {
+    fn handle(&mut self, _: GetEnabledStatuses) -> <GetEnabledStatuses as Mail>::Result {
         self.enabled_statuses.clone()
     }
 }
@@ -79,7 +79,7 @@ impl Mail for SetEnabledStatuses {
     type Result = ();
 }
 impl MailHandler<SetEnabledStatuses> for StatusConditionActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetEnabledStatuses,
     ) -> <SetEnabledStatuses as Mail>::Result {
@@ -92,7 +92,7 @@ impl Mail for GetTriggerValue {
     type Result = bool;
 }
 impl MailHandler<GetTriggerValue> for StatusConditionActor {
-    async fn handle(&mut self, _message: GetTriggerValue) -> <GetTriggerValue as Mail>::Result {
+    fn handle(&mut self, _message: GetTriggerValue) -> <GetTriggerValue as Mail>::Result {
         for status in &self.status_changes {
             if self.enabled_statuses.contains(status) {
                 return true;

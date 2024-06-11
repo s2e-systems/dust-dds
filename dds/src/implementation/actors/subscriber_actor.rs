@@ -166,7 +166,7 @@ impl Mail for CreateDatareader {
     type Result = DdsResult<ActorAddress<DataReaderActor>>;
 }
 impl MailHandler<CreateDatareader> for SubscriberActor {
-    async fn handle(&mut self, message: CreateDatareader) -> <CreateDatareader as Mail>::Result {
+    fn handle(&mut self, message: CreateDatareader) -> <CreateDatareader as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
             QosKind::Specific(q) => {
@@ -237,7 +237,7 @@ impl Mail for DeleteDatareader {
     type Result = DdsResult<Actor<DataReaderActor>>;
 }
 impl MailHandler<DeleteDatareader> for SubscriberActor {
-    async fn handle(&mut self, message: DeleteDatareader) -> <DeleteDatareader as Mail>::Result {
+    fn handle(&mut self, message: DeleteDatareader) -> <DeleteDatareader as Mail>::Result {
         if let Some(removed_reader) = self.data_reader_list.remove(&message.handle) {
             Ok(removed_reader)
         } else {
@@ -248,35 +248,12 @@ impl MailHandler<DeleteDatareader> for SubscriberActor {
     }
 }
 
-pub struct LookupDatareader {
-    pub topic_name: String,
-}
-impl Mail for LookupDatareader {
-    type Result = Option<ActorAddress<DataReaderActor>>;
-}
-impl MailHandler<LookupDatareader> for SubscriberActor {
-    async fn handle(&mut self, message: LookupDatareader) -> <LookupDatareader as Mail>::Result {
-        for dr in self.data_reader_list.values() {
-            if dr
-                .send_actor_mail(data_reader_actor::GetTopicName)
-                .receive_reply()
-                .await
-                .as_ref()
-                == Ok(&message.topic_name)
-            {
-                return Some(dr.address());
-            }
-        }
-        None
-    }
-}
-
 pub struct DrainDataReaderList;
 impl Mail for DrainDataReaderList {
     type Result = Vec<Actor<DataReaderActor>>;
 }
 impl MailHandler<DrainDataReaderList> for SubscriberActor {
-    async fn handle(&mut self, _: DrainDataReaderList) -> <DrainDataReaderList as Mail>::Result {
+    fn handle(&mut self, _: DrainDataReaderList) -> <DrainDataReaderList as Mail>::Result {
         self.data_reader_list.drain().map(|(_, a)| a).collect()
     }
 }
@@ -286,7 +263,7 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for SubscriberActor {
-    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.rtps_group.guid()
     }
 }
@@ -296,7 +273,7 @@ impl Mail for IsEmpty {
     type Result = bool;
 }
 impl MailHandler<IsEmpty> for SubscriberActor {
-    async fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+    fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         self.data_reader_list.is_empty()
     }
 }
@@ -306,7 +283,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for SubscriberActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -318,7 +295,7 @@ impl Mail for SetDefaultDatareaderQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultDatareaderQos> for SubscriberActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultDatareaderQos,
     ) -> <SetDefaultDatareaderQos as Mail>::Result {
@@ -338,10 +315,7 @@ impl Mail for GetDefaultDatareaderQos {
     type Result = DataReaderQos;
 }
 impl MailHandler<GetDefaultDatareaderQos> for SubscriberActor {
-    async fn handle(
-        &mut self,
-        _: GetDefaultDatareaderQos,
-    ) -> <GetDefaultDatareaderQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultDatareaderQos) -> <GetDefaultDatareaderQos as Mail>::Result {
         self.default_data_reader_qos.clone()
     }
 }
@@ -353,7 +327,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for SubscriberActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -374,7 +348,7 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for SubscriberActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
     }
 }
@@ -384,7 +358,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for SubscriberActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 }
@@ -394,7 +368,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for SubscriberActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -404,7 +378,7 @@ impl Mail for GetQos {
     type Result = SubscriberQos;
 }
 impl MailHandler<GetQos> for SubscriberActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -414,7 +388,7 @@ impl Mail for GetDataReaderList {
     type Result = Vec<ActorAddress<DataReaderActor>>;
 }
 impl MailHandler<GetDataReaderList> for SubscriberActor {
-    async fn handle(&mut self, _: GetDataReaderList) -> <GetDataReaderList as Mail>::Result {
+    fn handle(&mut self, _: GetDataReaderList) -> <GetDataReaderList as Mail>::Result {
         self.data_reader_list
             .values()
             .map(|dr| dr.address())
@@ -427,7 +401,7 @@ impl Mail for GetStatusKind {
     type Result = Vec<StatusKind>;
 }
 impl MailHandler<GetStatusKind> for SubscriberActor {
-    async fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
 }
@@ -446,7 +420,7 @@ impl Mail for ProcessDataSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessDataSubmessage,
     ) -> <ProcessDataSubmessage as Mail>::Result {
@@ -485,7 +459,7 @@ impl Mail for ProcessDataFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessDataFragSubmessage,
     ) -> <ProcessDataFragSubmessage as Mail>::Result {
@@ -518,10 +492,7 @@ impl Mail for ProcessGapSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessGapSubmessage> for SubscriberActor {
-    async fn handle(
-        &mut self,
-        message: ProcessGapSubmessage,
-    ) -> <ProcessGapSubmessage as Mail>::Result {
+    fn handle(&mut self, message: ProcessGapSubmessage) -> <ProcessGapSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
             data_reader_actor.send_actor_mail(data_reader_actor::ProcessGapSubmessage {
                 gap_submessage: message.gap_submessage.clone(),
@@ -540,7 +511,7 @@ impl Mail for ProcessHeartbeatSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessHeartbeatSubmessage> for SubscriberActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessHeartbeatSubmessage,
     ) -> <ProcessHeartbeatSubmessage as Mail>::Result {
@@ -562,7 +533,7 @@ impl Mail for ProcessHeartbeatFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessHeartbeatFragSubmessage> for SubscriberActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessHeartbeatFragSubmessage,
     ) -> <ProcessHeartbeatFragSubmessage as Mail>::Result {
@@ -588,7 +559,7 @@ impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedWriter> for SubscriberActor {
-    async fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
         if self.is_partition_matched(
             message
                 .discovered_writer_data
@@ -631,10 +602,7 @@ impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
-    async fn handle(
-        &mut self,
-        message: RemoveMatchedWriter,
-    ) -> <RemoveMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
             let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
@@ -665,7 +633,7 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for SubscriberActor {
-    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = message
             .listener
             .map(|l| Arc::new(tokio::sync::Mutex::new(l)));

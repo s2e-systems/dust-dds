@@ -412,7 +412,7 @@ impl Mail for CreateUserDefinedPublisher {
     );
 }
 impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: CreateUserDefinedPublisher,
     ) -> <CreateUserDefinedPublisher as Mail>::Result {
@@ -453,7 +453,7 @@ impl Mail for DeleteUserDefinedPublisher {
     type Result = Option<Actor<PublisherActor>>;
 }
 impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: DeleteUserDefinedPublisher,
     ) -> <DeleteUserDefinedPublisher as Mail>::Result {
@@ -466,7 +466,7 @@ impl Mail for GetPublisherList {
     type Result = Vec<ActorAddress<PublisherActor>>;
 }
 impl MailHandler<GetPublisherList> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetPublisherList) -> <GetPublisherList as Mail>::Result {
+    fn handle(&mut self, _: GetPublisherList) -> <GetPublisherList as Mail>::Result {
         self.user_defined_publisher_list
             .values()
             .map(|p| p.address())
@@ -487,7 +487,7 @@ impl Mail for CreateUserDefinedSubscriber {
     );
 }
 impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: CreateUserDefinedSubscriber,
     ) -> <CreateUserDefinedSubscriber as Mail>::Result {
@@ -528,7 +528,7 @@ impl Mail for DeleteUserDefinedSubscriber {
     type Result = Option<Actor<SubscriberActor>>;
 }
 impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: DeleteUserDefinedSubscriber,
     ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
@@ -541,7 +541,7 @@ impl Mail for GetSubscriberList {
     type Result = Vec<ActorAddress<SubscriberActor>>;
 }
 impl MailHandler<GetSubscriberList> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetSubscriberList) -> <GetSubscriberList as Mail>::Result {
+    fn handle(&mut self, _: GetSubscriberList) -> <GetSubscriberList as Mail>::Result {
         self.user_defined_subscriber_list
             .values()
             .map(|p| p.address())
@@ -562,7 +562,7 @@ impl Mail for CreateUserDefinedTopic {
     type Result = DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>;
 }
 impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: CreateUserDefinedTopic,
     ) -> <CreateUserDefinedTopic as Mail>::Result {
@@ -585,7 +585,7 @@ impl Mail for DeleteUserDefinedTopic {
     type Result = Option<Actor<TopicActor>>;
 }
 impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
@@ -602,7 +602,7 @@ impl Mail for FindTopic {
     type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
 }
 impl MailHandler<FindTopic> for DomainParticipantActor {
-    async fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
+    fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
         if let Some(r) = self.lookup_topicdescription(message.topic_name.clone())? {
             Ok(Some(r))
         } else {
@@ -622,7 +622,7 @@ impl Mail for LookupTopicdescription {
     type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
 }
 impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: LookupTopicdescription,
     ) -> <LookupTopicdescription as Mail>::Result {
@@ -635,7 +635,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         InstanceHandle::new(self.rtps_participant.guid().into())
     }
 }
@@ -647,7 +647,7 @@ impl Mail for Enable {
     type Result = DdsResult<()>;
 }
 impl MailHandler<Enable> for DomainParticipantActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
 
         Ok(())
@@ -659,7 +659,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for DomainParticipantActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -671,7 +671,7 @@ impl Mail for IgnoreParticipant {
     type Result = DdsResult<()>;
 }
 impl MailHandler<IgnoreParticipant> for DomainParticipantActor {
-    async fn handle(&mut self, message: IgnoreParticipant) -> <IgnoreParticipant as Mail>::Result {
+    fn handle(&mut self, message: IgnoreParticipant) -> <IgnoreParticipant as Mail>::Result {
         if self.enabled {
             self.ignored_participants.insert(message.handle);
             Ok(())
@@ -688,7 +688,7 @@ impl Mail for IgnoreSubscription {
     type Result = DdsResult<()>;
 }
 impl MailHandler<IgnoreSubscription> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: IgnoreSubscription,
     ) -> <IgnoreSubscription as Mail>::Result {
@@ -708,7 +708,7 @@ impl Mail for IgnorePublication {
     type Result = DdsResult<()>;
 }
 impl MailHandler<IgnorePublication> for DomainParticipantActor {
-    async fn handle(&mut self, message: IgnorePublication) -> <IgnorePublication as Mail>::Result {
+    fn handle(&mut self, message: IgnorePublication) -> <IgnorePublication as Mail>::Result {
         if self.enabled {
             self.ignored_publications.insert(message.handle);
             Ok(())
@@ -723,7 +723,7 @@ impl Mail for IsEmpty {
     type Result = bool;
 }
 impl MailHandler<IsEmpty> for DomainParticipantActor {
-    async fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+    fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         let no_user_defined_topics = self
             .topic_list
             .keys()
@@ -742,7 +742,7 @@ impl Mail for GetQos {
     type Result = DomainParticipantQos;
 }
 impl MailHandler<GetQos> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -752,7 +752,7 @@ impl Mail for GetDefaultUnicastLocatorList {
     type Result = Vec<Locator>;
 }
 impl MailHandler<GetDefaultUnicastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDefaultUnicastLocatorList,
     ) -> <GetDefaultUnicastLocatorList as Mail>::Result {
@@ -767,7 +767,7 @@ impl Mail for GetDefaultMulticastLocatorList {
     type Result = Vec<Locator>;
 }
 impl MailHandler<GetDefaultMulticastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDefaultMulticastLocatorList,
     ) -> <GetDefaultMulticastLocatorList as Mail>::Result {
@@ -782,7 +782,7 @@ impl Mail for GetMetatrafficUnicastLocatorList {
     type Result = Vec<Locator>;
 }
 impl MailHandler<GetMetatrafficUnicastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetMetatrafficUnicastLocatorList,
     ) -> <GetMetatrafficUnicastLocatorList as Mail>::Result {
@@ -797,7 +797,7 @@ impl Mail for GetMetatrafficMulticastLocatorList {
     type Result = Vec<Locator>;
 }
 impl MailHandler<GetMetatrafficMulticastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetMetatrafficMulticastLocatorList,
     ) -> <GetMetatrafficMulticastLocatorList as Mail>::Result {
@@ -812,7 +812,7 @@ impl Mail for GetDataMaxSizeSerialized {
     type Result = usize;
 }
 impl MailHandler<GetDataMaxSizeSerialized> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDataMaxSizeSerialized,
     ) -> <GetDataMaxSizeSerialized as Mail>::Result {
@@ -825,7 +825,7 @@ impl Mail for DrainSubscriberList {
     type Result = Vec<Actor<SubscriberActor>>;
 }
 impl MailHandler<DrainSubscriberList> for DomainParticipantActor {
-    async fn handle(&mut self, _: DrainSubscriberList) -> <DrainSubscriberList as Mail>::Result {
+    fn handle(&mut self, _: DrainSubscriberList) -> <DrainSubscriberList as Mail>::Result {
         self.user_defined_subscriber_list
             .drain()
             .map(|(_, a)| a)
@@ -838,7 +838,7 @@ impl Mail for DrainPublisherList {
     type Result = Vec<Actor<PublisherActor>>;
 }
 impl MailHandler<DrainPublisherList> for DomainParticipantActor {
-    async fn handle(&mut self, _: DrainPublisherList) -> <DrainPublisherList as Mail>::Result {
+    fn handle(&mut self, _: DrainPublisherList) -> <DrainPublisherList as Mail>::Result {
         self.user_defined_publisher_list
             .drain()
             .map(|(_, a)| a)
@@ -851,7 +851,7 @@ impl Mail for DrainTopicList {
     type Result = Vec<Actor<TopicActor>>;
 }
 impl MailHandler<DrainTopicList> for DomainParticipantActor {
-    async fn handle(&mut self, _: DrainTopicList) -> <DrainTopicList as Mail>::Result {
+    fn handle(&mut self, _: DrainTopicList) -> <DrainTopicList as Mail>::Result {
         let mut drained_topic_list = Vec::new();
         let user_defined_topic_name_list: Vec<String> = self
             .topic_list
@@ -875,7 +875,7 @@ impl Mail for SetDefaultPublisherQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultPublisherQos> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultPublisherQos,
     ) -> <SetDefaultPublisherQos as Mail>::Result {
@@ -897,7 +897,7 @@ impl Mail for SetDefaultSubscriberQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultSubscriberQos> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultSubscriberQos,
     ) -> <SetDefaultSubscriberQos as Mail>::Result {
@@ -919,7 +919,7 @@ impl Mail for SetDefaultTopicQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultTopicQos,
     ) -> <SetDefaultTopicQos as Mail>::Result {
@@ -942,7 +942,7 @@ impl Mail for GetDefaultPublisherQos {
     type Result = PublisherQos;
 }
 impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDefaultPublisherQos,
     ) -> <GetDefaultPublisherQos as Mail>::Result {
@@ -955,7 +955,7 @@ impl Mail for GetDefaultSubscriberQos {
     type Result = SubscriberQos;
 }
 impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDefaultSubscriberQos,
     ) -> <GetDefaultSubscriberQos as Mail>::Result {
@@ -968,7 +968,7 @@ impl Mail for GetDefaultTopicQos {
     type Result = TopicQos;
 }
 impl MailHandler<GetDefaultTopicQos> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetDefaultTopicQos) -> <GetDefaultTopicQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultTopicQos) -> <GetDefaultTopicQos as Mail>::Result {
         self.default_topic_qos.clone()
     }
 }
@@ -978,7 +978,7 @@ impl Mail for GetDiscoveredParticipants {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetDiscoveredParticipants> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDiscoveredParticipants,
     ) -> <GetDiscoveredParticipants as Mail>::Result {
@@ -993,7 +993,7 @@ impl Mail for GetDiscoveredParticipantData {
     type Result = DdsResult<ParticipantBuiltinTopicData>;
 }
 impl MailHandler<GetDiscoveredParticipantData> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: GetDiscoveredParticipantData,
     ) -> <GetDiscoveredParticipantData as Mail>::Result {
@@ -1013,7 +1013,7 @@ impl Mail for GetDiscoveredTopics {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetDiscoveredTopics> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetDiscoveredTopics) -> <GetDiscoveredTopics as Mail>::Result {
+    fn handle(&mut self, _: GetDiscoveredTopics) -> <GetDiscoveredTopics as Mail>::Result {
         self.discovered_topic_list.keys().cloned().collect()
     }
 }
@@ -1025,7 +1025,7 @@ impl Mail for GetDiscoveredTopicData {
     type Result = DdsResult<TopicBuiltinTopicData>;
 }
 impl MailHandler<GetDiscoveredTopicData> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: GetDiscoveredTopicData,
     ) -> <GetDiscoveredTopicData as Mail>::Result {
@@ -1045,7 +1045,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DomainParticipantActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         self.qos = message.qos;
         Ok(())
     }
@@ -1056,7 +1056,7 @@ impl Mail for GetDomainId {
     type Result = DomainId;
 }
 impl MailHandler<GetDomainId> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetDomainId) -> <GetDomainId as Mail>::Result {
+    fn handle(&mut self, _: GetDomainId) -> <GetDomainId as Mail>::Result {
         self.domain_id
     }
 }
@@ -1066,7 +1066,7 @@ impl Mail for GetBuiltInSubscriber {
     type Result = ActorAddress<SubscriberActor>;
 }
 impl MailHandler<GetBuiltInSubscriber> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetBuiltInSubscriber) -> <GetBuiltInSubscriber as Mail>::Result {
+    fn handle(&mut self, _: GetBuiltInSubscriber) -> <GetBuiltInSubscriber as Mail>::Result {
         self.builtin_subscriber.address()
     }
 }
@@ -1076,7 +1076,7 @@ impl Mail for AsSpdpDiscoveredParticipantData {
     type Result = SpdpDiscoveredParticipantData;
 }
 impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: AsSpdpDiscoveredParticipantData,
     ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
@@ -1121,7 +1121,7 @@ impl Mail for GetStatusKind {
     type Result = Vec<StatusKind>;
 }
 impl MailHandler<GetStatusKind> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
 }
@@ -1131,7 +1131,7 @@ impl Mail for GetCurrentTime {
     type Result = Time;
 }
 impl MailHandler<GetCurrentTime> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
+    fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
         self.get_current_time()
     }
 }
@@ -1141,7 +1141,7 @@ impl Mail for GetBuiltinPublisher {
     type Result = ActorAddress<PublisherActor>;
 }
 impl MailHandler<GetBuiltinPublisher> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetBuiltinPublisher) -> <GetBuiltinPublisher as Mail>::Result {
+    fn handle(&mut self, _: GetBuiltinPublisher) -> <GetBuiltinPublisher as Mail>::Result {
         self.builtin_publisher.address()
     }
 }
@@ -1155,7 +1155,7 @@ impl Mail for ProcessMetatrafficRtpsMessage {
     type Result = DdsResult<()>;
 }
 impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessMetatrafficRtpsMessage,
     ) -> <ProcessMetatrafficRtpsMessage as Mail>::Result {
@@ -1258,7 +1258,7 @@ impl Mail for ProcessUserDefinedRtpsMessage {
     type Result = ();
 }
 impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessUserDefinedRtpsMessage,
     ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
@@ -1374,7 +1374,7 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
-    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = message
             .listener
             .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
@@ -1387,7 +1387,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -1397,7 +1397,7 @@ impl Mail for GetMessageSender {
     type Result = ActorAddress<MessageSenderActor>;
 }
 impl MailHandler<GetMessageSender> for DomainParticipantActor {
-    async fn handle(&mut self, _: GetMessageSender) -> <GetMessageSender as Mail>::Result {
+    fn handle(&mut self, _: GetMessageSender) -> <GetMessageSender as Mail>::Result {
         self.message_sender_actor.address()
     }
 }
@@ -1409,7 +1409,7 @@ impl Mail for SetDefaultUnicastLocatorList {
     type Result = ();
 }
 impl MailHandler<SetDefaultUnicastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultUnicastLocatorList,
     ) -> <SetDefaultUnicastLocatorList as Mail>::Result {
@@ -1425,7 +1425,7 @@ impl Mail for SetDefaultMulticastLocatorList {
     type Result = ();
 }
 impl MailHandler<SetDefaultMulticastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultMulticastLocatorList,
     ) -> <SetDefaultMulticastLocatorList as Mail>::Result {
@@ -1441,7 +1441,7 @@ impl Mail for SetMetatrafficUnicastLocatorList {
     type Result = ();
 }
 impl MailHandler<SetMetatrafficUnicastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetMetatrafficUnicastLocatorList,
     ) -> <SetMetatrafficUnicastLocatorList as Mail>::Result {
@@ -1457,7 +1457,7 @@ impl Mail for SetMetatrafficMulticastLocatorList {
     type Result = ();
 }
 impl MailHandler<SetMetatrafficMulticastLocatorList> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetMetatrafficMulticastLocatorList,
     ) -> <SetMetatrafficMulticastLocatorList as Mail>::Result {
@@ -1475,7 +1475,7 @@ impl Mail for AddDiscoveredParticipant {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AddDiscoveredParticipant,
     ) -> <AddDiscoveredParticipant as Mail>::Result {
@@ -1570,7 +1570,7 @@ impl Mail for RemoveDiscoveredParticipant {
     type Result = ();
 }
 impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveDiscoveredParticipant,
     ) -> <RemoveDiscoveredParticipant as Mail>::Result {
@@ -1587,7 +1587,7 @@ impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
-    async fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
                 message
@@ -1731,7 +1731,7 @@ impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveMatchedWriter,
     ) -> <RemoveMatchedWriter as Mail>::Result {
@@ -1759,7 +1759,7 @@ impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedReader> for DomainParticipantActor {
-    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
         let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
             Guid::new(
                 message
@@ -1902,7 +1902,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveMatchedReader,
     ) -> <RemoveMatchedReader as Mail>::Result {
@@ -1928,7 +1928,7 @@ impl Mail for AddMatchedTopic {
     type Result = ();
 }
 impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
-    async fn handle(&mut self, message: AddMatchedTopic) -> <AddMatchedTopic as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedTopic) -> <AddMatchedTopic as Mail>::Result {
         let handle = InstanceHandle::new(
             message
                 .discovered_topic_data

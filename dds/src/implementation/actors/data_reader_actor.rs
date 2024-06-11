@@ -219,7 +219,7 @@ impl Mail for IncrementRequestedDeadlineMissedStatus {
     type Result = ();
 }
 impl MailHandler<IncrementRequestedDeadlineMissedStatus> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: IncrementRequestedDeadlineMissedStatus,
     ) -> <IncrementRequestedDeadlineMissedStatus as Mail>::Result {
@@ -234,7 +234,7 @@ impl Mail for ReadRequestedDeadlineMissedStatus {
     type Result = RequestedDeadlineMissedStatus;
 }
 impl MailHandler<ReadRequestedDeadlineMissedStatus> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: ReadRequestedDeadlineMissedStatus,
     ) -> <ReadRequestedDeadlineMissedStatus as Mail>::Result {
@@ -1706,7 +1706,7 @@ impl Mail for Read {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<Read> for DataReaderActor {
-    async fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
+    fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
         self.read(
             message.max_samples,
             message.sample_states,
@@ -1728,7 +1728,7 @@ impl Mail for Take {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<Take> for DataReaderActor {
-    async fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
+    fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
         self.take(
             message.max_samples,
             message.sample_states,
@@ -1744,7 +1744,7 @@ impl Mail for IsHistoricalDataReceived {
     type Result = DdsResult<bool>;
 }
 impl MailHandler<IsHistoricalDataReceived> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: IsHistoricalDataReceived,
     ) -> <IsHistoricalDataReceived as Mail>::Result {
@@ -1777,7 +1777,7 @@ impl Mail for AsDiscoveredReaderData {
     type Result = DdsResult<DiscoveredReaderData>;
 }
 impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AsDiscoveredReaderData,
     ) -> <AsDiscoveredReaderData as Mail>::Result {
@@ -1826,7 +1826,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for DataReaderActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         self.get_instance_handle()
     }
 }
@@ -1838,7 +1838,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DataReaderActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         message.qos.is_consistent()?;
         if self.enabled {
             message.qos.check_immutability(&self.qos)?;
@@ -1853,7 +1853,7 @@ impl Mail for GetQos {
     type Result = DataReaderQos;
 }
 impl MailHandler<GetQos> for DataReaderActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -1865,7 +1865,7 @@ impl Mail for GetMatchedPublicationData {
     type Result = DdsResult<PublicationBuiltinTopicData>;
 }
 impl MailHandler<GetMatchedPublicationData> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: GetMatchedPublicationData,
     ) -> <GetMatchedPublicationData as Mail>::Result {
@@ -1885,7 +1885,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for DataReaderActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -1895,7 +1895,7 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for DataReaderActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
     }
 }
@@ -1905,7 +1905,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for DataReaderActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -1915,10 +1915,7 @@ impl Mail for GetMatchedPublications {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedPublications> for DataReaderActor {
-    async fn handle(
-        &mut self,
-        _: GetMatchedPublications,
-    ) -> <GetMatchedPublications as Mail>::Result {
+    fn handle(&mut self, _: GetMatchedPublications) -> <GetMatchedPublications as Mail>::Result {
         self.matched_publication_list
             .iter()
             .map(|(&key, _)| key)
@@ -1937,7 +1934,7 @@ impl Mail for TakeNextInstance {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<TakeNextInstance> for DataReaderActor {
-    async fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
+    fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -1960,7 +1957,7 @@ impl Mail for GetSubscriptionMatchedStatus {
     type Result = SubscriptionMatchedStatus;
 }
 impl MailHandler<GetSubscriptionMatchedStatus> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetSubscriptionMatchedStatus,
     ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
@@ -1979,7 +1976,7 @@ impl Mail for ReadNextInstance {
     type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
 }
 impl MailHandler<ReadNextInstance> for DataReaderActor {
-    async fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
+    fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -2012,7 +2009,7 @@ impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedWriter> for DataReaderActor {
-    async fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let publication_builtin_topic_data = message.discovered_writer_data.dds_publication_data();
@@ -2139,10 +2136,7 @@ impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedWriter> for DataReaderActor {
-    async fn handle(
-        &mut self,
-        message: RemoveMatchedWriter,
-    ) -> <RemoveMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
         let matched_publication = self
             .matched_publication_list
             .remove(&message.discovered_writer_handle);
@@ -2170,7 +2164,7 @@ impl Mail for GetTopicName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTopicName> for DataReaderActor {
-    async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
+    fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
         Ok(self.topic_name.clone())
     }
 }
@@ -2180,7 +2174,7 @@ impl Mail for GetTypeName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTypeName> for DataReaderActor {
-    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+    fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
         Ok(self.type_name.clone())
     }
 }
@@ -2200,7 +2194,7 @@ impl Mail for ProcessDataSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessDataSubmessage> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessDataSubmessage,
     ) -> <ProcessDataSubmessage as Mail>::Result {
@@ -2234,7 +2228,7 @@ impl Mail for ProcessDataFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessDataFragSubmessage> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessDataFragSubmessage,
     ) -> <ProcessDataFragSubmessage as Mail>::Result {
@@ -2261,10 +2255,7 @@ impl Mail for ProcessGapSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessGapSubmessage> for DataReaderActor {
-    async fn handle(
-        &mut self,
-        message: ProcessGapSubmessage,
-    ) -> <ProcessGapSubmessage as Mail>::Result {
+    fn handle(&mut self, message: ProcessGapSubmessage) -> <ProcessGapSubmessage as Mail>::Result {
         self.on_gap_submessage_received(&message.gap_submessage, message.source_guid_prefix);
     }
 }
@@ -2278,7 +2269,7 @@ impl Mail for ProcessHeartbeatSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessHeartbeatSubmessage> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessHeartbeatSubmessage,
     ) -> <ProcessHeartbeatSubmessage as Mail>::Result {
@@ -2298,7 +2289,7 @@ impl Mail for ProcessHeartbeatFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessHeartbeatFragSubmessage> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessHeartbeatFragSubmessage,
     ) -> <ProcessHeartbeatFragSubmessage as Mail>::Result {
@@ -2316,7 +2307,7 @@ impl Mail for SendMessage {
     type Result = ();
 }
 impl MailHandler<SendMessage> for DataReaderActor {
-    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+    fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
         self.send_message(&message.message_sender_actor)
     }
 }
@@ -2330,7 +2321,7 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for DataReaderActor {
-    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = message
             .listener
             .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
@@ -2343,7 +2334,7 @@ impl Mail for GetRequestedDeadlineMissedStatus {
     type Result = RequestedDeadlineMissedStatus;
 }
 impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetRequestedDeadlineMissedStatus,
     ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
@@ -2356,7 +2347,7 @@ impl Mail for GetTopicAddress {
     type Result = ActorAddress<TopicActor>;
 }
 impl MailHandler<GetTopicAddress> for DataReaderActor {
-    async fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
+    fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
         self.topic_address.clone()
     }
 }

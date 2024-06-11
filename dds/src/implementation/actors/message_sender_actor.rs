@@ -43,7 +43,7 @@ impl Mail for WriteMessage {
     type Result = ();
 }
 impl MailHandler<WriteMessage> for MessageSenderActor {
-    async fn handle(&mut self, message: WriteMessage) -> <WriteMessage as Mail>::Result {
+    fn handle(&mut self, message: WriteMessage) -> <WriteMessage as Mail>::Result {
         let header =
             RtpsMessageHeader::new(self.protocol_version, self.vendor_id, self.guid_prefix);
         let rtpmessage = RtpsMessageWrite::new(&header, &message.submessages);

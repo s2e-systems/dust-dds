@@ -442,7 +442,7 @@ impl Mail for CreateParticipant {
     type Result = DdsResult<ActorAddress<DomainParticipantActor>>;
 }
 impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
+    fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
         let domain_participant_qos = match message.qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -657,7 +657,7 @@ impl Mail for DeleteParticipant {
     type Result = DdsResult<Actor<DomainParticipantActor>>;
 }
 impl MailHandler<DeleteParticipant> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
+    fn handle(&mut self, message: DeleteParticipant) -> <DeleteParticipant as Mail>::Result {
         self.domain_participant_list
             .remove(&message.handle)
             .ok_or(DdsError::PreconditionNotMet(
@@ -672,7 +672,7 @@ impl Mail for GetParticipantList {
     type Result = Vec<ActorAddress<DomainParticipantActor>>;
 }
 impl MailHandler<GetParticipantList> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, _: GetParticipantList) -> <GetParticipantList as Mail>::Result {
+    fn handle(&mut self, _: GetParticipantList) -> <GetParticipantList as Mail>::Result {
         self.domain_participant_list
             .values()
             .map(|a| a.address())
@@ -687,7 +687,7 @@ impl Mail for SetDefaultParticipantQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultParticipantQos> for DomainParticipantFactoryActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultParticipantQos,
     ) -> <SetDefaultParticipantQos as Mail>::Result {
@@ -707,7 +707,7 @@ impl Mail for GetDefaultParticipantQos {
     type Result = DomainParticipantQos;
 }
 impl MailHandler<GetDefaultParticipantQos> for DomainParticipantFactoryActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetDefaultParticipantQos,
     ) -> <GetDefaultParticipantQos as Mail>::Result {
@@ -722,7 +722,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => DomainParticipantFactoryQos::default(),
             QosKind::Specific(q) => q,
@@ -739,7 +739,7 @@ impl Mail for GetQos {
     type Result = DomainParticipantFactoryQos;
 }
 impl MailHandler<GetQos> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -751,7 +751,7 @@ impl Mail for SetConfiguration {
     type Result = ();
 }
 impl MailHandler<SetConfiguration> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, message: SetConfiguration) -> <SetConfiguration as Mail>::Result {
+    fn handle(&mut self, message: SetConfiguration) -> <SetConfiguration as Mail>::Result {
         self.configuration = message.configuration;
     }
 }
@@ -761,7 +761,7 @@ impl Mail for GetConfiguration {
     type Result = DustDdsConfiguration;
 }
 impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
-    async fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
+    fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
         self.configuration.clone()
     }
 }

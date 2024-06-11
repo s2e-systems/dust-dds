@@ -335,7 +335,8 @@ impl DomainParticipantAsync {
         if a_topic.topic_address().is_closed() {
             Err(DdsError::AlreadyDeleted)
         } else {
-            if BUILT_IN_TOPIC_NAME_LIST.contains(&a_topic.get_name().as_str()) {
+            let topic_name = a_topic.get_name();
+            if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
                 return Ok(());
             }
             let publisher_list = self
@@ -344,17 +345,21 @@ impl DomainParticipantAsync {
                 .receive_reply()
                 .await;
             for publisher in publisher_list {
-                if publisher
-                    .send_actor_mail(publisher_actor::LookupDatawriter {
-                        topic_name: a_topic.get_name(),
-                    })?
+                let data_writer_list = publisher
+                    .send_actor_mail(publisher_actor::GetDataWriterList)?
                     .receive_reply()
-                    .await?
-                    .is_some()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data writer".to_string(),
-                    ));
+                    .await;
+                for dw in data_writer_list {
+                    if dw
+                        .send_actor_mail(data_writer_actor::GetTopicName)?
+                        .receive_reply()
+                        .await?
+                        == topic_name
+                    {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data writer".to_string(),
+                        ));
+                    }
                 }
             }
 
@@ -364,17 +369,21 @@ impl DomainParticipantAsync {
                 .receive_reply()
                 .await;
             for subscriber in subscriber_list {
-                if subscriber
-                    .send_actor_mail(subscriber_actor::LookupDatareader {
-                        topic_name: a_topic.get_name(),
-                    })?
+                let data_reader_list = subscriber
+                    .send_actor_mail(subscriber_actor::GetDataReaderList)?
                     .receive_reply()
-                    .await
-                    .is_some()
-                {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data reader".to_string(),
-                    ));
+                    .await;
+                for dr in data_reader_list {
+                    if dr
+                        .send_actor_mail(data_reader_actor::GetTopicName)?
+                        .receive_reply()
+                        .await?
+                        == topic_name
+                    {
+                        return Err(DdsError::PreconditionNotMet(
+                            "Topic still attached to some data reader".to_string(),
+                        ));
+                    }
                 }
             }
             if let Some(deleted_topic) = self

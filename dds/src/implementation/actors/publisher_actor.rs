@@ -160,7 +160,7 @@ impl Mail for CreateDatawriter {
     type Result = DdsResult<ActorAddress<DataWriterActor>>;
 }
 impl MailHandler<CreateDatawriter> for PublisherActor {
-    async fn handle(&mut self, message: CreateDatawriter) -> <CreateDatawriter as Mail>::Result {
+    fn handle(&mut self, message: CreateDatawriter) -> <CreateDatawriter as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -223,7 +223,7 @@ impl Mail for DeleteDatawriter {
     type Result = DdsResult<Actor<DataWriterActor>>;
 }
 impl MailHandler<DeleteDatawriter> for PublisherActor {
-    async fn handle(&mut self, message: DeleteDatawriter) -> <DeleteDatawriter as Mail>::Result {
+    fn handle(&mut self, message: DeleteDatawriter) -> <DeleteDatawriter as Mail>::Result {
         if let Some(removed_writer) = self.data_writer_list.remove(&message.handle) {
             Ok(removed_writer)
         } else {
@@ -234,35 +234,12 @@ impl MailHandler<DeleteDatawriter> for PublisherActor {
     }
 }
 
-pub struct LookupDatawriter {
-    pub topic_name: String,
-}
-impl Mail for LookupDatawriter {
-    type Result = DdsResult<Option<ActorAddress<DataWriterActor>>>;
-}
-impl MailHandler<LookupDatawriter> for PublisherActor {
-    async fn handle(&mut self, message: LookupDatawriter) -> <LookupDatawriter as Mail>::Result {
-        for dw in self.data_writer_list.values() {
-            if dw
-                .send_actor_mail(data_writer_actor::GetTopicName)
-                .receive_reply()
-                .await
-                .as_ref()
-                == Ok(&message.topic_name)
-            {
-                return Ok(Some(dw.address()));
-            }
-        }
-        Ok(None)
-    }
-}
-
 pub struct Enable;
 impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for PublisherActor {
-    async fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
     }
 }
@@ -272,7 +249,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for PublisherActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -282,7 +259,7 @@ impl Mail for IsEmpty {
     type Result = bool;
 }
 impl MailHandler<IsEmpty> for PublisherActor {
-    async fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+    fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         self.data_writer_list.is_empty()
     }
 }
@@ -292,7 +269,7 @@ impl Mail for DrainDataWriterList {
     type Result = Vec<Actor<DataWriterActor>>;
 }
 impl MailHandler<DrainDataWriterList> for PublisherActor {
-    async fn handle(&mut self, _: DrainDataWriterList) -> <DrainDataWriterList as Mail>::Result {
+    fn handle(&mut self, _: DrainDataWriterList) -> <DrainDataWriterList as Mail>::Result {
         self.data_writer_list.drain().map(|(_, a)| a).collect()
     }
 }
@@ -304,7 +281,7 @@ impl Mail for SetDefaultDatawriterQos {
     type Result = ();
 }
 impl MailHandler<SetDefaultDatawriterQos> for PublisherActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: SetDefaultDatawriterQos,
     ) -> <SetDefaultDatawriterQos as Mail>::Result {
@@ -317,10 +294,7 @@ impl Mail for GetDefaultDatawriterQos {
     type Result = DataWriterQos;
 }
 impl MailHandler<GetDefaultDatawriterQos> for PublisherActor {
-    async fn handle(
-        &mut self,
-        _: GetDefaultDatawriterQos,
-    ) -> <GetDefaultDatawriterQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultDatawriterQos) -> <GetDefaultDatawriterQos as Mail>::Result {
         self.default_datawriter_qos.clone()
     }
 }
@@ -332,7 +306,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for PublisherActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -353,7 +327,7 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for PublisherActor {
-    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.rtps_group.guid()
     }
 }
@@ -363,7 +337,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for PublisherActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
 }
@@ -373,7 +347,7 @@ impl Mail for GetStatusKind {
     type Result = Vec<StatusKind>;
 }
 impl MailHandler<GetStatusKind> for PublisherActor {
-    async fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
     }
 }
@@ -383,7 +357,7 @@ impl Mail for GetQos {
     type Result = PublisherQos;
 }
 impl MailHandler<GetQos> for PublisherActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -393,7 +367,7 @@ impl Mail for GetDataWriterList {
     type Result = Vec<ActorAddress<DataWriterActor>>;
 }
 impl MailHandler<GetDataWriterList> for PublisherActor {
-    async fn handle(&mut self, _: GetDataWriterList) -> <GetDataWriterList as Mail>::Result {
+    fn handle(&mut self, _: GetDataWriterList) -> <GetDataWriterList as Mail>::Result {
         self.data_writer_list
             .values()
             .map(|x| x.address())
@@ -410,7 +384,7 @@ impl Mail for ProcessAckNackSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessAckNackSubmessage> for PublisherActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessAckNackSubmessage,
     ) -> <ProcessAckNackSubmessage as Mail>::Result {
@@ -432,7 +406,7 @@ impl Mail for ProcessNackFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessNackFragSubmessage> for PublisherActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessNackFragSubmessage,
     ) -> <ProcessNackFragSubmessage as Mail>::Result {
@@ -459,7 +433,7 @@ impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedReader> for PublisherActor {
-    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
         if self.is_partition_matched(
             message
                 .discovered_reader_data
@@ -503,10 +477,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for PublisherActor {
-    async fn handle(
-        &mut self,
-        message: RemoveMatchedReader,
-    ) -> <RemoveMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
             let publisher_mask_listener = (self.listener.clone(), self.status_kind.clone());
@@ -532,7 +503,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for PublisherActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -546,7 +517,7 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for PublisherActor {
-    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = message
             .listener
             .map(|l| Arc::new(tokio::sync::Mutex::new(l)));

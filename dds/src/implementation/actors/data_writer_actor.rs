@@ -654,7 +654,7 @@ impl Mail for GetInstanceHandle {
     type Result = InstanceHandle;
 }
 impl MailHandler<GetInstanceHandle> for DataWriterActor {
-    async fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         self.get_instance_handle()
     }
 }
@@ -667,7 +667,7 @@ impl Mail for AddMatchedPublication {
     type Result = ();
 }
 impl MailHandler<AddMatchedPublication> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AddMatchedPublication,
     ) -> <AddMatchedPublication as Mail>::Result {
@@ -683,7 +683,7 @@ impl Mail for RemoveMatchedSubscription {
     type Result = ();
 }
 impl MailHandler<RemoveMatchedSubscription> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveMatchedSubscription,
     ) -> <RemoveMatchedSubscription as Mail>::Result {
@@ -697,7 +697,7 @@ impl Mail for GetMatchedSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedSubscriptions> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetMatchedSubscriptions,
     ) -> <GetMatchedSubscriptions as Mail>::Result {
@@ -712,7 +712,7 @@ impl Mail for GetMatchedSubscriptionData {
     type Result = Option<SubscriptionBuiltinTopicData>;
 }
 impl MailHandler<GetMatchedSubscriptionData> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: GetMatchedSubscriptionData,
     ) -> <GetMatchedSubscriptionData as Mail>::Result {
@@ -727,7 +727,7 @@ impl Mail for GetOfferedIncompatibleQosStatus {
     type Result = OfferedIncompatibleQosStatus;
 }
 impl MailHandler<GetOfferedIncompatibleQosStatus> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetOfferedIncompatibleQosStatus,
     ) -> <GetOfferedIncompatibleQosStatus as Mail>::Result {
@@ -741,7 +741,7 @@ impl Mail for GetIncompatibleSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetIncompatibleSubscriptions> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetIncompatibleSubscriptions,
     ) -> <GetIncompatibleSubscriptions as Mail>::Result {
@@ -759,7 +759,7 @@ impl Mail for Enable {
     type Result = ();
 }
 impl MailHandler<Enable> for DataWriterActor {
-    async fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
+    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         self.enabled = true;
 
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
@@ -789,7 +789,7 @@ impl Mail for IsEnabled {
     type Result = bool;
 }
 impl MailHandler<IsEnabled> for DataWriterActor {
-    async fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
     }
 }
@@ -799,7 +799,7 @@ impl Mail for GetStatuscondition {
     type Result = ActorAddress<StatusConditionActor>;
 }
 impl MailHandler<GetStatuscondition> for DataWriterActor {
-    async fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
+    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
         self.status_condition.address()
     }
 }
@@ -809,7 +809,7 @@ impl Mail for GetGuid {
     type Result = Guid;
 }
 impl MailHandler<GetGuid> for DataWriterActor {
-    async fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.rtps_writer.guid()
     }
 }
@@ -819,7 +819,7 @@ impl Mail for GetQos {
     type Result = DataWriterQos;
 }
 impl MailHandler<GetQos> for DataWriterActor {
-    async fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
+    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
         self.qos.clone()
     }
 }
@@ -831,7 +831,7 @@ impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetQos> for DataWriterActor {
-    async fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         message.qos.is_consistent()?;
         if self.enabled {
             message.qos.check_immutability(&self.qos)?;
@@ -849,7 +849,7 @@ impl Mail for RegisterInstanceWTimestamp {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<RegisterInstanceWTimestamp> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RegisterInstanceWTimestamp,
     ) -> <RegisterInstanceWTimestamp as Mail>::Result {
@@ -869,7 +869,7 @@ impl Mail for UnregisterInstanceWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: UnregisterInstanceWTimestamp,
     ) -> <UnregisterInstanceWTimestamp as Mail>::Result {
@@ -922,7 +922,7 @@ impl Mail for LookupInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<LookupInstance> for DataWriterActor {
-    async fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
+    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -952,7 +952,7 @@ impl Mail for DisposeWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<DisposeWTimestamp> for DataWriterActor {
-    async fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
+    fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -991,7 +991,7 @@ impl Mail for AreAllChangesAcknowledge {
     type Result = bool;
 }
 impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: AreAllChangesAcknowledge,
     ) -> <AreAllChangesAcknowledge as Mail>::Result {
@@ -1013,7 +1013,7 @@ impl Mail for AsDiscoveredWriterData {
     type Result = DdsResult<DiscoveredWriterData>;
 }
 impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: AsDiscoveredWriterData,
     ) -> <AsDiscoveredWriterData as Mail>::Result {
@@ -1064,7 +1064,7 @@ impl Mail for GetPublicationMatchedStatus {
     type Result = PublicationMatchedStatus;
 }
 impl MailHandler<GetPublicationMatchedStatus> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         _: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
@@ -1077,7 +1077,7 @@ impl Mail for GetTopicName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTopicName> for DataWriterActor {
-    async fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
+    fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
         Ok(self.topic_name.clone())
     }
 }
@@ -1095,7 +1095,7 @@ impl Mail for WriteWTimestamp {
     type Result = DdsResult<()>;
 }
 impl MailHandler<WriteWTimestamp> for DataWriterActor {
-    async fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+    fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
         let handle = self
             .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
             .unwrap_or(HANDLE_NIL);
@@ -1123,7 +1123,7 @@ impl Mail for GetTypeName {
     type Result = DdsResult<String>;
 }
 impl MailHandler<GetTypeName> for DataWriterActor {
-    async fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
+    fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
         Ok(self.type_name.clone())
     }
 }
@@ -1144,7 +1144,7 @@ impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<AddMatchedReader> for DataWriterActor {
-    async fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let is_matched_topic_name = message
@@ -1314,7 +1314,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: RemoveMatchedReader,
     ) -> <RemoveMatchedReader as Mail>::Result {
@@ -1349,7 +1349,7 @@ impl Mail for ProcessAckNackSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessAckNackSubmessage> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessAckNackSubmessage,
     ) -> <ProcessAckNackSubmessage as Mail>::Result {
@@ -1369,7 +1369,7 @@ impl Mail for ProcessNackFragSubmessage {
     type Result = ();
 }
 impl MailHandler<ProcessNackFragSubmessage> for DataWriterActor {
-    async fn handle(
+    fn handle(
         &mut self,
         message: ProcessNackFragSubmessage,
     ) -> <ProcessNackFragSubmessage as Mail>::Result {
@@ -1387,7 +1387,7 @@ impl Mail for SendMessage {
     type Result = ();
 }
 impl MailHandler<SendMessage> for DataWriterActor {
-    async fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
+    fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
         self.send_message(message.message_sender_actor)
     }
 }
@@ -1401,7 +1401,7 @@ impl Mail for SetListener {
     type Result = ();
 }
 impl MailHandler<SetListener> for DataWriterActor {
-    async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         self.listener = message
             .listener
             .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
@@ -1417,7 +1417,7 @@ impl Mail for RemoveChange {
     type Result = ();
 }
 impl MailHandler<RemoveChange> for DataWriterActor {
-    async fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
+    fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
         self.remove_change(message.seq_num)
     }
 }
@@ -1427,7 +1427,7 @@ impl Mail for GetTopicAddress {
     type Result = ActorAddress<TopicActor>;
 }
 impl MailHandler<GetTopicAddress> for DataWriterActor {
-    async fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
+    fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
         self.topic_address.clone()
     }
 }
