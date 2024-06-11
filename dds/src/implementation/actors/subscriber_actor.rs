@@ -6,14 +6,14 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
+    domain_participant_actor::ParticipantListenerType,
     message_sender_actor::MessageSenderActor,
     topic_actor::TopicActor,
 };
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_async::{
-        domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync, subscriber::SubscriberAsync,
+        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync,
     },
     implementation::{
@@ -45,6 +45,9 @@ use crate::{
     topic_definition::type_support::DynamicTypeInterface,
 };
 
+pub type SubscriberListenerType =
+    Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>;
+
 pub struct SubscriberActor {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
@@ -53,7 +56,7 @@ pub struct SubscriberActor {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
+    listener: SubscriberListenerType,
     status_kind: Vec<StatusKind>,
 }
 
@@ -436,10 +439,7 @@ pub struct ProcessDataSubmessage {
     pub reception_timestamp: rtps::messages::types::Time,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataSubmessage {
@@ -478,10 +478,7 @@ pub struct ProcessDataFragSubmessage {
     pub reception_timestamp: rtps::messages::types::Time,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataFragSubmessage {
@@ -584,10 +581,7 @@ pub struct AddMatchedWriter {
     pub default_multicast_locator_list: Vec<Locator>,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
@@ -630,10 +624,7 @@ pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {

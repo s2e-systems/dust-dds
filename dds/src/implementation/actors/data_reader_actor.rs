@@ -1,7 +1,9 @@
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
+    domain_participant_actor::ParticipantListenerType,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
+    subscriber_actor::SubscriberListenerType,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -10,10 +12,7 @@ use crate::{
         discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
         discovered_writer_data::DiscoveredWriterData,
     },
-    dds_async::{
-        domain_participant_listener::DomainParticipantListenerAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
-    },
+    dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         data_representation_inline_qos::{
@@ -335,6 +334,7 @@ pub struct DataReaderActor {
 }
 
 impl DataReaderActor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsReaderKind,
         topic_address: ActorAddress<TopicActor>,
@@ -499,10 +499,7 @@ impl DataReaderActor {
         &self,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (subscriber_listener, subscriber_listener_mask): &(SubscriberListenerType, Vec<StatusKind>),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         subscriber
@@ -573,14 +570,8 @@ impl DataReaderActor {
         reception_timestamp: rtps::messages::types::Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(SubscriberListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
@@ -712,14 +703,8 @@ impl DataReaderActor {
         reception_timestamp: rtps::messages::types::Time,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(SubscriberListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
@@ -881,12 +866,9 @@ impl DataReaderActor {
         &mut self,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (subscriber_listener, subscriber_listener_mask): &(SubscriberListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -951,12 +933,9 @@ impl DataReaderActor {
         instance_handle: InstanceHandle,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (subscriber_listener, subscriber_listener_mask): &(SubscriberListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1036,12 +1015,9 @@ impl DataReaderActor {
         rejected_reason: SampleRejectedStatusKind,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (subscriber_listener, subscriber_listener_mask): &(SubscriberListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1110,12 +1086,9 @@ impl DataReaderActor {
         incompatible_qos_policy_list: Vec<QosPolicyId>,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (subscriber_listener, subscriber_listener_mask): &(SubscriberListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1269,14 +1242,8 @@ impl DataReaderActor {
         change: ReaderCacheChange,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(SubscriberListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
@@ -1588,14 +1555,8 @@ impl DataReaderActor {
         change_instance_handle: InstanceHandle,
         data_reader_address: ActorAddress<DataReaderActor>,
         subscriber: SubscriberAsync,
-        subscriber_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: &(
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        subscriber_mask_listener: &(SubscriberListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if let Some(t) = self
@@ -2043,14 +2004,8 @@ pub struct AddMatchedWriter {
     pub data_reader_address: ActorAddress<DataReaderActor>,
     pub subscriber: SubscriberAsync,
     pub subscriber_qos: SubscriberQos,
-    pub subscriber_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub subscriber_mask_listener: (SubscriberListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
@@ -2176,14 +2131,8 @@ pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
     pub data_reader_address: ActorAddress<DataReaderActor>,
     pub subscriber: SubscriberAsync,
-    pub subscriber_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub subscriber_mask_listener: (SubscriberListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {
@@ -2243,14 +2192,8 @@ pub struct ProcessDataSubmessage {
     pub reception_timestamp: rtps::messages::types::Time,
     pub data_reader_address: ActorAddress<DataReaderActor>,
     pub subscriber: SubscriberAsync,
-    pub subscriber_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub subscriber_mask_listener: (SubscriberListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataSubmessage {
@@ -2283,14 +2226,8 @@ pub struct ProcessDataFragSubmessage {
     pub reception_timestamp: rtps::messages::types::Time,
     pub data_reader_address: ActorAddress<DataReaderActor>,
     pub subscriber: SubscriberAsync,
-    pub subscriber_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub subscriber_mask_listener: (SubscriberListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataFragSubmessage {

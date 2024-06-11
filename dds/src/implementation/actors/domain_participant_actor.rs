@@ -169,6 +169,9 @@ impl DynamicTypeInterface for FooTypeSupport {
     }
 }
 
+pub type ParticipantListenerType =
+    Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>;
+
 pub struct DomainParticipantActor {
     rtps_participant: RtpsParticipant,
     domain_id: DomainId,
@@ -195,7 +198,7 @@ pub struct DomainParticipantActor {
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    listener: Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+    listener: ParticipantListenerType,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,

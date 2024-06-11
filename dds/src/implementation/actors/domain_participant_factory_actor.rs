@@ -1173,9 +1173,7 @@ async fn process_sedp_topics_discovery(participant: &DomainParticipantAsync) -> 
                         }
                     },
                     // Discovered topics are not deleted so it is not need to process these messages in any manner
-                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
-                        ()
-                    }
+                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {}
                 }
             }
         }

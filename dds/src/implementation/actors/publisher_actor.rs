@@ -6,8 +6,7 @@ use tracing::warn;
 use crate::{
     data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     dds_async::{
-        domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
+        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
     implementation::actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -35,10 +34,14 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
+    domain_participant_actor::ParticipantListenerType,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
+
+pub type PublisherListenerType =
+    Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>;
 
 pub struct PublisherActor {
     qos: PublisherQos,
@@ -47,7 +50,7 @@ pub struct PublisherActor {
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
-    listener: Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
+    listener: PublisherListenerType,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -448,10 +451,7 @@ pub struct AddMatchedReader {
     pub default_multicast_locator_list: Vec<Locator>,
     pub publisher_address: ActorAddress<PublisherActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub handle: tokio::runtime::Handle,
 }
@@ -496,10 +496,7 @@ pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub publisher_address: ActorAddress<PublisherActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {

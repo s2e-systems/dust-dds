@@ -4,10 +4,7 @@ use crate::{
         discovered_reader_data::DiscoveredReaderData,
         discovered_writer_data::{DiscoveredWriterData, WriterProxy},
     },
-    dds_async::{
-        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync, topic::TopicAsync,
-    },
+    dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         data_representation_inline_qos::{
@@ -63,7 +60,9 @@ use std::{
 
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
+    domain_participant_actor::ParticipantListenerType,
     message_sender_actor::{self, MessageSenderActor},
+    publisher_actor::PublisherListenerType,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
 };
@@ -218,6 +217,7 @@ pub struct DataWriterActor {
 }
 
 impl DataWriterActor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_writer: RtpsWriter,
         topic_address: ActorAddress<TopicActor>,
@@ -498,12 +498,9 @@ impl DataWriterActor {
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (
-            Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (publisher_listener, publisher_listener_mask): (PublisherListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): (
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -573,12 +570,9 @@ impl DataWriterActor {
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (
-            Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
-            Vec<StatusKind>,
-        ),
+        (publisher_listener, publisher_listener_mask): (PublisherListenerType, Vec<StatusKind>),
         (participant_listener, participant_listener_mask): (
-            Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
+            ParticipantListenerType,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1141,14 +1135,8 @@ pub struct AddMatchedReader {
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
     pub publisher_qos: PublisherQos,
-    pub publisher_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub publisher_mask_listener: (PublisherListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub handle: tokio::runtime::Handle,
 }
@@ -1318,14 +1306,8 @@ pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
-    pub publisher_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>,
-        Vec<StatusKind>,
-    ),
+    pub publisher_mask_listener: (PublisherListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {
