@@ -15,10 +15,7 @@ use crate::{
     topic_definition::type_support::DynamicTypeInterface,
 };
 
-use super::{
-    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    topic_listener_actor::TopicListenerActor,
-};
+use super::status_condition_actor::{self, AddCommunicationState, StatusConditionActor};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -41,7 +38,7 @@ pub struct TopicActor {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    _listener: Actor<TopicListenerActor>,
+    _listener: Option<Arc<tokio::sync::Mutex<Box<dyn TopicListenerAsync + Send>>>>,
     type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
 }
 
@@ -57,7 +54,7 @@ impl TopicActor {
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let status_condition_address = status_condition.address();
-        let listener = Actor::spawn(TopicListenerActor::new(listener), handle);
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         (
             Self {
                 guid,
