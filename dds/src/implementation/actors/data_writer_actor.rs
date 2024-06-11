@@ -8,7 +8,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
+            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
@@ -697,10 +697,7 @@ impl Mail for GetMatchedSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedSubscriptions> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetMatchedSubscriptions,
-    ) -> <GetMatchedSubscriptions as Mail>::Result {
+    fn handle(&mut self, _: GetMatchedSubscriptions) -> <GetMatchedSubscriptions as Mail>::Result {
         self.matched_subscriptions.get_matched_subscriptions()
     }
 }
@@ -891,11 +888,9 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
         } else {
             STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
-
-        let inline_qos = ParameterList::new(vec![Parameter::new(
-            PID_STATUS_INFO,
-            Arc::from(serialized_status_info),
-        )]);
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(message.handle.as_ref().clone()));
+        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
             ChangeKind::NotAliveUnregistered,
@@ -962,10 +957,9 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
-        let inline_qos = ParameterList::new(vec![Parameter::new(
-            PID_STATUS_INFO,
-            Arc::from(serialized_status_info),
-        )]);
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(message.handle.as_ref().clone()));
+        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
             ChangeKind::NotAliveDisposed,
@@ -1099,10 +1093,13 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
         let handle = self
             .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
             .unwrap_or(HANDLE_NIL);
+
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(handle.as_ref().clone()));
+        let parameter_list = ParameterList::new(vec![pid_key_hash]);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
             message.serialized_data,
-            ParameterList::empty(),
+            parameter_list,
             handle.into(),
             message.timestamp.into(),
         );
@@ -1314,10 +1311,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: RemoveMatchedReader,
-    ) -> <RemoveMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         if let Some(r) = self
             .matched_subscriptions
             .get_matched_subscription_data(message.discovered_reader_handle)
