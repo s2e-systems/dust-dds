@@ -7,7 +7,6 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
     message_sender_actor::MessageSenderActor,
-    subscriber_listener_actor::SubscriberListenerActor,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -56,7 +55,7 @@ pub struct SubscriberActor {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener: Actor<SubscriberListenerActor>,
+    listener: Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>,
     status_kind: Vec<StatusKind>,
 }
 
@@ -70,7 +69,7 @@ impl SubscriberActor {
         handle: &tokio::runtime::Handle,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = Actor::spawn(SubscriberListenerActor::new(listener), handle);
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         let data_reader_list = data_reader_list
             .into_iter()
             .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
@@ -454,7 +453,7 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
         message: ProcessDataSubmessage,
     ) -> <ProcessDataSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
             data_reader_actor.send_actor_mail(data_reader_actor::ProcessDataSubmessage {
                 data_submessage: message.data_submessage.clone(),
                 source_guid_prefix: message.source_guid_prefix,
@@ -496,7 +495,7 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
         message: ProcessDataFragSubmessage,
     ) -> <ProcessDataFragSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
             data_reader_actor.send_actor_mail(data_reader_actor::ProcessDataFragSubmessage {
                 data_frag_submessage: message.data_frag_submessage.clone(),
                 source_guid_prefix: message.source_guid_prefix,
@@ -605,7 +604,7 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                 .partition(),
         ) {
             for data_reader in self.data_reader_list.values() {
-                let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
+                let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader.send_actor_mail(data_reader_actor::AddMatchedWriter {
@@ -649,7 +648,7 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
     ) -> <RemoveMatchedWriter as Mail>::Result {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
-            let subscriber_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
             data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
                 data_reader_address,
@@ -678,10 +677,9 @@ impl Mail for SetListener {
 }
 impl MailHandler<SetListener> for SubscriberActor {
     async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = Actor::spawn(
-            SubscriberListenerActor::new(message.listener),
-            &message.runtime_handle,
-        );
+        self.listener = message
+            .listener
+            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         self.status_kind = message.status_kind;
     }
 }
