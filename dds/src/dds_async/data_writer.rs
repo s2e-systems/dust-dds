@@ -158,13 +158,30 @@ where
     }
 
     /// Async version of [`register_instance_w_timestamp`](crate::publication::data_writer::DataWriter::register_instance_w_timestamp).
-    #[tracing::instrument(skip(self, _instance))]
+    #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance_w_timestamp(
         &self,
-        _instance: &Foo,
-        _timestamp: Time,
+        instance: &Foo,
+        timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+        let type_support = self
+            .topic
+            .topic_address()
+            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .receive_reply()
+            .await;
+
+        let mut serialized_data = Vec::new();
+        instance.serialize_data(&mut serialized_data)?;
+        let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
+
+        self.writer_address
+            .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp {
+                instance_handle,
+                timestamp,
+            })?
+            .receive_reply()
+            .await
     }
 
     /// Async version of [`unregister_instance`](crate::publication::data_writer::DataWriter::unregister_instance).
