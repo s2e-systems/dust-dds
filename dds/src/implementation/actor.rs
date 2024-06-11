@@ -17,8 +17,8 @@ struct ReplyMail<M>
 where
     M: Mail,
 {
-    mail: M,
-    reply_sender: tokio::sync::oneshot::Sender<M::Result>,
+    mail: Option<M>,
+    reply_sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
 }
 
 pub struct ReplyReceiver<M>
@@ -40,7 +40,7 @@ where
 }
 
 pub trait GenericHandler<A> {
-    fn handle(self: Box<Self>, actor: &mut A);
+    fn handle(&mut self, actor: &mut A);
 }
 
 impl<A, M> GenericHandler<A> for ReplyMail<M>
@@ -49,10 +49,14 @@ where
     M: Mail + Send,
     <M as Mail>::Result: Send,
 {
-    fn handle(self: Box<Self>, actor: &mut A) {
-        let this = *self;
-        let result = <A as MailHandler<M>>::handle(actor, this.mail);
-        this.reply_sender.send(result).ok();
+    fn handle(&mut self, actor: &mut A) {
+        let result =
+            <A as MailHandler<M>>::handle(actor, self.mail.take().expect("Must have a message"));
+        self.reply_sender
+            .take()
+            .expect("Must have a sender")
+            .send(result)
+            .ok();
     }
 }
 
@@ -82,7 +86,10 @@ impl<A> ActorAddress<A> {
     {
         let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
         self.mail_sender
-            .send(Box::new(ReplyMail { mail, reply_sender }))
+            .send(Box::new(ReplyMail {
+                mail: Some(mail),
+                reply_sender: Some(reply_sender),
+            }))
             .map_err(|_| DdsError::AlreadyDeleted)?;
         Ok(ReplyReceiver { reply_receiver })
     }
@@ -109,7 +116,7 @@ where
                 tokio::select! {
                     m = mailbox_recv.recv() => {
                         match m {
-                            Some(message) => message.handle(&mut actor),
+                            Some(mut message) => message.handle(&mut actor),
                             None => break,
                         }
                     }
@@ -145,7 +152,10 @@ where
     {
         let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
         self.mail_sender
-            .send(Box::new(ReplyMail { mail, reply_sender }))
+            .send(Box::new(ReplyMail {
+                mail: Some(mail),
+                reply_sender: Some(reply_sender),
+            }))
             .expect("Message will always be sent when actor exists");
         ReplyReceiver { reply_receiver }
     }
