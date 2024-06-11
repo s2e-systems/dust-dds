@@ -4,7 +4,9 @@ use crate::{
         discovered_reader_data::DiscoveredReaderData,
         discovered_writer_data::{DiscoveredWriterData, WriterProxy},
     },
-    dds_async::{publisher::PublisherAsync, topic::TopicAsync},
+    dds_async::{
+        publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+    },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         data_representation_inline_qos::{
@@ -64,7 +66,6 @@ use super::{
         self, DomainParticipantListenerActor, DomainParticipantListenerOperation,
     },
     message_sender_actor::{self, MessageSenderActor},
-    publisher_listener_actor::{self, PublisherListenerActor, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
 };
@@ -500,7 +501,7 @@ impl DataWriterActor {
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
         (publisher_listener, publisher_listener_mask): (
-            ActorAddress<PublisherListenerActor>,
+            Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
@@ -546,9 +547,15 @@ impl DataWriterActor {
             }
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
-            publisher_listener.send_actor_mail(publisher_listener_actor::CallListenerFunction {
-                listener_operation: PublisherListenerOperation::PublicationMatched(status),
-            })?;
+            if let Some(listener) = publisher_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_publication_matched(&(), status)
+                        .await;
+                });
+            }
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
             participant_listener.send_actor_mail(
@@ -567,7 +574,7 @@ impl DataWriterActor {
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
         (publisher_listener, publisher_listener_mask): (
-            ActorAddress<PublisherListenerActor>,
+            Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
@@ -621,9 +628,15 @@ impl DataWriterActor {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            publisher_listener.send_actor_mail(publisher_listener_actor::CallListenerFunction {
-                listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
-            })?;
+            if let Some(listener) = publisher_listener {
+                handle.spawn(async move {
+                    listener
+                        .lock()
+                        .await
+                        .on_offered_incompatible_qos(&(), status)
+                        .await;
+                });
+            }
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
                 .incompatible_subscriptions
@@ -1126,7 +1139,10 @@ pub struct AddMatchedReader {
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
     pub publisher_qos: PublisherQos,
-    pub publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
+    pub publisher_mask_listener: (
+        Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
+        Vec<StatusKind>,
+    ),
     pub participant_mask_listener: (
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,
@@ -1300,7 +1316,10 @@ pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
-    pub publisher_mask_listener: (ActorAddress<PublisherListenerActor>, Vec<StatusKind>),
+    pub publisher_mask_listener: (
+        Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
+        Vec<StatusKind>,
+    ),
     pub participant_mask_listener: (
         ActorAddress<DomainParticipantListenerActor>,
         Vec<StatusKind>,

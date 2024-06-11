@@ -8,7 +8,6 @@ pub mod domain_participant_factory_actor;
 pub mod domain_participant_listener_actor;
 pub mod message_sender_actor;
 pub mod publisher_actor;
-pub mod publisher_listener_actor;
 pub mod status_condition_actor;
 pub mod subscriber_actor;
 pub mod subscriber_listener_actor;

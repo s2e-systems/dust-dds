@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use fnmatch_regex::glob_to_regex;
 use tracing::warn;
@@ -36,7 +36,6 @@ use super::{
     data_writer_actor::{self, DataWriterActor},
     domain_participant_listener_actor::DomainParticipantListenerActor,
     message_sender_actor::MessageSenderActor,
-    publisher_listener_actor::PublisherListenerActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
@@ -48,7 +47,7 @@ pub struct PublisherActor {
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
-    listener: Actor<PublisherListenerActor>,
+    listener: Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -66,6 +65,7 @@ impl PublisherActor {
             .into_iter()
             .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
             .collect();
+        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         Self {
             qos,
             rtps_group,
@@ -73,7 +73,7 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener: Actor::spawn(PublisherListenerActor::new(listener), handle),
+            listener,
             status_kind,
             status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
@@ -468,7 +468,7 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
         ) {
             for data_writer in self.data_writer_list.values() {
                 let data_writer_address = data_writer.address();
-                let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
+                let publisher_mask_listener = (self.listener.clone(), self.status_kind.clone());
 
                 data_writer.send_actor_mail(data_writer_actor::AddMatchedReader {
                     discovered_reader_data: message.discovered_reader_data.clone(),
@@ -512,7 +512,7 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
     ) -> <RemoveMatchedReader as Mail>::Result {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
-            let publisher_mask_listener = (self.listener.address(), self.status_kind.clone());
+            let publisher_mask_listener = (self.listener.clone(), self.status_kind.clone());
             data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
                 data_writer_address,
@@ -550,10 +550,9 @@ impl Mail for SetListener {
 }
 impl MailHandler<SetListener> for PublisherActor {
     async fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = Actor::spawn(
-            PublisherListenerActor::new(message.listener),
-            &message.runtime_handle,
-        );
+        self.listener = message
+            .listener
+            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
         self.status_kind = message.status_kind;
     }
 }
