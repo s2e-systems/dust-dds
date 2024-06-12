@@ -27,7 +27,7 @@ pub trait AnyDataWriterListener {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 }
 
-impl<'a, Foo> AnyDataWriterListener for Box<dyn DataWriterListenerAsync<Foo = Foo> + Send + 'a>
+impl<'a, Foo> AnyDataWriterListener for Box<dyn DataWriterListenerAsync<'a, Foo = Foo> + Send + 'a>
 where
     Foo: 'a,
 {

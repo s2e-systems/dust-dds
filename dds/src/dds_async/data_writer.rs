@@ -635,7 +635,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub async fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataWriterListenerAsync<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.writer_address

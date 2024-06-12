@@ -45,7 +45,7 @@ pub trait DataWriterListener<'a>: 'static {
     }
 }
 
-impl<'a, Foo> DataWriterListenerAsync for Box<dyn DataWriterListener<'_, Foo = Foo> + Send + 'a>
+impl<'a, Foo> DataWriterListenerAsync<'_> for Box<dyn DataWriterListener<'_, Foo = Foo> + Send + 'a>
 where
     Self: 'static,
 {

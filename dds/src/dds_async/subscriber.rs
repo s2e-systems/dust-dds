@@ -112,7 +112,7 @@ impl SubscriberAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<(dyn DataReaderListenerAsync<Foo = Foo> + Send + 'b)>>,
+        a_listener: Option<Box<(dyn DataReaderListenerAsync<'b, Foo = Foo> + Send + 'b)>>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>>
     where

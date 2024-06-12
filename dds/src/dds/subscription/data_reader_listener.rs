@@ -61,7 +61,7 @@ pub trait DataReaderListener<'a>: 'static {
     fn on_sample_lost(&mut self, _the_reader: DataReader<Self::Foo>, _status: SampleLostStatus) {}
 }
 
-impl<'a, Foo> DataReaderListenerAsync for Box<dyn DataReaderListener<'_, Foo = Foo> + Send + 'a>
+impl<'a, Foo> DataReaderListenerAsync<'_> for Box<dyn DataReaderListener<'_, Foo = Foo> + Send + 'a>
 where
     Self: 'static,
 {

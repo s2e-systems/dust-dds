@@ -113,7 +113,7 @@ impl PublisherAsync {
         &'a self,
         a_topic: &'a TopicAsync,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListenerAsync<Foo = Foo> + Send + 'b>>,
+        a_listener: Option<Box<dyn DataWriterListenerAsync<'b, Foo = Foo> + Send + 'b>>,
         mask: &'a [StatusKind],
     ) -> DdsResult<DataWriterAsync<Foo>>
     where
