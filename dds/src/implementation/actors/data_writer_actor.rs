@@ -893,7 +893,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
         let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(message.handle.as_ref().clone()));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
         let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -962,7 +962,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
         let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(message.handle.as_ref().clone()));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
         let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
@@ -1098,7 +1098,7 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
             .unwrap_or(HANDLE_NIL);
 
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(handle.as_ref().clone()));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*handle.as_ref()));
         let parameter_list = ParameterList::new(vec![pid_key_hash]);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
