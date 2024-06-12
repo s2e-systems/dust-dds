@@ -243,8 +243,10 @@ where
 
             let mut serialized_foo = Vec::new();
             instance.serialize_data(&mut serialized_foo)?;
-            let instance_serialized_key =
-                type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
+            let instance_serialized_key = type_support
+                .get_serialized_key_from_serialized_foo(&serialized_foo)?
+                .into();
+
             let message_sender_actor = self
                 .participant_address()
                 .send_actor_mail(domain_participant_actor::GetMessageSender)?
@@ -344,7 +346,7 @@ where
             .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::WriteWTimestamp {
-                serialized_data,
+                serialized_data: serialized_data.into(),
                 instance_handle: key,
                 _handle: handle,
                 timestamp,
@@ -424,7 +426,7 @@ where
             .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::DisposeWTimestamp {
-                instance_serialized_key: key,
+                instance_serialized_key: key.into(),
                 handle: instance_handle,
                 timestamp,
                 message_sender_actor,

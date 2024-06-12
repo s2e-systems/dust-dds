@@ -59,14 +59,14 @@ impl RtpsWriter {
         self.heartbeat_period
     }
 
-    pub fn _data_max_size_serialized(&self) -> usize {
+    pub fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
 
     pub fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: Vec<u8>,
+        data: Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: messages::types::Time,
@@ -78,9 +78,7 @@ impl RtpsWriter {
             handle,
             self.last_change_sequence_number,
             timestamp,
-            data.chunks(self.data_max_size_serialized)
-                .map(|c| Data::new(c.to_vec().into()))
-                .collect(),
+            data,
             inline_qos,
         )
     }
