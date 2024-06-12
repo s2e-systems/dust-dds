@@ -60,7 +60,7 @@ impl Subscriber {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where

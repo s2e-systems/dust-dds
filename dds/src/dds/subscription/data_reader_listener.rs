@@ -11,7 +11,7 @@ use crate::{
 use super::data_reader::DataReader;
 
 /// This trait represents a listener object which can be associated with the [`DataReader`] entity.
-pub trait DataReaderListener: 'static {
+pub trait DataReaderListener<'a>: 'static {
     /// Type of the DataReader with which this Listener will be associated.
     type Foo;
 
@@ -61,7 +61,7 @@ pub trait DataReaderListener: 'static {
     fn on_sample_lost(&mut self, _the_reader: DataReader<Self::Foo>, _status: SampleLostStatus) {}
 }
 
-impl<'a, Foo> DataReaderListenerAsync for Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>
+impl<'a, Foo> DataReaderListenerAsync for Box<dyn DataReaderListener<'_, Foo = Foo> + Send + 'a>
 where
     Self: 'static,
 {

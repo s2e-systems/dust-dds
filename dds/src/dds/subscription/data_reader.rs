@@ -559,7 +559,7 @@ where
     #[tracing::instrument(skip(self, a_listener))]
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.reader_async.runtime_handle().block_on(
