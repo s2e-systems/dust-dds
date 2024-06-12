@@ -58,7 +58,7 @@ impl Publisher {
         &self,
         a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + 'a>>,
+        a_listener: Option<Box<dyn DataWriterListener<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
