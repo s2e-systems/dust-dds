@@ -338,9 +338,6 @@ impl WriteIntoBytes for ParameterList {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SerializedData;
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SerializedDataFragment {
     data: Data,
     range: Range<usize>,
