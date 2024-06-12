@@ -3,7 +3,7 @@ use super::{
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
-        submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
+        submessages::data::DataSubmessage,
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
@@ -15,88 +15,8 @@ pub struct RtpsWriterCacheChange {
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     timestamp: messages::types::Time,
-    data_value: Vec<Data>,
+    data_value: Data,
     inline_qos: ParameterList,
-}
-
-pub struct DataFragSubmessages<'a> {
-    cache_change: &'a RtpsWriterCacheChange,
-    reader_id: EntityId,
-}
-
-impl<'a> DataFragSubmessages<'a> {
-    pub fn new(cache_change: &'a RtpsWriterCacheChange, reader_id: EntityId) -> Self {
-        Self {
-            cache_change,
-            reader_id,
-        }
-    }
-}
-
-pub struct DataFragSubmessagesIter<'a> {
-    cache_change: &'a RtpsWriterCacheChange,
-    data: Vec<&'a Data>,
-    reader_id: EntityId,
-    pos: usize,
-}
-
-impl<'a> IntoIterator for &'a DataFragSubmessages<'a> {
-    type Item = DataFragSubmessage;
-    type IntoIter = DataFragSubmessagesIter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let data = self.cache_change.data_value.iter().collect();
-        Self::IntoIter {
-            cache_change: self.cache_change,
-            data,
-            reader_id: self.reader_id,
-            pos: 0,
-        }
-    }
-}
-
-impl<'a> Iterator for DataFragSubmessagesIter<'a> {
-    type Item = DataFragSubmessage;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos < self.data.len() {
-            let inline_qos_flag = true;
-            let key_flag = match self.cache_change.kind() {
-                ChangeKind::Alive => false,
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-                _ => todo!(),
-            };
-            let non_standard_payload_flag = false;
-            let reader_id = self.reader_id;
-            let writer_id = self.cache_change.writer_guid().entity_id();
-            let writer_sn = self.cache_change.sequence_number();
-            let fragment_starting_num = self.pos as u32 + 1;
-            let fragments_in_submessage = 1;
-            let data_size = self.data.iter().map(|d| d.len()).sum::<usize>() as u32;
-            let fragment_size = self.data[0].len() as u16;
-            let inline_qos = self.cache_change.inline_qos.clone();
-            let serialized_payload = self.data[self.pos].clone();
-
-            self.pos += 1;
-
-            Some(DataFragSubmessage::new(
-                inline_qos_flag,
-                non_standard_payload_flag,
-                key_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                fragment_starting_num,
-                fragments_in_submessage,
-                fragment_size,
-                data_size,
-                inline_qos,
-                serialized_payload,
-            ))
-        } else {
-            None
-        }
-    }
 }
 
 impl RtpsWriterCacheChange {
@@ -116,7 +36,7 @@ impl RtpsWriterCacheChange {
             self.writer_guid().entity_id(),
             self.sequence_number(),
             self.inline_qos.clone(),
-            self.data_value[0].clone(),
+            self.data_value.clone(),
         )
     }
 
@@ -132,7 +52,7 @@ impl RtpsWriterCacheChange {
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         timestamp: messages::types::Time,
-        data_value: Vec<Data>,
+        data_value: Data,
         inline_qos: ParameterList,
     ) -> Self {
         Self {
@@ -164,7 +84,7 @@ impl RtpsWriterCacheChange {
         self.timestamp
     }
 
-    pub fn data_value(&self) -> &[Data] {
+    pub fn data_value(&self) -> &Data {
         &self.data_value
     }
 
@@ -248,7 +168,7 @@ mod tests {
             InstanceHandle([0; 16]),
             1,
             TIME_INVALID,
-            vec![Data::new(vec![].into())],
+            Data::empty(),
             ParameterList::empty(),
         );
         hc.add_change(change);
@@ -265,7 +185,7 @@ mod tests {
             InstanceHandle([0; 16]),
             1,
             TIME_INVALID,
-            vec![Data::new(vec![].into())],
+            Data::empty(),
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -274,7 +194,7 @@ mod tests {
             HANDLE_NIL,
             2,
             TIME_INVALID,
-            vec![Data::new(vec![].into())],
+            Data::empty(),
             ParameterList::empty(),
         );
         hc.add_change(change1);
@@ -291,7 +211,7 @@ mod tests {
             HANDLE_NIL,
             1,
             TIME_INVALID,
-            vec![Data::new(vec![].into())],
+            Data::empty(),
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -300,7 +220,7 @@ mod tests {
             HANDLE_NIL,
             2,
             TIME_INVALID,
-            vec![Data::new(vec![].into())],
+            Data::empty(),
             ParameterList::empty(),
         );
         hc.add_change(change1);

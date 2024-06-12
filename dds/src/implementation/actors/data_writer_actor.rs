@@ -8,7 +8,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
+            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
@@ -34,9 +34,11 @@ use crate::{
     },
     rtps::{
         messages::{
-            submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
+            submessage_elements::{
+                Data, Parameter, ParameterList, SequenceNumberSet, SerializedDataFragment,
+            },
             submessages::{
-                ack_nack::AckNackSubmessage, gap::GapSubmessage,
+                ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
                 info_destination::InfoDestinationSubmessage,
                 info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
             },
@@ -48,7 +50,7 @@ use crate::{
             ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
         writer::RtpsWriter,
-        writer_history_cache::{DataFragSubmessages, RtpsWriterCacheChange, WriterHistoryCache},
+        writer_history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     },
     serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
@@ -444,6 +446,7 @@ impl DataWriterActor {
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
+                        self.rtps_writer.data_max_size_serialized(),
                         message_sender_actor,
                     )
                 }
@@ -452,6 +455,7 @@ impl DataWriterActor {
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
                         &self.writer_cache,
+                        self.rtps_writer.data_max_size_serialized(),
                         self.rtps_writer.heartbeat_period().into(),
                         message_sender_actor,
                     )
@@ -697,10 +701,7 @@ impl Mail for GetMatchedSubscriptions {
     type Result = Vec<InstanceHandle>;
 }
 impl MailHandler<GetMatchedSubscriptions> for DataWriterActor {
-    fn handle(
-        &mut self,
-        _: GetMatchedSubscriptions,
-    ) -> <GetMatchedSubscriptions as Mail>::Result {
+    fn handle(&mut self, _: GetMatchedSubscriptions) -> <GetMatchedSubscriptions as Mail>::Result {
         self.matched_subscriptions.get_matched_subscriptions()
     }
 }
@@ -858,7 +859,7 @@ impl MailHandler<RegisterInstanceWTimestamp> for DataWriterActor {
 }
 
 pub struct UnregisterInstanceWTimestamp {
-    pub instance_serialized_key: Vec<u8>,
+    pub instance_serialized_key: Data,
     pub handle: InstanceHandle,
     pub timestamp: Time,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
@@ -891,11 +892,9 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
         } else {
             STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
-
-        let inline_qos = ParameterList::new(vec![Parameter::new(
-            PID_STATUS_INFO,
-            Arc::from(serialized_status_info),
-        )]);
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
+        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
             ChangeKind::NotAliveUnregistered,
@@ -941,7 +940,7 @@ impl MailHandler<LookupInstance> for DataWriterActor {
 }
 
 pub struct DisposeWTimestamp {
-    pub instance_serialized_key: Vec<u8>,
+    pub instance_serialized_key: Data,
     pub handle: InstanceHandle,
     pub timestamp: Time,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
@@ -962,10 +961,9 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
         STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
-        let inline_qos = ParameterList::new(vec![Parameter::new(
-            PID_STATUS_INFO,
-            Arc::from(serialized_status_info),
-        )]);
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
+        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
         let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
             ChangeKind::NotAliveDisposed,
@@ -1083,7 +1081,7 @@ impl MailHandler<GetTopicName> for DataWriterActor {
 }
 
 pub struct WriteWTimestamp {
-    pub serialized_data: Vec<u8>,
+    pub serialized_data: Data,
     pub instance_handle: InstanceHandle,
     pub _handle: Option<InstanceHandle>,
     pub timestamp: Time,
@@ -1099,10 +1097,13 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
         let handle = self
             .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
             .unwrap_or(HANDLE_NIL);
+
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*handle.as_ref()));
+        let parameter_list = ParameterList::new(vec![pid_key_hash]);
         let change = self.rtps_writer.new_change(
             ChangeKind::Alive,
             message.serialized_data,
-            ParameterList::empty(),
+            parameter_list,
             handle.into(),
             message.timestamp.into(),
         );
@@ -1314,10 +1315,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: RemoveMatchedReader,
-    ) -> <RemoveMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         if let Some(r) = self
             .matched_subscriptions
             .get_matched_subscription_data(message.discovered_reader_handle)
@@ -1471,6 +1469,7 @@ fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
+    data_max_size_serialized: usize,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     // a_change_seq_num := the_reader_proxy.next_unsent_change();
@@ -1520,13 +1519,14 @@ fn send_message_to_reader_proxy_best_effort(
             .change_list()
             .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
         {
+            let number_of_fragments = cache_change
+                .data_value()
+                .len()
+                .div_ceil(data_max_size_serialized);
+
             // Either send a DATAFRAG submessages or send a single DATA submessage
-            if cache_change.data_value().len() > 1 {
-                let cache_change_frag = DataFragSubmessages::new(
-                    cache_change,
-                    reader_proxy.remote_reader_guid().entity_id(),
-                );
-                for data_frag_submessage in cache_change_frag.into_iter() {
+            if number_of_fragments > 1 {
+                for frag_index in 0..number_of_fragments {
                     let info_dst = Box::new(InfoDestinationSubmessage::new(
                         reader_proxy.remote_reader_guid().prefix(),
                     ));
@@ -1536,7 +1536,45 @@ fn send_message_to_reader_proxy_best_effort(
                         cache_change.timestamp(),
                     ));
 
-                    let data_frag = Box::new(data_frag_submessage);
+                    let inline_qos_flag = true;
+                    let key_flag = match cache_change.kind() {
+                        ChangeKind::Alive => false,
+                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+                        _ => todo!(),
+                    };
+                    let non_standard_payload_flag = false;
+                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    let writer_id = cache_change.writer_guid().entity_id();
+                    let writer_sn = cache_change.sequence_number();
+                    let fragment_starting_num = (frag_index + 1) as u32;
+                    let fragments_in_submessage = 1;
+                    let fragment_size = data_max_size_serialized as u16;
+                    let data_size = cache_change.data_value().len() as u32;
+                    let inline_qos = cache_change.inline_qos().clone();
+
+                    let start = frag_index * data_max_size_serialized;
+                    let end = std::cmp::min(
+                        (frag_index + 1) * data_max_size_serialized,
+                        cache_change.data_value().len(),
+                    );
+
+                    let serialized_payload =
+                        SerializedDataFragment::new(cache_change.data_value().clone(), start..end);
+
+                    let data_frag = Box::new(DataFragSubmessage::new(
+                        inline_qos_flag,
+                        non_standard_payload_flag,
+                        key_flag,
+                        reader_id,
+                        writer_id,
+                        writer_sn,
+                        fragment_starting_num,
+                        fragments_in_submessage,
+                        fragment_size,
+                        data_size,
+                        inline_qos,
+                        serialized_payload,
+                    ));
 
                     message_sender_actor
                         .send_actor_mail(message_sender_actor::WriteMessage {
@@ -1588,6 +1626,7 @@ fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
+    data_max_size_serialized: usize,
     heartbeat_period: Duration,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
@@ -1621,6 +1660,7 @@ fn send_message_to_reader_proxy_reliable(
                     reader_proxy,
                     writer_id,
                     writer_cache,
+                    data_max_size_serialized,
                     next_unsent_change_seq_num,
                     message_sender_actor,
                 );
@@ -1661,6 +1701,7 @@ fn send_message_to_reader_proxy_reliable(
                 reader_proxy,
                 writer_id,
                 writer_cache,
+                data_max_size_serialized,
                 next_requested_change_seq_num,
                 message_sender_actor,
             );
@@ -1672,6 +1713,7 @@ fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
     writer_cache: &WriterHistoryCache,
+    data_max_size_serialized: usize,
     change_seq_num: SequenceNumber,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
@@ -1680,13 +1722,14 @@ fn send_change_message_reader_proxy_reliable(
         .find(|cc| cc.sequence_number() == change_seq_num)
     {
         Some(cache_change) if change_seq_num > reader_proxy.first_relevant_sample_seq_num() => {
+            let number_of_fragments = cache_change
+                .data_value()
+                .len()
+                .div_ceil(data_max_size_serialized);
+
             // Either send a DATAFRAG submessages or send a single DATA submessage
-            if cache_change.data_value().len() > 1 {
-                let cache_change_frag = DataFragSubmessages::new(
-                    cache_change,
-                    reader_proxy.remote_reader_guid().entity_id(),
-                );
-                for data_frag_submessage in cache_change_frag.into_iter() {
+            if number_of_fragments > 1 {
+                for frag_index in 0..number_of_fragments {
                     let info_dst = Box::new(InfoDestinationSubmessage::new(
                         reader_proxy.remote_reader_guid().prefix(),
                     ));
@@ -1696,7 +1739,45 @@ fn send_change_message_reader_proxy_reliable(
                         cache_change.timestamp(),
                     ));
 
-                    let data_frag = Box::new(data_frag_submessage);
+                    let inline_qos_flag = true;
+                    let key_flag = match cache_change.kind() {
+                        ChangeKind::Alive => false,
+                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+                        _ => todo!(),
+                    };
+                    let non_standard_payload_flag = false;
+                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    let writer_id = cache_change.writer_guid().entity_id();
+                    let writer_sn = cache_change.sequence_number();
+                    let fragment_starting_num = (frag_index + 1) as u32;
+                    let fragments_in_submessage = 1;
+                    let fragment_size = data_max_size_serialized as u16;
+                    let data_size = cache_change.data_value().len() as u32;
+                    let inline_qos = cache_change.inline_qos().clone();
+
+                    let start = frag_index * data_max_size_serialized;
+                    let end = std::cmp::min(
+                        (frag_index + 1) * data_max_size_serialized,
+                        cache_change.data_value().len(),
+                    );
+
+                    let serialized_payload =
+                        SerializedDataFragment::new(cache_change.data_value().clone(), start..end);
+
+                    let data_frag = Box::new(DataFragSubmessage::new(
+                        inline_qos_flag,
+                        non_standard_payload_flag,
+                        key_flag,
+                        reader_id,
+                        writer_id,
+                        writer_sn,
+                        fragment_starting_num,
+                        fragments_in_submessage,
+                        fragment_size,
+                        data_size,
+                        inline_qos,
+                        serialized_payload,
+                    ));
 
                     message_sender_actor
                         .send_actor_mail(message_sender_actor::WriteMessage {

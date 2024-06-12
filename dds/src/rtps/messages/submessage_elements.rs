@@ -9,6 +9,7 @@ use super::{
 };
 use std::{
     io::{BufRead, Write},
+    ops::Range,
     sync::Arc,
 };
 ///
@@ -337,6 +338,56 @@ impl WriteIntoBytes for ParameterList {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SerializedDataFragment {
+    data: Data,
+    range: Range<usize>,
+}
+
+impl SerializedDataFragment {
+    pub fn new(data: Data, range: Range<usize>) -> Self {
+        Self { data, range }
+    }
+}
+
+impl Default for SerializedDataFragment {
+    fn default() -> Self {
+        Self {
+            data: Data::empty(),
+            range: 0..0,
+        }
+    }
+}
+
+impl AsRef<[u8]> for SerializedDataFragment {
+    fn as_ref(&self) -> &[u8] {
+        &self.data.as_ref()[self.range.start..self.range.end]
+    }
+}
+
+impl From<&[u8]> for SerializedDataFragment {
+    fn from(value: &[u8]) -> Self {
+        Self {
+            data: Data::new(Arc::from(value)),
+            range: 0..value.len(),
+        }
+    }
+}
+
+impl WriteIntoBytes for SerializedDataFragment {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.data.as_ref()[self.range.start..self.range.end]
+            .as_ref()
+            .write_into_bytes(buf);
+        match self.data.len() % 4 {
+            1 => [0_u8; 3].write_into_bytes(buf),
+            2 => [0_u8; 2].write_into_bytes(buf),
+            3 => [0_u8; 1].write_into_bytes(buf),
+            _ => (),
+        };
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Data(Arc<[u8]>);
 
 impl Data {
@@ -354,6 +405,12 @@ impl Data {
 
     pub fn empty() -> Self {
         Self(Arc::new([]))
+    }
+}
+
+impl From<Vec<u8>> for Data {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value.into_boxed_slice().into())
     }
 }
 

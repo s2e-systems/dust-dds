@@ -100,7 +100,7 @@ impl RtpsWriterProxy {
                 let inline_qos = frag_seq_num_list[0].inline_qos().clone();
                 let mut data = Vec::new();
                 for frag in frag_seq_num_list {
-                    data.append(&mut frag.serialized_payload().as_ref().to_vec());
+                    data.extend_from_slice(frag.serialized_payload().as_ref());
                 }
 
                 Some(DataSubmessage::new(
