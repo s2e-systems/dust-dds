@@ -8,7 +8,7 @@ use crate::infrastructure::status::{
 use super::data_writer::DataWriterAsync;
 
 /// This trait represents a listener object which can be associated with the [`DataWriterAsync`] entity.
-pub trait DataWriterListenerAsync
+pub trait DataWriterListenerAsync<'a>
 where
     Self: 'static,
 {

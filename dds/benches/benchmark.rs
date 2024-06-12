@@ -106,7 +106,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener for Listener {
+    impl DataReaderListener<'_> for Listener {
         type Foo = KeyedData;
         fn on_data_available(&mut self, the_reader: DataReader<KeyedData>) {
             the_reader
@@ -187,7 +187,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
     }
-    impl DataReaderListener for Listener {
+    impl DataReaderListener<'_> for Listener {
         type Foo = LargeKeyedData;
         fn on_data_available(&mut self, the_reader: DataReader<LargeKeyedData>) {
             the_reader

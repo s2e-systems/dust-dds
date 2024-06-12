@@ -11,7 +11,7 @@ use crate::{
 use super::data_writer::DataWriter;
 
 /// This trait represents a listener object which can be associated with the [`DataWriter`] entity.
-pub trait DataWriterListener: 'static {
+pub trait DataWriterListener<'a>: 'static {
     /// Type of the DataWriter with which this Listener will be associated.
     type Foo;
 
@@ -45,7 +45,7 @@ pub trait DataWriterListener: 'static {
     }
 }
 
-impl<'a, Foo> DataWriterListenerAsync for Box<dyn DataWriterListener<Foo = Foo> + Send + 'a>
+impl<'a, Foo> DataWriterListenerAsync<'_> for Box<dyn DataWriterListener<'_, Foo = Foo> + Send + 'a>
 where
     Self: 'static,
 {

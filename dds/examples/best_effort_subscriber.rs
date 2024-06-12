@@ -26,7 +26,7 @@ struct Listener {
     sender: SyncSender<()>,
 }
 
-impl DataReaderListener for Listener {
+impl DataReaderListener<'_> for Listener {
     type Foo = BestEffortExampleType;
     fn on_data_available(&mut self, the_reader: DataReader<BestEffortExampleType>) {
         if let Ok(samples) =

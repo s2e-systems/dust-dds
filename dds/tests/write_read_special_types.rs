@@ -3,6 +3,7 @@ mod utils;
 use std::ops::Range;
 
 use dust_dds::{
+    dds_async::{data_reader_listener::DataReaderListenerAsync, data_writer_listener::DataWriterListenerAsync, domain_participant_factory::DomainParticipantFactoryAsync},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsResult,
@@ -13,7 +14,11 @@ use dust_dds::{
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    publication::data_writer_listener::DataWriterListener,
+    subscription::{
+        data_reader_listener::DataReaderListener,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, DynamicTypeInterface},
 };
 
@@ -94,6 +99,110 @@ fn foo_with_lifetime_should_read_and_write() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data().unwrap(), data);
+}
+
+#[test]
+fn foo_with_lifetime_with_listener_should_compile() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct BorrowedData<'a> {
+        #[dust_dds(key)]
+        id: u8,
+        value: &'a [u8],
+    }
+    struct ReaderListener;
+    impl<'a> DataReaderListener<'a> for ReaderListener {
+        type Foo = BorrowedData<'a>;
+    }
+    struct WriterListener;
+    impl<'a> DataWriterListener<'a> for WriterListener {
+        type Foo = BorrowedData<'a>;
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<BorrowedData>("MyTopic", "BorrowedData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<BorrowedData>(
+            &topic,
+            QosKind::Default,
+            Some(Box::new(WriterListener)),
+            NO_STATUS,
+        )
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _reader = subscriber
+        .create_datareader::<BorrowedData>(
+            &topic,
+            QosKind::Default,
+            Some(Box::new(ReaderListener)),
+            NO_STATUS,
+        )
+        .unwrap();
+}
+
+#[tokio::main]
+async fn main() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct BorrowedData<'a> {
+        #[dust_dds(key)]
+        id: u8,
+        value: &'a [u8],
+    }
+    struct ReaderListener;
+    impl<'a> DataReaderListenerAsync<'a> for ReaderListener {
+        type Foo = BorrowedData<'a>;
+    }
+    struct WriterListener;
+    impl<'a> DataWriterListenerAsync<'a> for WriterListener {
+        type Foo = BorrowedData<'a>;
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactoryAsync::new(tokio::runtime::Handle::current());
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .await
+        .unwrap();
+    let topic = participant
+        .create_topic::<BorrowedData>(
+            "BorrowedDataTopic",
+            "BorrowedData",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
+        .await
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .await
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<BorrowedData>(
+            &topic,
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
+        .await
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .await
+        .unwrap();
+    let _reader = subscriber
+        .create_datareader::<BorrowedData>(&topic, QosKind::Default, Some(Box::new(ReaderListener)), NO_STATUS)
+        .await
+        .unwrap();
 }
 
 #[test]

@@ -8,7 +8,7 @@ use crate::infrastructure::status::{
 use super::data_reader::DataReaderAsync;
 
 /// This trait represents a listener object which can be associated with the [`DataReaderAsync`] entity.
-pub trait DataReaderListenerAsync
+pub trait DataReaderListenerAsync<'a>
 where
     Self: 'static,
 {

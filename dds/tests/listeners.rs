@@ -587,7 +587,7 @@ fn on_data_available_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl DataReaderListener for DataAvailableListener {
+    impl DataReaderListener<'_> for DataAvailableListener {
         type Foo = MyData;
         fn on_data_available(&mut self, _the_reader: DataReader<MyData>) {
             self.sender.send(()).unwrap();
@@ -752,7 +752,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
         sender: std::sync::mpsc::SyncSender<()>,
     }
 
-    impl DataReaderListener for DataAvailableListener {
+    impl DataReaderListener<'_> for DataAvailableListener {
         type Foo = MyData;
         fn on_data_available(&mut self, _the_reader: DataReader<MyData>) {
             self.sender.send(()).unwrap();
@@ -839,7 +839,7 @@ fn participant_deadline_missed_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
 
-    impl DataReaderListener for DeadlineMissedListener {
+    impl DataReaderListener<'_> for DeadlineMissedListener {
         type Foo = MyData;
         fn on_requested_deadline_missed(
             &mut self,
@@ -929,7 +929,7 @@ fn participant_sample_rejected_listener() {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
 
-    impl DataReaderListener for SampleRejectedListener {
+    impl DataReaderListener<'_> for SampleRejectedListener {
         type Foo = MyData;
         fn on_sample_rejected(
             &mut self,
@@ -1039,7 +1039,7 @@ fn participant_subscription_matched_listener() {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
 
-    impl DataReaderListener for SubscriptionMatchedListener {
+    impl DataReaderListener<'_> for SubscriptionMatchedListener {
         type Foo = MyData;
         fn on_subscription_matched(
             &mut self,
@@ -1125,7 +1125,7 @@ fn participant_requested_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }
 
-    impl DataReaderListener for RequestedIncompatibleQosListener {
+    impl DataReaderListener<'_> for RequestedIncompatibleQosListener {
         type Foo = MyData;
         fn on_requested_incompatible_qos(
             &mut self,
@@ -1740,7 +1740,7 @@ fn data_writer_publication_matched_listener() {
         sender: std::sync::mpsc::SyncSender<PublicationMatchedStatus>,
     }
 
-    impl DataWriterListener for PublicationMatchedListener {
+    impl DataWriterListener<'_> for PublicationMatchedListener {
         type Foo = MyData;
         fn on_publication_matched(
             &mut self,
@@ -1827,7 +1827,7 @@ fn data_writer_offered_incompatible_qos_listener() {
         sender: std::sync::mpsc::SyncSender<OfferedIncompatibleQosStatus>,
     }
 
-    impl DataWriterListener for OfferedIncompatibleQosListener {
+    impl DataWriterListener<'_> for OfferedIncompatibleQosListener {
         type Foo = MyData;
 
         fn on_offered_incompatible_qos(
@@ -1924,10 +1924,10 @@ fn non_sync_listener_should_be_accepted() {
     impl PublisherListener for NonSyncListener {}
     impl SubscriberListener for NonSyncListener {}
     impl TopicListener for NonSyncListener {}
-    impl DataWriterListener for NonSyncListener {
+    impl DataWriterListener<'_> for NonSyncListener {
         type Foo = MyData;
     }
-    impl DataReaderListener for NonSyncListener {
+    impl DataReaderListener<'_> for NonSyncListener {
         type Foo = MyData;
     }
 
