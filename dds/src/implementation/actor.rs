@@ -14,7 +14,7 @@ where
 }
 
 struct ReplyMail<A> {
-    handle: Box<dyn FnOnce(&mut A) -> () + Send>,
+    handle: Box<dyn FnOnce(&mut A) + Send>,
 }
 
 pub struct ReplyReceiver<M>
