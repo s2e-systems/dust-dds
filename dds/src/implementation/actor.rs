@@ -13,12 +13,8 @@ where
     fn handle(&mut self, message: M) -> M::Result;
 }
 
-struct ReplyMail<M>
-where
-    M: Mail,
-{
-    mail: Option<M>,
-    reply_sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
+struct ReplyMail<A> {
+    handle: Box<dyn FnOnce(&mut A) -> () + Send>,
 }
 
 pub struct ReplyReceiver<M>
@@ -39,30 +35,9 @@ where
     }
 }
 
-pub trait GenericHandler<A> {
-    fn handle(&mut self, actor: &mut A);
-}
-
-impl<A, M> GenericHandler<A> for ReplyMail<M>
-where
-    A: MailHandler<M> + Send,
-    M: Mail + Send,
-    <M as Mail>::Result: Send,
-{
-    fn handle(&mut self, actor: &mut A) {
-        let result =
-            <A as MailHandler<M>>::handle(actor, self.mail.take().expect("Must have a message"));
-        self.reply_sender
-            .take()
-            .expect("Must have a sender")
-            .send(result)
-            .ok();
-    }
-}
-
 #[derive(Debug)]
 pub struct ActorAddress<A> {
-    mail_sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
+    mail_sender: tokio::sync::mpsc::UnboundedSender<ReplyMail<A>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -86,17 +61,19 @@ impl<A> ActorAddress<A> {
     {
         let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
         self.mail_sender
-            .send(Box::new(ReplyMail {
-                mail: Some(mail),
-                reply_sender: Some(reply_sender),
-            }))
+            .send(ReplyMail {
+                handle: Box::new(move |actor| {
+                    let result = <A as MailHandler<M>>::handle(actor, mail);
+                    reply_sender.send(result).ok();
+                }),
+            })
             .map_err(|_| DdsError::AlreadyDeleted)?;
         Ok(ReplyReceiver { reply_receiver })
     }
 }
 
 pub struct Actor<A> {
-    mail_sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
+    mail_sender: tokio::sync::mpsc::UnboundedSender<ReplyMail<A>>,
     join_handle: tokio::task::JoinHandle<()>,
     notify_stop: Arc<tokio::sync::Notify>,
 }
@@ -107,7 +84,7 @@ where
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (mail_sender, mut mailbox_recv) =
-            tokio::sync::mpsc::unbounded_channel::<Box<dyn GenericHandler<A> + Send>>();
+            tokio::sync::mpsc::unbounded_channel::<ReplyMail<A>>();
         let notify_stop = Arc::new(tokio::sync::Notify::new());
         let notify_clone = notify_stop.clone();
 
@@ -116,7 +93,7 @@ where
                 tokio::select! {
                     m = mailbox_recv.recv() => {
                         match m {
-                            Some(mut message) => message.handle(&mut actor),
+                            Some(message) => (message.handle)(&mut actor),
                             None => break,
                         }
                     }
@@ -152,10 +129,12 @@ where
     {
         let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
         self.mail_sender
-            .send(Box::new(ReplyMail {
-                mail: Some(mail),
-                reply_sender: Some(reply_sender),
-            }))
+            .send(ReplyMail {
+                handle: Box::new(move |actor| {
+                    let result = <A as MailHandler<M>>::handle(actor, mail);
+                    reply_sender.send(result).ok();
+                }),
+            })
             .expect("Message will always be sent when actor exists");
         ReplyReceiver { reply_receiver }
     }
