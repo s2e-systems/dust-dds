@@ -115,10 +115,10 @@ impl<T> MpscReceiver<T> {
 
     pub fn close(&self) {
         let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
+        inner_lock.is_closed = true;
         if let Some(w) = inner_lock.waker.take() {
             w.wake();
         }
-        todo!()
     }
 }
 
@@ -133,6 +133,8 @@ impl<T> Future for MpscReceiverFuture<T> {
         let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
         if let Some(value) = inner_lock.data.pop_front() {
             Poll::Ready(Some(value))
+        } else if inner_lock.is_closed {
+            Poll::Ready(None)
         } else {
             inner_lock.waker.replace(cx.waker().clone());
             Poll::Pending
