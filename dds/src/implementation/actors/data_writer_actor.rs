@@ -1291,21 +1291,16 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                 }
 
                 self.send_message(message.message_sender_actor);
-            } else {
-                if !self.incompatible_subscriptions.contains(&instance_handle) {
-                    self.incompatible_subscriptions
-                        .add_offered_incompatible_qos(
-                            instance_handle,
-                            incompatible_qos_policy_list,
-                        );
-                    self.on_offered_incompatible_qos(
-                        message.data_writer_address,
-                        message.publisher,
-                        message.publisher_mask_listener,
-                        message.participant_mask_listener,
-                        &message.handle,
-                    )?;
-                }
+            } else if !self.incompatible_subscriptions.contains(&instance_handle) {
+                self.incompatible_subscriptions
+                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
+                self.on_offered_incompatible_qos(
+                    message.data_writer_address,
+                    message.publisher,
+                    message.publisher_mask_listener,
+                    message.participant_mask_listener,
+                    &message.handle,
+                )?;
             }
         }
         Ok(())
