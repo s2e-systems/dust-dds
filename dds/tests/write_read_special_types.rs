@@ -3,7 +3,11 @@ mod utils;
 use std::ops::Range;
 
 use dust_dds::{
-    dds_async::{data_reader_listener::DataReaderListenerAsync, data_writer_listener::DataWriterListenerAsync, domain_participant_factory::DomainParticipantFactoryAsync},
+    dds_async::{
+        data_reader_listener::DataReaderListenerAsync,
+        data_writer_listener::DataWriterListenerAsync,
+        domain_participant_factory::DomainParticipantFactoryAsync,
+    },
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsResult,
@@ -149,8 +153,8 @@ fn foo_with_lifetime_with_listener_should_compile() {
         .unwrap();
 }
 
-#[tokio::main]
-async fn main() {
+#[tokio::test]
+async fn async_foo_with_lifetime_with_listener_should_compile() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct BorrowedData<'a> {
         #[dust_dds(key)]
@@ -190,7 +194,7 @@ async fn main() {
         .create_datawriter::<BorrowedData>(
             &topic,
             QosKind::Default,
-            None,
+            Some(Box::new(WriterListener)),
             NO_STATUS,
         )
         .await
@@ -200,7 +204,12 @@ async fn main() {
         .await
         .unwrap();
     let _reader = subscriber
-        .create_datareader::<BorrowedData>(&topic, QosKind::Default, Some(Box::new(ReaderListener)), NO_STATUS)
+        .create_datareader::<BorrowedData>(
+            &topic,
+            QosKind::Default,
+            Some(Box::new(ReaderListener)),
+            NO_STATUS,
+        )
         .await
         .unwrap();
 }
