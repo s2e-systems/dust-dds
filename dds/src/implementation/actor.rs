@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 use super::runtime::{
@@ -101,7 +99,6 @@ impl<A> ActorAddress<A> {
 pub struct Actor<A> {
     mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
-    notify_stop: Arc<tokio::sync::Notify>,
 }
 
 impl<A> Actor<A>
@@ -110,28 +107,15 @@ where
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
         let (mail_sender, mailbox_recv) = mpsc_channel::<Box<dyn GenericHandler<A> + Send>>();
-        let notify_stop = Arc::new(tokio::sync::Notify::new());
-        let notify_clone = notify_stop.clone();
 
         let join_handle = runtime.spawn(async move {
-            loop {
-                tokio::select! {
-                    m = mailbox_recv.recv() => {
-                        match m {
-                            Some(mut message) => message.handle(&mut actor),
-                            None => break,
-                        }
-                    }
-                    _ = notify_clone.notified() => {
-                        mailbox_recv.close();
-                    }
-                }
+            while let Some(mut m) = mailbox_recv.recv().await {
+                m.handle(&mut actor);
             }
         });
         Actor {
             mail_sender,
             join_handle,
-            notify_stop,
         }
     }
 
@@ -142,7 +126,7 @@ where
     }
 
     pub async fn stop(self) {
-        self.notify_stop.notify_one();
+        self.mail_sender.close();
         self.join_handle.await.ok();
     }
 

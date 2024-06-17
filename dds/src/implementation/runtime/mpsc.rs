@@ -28,6 +28,15 @@ struct MpscInner<T> {
     is_closed: bool,
 }
 
+impl<T> MpscInner<T> {
+    pub fn close(&mut self) {
+        self.is_closed = true;
+        if let Some(w) = self.waker.take() {
+            w.wake();
+        }
+    }
+}
+
 impl<T> std::fmt::Debug for MpscInner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MpscInner")
@@ -93,6 +102,13 @@ impl<T> MpscSender<T> {
         }
     }
 
+    pub fn close(&self) {
+        self.inner
+            .lock()
+            .expect("Mutex shouldn't be poisoned")
+            .close();
+    }
+
     pub fn is_closed(&self) -> bool {
         self.inner
             .lock()
@@ -111,14 +127,6 @@ impl<T> MpscReceiver<T> {
             inner: self.inner.clone(),
         }
         .await
-    }
-
-    pub fn close(&self) {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        inner_lock.is_closed = true;
-        if let Some(w) = inner_lock.waker.take() {
-            w.wake();
-        }
     }
 }
 
