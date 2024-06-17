@@ -2108,7 +2108,8 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                     }
                     _ => (),
                 }
-            } else if self.incompatible_writer_list.insert(instance_handle) {
+            } else if !self.incompatible_writer_list.contains(&instance_handle) {
+                self.incompatible_writer_list.insert(instance_handle);
                 self.on_requested_incompatible_qos(
                     incompatible_qos_policy_list,
                     &message.data_reader_address,
