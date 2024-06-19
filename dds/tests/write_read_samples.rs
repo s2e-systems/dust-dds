@@ -1,5 +1,4 @@
 use dust_dds::{
-    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
@@ -45,15 +44,6 @@ struct LargeData {
 #[test]
 fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let factory = DomainParticipantFactory::get_instance();
-    factory
-        .set_configuration(
-            DustDdsConfigurationBuilder::new()
-                .fragment_size(15)
-                .build()
-                .unwrap(),
-        )
-        .unwrap();
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -108,7 +98,7 @@ fn large_data_should_be_fragmented() {
 
     let even_data = LargeData {
         id: 1,
-        value: Vec::from_iter(1..31),
+        value: vec![8; 15000],
     };
 
     writer.write(&even_data, None).unwrap();
@@ -131,7 +121,7 @@ fn large_data_should_be_fragmented() {
 
     let odd_data = LargeData {
         id: 1,
-        value: Vec::from_iter(1..30),
+        value: vec![8; 15001],
     };
 
     writer.write(&odd_data, None).unwrap();
