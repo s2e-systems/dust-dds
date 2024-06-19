@@ -1,4 +1,5 @@
 use dust_dds::{
+    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
@@ -44,7 +45,15 @@ struct LargeData {
 #[test]
 fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-
+    let factory = DomainParticipantFactory::get_instance();
+    factory
+        .set_configuration(
+            DustDdsConfigurationBuilder::new()
+                .fragment_size(15)
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -97,12 +106,12 @@ fn large_data_should_be_fragmented() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = LargeData {
+    let even_data = LargeData {
         id: 1,
-        value: vec![8; 15000],
+        value: Vec::from_iter(1..31),
     };
 
-    writer.write(&data, None).unwrap();
+    writer.write(&even_data, None).unwrap();
 
     let cond = reader.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::DataAvailable])
@@ -118,7 +127,30 @@ fn large_data_should_be_fragmented() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert_eq!(samples[0].data().unwrap(), data);
+    assert_eq!(samples[0].data().unwrap(), even_data);
+
+    let odd_data = LargeData {
+        id: 1,
+        value: Vec::from_iter(1..30),
+    };
+
+    writer.write(&odd_data, None).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data().unwrap(), odd_data);
 }
 
 #[test]

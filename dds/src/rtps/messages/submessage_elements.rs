@@ -378,12 +378,6 @@ impl WriteIntoBytes for SerializedDataFragment {
         self.data.as_ref()[self.range.start..self.range.end]
             .as_ref()
             .write_into_bytes(buf);
-        match self.data.len() % 4 {
-            1 => [0_u8; 3].write_into_bytes(buf),
-            2 => [0_u8; 2].write_into_bytes(buf),
-            3 => [0_u8; 1].write_into_bytes(buf),
-            _ => (),
-        };
     }
 }
 
@@ -408,6 +402,12 @@ impl Data {
     }
 }
 
+impl Default for Data {
+    fn default() -> Self {
+        Self(Arc::new([]))
+    }
+}
+
 impl From<Vec<u8>> for Data {
     fn from(value: Vec<u8>) -> Self {
         Self(value.into_boxed_slice().into())
@@ -423,12 +423,6 @@ impl AsRef<[u8]> for Data {
 impl WriteIntoBytes for Data {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.0.as_ref().write_into_bytes(buf);
-        match self.0.len() % 4 {
-            1 => [0_u8; 3].write_into_bytes(buf),
-            2 => [0_u8; 2].write_into_bytes(buf),
-            3 => [0_u8; 1].write_into_bytes(buf),
-            _ => (),
-        };
     }
 }
 
