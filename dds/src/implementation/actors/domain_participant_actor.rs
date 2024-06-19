@@ -1,3 +1,5 @@
+use tracing::warn;
+
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
@@ -57,6 +59,9 @@ use crate::{
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
             USER_DEFINED_WRITER_GROUP,
         },
+    },
+    subscription::sample_info::{
+        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{
         deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsTypeXml,
@@ -688,10 +693,7 @@ impl Mail for IgnoreSubscription {
     type Result = DdsResult<()>;
 }
 impl MailHandler<IgnoreSubscription> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: IgnoreSubscription,
-    ) -> <IgnoreSubscription as Mail>::Result {
+    fn handle(&mut self, message: IgnoreSubscription) -> <IgnoreSubscription as Mail>::Result {
         if self.enabled {
             self.ignored_subcriptions.insert(message.handle);
             Ok(())
@@ -919,10 +921,7 @@ impl Mail for SetDefaultTopicQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultTopicQos,
-    ) -> <SetDefaultTopicQos as Mail>::Result {
+    fn handle(&mut self, message: SetDefaultTopicQos) -> <SetDefaultTopicQos as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => TopicQos::default(),
             QosKind::Specific(q) => {
@@ -942,10 +941,7 @@ impl Mail for GetDefaultPublisherQos {
     type Result = PublisherQos;
 }
 impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: GetDefaultPublisherQos,
-    ) -> <GetDefaultPublisherQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultPublisherQos) -> <GetDefaultPublisherQos as Mail>::Result {
         self.default_publisher_qos.clone()
     }
 }
@@ -955,10 +951,7 @@ impl Mail for GetDefaultSubscriberQos {
     type Result = SubscriberQos;
 }
 impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: GetDefaultSubscriberQos,
-    ) -> <GetDefaultSubscriberQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultSubscriberQos) -> <GetDefaultSubscriberQos as Mail>::Result {
         self.default_subscriber_qos.clone()
     }
 }
@@ -1244,6 +1237,10 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                 _ => (),
             }
         }
+
+        message
+            .handle
+            .spawn(process_discovery_data(message.participant.clone()));
 
         Ok(())
     }
@@ -1731,10 +1728,7 @@ impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveMatchedWriter,
-    ) -> <RemoveMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
             let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
@@ -1902,10 +1896,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveMatchedReader,
-    ) -> <RemoveMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
             let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
@@ -2328,4 +2319,211 @@ impl DomainParticipantActor {
         }
         Ok(())
     }
+}
+
+async fn process_discovery_data(participant: DomainParticipantAsync) -> DdsResult<()> {
+    process_spdp_participant_discovery(&participant).await?;
+    process_sedp_publications_discovery(&participant).await?;
+    process_sedp_subscriptions_discovery(&participant).await?;
+    process_sedp_topics_discovery(&participant).await
+}
+
+async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+
+    if let Ok(Some(spdp_participant_reader)) = builtin_subscriber
+        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .await
+    {
+        if let Ok(spdp_discovered_participant_list) = spdp_participant_reader
+            .read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_participant_sample in spdp_discovered_participant_list {
+                match discovered_participant_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => {
+                        if let Ok(discovered_participant_data) =
+                            discovered_participant_sample.data()
+                        {
+                            participant
+                                .participant_address()
+                                .send_actor_mail(AddDiscoveredParticipant {
+                                    discovered_participant_data,
+                                    participant: participant.clone(),
+                                    handle: participant.runtime_handle().clone(),
+                                })?
+                                .receive_reply()
+                                .await?;
+                        }
+                    }
+                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
+                        participant
+                            .participant_address()
+                            .send_actor_mail(RemoveDiscoveredParticipant {
+                                handle: discovered_participant_sample.sample_info().instance_handle,
+                            })?
+                            .receive_reply()
+                            .await;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn process_sedp_publications_discovery(
+    participant: &DomainParticipantAsync,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+
+    if let Some(sedp_publications_detector) = builtin_subscriber
+        .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
+        .await?
+    {
+        if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+                match discovered_writer_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => match discovered_writer_sample.data() {
+                        Ok(discovered_writer_data) => {
+                            participant.participant_address().send_actor_mail(
+                                AddMatchedWriter {
+                                    discovered_writer_data,
+                                    participant: participant.clone(),
+                                    handle: participant.runtime_handle().clone(),
+                                },
+                            )?;
+                        }
+                        Err(e) => warn!(
+                            "Received invalid DiscoveredWriterData sample. Error {:?}",
+                            e
+                        ),
+                    },
+                    InstanceStateKind::NotAliveDisposed => {
+                        participant
+                            .participant_address()
+                            .send_actor_mail(RemoveMatchedWriter {
+                                discovered_writer_handle: discovered_writer_sample
+                                    .sample_info()
+                                    .instance_handle,
+                                participant: participant.clone(),
+                                handle: participant.runtime_handle().clone(),
+                            })?;
+                    }
+                    InstanceStateKind::NotAliveNoWriters => {
+                        todo!()
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn process_sedp_subscriptions_discovery(
+    participant: &DomainParticipantAsync,
+) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+
+    if let Some(sedp_subscriptions_detector) = builtin_subscriber
+        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .await?
+    {
+        if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+                match discovered_reader_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => match discovered_reader_sample.data() {
+                        Ok(discovered_reader_data) => {
+                            participant.participant_address().send_actor_mail(
+                                AddMatchedReader {
+                                    discovered_reader_data,
+                                    participant: participant.clone(),
+                                    handle: participant.runtime_handle().clone(),
+                                },
+                            )?;
+                        }
+                        Err(e) => warn!(
+                            "Received invalid DiscoveredReaderData sample. Error {:?}",
+                            e
+                        ),
+                    },
+                    InstanceStateKind::NotAliveDisposed => {
+                        participant
+                            .participant_address()
+                            .send_actor_mail(RemoveMatchedReader {
+                                discovered_reader_handle: discovered_reader_sample
+                                    .sample_info()
+                                    .instance_handle,
+                                participant: participant.clone(),
+                                handle: participant.runtime_handle().clone(),
+                            })?;
+                    }
+                    InstanceStateKind::NotAliveNoWriters => {
+                        todo!()
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn process_sedp_topics_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
+    let builtin_subscriber = participant.get_builtin_subscriber();
+    if let Some(sedp_topics_detector) = builtin_subscriber
+        .lookup_datareader::<DiscoveredTopicData>(DCPS_TOPIC)
+        .await?
+    {
+        if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .await
+        {
+            for discovered_topic_sample in discovered_topic_sample_list.drain(..) {
+                match discovered_topic_sample.sample_info().instance_state {
+                    InstanceStateKind::Alive => match discovered_topic_sample.data() {
+                        Ok(discovered_topic_data) => {
+                            participant
+                                .participant_address()
+                                .send_actor_mail(AddMatchedTopic {
+                                    discovered_topic_data,
+                                })?;
+                        }
+                        Err(e) => {
+                            warn!("Received invalid DiscoveredTopicData sample. Error {:?}", e)
+                        }
+                    },
+                    // Discovered topics are not deleted so it is not need to process these messages in any manner
+                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {}
+                }
+            }
+        }
+    }
+    Ok(())
 }
