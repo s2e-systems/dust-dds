@@ -193,8 +193,7 @@ mod tests {
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let mut result = Vec::new();
-        data.serialize_data(&mut result).unwrap();
+        let result = data.serialize_data().unwrap();
         assert_eq!(result, expected);
     }
 

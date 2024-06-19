@@ -488,8 +488,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        let mut result = Vec::new();
-        data.serialize_data(&mut result).unwrap();
+        let result = data.serialize_data().unwrap();
         assert_eq!(result, expected);
     }
 }

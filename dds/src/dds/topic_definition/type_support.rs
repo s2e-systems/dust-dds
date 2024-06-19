@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     implementation::payload_serializer_deserializer::{
@@ -19,6 +17,7 @@ use crate::{
         },
     },
 };
+use std::io::{Read, Write};
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
@@ -65,7 +64,7 @@ pub trait DdsHasKey {
 /// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
 pub trait DdsSerialize {
     /// Method to serialize the instance of the type into the provided writer.
-    fn serialize_data(&self, writer: impl std::io::Write) -> DdsResult<()>;
+    fn serialize_data(&self) -> DdsResult<Vec<u8>>;
 }
 
 /// This trait describes how the bytes can be deserialize to construct the data structure.
@@ -160,53 +159,59 @@ const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 /// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with LittleEndian endianness.
-pub fn serialize_rtps_classic_cdr_le(
-    value: &impl CdrSerialize,
-    mut writer: impl std::io::Write,
-) -> DdsResult<()> {
+pub fn serialize_rtps_classic_cdr_le(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {
+    let mut writer = Vec::new();
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ClassicCdrSerializer::new(writer, CdrEndianness::LittleEndian);
+    let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
     CdrSerialize::serialize(value, &mut serializer)?;
+    pad(&mut writer)?;
+    Ok(writer)
+}
+
+fn pad(writer: &mut Vec<u8>) -> std::io::Result<()> {
+    let padding = match writer.len() % 4 {
+        1 => &[0, 0, 0][..],
+        2 => &[0, 0][..],
+        3 => &[0][..],
+        _ => &[][..],
+    };
+    writer.write_all(padding)?;
+    writer[3] = padding.len() as u8;
     Ok(())
 }
 
 /// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with BigEndian endianness.
-pub fn serialize_rtps_classic_cdr_be(
-    value: &impl CdrSerialize,
-    mut writer: impl std::io::Write,
-) -> DdsResult<()> {
+pub fn serialize_rtps_classic_cdr_be(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {
+    let mut writer = Vec::new();
     writer.write_all(&CDR_BE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ClassicCdrSerializer::new(writer, CdrEndianness::BigEndian);
+    let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
     CdrSerialize::serialize(value, &mut serializer)?;
-    Ok(())
+    pad(&mut writer)?;
+    Ok(writer)
 }
 
 /// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation with Little Endian endianness
-pub fn serialize_rtps_cdr_pl_le(
-    value: &impl ParameterListSerialize,
-    mut writer: impl std::io::Write,
-) -> DdsResult<()> {
+pub fn serialize_rtps_cdr_pl_le(value: &impl ParameterListSerialize) -> DdsResult<Vec<u8>> {
+    let mut writer = Vec::new();
     writer.write_all(&PL_CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ParameterListCdrSerializer::new(writer, CdrEndianness::LittleEndian);
+    let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
     ParameterListSerialize::serialize(value, &mut serializer)?;
     serializer.write(PID_SENTINEL, &())?;
-    Ok(())
+    Ok(writer)
 }
 
 /// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation with Big Endian endianness
-pub fn serialize_rtps_cdr_pl_be(
-    value: &impl ParameterListSerialize,
-    mut writer: impl std::io::Write,
-) -> DdsResult<()> {
+pub fn serialize_rtps_cdr_pl_be(value: &impl ParameterListSerialize) -> DdsResult<Vec<u8>> {
+    let mut writer = Vec::new();
     writer.write_all(&PL_CDR_BE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ParameterListCdrSerializer::new(writer, CdrEndianness::BigEndian);
+    let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
     ParameterListSerialize::serialize(value, &mut serializer)?;
     serializer.write(PID_SENTINEL, &())?;
-    Ok(())
+    Ok(writer)
 }
 
 /// This is a helper function to deserialize a type implementing both [`CdrDeserialize`] and [`ParameterListDeserialize`] using either
@@ -318,4 +323,18 @@ where
     }?;
     let value = ParameterListDeserialize::deserialize(&mut deserializer)?;
     Ok(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_rtps_classic_cdr_le_padding() {
+        let result = serialize_rtps_classic_cdr_le(&2).unwrap();
+        assert_eq!(result, vec![0, 1, 0, 0b_0000_0000, 2, 0, 0, 0]);
+
+        let result = serialize_rtps_classic_cdr_le(&vec![3_u8, 4]).unwrap();
+        assert_eq!(result, vec![0, 1, 0, 0b_0000_0010, 2, 0, 0, 0, 3, 4, 0, 0])
+    }
 }

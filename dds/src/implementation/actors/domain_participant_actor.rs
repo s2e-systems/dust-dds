@@ -111,10 +111,8 @@ impl FooTypeSupport {
 
         let get_serialized_key_from_serialized_foo =
             define_function_with_correct_lifetime(|serialized_foo| {
-                let mut writer = Vec::new();
                 let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
-                Ok(writer)
+                serialize_rtps_classic_cdr_le(&foo_key)
             });
 
         let instance_handle_from_serialized_foo =
@@ -688,10 +686,7 @@ impl Mail for IgnoreSubscription {
     type Result = DdsResult<()>;
 }
 impl MailHandler<IgnoreSubscription> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: IgnoreSubscription,
-    ) -> <IgnoreSubscription as Mail>::Result {
+    fn handle(&mut self, message: IgnoreSubscription) -> <IgnoreSubscription as Mail>::Result {
         if self.enabled {
             self.ignored_subcriptions.insert(message.handle);
             Ok(())
@@ -919,10 +914,7 @@ impl Mail for SetDefaultTopicQos {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultTopicQos,
-    ) -> <SetDefaultTopicQos as Mail>::Result {
+    fn handle(&mut self, message: SetDefaultTopicQos) -> <SetDefaultTopicQos as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => TopicQos::default(),
             QosKind::Specific(q) => {
@@ -942,10 +934,7 @@ impl Mail for GetDefaultPublisherQos {
     type Result = PublisherQos;
 }
 impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: GetDefaultPublisherQos,
-    ) -> <GetDefaultPublisherQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultPublisherQos) -> <GetDefaultPublisherQos as Mail>::Result {
         self.default_publisher_qos.clone()
     }
 }
@@ -955,10 +944,7 @@ impl Mail for GetDefaultSubscriberQos {
     type Result = SubscriberQos;
 }
 impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: GetDefaultSubscriberQos,
-    ) -> <GetDefaultSubscriberQos as Mail>::Result {
+    fn handle(&mut self, _: GetDefaultSubscriberQos) -> <GetDefaultSubscriberQos as Mail>::Result {
         self.default_subscriber_qos.clone()
     }
 }
@@ -1731,10 +1717,7 @@ impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveMatchedWriter,
-    ) -> <RemoveMatchedWriter as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
             let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
@@ -1902,10 +1885,7 @@ impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: RemoveMatchedReader,
-    ) -> <RemoveMatchedReader as Mail>::Result {
+    fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
             let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());

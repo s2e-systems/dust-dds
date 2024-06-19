@@ -53,22 +53,18 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
                 Format::CdrLe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_le(
                         self,
-                        writer,
                 )},
                 Format::CdrBe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_be(
                         self,
-                        writer,
                 )},
                 Format::PlCdrLe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl_le(
                         self,
-                        writer,
                 )},
                 Format::PlCdrBe => quote! {
                     dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl_be(
                         self,
-                        writer,
                 )},
             };
 
@@ -77,7 +73,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsSerialize for #ident #type_generics #where_clause {
-                    fn serialize_data(&self, writer: impl std::io::Write) -> dust_dds::infrastructure::error::DdsResult<()> {
+                    fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
                         #serialize_function
                     }
                 }
