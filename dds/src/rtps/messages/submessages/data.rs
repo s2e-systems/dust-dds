@@ -70,7 +70,7 @@ impl DataSubmessage {
         let serialized_payload = if data_flag || key_flag {
             Data::new(data_starting_at_inline_qos.into())
         } else {
-            Data::empty()
+            Data::default()
         };
 
         Ok(Self {

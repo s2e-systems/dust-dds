@@ -352,7 +352,7 @@ impl SerializedDataFragment {
 impl Default for SerializedDataFragment {
     fn default() -> Self {
         Self {
-            data: Data::empty(),
+            data: Data::default(),
             range: 0..0,
         }
     }
@@ -395,10 +395,6 @@ impl Data {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-
-    pub fn empty() -> Self {
-        Self(Arc::new([]))
     }
 }
 
