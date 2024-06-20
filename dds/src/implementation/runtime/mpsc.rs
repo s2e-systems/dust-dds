@@ -8,7 +8,7 @@ use std::{
 
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
     let inner = Arc::new(Mutex::new(MpscInner {
-        data: VecDeque::new(),
+        data: VecDeque::with_capacity(64),
         waker: None,
         is_closed: false,
     }));
