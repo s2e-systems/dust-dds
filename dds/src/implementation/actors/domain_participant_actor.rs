@@ -1631,32 +1631,26 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
             self.add_matched_publications_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.executor_handle.clone(),
             )?;
             self.add_matched_publications_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.executor_handle.clone(),
             )?;
             self.add_matched_subscriptions_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.executor_handle.clone(),
             )?;
             self.add_matched_subscriptions_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.executor_handle.clone(),
             )?;
             self.add_matched_topics_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.executor_handle.clone(),
             )?;
             self.add_matched_topics_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.executor_handle.clone(),
             )?;
 
             self.discovered_participant_list.insert(
@@ -1754,7 +1748,6 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                         subscriber_address,
                         participant: message.participant.clone(),
                         participant_mask_listener,
-                        executor_handle: message.executor_handle.clone(),
                     });
                 }
 
@@ -1840,7 +1833,6 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
 pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
     pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -1860,7 +1852,6 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
                 subscriber_address,
                 participant: message.participant.clone(),
                 participant_mask_listener,
-                executor_handle: message.executor_handle.clone(),
             });
         }
         Ok(())
@@ -1935,7 +1926,6 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         participant: message.participant.clone(),
                         participant_mask_listener,
                         message_sender_actor: self.message_sender_actor.address(),
-                        executor_handle: message.executor_handle.clone(),
                     });
                 }
 
@@ -2017,7 +2007,6 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
 pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -2037,7 +2026,6 @@ impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
                 publisher_address,
                 participant: message.participant.clone(),
                 participant_mask_listener,
-                executor_handle: message.executor_handle.clone(),
             });
         }
         Ok(())
@@ -2102,7 +2090,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        executor_handle: ExecutorHandle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2165,7 +2152,6 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener,
                     message_sender_actor: self.message_sender_actor.address(),
-                    executor_handle,
                 });
         }
         Ok(())
@@ -2175,7 +2161,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        executor_handle: ExecutorHandle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2231,7 +2216,6 @@ impl DomainParticipantActor {
                             .map(|l| l.sender().clone()),
                         self.status_kind.clone(),
                     ),
-                    executor_handle,
                 });
         }
         Ok(())
@@ -2241,7 +2225,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        executor_handle: ExecutorHandle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2297,7 +2280,6 @@ impl DomainParticipantActor {
                         self.status_kind.clone(),
                     ),
                     message_sender_actor: self.message_sender_actor.address(),
-                    executor_handle,
                 });
         }
         Ok(())
@@ -2307,7 +2289,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        executor_handle: ExecutorHandle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2363,7 +2344,6 @@ impl DomainParticipantActor {
                             .map(|l| l.sender().clone()),
                         self.status_kind.clone(),
                     ),
-                    executor_handle,
                 });
         }
 
@@ -2374,7 +2354,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        executor_handle: ExecutorHandle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2430,7 +2409,6 @@ impl DomainParticipantActor {
                         self.status_kind.clone(),
                     ),
                     message_sender_actor: self.message_sender_actor.address(),
-                    executor_handle,
                 });
         }
         Ok(())
@@ -2440,7 +2418,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        executor_handle: ExecutorHandle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2496,7 +2473,6 @@ impl DomainParticipantActor {
                             .map(|l| l.sender().clone()),
                         self.status_kind.clone(),
                     ),
-                    executor_handle,
                 });
         }
         Ok(())
@@ -2603,7 +2579,6 @@ async fn process_sedp_publications_discovery(
                                     .sample_info()
                                     .instance_handle,
                                 participant: participant.clone(),
-                                executor_handle: participant.executor_handle().clone(),
                             })?;
                     }
                     InstanceStateKind::NotAliveNoWriters => {
@@ -2659,7 +2634,6 @@ async fn process_sedp_subscriptions_discovery(
                                     .sample_info()
                                     .instance_handle,
                                 participant: participant.clone(),
-                                executor_handle: participant.executor_handle().clone(),
                             })?;
                     }
                     InstanceStateKind::NotAliveNoWriters => {

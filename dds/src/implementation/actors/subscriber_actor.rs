@@ -650,7 +650,6 @@ pub struct AddMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -685,7 +684,6 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                     subscriber_qos,
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
-                    executor_handle: message.executor_handle.clone(),
                 });
             }
         }
@@ -701,7 +699,6 @@ pub struct RemoveMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -726,7 +723,6 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
-                executor_handle: message.executor_handle.clone(),
             });
         }
 

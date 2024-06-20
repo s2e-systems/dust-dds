@@ -1192,7 +1192,6 @@ pub struct AddMatchedReader {
         Vec<StatusKind>,
     ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -1366,7 +1365,6 @@ pub struct RemoveMatchedReader {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;

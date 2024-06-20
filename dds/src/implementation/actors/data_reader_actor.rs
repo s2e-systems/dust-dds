@@ -2038,7 +2038,6 @@ pub struct AddMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -2169,7 +2168,6 @@ pub struct RemoveMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;

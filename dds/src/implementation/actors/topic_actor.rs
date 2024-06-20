@@ -39,7 +39,7 @@ impl InconsistentTopicStatus {
 pub enum TopicListenerOperation {}
 
 pub struct TopicListenerMessage {
-    pub listener_operation: TopicListenerOperation,
+    pub _listener_operation: TopicListenerOperation,
 }
 
 struct TopicListenerThread {
