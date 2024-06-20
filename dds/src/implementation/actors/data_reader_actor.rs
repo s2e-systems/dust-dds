@@ -26,7 +26,7 @@ use crate::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
         runtime::{
-            executor::{block_on, AbortHandle, ExecutorHandle},
+            executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
             timer::TimerHandle,
         },
@@ -381,7 +381,7 @@ pub struct DataReaderActor {
     data_reader_listener_thread: Option<DataReaderListenerThread>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
-    instance_deadline_missed_task: HashMap<InstanceHandle, AbortHandle>,
+    instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
 }
 
 impl DataReaderActor {
@@ -1711,7 +1711,7 @@ impl DataReaderActor {
             });
 
             self.instance_deadline_missed_task
-                .insert(change_instance_handle, deadline_missed_task.abort_handle());
+                .insert(change_instance_handle, deadline_missed_task);
         }
         Ok(())
     }

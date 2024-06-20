@@ -31,6 +31,17 @@ pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
+    abort: Mutex<bool>,
+}
+
+impl Task {
+    fn abort(&self) {
+        *self.abort.lock().expect("Mutex should never be poisoned") = true;
+    }
+
+    fn is_aborted(&self) -> bool {
+        *self.abort.lock().expect("Mutex should never be poisoned")
+    }
 }
 
 impl Wake for Task {
@@ -40,19 +51,13 @@ impl Wake for Task {
     }
 }
 
-pub struct AbortHandle;
-
-impl AbortHandle {
-    pub fn abort(&self) {
-        todo!()
-    }
+pub struct TaskHandle {
+    task: Arc<Task>,
 }
 
-pub struct TaskHandle;
-
 impl TaskHandle {
-    pub fn abort_handle(&self) -> AbortHandle {
-        todo!()
+    pub fn abort(&self) {
+        self.task.abort()
     }
 }
 
@@ -65,15 +70,17 @@ pub struct ExecutorHandle {
 impl ExecutorHandle {
     pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
         let future = Box::pin(f);
+        let task = Arc::new(Task {
+            future: Mutex::new(future),
+            task_sender: self.task_sender.clone(),
+            thread_handle: self.thread_handle.clone(),
+            abort: Mutex::new(false),
+        });
         self.task_sender
-            .send(Arc::new(Task {
-                future: Mutex::new(future),
-                task_sender: self.task_sender.clone(),
-                thread_handle: self.thread_handle.clone(),
-            }))
-            .unwrap();
+            .send(task.clone())
+            .expect("Should never fail to send");
         self.thread_handle.unpark();
-        TaskHandle
+        TaskHandle { task }
     }
 }
 
@@ -88,14 +95,16 @@ impl Executor {
         let executor_thread_handle = std::thread::spawn(move || loop {
             match task_receiver.try_recv() {
                 Ok(task) => {
-                    let waker = Waker::from(task.clone());
-                    let mut cx = Context::from_waker(&waker);
-                    let _ = task
-                        .future
-                        .try_lock()
-                        .expect("Only ever locked here")
-                        .as_mut()
-                        .poll(&mut cx);
+                    if !task.is_aborted() {
+                        let waker = Waker::from(task.clone());
+                        let mut cx = Context::from_waker(&waker);
+                        let _ = task
+                            .future
+                            .try_lock()
+                            .expect("Only ever locked here")
+                            .as_mut()
+                            .poll(&mut cx);
+                    }
                 }
                 Err(TryRecvError::Empty) => thread::park(),
                 Err(TryRecvError::Disconnected) => break,
