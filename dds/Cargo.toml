@@ -25,7 +25,7 @@ network-interface = "1.1.1"
 
 fnmatch-regex = "0.2.0"
 
-tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"
 
 [dev-dependencies]
