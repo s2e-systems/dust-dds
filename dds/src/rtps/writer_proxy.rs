@@ -112,7 +112,7 @@ impl RtpsWriterProxy {
                     writer_id,
                     writer_sn,
                     inline_qos,
-                    Data::new(Arc::from(data.to_vec().into_boxed_slice())),
+                    Data::new(Arc::from(data)),
                 ))
             } else {
                 None
