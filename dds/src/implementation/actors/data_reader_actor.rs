@@ -640,7 +640,6 @@ impl DataReaderActor {
                                         subscriber,
                                         subscriber_mask_listener,
                                         participant_mask_listener,
-                                        handle,
                                     )?;
                                 }
                                 match self.convert_received_data_to_cache_change(
@@ -927,7 +926,6 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
         self.status_condition
@@ -990,7 +988,6 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
         self.status_condition
@@ -1058,7 +1055,6 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
@@ -1123,7 +1119,6 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
@@ -1282,7 +1277,6 @@ impl DataReaderActor {
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    handle,
                 )?;
             } else if self.is_max_instances_limit_reached(&change) {
                 self.on_sample_rejected(
@@ -1292,7 +1286,6 @@ impl DataReaderActor {
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    handle,
                 )?;
             } else if self.is_max_samples_per_instance_limit_reached(&change) {
                 self.on_sample_rejected(
@@ -1302,7 +1295,6 @@ impl DataReaderActor {
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    handle,
                 )?;
             } else {
                 let num_alive_samples_of_instance = self
@@ -1614,7 +1606,6 @@ impl DataReaderActor {
             let topic_name = self.topic_name.clone();
             let status_condition_address = self.status_condition.address();
             let topic_status_condition_address = self.topic_status_condition.clone();
-            let runtime_handle = handle.clone();
             let deadline_missed_task = handle.spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
@@ -2125,7 +2116,6 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                             message.subscriber,
                             &message.subscriber_mask_listener,
                             &message.participant_mask_listener,
-                            &message.handle,
                         )?;
                     }
                     None => {
@@ -2135,7 +2125,6 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                             message.subscriber,
                             &message.subscriber_mask_listener,
                             &message.participant_mask_listener,
-                            &message.handle,
                         )?;
                     }
                     _ => (),
@@ -2148,7 +2137,6 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                     &message.subscriber,
                     &message.subscriber_mask_listener,
                     &message.participant_mask_listener,
-                    &message.handle,
                 )?;
             }
         }
@@ -2191,7 +2179,6 @@ impl MailHandler<RemoveMatchedWriter> for DataReaderActor {
                 message.subscriber,
                 &message.subscriber_mask_listener,
                 &message.participant_mask_listener,
-                &message.handle,
             )?;
         }
         Ok(())

@@ -565,7 +565,6 @@ impl DataWriterActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
@@ -625,7 +624,6 @@ impl DataWriterActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         self.status_condition
             .send_actor_mail(AddCommunicationState {
@@ -1321,7 +1319,6 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         message.publisher,
                         message.publisher_mask_listener,
                         message.participant_mask_listener,
-                        &message.handle,
                     )?;
                 }
 
@@ -1334,7 +1331,6 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message.publisher,
                     message.publisher_mask_listener,
                     message.participant_mask_listener,
-                    &message.handle,
                 )?;
             }
         }
@@ -1375,7 +1371,6 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
                 message.publisher,
                 message.publisher_mask_listener,
                 message.participant_mask_listener,
-                &message.handle,
             )?;
         }
 

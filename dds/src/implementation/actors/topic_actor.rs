@@ -49,12 +49,13 @@ struct TopicListenerThread {
 
 impl TopicListenerThread {
     fn new(_listener: Box<dyn TopicListenerAsync + Send>) -> Self {
-        let (sender, receiver) = mpsc_channel::<TopicListenerMessage>();
+        let (sender, _receiver) = mpsc_channel::<TopicListenerMessage>();
         let thread = std::thread::spawn(move || {
             block_on(async {
-                while let Some(m) = receiver.recv().await {
-                    match m.listener_operation {}
-                }
+                // TODO
+                // while let Some(m) = receiver.recv().await {
+                //     match m.listener_operation {}
+                // }
             });
         });
         Self {
