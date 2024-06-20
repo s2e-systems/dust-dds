@@ -79,10 +79,6 @@ impl<Foo> DataWriterAsync<Foo> {
         self.publisher.publisher_address()
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.publisher.runtime_handle()
-    }
-
     pub(crate) fn writer_address(&self) -> &ActorAddress<DataWriterActor> {
         &self.writer_address
     }
@@ -583,7 +579,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
+            self.publisher.get_participant().executor_handle().clone(),
             self.publisher.get_participant().timer_handle().clone(),
         )
     }
@@ -612,7 +608,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 .send_actor_mail(data_writer_actor::Enable {
                     data_writer_address: writer.clone(),
                     message_sender_actor,
-                    runtime_handle: self.runtime_handle().clone(),
+                    executor_handle: self.publisher.get_participant().executor_handle().clone(),
                     timer_handle: self.publisher.get_participant().timer_handle().clone(),
                 })?
                 .receive_reply()
@@ -649,7 +645,6 @@ where
                 listener: a_listener
                     .map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
                 status_kind: mask.to_vec(),
-                runtime_handle: self.runtime_handle().clone(),
             })?
             .receive_reply()
             .await

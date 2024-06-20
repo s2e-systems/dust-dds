@@ -23,7 +23,7 @@ struct UserData {
 async fn main() {
     let domain_id = 100;
 
-    let participant_factory = DomainParticipantFactoryAsync::new(tokio::runtime::Handle::current());
+    let participant_factory = DomainParticipantFactoryAsync::new();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .await

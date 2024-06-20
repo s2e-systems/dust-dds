@@ -2,7 +2,7 @@ use std::{
     future::Future,
     pin::{pin, Pin},
     sync::{
-        mpsc::{channel, Sender},
+        mpsc::{channel, Sender, TryRecvError},
         Arc, Mutex,
     },
     task::{Context, Poll, Wake, Waker},
@@ -30,29 +30,50 @@ pub fn block_on<T>(f: impl Future<Output = T>) -> T {
 pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
+    thread_handle: Thread,
 }
 
 impl Wake for Task {
     fn wake(self: Arc<Self>) {
         self.task_sender.send(self.clone()).unwrap();
+        self.thread_handle.unpark();
     }
 }
 
+pub struct AbortHandle;
+
+impl AbortHandle {
+    pub fn abort(&self) {
+        todo!()
+    }
+}
+
+pub struct TaskHandle;
+
+impl TaskHandle {
+    pub fn abort_handle(&self) -> AbortHandle {
+        todo!()
+    }
+}
+
+#[derive(Clone)]
 pub struct ExecutorHandle {
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
 }
 
 impl ExecutorHandle {
-    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) {
+    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
         let future = Box::pin(f);
         self.task_sender
             .send(Arc::new(Task {
                 future: Mutex::new(future),
                 task_sender: self.task_sender.clone(),
+                thread_handle: self.thread_handle.clone(),
             }))
             .unwrap();
         self.thread_handle.unpark();
+        TaskHandle
     }
 }
 
@@ -64,16 +85,20 @@ pub struct Executor {
 impl Executor {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();
-        let executor_thread_handle = std::thread::spawn(move || {
-            while let Ok(task) = task_receiver.recv() {
-                let waker = Waker::from(task.clone());
-                let mut cx = Context::from_waker(&waker);
-                let _ = task
-                    .future
-                    .try_lock()
-                    .expect("Only ever locked here")
-                    .as_mut()
-                    .poll(&mut cx);
+        let executor_thread_handle = std::thread::spawn(move || loop {
+            match task_receiver.try_recv() {
+                Ok(task) => {
+                    let waker = Waker::from(task.clone());
+                    let mut cx = Context::from_waker(&waker);
+                    let _ = task
+                        .future
+                        .try_lock()
+                        .expect("Only ever locked here")
+                        .as_mut()
+                        .poll(&mut cx);
+                }
+                Err(TryRecvError::Empty) => thread::park(),
+                Err(TryRecvError::Disconnected) => break,
             }
         });
 

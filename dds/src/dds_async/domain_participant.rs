@@ -19,7 +19,7 @@ use crate::{
             subscriber_actor::{self, SubscriberActor},
             topic_actor::{self, TopicActor},
         },
-        runtime::timer::TimerHandle,
+        runtime::{executor::ExecutorHandle, timer::TimerHandle},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -46,7 +46,7 @@ pub struct DomainParticipantAsync {
     builtin_subscriber_address: ActorAddress<SubscriberActor>,
     builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
-    runtime_handle: tokio::runtime::Handle,
+    executor_handle: ExecutorHandle,
     timer_handle: TimerHandle,
 }
 
@@ -57,7 +57,7 @@ impl DomainParticipantAsync {
         builtin_subscriber_address: ActorAddress<SubscriberActor>,
         builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
-        runtime_handle: tokio::runtime::Handle,
+        executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
     ) -> Self {
         Self {
@@ -66,7 +66,7 @@ impl DomainParticipantAsync {
             builtin_subscriber_address,
             builtin_subscriber_status_condition_address,
             domain_id,
-            runtime_handle,
+            executor_handle,
             timer_handle,
         }
     }
@@ -75,8 +75,8 @@ impl DomainParticipantAsync {
         &self.participant_address
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+    pub(crate) fn executor_handle(&self) -> &ExecutorHandle {
+        &self.executor_handle
     }
 
     pub(crate) fn timer_handle(&self) -> &TimerHandle {
@@ -138,7 +138,7 @@ impl DomainParticipantAsync {
                 qos,
                 a_listener,
                 mask: mask.to_vec(),
-                runtime_handle: self.runtime_handle.clone(),
+                executor_handle: self.executor_handle.clone(),
             })?
             .receive_reply()
             .await;
@@ -207,7 +207,7 @@ impl DomainParticipantAsync {
                 qos,
                 a_listener,
                 mask: mask.to_vec(),
-                runtime_handle: self.runtime_handle.clone(),
+                executor_handle: self.executor_handle.clone(),
             })?
             .receive_reply()
             .await;
@@ -307,7 +307,7 @@ impl DomainParticipantAsync {
                 a_listener,
                 mask: mask.to_vec(),
                 type_support: dynamic_type_representation.into(),
-                runtime_handle: self.runtime_handle.clone(),
+                executor_handle: self.executor_handle.clone(),
             })?
             .receive_reply()
             .await?;
@@ -423,7 +423,7 @@ impl DomainParticipantAsync {
         Foo: DdsKey + DdsHasKey + DdsTypeXml,
     {
         let participant_address = self.participant_address.clone();
-        let runtime_handle = self.runtime_handle.clone();
+        let runtime_handle = self.executor_handle.clone();
         let type_support = Arc::new(FooTypeSupport::new::<Foo>());
         let topic_name = topic_name.to_owned();
         let participant = self.clone();
@@ -436,7 +436,7 @@ impl DomainParticipantAsync {
                             .send_actor_mail(domain_participant_actor::FindTopic {
                                 topic_name: topic_name.clone(),
                                 type_support: type_support.clone(),
-                                runtime_handle: runtime_handle.clone(),
+                                executor_handle: runtime_handle.clone(),
                             })?
                             .receive_reply()
                             .await?
@@ -750,7 +750,6 @@ impl DomainParticipantAsync {
             .send_actor_mail(domain_participant_actor::SetListener {
                 listener: a_listener,
                 status_kind: mask.to_vec(),
-                runtime_handle: self.runtime_handle.clone(),
             })?
             .receive_reply()
             .await
@@ -761,7 +760,7 @@ impl DomainParticipantAsync {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.runtime_handle.clone(),
+            self.executor_handle.clone(),
             self.timer_handle.clone(),
         )
     }
@@ -802,9 +801,7 @@ impl DomainParticipantAsync {
                 .await;
 
             self.participant_address
-                .send_actor_mail(domain_participant_actor::Enable {
-                    runtime_handle: self.runtime_handle.clone(),
-                })?
+                .send_actor_mail(domain_participant_actor::Enable)?
                 .receive_reply()
                 .await?;
 
@@ -832,7 +829,7 @@ impl DomainParticipantAsync {
                     .send_actor_mail(data_writer_actor::Enable {
                         data_writer_address: builtin_writer.clone(),
                         message_sender_actor,
-                        runtime_handle: self.runtime_handle.clone(),
+                        executor_handle: self.executor_handle.clone(),
                         timer_handle: self.timer_handle.clone(),
                     })?
                     .receive_reply()

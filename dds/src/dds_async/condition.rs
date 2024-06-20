@@ -2,7 +2,7 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::status_condition_actor::{self, StatusConditionActor},
-        runtime::timer::TimerHandle,
+        runtime::{executor::ExecutorHandle, timer::TimerHandle},
     },
     infrastructure::{error::DdsResult, status::StatusKind},
 };
@@ -11,19 +11,19 @@ use crate::{
 #[derive(Clone)]
 pub struct StatusConditionAsync {
     address: ActorAddress<StatusConditionActor>,
-    runtime_handle: tokio::runtime::Handle,
+    _executor_handle: ExecutorHandle,
     timer_handle: TimerHandle,
 }
 
 impl StatusConditionAsync {
     pub(crate) fn new(
         address: ActorAddress<StatusConditionActor>,
-        runtime_handle: tokio::runtime::Handle,
+        executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
     ) -> Self {
         Self {
             address,
-            runtime_handle,
+            _executor_handle: executor_handle,
             timer_handle,
         }
     }
@@ -32,8 +32,9 @@ impl StatusConditionAsync {
         &self.address
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        &self.runtime_handle
+    #[allow(dead_code)]
+    pub(crate) fn executor_handle(&self) -> &ExecutorHandle {
+        &self._executor_handle
     }
 
     pub(crate) fn timer_handle(&self) -> &TimerHandle {

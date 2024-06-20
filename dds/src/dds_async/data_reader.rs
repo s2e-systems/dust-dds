@@ -76,10 +76,6 @@ impl<Foo> DataReaderAsync<Foo> {
         &self.reader_address
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.subscriber.runtime_handle()
-    }
-
     async fn announce_reader(&self) -> DdsResult<()> {
         let builtin_publisher = self
             .get_subscriber()
@@ -517,7 +513,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
+            self.subscriber.get_participant().executor_handle().clone(),
             self.subscriber.get_participant().timer_handle().clone(),
         )
     }
@@ -574,7 +570,6 @@ where
                 listener: a_listener
                     .map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
                 status_kind: mask.to_vec(),
-                runtime_handle: self.runtime_handle().clone(),
             })?
             .receive_reply()
             .await
