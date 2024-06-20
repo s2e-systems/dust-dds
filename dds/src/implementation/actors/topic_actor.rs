@@ -1,10 +1,16 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread::JoinHandle};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::actor::{Actor, ActorAddress, Mail, MailHandler},
+    implementation::{
+        actor::{Actor, ActorAddress, Mail, MailHandler},
+        runtime::{
+            executor::block_on,
+            mpsc::{mpsc_channel, MpscSender},
+        },
+    },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -30,6 +36,44 @@ impl InconsistentTopicStatus {
     }
 }
 
+pub enum TopicListenerOperation {}
+
+pub struct TopicListenerMessage {
+    pub listener_operation: TopicListenerOperation,
+}
+
+struct TopicListenerThread {
+    _thread: JoinHandle<()>,
+    _sender: MpscSender<TopicListenerMessage>,
+}
+
+impl TopicListenerThread {
+    fn new(_listener: Box<dyn TopicListenerAsync + Send>) -> Self {
+        let (sender, receiver) = mpsc_channel::<TopicListenerMessage>();
+        let thread = std::thread::spawn(move || {
+            block_on(async {
+                while let Some(m) = receiver.recv().await {
+                    match m.listener_operation {}
+                }
+            });
+        });
+        Self {
+            _thread: thread,
+            _sender: sender,
+        }
+    }
+
+    fn _sender(&self) -> &MpscSender<TopicListenerMessage> {
+        &self._sender
+    }
+
+    fn _join(self) -> DdsResult<()> {
+        self._sender.close();
+        self._thread.join()?;
+        Ok(())
+    }
+}
+
 pub struct TopicActor {
     guid: Guid,
     qos: TopicQos,
@@ -38,7 +82,7 @@ pub struct TopicActor {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    _listener: Option<Arc<tokio::sync::Mutex<Box<dyn TopicListenerAsync + Send>>>>,
+    _topic_listener_thread: Option<TopicListenerThread>,
     type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
 }
 
@@ -54,7 +98,7 @@ impl TopicActor {
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let status_condition_address = status_condition.address();
-        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        let topic_listener_thread = listener.map(TopicListenerThread::new);
         (
             Self {
                 guid,
@@ -64,7 +108,7 @@ impl TopicActor {
                 enabled: false,
                 inconsistent_topic_status: InconsistentTopicStatus::default(),
                 status_condition,
-                _listener: listener,
+                _topic_listener_thread: topic_listener_thread,
                 type_support,
             },
             status_condition_address,
@@ -177,10 +221,7 @@ impl Mail for AsDiscoveredTopicData {
     type Result = DiscoveredTopicData;
 }
 impl MailHandler<AsDiscoveredTopicData> for TopicActor {
-    fn handle(
-        &mut self,
-        _: AsDiscoveredTopicData,
-    ) -> <AsDiscoveredTopicData as Mail>::Result {
+    fn handle(&mut self, _: AsDiscoveredTopicData) -> <AsDiscoveredTopicData as Mail>::Result {
         DiscoveredTopicData::new(TopicBuiltinTopicData::new(
             BuiltInTopicKey {
                 value: self.guid.into(),
