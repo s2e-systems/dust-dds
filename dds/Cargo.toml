@@ -24,12 +24,10 @@ socket2 = "0.5"
 network-interface = "1.1.1"
 
 fnmatch-regex = "0.2.0"
-
-tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros"] }
+tokio = { version = "1", features = ["rt", "macros"] }
 criterion = { version = "0.3", features = ["html_reports"] }
 tracing-subscriber = "0.3"
 
