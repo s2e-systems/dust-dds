@@ -1,6 +1,9 @@
-use std::sync::Arc;
-
 use crate::infrastructure::error::{DdsError, DdsResult};
+
+use super::runtime::{
+    mpsc::{mpsc_channel, MpscSender},
+    oneshot::{oneshot, OneshotReceiver, OneshotSender},
+};
 
 pub trait Mail {
     type Result;
@@ -18,14 +21,14 @@ where
     M: Mail,
 {
     mail: Option<M>,
-    reply_sender: Option<tokio::sync::oneshot::Sender<M::Result>>,
+    reply_sender: Option<OneshotSender<M::Result>>,
 }
 
 pub struct ReplyReceiver<M>
 where
     M: Mail,
 {
-    reply_receiver: tokio::sync::oneshot::Receiver<M::Result>,
+    reply_receiver: OneshotReceiver<M::Result>,
 }
 
 impl<M> ReplyReceiver<M>
@@ -55,14 +58,12 @@ where
         self.reply_sender
             .take()
             .expect("Must have a sender")
-            .send(result)
-            .ok();
+            .send(result);
     }
 }
 
-#[derive(Debug)]
 pub struct ActorAddress<A> {
-    mail_sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
+    mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
 }
 
 impl<A> Clone for ActorAddress<A> {
@@ -84,7 +85,7 @@ impl<A> ActorAddress<A> {
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
+        let (reply_sender, reply_receiver) = oneshot();
         self.mail_sender
             .send(Box::new(ReplyMail {
                 mail: Some(mail),
@@ -96,9 +97,8 @@ impl<A> ActorAddress<A> {
 }
 
 pub struct Actor<A> {
-    mail_sender: tokio::sync::mpsc::UnboundedSender<Box<dyn GenericHandler<A> + Send>>,
+    mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
     join_handle: tokio::task::JoinHandle<()>,
-    notify_stop: Arc<tokio::sync::Notify>,
 }
 
 impl<A> Actor<A>
@@ -106,30 +106,16 @@ where
     A: Send + 'static,
 {
     pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
-        let (mail_sender, mut mailbox_recv) =
-            tokio::sync::mpsc::unbounded_channel::<Box<dyn GenericHandler<A> + Send>>();
-        let notify_stop = Arc::new(tokio::sync::Notify::new());
-        let notify_clone = notify_stop.clone();
+        let (mail_sender, mailbox_recv) = mpsc_channel::<Box<dyn GenericHandler<A> + Send>>();
 
         let join_handle = runtime.spawn(async move {
-            loop {
-                tokio::select! {
-                    m = mailbox_recv.recv() => {
-                        match m {
-                            Some(mut message) => message.handle(&mut actor),
-                            None => break,
-                        }
-                    }
-                    _ = notify_clone.notified() => {
-                        mailbox_recv.close();
-                    }
-                }
+            while let Some(mut m) = mailbox_recv.recv().await {
+                m.handle(&mut actor);
             }
         });
         Actor {
             mail_sender,
             join_handle,
-            notify_stop,
         }
     }
 
@@ -140,7 +126,7 @@ where
     }
 
     pub async fn stop(self) {
-        self.notify_stop.notify_one();
+        self.mail_sender.close();
         self.join_handle.await.ok();
     }
 
@@ -150,7 +136,7 @@ where
         M: Mail + Send + 'static,
         M::Result: Send,
     {
-        let (reply_sender, reply_receiver) = tokio::sync::oneshot::channel();
+        let (reply_sender, reply_receiver) = oneshot();
         self.mail_sender
             .send(Box::new(ReplyMail {
                 mail: Some(mail),

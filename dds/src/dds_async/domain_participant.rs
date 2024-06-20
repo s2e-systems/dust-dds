@@ -737,8 +737,7 @@ impl DomainParticipantAsync {
                 runtime_handle: self.runtime_handle.clone(),
             })?
             .receive_reply()
-            .await;
-        Ok(())
+            .await
     }
 
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).

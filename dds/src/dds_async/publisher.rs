@@ -429,8 +429,7 @@ impl PublisherAsync {
                 runtime_handle: self.participant.runtime_handle().clone(),
             })?
             .receive_reply()
-            .await;
-        Ok(())
+            .await
     }
 
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).

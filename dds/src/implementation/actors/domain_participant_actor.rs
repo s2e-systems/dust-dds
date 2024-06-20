@@ -27,6 +27,10 @@ use crate::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
         },
+        runtime::{
+            executor::block_on,
+            mpsc::{mpsc_channel, MpscSender},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -36,7 +40,12 @@ use crate::{
             HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
             TransportPriorityQosPolicy,
         },
-        status::StatusKind,
+        status::{
+            LivelinessChangedStatus, LivelinessLostStatus, OfferedDeadlineMissedStatus,
+            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusKind,
+            SubscriptionMatchedStatus,
+        },
         time::{Duration, Time},
     },
     rtps::{
@@ -72,6 +81,7 @@ use crate::{
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
+    thread::JoinHandle,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -172,8 +182,86 @@ impl DynamicTypeInterface for FooTypeSupport {
     }
 }
 
-pub type ParticipantListenerType =
-    Option<Arc<tokio::sync::Mutex<Box<dyn DomainParticipantListenerAsync + Send>>>>;
+pub enum ParticipantListenerOperation {
+    _DataAvailable,
+    SampleRejected(SampleRejectedStatus),
+    _LivenessChanged(LivelinessChangedStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+    _LivelinessLost(LivelinessLostStatus),
+    _OfferedDeadlineMissed(OfferedDeadlineMissedStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
+}
+
+pub struct ParticipantListenerMessage {
+    pub listener_operation: ParticipantListenerOperation,
+}
+
+struct ParticipantListenerThread {
+    thread: JoinHandle<()>,
+    sender: MpscSender<ParticipantListenerMessage>,
+}
+
+impl ParticipantListenerThread {
+    fn new(mut listener: Box<dyn DomainParticipantListenerAsync + Send>) -> Self {
+        let (sender, receiver) = mpsc_channel::<ParticipantListenerMessage>();
+        let thread = std::thread::spawn(move || {
+            block_on(async {
+                while let Some(m) = receiver.recv().await {
+                    match m.listener_operation {
+                        ParticipantListenerOperation::_DataAvailable => {
+                            listener.on_data_available(&()).await
+                        }
+                        ParticipantListenerOperation::SampleRejected(status) => {
+                            listener.on_sample_rejected(&(), status).await
+                        }
+                        ParticipantListenerOperation::_LivenessChanged(status) => {
+                            listener.on_liveliness_changed(&(), status).await
+                        }
+                        ParticipantListenerOperation::RequestedDeadlineMissed(status) => {
+                            listener.on_requested_deadline_missed(&(), status).await
+                        }
+                        ParticipantListenerOperation::RequestedIncompatibleQos(status) => {
+                            listener.on_requested_incompatible_qos(&(), status).await
+                        }
+                        ParticipantListenerOperation::SubscriptionMatched(status) => {
+                            listener.on_subscription_matched(&(), status).await
+                        }
+                        ParticipantListenerOperation::SampleLost(status) => {
+                            listener.on_sample_lost(&(), status).await
+                        }
+                        ParticipantListenerOperation::_LivelinessLost(status) => {
+                            listener.on_liveliness_lost(&(), status).await
+                        }
+                        ParticipantListenerOperation::_OfferedDeadlineMissed(status) => {
+                            listener.on_offered_deadline_missed(&(), status).await
+                        }
+                        ParticipantListenerOperation::OfferedIncompatibleQos(status) => {
+                            listener.on_offered_incompatible_qos(&(), status).await
+                        }
+                        ParticipantListenerOperation::PublicationMatched(status) => {
+                            listener.on_publication_matched(&(), status).await
+                        }
+                    }
+                }
+            });
+        });
+        Self { thread, sender }
+    }
+
+    fn sender(&self) -> &MpscSender<ParticipantListenerMessage> {
+        &self.sender
+    }
+
+    fn join(self) -> DdsResult<()> {
+        self.sender.close();
+        self.thread.join()?;
+        Ok(())
+    }
+}
 
 pub struct DomainParticipantActor {
     rtps_participant: RtpsParticipant,
@@ -201,7 +289,7 @@ pub struct DomainParticipantActor {
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
     data_max_size_serialized: usize,
-    listener: ParticipantListenerType,
+    participant_listener_thread: Option<ParticipantListenerThread>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,
@@ -262,7 +350,7 @@ impl DomainParticipantActor {
 
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let status_condition_address = status_condition.address();
-        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        let participant_listener_thread = listener.map(ParticipantListenerThread::new);
         (
             Self {
                 rtps_participant,
@@ -290,7 +378,7 @@ impl DomainParticipantActor {
                 ignored_subcriptions: HashSet::new(),
                 ignored_topic_list: HashSet::new(),
                 data_max_size_serialized,
-                listener,
+                participant_listener_thread,
                 status_kind,
                 status_condition,
                 message_sender_actor: Actor::spawn(message_sender_actor, handle),
@@ -1159,8 +1247,12 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
         while let Some(submessage) = message_receiver.next() {
             match submessage {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
-                    let participant_mask_listener =
-                        (self.listener.clone(), self.status_kind.clone());
+                    let participant_mask_listener = (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    );
                     self.builtin_subscriber.send_actor_mail(
                         subscriber_actor::ProcessDataSubmessage {
                             data_submessage,
@@ -1175,8 +1267,12 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                     );
                 }
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    let participant_mask_listener =
-                        (self.listener.clone(), self.status_kind.clone());
+                    let participant_mask_listener = (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    );
                     self.builtin_subscriber.send_actor_mail(
                         subscriber_actor::ProcessDataFragSubmessage {
                             data_frag_submessage,
@@ -1264,8 +1360,12 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                 RtpsSubmessageReadKind::Data(data_submessage) => {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
-                        let participant_mask_listener =
-                            (self.listener.clone(), self.status_kind.clone());
+                        let participant_mask_listener = (
+                            self.participant_listener_thread
+                                .as_ref()
+                                .map(|l| l.sender().clone()),
+                            self.status_kind.clone(),
+                        );
                         user_defined_subscriber_actor.send_actor_mail(
                             subscriber_actor::ProcessDataSubmessage {
                                 data_submessage: data_submessage.clone(),
@@ -1283,8 +1383,12 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                 RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                     for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
                     {
-                        let participant_mask_listener =
-                            (self.listener.clone(), self.status_kind.clone());
+                        let participant_mask_listener = (
+                            self.participant_listener_thread
+                                .as_ref()
+                                .map(|l| l.sender().clone()),
+                            self.status_kind.clone(),
+                        );
                         user_defined_subscriber_actor.send_actor_mail(
                             subscriber_actor::ProcessDataFragSubmessage {
                                 data_frag_submessage: data_frag_submessage.clone(),
@@ -1366,14 +1470,16 @@ pub struct SetListener {
     pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = message
-            .listener
-            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        if let Some(l) = self.participant_listener_thread.take() {
+            l.join()?;
+        }
+        self.participant_listener_thread = message.listener.map(ParticipantListenerThread::new);
         self.status_kind = message.status_kind;
+        Ok(())
     }
 }
 
@@ -1625,8 +1731,12 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     .to_vec();
                 for subscriber in self.user_defined_subscriber_list.values() {
                     let subscriber_address = subscriber.address();
-                    let participant_mask_listener =
-                        (self.listener.clone(), self.status_kind.clone());
+                    let participant_mask_listener = (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    );
                     subscriber.send_actor_mail(subscriber_actor::AddMatchedWriter {
                         discovered_writer_data: message.discovered_writer_data.clone(),
                         default_unicast_locator_list: default_unicast_locator_list.clone(),
@@ -1729,7 +1839,12 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
     fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
         for subscriber in self.user_defined_subscriber_list.values() {
             let subscriber_address = subscriber.address();
-            let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let participant_mask_listener = (
+                self.participant_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             subscriber.send_actor_mail(subscriber_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
                 subscriber_address,
@@ -1795,8 +1910,12 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
 
                 for publisher in self.user_defined_publisher_list.values() {
                     let publisher_address = publisher.address();
-                    let participant_mask_listener =
-                        (self.listener.clone(), self.status_kind.clone());
+                    let participant_mask_listener = (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    );
 
                     publisher.send_actor_mail(publisher_actor::AddMatchedReader {
                         discovered_reader_data: message.discovered_reader_data.clone(),
@@ -1897,7 +2016,12 @@ impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
     fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for publisher in self.user_defined_publisher_list.values() {
             let publisher_address = publisher.address();
-            let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let participant_mask_listener = (
+                self.participant_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             publisher.send_actor_mail(publisher_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
                 publisher_address,
@@ -1955,7 +2079,12 @@ impl DomainParticipantActor {
             .available_builtin_endpoints()
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
         {
-            let participant_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let participant_mask_listener = (
+                self.participant_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             let remote_reader_guid = Guid::new(
                 discovered_participant_data
                     .participant_proxy()
@@ -2066,7 +2195,12 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
+                    participant_mask_listener: (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    ),
                     handle,
                 });
         }
@@ -2126,7 +2260,12 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     publisher_address: self.builtin_publisher.address(),
                     participant,
-                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
+                    participant_mask_listener: (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    ),
                     message_sender_actor: self.message_sender_actor.address(),
                     handle,
                 });
@@ -2188,7 +2327,12 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
+                    participant_mask_listener: (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    ),
                     handle,
                 });
         }
@@ -2249,7 +2393,12 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     publisher_address: self.builtin_publisher.address(),
                     participant,
-                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
+                    participant_mask_listener: (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    ),
                     message_sender_actor: self.message_sender_actor.address(),
                     handle,
                 });
@@ -2311,7 +2460,12 @@ impl DomainParticipantActor {
                     default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
-                    participant_mask_listener: (self.listener.clone(), self.status_kind.clone()),
+                    participant_mask_listener: (
+                        self.participant_listener_thread
+                            .as_ref()
+                            .map(|l| l.sender().clone()),
+                        self.status_kind.clone(),
+                    ),
                     handle,
                 });
         }
