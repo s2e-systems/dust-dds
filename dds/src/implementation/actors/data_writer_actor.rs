@@ -328,6 +328,7 @@ impl DataWriterActor {
         message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
         writer_address: ActorAddress<DataWriterActor>,
+        executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
     ) {
         let seq_num = change.sequence_number();
@@ -338,7 +339,7 @@ impl DataWriterActor {
             if change_lifespan > Duration::new(0, 0) {
                 self.writer_cache.add_change(change);
 
-                tokio::spawn(async move {
+                executor_handle.spawn(async move {
                     timer_handle.sleep(change_lifespan.into()).await;
 
                     writer_address
@@ -899,6 +900,7 @@ pub struct UnregisterInstanceWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
     pub timer_handle: TimerHandle,
 }
 impl Mail for UnregisterInstanceWTimestamp {
@@ -944,6 +946,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.executor_handle,
             message.timer_handle,
         );
         Ok(())
@@ -982,6 +985,7 @@ pub struct DisposeWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
     pub timer_handle: TimerHandle,
 }
 impl Mail for DisposeWTimestamp {
@@ -1015,6 +1019,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.executor_handle,
             message.timer_handle,
         );
 
@@ -1126,6 +1131,7 @@ pub struct WriteWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
     pub timer_handle: TimerHandle,
 }
 impl Mail for WriteWTimestamp {
@@ -1152,6 +1158,7 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.executor_handle,
             message.timer_handle,
         );
 

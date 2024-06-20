@@ -67,10 +67,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
         &mut self,
         the_subscriber: SubscriberAsync,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_data_on_readers(self.as_mut(), Subscriber::new(the_subscriber))
-        });
-        Box::pin(async {})
+        SubscriberListener::on_data_on_readers(self.as_mut(), Subscriber::new(the_subscriber));
+        Box::pin(std::future::ready(()))
     }
 
     fn on_data_available<'a, 'b>(
@@ -80,10 +78,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_data_available(self.as_mut(), the_reader)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_data_available(self.as_mut(), the_reader);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_sample_rejected<'a, 'b>(
@@ -94,10 +90,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_sample_rejected(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_sample_rejected(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_liveliness_changed<'a, 'b>(
@@ -108,10 +102,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_liveliness_changed(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_liveliness_changed(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_requested_deadline_missed<'a, 'b>(
@@ -122,10 +114,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_requested_deadline_missed(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_requested_deadline_missed(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_requested_incompatible_qos<'a, 'b>(
@@ -136,10 +126,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_requested_incompatible_qos(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_requested_incompatible_qos(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_subscription_matched<'a, 'b>(
@@ -150,10 +138,8 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_subscription_matched(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_subscription_matched(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_sample_lost<'a, 'b>(
@@ -164,9 +150,7 @@ impl SubscriberListenerAsync for Box<dyn SubscriberListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            SubscriberListener::on_sample_lost(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        SubscriberListener::on_sample_lost(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 }

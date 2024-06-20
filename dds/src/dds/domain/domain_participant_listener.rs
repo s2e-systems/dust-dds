@@ -106,14 +106,12 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
         the_topic: TopicAsync,
         status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_inconsistent_topic(
-                self.as_mut(),
-                Topic::new(the_topic),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_inconsistent_topic(
+            self.as_mut(),
+            Topic::new(the_topic),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_liveliness_lost<'a, 'b>(
@@ -124,10 +122,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_liveliness_lost(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_liveliness_lost(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_offered_deadline_missed<'a, 'b>(
@@ -138,10 +134,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_offered_deadline_missed(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_offered_deadline_missed(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_offered_incompatible_qos<'a, 'b>(
@@ -152,14 +146,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_offered_incompatible_qos(
-                self.as_mut(),
-                the_writer,
-                status,
-            )
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_offered_incompatible_qos(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_sample_lost<'a, 'b>(
@@ -170,10 +158,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_sample_lost(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_sample_lost(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_data_available<'a, 'b>(
@@ -183,10 +169,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_data_available(self.as_mut(), the_reader)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_data_available(self.as_mut(), the_reader);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_sample_rejected<'a, 'b>(
@@ -197,10 +181,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_sample_rejected(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_sample_rejected(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_liveliness_changed<'a, 'b>(
@@ -211,10 +193,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_liveliness_changed(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_liveliness_changed(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_requested_deadline_missed<'a, 'b>(
@@ -225,14 +205,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_requested_deadline_missed(
-                self.as_mut(),
-                the_reader,
-                status,
-            )
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_requested_deadline_missed(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_requested_incompatible_qos<'a, 'b>(
@@ -243,14 +217,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_requested_incompatible_qos(
-                self.as_mut(),
-                the_reader,
-                status,
-            )
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_requested_incompatible_qos(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_publication_matched<'a, 'b>(
@@ -261,10 +229,8 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_publication_matched(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_publication_matched(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_subscription_matched<'a, 'b>(
@@ -275,9 +241,7 @@ impl DomainParticipantListenerAsync for Box<dyn DomainParticipantListener + Send
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            DomainParticipantListener::on_subscription_matched(self.as_mut(), the_reader, status)
-        });
-        Box::pin(async {})
+        DomainParticipantListener::on_subscription_matched(self.as_mut(), the_reader, status);
+        Box::pin(std::future::ready(()))
     }
 }

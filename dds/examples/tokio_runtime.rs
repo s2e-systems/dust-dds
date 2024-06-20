@@ -19,7 +19,7 @@ struct UserData {
     value: Vec<u8>,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     let domain_id = 100;
 

@@ -18,9 +18,7 @@ impl TopicListenerAsync for Box<dyn TopicListener + Send> {
         the_topic: TopicAsync,
         status: InconsistentTopicStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-        tokio::task::block_in_place(|| {
-            TopicListener::on_inconsistent_topic(self.as_mut(), Topic::new(the_topic), status)
-        });
-        Box::pin(async {})
+        TopicListener::on_inconsistent_topic(self.as_mut(), Topic::new(the_topic), status);
+        Box::pin(std::future::ready(()))
     }
 }

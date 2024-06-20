@@ -260,6 +260,7 @@ where
                     message_sender_actor,
                     now,
                     data_writer_address: self.writer_address.clone(),
+                    executor_handle: self.publisher.get_participant().executor_handle().clone(),
                     timer_handle: self.publisher.get_participant().timer_handle().clone(),
                 })?
                 .receive_reply()
@@ -346,6 +347,7 @@ where
                 message_sender_actor,
                 now,
                 data_writer_address: self.writer_address.clone(),
+                executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
@@ -425,6 +427,7 @@ where
                 message_sender_actor,
                 now,
                 data_writer_address: self.writer_address.clone(),
+                executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
