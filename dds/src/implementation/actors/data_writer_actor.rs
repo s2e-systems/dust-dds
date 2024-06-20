@@ -19,6 +19,7 @@ use crate::{
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -327,6 +328,7 @@ impl DataWriterActor {
         message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
         writer_address: ActorAddress<DataWriterActor>,
+        timer_handle: TimerHandle,
     ) {
         let seq_num = change.sequence_number();
 
@@ -337,7 +339,7 @@ impl DataWriterActor {
                 self.writer_cache.add_change(change);
 
                 tokio::spawn(async move {
-                    tokio::time::sleep(change_lifespan.into()).await;
+                    timer_handle.sleep(change_lifespan.into()).await;
 
                     writer_address
                         .send_actor_mail(RemoveChange { seq_num })
@@ -896,6 +898,7 @@ pub struct UnregisterInstanceWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for UnregisterInstanceWTimestamp {
     type Result = DdsResult<()>;
@@ -940,6 +943,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.timer_handle,
         );
         Ok(())
     }
@@ -977,6 +981,7 @@ pub struct DisposeWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for DisposeWTimestamp {
     type Result = DdsResult<()>;
@@ -1009,6 +1014,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.timer_handle,
         );
 
         Ok(())
@@ -1119,6 +1125,7 @@ pub struct WriteWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for WriteWTimestamp {
     type Result = DdsResult<()>;
@@ -1144,6 +1151,7 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.timer_handle,
         );
 
         Ok(())

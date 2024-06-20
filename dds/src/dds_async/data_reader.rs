@@ -428,20 +428,26 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`wait_for_historical_data`](crate::subscription::data_reader::DataReader::wait_for_historical_data).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        tokio::time::timeout(max_wait.into(), async {
-            loop {
-                if self
-                    .reader_address
-                    .send_actor_mail(data_reader_actor::IsHistoricalDataReceived)?
-                    .receive_reply()
-                    .await?
-                {
-                    return Ok(());
-                }
-            }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        let reader_address = self.reader_address.clone();
+        self.subscriber
+            .get_participant()
+            .timer_handle()
+            .timeout(
+                max_wait.into(),
+                Box::pin(async move {
+                    loop {
+                        if reader_address
+                            .send_actor_mail(data_reader_actor::IsHistoricalDataReceived)?
+                            .receive_reply()
+                            .await?
+                        {
+                            return Ok(());
+                        }
+                    }
+                }),
+            )
+            .await
+            .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`get_matched_publication_data`](crate::subscription::data_reader::DataReader::get_matched_publication_data).

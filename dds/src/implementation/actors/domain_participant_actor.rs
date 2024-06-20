@@ -30,6 +30,7 @@ use crate::{
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
+            timer::{TimerDriver, TimerHandle},
         },
     },
     infrastructure::{
@@ -293,6 +294,7 @@ pub struct DomainParticipantActor {
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,
+    timer_driver: TimerDriver,
 }
 
 impl DomainParticipantActor {
@@ -310,6 +312,7 @@ impl DomainParticipantActor {
         builtin_data_reader_list: Vec<DataReaderActor>,
         message_sender_actor: MessageSenderActor,
         handle: &tokio::runtime::Handle,
+        timer_driver: TimerDriver,
     ) -> (
         Self,
         ActorAddress<StatusConditionActor>,
@@ -382,6 +385,7 @@ impl DomainParticipantActor {
                 status_kind,
                 status_condition,
                 message_sender_actor: Actor::spawn(message_sender_actor, handle),
+                timer_driver,
             },
             status_condition_address,
             builtin_subscriber_address,
@@ -2064,6 +2068,16 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
                     .clone(),
             );
         }
+    }
+}
+
+pub struct GetTimerHandle;
+impl Mail for GetTimerHandle {
+    type Result = TimerHandle;
+}
+impl MailHandler<GetTimerHandle> for DomainParticipantActor {
+    fn handle(&mut self, _: GetTimerHandle) -> <GetTimerHandle as Mail>::Result {
+        self.timer_driver.handle()
     }
 }
 

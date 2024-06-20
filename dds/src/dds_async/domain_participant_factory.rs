@@ -79,6 +79,10 @@ impl DomainParticipantFactoryAsync {
             .send_actor_mail(subscriber_actor::GetStatuscondition)?
             .receive_reply()
             .await;
+        let timer_handle = participant_address
+            .send_actor_mail(domain_participant_actor::GetTimerHandle)?
+            .receive_reply()
+            .await;
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
@@ -86,6 +90,7 @@ impl DomainParticipantFactoryAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             self.runtime_handle.clone(),
+            timer_handle,
         );
 
         if self
@@ -164,6 +169,10 @@ impl DomainParticipantFactoryAsync {
                     .send_actor_mail(subscriber_actor::GetStatuscondition)?
                     .receive_reply()
                     .await;
+                let timer_handle = dp
+                    .send_actor_mail(domain_participant_actor::GetTimerHandle)?
+                    .receive_reply()
+                    .await;
                 return Ok(Some(DomainParticipantAsync::new(
                     dp,
                     status_condition,
@@ -171,6 +180,7 @@ impl DomainParticipantFactoryAsync {
                     builtin_subscriber_status_condition_address,
                     domain_id,
                     self.runtime_handle.clone(),
+                    timer_handle,
                 )));
             }
         }

@@ -264,6 +264,7 @@ where
                     message_sender_actor,
                     now,
                     data_writer_address: self.writer_address.clone(),
+                    timer_handle: self.publisher.get_participant().timer_handle().clone(),
                 })?
                 .receive_reply()
                 .await
@@ -349,6 +350,7 @@ where
                 message_sender_actor,
                 now,
                 data_writer_address: self.writer_address.clone(),
+                timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
             .await?;
@@ -427,6 +429,7 @@ where
                 message_sender_actor,
                 now,
                 data_writer_address: self.writer_address.clone(),
+                timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
             .await
@@ -437,20 +440,26 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        tokio::time::timeout(max_wait.into(), async {
-            loop {
-                if self
-                    .writer_address
-                    .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)?
-                    .receive_reply()
-                    .await
-                {
-                    return Ok(());
-                }
-            }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        let writer_address = self.writer_address.clone();
+        self.publisher
+            .get_participant()
+            .timer_handle()
+            .timeout(
+                max_wait.into(),
+                Box::pin(async move {
+                    loop {
+                        if writer_address
+                            .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)?
+                            .receive_reply()
+                            .await
+                        {
+                            return Ok(());
+                        }
+                    }
+                }),
+            )
+            .await
+            .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).

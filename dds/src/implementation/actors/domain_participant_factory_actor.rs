@@ -22,6 +22,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
+        runtime::timer::TimerDriver,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -525,6 +526,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
         rtps_participant.set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list);
+
+        let timer_driver = TimerDriver::new();
+        let timer_handle = timer_driver.handle();
         //****** Spawn the participant actor and tasks **********//
         let (
             domain_participant,
@@ -544,6 +548,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_data_reader_list,
             message_sender_actor,
             &message.runtime_handle,
+            timer_driver,
         );
         let participant_actor = Actor::spawn(domain_participant, &message.runtime_handle);
         let participant = DomainParticipantAsync::new(
@@ -553,6 +558,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_subscriber_status_condition_address,
             message.domain_id,
             message.runtime_handle.clone(),
+            timer_handle,
         );
 
         let participant_address_clone = participant_actor.address();
