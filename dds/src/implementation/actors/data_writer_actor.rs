@@ -16,6 +16,10 @@ use crate::{
         payload_serializer_deserializer::{
             cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
         },
+        runtime::{
+            mpsc::{mpsc_channel, MpscSender},
+            runtime::block_on,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -58,6 +62,7 @@ use crate::{
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
+    thread::JoinHandle,
 };
 
 use super::{
@@ -203,6 +208,51 @@ impl IncompatibleSubscriptions {
     }
 }
 
+struct DataWriterListenerMessage {
+    listener_operation: DataWriterListenerOperation,
+    writer_address: ActorAddress<DataWriterActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    publisher: PublisherAsync,
+    topic: TopicAsync,
+}
+
+struct DataWriterListenerThread {
+    thread: JoinHandle<()>,
+    sender: MpscSender<DataWriterListenerMessage>,
+}
+
+impl DataWriterListenerThread {
+    fn new(mut listener: Box<dyn AnyDataWriterListener + Send>) -> Self {
+        let (sender, receiver) = mpsc_channel::<DataWriterListenerMessage>();
+        let thread = std::thread::spawn(move || {
+            block_on(async {
+                while let Some(m) = receiver.recv().await {
+                    listener
+                        .call_listener_function(
+                            m.listener_operation,
+                            m.writer_address,
+                            m.status_condition_address,
+                            m.publisher,
+                            m.topic,
+                        )
+                        .await;
+                }
+            });
+        });
+        Self { thread, sender }
+    }
+
+    fn sender(&self) -> &MpscSender<DataWriterListenerMessage> {
+        &self.sender
+    }
+
+    fn join(self) -> DdsResult<()> {
+        self.sender.close();
+        self.thread.join()?;
+        Ok(())
+    }
+}
+
 pub struct DataWriterActor {
     rtps_writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
@@ -215,7 +265,7 @@ pub struct DataWriterActor {
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Arc<tokio::sync::Mutex<Box<dyn AnyDataWriterListener + Send>>>>,
+    data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
@@ -236,7 +286,8 @@ impl DataWriterActor {
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
+
         let max_changes = match qos.history.kind {
             HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
             HistoryQosPolicyKind::KeepAll => None,
@@ -253,7 +304,7 @@ impl DataWriterActor {
             incompatible_subscriptions: IncompatibleSubscriptions::new(),
             enabled: false,
             status_condition,
-            listener,
+            data_writer_listener_thread,
             status_kind,
             writer_cache: WriterHistoryCache::new(max_changes),
             qos,
@@ -532,21 +583,14 @@ impl DataWriterActor {
                 topic_name,
                 participant,
             );
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataWriterListenerOperation::PublicationMatched(status),
-                            data_writer_address,
-                            status_condition_address,
-                            publisher,
-                            topic,
-                        )
-                        .await
-                });
+            if let Some(listener) = &self.data_writer_listener_thread {
+                listener.sender().send(DataWriterListenerMessage {
+                    listener_operation: DataWriterListenerOperation::PublicationMatched(status),
+                    writer_address: data_writer_address,
+                    status_condition_address,
+                    publisher,
+                    topic,
+                })?;
             }
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
@@ -610,21 +654,14 @@ impl DataWriterActor {
                 participant,
             );
 
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataWriterListenerOperation::OfferedIncompatibleQos(status),
-                            data_writer_address,
-                            status_condition_address,
-                            publisher,
-                            topic,
-                        )
-                        .await;
-                });
+            if let Some(listener) = &self.data_writer_listener_thread {
+                listener.sender().send(DataWriterListenerMessage {
+                    listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
+                    writer_address: data_writer_address,
+                    status_condition_address,
+                    publisher,
+                    topic,
+                })?;
             }
         } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
@@ -1400,14 +1437,17 @@ pub struct SetListener {
     pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 impl MailHandler<SetListener> for DataWriterActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = message
-            .listener
-            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        if let Some(listener) = self.data_writer_listener_thread.take() {
+            listener.join()?;
+        }
+
+        self.data_writer_listener_thread = message.listener.map(DataWriterListenerThread::new);
         self.status_kind = message.status_kind;
+        Ok(())
     }
 }
 

@@ -350,6 +350,7 @@ impl DataReaderActor {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
 
+
         DataReaderActor {
             rtps_reader,
             changes: Vec::new(),

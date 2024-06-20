@@ -1,4 +1,6 @@
-use crate::rtps::error::RtpsError;
+use std::any::Any;
+
+use crate::{implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError};
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;
@@ -46,6 +48,18 @@ impl From<RtpsError> for DdsError {
 impl From<std::io::Error> for DdsError {
     fn from(value: std::io::Error) -> Self {
         DdsError::Error(value.to_string())
+    }
+}
+
+impl From<Box<dyn Any + Send + 'static>> for DdsError {
+    fn from(_: Box<dyn Any + Send + 'static>) -> Self {
+        DdsError::Error("Generic std error".to_string())
+    }
+}
+
+impl From<MpscSenderError> for DdsError {
+    fn from(_: MpscSenderError) -> Self {
+        DdsError::AlreadyDeleted
     }
 }
 
