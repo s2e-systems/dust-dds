@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
-        let serialized_payload = SerializedDataFragment::from(&[1, 2, 3][..]);
+        let serialized_payload = SerializedDataFragment::from([1, 2, 3].as_slice());
         let submessage = DataFragSubmessage::new(
             true,
             false,
@@ -278,7 +278,7 @@ mod tests {
         );
         #[rustfmt::skip]
         assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
-                0x16_u8, 0b_0000_0011, 48, 0, // Submessage header
+                0x16_u8, 0b_0000_0011, 47, 0, // Submessage header
                 0, 0, 28, 0, // extraFlags | octetsToInlineQos
                 1, 2, 3, 4, // readerId
                 6, 7, 8, 9, // writerId
@@ -290,7 +290,7 @@ mod tests {
                 8, 0, 4, 0, // inlineQos: parameterId, length
                 71, 72, 73, 74, // inlineQos: value[length]
                 1, 0, 0, 0, // inlineQos: Sentinel
-                1, 2, 3, 0, // serializedPayload
+                1, 2, 3, // serializedPayload
             ]
         );
     }

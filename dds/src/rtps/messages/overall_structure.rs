@@ -601,7 +601,7 @@ mod tests {
                 Parameter::new(6, vec![10, 11, 12, 13].into()),
                 Parameter::new(7, vec![20, 21, 22, 23].into()),
             ]),
-            Data::empty(),
+            Data::default(),
         ));
 
         let expected_submessages = vec![expected_data_submessage];

@@ -303,9 +303,8 @@ fn foo_with_specialized_type_support_should_read_and_write() {
     }
 
     impl DdsSerialize for DynamicType {
-        fn serialize_data(&self, mut writer: impl std::io::Write) -> DdsResult<()> {
-            writer.write_all(&self.value).unwrap();
-            Ok(())
+        fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+            Ok(self.value.clone())
         }
     }
 
