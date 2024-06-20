@@ -391,9 +391,7 @@ impl SubscriberAsync {
                 runtime_handle: self.runtime_handle().clone(),
             })?
             .receive_reply()
-            .await;
-
-        Ok(())
+            .await
     }
 
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).

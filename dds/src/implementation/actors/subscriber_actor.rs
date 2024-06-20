@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, thread::JoinHandle};
 
 use fnmatch_regex::glob_to_regex;
 use tracing::warn;
@@ -19,13 +19,20 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::status_condition_actor::StatusConditionActor,
+        runtime::{
+            executor::block_on,
+            mpsc::{mpsc_channel, MpscSender},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
-        status::StatusKind,
+        status::{
+            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
+        },
     },
     rtps::{
         self,
@@ -45,8 +52,74 @@ use crate::{
     topic_definition::type_support::DynamicTypeInterface,
 };
 
-pub type SubscriberListenerType =
-    Option<Arc<tokio::sync::Mutex<Box<dyn SubscriberListenerAsync + Send>>>>;
+pub enum SubscriberListenerOperation {
+    DataOnReaders(SubscriberAsync),
+    _DataAvailable,
+    SampleRejected(SampleRejectedStatus),
+    _LivenessChanged(LivelinessChangedStatus),
+    RequestedDeadlineMissed(RequestedDeadlineMissedStatus),
+    RequestedIncompatibleQos(RequestedIncompatibleQosStatus),
+    SubscriptionMatched(SubscriptionMatchedStatus),
+    SampleLost(SampleLostStatus),
+}
+
+pub struct SubscriberListenerMessage {
+    pub listener_operation: SubscriberListenerOperation,
+}
+
+struct SubscriberListenerThread {
+    thread: JoinHandle<()>,
+    sender: MpscSender<SubscriberListenerMessage>,
+}
+
+impl SubscriberListenerThread {
+    fn new(mut listener: Box<dyn SubscriberListenerAsync + Send>) -> Self {
+        let (sender, receiver) = mpsc_channel::<SubscriberListenerMessage>();
+        let thread = std::thread::spawn(move || {
+            block_on(async {
+                while let Some(m) = receiver.recv().await {
+                    match m.listener_operation {
+                        SubscriberListenerOperation::DataOnReaders(the_subscriber) => {
+                            listener.on_data_on_readers(the_subscriber).await
+                        }
+                        SubscriberListenerOperation::_DataAvailable => {
+                            listener.on_data_available(&()).await
+                        }
+                        SubscriberListenerOperation::SampleRejected(status) => {
+                            listener.on_sample_rejected(&(), status).await
+                        }
+                        SubscriberListenerOperation::_LivenessChanged(status) => {
+                            listener.on_liveliness_changed(&(), status).await
+                        }
+                        SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
+                            listener.on_requested_deadline_missed(&(), status).await
+                        }
+                        SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
+                            listener.on_requested_incompatible_qos(&(), status).await
+                        }
+                        SubscriberListenerOperation::SubscriptionMatched(status) => {
+                            listener.on_subscription_matched(&(), status).await
+                        }
+                        SubscriberListenerOperation::SampleLost(status) => {
+                            listener.on_sample_lost(&(), status).await
+                        }
+                    }
+                }
+            });
+        });
+        Self { thread, sender }
+    }
+
+    fn sender(&self) -> &MpscSender<SubscriberListenerMessage> {
+        &self.sender
+    }
+
+    fn join(self) -> DdsResult<()> {
+        self.sender.close();
+        self.thread.join()?;
+        Ok(())
+    }
+}
 
 pub struct SubscriberActor {
     qos: SubscriberQos,
@@ -56,7 +129,7 @@ pub struct SubscriberActor {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener: SubscriberListenerType,
+    subscriber_listener_thread: Option<SubscriberListenerThread>,
     status_kind: Vec<StatusKind>,
 }
 
@@ -70,7 +143,7 @@ impl SubscriberActor {
         handle: &tokio::runtime::Handle,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
         let data_reader_list = data_reader_list
             .into_iter()
             .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
@@ -85,7 +158,7 @@ impl SubscriberActor {
                 user_defined_data_reader_counter: 0,
                 default_data_reader_qos: Default::default(),
                 status_condition,
-                listener,
+                subscriber_listener_thread,
                 status_kind,
             },
             status_condition_address,
@@ -425,7 +498,12 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
         message: ProcessDataSubmessage,
     ) -> <ProcessDataSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let subscriber_mask_listener = (
+                self.subscriber_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             data_reader_actor.send_actor_mail(data_reader_actor::ProcessDataSubmessage {
                 data_submessage: message.data_submessage.clone(),
                 source_guid_prefix: message.source_guid_prefix,
@@ -464,7 +542,12 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
         message: ProcessDataFragSubmessage,
     ) -> <ProcessDataFragSubmessage as Mail>::Result {
         for data_reader_actor in self.data_reader_list.values() {
-            let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let subscriber_mask_listener = (
+                self.subscriber_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             data_reader_actor.send_actor_mail(data_reader_actor::ProcessDataFragSubmessage {
                 data_frag_submessage: message.data_frag_submessage.clone(),
                 source_guid_prefix: message.source_guid_prefix,
@@ -567,7 +650,12 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                 .partition(),
         ) {
             for data_reader in self.data_reader_list.values() {
-                let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
+                let subscriber_mask_listener = (
+                    self.subscriber_listener_thread
+                        .as_ref()
+                        .map(|l| l.sender().clone()),
+                    self.status_kind.clone(),
+                );
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
                 data_reader.send_actor_mail(data_reader_actor::AddMatchedWriter {
@@ -605,7 +693,12 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
     fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
         for data_reader in self.data_reader_list.values() {
             let data_reader_address = data_reader.address();
-            let subscriber_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let subscriber_mask_listener = (
+                self.subscriber_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
                 data_reader_address,
@@ -630,13 +723,15 @@ pub struct SetListener {
     pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 impl MailHandler<SetListener> for SubscriberActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = message
-            .listener
-            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        if let Some(l) = self.subscriber_listener_thread.take() {
+            l.join()?;
+        }
+        self.subscriber_listener_thread = message.listener.map(SubscriberListenerThread::new);
         self.status_kind = message.status_kind;
+        Ok(())
     }
 }
