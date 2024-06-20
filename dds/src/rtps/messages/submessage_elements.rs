@@ -262,7 +262,7 @@ impl Parameter {
                     "Available data for parameter less than length",
                 ));
             }
-            let value: Arc<[u8]> = Arc::from(&data[0..length as usize]);
+            let value: Arc<[u8]> = Arc::from(data[0..length as usize].to_vec().into_boxed_slice());
             if length as usize > value.len() {
                 return Err(RtpsError::new(
                     RtpsErrorKind::InvalidData,
@@ -367,7 +367,7 @@ impl AsRef<[u8]> for SerializedDataFragment {
 impl From<&[u8]> for SerializedDataFragment {
     fn from(value: &[u8]) -> Self {
         Self {
-            data: Data::new(Arc::from(value)),
+            data: Data::new(Arc::from(value.to_vec().into_boxed_slice())),
             range: 0..value.len(),
         }
     }
