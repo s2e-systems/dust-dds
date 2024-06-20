@@ -58,9 +58,6 @@ use crate::{
         },
         writer::RtpsWriter,
     },
-    subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-    },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
@@ -419,11 +416,11 @@ impl DomainParticipantFactoryActor {
     }
 }
 
-pub async fn read_message(
-    socket: &mut tokio::net::UdpSocket,
+pub fn read_message(
+    socket: &mut std::net::UdpSocket,
     buf: &mut [u8],
 ) -> DdsResult<RtpsMessageRead> {
-    let (bytes, _) = socket.recv_from(buf).await?;
+    let (bytes, _) = socket.recv_from(buf)?;
     if bytes > 0 {
         Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
     } else {
@@ -497,11 +494,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let default_unicast_socket =
             socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
         default_unicast_socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
-        default_unicast_socket.set_nonblocking(true)?;
+        default_unicast_socket.set_nonblocking(false)?;
         if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
             default_unicast_socket.set_recv_buffer_size(buffer_size)?;
         }
-        let default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
+        let mut default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
         let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
         let default_unicast_locator_list: Vec<Locator> = interface_address_list
             .clone()
@@ -510,11 +507,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         rtps_participant.set_default_unicast_locator_list(default_unicast_locator_list);
 
         // Open socket for unicast metatraffic data
-        let metattrafic_unicast_socket =
+        let mut metatrafic_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
-        metattrafic_unicast_socket.set_nonblocking(true)?;
+        metatrafic_unicast_socket.set_nonblocking(false)?;
         let metattrafic_unicast_locator_port =
-            metattrafic_unicast_socket.local_addr()?.port().into();
+            metatrafic_unicast_socket.local_addr()?.port().into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .clone()
             .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
@@ -560,11 +557,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
-        let mut socket = tokio::net::UdpSocket::from_std(default_unicast_socket)?;
-        message.runtime_handle.spawn(async move {
+
+        std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
+                if let Ok(message) = read_message(&mut default_unicast_socket, buf.as_mut_slice()) {
                     let r = participant_address_clone.send_actor_mail(
                         domain_participant_actor::ProcessUserDefinedRtpsMessage {
                             rtps_message: message,
@@ -596,20 +593,21 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let participant_address_clone = participant_actor.address();
         let participant_clone = participant.clone();
-        let mut socket =
-            tokio::net::UdpSocket::from_std(metattrafic_unicast_socket).map_err(|_| {
-                DdsError::Error("Failed to open metattrafic unicast socket".to_string())
-            })?;
-        message.runtime_handle.spawn(async move {
+
+        std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
-                    let r = process_metatraffic_rtps_message(
-                        participant_address_clone.clone(),
-                        message,
-                        &participant_clone,
-                    )
-                    .await;
+                if let Ok(message) =
+                    read_message(&mut metatrafic_unicast_socket, buf.as_mut_slice())
+                {
+                    let r = participant_address_clone.send_actor_mail(
+                        domain_participant_actor::ProcessMetatrafficRtpsMessage {
+                            rtps_message: message,
+                            participant: participant_clone.clone(),
+                            handle: participant_clone.runtime_handle().clone(),
+                        },
+                    );
+
                     if r.is_err() {
                         break;
                     }
@@ -624,16 +622,18 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             port_builtin_multicast(message.domain_id),
             interface_address_list,
         )?;
-        message.runtime_handle.spawn(async move {
+        std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
-                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()).await {
-                    let r = process_metatraffic_rtps_message(
-                        participant_address_clone.clone(),
-                        message,
-                        &participant_clone,
-                    )
-                    .await;
+                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()) {
+                    let r = participant_address_clone.send_actor_mail(
+                        domain_participant_actor::ProcessMetatrafficRtpsMessage {
+                            rtps_message: message,
+                            participant: participant_clone.clone(),
+                            handle: participant_clone.runtime_handle().clone(),
+                        },
+                    );
+
                     if r.is_err() {
                         break;
                     }
@@ -788,7 +788,7 @@ fn get_multicast_socket(
     multicast_address: LocatorAddress,
     port: u16,
     interface_address_list: impl IntoIterator<Item = Addr>,
-) -> std::io::Result<tokio::net::UdpSocket> {
+) -> std::io::Result<std::net::UdpSocket> {
     let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
     let socket = Socket::new(
@@ -798,7 +798,7 @@ fn get_multicast_socket(
     )?;
 
     socket.set_reuse_address(true)?;
-    socket.set_nonblocking(true)?;
+    socket.set_nonblocking(false)?;
     socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 
     socket.bind(&socket_addr.into())?;
@@ -825,7 +825,7 @@ fn get_multicast_socket(
 
     socket.set_multicast_loop_v4(true)?;
 
-    tokio::net::UdpSocket::from_std(socket.into())
+    Ok(socket.into())
 }
 
 fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
@@ -953,230 +953,4 @@ pub fn sedp_data_writer_qos() -> DataWriterQos {
         },
         ..Default::default()
     }
-}
-
-async fn process_metatraffic_rtps_message(
-    participant_actor: ActorAddress<DomainParticipantActor>,
-    message: RtpsMessageRead,
-    participant: &DomainParticipantAsync,
-) -> DdsResult<()> {
-    participant_actor
-        .send_actor_mail(domain_participant_actor::ProcessMetatrafficRtpsMessage {
-            rtps_message: message,
-            participant: participant.clone(),
-            handle: participant.runtime_handle().clone(),
-        })?
-        .receive_reply()
-        .await?;
-
-    process_spdp_participant_discovery(participant).await?;
-    process_sedp_publications_discovery(participant).await?;
-    process_sedp_subscriptions_discovery(participant).await?;
-    process_sedp_topics_discovery(participant).await
-}
-
-async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-
-    if let Ok(Some(spdp_participant_reader)) = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-        .await
-    {
-        if let Ok(spdp_discovered_participant_list) = spdp_participant_reader
-            .read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_participant_sample in spdp_discovered_participant_list {
-                match discovered_participant_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => {
-                        if let Ok(discovered_participant_data) =
-                            discovered_participant_sample.data()
-                        {
-                            participant
-                                .participant_address()
-                                .send_actor_mail(
-                                    domain_participant_actor::AddDiscoveredParticipant {
-                                        discovered_participant_data,
-                                        participant: participant.clone(),
-                                        handle: participant.runtime_handle().clone(),
-                                    },
-                                )?
-                                .receive_reply()
-                                .await?;
-                        }
-                    }
-                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
-                        participant
-                            .participant_address()
-                            .send_actor_mail(
-                                domain_participant_actor::RemoveDiscoveredParticipant {
-                                    handle: discovered_participant_sample
-                                        .sample_info()
-                                        .instance_handle,
-                                },
-                            )?
-                            .receive_reply()
-                            .await;
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-async fn process_sedp_publications_discovery(
-    participant: &DomainParticipantAsync,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-
-    if let Some(sedp_publications_detector) = builtin_subscriber
-        .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
-        .await?
-    {
-        if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
-                match discovered_writer_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => match discovered_writer_sample.data() {
-                        Ok(discovered_writer_data) => {
-                            participant.participant_address().send_actor_mail(
-                                domain_participant_actor::AddMatchedWriter {
-                                    discovered_writer_data,
-                                    participant: participant.clone(),
-                                    handle: participant.runtime_handle().clone(),
-                                },
-                            )?;
-                        }
-                        Err(e) => warn!(
-                            "Received invalid DiscoveredWriterData sample. Error {:?}",
-                            e
-                        ),
-                    },
-                    InstanceStateKind::NotAliveDisposed => {
-                        participant.participant_address().send_actor_mail(
-                            domain_participant_actor::RemoveMatchedWriter {
-                                discovered_writer_handle: discovered_writer_sample
-                                    .sample_info()
-                                    .instance_handle,
-                                participant: participant.clone(),
-                                handle: participant.runtime_handle().clone(),
-                            },
-                        )?;
-                    }
-                    InstanceStateKind::NotAliveNoWriters => {
-                        todo!()
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn process_sedp_subscriptions_discovery(
-    participant: &DomainParticipantAsync,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-
-    if let Some(sedp_subscriptions_detector) = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-        .await?
-    {
-        if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
-                match discovered_reader_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => match discovered_reader_sample.data() {
-                        Ok(discovered_reader_data) => {
-                            participant.participant_address().send_actor_mail(
-                                domain_participant_actor::AddMatchedReader {
-                                    discovered_reader_data,
-                                    participant: participant.clone(),
-                                    handle: participant.runtime_handle().clone(),
-                                },
-                            )?;
-                        }
-                        Err(e) => warn!(
-                            "Received invalid DiscoveredReaderData sample. Error {:?}",
-                            e
-                        ),
-                    },
-                    InstanceStateKind::NotAliveDisposed => {
-                        participant.participant_address().send_actor_mail(
-                            domain_participant_actor::RemoveMatchedReader {
-                                discovered_reader_handle: discovered_reader_sample
-                                    .sample_info()
-                                    .instance_handle,
-                                participant: participant.clone(),
-                                handle: participant.runtime_handle().clone(),
-                            },
-                        )?;
-                    }
-                    InstanceStateKind::NotAliveNoWriters => {
-                        todo!()
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn process_sedp_topics_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-    if let Some(sedp_topics_detector) = builtin_subscriber
-        .lookup_datareader::<DiscoveredTopicData>(DCPS_TOPIC)
-        .await?
-    {
-        if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_topic_sample in discovered_topic_sample_list.drain(..) {
-                match discovered_topic_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => match discovered_topic_sample.data() {
-                        Ok(discovered_topic_data) => {
-                            participant.participant_address().send_actor_mail(
-                                domain_participant_actor::AddMatchedTopic {
-                                    discovered_topic_data,
-                                },
-                            )?;
-                        }
-                        Err(e) => {
-                            warn!("Received invalid DiscoveredTopicData sample. Error {:?}", e)
-                        }
-                    },
-                    // Discovered topics are not deleted so it is not need to process these messages in any manner
-                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {}
-                }
-            }
-        }
-    }
-    Ok(())
 }

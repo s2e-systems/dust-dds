@@ -197,6 +197,10 @@ impl IncompatibleSubscriptions {
 
         status
     }
+
+    fn contains(&self, handle: &InstanceHandle) -> bool {
+        self.incompatible_subscription_list.contains(handle)
+    }
 }
 
 pub struct DataWriterActor {
@@ -1287,7 +1291,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                 }
 
                 self.send_message(message.message_sender_actor);
-            } else {
+            } else if !self.incompatible_subscriptions.contains(&instance_handle) {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
                 self.on_offered_incompatible_qos(
