@@ -34,6 +34,12 @@ pub struct DomainParticipantFactoryAsync {
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
 
+impl Default for DomainParticipantFactoryAsync {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DomainParticipantFactoryAsync {
     /// Create a new [`DomainParticipantFactoryAsync`].
     /// All the tasks of Dust DDS will be spawned on the runtime which is given as an argument.

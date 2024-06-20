@@ -589,10 +589,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         // Start the regular participant announcement task
         let participant_clone = participant.clone();
-        let participant_announcement_interval = self
-            .configuration
-            .participant_announcement_interval()
-            .clone();
+        let participant_announcement_interval =
+            self.configuration.participant_announcement_interval();
 
         executor_handle.spawn(async move {
             loop {

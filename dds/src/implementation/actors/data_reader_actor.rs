@@ -1259,6 +1259,7 @@ impl DataReaderActor {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_change(
         &mut self,
         change: ReaderCacheChange,
@@ -1572,6 +1573,7 @@ impl DataReaderActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,

@@ -24,9 +24,7 @@ impl Eq for TimerWake {}
 
 impl PartialOrd for TimerWake {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // Reverse order compared to usual implementation
-        // since the binary heap is a max tree
-        other.deadline.partial_cmp(&self.deadline)
+        Some(self.cmp(other))
     }
 }
 
@@ -120,10 +118,7 @@ impl TimerHeap {
 
     #[inline(always)]
     fn is_next_timer_elapsed(&self) -> bool {
-        match self.heap.peek() {
-            Some(t) if t.deadline < Instant::now() => true,
-            _ => false,
-        }
+        matches!(self.heap.peek(), Some(t) if t.deadline < Instant::now())
     }
 
     #[inline(always)]
@@ -169,7 +164,7 @@ impl TimerHandle {
             if let Poll::Ready(t) = pin!(&mut future).poll(cx) {
                 return Poll::Ready(Ok(t));
             }
-            if let Poll::Ready(_) = pin!(&mut timeout).poll(cx) {
+            if pin!(&mut timeout).poll(cx).is_ready() {
                 return Poll::Ready(Err(TimeoutError::Timeout));
             }
 
