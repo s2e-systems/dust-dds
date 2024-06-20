@@ -518,6 +518,7 @@ impl<Foo> DataReaderAsync<Foo> {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
             self.runtime_handle().clone(),
+            self.subscriber.get_participant().timer_handle().clone(),
         )
     }
 

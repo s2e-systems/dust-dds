@@ -400,6 +400,7 @@ impl SubscriberAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
             self.runtime_handle().clone(),
+            self.participant.timer_handle().clone(),
         )
     }
 

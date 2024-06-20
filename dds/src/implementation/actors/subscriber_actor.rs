@@ -22,6 +22,7 @@ use crate::{
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -491,6 +492,7 @@ pub struct ProcessDataSubmessage {
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataSubmessage {
     type Result = ();
@@ -521,6 +523,7 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
                 handle: message.handle.clone(),
+                timer_handle: message.timer_handle.clone(),
             });
         }
     }
@@ -538,6 +541,7 @@ pub struct ProcessDataFragSubmessage {
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataFragSubmessage {
     type Result = ();
@@ -568,6 +572,7 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
                 handle: message.handle.clone(),
+                timer_handle: message.timer_handle.clone(),
             });
         }
     }

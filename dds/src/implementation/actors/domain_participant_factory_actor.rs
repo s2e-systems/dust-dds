@@ -558,7 +558,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_subscriber_status_condition_address,
             message.domain_id,
             message.runtime_handle.clone(),
-            timer_handle,
+            timer_handle.clone(),
         );
 
         let participant_address_clone = participant_actor.address();
@@ -584,16 +584,19 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         // Start the regular participant announcement task
         let participant_clone = participant.clone();
-        let mut interval =
-            tokio::time::interval(self.configuration.participant_announcement_interval());
+        let participant_announcement_interval = self
+            .configuration
+            .participant_announcement_interval()
+            .clone();
+
         message.runtime_handle.spawn(async move {
             loop {
-                interval.tick().await;
-
                 let r = participant_clone.announce_participant().await;
                 if r.is_err() {
                     break;
                 }
+
+                timer_handle.sleep(participant_announcement_interval).await;
             }
         });
 

@@ -788,6 +788,7 @@ pub struct Enable {
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub runtime_handle: tokio::runtime::Handle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for Enable {
     type Result = ();
@@ -799,12 +800,12 @@ impl MailHandler<Enable> for DataWriterActor {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let half_heartbeat_period =
                 std::time::Duration::from(Duration::from(self.rtps_writer.heartbeat_period())) / 2;
-            let mut interval = tokio::time::interval(half_heartbeat_period);
             let message_sender_actor = message.message_sender_actor;
             let data_writer_address = message.data_writer_address;
+            let timer_handle = message.timer_handle;
             message.runtime_handle.spawn(async move {
                 loop {
-                    interval.tick().await;
+                    timer_handle.sleep(half_heartbeat_period).await;
 
                     let r = data_writer_address.send_actor_mail(SendMessage {
                         message_sender_actor: message_sender_actor.clone(),

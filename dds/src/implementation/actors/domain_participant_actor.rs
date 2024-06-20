@@ -1267,6 +1267,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                             participant: message.participant.clone(),
                             participant_mask_listener,
                             handle: message.handle.clone(),
+                            timer_handle: self.timer_driver.handle(),
                         },
                     );
                 }
@@ -1287,6 +1288,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                             participant: message.participant.clone(),
                             participant_mask_listener,
                             handle: message.handle.clone(),
+                            timer_handle: self.timer_driver.handle(),
                         },
                     );
                 }
@@ -1380,6 +1382,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                                 participant: message.participant.clone(),
                                 participant_mask_listener,
                                 handle: message.handle.clone(),
+                                timer_handle: self.timer_driver.handle(),
                             },
                         );
                     }
@@ -1403,6 +1406,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                                 participant: message.participant.clone(),
                                 participant_mask_listener,
                                 handle: message.handle.clone(),
+                                timer_handle: self.timer_driver.handle(),
                             },
                         );
                     }

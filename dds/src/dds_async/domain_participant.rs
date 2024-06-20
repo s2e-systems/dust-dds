@@ -762,6 +762,7 @@ impl DomainParticipantAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
             self.runtime_handle.clone(),
+            self.timer_handle.clone(),
         )
     }
 
@@ -832,6 +833,7 @@ impl DomainParticipantAsync {
                         data_writer_address: builtin_writer.clone(),
                         message_sender_actor,
                         runtime_handle: self.runtime_handle.clone(),
+                        timer_handle: self.timer_handle.clone(),
                     })?
                     .receive_reply()
                     .await;

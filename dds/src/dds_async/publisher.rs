@@ -438,6 +438,7 @@ impl PublisherAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
             self.participant.runtime_handle().clone(),
+            self.participant.timer_handle().clone(),
         )
     }
 

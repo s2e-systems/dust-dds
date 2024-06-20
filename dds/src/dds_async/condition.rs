@@ -2,6 +2,7 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::status_condition_actor::{self, StatusConditionActor},
+        runtime::timer::TimerHandle,
     },
     infrastructure::{error::DdsResult, status::StatusKind},
 };
@@ -11,16 +12,19 @@ use crate::{
 pub struct StatusConditionAsync {
     address: ActorAddress<StatusConditionActor>,
     runtime_handle: tokio::runtime::Handle,
+    timer_handle: TimerHandle,
 }
 
 impl StatusConditionAsync {
     pub(crate) fn new(
         address: ActorAddress<StatusConditionActor>,
         runtime_handle: tokio::runtime::Handle,
+        timer_handle: TimerHandle,
     ) -> Self {
         Self {
             address,
             runtime_handle,
+            timer_handle,
         }
     }
 
@@ -30,6 +34,10 @@ impl StatusConditionAsync {
 
     pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
         &self.runtime_handle
+    }
+
+    pub(crate) fn timer_handle(&self) -> &TimerHandle {
+        &self.timer_handle
     }
 }
 

@@ -584,6 +584,7 @@ impl<Foo> DataWriterAsync<Foo> {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
             self.runtime_handle().clone(),
+            self.publisher.get_participant().timer_handle().clone(),
         )
     }
 
@@ -612,6 +613,7 @@ impl<Foo> DataWriterAsync<Foo> {
                     data_writer_address: writer.clone(),
                     message_sender_actor,
                     runtime_handle: self.runtime_handle().clone(),
+                    timer_handle: self.publisher.get_participant().timer_handle().clone(),
                 })?
                 .receive_reply()
                 .await;

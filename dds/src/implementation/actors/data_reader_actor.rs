@@ -28,6 +28,7 @@ use crate::{
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -620,6 +621,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
@@ -657,6 +659,7 @@ impl DataReaderActor {
                                                         subscriber_mask_listener,
                                                         participant_mask_listener,
                                                         handle,
+                                                        timer_handle,
                                                     )?;
                                                 }
                                                 Err(e) => debug!(
@@ -691,7 +694,7 @@ impl DataReaderActor {
                                                         subscriber,
                                                         subscriber_mask_listener,
                                                         participant_mask_listener,
-                                                        handle,
+                                                        handle,timer_handle,
                                                     )?;
                                                 }
                                                 Err(e) => debug!(
@@ -731,6 +734,7 @@ impl DataReaderActor {
                             subscriber_mask_listener,
                             participant_mask_listener,
                             handle,
+                            timer_handle,
                         )?;
                     }
                 }
@@ -758,6 +762,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
@@ -779,6 +784,7 @@ impl DataReaderActor {
                             subscriber_mask_listener,
                             participant_mask_listener,
                             handle,
+                            timer_handle,
                         )?;
                     }
                 }
@@ -1267,6 +1273,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
@@ -1327,6 +1334,7 @@ impl DataReaderActor {
                     subscriber_mask_listener,
                     participant_mask_listener,
                     handle,
+                    timer_handle,
                 )?;
 
                 tracing::debug!(cache_change = ?change, "Adding change to data reader history cache");
@@ -1578,6 +1586,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         if let Some(t) = self
             .instance_deadline_missed_task
@@ -1587,10 +1596,10 @@ impl DataReaderActor {
         }
 
         if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            let mut deadline_missed_interval = tokio::time::interval(tokio::time::Duration::new(
+            let deadline_missed_interval = std::time::Duration::new(
                 deadline_missed_period.sec() as u64,
                 deadline_missed_period.nanosec(),
-            ));
+            );
             let reader_status_condition = self.status_condition.address();
             let data_reader_listener_sender = self
                 .data_reader_listener_thread
@@ -1606,9 +1615,10 @@ impl DataReaderActor {
             let topic_name = self.topic_name.clone();
             let status_condition_address = self.status_condition.address();
             let topic_status_condition_address = self.topic_status_condition.clone();
+            let timer_handle = timer_handle.clone();
             let deadline_missed_task = handle.spawn(async move {
                 loop {
-                    deadline_missed_interval.tick().await;
+                    timer_handle.sleep(deadline_missed_interval).await;
                     let subscriber_listener = subscriber_listener.clone();
                     let participant_listener = participant_listener.clone();
                     let r: DdsResult<()> =
@@ -2221,6 +2231,7 @@ pub struct ProcessDataSubmessage {
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataSubmessage {
     type Result = ();
@@ -2240,6 +2251,7 @@ impl MailHandler<ProcessDataSubmessage> for DataReaderActor {
             &message.subscriber_mask_listener,
             &message.participant_mask_listener,
             &message.handle,
+            &message.timer_handle,
         )
         .ok();
     }
@@ -2261,6 +2273,7 @@ pub struct ProcessDataFragSubmessage {
         Vec<StatusKind>,
     ),
     pub handle: tokio::runtime::Handle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataFragSubmessage {
     type Result = ();
@@ -2280,6 +2293,7 @@ impl MailHandler<ProcessDataFragSubmessage> for DataReaderActor {
             &message.subscriber_mask_listener,
             &message.participant_mask_listener,
             &message.handle,
+            &message.timer_handle,
         )
         .ok();
     }
