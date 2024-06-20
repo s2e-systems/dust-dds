@@ -1580,7 +1580,6 @@ impl MailHandler<SetMetatrafficMulticastLocatorList> for DomainParticipantActor 
 pub struct AddDiscoveredParticipant {
     pub discovered_participant_data: SpdpDiscoveredParticipantData,
     pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for AddDiscoveredParticipant {
     type Result = DdsResult<()>;
@@ -1686,7 +1685,6 @@ impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
 pub struct AddMatchedWriter {
     pub discovered_writer_data: DiscoveredWriterData,
     pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -1861,7 +1859,6 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
 pub struct AddMatchedReader {
     pub discovered_reader_data: DiscoveredReaderData,
     pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -2513,7 +2510,6 @@ async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync
                                 .send_actor_mail(AddDiscoveredParticipant {
                                     discovered_participant_data,
                                     participant: participant.clone(),
-                                    executor_handle: participant.executor_handle().clone(),
                                 })?
                                 .receive_reply()
                                 .await?;
@@ -2562,7 +2558,6 @@ async fn process_sedp_publications_discovery(
                                 AddMatchedWriter {
                                     discovered_writer_data,
                                     participant: participant.clone(),
-                                    executor_handle: participant.executor_handle().clone(),
                                 },
                             )?;
                         }
@@ -2617,7 +2612,6 @@ async fn process_sedp_subscriptions_discovery(
                                 AddMatchedReader {
                                     discovered_reader_data,
                                     participant: participant.clone(),
-                                    executor_handle: participant.executor_handle().clone(),
                                 },
                             )?;
                         }
