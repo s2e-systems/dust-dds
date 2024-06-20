@@ -17,8 +17,8 @@ use crate::{
             cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
         },
         runtime::{
+            executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
-            runtime::block_on,
         },
     },
     infrastructure::{
