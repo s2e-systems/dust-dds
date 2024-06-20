@@ -95,8 +95,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let mut result = Vec::new();
-        data.serialize_data(&mut result).unwrap();
+        let result = data.serialize_data().unwrap();
         assert_eq!(result, expected);
     }
 

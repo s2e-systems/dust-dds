@@ -171,8 +171,7 @@ where
             .receive_reply()
             .await;
 
-        let mut serialized_data = Vec::new();
-        instance.serialize_data(&mut serialized_data)?;
+        let serialized_data = instance.serialize_data()?;
         let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         self.writer_address
@@ -241,8 +240,7 @@ where
                 }
             }?;
 
-            let mut serialized_foo = Vec::new();
-            instance.serialize_data(&mut serialized_foo)?;
+            let serialized_foo = instance.serialize_data()?;
             let instance_serialized_key = type_support
                 .get_serialized_key_from_serialized_foo(&serialized_foo)?
                 .into();
@@ -294,8 +292,7 @@ where
             .receive_reply()
             .await;
 
-        let mut serialized_foo = Vec::new();
-        instance.serialize_data(&mut serialized_foo)?;
+        let serialized_foo = instance.serialize_data()?;
         let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
 
         self.writer_address
@@ -330,8 +327,7 @@ where
             .receive_reply()
             .await;
 
-        let mut serialized_data = Vec::new();
-        data.serialize_data(&mut serialized_data)?;
+        let serialized_data = data.serialize_data()?;
         let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         let message_sender_actor = self
@@ -411,8 +407,7 @@ where
             .receive_reply()
             .await;
 
-        let mut serialized_foo = Vec::new();
-        data.serialize_data(&mut serialized_foo)?;
+        let serialized_foo = data.serialize_data()?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
         let message_sender_actor = self
             .participant_address()

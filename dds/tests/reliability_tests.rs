@@ -133,10 +133,7 @@ fn writer_should_send_heartbeat_periodically() {
     );
     let dummy_reader_discovery =
         DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let mut serialized_dummy_reader_discovery_bytes = Vec::new();
-    dummy_reader_discovery
-        .serialize_data(&mut serialized_dummy_reader_discovery_bytes)
-        .unwrap();
+    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -307,10 +304,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     );
     let dummy_reader_discovery =
         DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let mut serialized_dummy_reader_discovery_bytes = Vec::new();
-    dummy_reader_discovery
-        .serialize_data(&mut serialized_dummy_reader_discovery_bytes)
-        .unwrap();
+    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -502,10 +496,7 @@ fn writer_should_resend_data_after_acknack_request() {
     );
     let dummy_reader_discovery =
         DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let mut serialized_dummy_reader_discovery_bytes = Vec::new();
-    dummy_reader_discovery
-        .serialize_data(&mut serialized_dummy_reader_discovery_bytes)
-        .unwrap();
+    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -706,10 +697,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     );
     let dummy_reader_discovery =
         DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let mut serialized_dummy_reader_discovery_bytes = Vec::new();
-    dummy_reader_discovery
-        .serialize_data(&mut serialized_dummy_reader_discovery_bytes)
-        .unwrap();
+    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -884,9 +872,8 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     );
     let dummy_reader_discovery =
         DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let mut serialized_dummy_reader_discovery_bytes = Vec::new();
-    dummy_reader_discovery
-        .serialize_data(&mut serialized_dummy_reader_discovery_bytes)
+    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery
+        .serialize_data()
         .unwrap();
 
     let discovered_reader_data_submessage = DataSubmessage::new(

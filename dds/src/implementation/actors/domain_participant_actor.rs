@@ -116,10 +116,8 @@ impl FooTypeSupport {
 
         let get_serialized_key_from_serialized_foo =
             define_function_with_correct_lifetime(|serialized_foo| {
-                let mut writer = Vec::new();
                 let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                serialize_rtps_classic_cdr_le(&foo_key, &mut writer)?;
-                Ok(writer)
+                serialize_rtps_classic_cdr_le(&foo_key)
             });
 
         let instance_handle_from_serialized_foo =

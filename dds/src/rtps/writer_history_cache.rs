@@ -168,7 +168,7 @@ mod tests {
             InstanceHandle([0; 16]),
             1,
             TIME_INVALID,
-            Data::empty(),
+            Data::default(),
             ParameterList::empty(),
         );
         hc.add_change(change);
@@ -185,7 +185,7 @@ mod tests {
             InstanceHandle([0; 16]),
             1,
             TIME_INVALID,
-            Data::empty(),
+            Data::default(),
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -194,7 +194,7 @@ mod tests {
             HANDLE_NIL,
             2,
             TIME_INVALID,
-            Data::empty(),
+            Data::default(),
             ParameterList::empty(),
         );
         hc.add_change(change1);
@@ -211,7 +211,7 @@ mod tests {
             HANDLE_NIL,
             1,
             TIME_INVALID,
-            Data::empty(),
+            Data::default(),
             ParameterList::empty(),
         );
         let change2 = RtpsWriterCacheChange::new(
@@ -220,7 +220,7 @@ mod tests {
             HANDLE_NIL,
             2,
             TIME_INVALID,
-            Data::empty(),
+            Data::default(),
             ParameterList::empty(),
         );
         hc.add_change(change1);

@@ -352,7 +352,7 @@ impl SerializedDataFragment {
 impl Default for SerializedDataFragment {
     fn default() -> Self {
         Self {
-            data: Data::empty(),
+            data: Data::default(),
             range: 0..0,
         }
     }
@@ -378,12 +378,6 @@ impl WriteIntoBytes for SerializedDataFragment {
         self.data.as_ref()[self.range.start..self.range.end]
             .as_ref()
             .write_into_bytes(buf);
-        match self.data.len() % 4 {
-            1 => [0_u8; 3].write_into_bytes(buf),
-            2 => [0_u8; 2].write_into_bytes(buf),
-            3 => [0_u8; 1].write_into_bytes(buf),
-            _ => (),
-        };
     }
 }
 
@@ -402,8 +396,10 @@ impl Data {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+}
 
-    pub fn empty() -> Self {
+impl Default for Data {
+    fn default() -> Self {
         Self(Arc::new([]))
     }
 }
@@ -423,12 +419,6 @@ impl AsRef<[u8]> for Data {
 impl WriteIntoBytes for Data {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.0.as_ref().write_into_bytes(buf);
-        match self.0.len() % 4 {
-            1 => [0_u8; 3].write_into_bytes(buf),
-            2 => [0_u8; 2].write_into_bytes(buf),
-            3 => [0_u8; 1].write_into_bytes(buf),
-            _ => (),
-        };
     }
 }
 
