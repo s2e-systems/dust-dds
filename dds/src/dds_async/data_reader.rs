@@ -570,7 +570,6 @@ where
                 runtime_handle: self.runtime_handle().clone(),
             })?
             .receive_reply()
-            .await;
-        Ok(())
+            .await
     }
 }

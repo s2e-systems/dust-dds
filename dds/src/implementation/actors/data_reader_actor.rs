@@ -25,6 +25,10 @@ use crate::{
         payload_serializer_deserializer::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
+        runtime::{
+            executor::block_on,
+            mpsc::{mpsc_channel, MpscSender},
+        },
     },
     infrastructure::{
         self,
@@ -65,6 +69,7 @@ use crate::{
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
+    thread::JoinHandle,
 };
 use tracing::debug;
 
@@ -307,6 +312,51 @@ struct IndexedSample {
     sample: (Option<Data>, SampleInfo),
 }
 
+struct DataReaderListenerMessage {
+    listener_operation: DataReaderListenerOperation,
+    reader_address: ActorAddress<DataReaderActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    subscriber: SubscriberAsync,
+    topic: TopicAsync,
+}
+
+struct DataReaderListenerThread {
+    thread: JoinHandle<()>,
+    sender: MpscSender<DataReaderListenerMessage>,
+}
+
+impl DataReaderListenerThread {
+    fn new(mut listener: Box<dyn AnyDataReaderListener + Send>) -> Self {
+        let (sender, receiver) = mpsc_channel::<DataReaderListenerMessage>();
+        let thread = std::thread::spawn(move || {
+            block_on(async {
+                while let Some(m) = receiver.recv().await {
+                    listener
+                        .call_listener_function(
+                            m.listener_operation,
+                            m.reader_address,
+                            m.status_condition_address,
+                            m.subscriber,
+                            m.topic,
+                        )
+                        .await;
+                }
+            });
+        });
+        Self { thread, sender }
+    }
+
+    fn sender(&self) -> &MpscSender<DataReaderListenerMessage> {
+        &self.sender
+    }
+
+    fn join(self) -> DdsResult<()> {
+        self.sender.close();
+        self.thread.join()?;
+        Ok(())
+    }
+}
+
 pub struct DataReaderActor {
     rtps_reader: RtpsReaderKind,
     changes: Vec<ReaderCacheChange>,
@@ -327,7 +377,7 @@ pub struct DataReaderActor {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<Arc<tokio::sync::Mutex<Box<dyn AnyDataReaderListener + Send>>>>,
+    data_reader_listener_thread: Option<DataReaderListenerThread>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
@@ -348,8 +398,7 @@ impl DataReaderActor {
         handle: &tokio::runtime::Handle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
-        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
-
+        let data_reader_listener_thread = listener.map(DataReaderListenerThread::new);
 
         DataReaderActor {
             rtps_reader,
@@ -371,7 +420,7 @@ impl DataReaderActor {
             incompatible_writer_list: HashSet::new(),
             status_condition,
             status_kind,
-            listener,
+            data_reader_listener_thread,
             qos,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
@@ -542,21 +591,14 @@ impl DataReaderActor {
                 topic_name.clone(),
                 subscriber.get_participant(),
             );
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataReaderListenerOperation::DataAvailable,
-                            reader_address,
-                            status_condition_address,
-                            subscriber,
-                            topic,
-                        )
-                        .await;
-                });
+            if let Some(listener) = &self.data_reader_listener_thread {
+                listener.sender().send(DataReaderListenerMessage {
+                    listener_operation: DataReaderListenerOperation::DataAvailable,
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
+                })?;
             }
         }
         Ok(())
@@ -894,21 +936,14 @@ impl DataReaderActor {
                 topic_name.clone(),
                 subscriber.get_participant(),
             );
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataReaderListenerOperation::SampleLost(status),
-                            reader_address,
-                            status_condition_address,
-                            subscriber,
-                            topic,
-                        )
-                        .await;
-                });
+            if let Some(listener) = &self.data_reader_listener_thread {
+                listener.sender().send(DataReaderListenerMessage {
+                    listener_operation: DataReaderListenerOperation::SampleLost(status),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
+                })?;
             }
         } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
@@ -964,21 +999,14 @@ impl DataReaderActor {
                 topic_name.clone(),
                 subscriber.get_participant(),
             );
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataReaderListenerOperation::SubscriptionMatched(status),
-                            reader_address,
-                            status_condition_address,
-                            subscriber,
-                            topic,
-                        )
-                        .await;
-                });
+            if let Some(listener) = &self.data_reader_listener_thread {
+                listener.sender().send(DataReaderListenerMessage {
+                    listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
+                })?;
             }
         } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status();
@@ -1045,21 +1073,14 @@ impl DataReaderActor {
                 topic_name.clone(),
                 subscriber.get_participant(),
             );
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataReaderListenerOperation::SampleRejected(status),
-                            reader_address,
-                            status_condition_address,
-                            subscriber,
-                            topic,
-                        )
-                        .await;
-                });
+            if let Some(listener) = &self.data_reader_listener_thread {
+                listener.sender().send(DataReaderListenerMessage {
+                    listener_operation: DataReaderListenerOperation::SampleRejected(status),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
+                })?;
             }
         } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
@@ -1119,21 +1140,16 @@ impl DataReaderActor {
                 topic_name.clone(),
                 subscriber.get_participant(),
             );
-            if let Some(l) = &self.listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .call_listener_function(
-                            DataReaderListenerOperation::RequestedIncompatibleQos(status),
-                            reader_address,
-                            status_condition_address,
-                            subscriber,
-                            topic,
-                        )
-                        .await;
-                });
+            if let Some(listener) = &self.data_reader_listener_thread {
+                listener.sender().send(DataReaderListenerMessage {
+                    listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
+                        status,
+                    ),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
+                })?;
             }
         } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
@@ -1573,7 +1589,10 @@ impl DataReaderActor {
                 deadline_missed_period.nanosec(),
             ));
             let reader_status_condition = self.status_condition.address();
-            let reader_listener = self.listener.clone();
+            let data_reader_listener_sender = self
+                .data_reader_listener_thread
+                .as_ref()
+                .map(|l| l.sender().clone());
             let reader_listener_mask = self.status_kind.clone();
             let subscriber_listener = subscriber_mask_listener.0.clone();
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
@@ -1588,7 +1607,6 @@ impl DataReaderActor {
             let deadline_missed_task = handle.spawn(async move {
                 loop {
                     deadline_missed_interval.tick().await;
-                    let reader_listener = reader_listener.clone();
                     let subscriber_listener = subscriber_listener.clone();
                     let participant_listener = participant_listener.clone();
                     let r: DdsResult<()> = async {
@@ -1620,22 +1638,19 @@ impl DataReaderActor {
                             );
                             let status_condition_address = status_condition_address.clone();
 
-                            if let Some(listener) = reader_listener {
-                                runtime_handle.spawn(async move {
-                                    listener
-                                        .lock()
-                                        .await
-                                        .call_listener_function(
+                            if let Some(listener) = &data_reader_listener_sender {
+                                listener
+                                    .send(DataReaderListenerMessage {
+                                        listener_operation:
                                             DataReaderListenerOperation::RequestedDeadlineMissed(
                                                 status,
                                             ),
-                                            reader_address,
-                                            status_condition_address,
-                                            subscriber,
-                                            topic,
-                                        )
-                                        .await;
-                                });
+                                        reader_address,
+                                        status_condition_address,
+                                        subscriber,
+                                        topic,
+                                    })
+                                    .ok();
                             }
                         } else if subscriber_listener_mask
                             .contains(&StatusKind::RequestedDeadlineMissed)
@@ -2320,14 +2335,16 @@ pub struct SetListener {
     pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 impl MailHandler<SetListener> for DataReaderActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = message
-            .listener
-            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        if let Some(listener) = self.data_reader_listener_thread.take() {
+            listener.join()?;
+        }
+        self.data_reader_listener_thread = message.listener.map(DataReaderListenerThread::new);
         self.status_kind = message.status_kind;
+        Ok(())
     }
 }
 
