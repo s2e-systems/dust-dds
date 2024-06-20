@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, thread::JoinHandle};
 
 use fnmatch_regex::glob_to_regex;
 use tracing::warn;
@@ -9,13 +9,22 @@ use crate::{
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync,
     },
-    implementation::actor::{Actor, ActorAddress, Mail, MailHandler},
+    implementation::{
+        actor::{Actor, ActorAddress, Mail, MailHandler},
+        runtime::{
+            executor::block_on,
+            mpsc::{mpsc_channel, MpscSender},
+        },
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         qos_policy::PartitionQosPolicy,
-        status::StatusKind,
+        status::{
+            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, StatusKind,
+        },
         time::Duration,
     },
     rtps::{
@@ -40,8 +49,58 @@ use super::{
     topic_actor::TopicActor,
 };
 
-pub type PublisherListenerType =
-    Option<Arc<tokio::sync::Mutex<Box<dyn PublisherListenerAsync + Send>>>>;
+pub enum PublisherListenerOperation {
+    _LivelinessLost(LivelinessLostStatus),
+    _OfferedDeadlineMissed(OfferedDeadlineMissedStatus),
+    OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
+    PublicationMatched(PublicationMatchedStatus),
+}
+
+pub struct PublisherListenerMessage {
+    pub listener_operation: PublisherListenerOperation,
+}
+
+struct PublisherListenerThread {
+    thread: JoinHandle<()>,
+    sender: MpscSender<PublisherListenerMessage>,
+}
+
+impl PublisherListenerThread {
+    fn new(mut listener: Box<dyn PublisherListenerAsync + Send>) -> Self {
+        let (sender, receiver) = mpsc_channel::<PublisherListenerMessage>();
+        let thread = std::thread::spawn(move || {
+            block_on(async {
+                while let Some(m) = receiver.recv().await {
+                    match m.listener_operation {
+                        PublisherListenerOperation::_LivelinessLost(status) => {
+                            listener.on_liveliness_lost(&(), status).await
+                        }
+                        PublisherListenerOperation::_OfferedDeadlineMissed(status) => {
+                            listener.on_offered_deadline_missed(&(), status).await
+                        }
+                        PublisherListenerOperation::OfferedIncompatibleQos(status) => {
+                            listener.on_offered_incompatible_qos(&(), status).await
+                        }
+                        PublisherListenerOperation::PublicationMatched(status) => {
+                            listener.on_publication_matched(&(), status).await
+                        }
+                    }
+                }
+            });
+        });
+        Self { thread, sender }
+    }
+
+    fn sender(&self) -> &MpscSender<PublisherListenerMessage> {
+        &self.sender
+    }
+
+    fn join(self) -> DdsResult<()> {
+        self.sender.close();
+        self.thread.join()?;
+        Ok(())
+    }
+}
 
 pub struct PublisherActor {
     qos: PublisherQos,
@@ -50,7 +109,7 @@ pub struct PublisherActor {
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
-    listener: PublisherListenerType,
+    publisher_listener_thread: Option<PublisherListenerThread>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -68,7 +127,7 @@ impl PublisherActor {
             .into_iter()
             .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
             .collect();
-        let listener = listener.map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        let publisher_listener_thread = listener.map(PublisherListenerThread::new);
         Self {
             qos,
             rtps_group,
@@ -76,7 +135,7 @@ impl PublisherActor {
             enabled: false,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
-            listener,
+            publisher_listener_thread,
             status_kind,
             status_condition: Actor::spawn(StatusConditionActor::default(), handle),
         }
@@ -442,7 +501,12 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
         ) {
             for data_writer in self.data_writer_list.values() {
                 let data_writer_address = data_writer.address();
-                let publisher_mask_listener = (self.listener.clone(), self.status_kind.clone());
+                let publisher_mask_listener = (
+                    self.publisher_listener_thread
+                        .as_ref()
+                        .map(|l| l.sender().clone()),
+                    self.status_kind.clone(),
+                );
 
                 data_writer.send_actor_mail(data_writer_actor::AddMatchedReader {
                     discovered_reader_data: message.discovered_reader_data.clone(),
@@ -480,7 +544,12 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
     fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for data_writer in self.data_writer_list.values() {
             let data_writer_address = data_writer.address();
-            let publisher_mask_listener = (self.listener.clone(), self.status_kind.clone());
+            let publisher_mask_listener = (
+                self.publisher_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone()),
+                self.status_kind.clone(),
+            );
             data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
                 data_writer_address,
@@ -514,14 +583,16 @@ pub struct SetListener {
     pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 impl MailHandler<SetListener> for PublisherActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        self.listener = message
-            .listener
-            .map(|l| Arc::new(tokio::sync::Mutex::new(l)));
+        if let Some(l) = self.publisher_listener_thread.take() {
+            l.join()?;
+        }
+        self.publisher_listener_thread = message.listener.map(PublisherListenerThread::new);
         self.status_kind = message.status_kind;
+        Ok(())
     }
 }
 

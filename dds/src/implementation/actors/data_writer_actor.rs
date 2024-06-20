@@ -69,7 +69,7 @@ use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
     domain_participant_actor::ParticipantListenerType,
     message_sender_actor::{self, MessageSenderActor},
-    publisher_actor::PublisherListenerType,
+    publisher_actor::{PublisherListenerMessage, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
 };
@@ -557,7 +557,10 @@ impl DataWriterActor {
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (PublisherListenerType, Vec<StatusKind>),
+        (publisher_listener, publisher_listener_mask): (
+            Option<MpscSender<PublisherListenerMessage>>,
+            Vec<StatusKind>,
+        ),
         (participant_listener, participant_listener_mask): (
             ParticipantListenerType,
             Vec<StatusKind>,
@@ -595,13 +598,9 @@ impl DataWriterActor {
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
             if let Some(listener) = publisher_listener {
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .on_publication_matched(&(), status)
-                        .await;
-                });
+                listener.send(PublisherListenerMessage {
+                    listener_operation: PublisherListenerOperation::PublicationMatched(status),
+                })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
@@ -622,7 +621,10 @@ impl DataWriterActor {
         &mut self,
         data_writer_address: ActorAddress<DataWriterActor>,
         publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (PublisherListenerType, Vec<StatusKind>),
+        (publisher_listener, publisher_listener_mask): (
+            Option<MpscSender<PublisherListenerMessage>>,
+            Vec<StatusKind>,
+        ),
         (participant_listener, participant_listener_mask): (
             ParticipantListenerType,
             Vec<StatusKind>,
@@ -668,13 +670,9 @@ impl DataWriterActor {
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
             if let Some(listener) = publisher_listener {
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .on_offered_incompatible_qos(&(), status)
-                        .await;
-                });
+                listener.send(PublisherListenerMessage {
+                    listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
+                })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
             let status = self
@@ -1177,7 +1175,10 @@ pub struct AddMatchedReader {
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
     pub publisher_qos: PublisherQos,
-    pub publisher_mask_listener: (PublisherListenerType, Vec<StatusKind>),
+    pub publisher_mask_listener: (
+        Option<MpscSender<PublisherListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub handle: tokio::runtime::Handle,
@@ -1348,7 +1349,10 @@ pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub publisher: PublisherAsync,
-    pub publisher_mask_listener: (PublisherListenerType, Vec<StatusKind>),
+    pub publisher_mask_listener: (
+        Option<MpscSender<PublisherListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
     pub handle: tokio::runtime::Handle,
 }
