@@ -6,7 +6,7 @@ use tracing::warn;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
-    domain_participant_actor::ParticipantListenerType,
+    domain_participant_actor::ParticipantListenerMessage,
     message_sender_actor::MessageSenderActor,
     topic_actor::TopicActor,
 };
@@ -486,7 +486,10 @@ pub struct ProcessDataSubmessage {
     pub reception_timestamp: rtps::messages::types::Time,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataSubmessage {
@@ -530,7 +533,10 @@ pub struct ProcessDataFragSubmessage {
     pub reception_timestamp: rtps::messages::types::Time,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataFragSubmessage {
@@ -635,7 +641,10 @@ pub struct AddMatchedWriter {
     pub default_multicast_locator_list: Vec<Locator>,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
@@ -683,7 +692,10 @@ pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
     pub subscriber_address: ActorAddress<SubscriberActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {

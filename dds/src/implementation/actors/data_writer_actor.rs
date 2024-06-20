@@ -67,7 +67,7 @@ use std::{
 
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    domain_participant_actor::ParticipantListenerType,
+    domain_participant_actor::{ParticipantListenerMessage, ParticipantListenerOperation},
     message_sender_actor::{self, MessageSenderActor},
     publisher_actor::{PublisherListenerMessage, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
@@ -562,7 +562,7 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
-            ParticipantListenerType,
+            Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -605,13 +605,9 @@ impl DataWriterActor {
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
             let status = self.get_publication_matched_status();
             if let Some(listener) = participant_listener {
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .on_publication_matched(&(), status)
-                        .await;
-                });
+                listener.send(ParticipantListenerMessage {
+                    listener_operation: ParticipantListenerOperation::PublicationMatched(status),
+                })?;
             }
         }
         Ok(())
@@ -626,7 +622,7 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): (
-            ParticipantListenerType,
+            Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -679,13 +675,11 @@ impl DataWriterActor {
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
             if let Some(listener) = participant_listener {
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .on_offered_incompatible_qos(&(), status)
-                        .await;
-                });
+                listener.send(ParticipantListenerMessage {
+                    listener_operation: ParticipantListenerOperation::OfferedIncompatibleQos(
+                        status,
+                    ),
+                })?;
             }
         }
         Ok(())
@@ -1179,7 +1173,10 @@ pub struct AddMatchedReader {
         Option<MpscSender<PublisherListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub handle: tokio::runtime::Handle,
 }
@@ -1353,7 +1350,10 @@ pub struct RemoveMatchedReader {
         Option<MpscSender<PublisherListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {

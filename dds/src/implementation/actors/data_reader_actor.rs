@@ -1,6 +1,6 @@
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-    domain_participant_actor::ParticipantListenerType,
+    domain_participant_actor::{ParticipantListenerMessage, ParticipantListenerOperation},
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     subscriber_actor::{SubscriberListenerMessage, SubscriberListenerOperation},
@@ -615,7 +615,10 @@ impl DataReaderActor {
             Option<MpscSender<SubscriberListenerMessage>>,
             Vec<StatusKind>,
         ),
-        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(
+            Option<MpscSender<ParticipantListenerMessage>>,
+            Vec<StatusKind>,
+        ),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
@@ -751,7 +754,10 @@ impl DataReaderActor {
             Option<MpscSender<SubscriberListenerMessage>>,
             Vec<StatusKind>,
         ),
-        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(
+            Option<MpscSender<ParticipantListenerMessage>>,
+            Vec<StatusKind>,
+        ),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
@@ -918,7 +924,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): &(
-            ParticipantListenerType,
+            Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -961,10 +967,10 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
             let status = self.get_sample_lost_status();
-            if let Some(l) = participant_listener {
-                let listener = l.clone();
-                handle
-                    .spawn(async move { listener.lock().await.on_sample_lost(&(), status).await });
+            if let Some(listener) = participant_listener {
+                listener.send(ParticipantListenerMessage {
+                    listener_operation: ParticipantListenerOperation::SampleLost(status),
+                })?;
             }
         }
 
@@ -981,7 +987,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): &(
-            ParticipantListenerType,
+            Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1027,15 +1033,10 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
             let status = self.get_subscription_matched_status();
-            if let Some(l) = participant_listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .on_subscription_matched(&(), status)
-                        .await
-                });
+            if let Some(listener) = participant_listener {
+                listener.send(ParticipantListenerMessage {
+                    listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+                })?;
             }
         }
 
@@ -1054,7 +1055,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): &(
-            ParticipantListenerType,
+            Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1099,11 +1100,10 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
             let status = self.get_sample_rejected_status();
-            if let Some(l) = participant_listener {
-                let listener = l.clone();
-                handle.spawn(
-                    async move { listener.lock().await.on_sample_rejected(&(), status).await },
-                );
+            if let Some(listener) = participant_listener {
+                listener.send(ParticipantListenerMessage {
+                    listener_operation: ParticipantListenerOperation::SampleRejected(status),
+                })?;
             }
         }
 
@@ -1120,7 +1120,7 @@ impl DataReaderActor {
             Vec<StatusKind>,
         ),
         (participant_listener, participant_listener_mask): &(
-            ParticipantListenerType,
+            Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
         handle: &tokio::runtime::Handle,
@@ -1172,15 +1172,12 @@ impl DataReaderActor {
             }
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
             let status = self.get_requested_incompatible_qos_status();
-            if let Some(l) = participant_listener {
-                let listener = l.clone();
-                handle.spawn(async move {
-                    listener
-                        .lock()
-                        .await
-                        .on_requested_incompatible_qos(&(), status)
-                        .await
-                });
+            if let Some(listener) = participant_listener {
+                listener.send(ParticipantListenerMessage {
+                    listener_operation: ParticipantListenerOperation::RequestedIncompatibleQos(
+                        status,
+                    ),
+                })?;
             }
         }
         Ok(())
@@ -1270,7 +1267,10 @@ impl DataReaderActor {
             Option<MpscSender<SubscriberListenerMessage>>,
             Vec<StatusKind>,
         ),
-        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(
+            Option<MpscSender<ParticipantListenerMessage>>,
+            Vec<StatusKind>,
+        ),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
@@ -1581,7 +1581,10 @@ impl DataReaderActor {
             Option<MpscSender<SubscriberListenerMessage>>,
             Vec<StatusKind>,
         ),
-        participant_mask_listener: &(ParticipantListenerType, Vec<StatusKind>),
+        participant_mask_listener: &(
+            Option<MpscSender<ParticipantListenerMessage>>,
+            Vec<StatusKind>,
+        ),
         handle: &tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if let Some(t) = self
@@ -1617,37 +1620,38 @@ impl DataReaderActor {
                     deadline_missed_interval.tick().await;
                     let subscriber_listener = subscriber_listener.clone();
                     let participant_listener = participant_listener.clone();
-                    let r: DdsResult<()> = async {
-                        data_reader_address.send_actor_mail(
-                            IncrementRequestedDeadlineMissedStatus {
-                                instance_handle: change_instance_handle,
-                            },
-                        )?;
+                    let r: DdsResult<()> =
+                        async {
+                            data_reader_address.send_actor_mail(
+                                IncrementRequestedDeadlineMissedStatus {
+                                    instance_handle: change_instance_handle,
+                                },
+                            )?;
 
-                        reader_status_condition
-                            .send_actor_mail(AddCommunicationState {
-                                state: StatusKind::RequestedDeadlineMissed,
-                            })?
-                            .receive_reply()
-                            .await;
-                        if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                            let status = data_reader_address
-                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                            reader_status_condition
+                                .send_actor_mail(AddCommunicationState {
+                                    state: StatusKind::RequestedDeadlineMissed,
+                                })?
                                 .receive_reply()
                                 .await;
-                            let reader_address = data_reader_address.clone();
-                            let subscriber = subscriber.clone();
-                            let topic = TopicAsync::new(
-                                topic_address.clone(),
-                                topic_status_condition_address.clone(),
-                                type_name.clone(),
-                                topic_name.clone(),
-                                subscriber.get_participant(),
-                            );
-                            let status_condition_address = status_condition_address.clone();
+                            if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+                                let status = data_reader_address
+                                    .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                                    .receive_reply()
+                                    .await;
+                                let reader_address = data_reader_address.clone();
+                                let subscriber = subscriber.clone();
+                                let topic = TopicAsync::new(
+                                    topic_address.clone(),
+                                    topic_status_condition_address.clone(),
+                                    type_name.clone(),
+                                    topic_name.clone(),
+                                    subscriber.get_participant(),
+                                );
+                                let status_condition_address = status_condition_address.clone();
 
-                            if let Some(listener) = &data_reader_listener_sender {
-                                listener
+                                if let Some(listener) = &data_reader_listener_sender {
+                                    listener
                                     .send(DataReaderListenerMessage {
                                         listener_operation:
                                             DataReaderListenerOperation::RequestedDeadlineMissed(
@@ -1659,16 +1663,16 @@ impl DataReaderActor {
                                         topic,
                                     })
                                     .ok();
-                            }
-                        } else if subscriber_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed)
-                        {
-                            let status = data_reader_address
-                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = subscriber_listener {
-                                listener
+                                }
+                            } else if subscriber_listener_mask
+                                .contains(&StatusKind::RequestedDeadlineMissed)
+                            {
+                                let status = data_reader_address
+                                    .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                                    .receive_reply()
+                                    .await;
+                                if let Some(listener) = subscriber_listener {
+                                    listener
                                     .send(SubscriberListenerMessage {
                                         listener_operation:
                                             SubscriberListenerOperation::RequestedDeadlineMissed(
@@ -1676,28 +1680,26 @@ impl DataReaderActor {
                                             ),
                                     })
                                     .ok();
+                                }
+                            } else if participant_listener_mask
+                                .contains(&StatusKind::RequestedDeadlineMissed)
+                            {
+                                let status = data_reader_address
+                                    .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                                    .receive_reply()
+                                    .await;
+                                if let Some(listener) = participant_listener {
+                                    listener.send(ParticipantListenerMessage {
+                                    listener_operation:
+                                        ParticipantListenerOperation::RequestedDeadlineMissed(
+                                            status,
+                                        ),
+                                }).ok();
+                                }
                             }
-                        } else if participant_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed)
-                        {
-                            let status = data_reader_address
-                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(l) = participant_listener {
-                                let listener = l.clone();
-                                runtime_handle.spawn(async move {
-                                    listener
-                                        .lock()
-                                        .await
-                                        .on_requested_deadline_missed(&(), status)
-                                        .await
-                                });
-                            }
+                            Ok(())
                         }
-                        Ok(())
-                    }
-                    .await;
+                        .await;
 
                     if r.is_err() {
                         break;
@@ -2029,7 +2031,10 @@ pub struct AddMatchedWriter {
         Option<MpscSender<SubscriberListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
@@ -2160,7 +2165,10 @@ pub struct RemoveMatchedWriter {
         Option<MpscSender<SubscriberListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {
@@ -2221,7 +2229,10 @@ pub struct ProcessDataSubmessage {
         Option<MpscSender<SubscriberListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataSubmessage {
@@ -2258,7 +2269,10 @@ pub struct ProcessDataFragSubmessage {
         Option<MpscSender<SubscriberListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for ProcessDataFragSubmessage {

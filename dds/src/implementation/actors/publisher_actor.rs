@@ -43,7 +43,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_actor::ParticipantListenerType,
+    domain_participant_actor::ParticipantListenerMessage,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
@@ -484,7 +484,10 @@ pub struct AddMatchedReader {
     pub default_multicast_locator_list: Vec<Locator>,
     pub publisher_address: ActorAddress<PublisherActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub handle: tokio::runtime::Handle,
 }
@@ -534,7 +537,10 @@ pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub publisher_address: ActorAddress<PublisherActor>,
     pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (ParticipantListenerType, Vec<StatusKind>),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {
