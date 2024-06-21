@@ -288,7 +288,9 @@ impl ParameterList {
     }
 
     pub fn empty() -> Self {
-        Self { parameter: vec![] }
+        Self {
+            parameter: Vec::new(),
+        }
     }
 
     pub fn parameter(&self) -> &[Parameter] {
@@ -298,7 +300,8 @@ impl ParameterList {
     pub fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
-        let mut parameter = vec![];
+        // Pre-allocate some capacity to avoid too many reallocations
+        let mut parameter = Vec::with_capacity(4);
         for _ in 0..MAX_PARAMETERS {
             let parameter_i = Parameter::try_read_from_bytes(data, endianness)?;
             if parameter_i.parameter_id() == PID_SENTINEL {
