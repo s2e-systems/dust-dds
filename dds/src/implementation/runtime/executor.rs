@@ -2,6 +2,7 @@ use std::{
     future::Future,
     pin::{pin, Pin},
     sync::{
+        atomic::{self, AtomicBool},
         mpsc::{channel, Sender, TryRecvError},
         Arc, Mutex,
     },
@@ -13,7 +14,11 @@ pub fn block_on<T>(f: impl Future<Output = T>) -> T {
     struct ThreadWake(Thread);
     impl Wake for ThreadWake {
         fn wake(self: std::sync::Arc<Self>) {
-            self.0.unpark();
+            self.wake_by_ref()
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            self.0.unpark()
         }
     }
     let waker = Waker::from(Arc::new(ThreadWake(thread::current())));
@@ -31,23 +36,29 @@ pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
-    abort: Mutex<bool>,
+    abort: AtomicBool,
 }
 
 impl Task {
     fn abort(&self) {
-        *self.abort.lock().expect("Mutex should never be poisoned") = true;
+        self.abort.store(true, atomic::Ordering::Release);
     }
 
     fn is_aborted(&self) -> bool {
-        *self.abort.lock().expect("Mutex should never be poisoned")
+        self.abort.load(atomic::Ordering::Acquire)
     }
 }
 
 impl Wake for Task {
     fn wake(self: Arc<Self>) {
-        self.task_sender.send(self.clone()).unwrap();
-        self.thread_handle.unpark();
+        self.wake_by_ref()
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        if !self.is_aborted() {
+            self.task_sender.send(self.clone()).unwrap();
+            self.thread_handle.unpark();
+        }
     }
 }
 
@@ -74,7 +85,7 @@ impl ExecutorHandle {
             future: Mutex::new(future),
             task_sender: self.task_sender.clone(),
             thread_handle: self.thread_handle.clone(),
-            abort: Mutex::new(false),
+            abort: AtomicBool::new(false),
         });
         self.task_sender
             .send(task.clone())
