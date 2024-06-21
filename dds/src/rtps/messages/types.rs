@@ -1,8 +1,10 @@
+use crate::rtps::error::{RtpsError, RtpsErrorKind};
+
 use super::{
     super::error::RtpsResult,
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use std::io::{Read, Write};
+use std::io::Write;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.13 - Types used to define RTPS messages
@@ -15,44 +17,80 @@ type UnsignedShort = u16;
 
 impl TryReadFromBytes for Long {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
-        let mut bytes = [0; 4];
-        data.read_exact(&mut bytes)?;
+        const LEN: usize = 4;
+        if data.len() < LEN {
+            return Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""));
+        }
+        let (bytes, buf) = data.split_at(LEN);
+        *data = buf;
         Ok(match endianness {
-            Endianness::BigEndian => i32::from_be_bytes(bytes),
-            Endianness::LittleEndian => i32::from_le_bytes(bytes),
+            Endianness::BigEndian => {
+                ((bytes[0] as i32) << 24)
+                    + ((bytes[1] as i32) << 16)
+                    + ((bytes[2] as i32) << 8)
+                    + ((bytes[3] as i32) << 0)
+            }
+            Endianness::LittleEndian => {
+                ((bytes[0] as i32) << 0)
+                    + ((bytes[1] as i32) << 8)
+                    + ((bytes[2] as i32) << 16)
+                    + ((bytes[3] as i32) << 24)
+            }
         })
     }
 }
 
 impl TryReadFromBytes for UnsignedLong {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
-        let mut bytes = [0; 4];
-        data.read_exact(&mut bytes)?;
+        const LEN: usize = 4;
+        if data.len() < LEN {
+            return Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""));
+        }
+        let (bytes, buf) = data.split_at(LEN);
+        *data = buf;
         Ok(match endianness {
-            Endianness::BigEndian => u32::from_be_bytes(bytes),
-            Endianness::LittleEndian => u32::from_le_bytes(bytes),
+            Endianness::BigEndian => {
+                ((bytes[0] as u32) << 24)
+                    + ((bytes[1] as u32) << 16)
+                    + ((bytes[2] as u32) << 8)
+                    + ((bytes[3] as u32) << 0)
+            }
+            Endianness::LittleEndian => {
+                ((bytes[0] as u32) << 0)
+                    + ((bytes[1] as u32) << 8)
+                    + ((bytes[2] as u32) << 16)
+                    + ((bytes[3] as u32) << 24)
+            }
         })
     }
 }
 
 impl TryReadFromBytes for Short {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
-        let mut bytes = [0; 2];
-        data.read_exact(&mut bytes)?;
+        const LEN: usize = 2;
+        if data.len() < LEN {
+            return Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""));
+        }
+        let (bytes, buf) = data.split_at(LEN);
+        *data = buf;
         Ok(match endianness {
-            Endianness::BigEndian => i16::from_be_bytes(bytes),
-            Endianness::LittleEndian => i16::from_le_bytes(bytes),
+            Endianness::BigEndian => ((bytes[0] as i16) << 8) + ((bytes[1] as i16) << 0),
+            Endianness::LittleEndian => ((bytes[0] as i16) << 0) + ((bytes[1] as i16) << 8),
         })
     }
 }
 
 impl TryReadFromBytes for UnsignedShort {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
-        let mut bytes = [0; 2];
-        data.read_exact(&mut bytes)?;
+        const LEN: usize = 2;
+        if data.len() < LEN {
+            return Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""));
+        }
+        let (bytes, buf) = data.split_at(LEN);
+        *data = buf;
         Ok(match endianness {
-            Endianness::BigEndian => u16::from_be_bytes(bytes),
-            Endianness::LittleEndian => u16::from_le_bytes(bytes),
+            Endianness::BigEndian => ((bytes[0] as u16) << 8) + ((bytes[1] as u16) << 0),
+            Endianness::LittleEndian => ((bytes[0] as u16) << 0) + ((bytes[1] as u16) << 8),
         })
     }
 }
