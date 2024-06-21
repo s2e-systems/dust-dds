@@ -28,10 +28,10 @@ impl TryReadFromBytes for Long {
                 ((bytes[0] as i32) << 24)
                     + ((bytes[1] as i32) << 16)
                     + ((bytes[2] as i32) << 8)
-                    + ((bytes[3] as i32) << 0)
+                    + (bytes[3] as i32)
             }
             Endianness::LittleEndian => {
-                ((bytes[0] as i32) << 0)
+                (bytes[0] as i32)
                     + ((bytes[1] as i32) << 8)
                     + ((bytes[2] as i32) << 16)
                     + ((bytes[3] as i32) << 24)
@@ -53,10 +53,10 @@ impl TryReadFromBytes for UnsignedLong {
                 ((bytes[0] as u32) << 24)
                     + ((bytes[1] as u32) << 16)
                     + ((bytes[2] as u32) << 8)
-                    + ((bytes[3] as u32) << 0)
+                    + (bytes[3] as u32)
             }
             Endianness::LittleEndian => {
-                ((bytes[0] as u32) << 0)
+                (bytes[0] as u32)
                     + ((bytes[1] as u32) << 8)
                     + ((bytes[2] as u32) << 16)
                     + ((bytes[3] as u32) << 24)
@@ -74,8 +74,8 @@ impl TryReadFromBytes for Short {
         let (bytes, buf) = data.split_at(LEN);
         *data = buf;
         Ok(match endianness {
-            Endianness::BigEndian => ((bytes[0] as i16) << 8) + ((bytes[1] as i16) << 0),
-            Endianness::LittleEndian => ((bytes[0] as i16) << 0) + ((bytes[1] as i16) << 8),
+            Endianness::BigEndian => ((bytes[0] as i16) << 8) + (bytes[1] as i16),
+            Endianness::LittleEndian => (bytes[0] as i16) + ((bytes[1] as i16) << 8),
         })
     }
 }
@@ -89,8 +89,8 @@ impl TryReadFromBytes for UnsignedShort {
         let (bytes, buf) = data.split_at(LEN);
         *data = buf;
         Ok(match endianness {
-            Endianness::BigEndian => ((bytes[0] as u16) << 8) + ((bytes[1] as u16) << 0),
-            Endianness::LittleEndian => ((bytes[0] as u16) << 0) + ((bytes[1] as u16) << 8),
+            Endianness::BigEndian => ((bytes[0] as u16) << 8) + (bytes[1] as u16),
+            Endianness::LittleEndian => (bytes[0] as u16) + ((bytes[1] as u16) << 8),
         })
     }
 }
