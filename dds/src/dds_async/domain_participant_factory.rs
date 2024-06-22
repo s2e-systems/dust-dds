@@ -11,6 +11,7 @@ use crate::{
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
             subscriber_actor,
         },
+        runtime::executor::Executor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -29,20 +30,27 @@ use super::{
 /// a constructor by passing a handle to a [`Tokio`](https://crates.io/crates/tokio) runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
+    _executor: Executor,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
-    runtime_handle: tokio::runtime::Handle,
+}
+
+impl Default for DomainParticipantFactoryAsync {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DomainParticipantFactoryAsync {
     /// Create a new [`DomainParticipantFactoryAsync`].
     /// All the tasks of Dust DDS will be spawned on the runtime which is given as an argument.
-    pub fn new(runtime_handle: tokio::runtime::Handle) -> Self {
+    pub fn new() -> Self {
+        let executor = Executor::new();
         let domain_participant_factory_actor =
-            Actor::spawn(DomainParticipantFactoryActor::new(), &runtime_handle);
+            Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
 
         Self {
+            _executor: executor,
             domain_participant_factory_actor,
-            runtime_handle,
         }
     }
 
@@ -55,7 +63,6 @@ impl DomainParticipantFactoryAsync {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let status_kind = mask.to_vec();
-        let runtime_handle = self.runtime_handle.clone();
         let participant_address = self
             .domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::CreateParticipant {
@@ -63,7 +70,6 @@ impl DomainParticipantFactoryAsync {
                 qos,
                 listener: a_listener,
                 status_kind,
-                runtime_handle,
             })
             .receive_reply()
             .await?;
@@ -79,13 +85,22 @@ impl DomainParticipantFactoryAsync {
             .send_actor_mail(subscriber_actor::GetStatuscondition)?
             .receive_reply()
             .await;
+        let timer_handle = participant_address
+            .send_actor_mail(domain_participant_actor::GetTimerHandle)?
+            .receive_reply()
+            .await;
+        let executor_handle = participant_address
+            .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
+            .receive_reply()
+            .await;
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
             status_condition,
             builtin_subscriber,
             builtin_subscriber_status_condition_address,
             domain_id,
-            self.runtime_handle.clone(),
+            executor_handle,
+            timer_handle,
         );
 
         if self
@@ -164,13 +179,22 @@ impl DomainParticipantFactoryAsync {
                     .send_actor_mail(subscriber_actor::GetStatuscondition)?
                     .receive_reply()
                     .await;
+                let timer_handle = dp
+                    .send_actor_mail(domain_participant_actor::GetTimerHandle)?
+                    .receive_reply()
+                    .await;
+                let executor_handle = dp
+                    .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
+                    .receive_reply()
+                    .await;
                 return Ok(Some(DomainParticipantAsync::new(
                     dp,
                     status_condition,
                     builtin_subscriber,
                     builtin_subscriber_status_condition_address,
                     domain_id,
-                    self.runtime_handle.clone(),
+                    executor_handle,
+                    timer_handle,
                 )));
             }
         }

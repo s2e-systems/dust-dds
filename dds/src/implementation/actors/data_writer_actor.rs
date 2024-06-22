@@ -17,8 +17,9 @@ use crate::{
             cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
         },
         runtime::{
-            executor::block_on,
+            executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -283,7 +284,7 @@ impl DataWriterActor {
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
@@ -327,6 +328,8 @@ impl DataWriterActor {
         message_sender_actor: ActorAddress<MessageSenderActor>,
         now: Time,
         writer_address: ActorAddress<DataWriterActor>,
+        executor_handle: ExecutorHandle,
+        timer_handle: TimerHandle,
     ) {
         let seq_num = change.sequence_number();
 
@@ -336,8 +339,8 @@ impl DataWriterActor {
             if change_lifespan > Duration::new(0, 0) {
                 self.writer_cache.add_change(change);
 
-                tokio::spawn(async move {
-                    tokio::time::sleep(change_lifespan.into()).await;
+                executor_handle.spawn(async move {
+                    timer_handle.sleep(change_lifespan.into()).await;
 
                     writer_address
                         .send_actor_mail(RemoveChange { seq_num })
@@ -785,7 +788,8 @@ impl MailHandler<GetIncompatibleSubscriptions> for DataWriterActor {
 pub struct Enable {
     pub data_writer_address: ActorAddress<DataWriterActor>,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub runtime_handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for Enable {
     type Result = ();
@@ -797,12 +801,12 @@ impl MailHandler<Enable> for DataWriterActor {
         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let half_heartbeat_period =
                 std::time::Duration::from(Duration::from(self.rtps_writer.heartbeat_period())) / 2;
-            let mut interval = tokio::time::interval(half_heartbeat_period);
             let message_sender_actor = message.message_sender_actor;
             let data_writer_address = message.data_writer_address;
-            message.runtime_handle.spawn(async move {
+            let timer_handle = message.timer_handle;
+            message.executor_handle.spawn(async move {
                 loop {
-                    interval.tick().await;
+                    timer_handle.sleep(half_heartbeat_period).await;
 
                     let r = data_writer_address.send_actor_mail(SendMessage {
                         message_sender_actor: message_sender_actor.clone(),
@@ -896,6 +900,8 @@ pub struct UnregisterInstanceWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for UnregisterInstanceWTimestamp {
     type Result = DdsResult<()>;
@@ -940,6 +946,8 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.executor_handle,
+            message.timer_handle,
         );
         Ok(())
     }
@@ -977,6 +985,8 @@ pub struct DisposeWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for DisposeWTimestamp {
     type Result = DdsResult<()>;
@@ -1009,6 +1019,8 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.executor_handle,
+            message.timer_handle,
         );
 
         Ok(())
@@ -1119,6 +1131,8 @@ pub struct WriteWTimestamp {
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub now: Time,
     pub data_writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for WriteWTimestamp {
     type Result = DdsResult<()>;
@@ -1144,6 +1158,8 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             message.message_sender_actor,
             message.now,
             message.data_writer_address,
+            message.executor_handle,
+            message.timer_handle,
         );
 
         Ok(())
@@ -1176,7 +1192,6 @@ pub struct AddMatchedReader {
         Vec<StatusKind>,
     ),
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -1350,7 +1365,6 @@ pub struct RemoveMatchedReader {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -1433,7 +1447,6 @@ impl MailHandler<SendMessage> for DataWriterActor {
 pub struct SetListener {
     pub listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub status_kind: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
     type Result = DdsResult<()>;

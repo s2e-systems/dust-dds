@@ -26,8 +26,9 @@ use crate::{
             cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
         },
         runtime::{
-            executor::block_on,
+            executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -380,7 +381,7 @@ pub struct DataReaderActor {
     data_reader_listener_thread: Option<DataReaderListenerThread>,
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
-    instance_deadline_missed_task: HashMap<InstanceHandle, tokio::task::AbortHandle>,
+    instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
 }
 
 impl DataReaderActor {
@@ -395,7 +396,7 @@ impl DataReaderActor {
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let data_reader_listener_thread = listener.map(DataReaderListenerThread::new);
@@ -619,7 +620,8 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
+        executor_handle: &ExecutorHandle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
@@ -656,7 +658,8 @@ impl DataReaderActor {
                                                         subscriber,
                                                         subscriber_mask_listener,
                                                         participant_mask_listener,
-                                                        handle,
+                                                        executor_handle,
+                                                        timer_handle,
                                                     )?;
                                                 }
                                                 Err(e) => debug!(
@@ -691,7 +694,7 @@ impl DataReaderActor {
                                                         subscriber,
                                                         subscriber_mask_listener,
                                                         participant_mask_listener,
-                                                        handle,
+                                                        executor_handle,timer_handle,
                                                     )?;
                                                 }
                                                 Err(e) => debug!(
@@ -730,7 +733,8 @@ impl DataReaderActor {
                             subscriber,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                            handle,
+                            executor_handle,
+                            timer_handle,
                         )?;
                     }
                 }
@@ -757,7 +761,8 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
+        executor_handle: &ExecutorHandle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         let sequence_number = data_frag_submessage.writer_sn();
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
@@ -778,7 +783,8 @@ impl DataReaderActor {
                             subscriber,
                             subscriber_mask_listener,
                             participant_mask_listener,
-                            handle,
+                            executor_handle,
+                            timer_handle,
                         )?;
                     }
                 }
@@ -1253,6 +1259,7 @@ impl DataReaderActor {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_change(
         &mut self,
         change: ReaderCacheChange,
@@ -1266,7 +1273,8 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
+        executor_handle: &ExecutorHandle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
@@ -1326,7 +1334,8 @@ impl DataReaderActor {
                     subscriber.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    handle,
+                    executor_handle,
+                    timer_handle,
                 )?;
 
                 tracing::debug!(cache_change = ?change, "Adding change to data reader history cache");
@@ -1564,6 +1573,7 @@ impl DataReaderActor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
@@ -1577,7 +1587,8 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        handle: &tokio::runtime::Handle,
+        executor_handle: &ExecutorHandle,
+        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         if let Some(t) = self
             .instance_deadline_missed_task
@@ -1587,10 +1598,10 @@ impl DataReaderActor {
         }
 
         if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            let mut deadline_missed_interval = tokio::time::interval(tokio::time::Duration::new(
+            let deadline_missed_interval = std::time::Duration::new(
                 deadline_missed_period.sec() as u64,
                 deadline_missed_period.nanosec(),
-            ));
+            );
             let reader_status_condition = self.status_condition.address();
             let data_reader_listener_sender = self
                 .data_reader_listener_thread
@@ -1606,9 +1617,10 @@ impl DataReaderActor {
             let topic_name = self.topic_name.clone();
             let status_condition_address = self.status_condition.address();
             let topic_status_condition_address = self.topic_status_condition.clone();
-            let deadline_missed_task = handle.spawn(async move {
+            let timer_handle = timer_handle.clone();
+            let deadline_missed_task = executor_handle.spawn(async move {
                 loop {
-                    deadline_missed_interval.tick().await;
+                    timer_handle.sleep(deadline_missed_interval).await;
                     let subscriber_listener = subscriber_listener.clone();
                     let participant_listener = participant_listener.clone();
                     let r: DdsResult<()> =
@@ -1699,7 +1711,7 @@ impl DataReaderActor {
             });
 
             self.instance_deadline_missed_task
-                .insert(change_instance_handle, deadline_missed_task.abort_handle());
+                .insert(change_instance_handle, deadline_missed_task);
         }
         Ok(())
     }
@@ -2026,7 +2038,6 @@ pub struct AddMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -2157,7 +2168,6 @@ pub struct RemoveMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -2220,7 +2230,8 @@ pub struct ProcessDataSubmessage {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataSubmessage {
     type Result = ();
@@ -2239,7 +2250,8 @@ impl MailHandler<ProcessDataSubmessage> for DataReaderActor {
             &message.subscriber,
             &message.subscriber_mask_listener,
             &message.participant_mask_listener,
-            &message.handle,
+            &message.executor_handle,
+            &message.timer_handle,
         )
         .ok();
     }
@@ -2260,7 +2272,8 @@ pub struct ProcessDataFragSubmessage {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataFragSubmessage {
     type Result = ();
@@ -2279,7 +2292,8 @@ impl MailHandler<ProcessDataFragSubmessage> for DataReaderActor {
             &message.subscriber,
             &message.subscriber_mask_listener,
             &message.participant_mask_listener,
-            &message.handle,
+            &message.executor_handle,
+            &message.timer_handle,
         )
         .ok();
     }
@@ -2353,7 +2367,6 @@ impl MailHandler<SendMessage> for DataReaderActor {
 pub struct SetListener {
     pub listener: Option<Box<dyn AnyDataReaderListener + Send>>,
     pub status_kind: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
     type Result = DdsResult<()>;

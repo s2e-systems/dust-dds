@@ -1,4 +1,7 @@
-use crate::{dds_async::condition::StatusConditionAsync, infrastructure::error::DdsResult};
+use crate::{
+    dds_async::condition::StatusConditionAsync, implementation::runtime::executor::block_on,
+    infrastructure::error::DdsResult,
+};
 
 use super::status::StatusKind;
 
@@ -25,9 +28,7 @@ impl StatusCondition {
     /// [`StatusCondition`]. This operation returns the statuses that were explicitly set on the last call to [`StatusCondition::set_enabled_statuses`] or, if
     /// it was never called, the default list of enabled statuses which includes all the statuses.
     pub fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
-        self.condition_async
-            .runtime_handle()
-            .block_on(self.condition_async.get_enabled_statuses())
+        block_on(self.condition_async.get_enabled_statuses())
     }
 
     /// This operation defines the list of communication statuses that are taken into account to determine the *trigger_value* of the
@@ -36,17 +37,13 @@ impl StatusCondition {
     /// attached conditions. Therefore, any [`WaitSet`](crate::infrastructure::wait_set::WaitSet) to which the [`StatusCondition`] is attached is potentially affected by this operation.
     /// If this function is not invoked, the default list of enabled statuses includes all the statuses.
     pub fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
-        self.condition_async
-            .runtime_handle()
-            .block_on(self.condition_async.set_enabled_statuses(mask))
+        block_on(self.condition_async.set_enabled_statuses(mask))
     }
 
     /// This operation returns the Entity associated with the [`StatusCondition`]. Note that there is exactly one Entity associated with
     /// each [`StatusCondition`].
     pub fn get_entity(&self) {
-        self.condition_async
-            .runtime_handle()
-            .block_on(self.condition_async.get_entity())
+        block_on(self.condition_async.get_entity())
     }
 }
 
@@ -54,8 +51,6 @@ impl StatusCondition {
 impl StatusCondition {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
     pub fn get_trigger_value(&self) -> DdsResult<bool> {
-        self.condition_async
-            .runtime_handle()
-            .block_on(self.condition_async.get_trigger_value())
+        block_on(self.condition_async.get_trigger_value())
     }
 }

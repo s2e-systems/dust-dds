@@ -71,10 +71,8 @@ where
         &mut self,
         the_reader: DataReaderAsync<Self::Foo>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_data_available(self.as_mut(), DataReader::new(the_reader))
-        });
-        Box::pin(async {})
+        DataReaderListener::on_data_available(self.as_mut(), DataReader::new(the_reader));
+        Box::pin(std::future::ready(()))
     }
 
     fn on_sample_rejected(
@@ -82,14 +80,8 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
         status: SampleRejectedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_sample_rejected(
-                self.as_mut(),
-                DataReader::new(the_reader),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataReaderListener::on_sample_rejected(self.as_mut(), DataReader::new(the_reader), status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_liveliness_changed(
@@ -97,14 +89,12 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
         status: LivelinessChangedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_liveliness_changed(
-                self.as_mut(),
-                DataReader::new(the_reader),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataReaderListener::on_liveliness_changed(
+            self.as_mut(),
+            DataReader::new(the_reader),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_requested_deadline_missed(
@@ -112,14 +102,12 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
         status: RequestedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_requested_deadline_missed(
-                self.as_mut(),
-                DataReader::new(the_reader),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataReaderListener::on_requested_deadline_missed(
+            self.as_mut(),
+            DataReader::new(the_reader),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_requested_incompatible_qos(
@@ -127,14 +115,12 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
         status: RequestedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_requested_incompatible_qos(
-                self.as_mut(),
-                DataReader::new(the_reader),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataReaderListener::on_requested_incompatible_qos(
+            self.as_mut(),
+            DataReader::new(the_reader),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_subscription_matched(
@@ -142,14 +128,12 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
         status: SubscriptionMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_subscription_matched(
-                self.as_mut(),
-                DataReader::new(the_reader),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataReaderListener::on_subscription_matched(
+            self.as_mut(),
+            DataReader::new(the_reader),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_sample_lost(
@@ -157,9 +141,7 @@ where
         the_reader: DataReaderAsync<Self::Foo>,
         status: SampleLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataReaderListener::on_sample_lost(self.as_mut(), DataReader::new(the_reader), status)
-        });
-        Box::pin(async {})
+        DataReaderListener::on_sample_lost(self.as_mut(), DataReader::new(the_reader), status);
+        Box::pin(std::future::ready(()))
     }
 }

@@ -1,6 +1,7 @@
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 use super::runtime::{
+    executor::ExecutorHandle,
     mpsc::{mpsc_channel, MpscSender},
     oneshot::{oneshot, OneshotReceiver, OneshotSender},
 };
@@ -98,25 +99,22 @@ impl<A> ActorAddress<A> {
 
 pub struct Actor<A> {
     mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
-    join_handle: tokio::task::JoinHandle<()>,
+    // join_handle: tokio::task::JoinHandle<()>,
 }
 
 impl<A> Actor<A>
 where
     A: Send + 'static,
 {
-    pub fn spawn(mut actor: A, runtime: &tokio::runtime::Handle) -> Self {
+    pub fn spawn(mut actor: A, runtime: &ExecutorHandle) -> Self {
         let (mail_sender, mailbox_recv) = mpsc_channel::<Box<dyn GenericHandler<A> + Send>>();
 
-        let join_handle = runtime.spawn(async move {
+        runtime.spawn(async move {
             while let Some(mut m) = mailbox_recv.recv().await {
                 m.handle(&mut actor);
             }
         });
-        Actor {
-            mail_sender,
-            join_handle,
-        }
+        Actor { mail_sender }
     }
 
     pub fn address(&self) -> ActorAddress<A> {
@@ -127,7 +125,6 @@ where
 
     pub async fn stop(self) {
         self.mail_sender.close();
-        self.join_handle.await.ok();
     }
 
     pub fn send_actor_mail<M>(&self, mail: M) -> ReplyReceiver<M>
@@ -149,7 +146,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use tokio::runtime::Runtime;
+    use crate::implementation::runtime::executor::{block_on, Executor};
 
     use super::*;
 
@@ -172,12 +169,12 @@ mod tests {
 
     #[test]
     fn actor_increment() {
-        let runtime = Runtime::new().unwrap();
+        let executor = Executor::new();
         let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle());
+        let actor = Actor::spawn(my_data, &executor.handle());
 
         assert_eq!(
-            runtime.block_on(async {
+            block_on(async {
                 actor
                     .send_actor_mail(Increment { value: 10 })
                     .receive_reply()
@@ -189,12 +186,12 @@ mod tests {
 
     #[test]
     fn actor_stop_should_not_block() {
-        let runtime = Runtime::new().unwrap();
+        let executor = Executor::new();
         let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle());
+        let actor = Actor::spawn(my_data, &executor.handle());
 
         assert_eq!(
-            runtime.block_on(async {
+            block_on(async {
                 actor
                     .send_actor_mail(Increment { value: 10 })
                     .receive_reply()
@@ -203,18 +200,18 @@ mod tests {
             10
         );
 
-        runtime.block_on(actor.stop());
+        block_on(actor.stop());
     }
 
     #[test]
     fn actor_send_message_after_stop_should_return_error() {
-        let runtime = Runtime::new().unwrap();
+        let executor = Executor::new();
         let my_data = MyActor { data: 0 };
-        let actor = Actor::spawn(my_data, runtime.handle());
+        let actor = Actor::spawn(my_data, &executor.handle());
         let actor_address = actor.address();
 
         assert_eq!(
-            runtime.block_on(async {
+            block_on(async {
                 actor
                     .send_actor_mail(Increment { value: 10 })
                     .receive_reply()
@@ -223,7 +220,7 @@ mod tests {
             10
         );
 
-        runtime.block_on(actor.stop());
+        block_on(actor.stop());
 
         assert!(actor_address
             .send_actor_mail(Increment { value: 10 })

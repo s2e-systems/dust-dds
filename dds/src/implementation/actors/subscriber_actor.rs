@@ -20,8 +20,9 @@ use crate::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::status_condition_actor::StatusConditionActor,
         runtime::{
-            executor::block_on,
+            executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -140,7 +141,7 @@ impl SubscriberActor {
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         data_reader_list: Vec<DataReaderActor>,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
@@ -233,7 +234,7 @@ pub struct CreateDatareader {
     pub mask: Vec<StatusKind>,
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
-    pub runtime_handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateDatareader {
     type Result = DdsResult<ActorAddress<DataReaderActor>>;
@@ -291,10 +292,10 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             qos,
             message.a_listener,
             status_kind,
-            &message.runtime_handle,
+            &message.executor_handle,
         );
 
-        let reader_actor = Actor::spawn(data_reader, &message.runtime_handle);
+        let reader_actor = Actor::spawn(data_reader, &message.executor_handle);
         let reader_address = reader_actor.address();
         self.data_reader_list
             .insert(InstanceHandle::new(guid.into()), reader_actor);
@@ -490,7 +491,8 @@ pub struct ProcessDataSubmessage {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataSubmessage {
     type Result = ();
@@ -520,7 +522,8 @@ impl MailHandler<ProcessDataSubmessage> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
-                handle: message.handle.clone(),
+                executor_handle: message.executor_handle.clone(),
+                timer_handle: message.timer_handle.clone(),
             });
         }
     }
@@ -537,7 +540,8 @@ pub struct ProcessDataFragSubmessage {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for ProcessDataFragSubmessage {
     type Result = ();
@@ -567,7 +571,8 @@ impl MailHandler<ProcessDataFragSubmessage> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
-                handle: message.handle.clone(),
+                executor_handle: message.executor_handle.clone(),
+                timer_handle: message.timer_handle.clone(),
             });
         }
     }
@@ -645,7 +650,6 @@ pub struct AddMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -680,7 +684,6 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                     subscriber_qos,
                     subscriber_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
-                    handle: message.handle.clone(),
                 });
             }
         }
@@ -696,7 +699,6 @@ pub struct RemoveMatchedWriter {
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
     ),
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -721,7 +723,6 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                 ),
                 subscriber_mask_listener,
                 participant_mask_listener: message.participant_mask_listener.clone(),
-                handle: message.handle.clone(),
             });
         }
 
@@ -732,7 +733,6 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
 pub struct SetListener {
     pub listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
     type Result = DdsResult<()>;

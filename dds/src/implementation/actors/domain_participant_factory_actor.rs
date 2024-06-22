@@ -22,6 +22,10 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
+        runtime::{
+            executor::{Executor, ExecutorHandle},
+            timer::TimerDriver,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -141,7 +145,7 @@ impl DomainParticipantFactoryActor {
     fn create_builtin_topics(
         &self,
         guid_prefix: GuidPrefix,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)> {
         let mut topic_list = HashMap::new();
 
@@ -229,7 +233,7 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> Vec<DataReaderActor> {
         let spdp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -320,7 +324,7 @@ impl DomainParticipantFactoryActor {
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> Vec<DataWriterActor> {
         let spdp_writer_qos = DataWriterQos {
             durability: DurabilityQosPolicy {
@@ -433,13 +437,15 @@ pub struct CreateParticipant {
     pub qos: QosKind<DomainParticipantQos>,
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for CreateParticipant {
     type Result = DdsResult<ActorAddress<DomainParticipantActor>>;
 }
 impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
     fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
+        let executor = Executor::new();
+        let executor_handle = executor.handle();
+
         let domain_participant_qos = match message.qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -462,15 +468,15 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         let participant_guid = rtps_participant.guid();
 
-        let topic_list = self.create_builtin_topics(guid_prefix, &message.runtime_handle);
+        let topic_list = self.create_builtin_topics(guid_prefix, &executor.handle());
         let builtin_data_writer_list = self.create_builtin_writers(
             guid_prefix,
             message.domain_id,
             &topic_list,
-            &message.runtime_handle,
+            &executor_handle,
         );
         let builtin_data_reader_list =
-            self.create_builtin_readers(guid_prefix, &topic_list, &message.runtime_handle);
+            self.create_builtin_readers(guid_prefix, &topic_list, &executor_handle);
 
         // Open socket for unicast user-defined data
         let interface_address_list = NetworkInterface::show()
@@ -525,6 +531,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
         rtps_participant.set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list);
+
+        let timer_driver = TimerDriver::new();
+        let timer_handle = timer_driver.handle();
         //****** Spawn the participant actor and tasks **********//
         let (
             domain_participant,
@@ -543,16 +552,18 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_data_writer_list,
             builtin_data_reader_list,
             message_sender_actor,
-            &message.runtime_handle,
+            executor,
+            timer_driver,
         );
-        let participant_actor = Actor::spawn(domain_participant, &message.runtime_handle);
+        let participant_actor = Actor::spawn(domain_participant, &executor_handle);
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
             status_condition.clone(),
             builtin_subscriber,
             builtin_subscriber_status_condition_address,
             message.domain_id,
-            message.runtime_handle.clone(),
+            executor_handle.clone(),
+            timer_handle.clone(),
         );
 
         let participant_address_clone = participant_actor.address();
@@ -566,7 +577,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         domain_participant_actor::ProcessUserDefinedRtpsMessage {
                             rtps_message: message,
                             participant: participant_clone.clone(),
-                            handle: participant_clone.runtime_handle().clone(),
+                            executor_handle: participant_clone.executor_handle().clone(),
                         },
                     );
                     if r.is_err() {
@@ -578,16 +589,17 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         // Start the regular participant announcement task
         let participant_clone = participant.clone();
-        let mut interval =
-            tokio::time::interval(self.configuration.participant_announcement_interval());
-        message.runtime_handle.spawn(async move {
-            loop {
-                interval.tick().await;
+        let participant_announcement_interval =
+            self.configuration.participant_announcement_interval();
 
+        executor_handle.spawn(async move {
+            loop {
                 let r = participant_clone.announce_participant().await;
                 if r.is_err() {
                     break;
                 }
+
+                timer_handle.sleep(participant_announcement_interval).await;
             }
         });
 
@@ -604,7 +616,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         domain_participant_actor::ProcessMetatrafficRtpsMessage {
                             rtps_message: message,
                             participant: participant_clone.clone(),
-                            handle: participant_clone.runtime_handle().clone(),
+                            executor_handle: participant_clone.executor_handle().clone(),
                         },
                     );
 
@@ -630,7 +642,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         domain_participant_actor::ProcessMetatrafficRtpsMessage {
                             rtps_message: message,
                             participant: participant_clone.clone(),
-                            handle: participant_clone.runtime_handle().clone(),
+                            executor_handle: participant_clone.executor_handle().clone(),
                         },
                     );
 
