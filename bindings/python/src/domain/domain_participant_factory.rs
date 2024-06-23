@@ -18,7 +18,7 @@ impl DomainParticipantFactory {
             .0
             .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         {
-            Ok(dp) => Ok(DomainParticipant(dp)),
+            Ok(dp) => Ok(DomainParticipant::new(dp)),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
     }
