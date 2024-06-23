@@ -1,10 +1,14 @@
 mod domain;
 mod infrastructure;
+mod topic;
 
 use domain::{
     domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
 };
-use infrastructure::qos_policy::UserDataQosPolicy;
+use infrastructure::{
+    qos::DomainParticipantQos,
+    qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy},
+};
 use pyo3::prelude::*;
 
 /// A Python module implemented in Rust.
@@ -14,8 +18,13 @@ fn dust_dds_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     let qos_policy_module = PyModule::new_bound(m.py(), "qos_policy")?;
     qos_policy_module.add_class::<UserDataQosPolicy>()?;
+    qos_policy_module.add_class::<EntityFactoryQosPolicy>()?;
 
     infrastructure_module.add_submodule(&qos_policy_module)?;
+
+    let qos_module = PyModule::new_bound(m.py(), "qos")?;
+    qos_module.add_class::<DomainParticipantQos>()?;
+    infrastructure_module.add_submodule(&qos_module)?;
 
     let participant_module = PyModule::new_bound(m.py(), "participant")?;
     participant_module.add_class::<DomainParticipantFactory>()?;

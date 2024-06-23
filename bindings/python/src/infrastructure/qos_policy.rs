@@ -1,7 +1,14 @@
 use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(frozen)]
+#[derive(Clone, Default)]
 pub struct UserDataQosPolicy(dust_dds::infrastructure::qos_policy::UserDataQosPolicy);
+
+impl From<UserDataQosPolicy> for dust_dds::infrastructure::qos_policy::UserDataQosPolicy {
+    fn from(value: UserDataQosPolicy) -> Self {
+        value.0
+    }
+}
 
 #[pymethods]
 impl UserDataQosPolicy {
@@ -14,15 +21,17 @@ impl UserDataQosPolicy {
     pub fn get_value(&self) -> &[u8] {
         &self.0.value
     }
-
-    #[setter]
-    pub fn set_value(&mut self, value: Vec<u8>) {
-        self.0.value = value;
-    }
 }
 
-#[pyclass]
+#[pyclass(frozen)]
+#[derive(Clone, Default)]
 pub struct EntityFactoryQosPolicy(dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy);
+
+impl From<EntityFactoryQosPolicy> for dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy {
+    fn from(value: EntityFactoryQosPolicy) -> Self {
+        value.0
+    }
+}
 
 #[pymethods]
 impl EntityFactoryQosPolicy {
@@ -38,10 +47,5 @@ impl EntityFactoryQosPolicy {
     #[getter]
     pub fn get_autoenable_created_entities(&self) -> bool {
         self.0.autoenable_created_entities
-    }
-
-    #[setter]
-    pub fn set_autoenable_created_entities(&mut self, value: bool) {
-        self.0.autoenable_created_entities = value;
     }
 }
