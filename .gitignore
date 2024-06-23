@@ -50,7 +50,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-
+__pycache__
 # Translations
 *.mo
 
