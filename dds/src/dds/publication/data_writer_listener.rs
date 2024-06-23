@@ -56,14 +56,8 @@ where
         the_writer: DataWriterAsync<Self::Foo>,
         status: LivelinessLostStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataWriterListener::on_liveliness_lost(
-                self.as_mut(),
-                DataWriter::new(the_writer),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataWriterListener::on_liveliness_lost(self.as_mut(), DataWriter::new(the_writer), status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_offered_deadline_missed(
@@ -71,14 +65,12 @@ where
         the_writer: DataWriterAsync<Self::Foo>,
         status: OfferedDeadlineMissedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataWriterListener::on_offered_deadline_missed(
-                self.as_mut(),
-                DataWriter::new(the_writer),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataWriterListener::on_offered_deadline_missed(
+            self.as_mut(),
+            DataWriter::new(the_writer),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_offered_incompatible_qos(
@@ -86,14 +78,12 @@ where
         the_writer: DataWriterAsync<Self::Foo>,
         status: OfferedIncompatibleQosStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataWriterListener::on_offered_incompatible_qos(
-                self.as_mut(),
-                DataWriter::new(the_writer),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataWriterListener::on_offered_incompatible_qos(
+            self.as_mut(),
+            DataWriter::new(the_writer),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 
     fn on_publication_matched(
@@ -101,13 +91,11 @@ where
         the_writer: DataWriterAsync<Self::Foo>,
         status: PublicationMatchedStatus,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        tokio::task::block_in_place(|| {
-            DataWriterListener::on_publication_matched(
-                self.as_mut(),
-                DataWriter::new(the_writer),
-                status,
-            )
-        });
-        Box::pin(async {})
+        DataWriterListener::on_publication_matched(
+            self.as_mut(),
+            DataWriter::new(the_writer),
+            status,
+        );
+        Box::pin(std::future::ready(()))
     }
 }

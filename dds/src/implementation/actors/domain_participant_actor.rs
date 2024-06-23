@@ -28,8 +28,9 @@ use crate::{
             topic_actor::TopicActor,
         },
         runtime::{
-            executor::block_on,
+            executor::{block_on, Executor, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
+            timer::{TimerDriver, TimerHandle},
         },
     },
     infrastructure::{
@@ -293,6 +294,8 @@ pub struct DomainParticipantActor {
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
     message_sender_actor: Actor<MessageSenderActor>,
+    executor: Executor,
+    timer_driver: TimerDriver,
 }
 
 impl DomainParticipantActor {
@@ -309,7 +312,8 @@ impl DomainParticipantActor {
         builtin_data_writer_list: Vec<DataWriterActor>,
         builtin_data_reader_list: Vec<DataReaderActor>,
         message_sender_actor: MessageSenderActor,
-        handle: &tokio::runtime::Handle,
+        executor: Executor,
+        timer_driver: TimerDriver,
     ) -> (
         Self,
         ActorAddress<StatusConditionActor>,
@@ -318,6 +322,7 @@ impl DomainParticipantActor {
     ) {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
+        let executor_handle = executor.handle();
 
         let (builtin_subscriber, builtin_subscriber_status_condition) = SubscriberActor::new(
             SubscriberQos::default(),
@@ -328,9 +333,9 @@ impl DomainParticipantActor {
             None,
             vec![],
             builtin_data_reader_list,
-            handle,
+            &executor_handle,
         );
-        let builtin_subscriber = Actor::spawn(builtin_subscriber, handle);
+        let builtin_subscriber = Actor::spawn(builtin_subscriber, &executor_handle);
         let builtin_subscriber_address = builtin_subscriber.address();
 
         let builtin_publisher = Actor::spawn(
@@ -343,12 +348,12 @@ impl DomainParticipantActor {
                 None,
                 vec![],
                 builtin_data_writer_list,
-                handle,
+                &executor_handle,
             ),
-            handle,
+            &executor_handle,
         );
 
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
         let status_condition_address = status_condition.address();
         let participant_listener_thread = listener.map(ParticipantListenerThread::new);
         (
@@ -381,7 +386,9 @@ impl DomainParticipantActor {
                 participant_listener_thread,
                 status_kind,
                 status_condition,
-                message_sender_actor: Actor::spawn(message_sender_actor, handle),
+                message_sender_actor: Actor::spawn(message_sender_actor, &executor_handle),
+                executor,
+                timer_driver,
             },
             status_condition_address,
             builtin_subscriber_address,
@@ -393,7 +400,7 @@ impl DomainParticipantActor {
         &mut self,
         topic_name: String,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-        runtime_handle: tokio::runtime::Handle,
+        executor_handle: ExecutorHandle,
     ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
         for discovered_topic_data in self.discovered_topic_list.values() {
             if discovered_topic_data.name() == topic_name {
@@ -419,7 +426,7 @@ impl DomainParticipantActor {
                     None,
                     vec![],
                     type_support,
-                    runtime_handle,
+                    executor_handle,
                 )?;
                 return Ok(Some((topic_address, status_condition_address)));
             }
@@ -436,7 +443,7 @@ impl DomainParticipantActor {
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         _mask: Vec<StatusKind>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-        runtime_handle: tokio::runtime::Handle,
+        executor_handle: ExecutorHandle,
     ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
         if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
             let qos = match qos {
@@ -455,11 +462,11 @@ impl DomainParticipantActor {
                 &topic_name,
                 a_listener,
                 type_support,
-                &runtime_handle,
+                &executor_handle,
             );
 
             let topic_actor: crate::implementation::actor::Actor<TopicActor> =
-                Actor::spawn(topic, &runtime_handle);
+                Actor::spawn(topic, &executor_handle);
             let topic_address = topic_actor.address();
 
             e.insert((topic_actor, topic_status_condition.clone()));
@@ -494,7 +501,7 @@ pub struct CreateUserDefinedPublisher {
     pub qos: QosKind<PublisherQos>,
     pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedPublisher {
     type Result = (
@@ -523,11 +530,11 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             message.a_listener,
             status_kind,
             vec![],
-            &message.runtime_handle,
+            &message.executor_handle,
         );
 
         let publisher_status_condition = publisher.get_statuscondition();
-        let publisher_actor = Actor::spawn(publisher, &message.runtime_handle);
+        let publisher_actor = Actor::spawn(publisher, &message.executor_handle);
         let publisher_address = publisher_actor.address();
 
         self.user_defined_publisher_list
@@ -569,7 +576,7 @@ pub struct CreateUserDefinedSubscriber {
     pub qos: QosKind<SubscriberQos>,
     pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedSubscriber {
     type Result = (
@@ -599,10 +606,10 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             message.a_listener,
             status_kind,
             vec![],
-            &message.runtime_handle,
+            &message.executor_handle,
         );
 
-        let subscriber_actor = Actor::spawn(subscriber, &message.runtime_handle);
+        let subscriber_actor = Actor::spawn(subscriber, &message.executor_handle);
         let subscriber_address = subscriber_actor.address();
 
         self.user_defined_subscriber_list
@@ -647,7 +654,7 @@ pub struct CreateUserDefinedTopic {
     pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
     pub type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-    pub runtime_handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedTopic {
     type Result = DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>;
@@ -664,7 +671,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             message.a_listener,
             message.mask,
             message.type_support,
-            message.runtime_handle,
+            message.executor_handle,
         )
     }
 }
@@ -687,7 +694,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
 pub struct FindTopic {
     pub topic_name: String,
     pub type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-    pub runtime_handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for FindTopic {
     type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
@@ -700,7 +707,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
             self.lookup_discovered_topic(
                 message.topic_name.clone(),
                 message.type_support.clone(),
-                message.runtime_handle.clone(),
+                message.executor_handle.clone(),
             )
         }
     }
@@ -731,9 +738,7 @@ impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
     }
 }
 
-pub struct Enable {
-    pub runtime_handle: tokio::runtime::Handle,
-}
+pub struct Enable;
 impl Mail for Enable {
     type Result = DdsResult<()>;
 }
@@ -1228,7 +1233,7 @@ impl MailHandler<GetBuiltinPublisher> for DomainParticipantActor {
 pub struct ProcessMetatrafficRtpsMessage {
     pub rtps_message: RtpsMessageRead,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for ProcessMetatrafficRtpsMessage {
     type Result = DdsResult<()>;
@@ -1262,7 +1267,8 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                             subscriber_address: self.builtin_subscriber.address(),
                             participant: message.participant.clone(),
                             participant_mask_listener,
-                            handle: message.handle.clone(),
+                            executor_handle: message.executor_handle.clone(),
+                            timer_handle: self.timer_driver.handle(),
                         },
                     );
                 }
@@ -1282,7 +1288,8 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                             subscriber_address: self.builtin_subscriber.address(),
                             participant: message.participant.clone(),
                             participant_mask_listener,
-                            handle: message.handle.clone(),
+                            executor_handle: message.executor_handle.clone(),
+                            timer_handle: self.timer_driver.handle(),
                         },
                     );
                 }
@@ -1332,9 +1339,11 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
             }
         }
 
-        message
-            .handle
-            .spawn(process_discovery_data(message.participant.clone()));
+        message.executor_handle.spawn(async move {
+            process_discovery_data(message.participant.clone())
+                .await
+                .ok();
+        });
 
         Ok(())
     }
@@ -1343,7 +1352,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
 pub struct ProcessUserDefinedRtpsMessage {
     pub rtps_message: RtpsMessageRead,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
+    pub executor_handle: ExecutorHandle,
 }
 impl Mail for ProcessUserDefinedRtpsMessage {
     type Result = ();
@@ -1375,7 +1384,8 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                                 subscriber_address: user_defined_subscriber_actor.address(),
                                 participant: message.participant.clone(),
                                 participant_mask_listener,
-                                handle: message.handle.clone(),
+                                executor_handle: message.executor_handle.clone(),
+                                timer_handle: self.timer_driver.handle(),
                             },
                         );
                     }
@@ -1398,7 +1408,8 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                                 subscriber_address: user_defined_subscriber_actor.address(),
                                 participant: message.participant.clone(),
                                 participant_mask_listener,
-                                handle: message.handle.clone(),
+                                executor_handle: message.executor_handle.clone(),
+                                timer_handle: self.timer_driver.handle(),
                             },
                         );
                     }
@@ -1467,7 +1478,6 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
 pub struct SetListener {
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
-    pub runtime_handle: tokio::runtime::Handle,
 }
 impl Mail for SetListener {
     type Result = DdsResult<()>;
@@ -1570,7 +1580,6 @@ impl MailHandler<SetMetatrafficMulticastLocatorList> for DomainParticipantActor 
 pub struct AddDiscoveredParticipant {
     pub discovered_participant_data: SpdpDiscoveredParticipantData,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddDiscoveredParticipant {
     type Result = DdsResult<()>;
@@ -1621,32 +1630,26 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
             self.add_matched_publications_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.handle.clone(),
             )?;
             self.add_matched_publications_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.handle.clone(),
             )?;
             self.add_matched_subscriptions_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.handle.clone(),
             )?;
             self.add_matched_subscriptions_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.handle.clone(),
             )?;
             self.add_matched_topics_detector(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.handle.clone(),
             )?;
             self.add_matched_topics_announcer(
                 &message.discovered_participant_data,
                 message.participant.clone(),
-                message.handle.clone(),
             )?;
 
             self.discovered_participant_list.insert(
@@ -1682,7 +1685,6 @@ impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
 pub struct AddMatchedWriter {
     pub discovered_writer_data: DiscoveredWriterData,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -1744,7 +1746,6 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                         subscriber_address,
                         participant: message.participant.clone(),
                         participant_mask_listener,
-                        handle: message.handle.clone(),
                     });
                 }
 
@@ -1830,7 +1831,6 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
 pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -1850,7 +1850,6 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
                 subscriber_address,
                 participant: message.participant.clone(),
                 participant_mask_listener,
-                handle: message.handle.clone(),
             });
         }
         Ok(())
@@ -1860,7 +1859,6 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
 pub struct AddMatchedReader {
     pub discovered_reader_data: DiscoveredReaderData,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -1925,7 +1923,6 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         participant: message.participant.clone(),
                         participant_mask_listener,
                         message_sender_actor: self.message_sender_actor.address(),
-                        handle: message.handle.clone(),
                     });
                 }
 
@@ -2007,7 +2004,6 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
 pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
     pub participant: DomainParticipantAsync,
-    pub handle: tokio::runtime::Handle,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -2027,7 +2023,6 @@ impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
                 publisher_address,
                 participant: message.participant.clone(),
                 participant_mask_listener,
-                handle: message.handle.clone(),
             });
         }
         Ok(())
@@ -2067,12 +2062,31 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
     }
 }
 
+pub struct GetExecutorHandle;
+impl Mail for GetExecutorHandle {
+    type Result = ExecutorHandle;
+}
+impl MailHandler<GetExecutorHandle> for DomainParticipantActor {
+    fn handle(&mut self, _: GetExecutorHandle) -> <GetExecutorHandle as Mail>::Result {
+        self.executor.handle()
+    }
+}
+
+pub struct GetTimerHandle;
+impl Mail for GetTimerHandle {
+    type Result = TimerHandle;
+}
+impl MailHandler<GetTimerHandle> for DomainParticipantActor {
+    fn handle(&mut self, _: GetTimerHandle) -> <GetTimerHandle as Mail>::Result {
+        self.timer_driver.handle()
+    }
+}
+
 impl DomainParticipantActor {
     fn add_matched_publications_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2135,7 +2149,6 @@ impl DomainParticipantActor {
                     participant,
                     participant_mask_listener,
                     message_sender_actor: self.message_sender_actor.address(),
-                    handle,
                 });
         }
         Ok(())
@@ -2145,7 +2158,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2201,7 +2213,6 @@ impl DomainParticipantActor {
                             .map(|l| l.sender().clone()),
                         self.status_kind.clone(),
                     ),
-                    handle,
                 });
         }
         Ok(())
@@ -2211,7 +2222,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2267,7 +2277,6 @@ impl DomainParticipantActor {
                         self.status_kind.clone(),
                     ),
                     message_sender_actor: self.message_sender_actor.address(),
-                    handle,
                 });
         }
         Ok(())
@@ -2277,7 +2286,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2333,7 +2341,6 @@ impl DomainParticipantActor {
                             .map(|l| l.sender().clone()),
                         self.status_kind.clone(),
                     ),
-                    handle,
                 });
         }
 
@@ -2344,7 +2351,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2400,7 +2406,6 @@ impl DomainParticipantActor {
                         self.status_kind.clone(),
                     ),
                     message_sender_actor: self.message_sender_actor.address(),
-                    handle,
                 });
         }
         Ok(())
@@ -2410,7 +2415,6 @@ impl DomainParticipantActor {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         participant: DomainParticipantAsync,
-        handle: tokio::runtime::Handle,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy()
@@ -2466,7 +2470,6 @@ impl DomainParticipantActor {
                             .map(|l| l.sender().clone()),
                         self.status_kind.clone(),
                     ),
-                    handle,
                 });
         }
         Ok(())
@@ -2507,7 +2510,6 @@ async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync
                                 .send_actor_mail(AddDiscoveredParticipant {
                                     discovered_participant_data,
                                     participant: participant.clone(),
-                                    handle: participant.runtime_handle().clone(),
                                 })?
                                 .receive_reply()
                                 .await?;
@@ -2556,7 +2558,6 @@ async fn process_sedp_publications_discovery(
                                 AddMatchedWriter {
                                     discovered_writer_data,
                                     participant: participant.clone(),
-                                    handle: participant.runtime_handle().clone(),
                                 },
                             )?;
                         }
@@ -2573,7 +2574,6 @@ async fn process_sedp_publications_discovery(
                                     .sample_info()
                                     .instance_handle,
                                 participant: participant.clone(),
-                                handle: participant.runtime_handle().clone(),
                             })?;
                     }
                     InstanceStateKind::NotAliveNoWriters => {
@@ -2612,7 +2612,6 @@ async fn process_sedp_subscriptions_discovery(
                                 AddMatchedReader {
                                     discovered_reader_data,
                                     participant: participant.clone(),
-                                    handle: participant.runtime_handle().clone(),
                                 },
                             )?;
                         }
@@ -2629,7 +2628,6 @@ async fn process_sedp_subscriptions_discovery(
                                     .sample_info()
                                     .instance_handle,
                                 participant: participant.clone(),
-                                handle: participant.runtime_handle().clone(),
                             })?;
                     }
                     InstanceStateKind::NotAliveNoWriters => {

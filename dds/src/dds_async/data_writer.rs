@@ -79,10 +79,6 @@ impl<Foo> DataWriterAsync<Foo> {
         self.publisher.publisher_address()
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.publisher.runtime_handle()
-    }
-
     pub(crate) fn writer_address(&self) -> &ActorAddress<DataWriterActor> {
         &self.writer_address
     }
@@ -264,6 +260,8 @@ where
                     message_sender_actor,
                     now,
                     data_writer_address: self.writer_address.clone(),
+                    executor_handle: self.publisher.get_participant().executor_handle().clone(),
+                    timer_handle: self.publisher.get_participant().timer_handle().clone(),
                 })?
                 .receive_reply()
                 .await
@@ -349,6 +347,8 @@ where
                 message_sender_actor,
                 now,
                 data_writer_address: self.writer_address.clone(),
+                executor_handle: self.publisher.get_participant().executor_handle().clone(),
+                timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
             .await?;
@@ -427,6 +427,8 @@ where
                 message_sender_actor,
                 now,
                 data_writer_address: self.writer_address.clone(),
+                executor_handle: self.publisher.get_participant().executor_handle().clone(),
+                timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
             .await
@@ -437,20 +439,26 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`wait_for_acknowledgments`](crate::publication::data_writer::DataWriter::wait_for_acknowledgments).
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        tokio::time::timeout(max_wait.into(), async {
-            loop {
-                if self
-                    .writer_address
-                    .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)?
-                    .receive_reply()
-                    .await
-                {
-                    return Ok(());
-                }
-            }
-        })
-        .await
-        .map_err(|_| DdsError::Timeout)?
+        let writer_address = self.writer_address.clone();
+        self.publisher
+            .get_participant()
+            .timer_handle()
+            .timeout(
+                max_wait.into(),
+                Box::pin(async move {
+                    loop {
+                        if writer_address
+                            .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)?
+                            .receive_reply()
+                            .await
+                        {
+                            return Ok(());
+                        }
+                    }
+                }),
+            )
+            .await
+            .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`get_liveliness_lost_status`](crate::publication::data_writer::DataWriter::get_liveliness_lost_status).
@@ -574,7 +582,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
+            self.publisher.get_participant().executor_handle().clone(),
+            self.publisher.get_participant().timer_handle().clone(),
         )
     }
 
@@ -602,7 +611,8 @@ impl<Foo> DataWriterAsync<Foo> {
                 .send_actor_mail(data_writer_actor::Enable {
                     data_writer_address: writer.clone(),
                     message_sender_actor,
-                    runtime_handle: self.runtime_handle().clone(),
+                    executor_handle: self.publisher.get_participant().executor_handle().clone(),
+                    timer_handle: self.publisher.get_participant().timer_handle().clone(),
                 })?
                 .receive_reply()
                 .await;
@@ -638,7 +648,6 @@ where
                 listener: a_listener
                     .map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b)),
                 status_kind: mask.to_vec(),
-                runtime_handle: self.runtime_handle().clone(),
             })?
             .receive_reply()
             .await

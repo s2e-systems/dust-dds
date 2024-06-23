@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         runtime::{
-            executor::block_on,
+            executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
         },
     },
@@ -39,7 +39,7 @@ impl InconsistentTopicStatus {
 pub enum TopicListenerOperation {}
 
 pub struct TopicListenerMessage {
-    pub listener_operation: TopicListenerOperation,
+    pub _listener_operation: TopicListenerOperation,
 }
 
 struct TopicListenerThread {
@@ -95,7 +95,7 @@ impl TopicActor {
         topic_name: &str,
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
         type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
-        handle: &tokio::runtime::Handle,
+        handle: &ExecutorHandle,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let status_condition_address = status_condition.address();

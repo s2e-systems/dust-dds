@@ -58,10 +58,6 @@ impl TopicAsync {
         self.participant.participant_address()
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.participant.runtime_handle()
-    }
-
     async fn announce_topic(&self) -> DdsResult<()> {
         let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
         if let Some(sedp_topics_announcer) = builtin_publisher
@@ -158,7 +154,8 @@ impl TopicAsync {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
+            self.participant.executor_handle().clone(),
+            self.participant.timer_handle().clone(),
         )
     }
 

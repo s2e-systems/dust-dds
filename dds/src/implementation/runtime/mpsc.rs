@@ -8,9 +8,8 @@ use std::{
 
 pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
     let inner = Arc::new(Mutex::new(MpscInner {
-        data: VecDeque::new(),
+        data: VecDeque::with_capacity(64),
         waker: None,
-        sender_count: 1,
         is_closed: false,
     }));
     (
@@ -24,7 +23,6 @@ pub fn mpsc_channel<T>() -> (MpscSender<T>, MpscReceiver<T>) {
 struct MpscInner<T> {
     data: VecDeque<T>,
     waker: Option<Waker>,
-    sender_count: usize,
     is_closed: bool,
 }
 
@@ -42,7 +40,6 @@ impl<T> std::fmt::Debug for MpscInner<T> {
         f.debug_struct("MpscInner")
             .field("data_length", &self.data.len())
             .field("waker", &self.waker)
-            .field("sender_count", &self.sender_count)
             .finish()
     }
 }
@@ -58,24 +55,8 @@ pub struct MpscSender<T> {
 
 impl<T> Clone for MpscSender<T> {
     fn clone(&self) -> Self {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        inner_lock.sender_count += 1;
         Self {
             inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<T> Drop for MpscSender<T> {
-    fn drop(&mut self) {
-        let mut inner_lock = self.inner.lock().expect("Mutex shouldn't be poisoned");
-        inner_lock.sender_count -= 1;
-        // When the sender is dropped wake the waiting task
-        // so that it can finish knowing it won't get any message
-        if inner_lock.sender_count == 0 {
-            if let Some(w) = inner_lock.waker.take() {
-                w.wake()
-            }
         }
     }
 }

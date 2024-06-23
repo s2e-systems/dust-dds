@@ -54,10 +54,8 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            PublisherListener::on_liveliness_lost(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        PublisherListener::on_liveliness_lost(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_offered_deadline_missed<'a, 'b>(
@@ -68,10 +66,8 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            PublisherListener::on_offered_deadline_missed(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        PublisherListener::on_offered_deadline_missed(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_offered_incompatible_qos<'a, 'b>(
@@ -82,10 +78,8 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            PublisherListener::on_offered_incompatible_qos(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        PublisherListener::on_offered_incompatible_qos(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 
     fn on_publication_matched<'a, 'b>(
@@ -96,9 +90,7 @@ impl PublisherListenerAsync for Box<dyn PublisherListener + Send> {
     where
         'a: 'b,
     {
-        tokio::task::block_in_place(|| {
-            PublisherListener::on_publication_matched(self.as_mut(), the_writer, status)
-        });
-        Box::pin(async {})
+        PublisherListener::on_publication_matched(self.as_mut(), the_writer, status);
+        Box::pin(std::future::ready(()))
     }
 }

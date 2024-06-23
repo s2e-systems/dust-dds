@@ -55,10 +55,6 @@ impl PublisherAsync {
         &self.publisher_address
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.participant.runtime_handle()
-    }
-
     async fn announce_deleted_data_writer(
         &self,
         writer: &Actor<DataWriterActor>,
@@ -160,7 +156,7 @@ impl PublisherAsync {
                 mask: mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                runtime_handle: self.participant.runtime_handle().clone(),
+                executor_handle: self.participant.executor_handle().clone(),
             })?
             .receive_reply()
             .await?;
@@ -426,7 +422,6 @@ impl PublisherAsync {
             .send_actor_mail(publisher_actor::SetListener {
                 listener: a_listener,
                 status_kind: mask.to_vec(),
-                runtime_handle: self.participant.runtime_handle().clone(),
             })?
             .receive_reply()
             .await
@@ -437,7 +432,8 @@ impl PublisherAsync {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.participant.runtime_handle().clone(),
+            self.participant.executor_handle().clone(),
+            self.participant.timer_handle().clone(),
         )
     }
 

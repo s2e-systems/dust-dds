@@ -54,10 +54,6 @@ impl SubscriberAsync {
         &self.subscriber_address
     }
 
-    pub(crate) fn runtime_handle(&self) -> &tokio::runtime::Handle {
-        self.participant.runtime_handle()
-    }
-
     async fn announce_deleted_data_reader(
         &self,
         reader: &Actor<DataReaderActor>,
@@ -156,7 +152,7 @@ impl SubscriberAsync {
                 mask: mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-                runtime_handle: self.runtime_handle().clone(),
+                executor_handle: self.participant.executor_handle().clone(),
             })?
             .receive_reply()
             .await?;
@@ -388,7 +384,6 @@ impl SubscriberAsync {
             .send_actor_mail(subscriber_actor::SetListener {
                 listener: a_listener,
                 status_kind: mask.to_vec(),
-                runtime_handle: self.runtime_handle().clone(),
             })?
             .receive_reply()
             .await
@@ -399,7 +394,8 @@ impl SubscriberAsync {
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
             self.status_condition_address.clone(),
-            self.runtime_handle().clone(),
+            self.participant.executor_handle().clone(),
+            self.participant.timer_handle().clone(),
         )
     }
 
