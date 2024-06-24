@@ -12,6 +12,7 @@ use infrastructure::{
     qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy},
 };
 use pyo3::prelude::*;
+use topic_definition::{topic::Topic, type_support::MyDdsData};
 
 fn infrastructure_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let infrastructure_module = PyModule::new_bound(m.py(), "infrastructure")?;
@@ -39,10 +40,20 @@ fn participant_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+fn topic_definition_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let topic_definition_module = PyModule::new_bound(m.py(), "topic_definition")?;
+    topic_definition_module.add_class::<Topic>()?;
+    topic_definition_module.add_class::<MyDdsData>()?;
+
+    m.add_submodule(&topic_definition_module)?;
+    Ok(())
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn dust_dds_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
     infrastructure_module(m)?;
     participant_module(m)?;
+    topic_definition_module(m)?;
     Ok(())
 }

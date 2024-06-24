@@ -10,4 +10,9 @@ impl MyDdsData {
     fn new(data: Vec<u8>) -> Self {
         Self(data)
     }
+
+    #[getter]
+    fn get_value(&self) -> &[u8] {
+        &self.0
+    }
 }

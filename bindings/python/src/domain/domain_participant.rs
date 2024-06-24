@@ -41,7 +41,7 @@ impl DomainParticipant {
         }
     }
 
-    pub fn delete_subscriber(&self, a_subscriber: PyRef<'_, Subscriber>) -> PyResult<()> {
+    pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> PyResult<()> {
         match self.0.delete_subscriber(a_subscriber.as_ref()) {
             Ok(_) => Ok(()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
