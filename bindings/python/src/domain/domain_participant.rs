@@ -10,11 +10,15 @@ use crate::{
 #[pyclass]
 pub struct DomainParticipant(dust_dds::domain::domain_participant::DomainParticipant);
 
-impl DomainParticipant {
-    pub fn new(
-        domain_participant: dust_dds::domain::domain_participant::DomainParticipant,
-    ) -> Self {
-        Self(domain_participant)
+impl From<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
+    fn from(value: dust_dds::domain::domain_participant::DomainParticipant) -> Self {
+        Self(value)
+    }
+}
+
+impl AsRef<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
+    fn as_ref(&self) -> &dust_dds::domain::domain_participant::DomainParticipant {
+        &self.0
     }
 }
 

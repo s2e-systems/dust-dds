@@ -1,5 +1,10 @@
 import dust_dds
 
+def test_set_default_participant_qos():
+    participant_factory = dust_dds.DomainParticipantFactory()
+    participant_qos = dust_dds.DomainParticipantQos(user_data=dust_dds.UserDataQosPolicy([0,1,2,3]))
+    participant_factory.set_default_participant_qos(participant_qos)
+
 def test_create_delete_publisher():
     participant_factory = dust_dds.DomainParticipantFactory()
     participant = participant_factory.create_participant(100)
