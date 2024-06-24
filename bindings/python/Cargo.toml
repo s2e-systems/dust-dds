@@ -5,7 +5,7 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "dust_dds_python"
+name = "dust_dds"
 crate-type = ["cdylib"]
 
 [dependencies]

@@ -1,8 +1,8 @@
-import dust_dds_python
+import dust_dds
 import time
 
 def test_write_read():
-    participant_factory = dust_dds_python.participant.DomainParticipantFactory.get_instance()
+    participant_factory = dust_dds.DomainParticipantFactory()
     participant = participant_factory.create_participant(domain_id = 100)
     topic = participant.create_topic(topic_name = "TestTopic", type_name = "TestType")
 
@@ -15,7 +15,7 @@ def test_write_read():
     # Wait for discovery
     time.sleep(2)
 
-    data = dust_dds_python.topic_definition.MyDdsData([0,1,2,3,4])
+    data = dust_dds.MyDdsData([0,1,2,3,4])
     data_writer.write(data)
 
     # Wait for data to be received

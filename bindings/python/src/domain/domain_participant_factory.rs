@@ -23,7 +23,7 @@ impl DomainParticipantFactory {
         }
     }
 
-    #[staticmethod]
+    #[new]
     pub fn get_instance() -> Self {
         Self(dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance())
     }
