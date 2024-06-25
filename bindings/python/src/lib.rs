@@ -47,6 +47,7 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos::SubscriberQos>()?;
     m.add_class::<infrastructure::qos::PublisherQos>()?;
     m.add_class::<infrastructure::qos::TopicQos>()?;
+    m.add_class::<infrastructure::qos::DataWriterQos>()?;
 
     Ok(())
 }

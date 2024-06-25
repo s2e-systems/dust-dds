@@ -10,6 +10,7 @@ use super::qos_policy::{
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
     LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
     TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    WriterDataLifecycleQosPolicy,
 };
 
 #[pyclass]
@@ -332,5 +333,137 @@ impl TopicQos {
     #[getter]
     fn get_ownership(&self) -> OwnershipQosPolicy {
         self.0.ownership.clone().into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct DataWriterQos(dust_dds::infrastructure::qos::DataWriterQos);
+
+impl From<DataWriterQos> for dust_dds::infrastructure::qos::DataWriterQos {
+    fn from(value: DataWriterQos) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::DataWriterQos> for DataWriterQos {
+    fn from(value: dust_dds::infrastructure::qos::DataWriterQos) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl DataWriterQos {
+    #[new]
+    #[pyo3(signature = (
+        durability = DurabilityQosPolicy::default(),
+        deadline = DeadlineQosPolicy::default(),
+        latency_budget = LatencyBudgetQosPolicy::default(),
+        liveliness = LivelinessQosPolicy::default(),
+        reliability = ReliabilityQosPolicy::new(
+            ReliabilityQosPolicyKind::BestEffort,
+            DurationKind::Finite{duration :Duration::new(
+                0,
+                100_000_000, /*100ms*/
+            )}),
+        destination_order = DestinationOrderQosPolicy::default(),
+        history = HistoryQosPolicy::default(),
+        resource_limits = ResourceLimitsQosPolicy::default(),
+        transport_priority = TransportPriorityQosPolicy::default(),
+        lifespan = LifespanQosPolicy::default(),
+        user_data = UserDataQosPolicy::default(),
+        ownership = OwnershipQosPolicy::default(),
+        writer_data_lifecycle = WriterDataLifecycleQosPolicy::default(),
+    ))]
+    pub fn new(
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        history: HistoryQosPolicy,
+        resource_limits: ResourceLimitsQosPolicy,
+        transport_priority: TransportPriorityQosPolicy,
+        lifespan: LifespanQosPolicy,
+        user_data: UserDataQosPolicy,
+        ownership: OwnershipQosPolicy,
+        writer_data_lifecycle: WriterDataLifecycleQosPolicy,
+    ) -> Self {
+        Self(dust_dds::infrastructure::qos::DataWriterQos {
+            durability: durability.into(),
+            deadline: deadline.into(),
+            latency_budget: latency_budget.into(),
+            liveliness: liveliness.into(),
+            reliability: reliability.into(),
+            destination_order: destination_order.into(),
+            history: history.into(),
+            resource_limits: resource_limits.into(),
+            transport_priority: transport_priority.into(),
+            lifespan: lifespan.into(),
+            user_data: user_data.into(),
+            ownership: ownership.into(),
+            writer_data_lifecycle: writer_data_lifecycle.into(),
+        })
+    }
+
+    #[getter]
+    fn get_durability(&self) -> DurabilityQosPolicy {
+        self.0.durability.clone().into()
+    }
+
+    #[getter]
+    fn get_deadline(&self) -> DeadlineQosPolicy {
+        self.0.deadline.clone().into()
+    }
+
+    #[getter]
+    fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
+        self.0.latency_budget.clone().into()
+    }
+
+    #[getter]
+    fn get_liveliness(&self) -> LivelinessQosPolicy {
+        self.0.liveliness.clone().into()
+    }
+
+    #[getter]
+    fn get_reliability(&self) -> ReliabilityQosPolicy {
+        self.0.reliability.clone().into()
+    }
+
+    #[getter]
+    fn get_destination_order(&self) -> DestinationOrderQosPolicy {
+        self.0.destination_order.clone().into()
+    }
+
+    #[getter]
+    fn get_history(&self) -> HistoryQosPolicy {
+        self.0.history.clone().into()
+    }
+
+    #[getter]
+    fn get_resource_limits(&self) -> ResourceLimitsQosPolicy {
+        self.0.resource_limits.clone().into()
+    }
+
+    #[getter]
+    fn get_transport_priority(&self) -> TransportPriorityQosPolicy {
+        self.0.transport_priority.clone().into()
+    }
+
+    #[getter]
+    fn get_lifespan(&self) -> LifespanQosPolicy {
+        self.0.lifespan.clone().into()
+    }
+
+    #[getter]
+    fn get_ownership(&self) -> OwnershipQosPolicy {
+        self.0.ownership.clone().into()
+    }
+
+    #[getter]
+    fn writer_data_lifecycle(&self) -> WriterDataLifecycleQosPolicy {
+        self.0.writer_data_lifecycle.clone().into()
     }
 }

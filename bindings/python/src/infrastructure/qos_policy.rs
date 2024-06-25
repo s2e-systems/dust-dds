@@ -866,22 +866,6 @@ impl PartitionQosPolicy {
 }
 
 #[pyclass]
-#[derive(Clone, Default)]
-pub struct PresentationQosPolicy(dust_dds::infrastructure::qos_policy::PresentationQosPolicy);
-
-impl From<PresentationQosPolicy> for dust_dds::infrastructure::qos_policy::PresentationQosPolicy {
-    fn from(value: PresentationQosPolicy) -> Self {
-        value.0
-    }
-}
-
-impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicy> for PresentationQosPolicy {
-    fn from(value: dust_dds::infrastructure::qos_policy::PresentationQosPolicy) -> Self {
-        Self(value)
-    }
-}
-
-#[pyclass]
 #[derive(Clone)]
 pub enum PresentationQosPolicyAccessScopeKind {
     Instance,
@@ -913,6 +897,22 @@ impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScope
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Instance => PresentationQosPolicyAccessScopeKind::Instance,
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic => PresentationQosPolicyAccessScopeKind::Topic,
         }
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct PresentationQosPolicy(dust_dds::infrastructure::qos_policy::PresentationQosPolicy);
+
+impl From<PresentationQosPolicy> for dust_dds::infrastructure::qos_policy::PresentationQosPolicy {
+    fn from(value: PresentationQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicy> for PresentationQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::PresentationQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -961,5 +961,49 @@ impl PresentationQosPolicy {
     #[setter]
     pub fn set_ordered_access(&mut self, value: bool) {
         self.0.ordered_access = value;
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct WriterDataLifecycleQosPolicy(
+    dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy,
+);
+
+impl From<WriterDataLifecycleQosPolicy>
+    for dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy
+{
+    fn from(value: WriterDataLifecycleQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy>
+    for WriterDataLifecycleQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl WriterDataLifecycleQosPolicy {
+    #[new]
+    pub fn new(autodispose_unregistered_instances: bool) -> Self {
+        Self(
+            dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy {
+                autodispose_unregistered_instances,
+            },
+        )
+    }
+
+    #[getter]
+    pub fn get_autodispose_unregistered_instances(&self) -> bool {
+        self.0.autodispose_unregistered_instances
+    }
+
+    #[setter]
+    pub fn set_autodispose_unregistered_instances(&mut self, value: bool) {
+        self.0.autodispose_unregistered_instances = value;
     }
 }
