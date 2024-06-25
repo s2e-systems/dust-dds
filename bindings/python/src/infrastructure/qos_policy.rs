@@ -58,6 +58,11 @@ impl UserDataQosPolicy {
     pub fn get_value(&self) -> &[u8] {
         &self.0.value
     }
+
+    #[setter]
+    pub fn set_value(&mut self, value: Vec<u8>) {
+        self.0.value = value.into()
+    }
 }
 
 #[pyclass]
@@ -91,6 +96,11 @@ impl EntityFactoryQosPolicy {
     pub fn get_autoenable_created_entities(&self) -> bool {
         self.0.autoenable_created_entities
     }
+
+    #[setter]
+    pub fn set_autoenable_created_entities(&mut self, value: bool) {
+        self.0.autoenable_created_entities = value.into()
+    }
 }
 
 #[pyclass]
@@ -119,6 +129,11 @@ impl TopicDataQosPolicy {
     #[getter]
     pub fn get_value(&self) -> &[u8] {
         &self.0.value
+    }
+
+    #[setter]
+    pub fn set_value(&mut self, value: Vec<u8>) {
+        self.0.value = value.into()
     }
 }
 
@@ -186,6 +201,11 @@ impl DurabilityQosPolicy {
     pub fn get_kind(&self) -> DurabilityQosPolicyKind {
         self.0.kind.into()
     }
+
+    #[setter]
+    pub fn set_kind(&mut self, value: DurabilityQosPolicyKind) {
+        self.0.kind = value.into()
+    }
 }
 
 #[pyclass]
@@ -216,6 +236,11 @@ impl DeadlineQosPolicy {
     #[getter]
     pub fn get_period(&self) -> DurationKind {
         self.0.period.into()
+    }
+
+    #[setter]
+    pub fn set_period(&mut self, value: DurationKind) {
+        self.0.period = value.into()
     }
 }
 
@@ -249,6 +274,11 @@ impl LatencyBudgetQosPolicy {
     #[getter]
     pub fn get_duration(&self) -> DurationKind {
         self.0.duration.into()
+    }
+
+    #[setter]
+    pub fn set_duration(&mut self, value: DurationKind) {
+        self.0.duration = value.into()
     }
 }
 
@@ -327,9 +357,19 @@ impl LivelinessQosPolicy {
         self.0.kind.into()
     }
 
+    #[setter]
+    pub fn set_kind(&mut self, value: LivelinessQosPolicyKind) {
+        self.0.kind = value.into()
+    }
+
     #[getter]
     pub fn get_lease_duration(&self) -> DurationKind {
         self.0.lease_duration.into()
+    }
+
+    #[setter]
+    pub fn set_lease_duration(&mut self, value: DurationKind) {
+        self.0.lease_duration = value.into()
     }
 }
 
@@ -401,9 +441,19 @@ impl ReliabilityQosPolicy {
         self.0.kind.into()
     }
 
+    #[setter]
+    pub fn set_kind(&mut self, value: ReliabilityQosPolicyKind) {
+        self.0.kind = value.into()
+    }
+
     #[getter]
     pub fn get_max_blocking_time(&self) -> DurationKind {
         self.0.max_blocking_time.into()
+    }
+
+    #[setter]
+    pub fn set_max_blocking_time(&mut self, value: DurationKind) {
+        self.0.max_blocking_time = value.into()
     }
 }
 
@@ -469,6 +519,11 @@ impl DestinationOrderQosPolicy {
     pub fn get_kind(&self) -> DestinationOrderQosPolicyKind {
         self.0.kind.into()
     }
+
+    #[setter]
+    pub fn set_kind(&mut self, value: DestinationOrderQosPolicyKind) {
+        self.0.kind = value.into()
+    }
 }
 
 #[pyclass]
@@ -531,6 +586,11 @@ impl HistoryQosPolicy {
     pub fn get_kind(&self) -> HistoryQosPolicyKind {
         self.0.kind.into()
     }
+
+    #[setter]
+    pub fn set_kind(&mut self, value: HistoryQosPolicyKind) {
+        self.0.kind = value.into()
+    }
 }
 
 #[pyclass]
@@ -575,14 +635,29 @@ impl ResourceLimitsQosPolicy {
         self.0.max_samples.into()
     }
 
+    #[setter]
+    pub fn set_max_samples(&mut self, value: Length) {
+        self.0.max_samples = value.into()
+    }
+
     #[getter]
     pub fn get_max_instances(&self) -> Length {
         self.0.max_instances.into()
     }
 
+    #[setter]
+    pub fn set_max_instances(&mut self, value: Length) {
+        self.0.max_instances = value.into()
+    }
+
     #[getter]
     pub fn get_max_samples_per_instance(&self) -> Length {
         self.0.max_samples_per_instance.into()
+    }
+
+    #[setter]
+    pub fn set_max_samples_per_instance(&mut self, value: Length) {
+        self.0.max_samples_per_instance = value.into()
     }
 }
 
@@ -619,6 +694,11 @@ impl TransportPriorityQosPolicy {
     pub fn get_value(&self) -> i32 {
         self.0.value.into()
     }
+
+    #[setter]
+    pub fn set_value(&mut self, value: i32) {
+        self.0.value = value.into()
+    }
 }
 
 #[pyclass]
@@ -649,6 +729,11 @@ impl LifespanQosPolicy {
     #[getter]
     pub fn get_duration(&self) -> DurationKind {
         self.0.duration.into()
+    }
+
+    #[setter]
+    pub fn set_duration(&mut self, value: DurationKind) {
+        self.0.duration = value.into()
     }
 }
 
@@ -704,5 +789,10 @@ impl OwnershipQosPolicy {
     #[getter]
     pub fn get_kind(&self) -> OwnershipQosPolicyKind {
         self.0.kind.into()
+    }
+
+    #[setter]
+    pub fn set_kind(&mut self, value: OwnershipQosPolicyKind) {
+        self.0.kind = value.into()
     }
 }
