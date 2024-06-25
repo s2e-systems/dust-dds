@@ -8,9 +8,9 @@ use crate::infrastructure::{
 use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
-    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, ReaderDataLifecycleQosPolicy,
+    ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+    UserDataQosPolicy, WriterDataLifecycleQosPolicy,
 };
 
 #[pyclass]
@@ -361,7 +361,7 @@ impl DataWriterQos {
         latency_budget = LatencyBudgetQosPolicy::default(),
         liveliness = LivelinessQosPolicy::default(),
         reliability = ReliabilityQosPolicy::new(
-            ReliabilityQosPolicyKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable,
             DurationKind::Finite{duration :Duration::new(
                 0,
                 100_000_000, /*100ms*/
@@ -458,12 +458,146 @@ impl DataWriterQos {
     }
 
     #[getter]
+    fn get_user_data(&self) -> UserDataQosPolicy {
+        self.0.user_data.clone().into()
+    }
+
+    #[getter]
     fn get_ownership(&self) -> OwnershipQosPolicy {
         self.0.ownership.clone().into()
     }
 
     #[getter]
-    fn writer_data_lifecycle(&self) -> WriterDataLifecycleQosPolicy {
+    fn get_writer_data_lifecycle(&self) -> WriterDataLifecycleQosPolicy {
         self.0.writer_data_lifecycle.clone().into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct DataReaderQos(dust_dds::infrastructure::qos::DataReaderQos);
+
+impl From<DataReaderQos> for dust_dds::infrastructure::qos::DataReaderQos {
+    fn from(value: DataReaderQos) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::DataReaderQos> for DataReaderQos {
+    fn from(value: dust_dds::infrastructure::qos::DataReaderQos) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl DataReaderQos {
+    #[new]
+    #[pyo3(signature = (
+        durability = DurabilityQosPolicy::default(),
+        deadline = DeadlineQosPolicy::default(),
+        latency_budget = LatencyBudgetQosPolicy::default(),
+        liveliness = LivelinessQosPolicy::default(),
+        reliability = ReliabilityQosPolicy::new(
+            ReliabilityQosPolicyKind::BestEffort,
+            DurationKind::Finite{duration :Duration::new(
+                0,
+                100_000_000, /*100ms*/
+            )}),
+        destination_order = DestinationOrderQosPolicy::default(),
+        history = HistoryQosPolicy::default(),
+        resource_limits = ResourceLimitsQosPolicy::default(),
+        user_data = UserDataQosPolicy::default(),
+        ownership = OwnershipQosPolicy::default(),
+        time_based_filter = TimeBasedFilterQosPolicy::default(),
+        reader_data_lifecycle = ReaderDataLifecycleQosPolicy::default(),
+    ))]
+    pub fn new(
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        history: HistoryQosPolicy,
+        resource_limits: ResourceLimitsQosPolicy,
+        user_data: UserDataQosPolicy,
+        ownership: OwnershipQosPolicy,
+        time_based_filter: TimeBasedFilterQosPolicy,
+        reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
+    ) -> Self {
+        Self(dust_dds::infrastructure::qos::DataReaderQos {
+            durability: durability.into(),
+            deadline: deadline.into(),
+            latency_budget: latency_budget.into(),
+            liveliness: liveliness.into(),
+            reliability: reliability.into(),
+            destination_order: destination_order.into(),
+            history: history.into(),
+            resource_limits: resource_limits.into(),
+            user_data: user_data.into(),
+            ownership: ownership.into(),
+            time_based_filter: time_based_filter.into(),
+            reader_data_lifecycle: reader_data_lifecycle.into(),
+        })
+    }
+
+    #[getter]
+    fn get_durability(&self) -> DurabilityQosPolicy {
+        self.0.durability.clone().into()
+    }
+
+    #[getter]
+    fn get_deadline(&self) -> DeadlineQosPolicy {
+        self.0.deadline.clone().into()
+    }
+
+    #[getter]
+    fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
+        self.0.latency_budget.clone().into()
+    }
+
+    #[getter]
+    fn get_liveliness(&self) -> LivelinessQosPolicy {
+        self.0.liveliness.clone().into()
+    }
+
+    #[getter]
+    fn get_reliability(&self) -> ReliabilityQosPolicy {
+        self.0.reliability.clone().into()
+    }
+
+    #[getter]
+    fn get_destination_order(&self) -> DestinationOrderQosPolicy {
+        self.0.destination_order.clone().into()
+    }
+
+    #[getter]
+    fn get_history(&self) -> HistoryQosPolicy {
+        self.0.history.clone().into()
+    }
+
+    #[getter]
+    fn get_resource_limits(&self) -> ResourceLimitsQosPolicy {
+        self.0.resource_limits.clone().into()
+    }
+
+    #[getter]
+    fn get_user_data(&self) -> UserDataQosPolicy {
+        self.0.user_data.clone().into()
+    }
+
+    #[getter]
+    fn get_ownership(&self) -> OwnershipQosPolicy {
+        self.0.ownership.clone().into()
+    }
+
+    #[getter]
+    fn get_time_based_filter(&self) -> TimeBasedFilterQosPolicy {
+        self.0.time_based_filter.clone().into()
+    }
+
+    #[getter]
+    fn get_reader_data_lifecycle(&self) -> ReaderDataLifecycleQosPolicy {
+        self.0.reader_data_lifecycle.clone().into()
     }
 }

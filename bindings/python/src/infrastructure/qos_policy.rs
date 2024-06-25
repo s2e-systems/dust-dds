@@ -1007,3 +1007,103 @@ impl WriterDataLifecycleQosPolicy {
         self.0.autodispose_unregistered_instances = value;
     }
 }
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct TimeBasedFilterQosPolicy(dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy);
+
+impl From<TimeBasedFilterQosPolicy>
+    for dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy
+{
+    fn from(value: TimeBasedFilterQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy>
+    for TimeBasedFilterQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl TimeBasedFilterQosPolicy {
+    #[new]
+    pub fn new(minimum_separation: DurationKind) -> Self {
+        Self(
+            dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy {
+                minimum_separation: minimum_separation.into(),
+            },
+        )
+    }
+
+    #[getter]
+    pub fn get_minimum_separation(&self) -> DurationKind {
+        self.0.minimum_separation.into()
+    }
+
+    #[setter]
+    pub fn set_minimum_separation(&mut self, value: DurationKind) {
+        self.0.minimum_separation = value.into();
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct ReaderDataLifecycleQosPolicy(
+    dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy,
+);
+
+impl From<ReaderDataLifecycleQosPolicy>
+    for dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy
+{
+    fn from(value: ReaderDataLifecycleQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy>
+    for ReaderDataLifecycleQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl ReaderDataLifecycleQosPolicy {
+    #[new]
+    pub fn new(
+        autopurge_nowriter_samples_delay: DurationKind,
+        autopurge_disposed_samples_delay: DurationKind,
+    ) -> Self {
+        Self(
+            dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy {
+                autopurge_nowriter_samples_delay: autopurge_nowriter_samples_delay.into(),
+                autopurge_disposed_samples_delay: autopurge_disposed_samples_delay.into(),
+            },
+        )
+    }
+
+    #[getter]
+    pub fn get_autopurge_nowriter_samples_delay(&self) -> DurationKind {
+        self.0.autopurge_nowriter_samples_delay.into()
+    }
+
+    #[setter]
+    pub fn set_autopurge_nowriter_samples_delay(&mut self, value: DurationKind) {
+        self.0.autopurge_nowriter_samples_delay = value.into();
+    }
+
+    #[getter]
+    pub fn get_autopurge_disposed_samples_delay(&self) -> DurationKind {
+        self.0.autopurge_disposed_samples_delay.into()
+    }
+
+    #[setter]
+    pub fn set_autopurge_disposed_samples_delay(&mut self, value: DurationKind) {
+        self.0.autopurge_disposed_samples_delay = value.into();
+    }
+}
