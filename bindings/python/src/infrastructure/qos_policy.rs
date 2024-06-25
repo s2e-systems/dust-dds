@@ -41,6 +41,12 @@ impl From<UserDataQosPolicy> for dust_dds::infrastructure::qos_policy::UserDataQ
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::UserDataQosPolicy> for UserDataQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::UserDataQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl UserDataQosPolicy {
     #[new]
@@ -61,6 +67,12 @@ pub struct EntityFactoryQosPolicy(dust_dds::infrastructure::qos_policy::EntityFa
 impl From<EntityFactoryQosPolicy> for dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy {
     fn from(value: EntityFactoryQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy> for EntityFactoryQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -88,6 +100,12 @@ pub struct TopicDataQosPolicy(dust_dds::infrastructure::qos_policy::TopicDataQos
 impl From<TopicDataQosPolicy> for dust_dds::infrastructure::qos_policy::TopicDataQosPolicy {
     fn from(value: TopicDataQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::TopicDataQosPolicy> for TopicDataQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::TopicDataQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -151,6 +169,12 @@ impl From<DurabilityQosPolicy> for dust_dds::infrastructure::qos_policy::Durabil
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicy> for DurabilityQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::DurabilityQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl DurabilityQosPolicy {
     #[new]
@@ -171,6 +195,12 @@ pub struct DeadlineQosPolicy(dust_dds::infrastructure::qos_policy::DeadlineQosPo
 impl From<DeadlineQosPolicy> for dust_dds::infrastructure::qos_policy::DeadlineQosPolicy {
     fn from(value: DeadlineQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::DeadlineQosPolicy> for DeadlineQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::DeadlineQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -196,6 +226,12 @@ pub struct LatencyBudgetQosPolicy(dust_dds::infrastructure::qos_policy::LatencyB
 impl From<LatencyBudgetQosPolicy> for dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy {
     fn from(value: LatencyBudgetQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy> for LatencyBudgetQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -270,6 +306,12 @@ impl From<LivelinessQosPolicy> for dust_dds::infrastructure::qos_policy::Livelin
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::LivelinessQosPolicy> for LivelinessQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::LivelinessQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl LivelinessQosPolicy {
     #[new]
@@ -338,6 +380,12 @@ impl From<ReliabilityQosPolicy> for dust_dds::infrastructure::qos_policy::Reliab
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::ReliabilityQosPolicy> for ReliabilityQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::ReliabilityQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl ReliabilityQosPolicy {
     #[new]
@@ -402,6 +450,14 @@ impl From<DestinationOrderQosPolicy>
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy>
+    for DestinationOrderQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl DestinationOrderQosPolicy {
     #[new]
@@ -458,6 +514,12 @@ impl From<HistoryQosPolicy> for dust_dds::infrastructure::qos_policy::HistoryQos
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::HistoryQosPolicy> for HistoryQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::HistoryQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl HistoryQosPolicy {
     #[new]
@@ -480,6 +542,14 @@ impl From<ResourceLimitsQosPolicy>
 {
     fn from(value: ResourceLimitsQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy>
+    for ResourceLimitsQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -530,6 +600,14 @@ impl From<TransportPriorityQosPolicy>
     }
 }
 
+impl From<dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy>
+    for TransportPriorityQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
 #[pymethods]
 impl TransportPriorityQosPolicy {
     #[new]
@@ -550,6 +628,12 @@ pub struct LifespanQosPolicy(dust_dds::infrastructure::qos_policy::LifespanQosPo
 impl From<LifespanQosPolicy> for dust_dds::infrastructure::qos_policy::LifespanQosPolicy {
     fn from(value: LifespanQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::LifespanQosPolicy> for LifespanQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::LifespanQosPolicy) -> Self {
+        Self(value)
     }
 }
 
@@ -601,6 +685,12 @@ pub struct OwnershipQosPolicy(dust_dds::infrastructure::qos_policy::OwnershipQos
 impl From<OwnershipQosPolicy> for dust_dds::infrastructure::qos_policy::OwnershipQosPolicy {
     fn from(value: OwnershipQosPolicy) -> Self {
         value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::OwnershipQosPolicy> for OwnershipQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::OwnershipQosPolicy) -> Self {
+        Self(value)
     }
 }
 
