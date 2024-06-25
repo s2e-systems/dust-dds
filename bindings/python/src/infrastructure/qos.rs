@@ -1,6 +1,9 @@
 use pyo3::prelude::*;
 
-use super::qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy};
+use super::qos_policy::{
+    DeadlineQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy, TopicDataQosPolicy,
+    UserDataQosPolicy,
+};
 
 #[pyclass]
 #[derive(Clone)]
@@ -19,6 +22,17 @@ impl From<dust_dds::infrastructure::qos::DomainParticipantFactoryQos>
 {
     fn from(value: dust_dds::infrastructure::qos::DomainParticipantFactoryQos) -> Self {
         Self(value)
+    }
+}
+
+#[pymethods]
+impl DomainParticipantFactoryQos {
+    #[new]
+    #[pyo3(signature = (entity_factory = EntityFactoryQosPolicy::default()))]
+    pub fn new(entity_factory: EntityFactoryQosPolicy) -> Self {
+        Self(dust_dds::infrastructure::qos::DomainParticipantFactoryQos {
+            entity_factory: entity_factory.into(),
+        })
     }
 }
 
@@ -46,6 +60,52 @@ impl DomainParticipantQos {
         Self(dust_dds::infrastructure::qos::DomainParticipantQos {
             user_data: user_data.clone().into(),
             entity_factory: entity_factory.into(),
+        })
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct TopicQos(dust_dds::infrastructure::qos::TopicQos);
+
+impl From<TopicQos> for dust_dds::infrastructure::qos::TopicQos {
+    fn from(value: TopicQos) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::TopicQos> for TopicQos {
+    fn from(value: dust_dds::infrastructure::qos::TopicQos) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl TopicQos {
+    #[new]
+    #[pyo3(signature =
+        (topic_data = TopicDataQosPolicy::default(),
+        durability = DurabilityQosPolicy::default(),
+        deadline = DeadlineQosPolicy::default())
+    )]
+    pub fn new(
+        topic_data: TopicDataQosPolicy,
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+    ) -> Self {
+        Self(dust_dds::infrastructure::qos::TopicQos {
+            topic_data: topic_data.into(),
+            durability: durability.into(),
+            deadline: deadline.into(),
+            latency_budget: todo!(),
+            liveliness: todo!(),
+            reliability: todo!(),
+            destination_order: todo!(),
+            history: todo!(),
+            resource_limits: todo!(),
+            transport_priority: todo!(),
+            lifespan: todo!(),
+            ownership: todo!(),
         })
     }
 }

@@ -1,5 +1,37 @@
 use pyo3::prelude::*;
 
+use super::time::Duration;
+
+#[pyclass]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum DurationKind {
+    Finite { duration: Duration },
+    Infinite {},
+}
+
+impl From<DurationKind> for dust_dds::infrastructure::time::DurationKind {
+    fn from(value: DurationKind) -> Self {
+        match value {
+            DurationKind::Finite { duration } => {
+                dust_dds::infrastructure::time::DurationKind::Finite(duration.into())
+            }
+            DurationKind::Infinite {} => dust_dds::infrastructure::time::DurationKind::Infinite,
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::time::DurationKind> for DurationKind {
+    fn from(value: dust_dds::infrastructure::time::DurationKind) -> Self {
+        match value {
+            dust_dds::infrastructure::time::DurationKind::Finite(duration) => {
+                DurationKind::Finite {
+                    duration: duration.into(),
+                }
+            }
+            dust_dds::infrastructure::time::DurationKind::Infinite => DurationKind::Infinite {},
+        }
+    }
+}
 #[pyclass(frozen)]
 #[derive(Clone, Default)]
 pub struct UserDataQosPolicy(dust_dds::infrastructure::qos_policy::UserDataQosPolicy);
@@ -47,5 +79,113 @@ impl EntityFactoryQosPolicy {
     #[getter]
     pub fn get_autoenable_created_entities(&self) -> bool {
         self.0.autoenable_created_entities
+    }
+}
+
+#[pyclass(frozen)]
+#[derive(Clone, Default)]
+pub struct TopicDataQosPolicy(dust_dds::infrastructure::qos_policy::TopicDataQosPolicy);
+
+impl From<TopicDataQosPolicy> for dust_dds::infrastructure::qos_policy::TopicDataQosPolicy {
+    fn from(value: TopicDataQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl TopicDataQosPolicy {
+    #[new]
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::TopicDataQosPolicy { value })
+    }
+
+    #[getter]
+    pub fn get_value(&self) -> &[u8] {
+        &self.0.value
+    }
+}
+
+#[derive(Clone, Copy)]
+#[pyclass]
+pub enum DurabilityQosPolicyKind {
+    Volatile,
+    TransientLocal,
+}
+
+impl From<DurabilityQosPolicyKind>
+    for dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind
+{
+    fn from(value: DurabilityQosPolicyKind) -> Self {
+        match value {
+            DurabilityQosPolicyKind::Volatile => {
+                dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Volatile
+            }
+            DurabilityQosPolicyKind::TransientLocal => {
+                dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::TransientLocal
+            }
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind>
+    for DurabilityQosPolicyKind
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind) -> Self {
+        match value {
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Volatile => {
+                DurabilityQosPolicyKind::Volatile
+            }
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::TransientLocal => {
+                DurabilityQosPolicyKind::TransientLocal
+            }
+        }
+    }
+}
+
+#[pyclass(frozen)]
+#[derive(Clone, Default)]
+pub struct DurabilityQosPolicy(dust_dds::infrastructure::qos_policy::DurabilityQosPolicy);
+
+impl From<DurabilityQosPolicy> for dust_dds::infrastructure::qos_policy::DurabilityQosPolicy {
+    fn from(value: DurabilityQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl DurabilityQosPolicy {
+    #[new]
+    pub fn new(kind: DurabilityQosPolicyKind) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::DurabilityQosPolicy { kind: kind.into() })
+    }
+
+    #[getter]
+    pub fn get_kind(&self) -> DurabilityQosPolicyKind {
+        self.0.kind.into()
+    }
+}
+
+#[pyclass(frozen)]
+#[derive(Clone, Default)]
+pub struct DeadlineQosPolicy(dust_dds::infrastructure::qos_policy::DeadlineQosPolicy);
+
+impl From<DeadlineQosPolicy> for dust_dds::infrastructure::qos_policy::DeadlineQosPolicy {
+    fn from(value: DeadlineQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl DeadlineQosPolicy {
+    #[new]
+    pub fn new(period: DurationKind) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::DeadlineQosPolicy {
+            period: period.into(),
+        })
+    }
+
+    #[getter]
+    pub fn get_period(&self) -> DurationKind {
+        self.0.period.into()
     }
 }
