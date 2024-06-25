@@ -1,8 +1,14 @@
 use pyo3::prelude::*;
 
+use crate::infrastructure::{
+    qos_policy::{ReliabilityQosPolicyKind, ResourceLimitsQosPolicy},
+    time::{Duration, DurationKind},
+};
+
 use super::qos_policy::{
-    DeadlineQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy, LatencyBudgetQosPolicy,
-    LivelinessQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
+    HistoryQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy, ReliabilityQosPolicy,
+    TopicDataQosPolicy, UserDataQosPolicy,
 };
 
 #[pyclass]
@@ -89,6 +95,15 @@ impl TopicQos {
         deadline = DeadlineQosPolicy::default(),
         latency_budget = LatencyBudgetQosPolicy::default(),
         liveliness = LivelinessQosPolicy::default(),
+        reliability = ReliabilityQosPolicy::new(
+            ReliabilityQosPolicyKind::BestEffort,
+            DurationKind::Finite{duration :Duration::new(
+                0,
+                100_000_000, /*100ms*/
+            )}),
+        destination_order = DestinationOrderQosPolicy::default(),
+        history = HistoryQosPolicy::default(),
+        resource_limits = ResourceLimitsQosPolicy::default(),
     ))]
     pub fn new(
         topic_data: TopicDataQosPolicy,
@@ -96,6 +111,10 @@ impl TopicQos {
         deadline: DeadlineQosPolicy,
         latency_budget: LatencyBudgetQosPolicy,
         liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        history: HistoryQosPolicy,
+        resource_limits: ResourceLimitsQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::TopicQos {
             topic_data: topic_data.into(),
@@ -103,10 +122,10 @@ impl TopicQos {
             deadline: deadline.into(),
             latency_budget: latency_budget.into(),
             liveliness: liveliness.into(),
-            reliability: todo!(),
-            destination_order: todo!(),
-            history: todo!(),
-            resource_limits: todo!(),
+            reliability: reliability.into(),
+            destination_order: destination_order.into(),
+            history: history.into(),
+            resource_limits: resource_limits.into(),
             transport_priority: todo!(),
             lifespan: todo!(),
             ownership: todo!(),

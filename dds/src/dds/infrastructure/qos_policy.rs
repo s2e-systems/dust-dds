@@ -597,7 +597,7 @@ impl Default for OwnershipQosPolicy {
 }
 
 /// Enumeration representing the different types of Liveliness QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LivelinessQosPolicyKind {
     /// Automatic liveliness
     Automatic,
@@ -892,7 +892,7 @@ pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolic
     };
 
 /// Enumeration representing the different types of destination order QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DestinationOrderQosPolicyKind {
     /// Ordered by reception timestamp.
     ByReceptionTimestamp,
@@ -972,7 +972,7 @@ impl Default for DestinationOrderQosPolicy {
 }
 
 /// Enumeration representing the different types of history QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HistoryQosPolicyKind {
     /// Keep number of samples indicated by the associated value.
     KeepLast(i32),
