@@ -830,3 +830,136 @@ impl GroupDataQosPolicy {
         self.0.value = value;
     }
 }
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct PartitionQosPolicy(dust_dds::infrastructure::qos_policy::PartitionQosPolicy);
+
+impl From<PartitionQosPolicy> for dust_dds::infrastructure::qos_policy::PartitionQosPolicy {
+    fn from(value: PartitionQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::PartitionQosPolicy> for PartitionQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::PartitionQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl PartitionQosPolicy {
+    #[new]
+    pub fn new(name: Vec<String>) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::PartitionQosPolicy { name })
+    }
+
+    #[getter]
+    pub fn get_name(&self) -> Vec<String> {
+        self.0.name.clone()
+    }
+
+    #[setter]
+    pub fn set_name(&mut self, value: Vec<String>) {
+        self.0.name = value;
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct PresentationQosPolicy(dust_dds::infrastructure::qos_policy::PresentationQosPolicy);
+
+impl From<PresentationQosPolicy> for dust_dds::infrastructure::qos_policy::PresentationQosPolicy {
+    fn from(value: PresentationQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicy> for PresentationQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::PresentationQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub enum PresentationQosPolicyAccessScopeKind {
+    Instance,
+    Topic,
+}
+
+impl From<PresentationQosPolicyAccessScopeKind>
+    for dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind
+{
+    fn from(value: PresentationQosPolicyAccessScopeKind) -> Self {
+        match value {
+            PresentationQosPolicyAccessScopeKind::Instance => {
+                dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Instance
+            }
+            PresentationQosPolicyAccessScopeKind::Topic => {
+                dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic
+            }
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind>
+    for PresentationQosPolicyAccessScopeKind
+{
+    fn from(
+        value: dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind,
+    ) -> Self {
+        match value {
+            dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Instance => PresentationQosPolicyAccessScopeKind::Instance,
+            dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic => PresentationQosPolicyAccessScopeKind::Topic,
+        }
+    }
+}
+
+#[pymethods]
+impl PresentationQosPolicy {
+    #[new]
+    pub fn new(
+        access_scope: PresentationQosPolicyAccessScopeKind,
+        coherent_access: bool,
+        ordered_access: bool,
+    ) -> Self {
+        Self(
+            dust_dds::infrastructure::qos_policy::PresentationQosPolicy {
+                access_scope: access_scope.into(),
+                coherent_access,
+                ordered_access,
+            },
+        )
+    }
+
+    #[getter]
+    pub fn get_access_scope(&self) -> PresentationQosPolicyAccessScopeKind {
+        self.0.access_scope.into()
+    }
+
+    #[setter]
+    pub fn set_access_scope(&mut self, value: PresentationQosPolicyAccessScopeKind) {
+        self.0.access_scope = value.into();
+    }
+
+    #[getter]
+    pub fn get_coherent_access(&self) -> bool {
+        self.0.coherent_access
+    }
+
+    #[setter]
+    pub fn set_coherent_access(&mut self, value: bool) {
+        self.0.coherent_access = value;
+    }
+
+    #[getter]
+    pub fn get_ordered_access(&self) -> bool {
+        self.0.ordered_access
+    }
+
+    #[setter]
+    pub fn set_ordered_access(&mut self, value: bool) {
+        self.0.ordered_access = value;
+    }
+}

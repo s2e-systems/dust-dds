@@ -1,15 +1,15 @@
 use pyo3::prelude::*;
 
 use crate::infrastructure::{
-    qos_policy::{ReliabilityQosPolicyKind, ResourceLimitsQosPolicy},
+    qos_policy::{PresentationQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy},
     time::{Duration, DurationKind},
 };
 
 use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
-    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-    OwnershipQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-    UserDataQosPolicy,
+    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
+    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
 #[pyclass]
@@ -83,6 +83,126 @@ impl DomainParticipantQos {
     #[getter]
     fn get_entity_factory(&self) -> EntityFactoryQosPolicy {
         self.0.entity_factory.clone().into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PublisherQos(dust_dds::infrastructure::qos::PublisherQos);
+
+impl From<PublisherQos> for dust_dds::infrastructure::qos::PublisherQos {
+    fn from(value: PublisherQos) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::PublisherQos> for PublisherQos {
+    fn from(value: dust_dds::infrastructure::qos::PublisherQos) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl PublisherQos {
+    #[new]
+    #[pyo3(signature = (
+        presentation = PresentationQosPolicy::default(),
+        partition = PartitionQosPolicy::default(),
+        group_data = GroupDataQosPolicy::default(),
+        entity_factory = EntityFactoryQosPolicy::default(),
+    ))]
+    pub fn new(
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        group_data: GroupDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    ) -> Self {
+        Self(dust_dds::infrastructure::qos::PublisherQos {
+            presentation: presentation.into(),
+            partition: partition.into(),
+            group_data: group_data.into(),
+            entity_factory: entity_factory.into(),
+        })
+    }
+
+    #[getter]
+    pub fn get_presentation(&self) -> PresentationQosPolicy {
+        self.0.presentation.clone().into()
+    }
+
+    #[setter]
+    pub fn set_presentation(&mut self, value: PresentationQosPolicy) {
+        self.0.presentation = value.into()
+    }
+
+    #[getter]
+    pub fn get_partition(&self) -> PartitionQosPolicy {
+        self.0.partition.clone().into()
+    }
+
+    #[setter]
+    pub fn set_partition(&mut self, value: PartitionQosPolicy) {
+        self.0.partition = value.into()
+    }
+
+    #[getter]
+    pub fn get_group_data(&self) -> GroupDataQosPolicy {
+        self.0.group_data.clone().into()
+    }
+
+    #[setter]
+    pub fn set_group_data(&mut self, value: GroupDataQosPolicy) {
+        self.0.group_data = value.into()
+    }
+
+    #[getter]
+    pub fn get_entity_factory(&self) -> EntityFactoryQosPolicy {
+        self.0.entity_factory.clone().into()
+    }
+
+    #[setter]
+    pub fn set_entity_factory(&mut self, value: EntityFactoryQosPolicy) {
+        self.0.entity_factory = value.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct SubscriberQos(dust_dds::infrastructure::qos::SubscriberQos);
+
+impl From<SubscriberQos> for dust_dds::infrastructure::qos::SubscriberQos {
+    fn from(value: SubscriberQos) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::SubscriberQos> for SubscriberQos {
+    fn from(value: dust_dds::infrastructure::qos::SubscriberQos) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl SubscriberQos {
+    #[new]
+    #[pyo3(signature = (
+        presentation = PresentationQosPolicy::default(),
+        partition = PartitionQosPolicy::default(),
+        group_data = GroupDataQosPolicy::default(),
+        entity_factory = EntityFactoryQosPolicy::default(),
+    ))]
+    pub fn new(
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        group_data: GroupDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    ) -> Self {
+        Self(dust_dds::infrastructure::qos::SubscriberQos {
+            presentation: presentation.into(),
+            partition: partition.into(),
+            group_data: group_data.into(),
+            entity_factory: entity_factory.into(),
+        })
     }
 }
 

@@ -23,11 +23,17 @@ impl DomainParticipantFactory {
         Self(dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance())
     }
 
-    pub fn create_participant(&self, domain_id: DomainId) -> PyResult<DomainParticipant> {
-        match self
-            .0
-            .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        {
+    pub fn create_participant(
+        &self,
+        domain_id: DomainId,
+        qos: Option<DomainParticipantQos>,
+    ) -> PyResult<DomainParticipant> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+
+        match self.0.create_participant(domain_id, qos, None, NO_STATUS) {
             Ok(dp) => Ok(dp.into()),
             Err(e) => Err(into_pyerr(e)),
         }

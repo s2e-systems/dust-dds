@@ -2,7 +2,7 @@ use dust_dds::infrastructure::{qos::QosKind, status::NO_STATUS};
 use pyo3::prelude::*;
 
 use crate::{
-    infrastructure::{error::into_pyerr, instance::InstanceHandle},
+    infrastructure::{error::into_pyerr, instance::InstanceHandle, qos::PublisherQos},
     publication::publisher::Publisher,
     subscription::subscriber::Subscriber,
     topic_definition::{topic::Topic, type_support::MyDdsData},
@@ -25,8 +25,12 @@ impl AsRef<dust_dds::domain::domain_participant::DomainParticipant> for DomainPa
 
 #[pymethods]
 impl DomainParticipant {
-    pub fn create_publisher(&self) -> PyResult<Publisher> {
-        match self.0.create_publisher(QosKind::Default, None, NO_STATUS) {
+    pub fn create_publisher(&self, qos: Option<PublisherQos>) -> PyResult<Publisher> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+        match self.0.create_publisher(qos, None, NO_STATUS) {
             Ok(p) => Ok(p.into()),
             Err(_) => todo!(),
         }

@@ -365,7 +365,7 @@ impl Default for DurabilityQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Enumeration representing the different types of Presentation QoS policy access scope.
 pub enum PresentationQosPolicyAccessScopeKind {
     /// Access scope per instance

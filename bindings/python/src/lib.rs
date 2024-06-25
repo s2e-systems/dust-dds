@@ -23,6 +23,7 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos_policy::DurabilityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::DurabilityQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::EntityFactoryQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::GroupDataQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::HistoryQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::HistoryQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::LatencyBudgetQosPolicy>()?;
@@ -32,6 +33,7 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos_policy::LivelinessQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::OwnershipQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::OwnershipQosPolicyKind>()?;
+    m.add_class::<infrastructure::qos_policy::PartitionQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::ReliabilityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::ReliabilityQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::ResourceLimitsQosPolicy>()?;
@@ -42,6 +44,8 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Add Qos classes
     m.add_class::<infrastructure::qos::DomainParticipantFactoryQos>()?;
     m.add_class::<infrastructure::qos::DomainParticipantQos>()?;
+    m.add_class::<infrastructure::qos::SubscriberQos>()?;
+    m.add_class::<infrastructure::qos::PublisherQos>()?;
     m.add_class::<infrastructure::qos::TopicQos>()?;
 
     Ok(())
