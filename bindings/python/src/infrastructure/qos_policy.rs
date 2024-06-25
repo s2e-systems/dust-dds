@@ -796,3 +796,37 @@ impl OwnershipQosPolicy {
         self.0.kind = value.into()
     }
 }
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct GroupDataQosPolicy(dust_dds::infrastructure::qos_policy::GroupDataQosPolicy);
+
+impl From<GroupDataQosPolicy> for dust_dds::infrastructure::qos_policy::GroupDataQosPolicy {
+    fn from(value: GroupDataQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::GroupDataQosPolicy> for GroupDataQosPolicy {
+    fn from(value: dust_dds::infrastructure::qos_policy::GroupDataQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl GroupDataQosPolicy {
+    #[new]
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::GroupDataQosPolicy { value })
+    }
+
+    #[getter]
+    pub fn get_value(&self) -> &[u8] {
+        &self.0.value
+    }
+
+    #[setter]
+    pub fn set_value(&mut self, value: Vec<u8>) {
+        self.0.value = value;
+    }
+}
