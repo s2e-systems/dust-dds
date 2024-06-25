@@ -21,6 +21,9 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos_policy::DurabilityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::DurabilityQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::EntityFactoryQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::LatencyBudgetQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::LivelinessQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::LivelinessQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::TopicDataQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::UserDataQosPolicy>()?;
 

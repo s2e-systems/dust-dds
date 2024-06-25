@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use super::time::DurationKind;
 
-#[pyclass(frozen)]
+#[pyclass]
 #[derive(Clone, Default)]
 pub struct UserDataQosPolicy(dust_dds::infrastructure::qos_policy::UserDataQosPolicy);
 
@@ -25,7 +25,7 @@ impl UserDataQosPolicy {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass]
 #[derive(Clone, Default)]
 pub struct EntityFactoryQosPolicy(dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy);
 
@@ -52,7 +52,7 @@ impl EntityFactoryQosPolicy {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass]
 #[derive(Clone, Default)]
 pub struct TopicDataQosPolicy(dust_dds::infrastructure::qos_policy::TopicDataQosPolicy);
 
@@ -112,7 +112,7 @@ impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind>
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass]
 #[derive(Clone, Default)]
 pub struct DurabilityQosPolicy(dust_dds::infrastructure::qos_policy::DurabilityQosPolicy);
 
@@ -135,7 +135,7 @@ impl DurabilityQosPolicy {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass]
 #[derive(Clone, Default)]
 pub struct DeadlineQosPolicy(dust_dds::infrastructure::qos_policy::DeadlineQosPolicy);
 
@@ -157,5 +157,107 @@ impl DeadlineQosPolicy {
     #[getter]
     pub fn get_period(&self) -> DurationKind {
         self.0.period.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct LatencyBudgetQosPolicy(dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy);
+
+impl From<LatencyBudgetQosPolicy> for dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy {
+    fn from(value: LatencyBudgetQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl LatencyBudgetQosPolicy {
+    #[new]
+    pub fn new(duration: DurationKind) -> Self {
+        Self(
+            dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy {
+                duration: duration.into(),
+            },
+        )
+    }
+
+    #[getter]
+    pub fn get_duration(&self) -> DurationKind {
+        self.0.duration.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub enum LivelinessQosPolicyKind {
+    Automatic,
+    ManualByParticipant,
+    ManualByTopic,
+}
+
+impl From<LivelinessQosPolicyKind>
+    for dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind
+{
+    fn from(value: LivelinessQosPolicyKind) -> Self {
+        match value {
+            LivelinessQosPolicyKind::Automatic => {
+                dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::Automatic
+            }
+            LivelinessQosPolicyKind::ManualByParticipant => {
+                dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByParticipant
+            }
+            LivelinessQosPolicyKind::ManualByTopic => {
+                dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByTopic
+            }
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind>
+    for LivelinessQosPolicyKind
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind) -> Self {
+        match value {
+            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::Automatic => {
+                LivelinessQosPolicyKind::Automatic
+            }
+            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByParticipant => {
+                LivelinessQosPolicyKind::ManualByParticipant
+            }
+            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByTopic => {
+                LivelinessQosPolicyKind::ManualByTopic
+            }
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct LivelinessQosPolicy(dust_dds::infrastructure::qos_policy::LivelinessQosPolicy);
+
+impl From<LivelinessQosPolicy> for dust_dds::infrastructure::qos_policy::LivelinessQosPolicy {
+    fn from(value: LivelinessQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl LivelinessQosPolicy {
+    #[new]
+    pub fn new(kind: LivelinessQosPolicyKind, lease_duration: DurationKind) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::LivelinessQosPolicy {
+            kind: kind.into(),
+            lease_duration: lease_duration.into(),
+        })
+    }
+
+    #[getter]
+    pub fn get_kind(&self) -> DurationKind {
+        self.0.lease_duration.into()
+    }
+
+    #[getter]
+    pub fn get_lease_duration(&self) -> DurationKind {
+        self.0.lease_duration.into()
     }
 }

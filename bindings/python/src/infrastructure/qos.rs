@@ -1,8 +1,8 @@
 use pyo3::prelude::*;
 
 use super::qos_policy::{
-    DeadlineQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy, TopicDataQosPolicy,
-    UserDataQosPolicy,
+    DeadlineQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy, LatencyBudgetQosPolicy,
+    LivelinessQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
 };
 
 #[pyclass]
@@ -83,22 +83,26 @@ impl From<dust_dds::infrastructure::qos::TopicQos> for TopicQos {
 #[pymethods]
 impl TopicQos {
     #[new]
-    #[pyo3(signature =
-        (topic_data = TopicDataQosPolicy::default(),
+    #[pyo3(signature = (
+        topic_data = TopicDataQosPolicy::default(),
         durability = DurabilityQosPolicy::default(),
-        deadline = DeadlineQosPolicy::default())
-    )]
+        deadline = DeadlineQosPolicy::default(),
+        latency_budget = LatencyBudgetQosPolicy::default(),
+        liveliness = LivelinessQosPolicy::default(),
+    ))]
     pub fn new(
         topic_data: TopicDataQosPolicy,
         durability: DurabilityQosPolicy,
         deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::TopicQos {
             topic_data: topic_data.into(),
             durability: durability.into(),
             deadline: deadline.into(),
-            latency_budget: todo!(),
-            liveliness: todo!(),
+            latency_budget: latency_budget.into(),
+            liveliness: liveliness.into(),
             reliability: todo!(),
             destination_order: todo!(),
             history: todo!(),
