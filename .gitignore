@@ -15,3 +15,5 @@ interoperability_tests/big_data.rs
 build/
 interoperability_tests/target/
 shapes_demo/target/idl/shapes_type.rs
+shapes_demo/android/keystore.properties
+shapes_demo/android/app/androidkeystore.jks

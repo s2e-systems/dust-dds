@@ -4,6 +4,20 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        release {
+            def keystorePropertiesFile = rootProject.file("keystore.properties")
+            def keystoreProperties = new Properties()
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
     namespace 'com.s2e_systems.dustddsshapesdemo'
     ndkVersion "27.0.11902837"
     compileSdk 35
@@ -20,6 +34,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
@@ -36,6 +51,7 @@ android {
         verbose = true
         prebuiltToolchains = true
         targetDirectory = "../../../target"
+        profile = 'release'
     }
 }
 
