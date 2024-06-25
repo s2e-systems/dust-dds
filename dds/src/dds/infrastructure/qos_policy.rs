@@ -539,7 +539,7 @@ impl Default for LatencyBudgetQosPolicy {
 }
 
 /// Enumeration representing the different types of Ownership QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum OwnershipQosPolicyKind {
     /// Shared ownership QoS policy
     Shared,

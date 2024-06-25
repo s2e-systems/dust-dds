@@ -7,8 +7,9 @@ use crate::infrastructure::{
 
 use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
-    HistoryQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy, ReliabilityQosPolicy,
-    TopicDataQosPolicy, UserDataQosPolicy,
+    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+    OwnershipQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+    UserDataQosPolicy,
 };
 
 #[pyclass]
@@ -104,6 +105,9 @@ impl TopicQos {
         destination_order = DestinationOrderQosPolicy::default(),
         history = HistoryQosPolicy::default(),
         resource_limits = ResourceLimitsQosPolicy::default(),
+        transport_priority = TransportPriorityQosPolicy::default(),
+        lifespan = LifespanQosPolicy::default(),
+        ownership = OwnershipQosPolicy::default(),
     ))]
     pub fn new(
         topic_data: TopicDataQosPolicy,
@@ -115,6 +119,9 @@ impl TopicQos {
         destination_order: DestinationOrderQosPolicy,
         history: HistoryQosPolicy,
         resource_limits: ResourceLimitsQosPolicy,
+        transport_priority: TransportPriorityQosPolicy,
+        lifespan: LifespanQosPolicy,
+        ownership: OwnershipQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::TopicQos {
             topic_data: topic_data.into(),
@@ -126,9 +133,9 @@ impl TopicQos {
             destination_order: destination_order.into(),
             history: history.into(),
             resource_limits: resource_limits.into(),
-            transport_priority: todo!(),
-            lifespan: todo!(),
-            ownership: todo!(),
+            transport_priority: transport_priority.into(),
+            lifespan: lifespan.into(),
+            ownership: ownership.into(),
         })
     }
 }

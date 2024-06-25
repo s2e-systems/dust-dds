@@ -515,3 +515,104 @@ impl ResourceLimitsQosPolicy {
         self.0.max_samples_per_instance.into()
     }
 }
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct TransportPriorityQosPolicy(
+    dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy,
+);
+
+impl From<TransportPriorityQosPolicy>
+    for dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy
+{
+    fn from(value: TransportPriorityQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl TransportPriorityQosPolicy {
+    #[new]
+    pub fn new(value: i32) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy { value })
+    }
+
+    #[getter]
+    pub fn get_value(&self) -> i32 {
+        self.0.value.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct LifespanQosPolicy(dust_dds::infrastructure::qos_policy::LifespanQosPolicy);
+
+impl From<LifespanQosPolicy> for dust_dds::infrastructure::qos_policy::LifespanQosPolicy {
+    fn from(value: LifespanQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl LifespanQosPolicy {
+    #[new]
+    pub fn new(duration: DurationKind) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::LifespanQosPolicy {
+            duration: duration.into(),
+        })
+    }
+
+    #[getter]
+    pub fn get_duration(&self) -> DurationKind {
+        self.0.duration.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub enum OwnershipQosPolicyKind {
+    Shared,
+}
+
+impl From<OwnershipQosPolicyKind> for dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind {
+    fn from(value: OwnershipQosPolicyKind) -> Self {
+        match value {
+            OwnershipQosPolicyKind::Shared => {
+                dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Shared
+            }
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind> for OwnershipQosPolicyKind {
+    fn from(value: dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind) -> Self {
+        match value {
+            dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Shared => {
+                OwnershipQosPolicyKind::Shared
+            }
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct OwnershipQosPolicy(dust_dds::infrastructure::qos_policy::OwnershipQosPolicy);
+
+impl From<OwnershipQosPolicy> for dust_dds::infrastructure::qos_policy::OwnershipQosPolicy {
+    fn from(value: OwnershipQosPolicy) -> Self {
+        value.0
+    }
+}
+
+#[pymethods]
+impl OwnershipQosPolicy {
+    #[new]
+    pub fn new(kind: OwnershipQosPolicyKind) -> Self {
+        Self(dust_dds::infrastructure::qos_policy::OwnershipQosPolicy { kind: kind.into() })
+    }
+
+    #[getter]
+    pub fn get_kind(&self) -> OwnershipQosPolicyKind {
+        self.0.kind.into()
+    }
+}

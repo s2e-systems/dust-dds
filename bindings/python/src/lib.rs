@@ -27,12 +27,16 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos_policy::HistoryQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::LatencyBudgetQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::Length>()?;
+    m.add_class::<infrastructure::qos_policy::LifespanQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::LivelinessQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::LivelinessQosPolicyKind>()?;
+    m.add_class::<infrastructure::qos_policy::OwnershipQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::OwnershipQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::ReliabilityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::ReliabilityQosPolicyKind>()?;
     m.add_class::<infrastructure::qos_policy::ResourceLimitsQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::TopicDataQosPolicy>()?;
+    m.add_class::<infrastructure::qos_policy::TransportPriorityQosPolicy>()?;
     m.add_class::<infrastructure::qos_policy::UserDataQosPolicy>()?;
 
     // Add Qos classes
