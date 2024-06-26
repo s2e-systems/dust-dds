@@ -146,7 +146,7 @@ impl DomainParticipant {
     // }
     // pub fn contains_entity(&self, a_handle: InstanceHandle) -> PyResult<bool> {}
     // pub fn get_current_time(&self) -> PyResult<Time> {}
-    // pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> PyResult<()> {}\
+    // pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> PyResult<()> {}
     // pub fn get_qos(&self) -> PyResult<DomainParticipantQos> {}
     // pub fn set_listener(
     //     &self,

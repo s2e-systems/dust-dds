@@ -1,6 +1,10 @@
 import dust_dds
 import time
 
+class MyListener:
+    def on_data_available():
+        print("On data available")
+
 def test_write_read():
     participant_factory = dust_dds.DomainParticipantFactory()
     participant = participant_factory.create_participant(domain_id = 100)
@@ -10,7 +14,7 @@ def test_write_read():
     data_writer = publisher.create_datawriter(topic)
 
     subscriber = participant.create_subscriber()
-    data_reader = subscriber.create_datareader(topic)
+    data_reader = subscriber.create_datareader(topic, a_listener = MyListener, mask=[dust_dds.StatusKind.DataAvailable])
 
     # Wait for discovery
     time.sleep(2)

@@ -1,9 +1,11 @@
-use dust_dds::infrastructure::status::NO_STATUS;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
-use crate::topic_definition::topic::Topic;
+use crate::{
+    infrastructure::{qos::DataReaderQos, status::StatusKind},
+    topic_definition::{topic::Topic, type_support::MyDdsData},
+};
 
-use super::data_reader::DataReader;
+use super::{data_reader::DataReader, data_reader_listener::DataReaderListener};
 
 #[pyclass]
 pub struct Subscriber(dust_dds::subscription::subscriber::Subscriber);
@@ -22,19 +24,37 @@ impl AsRef<dust_dds::subscription::subscriber::Subscriber> for Subscriber {
 
 #[pymethods]
 impl Subscriber {
+    #[pyo3(signature = (a_topic, qos = None, a_listener = None, mask = Vec::new()))]
     pub fn create_datareader<'a>(
         &self,
         a_topic: &Topic,
-        // qos: QosKind<DataReaderQos>,
-        // a_listener: Option<Box<dyn DataReaderListener<'a, Foo = Foo> + Send + 'a>>,
-        // mask: &[StatusKind],
+        qos: Option<DataReaderQos>,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
     ) -> PyResult<DataReader> {
-        match self.0.create_datareader(
-            a_topic.as_ref(),
-            dust_dds::infrastructure::qos::QosKind::Default,
-            None,
-            NO_STATUS,
-        ) {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
+            mask.into_iter().map(|m| m.into()).collect();
+
+        let listener: Option<
+            Box<
+                dyn dust_dds::subscription::data_reader_listener::DataReaderListener<
+                        Foo = MyDdsData,
+                    > + Send,
+            >,
+        > = match a_listener {
+            Some(l) => Some(Box::new(DataReaderListener::from(l))),
+            None => None,
+        };
+
+        match self
+            .0
+            .create_datareader(a_topic.as_ref(), qos, listener, &mask)
+        {
             Ok(dr) => Ok(dr.into()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
