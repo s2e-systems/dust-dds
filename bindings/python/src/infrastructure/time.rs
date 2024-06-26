@@ -64,3 +64,37 @@ impl From<dust_dds::infrastructure::time::DurationKind> for DurationKind {
         }
     }
 }
+
+#[pyclass]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct Time(dust_dds::infrastructure::time::Time);
+
+impl From<Time> for dust_dds::infrastructure::time::Time {
+    fn from(value: Time) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::time::Time> for Time {
+    fn from(value: dust_dds::infrastructure::time::Time) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl Time {
+    #[new]
+    pub fn new(sec: i32, nanosec: u32) -> Self {
+        Self(dust_dds::infrastructure::time::Time::new(sec, nanosec))
+    }
+
+    #[getter]
+    pub fn get_sec(&self) -> i32 {
+        self.0.sec()
+    }
+
+    #[getter]
+    pub fn get_nanosec(&self) -> u32 {
+        self.0.nanosec()
+    }
+}

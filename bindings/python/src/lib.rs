@@ -1,3 +1,4 @@
+mod builtin_topics;
 mod domain;
 mod infrastructure;
 mod publication;

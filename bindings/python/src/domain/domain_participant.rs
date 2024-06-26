@@ -1,12 +1,20 @@
-use dust_dds::infrastructure::{qos::QosKind, status::NO_STATUS};
 use pyo3::prelude::*;
 
 use crate::{
-    infrastructure::{error::into_pyerr, instance::InstanceHandle, qos::PublisherQos},
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-    topic_definition::{topic::Topic, type_support::MyDdsData},
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    infrastructure::{
+        error::into_pyerr,
+        instance::InstanceHandle,
+        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        status::StatusKind,
+        time::Time,
+    },
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    subscription::{subcriber_listener::SubscriberListener, subscriber::Subscriber},
+    topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::MyDdsData},
 };
+
+use super::domain_participant_listener::DomainParticipantListener;
 
 #[pyclass]
 pub struct DomainParticipant(dust_dds::domain::domain_participant::DomainParticipant);
@@ -25,14 +33,30 @@ impl AsRef<dust_dds::domain::domain_participant::DomainParticipant> for DomainPa
 
 #[pymethods]
 impl DomainParticipant {
-    pub fn create_publisher(&self, qos: Option<PublisherQos>) -> PyResult<Publisher> {
+    #[pyo3(signature = (qos=None, a_listener=None, mask=Vec::new()))]
+    pub fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
+    ) -> PyResult<Publisher> {
         let qos = match qos {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
-        match self.0.create_publisher(qos, None, NO_STATUS) {
+
+        let listener: Option<
+            Box<dyn dust_dds::publication::publisher_listener::PublisherListener + Send>,
+        > = match a_listener {
+            Some(l) => Some(Box::new(PublisherListener::from(l))),
+            None => None,
+        };
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
+            mask.into_iter().map(|m| m.into()).collect();
+
+        match self.0.create_publisher(qos, listener, &mask) {
             Ok(p) => Ok(p.into()),
-            Err(_) => todo!(),
+            Err(e) => Err(into_pyerr(e)),
         }
     }
 
@@ -43,10 +67,30 @@ impl DomainParticipant {
         }
     }
 
-    pub fn create_subscriber(&self) -> PyResult<Subscriber> {
-        match self.0.create_subscriber(QosKind::Default, None, NO_STATUS) {
+    #[pyo3(signature = (qos=None, a_listener=None, mask=Vec::new()))]
+    pub fn create_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
+    ) -> PyResult<Subscriber> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+
+        let listener: Option<
+            Box<dyn dust_dds::subscription::subscriber_listener::SubscriberListener + Send>,
+        > = match a_listener {
+            Some(l) => Some(Box::new(SubscriberListener::from(l))),
+            None => None,
+        };
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
+            mask.into_iter().map(|m| m.into()).collect();
+
+        match self.0.create_subscriber(qos, listener, &mask) {
             Ok(s) => Ok(s.into()),
-            Err(_) => todo!(),
+            Err(e) => Err(into_pyerr(e)),
         }
     }
 
@@ -57,14 +101,32 @@ impl DomainParticipant {
         }
     }
 
-    pub fn create_topic(&self, topic_name: String, type_name: String) -> PyResult<Topic> {
-        match self.0.create_topic::<MyDdsData>(
-            &topic_name,
-            &type_name,
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        ) {
+    #[pyo3(signature = (topic_name, type_name, qos = None, a_listener = None, mask = Vec::new() ))]
+    pub fn create_topic(
+        &self,
+        topic_name: String,
+        type_name: String,
+        qos: Option<TopicQos>,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
+    ) -> PyResult<Topic> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+
+        let listener: Option<
+            Box<dyn dust_dds::topic_definition::topic_listener::TopicListener + Send>,
+        > = match a_listener {
+            Some(l) => Some(Box::new(TopicListener::from(l))),
+            None => None,
+        };
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
+            mask.into_iter().map(|m| m.into()).collect();
+        match self
+            .0
+            .create_topic::<MyDdsData>(&topic_name, &type_name, qos, listener, &mask)
+        {
             Ok(t) => Ok(t.into()),
             Err(e) => Err(into_pyerr(e)),
         }
@@ -80,7 +142,7 @@ impl DomainParticipant {
     pub fn lookup_topicdescription(&self, topic_name: String) -> PyResult<Option<Topic>> {
         match self.0.lookup_topicdescription(&topic_name) {
             Ok(t) => Ok(t.map(|t| t.into())),
-            Err(_) => todo!(),
+            Err(e) => Err(into_pyerr(e)),
         }
     }
 
@@ -126,35 +188,170 @@ impl DomainParticipant {
         self.0.assert_liveliness().map_err(|e| into_pyerr(e))
     }
 
-    // pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> PyResult<()> {}
-    // pub fn get_default_publisher_qos(&self) -> PyResult<PublisherQos> {}
-    // pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> PyResult<()> {}
-    // pub fn get_default_subscriber_qos(&self) -> PyResult<SubscriberQos> {}
-    // pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> PyResult<()> {}
-    // pub fn get_default_topic_qos(&self) -> PyResult<TopicQos> {}
-    // pub fn get_discovered_participants(&self) -> PyResult<Vec<InstanceHandle>> {}
-    // pub fn get_discovered_participant_data(
-    //     &self,
-    //     participant_handle: InstanceHandle,
-    // ) -> PyResult<ParticipantBuiltinTopicData> {
-    // }
-    // pub fn get_discovered_topics(&self) -> PyResult<Vec<InstanceHandle>> {}
-    // pub fn get_discovered_topic_data(
-    //     &self,
-    //     topic_handle: InstanceHandle,
-    // ) -> PyResult<TopicBuiltinTopicData> {
-    // }
-    // pub fn contains_entity(&self, a_handle: InstanceHandle) -> PyResult<bool> {}
-    // pub fn get_current_time(&self) -> PyResult<Time> {}
-    // pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> PyResult<()> {}
-    // pub fn get_qos(&self) -> PyResult<DomainParticipantQos> {}
-    // pub fn set_listener(
-    //     &self,
-    //     a_listener: Option<Box<dyn DomainParticipantListener + Send + 'static>>,
-    //     mask: &[StatusKind],
-    // ) -> PyResult<()> {}
+    pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> PyResult<()> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+        self.0
+            .set_default_publisher_qos(qos)
+            .map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_default_publisher_qos(&self) -> PyResult<PublisherQos> {
+        Ok(self
+            .0
+            .get_default_publisher_qos()
+            .map_err(|e| into_pyerr(e))?
+            .into())
+    }
+
+    pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> PyResult<()> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+        self.0
+            .set_default_subscriber_qos(qos)
+            .map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_default_subscriber_qos(&self) -> PyResult<SubscriberQos> {
+        Ok(self
+            .0
+            .get_default_subscriber_qos()
+            .map_err(|e| into_pyerr(e))?
+            .into())
+    }
+
+    pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> PyResult<()> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+        self.0.set_default_topic_qos(qos).map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_default_topic_qos(&self) -> PyResult<TopicQos> {
+        Ok(self
+            .0
+            .get_default_topic_qos()
+            .map_err(|e| into_pyerr(e))?
+            .into())
+    }
+
+    pub fn get_discovered_participants(&self) -> PyResult<Vec<InstanceHandle>> {
+        Ok(self
+            .0
+            .get_discovered_participants()
+            .map_err(|e| into_pyerr(e))?
+            .into_iter()
+            .map(|p| p.into())
+            .collect())
+    }
+
+    pub fn get_discovered_participant_data(
+        &self,
+        participant_handle: InstanceHandle,
+    ) -> PyResult<ParticipantBuiltinTopicData> {
+        Ok(self
+            .0
+            .get_discovered_participant_data(participant_handle.into())
+            .map_err(|e| into_pyerr(e))?
+            .into())
+    }
+
+    pub fn get_discovered_topics(&self) -> PyResult<Vec<InstanceHandle>> {
+        Ok(self
+            .0
+            .get_discovered_topics()
+            .map_err(|e| into_pyerr(e))?
+            .into_iter()
+            .map(|p| p.into())
+            .collect())
+    }
+
+    pub fn get_discovered_topic_data(
+        &self,
+        topic_handle: InstanceHandle,
+    ) -> PyResult<TopicBuiltinTopicData> {
+        Ok(self
+            .0
+            .get_discovered_topic_data(topic_handle.into())
+            .map_err(|e| into_pyerr(e))?
+            .into())
+    }
+
+    pub fn contains_entity(&self, a_handle: InstanceHandle) -> PyResult<bool> {
+        self.0
+            .contains_entity(a_handle.into())
+            .map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_current_time(&self) -> PyResult<Time> {
+        match self.0.get_current_time() {
+            Ok(t) => Ok(t.into()),
+            Err(e) => Err(into_pyerr(e)),
+        }
+    }
+
+    pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> PyResult<()> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+        self.0.set_qos(qos).map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_qos(&self) -> PyResult<DomainParticipantQos> {
+        match self.0.get_qos() {
+            Ok(q) => Ok(q.into()),
+            Err(e) => Err(into_pyerr(e)),
+        }
+    }
+
+    #[pyo3(signature = (a_listener = None, mask = Vec::new()))]
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
+    ) -> PyResult<()> {
+        let listener: Option<
+            Box<
+                dyn dust_dds::domain::domain_participant_listener::DomainParticipantListener + Send,
+            >,
+        > = match a_listener {
+            Some(l) => Some(Box::new(DomainParticipantListener::from(l))),
+            None => None,
+        };
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
+            mask.into_iter().map(|m| m.into()).collect();
+        self.0
+            .set_listener(listener, &mask)
+            .map_err(|e| into_pyerr(e))
+    }
+
     // pub fn get_statuscondition(&self) -> StatusCondition {}
-    // pub fn get_status_changes(&self) -> PyResult<Vec<StatusKind>> {}
-    // pub fn enable(&self) -> PyResult<()> {}
-    // pub fn get_instance_handle(&self) -> PyResult<InstanceHandle> {}
+
+    pub fn get_status_changes(&self) -> PyResult<Vec<StatusKind>> {
+        Ok(self
+            .0
+            .get_status_changes()
+            .map_err(|e| into_pyerr(e))?
+            .into_iter()
+            .map(|s| s.into())
+            .collect())
+    }
+
+    pub fn enable(&self) -> PyResult<()> {
+        self.0.enable().map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_instance_handle(&self) -> PyResult<InstanceHandle> {
+        Ok(self
+            .0
+            .get_instance_handle()
+            .map_err(|e| into_pyerr(e))?
+            .into())
+    }
 }
