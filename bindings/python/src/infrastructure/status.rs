@@ -1,4 +1,7 @@
+use dust_dds::infrastructure::qos_policy::QosPolicyId;
 use pyo3::prelude::*;
+
+use super::instance::InstanceHandle;
 
 #[pyclass]
 #[derive(Clone)]
@@ -103,5 +106,404 @@ impl From<dust_dds::infrastructure::status::StatusKind> for StatusKind {
                 StatusKind::SubscriptionMatched
             }
         }
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct InconsistentTopicStatus(dust_dds::infrastructure::status::InconsistentTopicStatus);
+
+impl From<dust_dds::infrastructure::status::InconsistentTopicStatus> for InconsistentTopicStatus {
+    fn from(value: dust_dds::infrastructure::status::InconsistentTopicStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl InconsistentTopicStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct SampleLostStatus(dust_dds::infrastructure::status::SampleLostStatus);
+
+impl From<dust_dds::infrastructure::status::SampleLostStatus> for SampleLostStatus {
+    fn from(value: dust_dds::infrastructure::status::SampleLostStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl SampleLostStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub enum SampleRejectedStatusKind {
+    NotRejected,
+    RejectedByInstancesLimit,
+    RejectedBySamplesLimit,
+    RejectedBySamplesPerInstanceLimit,
+}
+
+impl From<dust_dds::infrastructure::status::SampleRejectedStatusKind> for SampleRejectedStatusKind {
+    fn from(value: dust_dds::infrastructure::status::SampleRejectedStatusKind) -> Self {
+        match value {
+            dust_dds::infrastructure::status::SampleRejectedStatusKind::NotRejected => SampleRejectedStatusKind::NotRejected,
+            dust_dds::infrastructure::status::SampleRejectedStatusKind::RejectedByInstancesLimit => SampleRejectedStatusKind::RejectedByInstancesLimit,
+            dust_dds::infrastructure::status::SampleRejectedStatusKind::RejectedBySamplesLimit => SampleRejectedStatusKind::RejectedBySamplesLimit,
+            dust_dds::infrastructure::status::SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit => SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct SampleRejectedStatus(dust_dds::infrastructure::status::SampleRejectedStatus);
+
+impl From<dust_dds::infrastructure::status::SampleRejectedStatus> for SampleRejectedStatus {
+    fn from(value: dust_dds::infrastructure::status::SampleRejectedStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl SampleRejectedStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_reason(&self) -> SampleRejectedStatusKind {
+        self.0.last_reason.into()
+    }
+
+    #[getter]
+    pub fn get_last_instance_handle(&self) -> InstanceHandle {
+        self.0.last_instance_handle.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct LivelinessLostStatus(dust_dds::infrastructure::status::LivelinessLostStatus);
+
+impl From<dust_dds::infrastructure::status::LivelinessLostStatus> for LivelinessLostStatus {
+    fn from(value: dust_dds::infrastructure::status::LivelinessLostStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl LivelinessLostStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct LivelinessChangedStatus(dust_dds::infrastructure::status::LivelinessChangedStatus);
+
+impl From<dust_dds::infrastructure::status::LivelinessChangedStatus> for LivelinessChangedStatus {
+    fn from(value: dust_dds::infrastructure::status::LivelinessChangedStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl LivelinessChangedStatus {
+    #[getter]
+    pub fn get_alive_count(&self) -> i32 {
+        self.0.alive_count
+    }
+
+    #[getter]
+    pub fn get_not_alive_count(&self) -> i32 {
+        self.0.not_alive_count
+    }
+
+    #[getter]
+    pub fn get_alive_count_change(&self) -> i32 {
+        self.0.alive_count_change
+    }
+
+    #[getter]
+    pub fn get_not_alive_count_change(&self) -> i32 {
+        self.0.not_alive_count_change
+    }
+
+    #[getter]
+    pub fn get_last_publication_handle(&self) -> InstanceHandle {
+        self.0.last_publication_handle.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct OfferedDeadlineMissedStatus(
+    dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
+);
+
+impl From<dust_dds::infrastructure::status::OfferedDeadlineMissedStatus>
+    for OfferedDeadlineMissedStatus
+{
+    fn from(value: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl OfferedDeadlineMissedStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_instance_handle(&self) -> InstanceHandle {
+        self.0.last_instance_handle.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct RequestedDeadlineMissedStatus(
+    dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
+);
+
+impl From<dust_dds::infrastructure::status::RequestedDeadlineMissedStatus>
+    for RequestedDeadlineMissedStatus
+{
+    fn from(value: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl RequestedDeadlineMissedStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_instance_handle(&self) -> InstanceHandle {
+        self.0.last_instance_handle.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct QosPolicyCount(dust_dds::infrastructure::status::QosPolicyCount);
+
+impl From<dust_dds::infrastructure::status::QosPolicyCount> for QosPolicyCount {
+    fn from(value: dust_dds::infrastructure::status::QosPolicyCount) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl QosPolicyCount {
+    #[getter]
+    pub fn get_policy_id(&self) -> QosPolicyId {
+        self.0.policy_id
+    }
+
+    #[getter]
+    pub fn get_count(&self) -> i32 {
+        self.0.count
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct OfferedIncompatibleQosStatus(
+    dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
+);
+
+impl From<dust_dds::infrastructure::status::OfferedIncompatibleQosStatus>
+    for OfferedIncompatibleQosStatus
+{
+    fn from(value: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl OfferedIncompatibleQosStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_policy_id(&self) -> QosPolicyId {
+        self.0.last_policy_id
+    }
+
+    #[getter]
+    pub fn get_policies(&self) -> Vec<QosPolicyCount> {
+        self.0.policies.iter().map(|p| p.clone().into()).collect()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct RequestedIncompatibleQosStatus(
+    dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
+);
+
+impl From<dust_dds::infrastructure::status::RequestedIncompatibleQosStatus>
+    for RequestedIncompatibleQosStatus
+{
+    fn from(value: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl RequestedIncompatibleQosStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_policy_id(&self) -> QosPolicyId {
+        self.0.last_policy_id
+    }
+
+    #[getter]
+    pub fn get_policies(&self) -> Vec<QosPolicyCount> {
+        self.0.policies.iter().map(|p| p.clone().into()).collect()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PublicationMatchedStatus(dust_dds::infrastructure::status::PublicationMatchedStatus);
+
+impl From<dust_dds::infrastructure::status::PublicationMatchedStatus> for PublicationMatchedStatus {
+    fn from(value: dust_dds::infrastructure::status::PublicationMatchedStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl PublicationMatchedStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_subscription_handle(&self) -> InstanceHandle {
+        self.0.last_subscription_handle.into()
+    }
+
+    #[getter]
+    pub fn get_current_count(&self) -> i32 {
+        self.0.current_count
+    }
+
+    #[getter]
+    pub fn get_current_count_change(&self) -> i32 {
+        self.0.current_count_change
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct SubscriptionMatchedStatus(dust_dds::infrastructure::status::SubscriptionMatchedStatus);
+
+impl From<dust_dds::infrastructure::status::SubscriptionMatchedStatus>
+    for SubscriptionMatchedStatus
+{
+    fn from(value: dust_dds::infrastructure::status::SubscriptionMatchedStatus) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl SubscriptionMatchedStatus {
+    #[getter]
+    pub fn get_total_count(&self) -> i32 {
+        self.0.total_count
+    }
+
+    #[getter]
+    pub fn get_total_count_change(&self) -> i32 {
+        self.0.total_count_change
+    }
+
+    #[getter]
+    pub fn get_last_publication_handle(&self) -> InstanceHandle {
+        self.0.last_publication_handle.into()
+    }
+
+    #[getter]
+    pub fn get_current_count(&self) -> i32 {
+        self.0.current_count
+    }
+
+    #[getter]
+    pub fn get_current_count_change(&self) -> i32 {
+        self.0.current_count_change
     }
 }

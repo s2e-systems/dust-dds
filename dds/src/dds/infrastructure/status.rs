@@ -65,7 +65,7 @@ pub struct SampleLostStatus {
 }
 
 /// Enumeration for the kind of sample rejected kind
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SampleRejectedStatusKind {
     /// Sample not rejected
     NotRejected,
