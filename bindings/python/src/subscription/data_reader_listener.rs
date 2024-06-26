@@ -1,6 +1,12 @@
 use pyo3::prelude::*;
 
-use crate::topic_definition::type_support::MyDdsData;
+use crate::{
+    infrastructure::status::{
+        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+    },
+    topic_definition::type_support::MyDdsData,
+};
 
 use super::data_reader::DataReader;
 
@@ -41,43 +47,100 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_sample_rejected(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
-        _status: dust_dds::infrastructure::status::SampleRejectedStatus,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        status: dust_dds::infrastructure::status::SampleRejectedStatus,
     ) {
+        let args = (
+            DataReader::from(the_reader),
+            SampleRejectedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_sample_rejected", args, None)
+                .unwrap();
+        })
     }
 
     fn on_liveliness_changed(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
-        _status: dust_dds::infrastructure::status::LivelinessChangedStatus,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) {
+        let args = (
+            DataReader::from(the_reader),
+            LivelinessChangedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_liveliness_changed", args, None)
+                .unwrap();
+        })
     }
 
     fn on_requested_deadline_missed(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
-        _status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) {
+        let args = (
+            DataReader::from(the_reader),
+            RequestedDeadlineMissedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_requested_deadline_missed", args, None)
+                .unwrap();
+        })
     }
 
     fn on_requested_incompatible_qos(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
-        _status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) {
+        let args = (
+            DataReader::from(the_reader),
+            RequestedIncompatibleQosStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_requested_incompatible_qos", args, None)
+                .unwrap();
+        })
     }
 
     fn on_subscription_matched(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
-        _status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
+        let args = (
+            DataReader::from(the_reader),
+            SubscriptionMatchedStatus::from(status),
+        );
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_subscription_matched", args, None)
+                .unwrap();
+        })
     }
 
     fn on_sample_lost(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
-        _status: dust_dds::infrastructure::status::SampleLostStatus,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        status: dust_dds::infrastructure::status::SampleLostStatus,
     ) {
+        let args = (DataReader::from(the_reader), SampleLostStatus::from(status));
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .call_method("on_sample_lost", args, None)
+                .unwrap();
+        })
     }
 }
