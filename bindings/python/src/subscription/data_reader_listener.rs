@@ -2,6 +2,8 @@ use pyo3::prelude::*;
 
 use crate::topic_definition::type_support::MyDdsData;
 
+use super::data_reader::DataReader;
+
 #[pyclass]
 #[derive(Clone)]
 pub struct DataReaderListener(Py<PyAny>);
@@ -25,12 +27,14 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for Da
 
     fn on_data_available(
         &mut self,
-        _the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
+        the_reader: dust_dds::subscription::data_reader::DataReader<Self::Foo>,
     ) {
+        let reader = DataReader::from(the_reader);
+        let args = (reader,);
         Python::with_gil(|py| {
             self.0
                 .bind(py)
-                .call_method("on_data_available", (), None)
+                .call_method("on_data_available", args, None)
                 .unwrap();
         })
     }
