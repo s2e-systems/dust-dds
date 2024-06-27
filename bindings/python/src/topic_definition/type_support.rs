@@ -1,5 +1,6 @@
-use dust_dds::topic_definition::type_support::{
-    DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml,
+use dust_dds::{
+    infrastructure::{error::DdsResult, instance::InstanceHandle},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 use pyo3::prelude::*;
 
@@ -33,89 +34,71 @@ impl From<Py<PyAny>> for PythonTypeRepresentation {
 
 impl dust_dds::topic_definition::type_support::DynamicTypeInterface for PythonTypeRepresentation {
     fn has_key(&self) -> bool {
-        todo!()
+        true
     }
 
-    fn get_serialized_key_from_serialized_foo(
-        &self,
-        _serialized_foo: &[u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
+    fn get_serialized_key_from_serialized_foo(&self, _serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
         todo!()
     }
 
     fn instance_handle_from_serialized_foo(
         &self,
         _serialized_foo: &[u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<
-        dust_dds::infrastructure::instance::InstanceHandle,
-    > {
-        todo!()
+    ) -> DdsResult<dust_dds::infrastructure::instance::InstanceHandle> {
+        Ok(InstanceHandle::default())
     }
 
     fn instance_handle_from_serialized_key(
         &self,
         _serialized_key: &[u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<
-        dust_dds::infrastructure::instance::InstanceHandle,
-    > {
+    ) -> DdsResult<dust_dds::infrastructure::instance::InstanceHandle> {
         todo!()
     }
 
     fn xml_type(&self) -> String {
-        todo!()
+        String::new()
     }
 }
 
 #[pyclass]
-pub struct PythonDdsData(Vec<u8>);
+pub struct PythonDdsData {
+    pub data: Vec<u8>,
+    pub key: Vec<u8>,
+}
 
 impl DdsHasKey for PythonDdsData {
     const HAS_KEY: bool = true;
 }
 
 impl DdsKey for PythonDdsData {
-    type Key = ();
+    type Key = Vec<u8>;
 
-    fn get_key(&self) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
-        todo!()
+    fn get_key(&self) -> DdsResult<Self::Key> {
+        Ok(self.key.clone())
     }
 
-    fn get_key_from_serialized_data(
-        serialized_foo: &[u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+    fn get_key_from_serialized_data(_serialized_foo: &[u8]) -> DdsResult<Self::Key> {
         todo!()
     }
 }
 
 impl DdsSerialize for PythonDdsData {
-    fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
-        todo!()
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        Ok(self.data.clone())
     }
 }
 
 impl<'de> DdsDeserialize<'de> for PythonDdsData {
-    fn deserialize_data(
-        _serialized_data: &'de [u8],
-    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
-        todo!()
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+        Ok(Self {
+            data: serialized_data.to_vec(),
+            key: Vec::new(),
+        })
     }
 }
 
 impl DdsTypeXml for PythonDdsData {
     fn get_type_xml() -> Option<String> {
         todo!()
-    }
-}
-
-#[pymethods]
-impl PythonDdsData {
-    #[new]
-    fn new(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-
-    #[getter]
-    fn get_value(&self) -> &[u8] {
-        &self.0
     }
 }

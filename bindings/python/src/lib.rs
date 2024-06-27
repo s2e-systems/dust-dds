@@ -4,6 +4,7 @@ mod infrastructure;
 mod publication;
 mod subscription;
 mod topic_definition;
+mod xtypes;
 
 use pyo3::prelude::*;
 

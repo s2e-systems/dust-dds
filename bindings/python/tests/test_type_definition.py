@@ -1,6 +1,8 @@
+from dataclasses import dataclass
 import dust_dds
 import time
 
+@dataclass
 class MyDataType:
     id : dust_dds.TypeKind.uint32
     state : dust_dds.TypeKind.boolean
@@ -9,28 +11,26 @@ class MyDataType:
 
 
 def test_write_read_my_data_type():
-
-    print(dir())
     participant_factory = dust_dds.DomainParticipantFactory()
     participant = participant_factory.create_participant(domain_id = 100)
     topic = participant.create_topic(topic_name = "TestTopic", type_ = MyDataType)
 
-    # publisher = participant.create_publisher()
-    # data_writer = publisher.create_datawriter(topic)
+    publisher = participant.create_publisher()
+    data_writer = publisher.create_datawriter(topic)
 
-    # subscriber = participant.create_subscriber()
-    # data_reader = subscriber.create_datareader(topic)
+    subscriber = participant.create_subscriber()
+    data_reader = subscriber.create_datareader(topic)
 
-    # # Wait for discovery
-    # time.sleep(2)
+    # Wait for discovery
+    time.sleep(2)
 
-    # data = dust_dds.MyDdsData([0,1,2,3,4])
-    # data_writer.write(data)
+    data = MyDataType(231, True)
+    data_writer.write(data)
 
-    # # Wait for data to be received
-    # time.sleep(2)
+    # Wait for data to be received
+    time.sleep(2)
 
-    # received_data = data_reader.read(max_samples = 1)
+    received_data = data_reader.read(max_samples = 1)
 
-    # print(f"Received data {received_data[0].data.value}")
-    # assert data.value == received_data[0].data.value
+    print(f"Received data {received_data[0].get_data(MyDataType)}")
+    assert data == received_data[0].get_data(MyDataType)

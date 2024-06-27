@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::prelude::*;
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -128,15 +128,8 @@ impl DomainParticipant {
             mask.into_iter().map(|m| m.into()).collect();
 
         let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
-        let type_annotations = Python::with_gil(|py| {
-            type_.getattr(py, "__annotations__").and_then(|a| {
-                { a.downcast_bound::<PyDict>(py).map_err(|e| e.into()) }
-                    .map(|a| a.as_unbound().clone_ref(py))
-            })
-        })?;
-        println!("Annottations Dict: {}", type_annotations);
 
-        let dynamic_type_representation = todo!();
+        let dynamic_type_representation = Box::new(PythonTypeRepresentation::from(type_));
         match self.0.create_dynamic_topic(
             &topic_name,
             &type_name,
