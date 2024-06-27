@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 
 #[allow(non_camel_case_types)]
 #[pyclass]
+#[derive(Clone)]
 pub enum TypeKind {
     boolean,
     byte,

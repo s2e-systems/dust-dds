@@ -1,8 +1,12 @@
 use dust_dds::serialized_payload::cdr::serializer::CdrSerializer;
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDict};
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    types::{PyDict, PyString},
+};
 
 use crate::{
-    topic_definition::type_support::PythonDdsData,
+    topic_definition::type_support::{PythonDdsData, TypeKind},
     xtypes::{
         cdr_serializer::ClassicCdrSerializer,
         endianness::{CdrEndianness, CDR_LE, REPRESENTATION_OPTIONS},
@@ -29,15 +33,31 @@ fn serialize_data(
     let annotation_dict = annotations
         .downcast_bound::<PyDict>(py)
         .map_err(|e| PyErr::from(e))?;
-    // for (member_id, member_type) in annotation_dict {
-    serializer
-        .serialize_u32(data.getattr(py, "id")?.extract::<u32>(py)?)
-        .unwrap();
-    serializer
-        .serialize_bool(data.getattr(py, "state")?.extract::<bool>(py)?)
-        .unwrap();
-    // data.getattr(py, member_id.to_string());
-    // }
+    for (member_name, member_type) in annotation_dict {
+        let attribute = data.getattr(py, member_name.downcast::<PyString>()?)?;
+        let member_type_kind = member_type.extract::<TypeKind>()?;
+        match member_type_kind {
+            TypeKind::boolean => serializer.serialize_bool(attribute.extract(py)?),
+            TypeKind::byte => serializer.serialize_u8(attribute.extract(py)?),
+            TypeKind::char8 => serializer.serialize_char(attribute.extract(py)?),
+            TypeKind::char16 => serializer.serialize_char(attribute.extract(py)?),
+            TypeKind::int8 => serializer.serialize_i8(attribute.extract(py)?),
+            TypeKind::uint8 => serializer.serialize_u8(attribute.extract(py)?),
+            TypeKind::int16 => serializer.serialize_i16(attribute.extract(py)?),
+            TypeKind::uint16 => serializer.serialize_u16(attribute.extract(py)?),
+            TypeKind::int32 => serializer.serialize_i32(attribute.extract(py)?),
+            TypeKind::uint32 => serializer.serialize_u32(attribute.extract(py)?),
+            TypeKind::int64 => serializer.serialize_i64(attribute.extract(py)?),
+            TypeKind::uint64 => serializer.serialize_u64(attribute.extract(py)?),
+            TypeKind::float32 => serializer.serialize_f32(attribute.extract(py)?),
+            TypeKind::float64 => serializer.serialize_f64(attribute.extract(py)?),
+            TypeKind::float128 => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "float128 type not yet supported",
+            )),
+        }?;
+    }
+
     Ok(())
 }
 
