@@ -2,7 +2,7 @@ use pyo3::{exceptions::PyTypeError, prelude::*};
 
 use crate::{
     infrastructure::{qos::DataReaderQos, status::StatusKind},
-    topic_definition::{topic::Topic, type_support::MyDdsData},
+    topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
 
 use super::{data_reader::DataReader, data_reader_listener::DataReaderListener};
@@ -43,7 +43,7 @@ impl Subscriber {
         let listener: Option<
             Box<
                 dyn dust_dds::subscription::data_reader_listener::DataReaderListener<
-                        Foo = MyDdsData,
+                        Foo = PythonDdsData,
                     > + Send,
             >,
         > = match a_listener {

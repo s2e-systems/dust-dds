@@ -5,7 +5,7 @@ use crate::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
-    topic_definition::type_support::MyDdsData,
+    topic_definition::type_support::PythonDdsData,
 };
 
 use super::data_reader::DataReader;
@@ -29,7 +29,7 @@ impl DataReaderListener {
 }
 
 impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for DataReaderListener {
-    type Foo = MyDdsData;
+    type Foo = PythonDdsData;
 
     fn on_data_available(
         &mut self,

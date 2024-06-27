@@ -1,7 +1,7 @@
 use dust_dds::infrastructure::status::NO_STATUS;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
-use crate::topic_definition::{topic::Topic, type_support::MyDdsData};
+use crate::topic_definition::{topic::Topic, type_support::PythonDdsData};
 
 use super::data_writer::DataWriter;
 
@@ -29,7 +29,7 @@ impl Publisher {
         // a_listener: Option<Box<dyn DataWriterListener<'a, Foo = MyDdsData> + Send + 'a>>,
         // mask: &[StatusKind],
     ) -> PyResult<DataWriter> {
-        match self.0.create_datawriter::<MyDdsData>(
+        match self.0.create_datawriter::<PythonDdsData>(
             a_topic.as_ref(),
             dust_dds::infrastructure::qos::QosKind::Default,
             None,

@@ -1,3 +1,6 @@
+use dust_dds::topic_definition::type_support::{
+    DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml,
+};
 use pyo3::prelude::*;
 
 #[allow(non_camel_case_types)]
@@ -63,12 +66,49 @@ impl dust_dds::topic_definition::type_support::DynamicTypeInterface for PythonTy
     }
 }
 
-#[derive(dust_dds::topic_definition::type_support::DdsType)]
 #[pyclass]
-pub struct MyDdsData(Vec<u8>);
+pub struct PythonDdsData(Vec<u8>);
+
+impl DdsHasKey for PythonDdsData {
+    const HAS_KEY: bool = true;
+}
+
+impl DdsKey for PythonDdsData {
+    type Key = ();
+
+    fn get_key(&self) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+        todo!()
+    }
+
+    fn get_key_from_serialized_data(
+        serialized_foo: &[u8],
+    ) -> dust_dds::infrastructure::error::DdsResult<Self::Key> {
+        todo!()
+    }
+}
+
+impl DdsSerialize for PythonDdsData {
+    fn serialize_data(&self) -> dust_dds::infrastructure::error::DdsResult<Vec<u8>> {
+        todo!()
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for PythonDdsData {
+    fn deserialize_data(
+        _serialized_data: &'de [u8],
+    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
+        todo!()
+    }
+}
+
+impl DdsTypeXml for PythonDdsData {
+    fn get_type_xml() -> Option<String> {
+        todo!()
+    }
+}
 
 #[pymethods]
-impl MyDdsData {
+impl PythonDdsData {
     #[new]
     fn new(data: Vec<u8>) -> Self {
         Self(data)

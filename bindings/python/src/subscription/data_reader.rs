@@ -1,24 +1,24 @@
 use dust_dds::subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
 use pyo3::{exceptions::PyTypeError, prelude::*};
 
-use crate::topic_definition::type_support::MyDdsData;
+use crate::topic_definition::type_support::PythonDdsData;
 
 #[pyclass]
-pub struct DataReader(dust_dds::subscription::data_reader::DataReader<MyDdsData>);
+pub struct DataReader(dust_dds::subscription::data_reader::DataReader<PythonDdsData>);
 
-impl From<dust_dds::subscription::data_reader::DataReader<MyDdsData>> for DataReader {
-    fn from(value: dust_dds::subscription::data_reader::DataReader<MyDdsData>) -> Self {
+impl From<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
+    fn from(value: dust_dds::subscription::data_reader::DataReader<PythonDdsData>) -> Self {
         Self(value)
     }
 }
 
 #[pyclass]
-pub struct Sample(dust_dds::subscription::data_reader::Sample<MyDdsData>);
+pub struct Sample(dust_dds::subscription::data_reader::Sample<PythonDdsData>);
 
 #[pymethods]
 impl Sample {
     #[getter]
-    pub fn get_data(&self) -> PyResult<MyDdsData> {
+    pub fn get_data(&self) -> PyResult<PythonDdsData> {
         self.0
             .data()
             .map_err(|e| PyTypeError::new_err(format!("{:?}", e)))

@@ -5,7 +5,7 @@ use crate::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,
     },
-    topic_definition::type_support::MyDdsData,
+    topic_definition::type_support::PythonDdsData,
 };
 
 use super::data_writer::DataWriter;
@@ -20,7 +20,7 @@ impl From<Py<PyAny>> for DataWriterListener {
 }
 
 impl dust_dds::publication::data_writer_listener::DataWriterListener<'_> for DataWriterListener {
-    type Foo = MyDdsData;
+    type Foo = PythonDdsData;
 
     fn on_liveliness_lost(
         &mut self,

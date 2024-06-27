@@ -1,4 +1,4 @@
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyDict};
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -12,7 +12,9 @@ use crate::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subcriber_listener::SubscriberListener, subscriber::Subscriber},
-    topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::MyDdsData},
+    topic_definition::{
+        topic::Topic, topic_listener::TopicListener, type_support::PythonTypeRepresentation,
+    },
 };
 
 use super::domain_participant_listener::DomainParticipantListener;
@@ -102,11 +104,11 @@ impl DomainParticipant {
         }
     }
 
-    #[pyo3(signature = (topic_name, type_name, qos = None, a_listener = None, mask = Vec::new() ))]
+    #[pyo3(signature = (topic_name, type_, qos = None, a_listener = None, mask = Vec::new() ))]
     pub fn create_topic(
         &self,
         topic_name: String,
-        type_name: String,
+        type_: Py<PyAny>,
         qos: Option<TopicQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
@@ -124,10 +126,25 @@ impl DomainParticipant {
         };
         let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
             mask.into_iter().map(|m| m.into()).collect();
-        match self
-            .0
-            .create_topic::<MyDdsData>(&topic_name, &type_name, qos, listener, &mask)
-        {
+
+        let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
+        let type_annotations = Python::with_gil(|py| {
+            type_.getattr(py, "__annotations__").and_then(|a| {
+                { a.downcast_bound::<PyDict>(py).map_err(|e| e.into()) }
+                    .map(|a| a.as_unbound().clone_ref(py))
+            })
+        })?;
+        println!("Annottations Dict: {}", type_annotations);
+
+        let dynamic_type_representation = todo!();
+        match self.0.create_dynamic_topic(
+            &topic_name,
+            &type_name,
+            qos,
+            listener,
+            &mask,
+            dynamic_type_representation,
+        ) {
             Ok(t) => Ok(t.into()),
             Err(e) => Err(into_pyerr(e)),
         }
