@@ -32,5 +32,5 @@ def test_write_read_my_data_type():
 
     received_data = data_reader.read(max_samples = 1)
 
-    print(f"Received data {received_data[0].get_data(MyDataType)}")
-    assert data == received_data[0].get_data(MyDataType)
+    print(f"Received data {received_data[0].data}")
+    assert data == received_data[0].data

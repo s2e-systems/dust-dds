@@ -3,7 +3,7 @@ use dust_dds::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
 };
 use pyo3::{
-    exceptions::PyTypeError,
+    exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
     types::{PyDict, PyString, PyType},
 };
@@ -26,13 +26,32 @@ impl From<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for Da
 #[pymethods]
 impl DataReader {
     pub fn read(&self, max_samples: i32) -> PyResult<Vec<Sample>> {
+        let type_support = self
+            .0
+            .get_topicdescription()
+            .get_type_support()
+            .map_err(into_pyerr)?;
+        let type_ = type_support
+            .user_data()
+            .ok_or(PyRuntimeError::new_err("Type missing user data"))?
+            .downcast_ref::<Py<PyAny>>()
+            .ok_or(PyTypeError::new_err(
+                "Type support user data should be of PyAny type",
+            ))?;
+
         match self.0.read(
             max_samples,
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
         ) {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample(s)).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
@@ -108,12 +127,16 @@ fn deserialize_data(
 }
 
 #[pyclass]
-pub struct Sample(dust_dds::subscription::data_reader::Sample<PythonDdsData>);
+pub struct Sample {
+    sample: dust_dds::subscription::data_reader::Sample<PythonDdsData>,
+    type_: Py<PyAny>,
+}
 
 #[pymethods]
 impl Sample {
-    pub fn get_data(&self, type_: Py<PyType>) -> PyResult<Py<PyAny>> {
-        let python_data = self.0.data().map_err(into_pyerr)?;
+    #[getter]
+    pub fn get_data(&self) -> PyResult<Py<PyAny>> {
+        let python_data = self.sample.data().map_err(into_pyerr)?;
         let (header, body) = python_data.data.split_at(4);
         let endianness = match [header[0], header[1]] {
             endianness::CDR_LE => endianness::CdrEndianness::LittleEndian,
@@ -121,6 +144,9 @@ impl Sample {
             _ => panic!("Unknown endianness"),
         };
         let mut deserializer = ClassicCdrDeserializer::new(body, endianness);
-        Python::with_gil(|py| deserialize_data(py, type_, &mut deserializer))
+        Python::with_gil(|py| {
+            let type_ = self.type_.extract(py)?;
+            deserialize_data(py, type_, &mut deserializer)
+        })
     }
 }
