@@ -12,12 +12,13 @@ use pyo3::prelude::*;
 #[pymodule]
 fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<domain::domain_participant_factory::DomainParticipantFactory>()?;
-    m.add_class::<topic_definition::type_support::PythonDdsData>()?;
     m.add_class::<topic_definition::type_support::TypeKind>()?;
 
     m.add_class::<infrastructure::time::Duration>()?;
     m.add_class::<infrastructure::time::DurationKind>()?;
     m.add_class::<infrastructure::status::StatusKind>()?;
+    m.add_class::<infrastructure::wait_set::Condition>()?;
+    m.add_class::<infrastructure::wait_set::WaitSet>()?;
 
     // Add QosPolicy classes
     m.add_class::<infrastructure::qos_policy::DeadlineQosPolicy>()?;
