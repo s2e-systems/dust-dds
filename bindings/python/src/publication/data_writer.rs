@@ -22,6 +22,12 @@ impl From<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for Dat
     }
 }
 
+impl AsRef<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {
+    fn as_ref(&self) -> &dust_dds::publication::data_writer::DataWriter<PythonDdsData> {
+        &self.0
+    }
+}
+
 fn serialize_data(
     py: Python<'_>,
     data: Py<PyAny>,
