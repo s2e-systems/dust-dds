@@ -47,8 +47,10 @@ impl Subscriber {
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
 
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|m| m.into()).collect();
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
 
         let listener: Option<
             Box<
@@ -105,16 +107,14 @@ impl Subscriber {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
-        self.0
-            .set_default_datareader_qos(qos)
-            .map_err(|e| into_pyerr(e))
+        self.0.set_default_datareader_qos(qos).map_err(into_pyerr)
     }
 
     pub fn get_default_datareader_qos(&self) -> PyResult<DataReaderQos> {
         Ok(self
             .0
             .get_default_datareader_qos()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into())
     }
 
@@ -152,11 +152,11 @@ impl Subscriber {
             Some(l) => Some(Box::new(SubscriberListener::from(l))),
             None => None,
         };
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|m| m.into()).collect();
-        self.0
-            .set_listener(listener, &mask)
-            .map_err(|e| into_pyerr(e))
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {
@@ -167,14 +167,14 @@ impl Subscriber {
         Ok(self
             .0
             .get_status_changes()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into_iter()
-            .map(|s| s.into())
+            .map(StatusKind::from)
             .collect())
     }
 
     pub fn enable(&self) -> PyResult<()> {
-        self.0.enable().map_err(|e| into_pyerr(e))
+        self.0.enable().map_err(into_pyerr)
     }
 
     pub fn get_instance_handle(&self) -> PyResult<InstanceHandle> {

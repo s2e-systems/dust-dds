@@ -42,12 +42,12 @@ impl DomainParticipantFactory {
     pub fn delete_participant(&self, a_participant: &DomainParticipant) -> PyResult<()> {
         self.0
             .delete_participant(a_participant.as_ref())
-            .map_err(|e| into_pyerr(e))
+            .map_err(into_pyerr)
     }
 
     pub fn lookup_participant(&self, domain_id: DomainId) -> PyResult<Option<DomainParticipant>> {
         match self.0.lookup_participant(domain_id) {
-            Ok(dp) => Ok(dp.map(|dp| dp.into())),
+            Ok(dp) => Ok(dp.map(DomainParticipant::from)),
             Err(e) => Err(into_pyerr(e)),
         }
     }
@@ -59,7 +59,7 @@ impl DomainParticipantFactory {
                 .set_default_participant_qos(QosKind::Specific(q.into())),
             None => self.0.set_default_participant_qos(QosKind::Default),
         }
-        .map_err(|e| into_pyerr(e))
+        .map_err(into_pyerr)
     }
 
     pub fn get_default_participant_qos(&self) -> PyResult<DomainParticipantQos> {
@@ -74,7 +74,7 @@ impl DomainParticipantFactory {
             Some(q) => self.0.set_qos(QosKind::Specific(q.into())),
             None => self.0.set_qos(QosKind::Default),
         }
-        .map_err(|e| into_pyerr(e))
+        .map_err(into_pyerr)
     }
 
     pub fn get_qos(&self) -> PyResult<DomainParticipantFactoryQos> {

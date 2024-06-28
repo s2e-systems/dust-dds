@@ -24,21 +24,21 @@ impl StatusCondition {
         Ok(self
             .0
             .get_enabled_statuses()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into_iter()
-            .map(|s| s.into())
+            .map(StatusKind::from)
             .collect())
     }
 
     pub fn set_enabled_statuses(&self, mask: Vec<StatusKind>) -> PyResult<()> {
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|s| s.into()).collect();
-        self.0
-            .set_enabled_statuses(&mask)
-            .map_err(|e| into_pyerr(e))
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
+        self.0.set_enabled_statuses(&mask).map_err(into_pyerr)
     }
 
     pub fn get_trigger_value(&self) -> PyResult<bool> {
-        self.0.get_trigger_value().map_err(|e| into_pyerr(e))
+        self.0.get_trigger_value().map_err(into_pyerr)
     }
 }

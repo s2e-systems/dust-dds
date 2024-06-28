@@ -54,8 +54,10 @@ impl DomainParticipant {
             Some(l) => Some(Box::new(PublisherListener::from(l))),
             None => None,
         };
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|m| m.into()).collect();
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
 
         match self.0.create_publisher(qos, listener, &mask) {
             Ok(p) => Ok(p.into()),
@@ -88,8 +90,10 @@ impl DomainParticipant {
             Some(l) => Some(Box::new(SubscriberListener::from(l))),
             None => None,
         };
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|m| m.into()).collect();
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
 
         match self.0.create_subscriber(qos, listener, &mask) {
             Ok(s) => Ok(s.into()),
@@ -124,8 +128,10 @@ impl DomainParticipant {
             Some(l) => Some(Box::new(TopicListener::from(l))),
             None => None,
         };
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|m| m.into()).collect();
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
 
         let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
 
@@ -152,7 +158,7 @@ impl DomainParticipant {
 
     pub fn lookup_topicdescription(&self, topic_name: String) -> PyResult<Option<Topic>> {
         match self.0.lookup_topicdescription(&topic_name) {
-            Ok(t) => Ok(t.map(|t| t.into())),
+            Ok(t) => Ok(t.map(Topic::from)),
             Err(e) => Err(into_pyerr(e)),
         }
     }
@@ -162,27 +168,21 @@ impl DomainParticipant {
     }
 
     pub fn ignore_participant(&self, handle: InstanceHandle) -> PyResult<()> {
-        self.0
-            .ignore_participant(handle.into())
-            .map_err(|e| into_pyerr(e))
+        self.0.ignore_participant(handle.into()).map_err(into_pyerr)
     }
 
     pub fn ignore_topic(&self, handle: InstanceHandle) -> PyResult<()> {
-        self.0
-            .ignore_topic(handle.into())
-            .map_err(|e| into_pyerr(e))
+        self.0.ignore_topic(handle.into()).map_err(into_pyerr)
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> PyResult<()> {
-        self.0
-            .ignore_publication(handle.into())
-            .map_err(|e| into_pyerr(e))
+        self.0.ignore_publication(handle.into()).map_err(into_pyerr)
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> PyResult<()> {
         self.0
             .ignore_subscription(handle.into())
-            .map_err(|e| into_pyerr(e))
+            .map_err(into_pyerr)
     }
 
     pub fn get_domain_id(&self) -> dust_dds::domain::domain_participant_factory::DomainId {
@@ -190,13 +190,11 @@ impl DomainParticipant {
     }
 
     pub fn delete_contained_entities(&self) -> PyResult<()> {
-        self.0
-            .delete_contained_entities()
-            .map_err(|e| into_pyerr(e))
+        self.0.delete_contained_entities().map_err(into_pyerr)
     }
 
     pub fn assert_liveliness(&self) -> PyResult<()> {
-        self.0.assert_liveliness().map_err(|e| into_pyerr(e))
+        self.0.assert_liveliness().map_err(into_pyerr)
     }
 
     pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> PyResult<()> {
@@ -204,16 +202,14 @@ impl DomainParticipant {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
-        self.0
-            .set_default_publisher_qos(qos)
-            .map_err(|e| into_pyerr(e))
+        self.0.set_default_publisher_qos(qos).map_err(into_pyerr)
     }
 
     pub fn get_default_publisher_qos(&self) -> PyResult<PublisherQos> {
         Ok(self
             .0
             .get_default_publisher_qos()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into())
     }
 
@@ -222,16 +218,14 @@ impl DomainParticipant {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
-        self.0
-            .set_default_subscriber_qos(qos)
-            .map_err(|e| into_pyerr(e))
+        self.0.set_default_subscriber_qos(qos).map_err(into_pyerr)
     }
 
     pub fn get_default_subscriber_qos(&self) -> PyResult<SubscriberQos> {
         Ok(self
             .0
             .get_default_subscriber_qos()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into())
     }
 
@@ -240,24 +234,20 @@ impl DomainParticipant {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
-        self.0.set_default_topic_qos(qos).map_err(|e| into_pyerr(e))
+        self.0.set_default_topic_qos(qos).map_err(into_pyerr)
     }
 
     pub fn get_default_topic_qos(&self) -> PyResult<TopicQos> {
-        Ok(self
-            .0
-            .get_default_topic_qos()
-            .map_err(|e| into_pyerr(e))?
-            .into())
+        Ok(self.0.get_default_topic_qos().map_err(into_pyerr)?.into())
     }
 
     pub fn get_discovered_participants(&self) -> PyResult<Vec<InstanceHandle>> {
         Ok(self
             .0
             .get_discovered_participants()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into_iter()
-            .map(|p| p.into())
+            .map(InstanceHandle::from)
             .collect())
     }
 
@@ -268,7 +258,7 @@ impl DomainParticipant {
         Ok(self
             .0
             .get_discovered_participant_data(participant_handle.into())
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into())
     }
 
@@ -276,9 +266,9 @@ impl DomainParticipant {
         Ok(self
             .0
             .get_discovered_topics()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into_iter()
-            .map(|p| p.into())
+            .map(InstanceHandle::from)
             .collect())
     }
 
@@ -289,14 +279,12 @@ impl DomainParticipant {
         Ok(self
             .0
             .get_discovered_topic_data(topic_handle.into())
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into())
     }
 
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> PyResult<bool> {
-        self.0
-            .contains_entity(a_handle.into())
-            .map_err(|e| into_pyerr(e))
+        self.0.contains_entity(a_handle.into()).map_err(into_pyerr)
     }
 
     pub fn get_current_time(&self) -> PyResult<Time> {
@@ -311,7 +299,7 @@ impl DomainParticipant {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
-        self.0.set_qos(qos).map_err(|e| into_pyerr(e))
+        self.0.set_qos(qos).map_err(into_pyerr)
     }
 
     pub fn get_qos(&self) -> PyResult<DomainParticipantQos> {
@@ -335,11 +323,11 @@ impl DomainParticipant {
             Some(l) => Some(Box::new(DomainParticipantListener::from(l))),
             None => None,
         };
-        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
-            mask.into_iter().map(|m| m.into()).collect();
-        self.0
-            .set_listener(listener, &mask)
-            .map_err(|e| into_pyerr(e))
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
+        self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
     pub fn get_statuscondition(&self) -> StatusCondition {
@@ -350,21 +338,17 @@ impl DomainParticipant {
         Ok(self
             .0
             .get_status_changes()
-            .map_err(|e| into_pyerr(e))?
+            .map_err(into_pyerr)?
             .into_iter()
-            .map(|s| s.into())
+            .map(StatusKind::from)
             .collect())
     }
 
     pub fn enable(&self) -> PyResult<()> {
-        self.0.enable().map_err(|e| into_pyerr(e))
+        self.0.enable().map_err(into_pyerr)
     }
 
     pub fn get_instance_handle(&self) -> PyResult<InstanceHandle> {
-        Ok(self
-            .0
-            .get_instance_handle()
-            .map_err(|e| into_pyerr(e))?
-            .into())
+        Ok(self.0.get_instance_handle().map_err(into_pyerr)?.into())
     }
 }
