@@ -2,15 +2,16 @@ use dust_dds::{
     serialized_payload::cdr::deserializer::CdrDeserializer,
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
 };
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyType};
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    types::{PyDict, PyString, PyType},
+};
 
 use crate::{
     infrastructure::error::into_pyerr,
-    topic_definition::type_support::PythonDdsData,
-    xtypes::{
-        cdr_deserializer::ClassicCdrDeserializer,
-        endianness::{self},
-    },
+    topic_definition::type_support::{PythonDdsData, TypeKind},
+    xtypes::{cdr_deserializer::ClassicCdrDeserializer, endianness},
 };
 
 #[pyclass]
@@ -40,17 +41,69 @@ impl DataReader {
 
 fn deserialize_data(
     py: Python<'_>,
-    type_: Py<PyAny>,
+    type_: Py<PyType>,
     deserializer: &mut ClassicCdrDeserializer,
 ) -> PyResult<Py<PyAny>> {
-    let py_type = type_.downcast_bound::<PyType>(py)?;
+    let py_type = type_.bind(py);
     let object = type_
         .bind(py)
         .call_method("__new__", (py_type,), None)?
         .unbind();
+    let annotations = py_type.getattr("__annotations__")?;
+    let annotation_dict = annotations.downcast::<PyDict>().map_err(PyErr::from)?;
+    for (member_name, member_type) in annotation_dict {
+        let member_name_str = member_name.downcast::<PyString>()?;
+        let member_type_kind = member_type.extract::<TypeKind>()?;
+        match member_type_kind {
+            TypeKind::boolean => {
+                object.setattr(py, member_name_str, deserializer.deserialize_bool()?)?
+            }
+            TypeKind::byte => {
+                object.setattr(py, member_name_str, deserializer.deserialize_u8()?)?
+            }
+            TypeKind::char8 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_char()?)?
+            }
+            TypeKind::char16 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_char()?)?
+            }
+            TypeKind::int8 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_i8()?)?
+            }
+            TypeKind::uint8 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_u8()?)?
+            }
+            TypeKind::int16 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_i16()?)?
+            }
+            TypeKind::uint16 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_u16()?)?
+            }
+            TypeKind::int32 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_i32()?)?
+            }
+            TypeKind::uint32 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_u32()?)?
+            }
+            TypeKind::int64 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_i64()?)?
+            }
+            TypeKind::uint64 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_u64()?)?
+            }
+            TypeKind::float32 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_f32()?)?
+            }
+            TypeKind::float64 => {
+                object.setattr(py, member_name_str, deserializer.deserialize_f64()?)?
+            }
+            TypeKind::float128 => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "float128 type not yet supported",
+            ))?,
+        };
+    }
 
-    object.setattr(py, "id", deserializer.deserialize_u32()?)?;
-    object.setattr(py, "state", deserializer.deserialize_bool()?)?;
     Ok(object)
 }
 
@@ -59,7 +112,7 @@ pub struct Sample(dust_dds::subscription::data_reader::Sample<PythonDdsData>);
 
 #[pymethods]
 impl Sample {
-    pub fn get_data(&self, type_: Py<PyAny>) -> PyResult<Py<PyAny>> {
+    pub fn get_data(&self, type_: Py<PyType>) -> PyResult<Py<PyAny>> {
         let python_data = self.0.data().map_err(into_pyerr)?;
         let (header, body) = python_data.data.split_at(4);
         let endianness = match [header[0], header[1]] {
