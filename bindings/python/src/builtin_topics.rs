@@ -1,10 +1,11 @@
 use pyo3::prelude::*;
 
 use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-    ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-    UserDataQosPolicy,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+    ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+    TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
 #[pyclass]
@@ -133,5 +134,201 @@ impl TopicBuiltinTopicData {
     #[getter]
     pub fn get_topic_data(&self) -> TopicDataQosPolicy {
         self.0.topic_data().clone().into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PublicationBuiltinTopicData(dust_dds::builtin_topics::PublicationBuiltinTopicData);
+
+impl From<dust_dds::builtin_topics::PublicationBuiltinTopicData> for PublicationBuiltinTopicData {
+    fn from(value: dust_dds::builtin_topics::PublicationBuiltinTopicData) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl PublicationBuiltinTopicData {
+    #[getter]
+    pub fn get_key(&self) -> BuiltInTopicKey {
+        self.0.key().clone().into()
+    }
+
+    #[getter]
+    pub fn participant_key(&self) -> BuiltInTopicKey {
+        self.0.participant_key().clone().into()
+    }
+
+    #[getter]
+    pub fn topic_name(&self) -> String {
+        self.0.topic_name().to_string()
+    }
+
+    #[getter]
+    pub fn get_type_name(&self) -> String {
+        self.0.get_type_name().to_string()
+    }
+
+    #[getter]
+    pub fn get_durability(&self) -> DurabilityQosPolicy {
+        self.0.durability().clone().into()
+    }
+
+    #[getter]
+    pub fn get_deadline(&self) -> DeadlineQosPolicy {
+        self.0.deadline().clone().into()
+    }
+
+    #[getter]
+    pub fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
+        self.0.latency_budget().clone().into()
+    }
+
+    #[getter]
+    pub fn get_liveliness(&self) -> LivelinessQosPolicy {
+        self.0.liveliness().clone().into()
+    }
+
+    #[getter]
+    pub fn get_reliability(&self) -> ReliabilityQosPolicy {
+        self.0.reliability().clone().into()
+    }
+
+    #[getter]
+    pub fn get_lifespan(&self) -> LifespanQosPolicy {
+        self.0.lifespan().clone().into()
+    }
+
+    #[getter]
+    pub fn get_user_data(&self) -> UserDataQosPolicy {
+        self.0.user_data().clone().into()
+    }
+
+    #[getter]
+    pub fn get_ownership(&self) -> OwnershipQosPolicy {
+        self.0.ownership().clone().into()
+    }
+
+    #[getter]
+    pub fn get_destination_order(&self) -> DestinationOrderQosPolicy {
+        self.0.destination_order().clone().into()
+    }
+
+    #[getter]
+    pub fn get_presentation(&self) -> PresentationQosPolicy {
+        self.0.presentation().clone().into()
+    }
+
+    #[getter]
+    pub fn get_partition(&self) -> PartitionQosPolicy {
+        self.0.partition().clone().into()
+    }
+
+    #[getter]
+    pub fn get_topic_data(&self) -> TopicDataQosPolicy {
+        self.0.topic_data().clone().into()
+    }
+
+    #[getter]
+    pub fn get_group_data(&self) -> GroupDataQosPolicy {
+        self.0.group_data().clone().into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct SubscriptionBuiltinTopicData(dust_dds::builtin_topics::SubscriptionBuiltinTopicData);
+
+impl From<dust_dds::builtin_topics::SubscriptionBuiltinTopicData> for SubscriptionBuiltinTopicData {
+    fn from(value: dust_dds::builtin_topics::SubscriptionBuiltinTopicData) -> Self {
+        Self(value)
+    }
+}
+
+#[pymethods]
+impl SubscriptionBuiltinTopicData {
+    #[getter]
+    pub fn get_key(&self) -> BuiltInTopicKey {
+        self.0.key().clone().into()
+    }
+
+    #[getter]
+    pub fn participant_key(&self) -> BuiltInTopicKey {
+        self.0.participant_key().clone().into()
+    }
+
+    #[getter]
+    pub fn topic_name(&self) -> String {
+        self.0.topic_name().to_string()
+    }
+
+    #[getter]
+    pub fn get_type_name(&self) -> String {
+        self.0.get_type_name().to_string()
+    }
+
+    #[getter]
+    pub fn get_durability(&self) -> DurabilityQosPolicy {
+        self.0.durability().clone().into()
+    }
+
+    #[getter]
+    pub fn get_deadline(&self) -> DeadlineQosPolicy {
+        self.0.deadline().clone().into()
+    }
+
+    #[getter]
+    pub fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
+        self.0.latency_budget().clone().into()
+    }
+
+    #[getter]
+    pub fn get_liveliness(&self) -> LivelinessQosPolicy {
+        self.0.liveliness().clone().into()
+    }
+
+    #[getter]
+    pub fn get_reliability(&self) -> ReliabilityQosPolicy {
+        self.0.reliability().clone().into()
+    }
+
+    #[getter]
+    pub fn get_ownership(&self) -> OwnershipQosPolicy {
+        self.0.ownership().clone().into()
+    }
+
+    #[getter]
+    pub fn get_destination_order(&self) -> DestinationOrderQosPolicy {
+        self.0.destination_order().clone().into()
+    }
+
+    #[getter]
+    pub fn get_user_data(&self) -> UserDataQosPolicy {
+        self.0.user_data().clone().into()
+    }
+
+    #[getter]
+    pub fn get_time_based_filter(&self) -> TimeBasedFilterQosPolicy {
+        self.0.time_based_filter().clone().into()
+    }
+
+    #[getter]
+    pub fn get_presentation(&self) -> PresentationQosPolicy {
+        self.0.presentation().clone().into()
+    }
+
+    #[getter]
+    pub fn get_partition(&self) -> PartitionQosPolicy {
+        self.0.partition().clone().into()
+    }
+
+    #[getter]
+    pub fn get_topic_data(&self) -> TopicDataQosPolicy {
+        self.0.topic_data().clone().into()
+    }
+
+    #[getter]
+    pub fn get_group_data(&self) -> GroupDataQosPolicy {
+        self.0.group_data().clone().into()
     }
 }

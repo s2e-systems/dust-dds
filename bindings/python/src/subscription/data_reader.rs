@@ -6,12 +6,15 @@ use pyo3::{
 };
 
 use crate::{
+    builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{
+        condition::StatusCondition,
         error::into_pyerr,
         instance::InstanceHandle,
+        qos::DataReaderQos,
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
     },
@@ -23,6 +26,7 @@ use crate::{
 };
 
 use super::{
+    data_reader_listener::DataReaderListener,
     sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
@@ -391,6 +395,87 @@ impl DataReader {
         self.0
             .wait_for_historical_data(max_wait.into())
             .map_err(into_pyerr)
+    }
+
+    pub fn get_matched_publication_data(
+        &self,
+        publication_handle: InstanceHandle,
+    ) -> PyResult<PublicationBuiltinTopicData> {
+        Ok(self
+            .0
+            .get_matched_publication_data(publication_handle.into())
+            .map_err(into_pyerr)?
+            .into())
+    }
+
+    pub fn get_matched_publications(&self) -> PyResult<Vec<InstanceHandle>> {
+        Ok(self
+            .0
+            .get_matched_publications()
+            .map_err(into_pyerr)?
+            .into_iter()
+            .map(InstanceHandle::from)
+            .collect())
+    }
+
+    pub fn set_qos(&self, qos: Option<DataReaderQos>) -> PyResult<()> {
+        let qos = match qos {
+            Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
+            None => dust_dds::infrastructure::qos::QosKind::Default,
+        };
+        self.0.set_qos(qos).map_err(into_pyerr)
+    }
+
+    pub fn get_qos(&self) -> PyResult<DataReaderQos> {
+        match self.0.get_qos() {
+            Ok(q) => Ok(q.into()),
+            Err(e) => Err(into_pyerr(e)),
+        }
+    }
+
+    #[pyo3(signature = (a_listener = None, mask = Vec::new()))]
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
+    ) -> PyResult<()> {
+        let listener: Option<
+            Box<
+                dyn dust_dds::subscription::data_reader_listener::DataReaderListener<
+                        Foo = PythonDdsData,
+                    > + Send,
+            >,
+        > = match a_listener {
+            Some(l) => Some(Box::new(DataReaderListener::from(l))),
+            None => None,
+        };
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> =
+            mask.into_iter().map(|m| m.into()).collect();
+        self.0
+            .set_listener(listener, &mask)
+            .map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_statuscondition(&self) -> StatusCondition {
+        self.0.get_statuscondition().into()
+    }
+
+    pub fn get_status_changes(&self) -> PyResult<Vec<StatusKind>> {
+        Ok(self
+            .0
+            .get_status_changes()
+            .map_err(|e| into_pyerr(e))?
+            .into_iter()
+            .map(|s| s.into())
+            .collect())
+    }
+
+    pub fn enable(&self) -> PyResult<()> {
+        self.0.enable().map_err(|e| into_pyerr(e))
+    }
+
+    pub fn get_instance_handle(&self) -> PyResult<InstanceHandle> {
+        Ok(self.0.get_instance_handle().map_err(into_pyerr)?.into())
     }
 }
 
