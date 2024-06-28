@@ -283,8 +283,7 @@ jobs:
           name: Build_Android
           command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
       - store_artifacts:
-          path: shapes_demo/android/app/build/outputs/bundle/release/app-release.aab
-          destination: app-release.aab
+          path: shapes_demo/android/app/build/outputs/bundle/release
 workflows:
   build_and_run_tests:
     jobs:
