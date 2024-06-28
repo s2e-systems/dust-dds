@@ -7,6 +7,9 @@ mod topic_definition;
 mod xtypes;
 
 use pyo3::prelude::*;
+use subscription::sample_info::{
+    ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, NOT_ALIVE_INSTANCE_STATE,
+};
 
 /// Dust DDS python bindings
 #[pymodule]
@@ -55,6 +58,17 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<infrastructure::qos::TopicQos>()?;
     m.add_class::<infrastructure::qos::DataWriterQos>()?;
     m.add_class::<infrastructure::qos::DataReaderQos>()?;
+
+    m.add_class::<subscription::sample_info::SampleStateKind>()?;
+    m.add("ANY_SAMPLE_STATE", ANY_SAMPLE_STATE.to_vec())?;
+    m.add_class::<subscription::sample_info::ViewStateKind>()?;
+    m.add("ANY_VIEW_STATE", ANY_VIEW_STATE.to_vec())?;
+    m.add_class::<subscription::sample_info::InstanceStateKind>()?;
+    m.add("ANY_INSTANCE_STATE", ANY_INSTANCE_STATE.to_vec())?;
+    m.add(
+        "NOT_ALIVE_INSTANCE_STATE",
+        NOT_ALIVE_INSTANCE_STATE.to_vec(),
+    )?;
 
     Ok(())
 }

@@ -1,7 +1,4 @@
-use dust_dds::{
-    serialized_payload::cdr::deserializer::CdrDeserializer,
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-};
+use dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer;
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
@@ -9,9 +6,25 @@ use pyo3::{
 };
 
 use crate::{
-    infrastructure::error::into_pyerr,
-    topic_definition::type_support::{PythonDdsData, TypeKind},
+    infrastructure::{
+        error::into_pyerr,
+        instance::InstanceHandle,
+        status::{
+            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+            SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+        },
+        time::Duration,
+    },
+    topic_definition::{
+        topic::Topic,
+        type_support::{PythonDdsData, TypeKind},
+    },
     xtypes::{cdr_deserializer::ClassicCdrDeserializer, endianness},
+};
+
+use super::{
+    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    subscriber::Subscriber,
 };
 
 #[pyclass]
@@ -29,27 +42,147 @@ impl AsRef<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for D
     }
 }
 
-#[pymethods]
 impl DataReader {
-    pub fn read(&self, max_samples: i32) -> PyResult<Vec<Sample>> {
+    fn get_data_type(&self) -> PyResult<Py<PyAny>> {
         let type_support = self
             .0
             .get_topicdescription()
             .get_type_support()
             .map_err(into_pyerr)?;
-        let type_ = type_support
+        type_support
             .user_data()
             .ok_or(PyRuntimeError::new_err("Type missing user data"))?
             .downcast_ref::<Py<PyAny>>()
             .ok_or(PyTypeError::new_err(
                 "Type support user data should be of PyAny type",
-            ))?;
+            ))
+            .cloned()
+    }
+}
 
-        match self.0.read(
+#[pymethods]
+impl DataReader {
+    pub fn read(
+        &self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> PyResult<Vec<Sample>> {
+        let type_ = self.get_data_type()?;
+        let sample_states: Vec<_> = sample_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .collect();
+        let view_states: Vec<_> = view_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .collect();
+        let instance_states: Vec<_> = instance_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .collect();
+        match self
+            .0
+            .read(max_samples, &sample_states, &view_states, &instance_states)
+        {
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
+            Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    pub fn take(
+        &self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> PyResult<Vec<Sample>> {
+        let type_ = self.get_data_type()?;
+        let sample_states: Vec<_> = sample_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .collect();
+        let view_states: Vec<_> = view_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .collect();
+        let instance_states: Vec<_> = instance_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .collect();
+        match self
+            .0
+            .take(max_samples, &sample_states, &view_states, &instance_states)
+        {
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
+            Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    pub fn read_next_sample(&self) -> PyResult<Sample> {
+        let type_ = self.get_data_type()?;
+        match self.0.read_next_sample() {
+            Ok(s) => Ok(Sample {
+                sample: s,
+                type_: type_.clone(),
+            }),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    pub fn take_next_sample(&self) -> PyResult<Sample> {
+        let type_ = self.get_data_type()?;
+        match self.0.take_next_sample() {
+            Ok(s) => Ok(Sample {
+                sample: s,
+                type_: type_.clone(),
+            }),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    pub fn read_instance(
+        &self,
+        max_samples: i32,
+        a_handle: InstanceHandle,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> PyResult<Vec<Sample>> {
+        let type_ = self.get_data_type()?;
+        let sample_states: Vec<_> = sample_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .collect();
+        let view_states: Vec<_> = view_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .collect();
+        let instance_states: Vec<_> = instance_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .collect();
+        match self.0.read_instance(
             max_samples,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
+            a_handle.into(),
+            &sample_states,
+            &view_states,
+            &instance_states,
         ) {
             Ok(s) => Ok(s
                 .into_iter()
@@ -61,6 +194,203 @@ impl DataReader {
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
+    }
+
+    pub fn take_instance(
+        &self,
+        max_samples: i32,
+        a_handle: InstanceHandle,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> PyResult<Vec<Sample>> {
+        let type_ = self.get_data_type()?;
+        let sample_states: Vec<_> = sample_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .collect();
+        let view_states: Vec<_> = view_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .collect();
+        let instance_states: Vec<_> = instance_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .collect();
+        match self.0.take_instance(
+            max_samples,
+            a_handle.into(),
+            &sample_states,
+            &view_states,
+            &instance_states,
+        ) {
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
+            Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    #[pyo3(signature = (max_samples, previous_handle, sample_states, view_states, instance_states))]
+    pub fn read_next_instance(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> PyResult<Vec<Sample>> {
+        let type_ = self.get_data_type()?;
+        let sample_states: Vec<_> = sample_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .collect();
+        let view_states: Vec<_> = view_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .collect();
+        let instance_states: Vec<_> = instance_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .collect();
+        match self.0.read_next_instance(
+            max_samples,
+            previous_handle.map(|x| x.into()),
+            &sample_states,
+            &view_states,
+            &instance_states,
+        ) {
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
+            Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    #[pyo3(signature = (max_samples, previous_handle, sample_states, view_states, instance_states))]
+    pub fn take_next_instance(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> PyResult<Vec<Sample>> {
+        let type_ = self.get_data_type()?;
+        let sample_states: Vec<_> = sample_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::SampleStateKind::from)
+            .collect();
+        let view_states: Vec<_> = view_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::ViewStateKind::from)
+            .collect();
+        let instance_states: Vec<_> = instance_states
+            .into_iter()
+            .map(dust_dds::subscription::sample_info::InstanceStateKind::from)
+            .collect();
+        match self.0.take_next_instance(
+            max_samples,
+            previous_handle.map(|x| x.into()),
+            &sample_states,
+            &view_states,
+            &instance_states,
+        ) {
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
+            Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
+            Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
+        }
+    }
+
+    pub fn get_key_value(
+        &self,
+        _key_holder: Bound<'_, PyAny>,
+        _handle: InstanceHandle,
+    ) -> PyResult<()> {
+        unimplemented!()
+    }
+
+    pub fn lookup_instance(
+        &self,
+        _instance: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<InstanceHandle>> {
+        unimplemented!()
+    }
+
+    pub fn get_liveliness_changed_status(&self) -> PyResult<LivelinessChangedStatus> {
+        Ok(self
+            .0
+            .get_liveliness_changed_status()
+            .map_err(into_pyerr)?
+            .into())
+    }
+
+    pub fn get_requested_deadline_missed_status(&self) -> PyResult<RequestedDeadlineMissedStatus> {
+        Ok(self
+            .0
+            .get_requested_deadline_missed_status()
+            .map_err(into_pyerr)?
+            .into())
+    }
+
+    pub fn get_requested_incompatible_qos_status(
+        &self,
+    ) -> PyResult<RequestedIncompatibleQosStatus> {
+        Ok(self
+            .0
+            .get_requested_incompatible_qos_status()
+            .map_err(into_pyerr)?
+            .into())
+    }
+
+    pub fn get_sample_lost_status(&self) -> PyResult<SampleLostStatus> {
+        Ok(self.0.get_sample_lost_status().map_err(into_pyerr)?.into())
+    }
+
+    pub fn get_sample_rejected_status(&self) -> PyResult<SampleRejectedStatus> {
+        Ok(self
+            .0
+            .get_sample_rejected_status()
+            .map_err(into_pyerr)?
+            .into())
+    }
+
+    pub fn get_subscription_matched_status(&self) -> PyResult<SubscriptionMatchedStatus> {
+        Ok(self
+            .0
+            .get_subscription_matched_status()
+            .map_err(into_pyerr)?
+            .into())
+    }
+
+    pub fn get_topicdescription(&self) -> Topic {
+        self.0.get_topicdescription().into()
+    }
+
+    pub fn get_subscriber(&self) -> Subscriber {
+        self.0.get_subscriber().into()
+    }
+
+    pub fn wait_for_historical_data(&self, max_wait: Duration) -> PyResult<()> {
+        self.0
+            .wait_for_historical_data(max_wait.into())
+            .map_err(into_pyerr)
     }
 }
 
@@ -154,5 +484,10 @@ impl Sample {
             let type_ = self.type_.extract(py)?;
             deserialize_data(py, type_, &mut deserializer)
         })
+    }
+
+    #[getter]
+    pub fn get_sample_info(&self) -> SampleInfo {
+        self.sample.sample_info().into()
     }
 }
