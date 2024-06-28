@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
@@ -11,7 +13,7 @@ use crate::{
     },
 };
 
-use super::topic_listener::TopicListener;
+use super::{topic_listener::TopicListener, type_support::DynamicTypeInterface};
 
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
@@ -153,5 +155,13 @@ impl Topic {
             },
             mask,
         ))
+    }
+}
+
+impl Topic {
+    #[doc(hidden)]
+    #[tracing::instrument(skip(self))]
+    pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicTypeInterface>> {
+        block_on(self.topic_async.get_type_support())
     }
 }

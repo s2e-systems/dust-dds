@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     data_representation_builtin_endpoints::discovered_topic_data::{
         DiscoveredTopicData, DCPS_TOPIC,
@@ -16,6 +18,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    topic_definition::type_support::DynamicTypeInterface,
 };
 
 use super::{
@@ -202,5 +205,17 @@ impl TopicAsync {
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
+    }
+}
+
+impl TopicAsync {
+    #[doc(hidden)]
+    #[tracing::instrument(skip(self))]
+    pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicTypeInterface>> {
+        Ok(self
+            .topic_address
+            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .receive_reply()
+            .await)
     }
 }

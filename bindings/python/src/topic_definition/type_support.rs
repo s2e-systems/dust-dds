@@ -59,6 +59,10 @@ impl dust_dds::topic_definition::type_support::DynamicTypeInterface for PythonTy
     fn xml_type(&self) -> String {
         String::new()
     }
+
+    fn user_data(&self) -> Option<&dyn std::any::Any> {
+        Some(&self.0)
+    }
 }
 
 #[pyclass]
