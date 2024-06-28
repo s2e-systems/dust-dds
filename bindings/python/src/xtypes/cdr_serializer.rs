@@ -213,19 +213,6 @@ where
     }
 }
 
-pub fn classic_cdr_serializer_with_header<W: std::io::Write>(
-    mut writer: W,
-    endianness: CdrEndianness,
-) -> Result<ClassicCdrSerializer<W>, std::io::Error> {
-    let representation_identifier = match endianness {
-        CdrEndianness::LittleEndian => super::endianness::CDR_LE,
-        CdrEndianness::BigEndian => super::endianness::CDR_BE,
-    };
-    writer.write_all(&representation_identifier)?;
-    writer.write_all(&super::endianness::REPRESENTATION_OPTIONS)?;
-    Ok(ClassicCdrSerializer::new(writer, endianness))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

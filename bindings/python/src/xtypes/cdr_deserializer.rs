@@ -6,7 +6,7 @@ use std::{
     io::{BufRead, Read},
 };
 
-use super::endianness::{self, CdrEndianness};
+use super::endianness::CdrEndianness;
 
 pub struct ClassicCdrDeserializer<'de> {
     bytes: &'de [u8],
@@ -247,29 +247,6 @@ impl<'de> CdrDeserializer<'de> for ClassicCdrDeserializer<'de> {
     }
 }
 
-pub fn classic_cdr_serializer_from_data_with_header(
-    data: &[u8],
-) -> Result<ClassicCdrDeserializer, std::io::Error> {
-    if data.len() > 4 {
-        let (header, body) = data.split_at(4);
-        let endianness = match [header[0], header[1]] {
-            endianness::CDR_LE => endianness::CdrEndianness::LittleEndian,
-            endianness::CDR_BE => endianness::CdrEndianness::BigEndian,
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "".to_string(),
-                ));
-            }
-        };
-        Ok(ClassicCdrDeserializer::new(body, endianness))
-    } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Data message too small".to_string(),
-        ))
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
