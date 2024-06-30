@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 import dust_dds
 import time
+import typing
 
 @dataclass
 class MyDataType:
     id : dust_dds.TypeKind.uint32
     state : dust_dds.TypeKind.boolean
+    data: bytes
     def _key():
         return ["id"]
 
@@ -22,15 +24,16 @@ def test_write_read_my_data_type():
     data_reader = subscriber.create_datareader(topic)
 
     # Wait for discovery
+    ws = dust_dds.WaitSet
     time.sleep(2)
 
-    data = MyDataType(231, True)
+    data = MyDataType(231, True, bytes([1,2,3]))
     data_writer.write(data)
 
     # Wait for data to be received
     time.sleep(2)
 
-    received_data = data_reader.read(max_samples = 1)
+    received_data = data_reader.read(max_samples = 1 )
 
     print(f"Received data {received_data[0].data}")
     assert data == received_data[0].data

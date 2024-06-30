@@ -16,6 +16,7 @@ use crate::{
         },
         time::Duration,
     },
+    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
 
@@ -60,6 +61,12 @@ impl DataReader {
 
 #[pymethods]
 impl DataReader {
+    #[pyo3(signature = (
+        max_samples,
+        sample_states=ANY_SAMPLE_STATE.to_vec(),
+        view_states=ANY_VIEW_STATE.to_vec(),
+        instance_states=ANY_INSTANCE_STATE.to_vec(),
+    ))]
     pub fn read(
         &self,
         max_samples: i32,
@@ -96,6 +103,12 @@ impl DataReader {
         }
     }
 
+    #[pyo3(signature = (
+        max_samples,
+        sample_states=ANY_SAMPLE_STATE.to_vec(),
+        view_states=ANY_VIEW_STATE.to_vec(),
+        instance_states=ANY_INSTANCE_STATE.to_vec(),
+    ))]
     pub fn take(
         &self,
         max_samples: i32,
@@ -154,6 +167,13 @@ impl DataReader {
         }
     }
 
+    #[pyo3(signature = (
+        max_samples,
+        a_handle,
+        sample_states=ANY_SAMPLE_STATE.to_vec(),
+        view_states=ANY_VIEW_STATE.to_vec(),
+        instance_states=ANY_INSTANCE_STATE.to_vec(),
+    ))]
     pub fn read_instance(
         &self,
         max_samples: i32,
@@ -194,6 +214,13 @@ impl DataReader {
         }
     }
 
+    #[pyo3(signature = (
+        max_samples,
+        a_handle,
+        sample_states=ANY_SAMPLE_STATE.to_vec(),
+        view_states=ANY_VIEW_STATE.to_vec(),
+        instance_states=ANY_INSTANCE_STATE.to_vec(),
+    ))]
     pub fn take_instance(
         &self,
         max_samples: i32,
@@ -234,7 +261,13 @@ impl DataReader {
         }
     }
 
-    #[pyo3(signature = (max_samples, previous_handle, sample_states, view_states, instance_states))]
+    #[pyo3(signature = (
+        max_samples,
+        previous_handle,
+        sample_states=ANY_SAMPLE_STATE.to_vec(),
+        view_states=ANY_VIEW_STATE.to_vec(),
+        instance_states=ANY_INSTANCE_STATE.to_vec(),
+    ))]
     pub fn read_next_instance(
         &self,
         max_samples: i32,
@@ -275,7 +308,13 @@ impl DataReader {
         }
     }
 
-    #[pyo3(signature = (max_samples, previous_handle, sample_states, view_states, instance_states))]
+    #[pyo3(signature = (
+        max_samples,
+        previous_handle,
+        sample_states=ANY_SAMPLE_STATE.to_vec(),
+        view_states=ANY_VIEW_STATE.to_vec(),
+        instance_states=ANY_INSTANCE_STATE.to_vec(),
+    ))]
     pub fn take_next_instance(
         &self,
         max_samples: i32,
