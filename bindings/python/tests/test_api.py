@@ -1,4 +1,9 @@
-from dust_dds import DomainParticipantFactory, UserDataQosPolicy, DomainParticipantQos
+from dataclasses import dataclass
+from dust_dds import DomainParticipantFactory, UserDataQosPolicy, DomainParticipantQos, TypeKind
+
+@dataclass
+class MyTopicType:
+    id: TypeKind.uint8
 
 def test_set_default_participant_qos():
     participant_factory = DomainParticipantFactory()
@@ -21,5 +26,5 @@ def test_create_delete_subscriber():
 def test_create_delete_topic():
     participant_factory = DomainParticipantFactory()
     participant = participant_factory.create_participant(102)
-    topic = participant.create_topic("MyTopicName", "MyTopicType")
+    topic = participant.create_topic("MyTopicName", MyTopicType)
     participant.delete_topic(topic)
