@@ -1,16 +1,21 @@
+from dataclasses import dataclass
 import dust_dds
 import time
+
+@dataclass
+class MyDataType:
+    data: bytes
 
 class MyReaderListener:
     def on_data_available(reader):
         print("On data available")
         received_data = reader.read(max_samples = 1)
-        print(f"Received data {received_data[0].data.value}")
+        print(f"Received data {received_data[0].data}")
 
 def test_write_read():
     participant_factory = dust_dds.DomainParticipantFactory()
     participant = participant_factory.create_participant(domain_id = 100)
-    topic = participant.create_topic(topic_name = "TestTopic", type_name = "TestType")
+    topic = participant.create_topic(topic_name = "TestTopic", type_ = MyDataType)
 
     publisher = participant.create_publisher()
     data_writer = publisher.create_datawriter(topic)
@@ -19,15 +24,23 @@ def test_write_read():
     data_reader = subscriber.create_datareader(topic, a_listener = MyReaderListener, mask=[dust_dds.StatusKind.DataAvailable] )
 
     # Wait for discovery
-    time.sleep(2)
+    ws = dust_dds.WaitSet()
+    cond = data_writer.get_statuscondition()
+    cond.set_enabled_statuses([dust_dds.StatusKind.PublicationMatched])
+    ws.attach_condition(dust_dds.Condition.StatusCondition(cond))
 
-    data = dust_dds.MyDdsData([0,1,2,3,4])
+    data = MyDataType(bytes([0,1,2,3,4]))
     data_writer.write(data)
 
     # Wait for data to be received
-    time.sleep(2)
+    ws_data_available = dust_dds.WaitSet()
+    cond = data_reader.get_statuscondition()
+    cond.set_enabled_statuses([dust_dds.StatusKind.DataAvailable])
+    ws_data_available.attach_condition(dust_dds.Condition.StatusCondition(cond))
+
+    ws_data_available.wait(dust_dds.Duration(sec=2, nanosec=0))
 
     received_data = data_reader.read(max_samples = 1)
 
-    print(f"Received data {received_data[0].data.value}")
-    assert data.value == received_data[0].data.value
+    print(f"Received data {received_data[0].data}")
+    assert data == received_data[0].data

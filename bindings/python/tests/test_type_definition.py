@@ -25,14 +25,23 @@ def test_write_read_my_data_type():
     data_reader = subscriber.create_datareader(topic)
 
     # Wait for discovery
-    ws = dust_dds.WaitSet
-    time.sleep(2)
+    ws = dust_dds.WaitSet()
+    cond = data_writer.get_statuscondition()
+    cond.set_enabled_statuses([dust_dds.StatusKind.PublicationMatched])
+    ws.attach_condition(dust_dds.Condition.StatusCondition(cond))
+
+    ws.wait(dust_dds.Duration(sec=2, nanosec=0))
 
     data = MyDataType(231, True, bytes([1,2,3]), "hello world")
     data_writer.write(data)
 
     # Wait for data to be received
-    time.sleep(2)
+    ws_data_available = dust_dds.WaitSet()
+    cond = data_reader.get_statuscondition()
+    cond.set_enabled_statuses([dust_dds.StatusKind.DataAvailable])
+    ws_data_available.attach_condition(dust_dds.Condition.StatusCondition(cond))
+
+    ws_data_available.wait(dust_dds.Duration(sec=2, nanosec=0))
 
     received_data = data_reader.read(max_samples = 1 )
 
