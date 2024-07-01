@@ -141,6 +141,10 @@ impl PythonDdsData {
                     serializer
                         .serialize_seq(member_data.extract()?)
                         .map_err(|e| PyTypeError::new_err(e.to_string()))
+                } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+                    serializer
+                        .serialize_str(member_data.extract()?)
+                        .map_err(|e| PyTypeError::new_err(e.to_string()))
                 } else {
                     serialize_data(member_type.py(), member_data.clone().unbind(), serializer)
                 }
@@ -223,6 +227,8 @@ impl PythonDdsData {
             } else if let Ok(py_type) = member_type.downcast::<PyType>() {
                 if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
                     Ok(deserializer.deserialize_bytes()?.into_py(py))
+                } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+                    Ok(deserializer.deserialize_string()?.into_py(py))
                 } else {
                     deserialize_data(py, member_type.extract()?, deserializer)
                 }

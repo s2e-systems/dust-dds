@@ -8,6 +8,7 @@ class MyDataType:
     id : dust_dds.TypeKind.uint32
     state : dust_dds.TypeKind.boolean
     data: bytes
+    msg: str
     def _key():
         return ["id"]
 
@@ -27,7 +28,7 @@ def test_write_read_my_data_type():
     ws = dust_dds.WaitSet
     time.sleep(2)
 
-    data = MyDataType(231, True, bytes([1,2,3]))
+    data = MyDataType(231, True, bytes([1,2,3]), "hello world")
     data_writer.write(data)
 
     # Wait for data to be received
