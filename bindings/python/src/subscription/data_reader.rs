@@ -355,15 +355,11 @@ impl DataReader {
         }
     }
 
-    pub fn get_key_value(
-        &self,
-        _key_holder: Bound<'_, PyAny>,
-        _handle: InstanceHandle,
-    ) -> PyResult<()> {
+    pub fn get_key_value(&self, _key_holder: Py<PyAny>, _handle: InstanceHandle) -> PyResult<()> {
         unimplemented!()
     }
 
-    pub fn lookup_instance(&self, _instance: Bound<'_, PyAny>) -> PyResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, _instance: Py<PyAny>) -> PyResult<Option<InstanceHandle>> {
         unimplemented!()
     }
 

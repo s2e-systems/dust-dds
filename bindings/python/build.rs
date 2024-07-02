@@ -15,62 +15,34 @@ struct PyiImplVisitor<'ast> {
 impl<'ast> PyiImplVisitor<'ast> {
     fn write_fn_item(&mut self, fn_item: &ImplItemFn) {
         let fn_name = fn_item.sig.ident.to_string();
-        // From conversions are not mapped into python
-        if fn_name == "from" {
+
+        // From conversions and as_ref are not mapped into python
+        if fn_name == "from" || fn_name == "as_ref" {
             return;
         }
 
         write!(self.pyi_file, "\tdef {}(", fn_item.sig.ident.to_string()).unwrap();
+        let mut is_first = true;
 
         for fn_arg in fn_item.sig.inputs.iter() {
             match fn_arg {
-                syn::FnArg::Receiver(_) => write!(self.pyi_file, "self").unwrap(),
+                syn::FnArg::Receiver(_) => {
+                    write!(self.pyi_file, "self").unwrap();
+                    is_first = false;
+                }
                 syn::FnArg::Typed(t) => {
+                    if !is_first {
+                        write!(self.pyi_file, ", ").unwrap();
+                    }
                     match t.pat.as_ref() {
                         syn::Pat::Ident(i) => {
-                            write!(self.pyi_file, ", {}", i.ident).unwrap();
+                            write!(self.pyi_file, "{}", i.ident).unwrap();
                         }
                         _ => unimplemented!(),
                     };
-                    match t.ty.as_ref() {
-                        syn::Type::Path(p) => {
-                            write!(self.pyi_file, ": {:?}", p.path).unwrap();
-                        }
-                        syn::Type::Array(_) => todo!(),
-                        syn::Type::BareFn(_) => todo!(),
-                        syn::Type::Group(_) => todo!(),
-                        syn::Type::ImplTrait(_) => todo!(),
-                        syn::Type::Infer(_) => todo!(),
-                        syn::Type::Macro(_) => todo!(),
-                        syn::Type::Never(_) => todo!(),
-                        syn::Type::Paren(_) => todo!(),
-                        syn::Type::Ptr(_) => todo!(),
-                        syn::Type::Reference(r) => match r.elem.as_ref() {
-                            syn::Type::Array(_) => todo!(),
-                            syn::Type::BareFn(_) => todo!(),
-                            syn::Type::Group(_) => todo!(),
-                            syn::Type::ImplTrait(_) => todo!(),
-                            syn::Type::Infer(_) => todo!(),
-                            syn::Type::Macro(_) => todo!(),
-                            syn::Type::Never(_) => todo!(),
-                            syn::Type::Paren(_) => todo!(),
-                            syn::Type::Path(p) => {
-                                write!(self.pyi_file, ": {}", p.path.get_ident().unwrap()).unwrap()
-                            }
-                            syn::Type::Ptr(_) => todo!(),
-                            syn::Type::Reference(_) => todo!(),
-                            syn::Type::Slice(_) => todo!(),
-                            syn::Type::TraitObject(_) => todo!(),
-                            syn::Type::Tuple(_) => todo!(),
-                            syn::Type::Verbatim(_) => todo!(),
-                            _ => todo!(),
-                        },
-                        syn::Type::Slice(_) => todo!(),
-                        syn::Type::TraitObject(_) => todo!(),
-                        syn::Type::Tuple(_) => todo!(),
-                        syn::Type::Verbatim(_) => todo!(),
-                        _ => todo!(),
-                    }
+                    write!(self.pyi_file, ": ").unwrap();
+                    self.write_type(t.ty.as_ref());
+                    is_first = false;
                 }
             }
         }
@@ -78,6 +50,67 @@ impl<'ast> PyiImplVisitor<'ast> {
         write!(self.pyi_file, "): ...\n").unwrap();
 
         self.is_empty = false;
+    }
+
+    fn write_type(&mut self, type_path: &syn::Type) {
+        match type_path {
+            syn::Type::Path(p) => {
+                // If the TypePath has an ident it directly represents a type, otherwise
+                // it is a generic
+                if let Some(i) = p.path.get_ident() {
+                    let type_name = match i.to_string().as_str() {
+                        "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" => {
+                            "int".to_string()
+                        }
+                        "String" => "str".to_string(),
+                        _ => i.to_string(),
+                    };
+                    write!(self.pyi_file, "{}", type_name).unwrap();
+                } else {
+                    let type_name = p.path.segments[0].ident.to_string();
+                    // write!(self.pyi_file, ": {:?}", p.path.segments[0]).unwrap();
+                    match type_name.as_str() {
+                        "Option" => match &p.path.segments[0].arguments {
+                            syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
+                                syn::GenericArgument::Type(t) => self.write_type(t),
+                                _ => unimplemented!(),
+                            },
+                            _ => unimplemented!(),
+                        },
+                        "Vec" => {
+                            write!(self.pyi_file, "list[").unwrap();
+                            match &p.path.segments[0].arguments {
+                                syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
+                                    syn::GenericArgument::Type(t) => self.write_type(t),
+                                    _ => unimplemented!(),
+                                },
+                                _ => unimplemented!(),
+                            }
+                            write!(self.pyi_file, "]").unwrap();
+                        }
+                        "Py" => write!(self.pyi_file, "Any").unwrap(),
+                        _ => {
+                            unimplemented!();
+                        }
+                    }
+                }
+            }
+            syn::Type::Array(_) => todo!(),
+            syn::Type::BareFn(_) => todo!(),
+            syn::Type::Group(_) => todo!(),
+            syn::Type::ImplTrait(_) => todo!(),
+            syn::Type::Infer(_) => todo!(),
+            syn::Type::Macro(_) => todo!(),
+            syn::Type::Never(_) => todo!(),
+            syn::Type::Paren(_) => todo!(),
+            syn::Type::Ptr(_) => todo!(),
+            syn::Type::Reference(r) => self.write_type(r.elem.as_ref()),
+            syn::Type::Slice(_) => todo!(),
+            syn::Type::TraitObject(_) => todo!(),
+            syn::Type::Tuple(_) => todo!(),
+            syn::Type::Verbatim(_) => todo!(),
+            _ => todo!(),
+        }
     }
 }
 
@@ -171,6 +204,9 @@ fn main() -> io::Result<()> {
     let cargo_dir = std::env::var("CARGO_MANIFEST_DIR").expect("Variable should exist");
     let cargo_dir_path = Path::new(&cargo_dir);
     let mut pyi_file = File::create(cargo_dir_path.join("dust_dds.pyi"))?;
+
+    write!(pyi_file, "from typing import Any \n").unwrap();
+
     visit_fs_dir(cargo_dir_path, &mut pyi_file)?;
 
     Ok(())
