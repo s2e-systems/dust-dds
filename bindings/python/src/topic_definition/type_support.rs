@@ -82,7 +82,6 @@ fn is_list(member_type: &Bound<PyAny>) -> PyResult<bool> {
     Ok(typing_module.py().get_type_bound::<PyList>().is(&origin))
 }
 
-#[pyclass]
 pub struct PythonDdsData {
     pub data: Vec<u8>,
     pub key: Vec<u8>,

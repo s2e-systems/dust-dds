@@ -10,7 +10,6 @@ use crate::{
 
 use super::data_writer::DataWriter;
 
-#[pyclass]
 #[derive(Clone)]
 pub struct DataWriterListener(Py<PyAny>);
 impl From<Py<PyAny>> for DataWriterListener {

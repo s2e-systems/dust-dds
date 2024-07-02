@@ -5,7 +5,6 @@ use crate::infrastructure::status::{
     PublicationMatchedStatus,
 };
 
-#[pyclass]
 #[derive(Clone)]
 pub struct PublisherListener(Py<PyAny>);
 impl From<Py<PyAny>> for PublisherListener {

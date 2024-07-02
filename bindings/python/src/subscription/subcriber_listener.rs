@@ -7,7 +7,6 @@ use crate::infrastructure::status::{
 
 use super::subscriber::Subscriber;
 
-#[pyclass]
 #[derive(Clone)]
 pub struct SubscriberListener(Py<PyAny>);
 

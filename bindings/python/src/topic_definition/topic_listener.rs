@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 
 use crate::{infrastructure::status::InconsistentTopicStatus, topic_definition::topic::Topic};
 
-#[pyclass]
 #[derive(Clone)]
 pub struct TopicListener(Py<PyAny>);
 impl From<Py<PyAny>> for TopicListener {

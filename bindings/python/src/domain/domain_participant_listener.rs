@@ -10,7 +10,6 @@ use crate::{
     topic_definition::topic::Topic,
 };
 
-#[pyclass]
 #[derive(Clone)]
 pub struct DomainParticipantListener(Py<PyAny>);
 impl From<Py<PyAny>> for DomainParticipantListener {

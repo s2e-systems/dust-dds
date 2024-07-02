@@ -10,7 +10,6 @@ use crate::{
 
 use super::data_reader::DataReader;
 
-#[pyclass]
 #[derive(Clone)]
 pub struct DataReaderListener(Py<PyAny>);
 
@@ -20,7 +19,6 @@ impl From<Py<PyAny>> for DataReaderListener {
     }
 }
 
-#[pymethods]
 impl DataReaderListener {
     #[new]
     pub fn new(listener: Py<PyAny>) -> Self {
