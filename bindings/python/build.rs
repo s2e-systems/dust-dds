@@ -67,6 +67,16 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
                 todo!()
             }
         }
+        syn::Type::Array(a) => {
+            write!(pyi_file, "list[").unwrap();
+            write_type(pyi_file, a.elem.as_ref());
+            write!(pyi_file, "]").unwrap();
+        }
+        syn::Type::Slice(s) => {
+            write!(pyi_file, "list[").unwrap();
+            write_type(pyi_file, s.elem.as_ref());
+            write!(pyi_file, "]").unwrap();
+        }
         _ => {
             write!(pyi_file, "Unimplemented {:?}", type_path).unwrap();
             todo!();
@@ -90,23 +100,9 @@ impl<'ast> PyiImplVisitor<'ast> {
                 .any(|i| *i == "new")
         }
 
-        fn is_getter_or_setter(fn_item: &ImplItemFn) -> bool {
-            fn_item
-                .attrs
-                .iter()
-                .filter_map(|a| a.meta.path().get_ident())
-                .any(|i| *i == "getter" || *i == "setter")
-        }
-
         let fn_name = fn_item.sig.ident.to_string();
         // From conversions and as_ref are not mapped into python
         if fn_name == "from" || fn_name == "as_ref" {
-            return;
-        }
-
-        // Skip getter or setter variables since these will be specified in the
-        // constructor for all our cases
-        if is_getter_or_setter(fn_item) {
             return;
         }
 

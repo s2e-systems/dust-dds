@@ -1,4 +1,3 @@
-use dust_dds::infrastructure::qos_policy::QosPolicyId;
 use pyo3::prelude::*;
 
 use super::instance::InstanceHandle;
@@ -121,12 +120,10 @@ impl From<dust_dds::infrastructure::status::InconsistentTopicStatus> for Inconsi
 
 #[pymethods]
 impl InconsistentTopicStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
@@ -144,12 +141,10 @@ impl From<dust_dds::infrastructure::status::SampleLostStatus> for SampleLostStat
 
 #[pymethods]
 impl SampleLostStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
@@ -187,22 +182,18 @@ impl From<dust_dds::infrastructure::status::SampleRejectedStatus> for SampleReje
 
 #[pymethods]
 impl SampleRejectedStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
     pub fn get_last_reason(&self) -> SampleRejectedStatusKind {
         self.0.last_reason.into()
     }
 
-    #[getter]
     pub fn get_last_instance_handle(&self) -> InstanceHandle {
         self.0.last_instance_handle.into()
     }
@@ -220,12 +211,10 @@ impl From<dust_dds::infrastructure::status::LivelinessLostStatus> for Liveliness
 
 #[pymethods]
 impl LivelinessLostStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
@@ -243,27 +232,22 @@ impl From<dust_dds::infrastructure::status::LivelinessChangedStatus> for Livelin
 
 #[pymethods]
 impl LivelinessChangedStatus {
-    #[getter]
     pub fn get_alive_count(&self) -> i32 {
         self.0.alive_count
     }
 
-    #[getter]
     pub fn get_not_alive_count(&self) -> i32 {
         self.0.not_alive_count
     }
 
-    #[getter]
     pub fn get_alive_count_change(&self) -> i32 {
         self.0.alive_count_change
     }
 
-    #[getter]
     pub fn get_not_alive_count_change(&self) -> i32 {
         self.0.not_alive_count_change
     }
 
-    #[getter]
     pub fn get_last_publication_handle(&self) -> InstanceHandle {
         self.0.last_publication_handle.into()
     }
@@ -285,17 +269,14 @@ impl From<dust_dds::infrastructure::status::OfferedDeadlineMissedStatus>
 
 #[pymethods]
 impl OfferedDeadlineMissedStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
     pub fn get_last_instance_handle(&self) -> InstanceHandle {
         self.0.last_instance_handle.into()
     }
@@ -317,17 +298,14 @@ impl From<dust_dds::infrastructure::status::RequestedDeadlineMissedStatus>
 
 #[pymethods]
 impl RequestedDeadlineMissedStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
     pub fn get_last_instance_handle(&self) -> InstanceHandle {
         self.0.last_instance_handle.into()
     }
@@ -345,12 +323,10 @@ impl From<dust_dds::infrastructure::status::QosPolicyCount> for QosPolicyCount {
 
 #[pymethods]
 impl QosPolicyCount {
-    #[getter]
-    pub fn get_policy_id(&self) -> QosPolicyId {
+    pub fn get_policy_id(&self) -> i32 {
         self.0.policy_id
     }
 
-    #[getter]
     pub fn get_count(&self) -> i32 {
         self.0.count
     }
@@ -372,22 +348,18 @@ impl From<dust_dds::infrastructure::status::OfferedIncompatibleQosStatus>
 
 #[pymethods]
 impl OfferedIncompatibleQosStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
-    pub fn get_last_policy_id(&self) -> QosPolicyId {
+    pub fn get_last_policy_id(&self) -> i32 {
         self.0.last_policy_id
     }
 
-    #[getter]
     pub fn get_policies(&self) -> Vec<QosPolicyCount> {
         self.0.policies.iter().map(|p| p.clone().into()).collect()
     }
@@ -409,22 +381,18 @@ impl From<dust_dds::infrastructure::status::RequestedIncompatibleQosStatus>
 
 #[pymethods]
 impl RequestedIncompatibleQosStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
-    pub fn get_last_policy_id(&self) -> QosPolicyId {
+    pub fn get_last_policy_id(&self) -> i32 {
         self.0.last_policy_id
     }
 
-    #[getter]
     pub fn get_policies(&self) -> Vec<QosPolicyCount> {
         self.0.policies.iter().map(|p| p.clone().into()).collect()
     }
@@ -442,27 +410,22 @@ impl From<dust_dds::infrastructure::status::PublicationMatchedStatus> for Public
 
 #[pymethods]
 impl PublicationMatchedStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
     pub fn get_last_subscription_handle(&self) -> InstanceHandle {
         self.0.last_subscription_handle.into()
     }
 
-    #[getter]
     pub fn get_current_count(&self) -> i32 {
         self.0.current_count
     }
 
-    #[getter]
     pub fn get_current_count_change(&self) -> i32 {
         self.0.current_count_change
     }
@@ -482,27 +445,22 @@ impl From<dust_dds::infrastructure::status::SubscriptionMatchedStatus>
 
 #[pymethods]
 impl SubscriptionMatchedStatus {
-    #[getter]
     pub fn get_total_count(&self) -> i32 {
         self.0.total_count
     }
 
-    #[getter]
     pub fn get_total_count_change(&self) -> i32 {
         self.0.total_count_change
     }
 
-    #[getter]
     pub fn get_last_publication_handle(&self) -> InstanceHandle {
         self.0.last_publication_handle.into()
     }
 
-    #[getter]
     pub fn get_current_count(&self) -> i32 {
         self.0.current_count
     }
 
-    #[getter]
     pub fn get_current_count_change(&self) -> i32 {
         self.0.current_count_change
     }

@@ -125,62 +125,50 @@ impl From<dust_dds::subscription::sample_info::SampleInfo> for SampleInfo {
 
 #[pymethods]
 impl SampleInfo {
-    #[getter]
     fn get_sample_state(&self) -> SampleStateKind {
         self.0.sample_state.into()
     }
 
-    #[getter]
     fn get_view_state(&self) -> ViewStateKind {
         self.0.view_state.into()
     }
 
-    #[getter]
     fn get_instance_state(&self) -> InstanceStateKind {
         self.0.instance_state.into()
     }
 
-    #[getter]
     fn get_disposed_generation_count(&self) -> i32 {
         self.0.disposed_generation_count
     }
 
-    #[getter]
     fn get_no_writers_generation_count(&self) -> i32 {
         self.0.no_writers_generation_count
     }
 
-    #[getter]
     fn get_sample_rank(&self) -> i32 {
         self.0.sample_rank
     }
 
-    #[getter]
     fn get_generation_rank(&self) -> i32 {
         self.0.generation_rank
     }
 
-    #[getter]
     fn get_absolute_generation_rank(&self) -> i32 {
         self.0.absolute_generation_rank
     }
 
-    #[getter]
     fn get_source_timestamp(&self) -> Option<Time> {
         self.0.source_timestamp.map(Time::from)
     }
 
-    #[getter]
     fn get_instance_handle(&self) -> InstanceHandle {
         self.0.instance_handle.into()
     }
 
-    #[getter]
     fn get_publication_handle(&self) -> InstanceHandle {
         self.0.publication_handle.into()
     }
 
-    #[getter]
     fn get_valid_data(&self) -> bool {
         self.0.valid_data
     }

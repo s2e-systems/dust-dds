@@ -513,7 +513,6 @@ pub struct Sample {
 
 #[pymethods]
 impl Sample {
-    #[getter]
     pub fn get_data(&self) -> PyResult<Py<PyAny>> {
         self.sample
             .data()
@@ -521,7 +520,6 @@ impl Sample {
             .into_py_object(&self.type_)
     }
 
-    #[getter]
     pub fn get_sample_info(&self) -> SampleInfo {
         self.sample.sample_info().into()
     }

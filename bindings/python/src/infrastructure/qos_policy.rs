@@ -54,12 +54,10 @@ impl UserDataQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::UserDataQosPolicy { value })
     }
 
-    #[getter]
     pub fn get_value(&self) -> &[u8] {
         &self.0.value
     }
 
-    #[setter]
     pub fn set_value(&mut self, value: Vec<u8>) {
         self.0.value = value
     }
@@ -92,12 +90,10 @@ impl EntityFactoryQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_autoenable_created_entities(&self) -> bool {
         self.0.autoenable_created_entities
     }
 
-    #[setter]
     pub fn set_autoenable_created_entities(&mut self, value: bool) {
         self.0.autoenable_created_entities = value
     }
@@ -126,12 +122,10 @@ impl TopicDataQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::TopicDataQosPolicy { value })
     }
 
-    #[getter]
     pub fn get_value(&self) -> &[u8] {
         &self.0.value
     }
 
-    #[setter]
     pub fn set_value(&mut self, value: Vec<u8>) {
         self.0.value = value
     }
@@ -197,12 +191,10 @@ impl DurabilityQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::DurabilityQosPolicy { kind: kind.into() })
     }
 
-    #[getter]
     pub fn get_kind(&self) -> DurabilityQosPolicyKind {
         self.0.kind.into()
     }
 
-    #[setter]
     pub fn set_kind(&mut self, value: DurabilityQosPolicyKind) {
         self.0.kind = value.into()
     }
@@ -233,12 +225,10 @@ impl DeadlineQosPolicy {
         })
     }
 
-    #[getter]
     pub fn get_period(&self) -> DurationKind {
         self.0.period.into()
     }
 
-    #[setter]
     pub fn set_period(&mut self, value: DurationKind) {
         self.0.period = value.into()
     }
@@ -271,12 +261,10 @@ impl LatencyBudgetQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_duration(&self) -> DurationKind {
         self.0.duration.into()
     }
 
-    #[setter]
     pub fn set_duration(&mut self, value: DurationKind) {
         self.0.duration = value.into()
     }
@@ -352,22 +340,18 @@ impl LivelinessQosPolicy {
         })
     }
 
-    #[getter]
     pub fn get_kind(&self) -> LivelinessQosPolicyKind {
         self.0.kind.into()
     }
 
-    #[setter]
     pub fn set_kind(&mut self, value: LivelinessQosPolicyKind) {
         self.0.kind = value.into()
     }
 
-    #[getter]
     pub fn get_lease_duration(&self) -> DurationKind {
         self.0.lease_duration.into()
     }
 
-    #[setter]
     pub fn set_lease_duration(&mut self, value: DurationKind) {
         self.0.lease_duration = value.into()
     }
@@ -436,22 +420,18 @@ impl ReliabilityQosPolicy {
         })
     }
 
-    #[getter]
     pub fn get_kind(&self) -> ReliabilityQosPolicyKind {
         self.0.kind.into()
     }
 
-    #[setter]
     pub fn set_kind(&mut self, value: ReliabilityQosPolicyKind) {
         self.0.kind = value.into()
     }
 
-    #[getter]
     pub fn get_max_blocking_time(&self) -> DurationKind {
         self.0.max_blocking_time.into()
     }
 
-    #[setter]
     pub fn set_max_blocking_time(&mut self, value: DurationKind) {
         self.0.max_blocking_time = value.into()
     }
@@ -515,12 +495,10 @@ impl DestinationOrderQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy { kind: kind.into() })
     }
 
-    #[getter]
     pub fn get_kind(&self) -> DestinationOrderQosPolicyKind {
         self.0.kind.into()
     }
 
-    #[setter]
     pub fn set_kind(&mut self, value: DestinationOrderQosPolicyKind) {
         self.0.kind = value.into()
     }
@@ -582,12 +560,10 @@ impl HistoryQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::HistoryQosPolicy { kind: kind.into() })
     }
 
-    #[getter]
     pub fn get_kind(&self) -> HistoryQosPolicyKind {
         self.0.kind.into()
     }
 
-    #[setter]
     pub fn set_kind(&mut self, value: HistoryQosPolicyKind) {
         self.0.kind = value.into()
     }
@@ -630,32 +606,26 @@ impl ResourceLimitsQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_max_samples(&self) -> Length {
         self.0.max_samples.into()
     }
 
-    #[setter]
     pub fn set_max_samples(&mut self, value: Length) {
         self.0.max_samples = value.into()
     }
 
-    #[getter]
     pub fn get_max_instances(&self) -> Length {
         self.0.max_instances.into()
     }
 
-    #[setter]
     pub fn set_max_instances(&mut self, value: Length) {
         self.0.max_instances = value.into()
     }
 
-    #[getter]
     pub fn get_max_samples_per_instance(&self) -> Length {
         self.0.max_samples_per_instance.into()
     }
 
-    #[setter]
     pub fn set_max_samples_per_instance(&mut self, value: Length) {
         self.0.max_samples_per_instance = value.into()
     }
@@ -690,12 +660,10 @@ impl TransportPriorityQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy { value })
     }
 
-    #[getter]
     pub fn get_value(&self) -> i32 {
         self.0.value
     }
 
-    #[setter]
     pub fn set_value(&mut self, value: i32) {
         self.0.value = value
     }
@@ -726,12 +694,10 @@ impl LifespanQosPolicy {
         })
     }
 
-    #[getter]
     pub fn get_duration(&self) -> DurationKind {
         self.0.duration.into()
     }
 
-    #[setter]
     pub fn set_duration(&mut self, value: DurationKind) {
         self.0.duration = value.into()
     }
@@ -786,12 +752,10 @@ impl OwnershipQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::OwnershipQosPolicy { kind: kind.into() })
     }
 
-    #[getter]
     pub fn get_kind(&self) -> OwnershipQosPolicyKind {
         self.0.kind.into()
     }
 
-    #[setter]
     pub fn set_kind(&mut self, value: OwnershipQosPolicyKind) {
         self.0.kind = value.into()
     }
@@ -820,12 +784,10 @@ impl GroupDataQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::GroupDataQosPolicy { value })
     }
 
-    #[getter]
     pub fn get_value(&self) -> &[u8] {
         &self.0.value
     }
 
-    #[setter]
     pub fn set_value(&mut self, value: Vec<u8>) {
         self.0.value = value;
     }
@@ -854,12 +816,10 @@ impl PartitionQosPolicy {
         Self(dust_dds::infrastructure::qos_policy::PartitionQosPolicy { name })
     }
 
-    #[getter]
     pub fn get_name(&self) -> Vec<String> {
         self.0.name.clone()
     }
 
-    #[setter]
     pub fn set_name(&mut self, value: Vec<String>) {
         self.0.name = value;
     }
@@ -933,32 +893,26 @@ impl PresentationQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_access_scope(&self) -> PresentationQosPolicyAccessScopeKind {
         self.0.access_scope.into()
     }
 
-    #[setter]
     pub fn set_access_scope(&mut self, value: PresentationQosPolicyAccessScopeKind) {
         self.0.access_scope = value.into();
     }
 
-    #[getter]
     pub fn get_coherent_access(&self) -> bool {
         self.0.coherent_access
     }
 
-    #[setter]
     pub fn set_coherent_access(&mut self, value: bool) {
         self.0.coherent_access = value;
     }
 
-    #[getter]
     pub fn get_ordered_access(&self) -> bool {
         self.0.ordered_access
     }
 
-    #[setter]
     pub fn set_ordered_access(&mut self, value: bool) {
         self.0.ordered_access = value;
     }
@@ -997,12 +951,10 @@ impl WriterDataLifecycleQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_autodispose_unregistered_instances(&self) -> bool {
         self.0.autodispose_unregistered_instances
     }
 
-    #[setter]
     pub fn set_autodispose_unregistered_instances(&mut self, value: bool) {
         self.0.autodispose_unregistered_instances = value;
     }
@@ -1039,12 +991,10 @@ impl TimeBasedFilterQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_minimum_separation(&self) -> DurationKind {
         self.0.minimum_separation.into()
     }
 
-    #[setter]
     pub fn set_minimum_separation(&mut self, value: DurationKind) {
         self.0.minimum_separation = value.into();
     }
@@ -1087,22 +1037,18 @@ impl ReaderDataLifecycleQosPolicy {
         )
     }
 
-    #[getter]
     pub fn get_autopurge_nowriter_samples_delay(&self) -> DurationKind {
         self.0.autopurge_nowriter_samples_delay.into()
     }
 
-    #[setter]
     pub fn set_autopurge_nowriter_samples_delay(&mut self, value: DurationKind) {
         self.0.autopurge_nowriter_samples_delay = value.into();
     }
 
-    #[getter]
     pub fn get_autopurge_disposed_samples_delay(&self) -> DurationKind {
         self.0.autopurge_disposed_samples_delay.into()
     }
 
-    #[setter]
     pub fn set_autopurge_disposed_samples_delay(&mut self, value: DurationKind) {
         self.0.autopurge_disposed_samples_delay = value.into();
     }

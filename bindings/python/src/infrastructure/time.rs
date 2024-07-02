@@ -23,12 +23,10 @@ impl Duration {
         Self(dust_dds::infrastructure::time::Duration::new(sec, nanosec))
     }
 
-    #[getter]
     pub fn get_sec(&self) -> i32 {
         self.0.sec()
     }
 
-    #[getter]
     pub fn get_nanosec(&self) -> u32 {
         self.0.nanosec()
     }
@@ -88,12 +86,10 @@ impl Time {
         Self(dust_dds::infrastructure::time::Time::new(sec, nanosec))
     }
 
-    #[getter]
     pub fn get_sec(&self) -> i32 {
         self.0.sec()
     }
 
-    #[getter]
     pub fn get_nanosec(&self) -> u32 {
         self.0.nanosec()
     }

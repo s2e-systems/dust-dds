@@ -43,7 +43,6 @@ impl DomainParticipantFactoryQos {
         })
     }
 
-    #[getter]
     fn get_entity_factory(&self) -> EntityFactoryQosPolicy {
         self.0.entity_factory.clone().into()
     }
@@ -76,12 +75,10 @@ impl DomainParticipantQos {
         })
     }
 
-    #[getter]
     fn get_user_data(&self) -> UserDataQosPolicy {
         self.0.user_data.clone().into()
     }
 
-    #[getter]
     fn get_entity_factory(&self) -> EntityFactoryQosPolicy {
         self.0.entity_factory.clone().into()
     }
@@ -126,42 +123,34 @@ impl PublisherQos {
         })
     }
 
-    #[getter]
     pub fn get_presentation(&self) -> PresentationQosPolicy {
         self.0.presentation.clone().into()
     }
 
-    #[setter]
     pub fn set_presentation(&mut self, value: PresentationQosPolicy) {
         self.0.presentation = value.into()
     }
 
-    #[getter]
     pub fn get_partition(&self) -> PartitionQosPolicy {
         self.0.partition.clone().into()
     }
 
-    #[setter]
     pub fn set_partition(&mut self, value: PartitionQosPolicy) {
         self.0.partition = value.into()
     }
 
-    #[getter]
     pub fn get_group_data(&self) -> GroupDataQosPolicy {
         self.0.group_data.clone().into()
     }
 
-    #[setter]
     pub fn set_group_data(&mut self, value: GroupDataQosPolicy) {
         self.0.group_data = value.into()
     }
 
-    #[getter]
     pub fn get_entity_factory(&self) -> EntityFactoryQosPolicy {
         self.0.entity_factory.clone().into()
     }
 
-    #[setter]
     pub fn set_entity_factory(&mut self, value: EntityFactoryQosPolicy) {
         self.0.entity_factory = value.into()
     }
@@ -276,62 +265,50 @@ impl TopicQos {
         })
     }
 
-    #[getter]
     fn get_topic_data(&self) -> TopicDataQosPolicy {
         self.0.topic_data.clone().into()
     }
 
-    #[getter]
     fn get_durability(&self) -> DurabilityQosPolicy {
         self.0.durability.clone().into()
     }
 
-    #[getter]
     fn get_deadline(&self) -> DeadlineQosPolicy {
         self.0.deadline.clone().into()
     }
 
-    #[getter]
     fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
         self.0.latency_budget.clone().into()
     }
 
-    #[getter]
     fn get_liveliness(&self) -> LivelinessQosPolicy {
         self.0.liveliness.clone().into()
     }
 
-    #[getter]
     fn get_reliability(&self) -> ReliabilityQosPolicy {
         self.0.reliability.clone().into()
     }
 
-    #[getter]
     fn get_destination_order(&self) -> DestinationOrderQosPolicy {
         self.0.destination_order.clone().into()
     }
 
-    #[getter]
     fn get_history(&self) -> HistoryQosPolicy {
         self.0.history.clone().into()
     }
 
-    #[getter]
     fn get_resource_limits(&self) -> ResourceLimitsQosPolicy {
         self.0.resource_limits.clone().into()
     }
 
-    #[getter]
     fn get_transport_priority(&self) -> TransportPriorityQosPolicy {
         self.0.transport_priority.clone().into()
     }
 
-    #[getter]
     fn get_lifespan(&self) -> LifespanQosPolicy {
         self.0.lifespan.clone().into()
     }
 
-    #[getter]
     fn get_ownership(&self) -> OwnershipQosPolicy {
         self.0.ownership.clone().into()
     }
@@ -409,67 +386,54 @@ impl DataWriterQos {
         })
     }
 
-    #[getter]
     fn get_durability(&self) -> DurabilityQosPolicy {
         self.0.durability.clone().into()
     }
 
-    #[getter]
     fn get_deadline(&self) -> DeadlineQosPolicy {
         self.0.deadline.clone().into()
     }
 
-    #[getter]
     fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
         self.0.latency_budget.clone().into()
     }
 
-    #[getter]
     fn get_liveliness(&self) -> LivelinessQosPolicy {
         self.0.liveliness.clone().into()
     }
 
-    #[getter]
     fn get_reliability(&self) -> ReliabilityQosPolicy {
         self.0.reliability.clone().into()
     }
 
-    #[getter]
     fn get_destination_order(&self) -> DestinationOrderQosPolicy {
         self.0.destination_order.clone().into()
     }
 
-    #[getter]
     fn get_history(&self) -> HistoryQosPolicy {
         self.0.history.clone().into()
     }
 
-    #[getter]
     fn get_resource_limits(&self) -> ResourceLimitsQosPolicy {
         self.0.resource_limits.clone().into()
     }
 
-    #[getter]
     fn get_transport_priority(&self) -> TransportPriorityQosPolicy {
         self.0.transport_priority.clone().into()
     }
 
-    #[getter]
     fn get_lifespan(&self) -> LifespanQosPolicy {
         self.0.lifespan.clone().into()
     }
 
-    #[getter]
     fn get_user_data(&self) -> UserDataQosPolicy {
         self.0.user_data.clone().into()
     }
 
-    #[getter]
     fn get_ownership(&self) -> OwnershipQosPolicy {
         self.0.ownership.clone().into()
     }
 
-    #[getter]
     fn get_writer_data_lifecycle(&self) -> WriterDataLifecycleQosPolicy {
         self.0.writer_data_lifecycle.clone().into()
     }
@@ -544,62 +508,50 @@ impl DataReaderQos {
         })
     }
 
-    #[getter]
     fn get_durability(&self) -> DurabilityQosPolicy {
         self.0.durability.clone().into()
     }
 
-    #[getter]
     fn get_deadline(&self) -> DeadlineQosPolicy {
         self.0.deadline.clone().into()
     }
 
-    #[getter]
     fn get_latency_budget(&self) -> LatencyBudgetQosPolicy {
         self.0.latency_budget.clone().into()
     }
 
-    #[getter]
     fn get_liveliness(&self) -> LivelinessQosPolicy {
         self.0.liveliness.clone().into()
     }
 
-    #[getter]
     fn get_reliability(&self) -> ReliabilityQosPolicy {
         self.0.reliability.clone().into()
     }
 
-    #[getter]
     fn get_destination_order(&self) -> DestinationOrderQosPolicy {
         self.0.destination_order.clone().into()
     }
 
-    #[getter]
     fn get_history(&self) -> HistoryQosPolicy {
         self.0.history.clone().into()
     }
 
-    #[getter]
     fn get_resource_limits(&self) -> ResourceLimitsQosPolicy {
         self.0.resource_limits.clone().into()
     }
 
-    #[getter]
     fn get_user_data(&self) -> UserDataQosPolicy {
         self.0.user_data.clone().into()
     }
 
-    #[getter]
     fn get_ownership(&self) -> OwnershipQosPolicy {
         self.0.ownership.clone().into()
     }
 
-    #[getter]
     fn get_time_based_filter(&self) -> TimeBasedFilterQosPolicy {
         self.0.time_based_filter.clone().into()
     }
 
-    #[getter]
     fn get_reader_data_lifecycle(&self) -> ReaderDataLifecycleQosPolicy {
         self.0.reader_data_lifecycle.clone().into()
     }
