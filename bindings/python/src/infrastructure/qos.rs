@@ -245,6 +245,7 @@ impl TopicQos {
         lifespan = LifespanQosPolicy::default(),
         ownership = OwnershipQosPolicy::default(),
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         topic_data: TopicDataQosPolicy,
         durability: DurabilityQosPolicy,
@@ -375,6 +376,7 @@ impl DataWriterQos {
         ownership = OwnershipQosPolicy::default(),
         writer_data_lifecycle = WriterDataLifecycleQosPolicy::default(),
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         durability: DurabilityQosPolicy,
         deadline: DeadlineQosPolicy,
@@ -511,6 +513,7 @@ impl DataReaderQos {
         time_based_filter = TimeBasedFilterQosPolicy::default(),
         reader_data_lifecycle = ReaderDataLifecycleQosPolicy::default(),
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         durability: DurabilityQosPolicy,
         deadline: DeadlineQosPolicy,

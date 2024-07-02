@@ -35,7 +35,7 @@ impl AsRef<dust_dds::subscription::subscriber::Subscriber> for Subscriber {
 #[pymethods]
 impl Subscriber {
     #[pyo3(signature = (a_topic, qos = None, a_listener = None, mask = Vec::new()))]
-    pub fn create_datareader<'a>(
+    pub fn create_datareader(
         &self,
         a_topic: &Topic,
         qos: Option<DataReaderQos>,

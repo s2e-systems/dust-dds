@@ -61,7 +61,7 @@ impl UserDataQosPolicy {
 
     #[setter]
     pub fn set_value(&mut self, value: Vec<u8>) {
-        self.0.value = value.into()
+        self.0.value = value
     }
 }
 
@@ -99,7 +99,7 @@ impl EntityFactoryQosPolicy {
 
     #[setter]
     pub fn set_autoenable_created_entities(&mut self, value: bool) {
-        self.0.autoenable_created_entities = value.into()
+        self.0.autoenable_created_entities = value
     }
 }
 
@@ -133,7 +133,7 @@ impl TopicDataQosPolicy {
 
     #[setter]
     pub fn set_value(&mut self, value: Vec<u8>) {
-        self.0.value = value.into()
+        self.0.value = value
     }
 }
 
@@ -692,12 +692,12 @@ impl TransportPriorityQosPolicy {
 
     #[getter]
     pub fn get_value(&self) -> i32 {
-        self.0.value.into()
+        self.0.value
     }
 
     #[setter]
     pub fn set_value(&mut self, value: i32) {
-        self.0.value = value.into()
+        self.0.value = value
     }
 }
 

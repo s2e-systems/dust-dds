@@ -21,7 +21,7 @@ impl<'ast> PyiImplVisitor<'ast> {
             return;
         }
 
-        write!(self.pyi_file, "\tdef {}(", fn_item.sig.ident.to_string()).unwrap();
+        write!(self.pyi_file, "\tdef {}(", fn_item.sig.ident).unwrap();
         let mut is_first = true;
 
         for fn_arg in fn_item.sig.inputs.iter() {
@@ -47,7 +47,7 @@ impl<'ast> PyiImplVisitor<'ast> {
             }
         }
 
-        write!(self.pyi_file, "): ...\n").unwrap();
+        writeln!(self.pyi_file, "): ...").unwrap();
 
         self.is_empty = false;
     }
@@ -118,7 +118,7 @@ impl<'ast> Visit<'ast> for PyiImplVisitor<'ast> {
     fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
         if let syn::Type::Path(impl_path) = i.self_ty.as_ref() {
             if let Some(path_ident) = impl_path.path.get_ident() {
-                if path_ident.to_string() == self.class_name {
+                if *path_ident == self.class_name {
                     for fn_item in i.items.iter().filter_map(|i| match i {
                         syn::ImplItem::Fn(f) => Some(f),
                         _ => None,
@@ -143,8 +143,7 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
             .attrs
             .iter()
             .filter_map(|a| a.meta.path().get_ident())
-            .find(|&i| i.to_string() == "pyclass")
-            .is_some()
+            .any(|i| *i == "pyclass")
         {
             let class_name = node.ident.to_string();
             write!(self.pyi_file, "\n\nclass {}: \n", class_name).unwrap();
@@ -155,7 +154,7 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
             };
             impl_visitor.visit_file(self.ast_file);
             if impl_visitor.is_empty {
-                write!(self.pyi_file, "\tpass\n").unwrap();
+                writeln!(self.pyi_file, "\tpass\n").unwrap();
             }
         }
     }
@@ -205,7 +204,7 @@ fn main() -> io::Result<()> {
     let cargo_dir_path = Path::new(&cargo_dir);
     let mut pyi_file = File::create(cargo_dir_path.join("dust_dds.pyi"))?;
 
-    write!(pyi_file, "from typing import Any \n").unwrap();
+    writeln!(pyi_file, "from typing import Any \n").unwrap();
 
     visit_fs_dir(cargo_dir_path, &mut pyi_file)?;
 

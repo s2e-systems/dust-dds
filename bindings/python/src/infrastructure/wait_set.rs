@@ -31,6 +31,7 @@ impl From<Condition> for dust_dds::infrastructure::wait_set::Condition {
 }
 
 #[pyclass]
+#[derive(Default)]
 pub struct WaitSet(dust_dds::infrastructure::wait_set::WaitSet);
 
 #[pymethods]

@@ -182,6 +182,6 @@ impl SampleInfo {
 
     #[getter]
     fn get_valid_data(&self) -> bool {
-        self.0.valid_data.into()
+        self.0.valid_data
     }
 }

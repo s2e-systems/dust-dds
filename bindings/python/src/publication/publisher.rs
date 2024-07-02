@@ -36,7 +36,7 @@ impl AsRef<dust_dds::publication::publisher::Publisher> for Publisher {
 #[pymethods]
 impl Publisher {
     #[pyo3(signature = (a_topic, qos = None, a_listener = None, mask = Vec::new()))]
-    pub fn create_datawriter<'a>(
+    pub fn create_datawriter(
         &self,
         a_topic: &Topic,
         qos: Option<DataWriterQos>,

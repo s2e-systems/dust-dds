@@ -165,10 +165,10 @@ impl PythonDdsData {
                 .and_then(|c| c.getattr(py, "__annotations__"))?;
             let annotation_dict = annotations
                 .downcast_bound::<PyDict>(py)
-                .map_err(|e| PyErr::from(e))?;
+                .map_err(PyErr::from)?;
             for (member_name, member_type) in annotation_dict {
                 let attribute = data.getattr(py, member_name.downcast::<PyString>()?)?;
-                serialize_data_member(&attribute.bind(py), &member_type, serializer)?;
+                serialize_data_member(attribute.bind(py), &member_type, serializer)?;
             }
             Ok(())
         }
@@ -177,7 +177,7 @@ impl PythonDdsData {
         buffer.extend(&CDR_LE);
         buffer.extend(&REPRESENTATION_OPTIONS);
         let mut serializer = ClassicCdrSerializer::new(&mut buffer, CdrEndianness::LittleEndian);
-        let _ = Python::with_gil(|py| serialize_data(py, py_object, &mut serializer))?;
+        Python::with_gil(|py| serialize_data(py, py_object, &mut serializer))?;
 
         Ok(PythonDdsData {
             data: buffer,
@@ -185,7 +185,7 @@ impl PythonDdsData {
         })
     }
 
-    pub fn into_py_object(&self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
+    pub fn into_py_object(self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
         fn deserialize_data_member(
             member_type: &Bound<PyAny>,
             deserializer: &mut ClassicCdrDeserializer,
@@ -211,7 +211,7 @@ impl PythonDdsData {
                         Err(PyTypeError::new_err("float128 type not yet supported"))
                     }
                 }?)
-            } else if is_list(&member_type)? {
+            } else if is_list(member_type)? {
                 let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
                 let get_args_attr = typing_module.getattr("get_args")?;
                 let type_args = get_args_attr.call1((member_type,))?;
