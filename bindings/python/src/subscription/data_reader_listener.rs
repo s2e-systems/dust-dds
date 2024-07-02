@@ -19,13 +19,6 @@ impl From<Py<PyAny>> for DataReaderListener {
     }
 }
 
-impl DataReaderListener {
-    #[new]
-    pub fn new(listener: Py<PyAny>) -> Self {
-        Self(listener)
-    }
-}
-
 impl dust_dds::subscription::data_reader_listener::DataReaderListener<'_> for DataReaderListener {
     type Foo = PythonDdsData;
 

@@ -363,10 +363,7 @@ impl DataReader {
         unimplemented!()
     }
 
-    pub fn lookup_instance(
-        &self,
-        _instance: &Bound<'_, PyAny>,
-    ) -> PyResult<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, _instance: Bound<'_, PyAny>) -> PyResult<Option<InstanceHandle>> {
         unimplemented!()
     }
 
