@@ -14,14 +14,23 @@ struct PyiImplVisitor<'ast> {
 
 impl<'ast> PyiImplVisitor<'ast> {
     fn write_fn_item(&mut self, fn_item: &ImplItemFn) {
-        let fn_name = fn_item.sig.ident.to_string();
-
+        let mut fn_name = fn_item.sig.ident.to_string();
         // From conversions and as_ref are not mapped into python
         if fn_name == "from" || fn_name == "as_ref" {
             return;
         }
 
-        write!(self.pyi_file, "\tdef {}(", fn_item.sig.ident).unwrap();
+        // If it has a new attribute must be treated as a constructor
+        if fn_item
+            .attrs
+            .iter()
+            .filter_map(|a| a.meta.path().get_ident())
+            .any(|i| *i == "new")
+        {
+            fn_name = "__init__".to_string();
+        }
+
+        write!(self.pyi_file, "\tdef {}(", fn_name).unwrap();
         let mut is_first = true;
 
         for fn_arg in fn_item.sig.inputs.iter() {
@@ -155,6 +164,20 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
             impl_visitor.visit_file(self.ast_file);
             if impl_visitor.is_empty {
                 writeln!(self.pyi_file, "\tpass\n").unwrap();
+            }
+        }
+    }
+
+    fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
+        if i.attrs
+            .iter()
+            .filter_map(|a| a.meta.path().get_ident())
+            .any(|i| *i == "pyclass")
+        {
+            let enum_name = i.ident.to_string();
+            write!(self.pyi_file, "\n\nclass {}: \n", enum_name).unwrap();
+            for (idx, variant) in i.variants.iter().enumerate() {
+                writeln!(self.pyi_file, "\t{} = {}", variant.ident, idx).unwrap();
             }
         }
     }

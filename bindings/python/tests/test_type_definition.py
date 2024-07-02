@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 import dust_dds
-import time
-import typing
 
 @dataclass
 class MyDataType:

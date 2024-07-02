@@ -185,7 +185,7 @@ impl DomainParticipant {
             .map_err(into_pyerr)
     }
 
-    pub fn get_domain_id(&self) -> dust_dds::domain::domain_participant_factory::DomainId {
+    pub fn get_domain_id(&self) -> i32 {
         self.0.get_domain_id()
     }
 

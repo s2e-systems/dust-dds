@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dust_dds import DomainParticipantFactory, UserDataQosPolicy, DomainParticipantQos, TypeKind
+import dust_dds
 
 @dataclass
 class MyTopicType:
@@ -12,7 +13,6 @@ def test_set_default_participant_qos():
 
 def test_create_delete_publisher():
     participant_factory = DomainParticipantFactory()
-    participant_qos = DomainParticipantQos(user_data=UserDataQosPolicy([0,1,2,3]))
     participant = participant_factory.create_participant(100, None)
     publisher = participant.create_publisher()
     participant.delete_publisher(publisher)

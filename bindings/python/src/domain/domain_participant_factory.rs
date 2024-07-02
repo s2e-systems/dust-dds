@@ -1,7 +1,4 @@
-use dust_dds::{
-    domain::domain_participant_factory::DomainId,
-    infrastructure::{qos::QosKind, status::NO_STATUS},
-};
+use dust_dds::infrastructure::{qos::QosKind, status::NO_STATUS};
 use pyo3::prelude::*;
 
 use crate::infrastructure::{
@@ -25,7 +22,7 @@ impl DomainParticipantFactory {
 
     pub fn create_participant(
         &self,
-        domain_id: DomainId,
+        domain_id: i32,
         qos: Option<DomainParticipantQos>,
     ) -> PyResult<DomainParticipant> {
         let qos = match qos {
@@ -45,7 +42,7 @@ impl DomainParticipantFactory {
             .map_err(into_pyerr)
     }
 
-    pub fn lookup_participant(&self, domain_id: DomainId) -> PyResult<Option<DomainParticipant>> {
+    pub fn lookup_participant(&self, domain_id: i32) -> PyResult<Option<DomainParticipant>> {
         match self.0.lookup_participant(domain_id) {
             Ok(dp) => Ok(dp.map(DomainParticipant::from)),
             Err(e) => Err(into_pyerr(e)),
