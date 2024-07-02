@@ -6,6 +6,74 @@ use std::{
 
 use syn::{visit::Visit, ImplItemFn};
 
+fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
+    match type_path {
+        syn::Type::Path(p) => {
+            // If the TypePath has an ident it directly represents a type, otherwise
+            // it is a generic
+            if let Some(i) = p.path.get_ident() {
+                let type_name = match i.to_string().as_str() {
+                    "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" => {
+                        "int".to_string()
+                    }
+                    "String" => "str".to_string(),
+                    _ => i.to_string(),
+                };
+                write!(pyi_file, "{}", type_name).unwrap();
+            } else {
+                let type_name = p.path.segments[0].ident.to_string();
+                // write!(self.pyi_file, ": {:?}", p.path.segments[0]).unwrap();
+                match type_name.as_str() {
+                    "Option" => {
+                        match &p.path.segments[0].arguments {
+                            syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
+                                syn::GenericArgument::Type(t) => write_type(pyi_file, t),
+                                _ => unimplemented!(),
+                            },
+                            _ => unimplemented!(),
+                        };
+                        write!(pyi_file, " | None ").unwrap();
+                    }
+                    "Vec" => {
+                        write!(pyi_file, "list[").unwrap();
+                        match &p.path.segments[0].arguments {
+                            syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
+                                syn::GenericArgument::Type(t) => write_type(pyi_file, t),
+                                _ => unimplemented!(),
+                            },
+                            _ => unimplemented!(),
+                        }
+                        write!(pyi_file, "]").unwrap();
+                    }
+                    "Py" => write!(pyi_file, "Any").unwrap(),
+                    "PyResult" => match &p.path.segments[0].arguments {
+                        syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
+                            syn::GenericArgument::Type(t) => write_type(pyi_file, t),
+                            _ => unimplemented!(),
+                        },
+                        _ => unimplemented!(),
+                    },
+                    _ => {
+                        unimplemented!();
+                    }
+                }
+            }
+        }
+        syn::Type::Reference(r) => write_type(pyi_file, r.elem.as_ref()),
+        syn::Type::Tuple(t) => {
+            if t.elems.is_empty() {
+                write!(pyi_file, "None").unwrap();
+            } else {
+                todo!()
+            }
+        }
+        _ => {
+            write!(pyi_file, "Unimplemented {:?}", type_path).unwrap();
+            todo!();
+        }
+    }
+}
+
 struct PyiImplVisitor<'ast> {
     pyi_file: &'ast mut File,
     class_name: String,
@@ -14,23 +82,41 @@ struct PyiImplVisitor<'ast> {
 
 impl<'ast> PyiImplVisitor<'ast> {
     fn write_fn_item(&mut self, fn_item: &ImplItemFn) {
-        let mut fn_name = fn_item.sig.ident.to_string();
+        fn is_constructor(fn_item: &ImplItemFn) -> bool {
+            fn_item
+                .attrs
+                .iter()
+                .filter_map(|a| a.meta.path().get_ident())
+                .any(|i| *i == "new")
+        }
+
+        fn is_getter_or_setter(fn_item: &ImplItemFn) -> bool {
+            fn_item
+                .attrs
+                .iter()
+                .filter_map(|a| a.meta.path().get_ident())
+                .any(|i| *i == "getter" || *i == "setter")
+        }
+
+        let fn_name = fn_item.sig.ident.to_string();
         // From conversions and as_ref are not mapped into python
         if fn_name == "from" || fn_name == "as_ref" {
             return;
         }
 
-        // If it has a new attribute must be treated as a constructor
-        if fn_item
-            .attrs
-            .iter()
-            .filter_map(|a| a.meta.path().get_ident())
-            .any(|i| *i == "new")
-        {
-            fn_name = "__init__".to_string();
+        // Skip getter or setter variables since these will be specified in the
+        // constructor for all our cases
+        if is_getter_or_setter(fn_item) {
+            return;
         }
 
-        write!(self.pyi_file, "\tdef {}(", fn_name).unwrap();
+        // If it has a new attribute must be treated as a constructor
+        if is_constructor(fn_item) {
+            write!(self.pyi_file, "\tdef __init__(self, ").unwrap();
+        } else {
+            write!(self.pyi_file, "\tdef {}(", fn_name).unwrap();
+        }
+
         let mut is_first = true;
 
         for fn_arg in fn_item.sig.inputs.iter() {
@@ -50,76 +136,29 @@ impl<'ast> PyiImplVisitor<'ast> {
                         _ => unimplemented!(),
                     };
                     write!(self.pyi_file, ": ").unwrap();
-                    self.write_type(t.ty.as_ref());
+                    write_type(self.pyi_file, t.ty.as_ref());
                     is_first = false;
                 }
             }
         }
 
-        writeln!(self.pyi_file, "): ...").unwrap();
+        write!(self.pyi_file, ") ").unwrap();
 
-        self.is_empty = false;
-    }
-
-    fn write_type(&mut self, type_path: &syn::Type) {
-        match type_path {
-            syn::Type::Path(p) => {
-                // If the TypePath has an ident it directly represents a type, otherwise
-                // it is a generic
-                if let Some(i) = p.path.get_ident() {
-                    let type_name = match i.to_string().as_str() {
-                        "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" => {
-                            "int".to_string()
-                        }
-                        "String" => "str".to_string(),
-                        _ => i.to_string(),
-                    };
-                    write!(self.pyi_file, "{}", type_name).unwrap();
-                } else {
-                    let type_name = p.path.segments[0].ident.to_string();
-                    // write!(self.pyi_file, ": {:?}", p.path.segments[0]).unwrap();
-                    match type_name.as_str() {
-                        "Option" => match &p.path.segments[0].arguments {
-                            syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
-                                syn::GenericArgument::Type(t) => self.write_type(t),
-                                _ => unimplemented!(),
-                            },
-                            _ => unimplemented!(),
-                        },
-                        "Vec" => {
-                            write!(self.pyi_file, "list[").unwrap();
-                            match &p.path.segments[0].arguments {
-                                syn::PathArguments::AngleBracketed(g) => match &g.args[0] {
-                                    syn::GenericArgument::Type(t) => self.write_type(t),
-                                    _ => unimplemented!(),
-                                },
-                                _ => unimplemented!(),
-                            }
-                            write!(self.pyi_file, "]").unwrap();
-                        }
-                        "Py" => write!(self.pyi_file, "Any").unwrap(),
-                        _ => {
-                            unimplemented!();
-                        }
-                    }
+        if is_constructor(fn_item) {
+            write!(self.pyi_file, "-> None").unwrap();
+        } else {
+            match &fn_item.sig.output {
+                syn::ReturnType::Default => (),
+                syn::ReturnType::Type(_, return_type) => {
+                    write!(self.pyi_file, "-> ").unwrap();
+                    write_type(self.pyi_file, return_type);
                 }
             }
-            syn::Type::Array(_) => todo!(),
-            syn::Type::BareFn(_) => todo!(),
-            syn::Type::Group(_) => todo!(),
-            syn::Type::ImplTrait(_) => todo!(),
-            syn::Type::Infer(_) => todo!(),
-            syn::Type::Macro(_) => todo!(),
-            syn::Type::Never(_) => todo!(),
-            syn::Type::Paren(_) => todo!(),
-            syn::Type::Ptr(_) => todo!(),
-            syn::Type::Reference(r) => self.write_type(r.elem.as_ref()),
-            syn::Type::Slice(_) => todo!(),
-            syn::Type::TraitObject(_) => todo!(),
-            syn::Type::Tuple(_) => todo!(),
-            syn::Type::Verbatim(_) => todo!(),
-            _ => todo!(),
         }
+
+        writeln!(self.pyi_file, " : ...").unwrap();
+
+        self.is_empty = false;
     }
 }
 
@@ -175,9 +214,48 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
             .any(|i| *i == "pyclass")
         {
             let enum_name = i.ident.to_string();
-            write!(self.pyi_file, "\n\nclass {}: \n", enum_name).unwrap();
-            for (idx, variant) in i.variants.iter().enumerate() {
-                writeln!(self.pyi_file, "\t{} = {}", variant.ident, idx).unwrap();
+            // We use only enum with unit and enum with named fields and all variants
+            // must be the same so we match always on the first to decide the type
+            match i.variants[0].fields {
+                syn::Fields::Named(_) => {
+                    // In case there are fields each variant represents a special class
+                    for variant in i.variants.iter() {
+                        writeln!(self.pyi_file, "\nclass {}_{}:", enum_name, variant.ident)
+                            .unwrap();
+                        write!(self.pyi_file, "\tdef __init__(self").unwrap();
+                        for field in variant.fields.iter() {
+                            write!(self.pyi_file, ", ").unwrap();
+                            write!(
+                                self.pyi_file,
+                                "{}",
+                                field
+                                    .ident
+                                    .as_ref()
+                                    .expect("All variant must have field ident")
+                            )
+                            .unwrap();
+                            write!(self.pyi_file, ":").unwrap();
+                            write_type(self.pyi_file, &field.ty);
+                        }
+                        write!(self.pyi_file, " ) -> None: ...").unwrap();
+                    }
+                    write!(self.pyi_file, "\nclass {}: \n", enum_name).unwrap();
+                    for variant in i.variants.iter() {
+                        writeln!(
+                            self.pyi_file,
+                            "\t{} = {}_{}",
+                            variant.ident, enum_name, variant.ident
+                        )
+                        .unwrap();
+                    }
+                }
+                syn::Fields::Unit => {
+                    writeln!(self.pyi_file, "\nclass {}: ", enum_name).unwrap();
+                    for (idx, variant) in i.variants.iter().enumerate() {
+                        writeln!(self.pyi_file, "\t{} = {}", variant.ident, idx).unwrap();
+                    }
+                }
+                _ => unimplemented!(),
             }
         }
     }
