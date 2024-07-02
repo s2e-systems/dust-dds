@@ -178,6 +178,7 @@ impl<'ast> Visit<'ast> for PyiImplVisitor<'ast> {
 struct PyiStructVisitor<'ast> {
     pyi_file: &'ast mut fs::File,
     ast_file: &'ast syn::File,
+    dust_dds_ast_file: &'ast syn::File,
 }
 
 impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
@@ -189,8 +190,50 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
             .filter_map(|a| a.meta.path().get_ident())
             .any(|i| *i == "pyclass")
         {
+            writeln!(self.pyi_file, "").unwrap();
+
             let class_name = node.ident.to_string();
-            write!(self.pyi_file, "\n\nclass {}: \n", class_name).unwrap();
+            writeln!(self.pyi_file, "class {}:", class_name).unwrap();
+            // Copy the doc from Dust DDS struct to the pyi file
+            if let Some(s) = self
+                .dust_dds_ast_file
+                .items
+                .iter()
+                .filter_map(|i| match i {
+                    syn::Item::Struct(s) => Some(s),
+                    _ => None,
+                })
+                .find(|s| s.ident == node.ident)
+            {
+                writeln!(self.pyi_file, "\tr\"\"\"").unwrap();
+                for attr in s.attrs.iter() {
+                    match &attr.meta {
+                        syn::Meta::NameValue(n) => {
+                            if let Some(path_ident) = n.path.get_ident() {
+                                if path_ident == "doc" {
+                                    match &n.value {
+                                        syn::Expr::Lit(l) => match &l.lit {
+                                            syn::Lit::Str(s) => {
+                                                let doc_string = s.token().to_string();
+                                                writeln!(
+                                                    self.pyi_file,
+                                                    "\t{}",
+                                                    &doc_string[1..doc_string.len() - 1]
+                                                )
+                                                .unwrap();
+                                            }
+                                            _ => unreachable!(),
+                                        },
+                                        _ => unreachable!(),
+                                    }
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+                writeln!(self.pyi_file, "\t\"\"\"").unwrap();
+            }
             let mut impl_visitor = PyiImplVisitor {
                 pyi_file: self.pyi_file,
                 class_name: node.ident.to_string(),
@@ -267,16 +310,36 @@ fn is_rs_file(file: &Path) -> bool {
 
 fn visit_fs_file(file: &Path, pyi_file: &mut File) -> io::Result<()> {
     if is_rs_file(file) {
+        let cargo_dir = std::env::var("CARGO_MANIFEST_DIR").expect("Variable should exist");
+        let mut relative_file_path = file
+            .strip_prefix(&cargo_dir)
+            .expect("Path should have given prefix");
+        if relative_file_path.starts_with("src") {
+            relative_file_path = relative_file_path
+                .strip_prefix("src")
+                .expect("Starts with src");
+        }
+        let dust_dds_dir = Path::new(&cargo_dir).join("../../dds/src/dds");
+        let dust_dds_file_path = dust_dds_dir.join(relative_file_path);
+
         let mut file = File::open(file)?;
         let mut content = String::new();
         file.read_to_string(&mut content)?;
-        if let Ok(ast) = syn::parse_file(&content) {
-            PyiStructVisitor {
-                pyi_file,
-                ast_file: &ast,
-            }
-            .visit_file(&ast);
+
+        let mut dust_dds_content = String::new();
+        if let Ok(mut dust_dds_file) = File::open(dust_dds_file_path) {
+            dust_dds_file.read_to_string(&mut dust_dds_content)?;
         }
+
+        let ast = syn::parse_file(&content).expect("File should be valid");
+        let dust_dds_ast = syn::parse_file(&dust_dds_content).expect("File should be valid");
+
+        PyiStructVisitor {
+            pyi_file,
+            ast_file: &ast,
+            dust_dds_ast_file: &dust_dds_ast,
+        }
+        .visit_file(&ast);
     }
     Ok(())
 }
