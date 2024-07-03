@@ -109,7 +109,7 @@ impl PartialOrd<Length> for usize {
 /// several policies are in conflict. Consistency checking is performed each time the policies are modified via the set_qos
 /// operation.
 /// When a policy is changed after being set to a given value, it is not required that the new value be applied instantaneously; the
-/// Service is allowed to apply it after a transition phase. In addition, some QosPolicy have “immutable” semantics meaning that
+/// Service is allowed to apply it after a transition phase. In addition, some QosPolicy have *immutable* semantics meaning that
 /// they can only be specified either at Entity creation time or else prior to calling the enable operation on the Entity.
 /// Sub clause 2.2.3, Supported QoS provides the list of all QosPolicy, their meaning, characteristics and possible values, as well
 /// as the concrete Entity to which they apply.
@@ -251,7 +251,7 @@ impl QosPolicy for TransportPriorityQosPolicy {
     }
 }
 
-/// This policy is used to avoid delivering “stale” data to the application.
+/// This policy is used to avoid delivering *stale* data to the application.
 ///
 /// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated 'expiration time' beyond which the data should not be delivered
 /// to any application. Once the sample expires, the data will be removed from the [`DataReader`](crate::subscription::data_reader::DataReader) caches as well as from the
@@ -447,7 +447,7 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// Subscriber will indeed access the changes in the correct order. For that to occur, the application at the subscriber end must use
 /// the proper logic in reading the DataReader objects.
 /// The value offered is considered compatible with the value requested if and only if the following conditions are met:
-/// 1. The inequality “offered access_scope >= requested access_scope” is true. For the purposes of this
+/// 1. The inequality *offered access_scope >= requested access_scope* is true. For the purposes of this
 /// inequality, the values of PRESENTATION access_scope are considered ordered such that INSTANCE < TOPIC <
 /// GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
@@ -512,7 +512,7 @@ impl Default for DeadlineQosPolicy {
     }
 }
 
-/// This policy provides a means for the application to indicate to the middleware the “urgency” of the data-communication.
+/// This policy provides a means for the application to indicate to the middleware the *urgency* of the data-communication.
 ///
 /// By having a non-zero duration the Service can optimize its internal operation.
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
@@ -573,7 +573,7 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
 /// Only [`OwnershipQosPolicyKind::Shared`] can be selected. This setting indicates that the Service does not enforce unique ownership for each instance.
 /// In this case, multiple writers can update the same data-object instance. The subscriber to the Topic will be able to access modifications from all DataWriter
 /// objects, subject to the settings of other QoS that may filter particular samples (e.g., the [`TimeBasedFilterQosPolicy`] or [`HistoryQosPolicy`]).
-/// In any case there is no “filtering” of modifications made based on the identity of the DataWriter that causes the
+/// In any case there is no *filtering* of modifications made based on the identity of the DataWriter that causes the
 /// modification.
 
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
@@ -656,7 +656,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 }
 
 /// This policy controls the mechanism and parameters used by the Service to ensure that particular entities on the network are
-/// still “alive”.
+/// still *alive*.
 ///
 /// The liveliness can also affect the ownership of a particular instance, as determined by the [`OwnershipQosPolicy`].
 /// This policy has several settings to support both data-objects that are updated periodically as well as those that are changed
@@ -721,7 +721,7 @@ impl Default for LivelinessQosPolicy {
 /// respect to the samples that have been determined to be of interest to the [`DataReader`](crate::subscription::data_reader::DataReader),
 /// that is, they apply after the [`TimeBasedFilterQosPolicy`] has been applied.
 /// In the case where the reliability [`ReliabilityQosPolicyKind::Reliable`]  then in steady-state, defined as the situation where
-/// the [`DataWriter`](crate::publication::data_writer::DataWriter) does not write new samples for a period “long” compared to
+/// the [`DataWriter`](crate::publication::data_writer::DataWriter) does not write new samples for a period *long* compared to
 /// the [`TimeBasedFilterQosPolicy::minimum_separation`], the system should guarantee delivery the last sample to the [`DataReader`](crate::subscription::data_reader::DataReader).
 /// The setting of the  [`TimeBasedFilterQosPolicy::minimum_separation`] minimum_separation must be consistent with the [`DeadlineQosPolicy::period`]. For these
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
@@ -754,9 +754,9 @@ impl Default for TimeBasedFilterQosPolicy {
 /// not only the [`Topic`](crate::topic_definition::topic::Topic) must match, but also they must share a common partition.
 /// Each string in the list that defines this QoS policy defines a partition name. A partition name may
 /// contain wildcards. Sharing a common partition means that one of the partition names matches.
-/// Failure to match partitions is not considered an “incompatible” QoS and does not trigger any listeners nor conditions.
-/// This policy is changeable. A change of this policy can potentially modify the “match” of existing [`DataReader`](crate::subscription::data_reader::DataReader)
-/// and [`DataWriter`](crate::publication::data_writer::DataWriter) entities. It may establish new “matchs” that did not exist before, or break existing matchs.
+/// Failure to match partitions is not considered an *incompatible* QoS and does not trigger any listeners nor conditions.
+/// This policy is changeable. A change of this policy can potentially modify the *match* of existing [`DataReader`](crate::subscription::data_reader::DataReader)
+/// and [`DataWriter`](crate::publication::data_writer::DataWriter) entities. It may establish new *matchs* that did not exist before, or break existing matchs.
 /// Partition names can be regular expressions and include wildcards as defined by the POSIX fnmatch API (1003.2-1992
 /// section B.6). Either [`Publisher`](crate::publication::publisher::Publisher) or [`Subscriber`](crate::subscription::subscriber::Subscriber)
 /// may include regular expressions in partition names, but no two names that both
@@ -1169,7 +1169,7 @@ impl Default for WriterDataLifecycleQosPolicy {
 /// `instance_state` of either [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind) or
 /// [`InstanceStateKind::NotAliveDisposed`](crate::subscription::sample_info::InstanceStateKind) depending on whether the last writer
 /// that had ownership of the instance disposed it or not.  In the absence of the [`ReaderDataLifecycleQosPolicy`] this behavior could cause problems if the
-/// application “forgets” to 'take' those samples. The 'untaken' samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
+/// application *forgets* to 'take' those samples. The 'untaken' samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
 /// resources and they would remain in the [`DataReader`](crate::subscription::data_reader::DataReader) indefinitely.
 /// The [`ReaderDataLifecycleQosPolicy::autopurge_nowriter_samples_delay`] defines the maximum duration for which the [`DataReader`](crate::subscription::data_reader::DataReader) will maintain information
 /// regarding an instance once its `instance_state` becomes [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind). After this time elapses, the [`DataReader`](crate::subscription::data_reader::DataReader)

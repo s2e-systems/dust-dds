@@ -375,24 +375,24 @@ impl<Foo> DataReader<Foo> {
         Subscriber::new(self.reader_async.get_subscriber())
     }
 
-    /// This operation blocks the calling thread until either all “historical” data is received, or else the
+    /// This operation blocks the calling thread until either all *historical* data is received, or else the
     /// duration specified by the `max_wait` parameter elapses, whichever happens first.
-    /// A return value of [`Ok`] indicates that all the “historical” data was received;
+    /// A return value of [`Ok`] indicates that all the *historical* data was received;
     /// a return value of [`DdsError`](crate::infrastructure::error::DdsError) indicates that `max_wait`
     /// elapsed before all the data was received.
     /// This operation is intended only for [`DataReader`] entities that have a non-VOLATILE
     /// [`DurabilityQosPolicy`](crate::infrastructure::qos_policy::DurabilityQosPolicy).
     /// As soon as an application enables a non-VOLATILE [`DataReader`] it will start receiving both
-    /// “historical” data, i.e., the data that was written prior to the time the [`DataReader`] joined the
+    /// *historical* data, i.e., the data that was written prior to the time the [`DataReader`] joined the
     /// domain, as well as any new data written by the [`DataWriter`](crate::publication::data_writer::DataWriter) entities.
-    /// There are situations where the application logic may require the application to wait until all “historical”
+    /// There are situations where the application logic may require the application to wait until all *historical*
     /// data is received.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         block_on(self.reader_async.wait_for_historical_data(max_wait))
     }
 
-    /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
+    /// This operation retrieves information on a publication that is currently *associated* with the [`DataReader`];
     /// that is, a publication with a matching [`Topic`] and compatible qos that the application  has not indicated should be ignored by means of the
     /// [`DomainParticipant::ignore_publication`](crate::domain::domain_participant::DomainParticipant) operation.
     /// The `publication_handle` must correspond to a publication currently associated with the [`DataReader`] otherwise the operation
@@ -410,12 +410,12 @@ impl<Foo> DataReader<Foo> {
         )
     }
 
-    /// This operation retrieves the list of publications currently “associated” with the [`DataReader`]; that is, publications that have a
+    /// This operation retrieves the list of publications currently *associated* with the [`DataReader`]; that is, publications that have a
     /// matching [`Topic`] and compatible qos that the application has not indicated should be ignored by means of the
     /// [`DomainParticipant::ignore_publication`](crate::domain::domain_participant::DomainParticipant) operation.
     /// The handles returned are the ones that are used by the DDS implementation to locally identify
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
-    /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
+    /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the *DCPSPublications* builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         block_on(self.reader_async.get_matched_publications())
@@ -424,8 +424,8 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
-    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
-    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
     /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
     /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
     /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
@@ -456,7 +456,7 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
-    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
+    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the *untriggered* state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
@@ -484,7 +484,7 @@ impl<Foo> DataReader<Foo> {
     /// If the `autoenable_created_entities` field of [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy) is set to [`true`], the [`Self::enable()`] operation on the factory will
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
-    /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    /// enabled are *inactive,* that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         block_on(self.reader_async.enable())

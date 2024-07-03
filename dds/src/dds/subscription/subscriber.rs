@@ -157,7 +157,7 @@ impl Subscriber {
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
-    /// This is a “convenience” operation most useful in combination with the operations [`Subscriber::get_default_datareader_qos`] and
+    /// This is a *convenience* operation most useful in combination with the operations [`Subscriber::get_default_datareader_qos`] and
     /// [`Topic::get_qos`]. This operation can be used to merge the [`DataReader`] default qos policies with the
     /// corresponding ones on the [`Topic`]. The resulting qos can then be used to create a new [`DataReader`], or set its qos.
     /// This operation does not check the resulting `a_datareader_qos` for consistency. This is because the merged `a_datareader_qos`
@@ -171,8 +171,8 @@ impl Subscriber {
     }
 
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
-    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
-    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
     /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
     /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
     /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
@@ -221,7 +221,7 @@ impl Subscriber {
 
     /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
-    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
+    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the *untriggered* state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
@@ -249,7 +249,7 @@ impl Subscriber {
     /// If the `autoenable_created_entities` field of [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy) is set to [`true`], the [`Self::enable()`] operation on the factory will
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
-    /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    /// enabled are *inactive*, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         block_on(self.subscriber_async.enable())
