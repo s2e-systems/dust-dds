@@ -20,8 +20,8 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          target: x86_64
-          args: --out dist --find-interpreter
+          args: --out dist
+          manylinux: auto
           working-directory: bindings/python
       - run: pip install pdoc bindings/python/dist/dust_dds*.whl
       - run: pdoc -o docs/ dust_dds
