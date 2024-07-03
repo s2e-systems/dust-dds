@@ -65,7 +65,7 @@ pub struct SampleLostStatus {
 }
 
 /// Enumeration for the kind of sample rejected kind
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SampleRejectedStatusKind {
     /// Sample not rejected
     NotRejected,
@@ -223,7 +223,7 @@ pub struct RequestedIncompatibleQosStatus {
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct PublicationMatchedStatus {
     /// Total cumulative count the concerned DataWriter discovered a
-    /// “match” with a DataReader. That is, it found a DataReader for the
+    /// *match* with a DataReader. That is, it found a DataReader for the
     /// same Topic with a requested QoS that is compatible with that offered
     /// by the DataWriter.
     pub total_count: i32,
@@ -245,7 +245,7 @@ pub struct PublicationMatchedStatus {
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct SubscriptionMatchedStatus {
     /// Total cumulative count the concerned DataReader discovered a
-    /// “match” with a DataWriter. That is, it found a DataWriter for the same
+    /// *match* with a DataWriter. That is, it found a DataWriter for the same
     /// Topic with a requested QoS that is compatible with that offered by the
     /// DataReader.
     pub total_count: i32,

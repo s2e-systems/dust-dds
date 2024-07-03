@@ -7,7 +7,7 @@ use super::status::StatusKind;
 
 /// A [`StatusCondition`] object is a specific Condition that is associated with each Entity.
 /// The *trigger_value* of the [`StatusCondition`] depends on the communication status of that entity (e.g., arrival of data, loss of
-/// information, etc.), ‘filtered’ by the set of *enabled_statuses* on the [`StatusCondition`].
+/// information, etc.), 'filtered' by the set of *enabled_statuses* on the [`StatusCondition`].
 #[derive(Clone)]
 pub struct StatusCondition {
     condition_async: StatusConditionAsync,

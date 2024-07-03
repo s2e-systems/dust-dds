@@ -99,7 +99,7 @@ Any type Foo implementing these traits can be used to create a DataWriter<Foo> a
 
 ### Listeners
 
-The DDS standard provides a listener mechanism which can be used to implement an event-based response system. Each DDS entity has a listener associated with it with the functionality described by a listener interface. According to the standard it is permitted to use ‘nil’ as the value of the listener. The ‘nil’ listener behaves as a Listener whose operations perform no action.
+The DDS standard provides a listener mechanism which can be used to implement an event-based response system. Each DDS entity has a listener associated with it with the functionality described by a listener interface. According to the standard it is permitted to use 'nil' as the value of the listener. The 'nil' listener behaves as a Listener whose operations perform no action.
 
 This snippet gives the exploration of the design space for the listener interface implementation:
 

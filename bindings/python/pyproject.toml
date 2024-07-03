@@ -1,0 +1,31 @@
+[build-system]
+requires = ["maturin>=1.6,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "dust_dds"
+description = "Python bindings for Dust DDS"
+readme = "README.md"
+authors = [
+    { name = "Joao Rebelo", email = "jrebelo@s2e-systems.com" },
+    { name = "Stefan Kimmer", email = "skimmer@s2e-systems.com" },
+]
+requires-python = ">=3.8"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: OS Independent",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://www.s2e-systems.com/products/dust-dds"
+Issues = "https://github.com/s2e-systems/dust-dds/issues"
+Documentation = "https://s2e-systems.github.io/dust-dds/dust_dds.html"
+Repository = "https://github.com/s2e-systems/dust-dds"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

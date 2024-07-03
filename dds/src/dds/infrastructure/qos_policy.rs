@@ -109,7 +109,7 @@ impl PartialOrd<Length> for usize {
 /// several policies are in conflict. Consistency checking is performed each time the policies are modified via the set_qos
 /// operation.
 /// When a policy is changed after being set to a given value, it is not required that the new value be applied instantaneously; the
-/// Service is allowed to apply it after a transition phase. In addition, some QosPolicy have “immutable” semantics meaning that
+/// Service is allowed to apply it after a transition phase. In addition, some QosPolicy have *immutable* semantics meaning that
 /// they can only be specified either at Entity creation time or else prior to calling the enable operation on the Entity.
 /// Sub clause 2.2.3, Supported QoS provides the list of all QosPolicy, their meaning, characteristics and possible values, as well
 /// as the concrete Entity to which they apply.
@@ -251,19 +251,19 @@ impl QosPolicy for TransportPriorityQosPolicy {
     }
 }
 
-/// This policy is used to avoid delivering “stale” data to the application.
+/// This policy is used to avoid delivering *stale* data to the application.
 ///
-/// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated ‘expiration time’ beyond which the data should not be delivered
+/// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated 'expiration time' beyond which the data should not be delivered
 /// to any application. Once the sample expires, the data will be removed from the [`DataReader`](crate::subscription::data_reader::DataReader) caches as well as from the
 /// transient and persistent information caches.
-/// The ‘expiration time’ of each sample is computed by adding the duration specified by the [`LifespanQosPolicy`] to the source
+/// The 'expiration time' of each sample is computed by adding the duration specified by the [`LifespanQosPolicy`] to the source
 /// timestamp. The source timestamp is either automatically computed by the Service
 /// each time the [`DataWriter::write()`](crate::publication::data_writer::DataWriter) operation is called, or else supplied by the application by means
 /// of the  [`DataWriter::write_w_timestamp()`](crate::publication::data_writer::DataWriter)
 /// operation.
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
 /// and the Service can detect it, the [`DataReader`](crate::subscription::data_reader::DataReader) is allowed to use the reception timestamp instead of the source timestamp in its
-/// computation of the ‘expiration time.’
+/// computation of the 'expiration time.'
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct LifespanQosPolicy {
     /// Lifespan duration
@@ -284,7 +284,7 @@ impl Default for LifespanQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Enumeration representing the different types of Durability QoS policies.
 pub enum DurabilityQosPolicyKind {
     /// Volatile durability QoS policy
@@ -365,7 +365,7 @@ impl Default for DurabilityQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Enumeration representing the different types of Presentation QoS policy access scope.
 pub enum PresentationQosPolicyAccessScopeKind {
     /// Access scope per instance
@@ -447,7 +447,7 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// Subscriber will indeed access the changes in the correct order. For that to occur, the application at the subscriber end must use
 /// the proper logic in reading the DataReader objects.
 /// The value offered is considered compatible with the value requested if and only if the following conditions are met:
-/// 1. The inequality “offered access_scope >= requested access_scope” is true. For the purposes of this
+/// 1. The inequality *offered access_scope >= requested access_scope* is true. For the purposes of this
 /// inequality, the values of PRESENTATION access_scope are considered ordered such that INSTANCE < TOPIC <
 /// GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
@@ -483,7 +483,7 @@ impl Default for PresentationQosPolicy {
 ///
 /// On the subscribing side the setting establishes a minimum
 /// requirement for the remote publishers that are expected to supply the data values.
-/// When the Service ‘matches’ a [`DataWriter`](crate::publication::data_writer::DataWriter) and a [`DataReader`](crate::subscription::data_reader::DataReader) it checks whether the settings are compatible (i.e., *offered
+/// When the Service 'matches' a [`DataWriter`](crate::publication::data_writer::DataWriter) and a [`DataReader`](crate::subscription::data_reader::DataReader) it checks whether the settings are compatible (i.e., *offered
 /// deadline period <= requested deadline period*) if they are not, the two entities are informed (via the listener or condition
 /// mechanism) of the incompatibility of the QoS settings and communication will not occur.
 /// Assuming that the reader and writer ends have compatible settings, the fulfillment of this contract is monitored by the Service
@@ -512,7 +512,7 @@ impl Default for DeadlineQosPolicy {
     }
 }
 
-/// This policy provides a means for the application to indicate to the middleware the “urgency” of the data-communication.
+/// This policy provides a means for the application to indicate to the middleware the *urgency* of the data-communication.
 ///
 /// By having a non-zero duration the Service can optimize its internal operation.
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
@@ -539,7 +539,7 @@ impl Default for LatencyBudgetQosPolicy {
 }
 
 /// Enumeration representing the different types of Ownership QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum OwnershipQosPolicyKind {
     /// Shared ownership QoS policy
     Shared,
@@ -573,7 +573,7 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
 /// Only [`OwnershipQosPolicyKind::Shared`] can be selected. This setting indicates that the Service does not enforce unique ownership for each instance.
 /// In this case, multiple writers can update the same data-object instance. The subscriber to the Topic will be able to access modifications from all DataWriter
 /// objects, subject to the settings of other QoS that may filter particular samples (e.g., the [`TimeBasedFilterQosPolicy`] or [`HistoryQosPolicy`]).
-/// In any case there is no “filtering” of modifications made based on the identity of the DataWriter that causes the
+/// In any case there is no *filtering* of modifications made based on the identity of the DataWriter that causes the
 /// modification.
 
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
@@ -597,7 +597,7 @@ impl Default for OwnershipQosPolicy {
 }
 
 /// Enumeration representing the different types of Liveliness QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LivelinessQosPolicyKind {
     /// Automatic liveliness
     Automatic,
@@ -656,7 +656,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 }
 
 /// This policy controls the mechanism and parameters used by the Service to ensure that particular entities on the network are
-/// still “alive”.
+/// still *alive*.
 ///
 /// The liveliness can also affect the ownership of a particular instance, as determined by the [`OwnershipQosPolicy`].
 /// This policy has several settings to support both data-objects that are updated periodically as well as those that are changed
@@ -721,7 +721,7 @@ impl Default for LivelinessQosPolicy {
 /// respect to the samples that have been determined to be of interest to the [`DataReader`](crate::subscription::data_reader::DataReader),
 /// that is, they apply after the [`TimeBasedFilterQosPolicy`] has been applied.
 /// In the case where the reliability [`ReliabilityQosPolicyKind::Reliable`]  then in steady-state, defined as the situation where
-/// the [`DataWriter`](crate::publication::data_writer::DataWriter) does not write new samples for a period “long” compared to
+/// the [`DataWriter`](crate::publication::data_writer::DataWriter) does not write new samples for a period *long* compared to
 /// the [`TimeBasedFilterQosPolicy::minimum_separation`], the system should guarantee delivery the last sample to the [`DataReader`](crate::subscription::data_reader::DataReader).
 /// The setting of the  [`TimeBasedFilterQosPolicy::minimum_separation`] minimum_separation must be consistent with the [`DeadlineQosPolicy::period`]. For these
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
@@ -748,15 +748,15 @@ impl Default for TimeBasedFilterQosPolicy {
     }
 }
 
-/// This policy allows the introduction of a logical partition concept inside the ‘physical’ partition induced by a domain.
+/// This policy allows the introduction of a logical partition concept inside the 'physical' partition induced by a domain.
 ///
 /// For a [`DataReader`](crate::subscription::data_reader::DataReader) to see the changes made to an instance by a [`DataWriter`](crate::publication::data_writer::DataWriter),
 /// not only the [`Topic`](crate::topic_definition::topic::Topic) must match, but also they must share a common partition.
 /// Each string in the list that defines this QoS policy defines a partition name. A partition name may
 /// contain wildcards. Sharing a common partition means that one of the partition names matches.
-/// Failure to match partitions is not considered an “incompatible” QoS and does not trigger any listeners nor conditions.
-/// This policy is changeable. A change of this policy can potentially modify the “match” of existing [`DataReader`](crate::subscription::data_reader::DataReader)
-/// and [`DataWriter`](crate::publication::data_writer::DataWriter) entities. It may establish new “matchs” that did not exist before, or break existing matchs.
+/// Failure to match partitions is not considered an *incompatible* QoS and does not trigger any listeners nor conditions.
+/// This policy is changeable. A change of this policy can potentially modify the *match* of existing [`DataReader`](crate::subscription::data_reader::DataReader)
+/// and [`DataWriter`](crate::publication::data_writer::DataWriter) entities. It may establish new *matchs* that did not exist before, or break existing matchs.
 /// Partition names can be regular expressions and include wildcards as defined by the POSIX fnmatch API (1003.2-1992
 /// section B.6). Either [`Publisher`](crate::publication::publisher::Publisher) or [`Subscriber`](crate::subscription::subscriber::Subscriber)
 /// may include regular expressions in partition names, but no two names that both
@@ -877,7 +877,7 @@ impl PartialOrd for ReliabilityQosPolicy {
     }
 }
 
-// default for Reliability is differnet for reader and writer, hence
+// default for Reliability is different for reader and writer, hence
 // added here as constants
 const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100_000_000);
 pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
@@ -892,7 +892,7 @@ pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolic
     };
 
 /// Enumeration representing the different types of destination order QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DestinationOrderQosPolicyKind {
     /// Ordered by reception timestamp.
     ByReceptionTimestamp,
@@ -972,7 +972,7 @@ impl Default for DestinationOrderQosPolicy {
 }
 
 /// Enumeration representing the different types of history QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HistoryQosPolicyKind {
     /// Keep number of samples indicated by the associated value.
     KeepLast(i32),
@@ -1163,13 +1163,13 @@ impl Default for WriterDataLifecycleQosPolicy {
 /// The [`DataReader`](crate::subscription::data_reader::DataReader) internally maintains the samples that have not been taken by the application, subject to the constraints
 /// imposed by other QoS policies such as [`HistoryQosPolicy`] and [`ResourceLimitsQosPolicy`].
 /// The [`DataReader`](crate::subscription::data_reader::DataReader) also maintains information regarding the identity, view_state and instance_state
-/// of data-instances even after all samples have been ‘taken.’ This is needed to properly compute the states when future samples arrive.
+/// of data-instances even after all samples have been 'taken.' This is needed to properly compute the states when future samples arrive.
 /// Under normal circumstances the [`DataReader`](crate::subscription::data_reader::DataReader) can only reclaim all resources for instances for which there are no writers and for
-/// which all samples have been ‘taken’. The last sample the [`DataReader`](crate::subscription::data_reader::DataReader) will have taken for that instance will have an
+/// which all samples have been 'taken'. The last sample the [`DataReader`](crate::subscription::data_reader::DataReader) will have taken for that instance will have an
 /// `instance_state` of either [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind) or
 /// [`InstanceStateKind::NotAliveDisposed`](crate::subscription::sample_info::InstanceStateKind) depending on whether the last writer
 /// that had ownership of the instance disposed it or not.  In the absence of the [`ReaderDataLifecycleQosPolicy`] this behavior could cause problems if the
-/// application “forgets” to ‘take’ those samples. The ‘untaken’ samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
+/// application *forgets* to 'take' those samples. The 'untaken' samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
 /// resources and they would remain in the [`DataReader`](crate::subscription::data_reader::DataReader) indefinitely.
 /// The [`ReaderDataLifecycleQosPolicy::autopurge_nowriter_samples_delay`] defines the maximum duration for which the [`DataReader`](crate::subscription::data_reader::DataReader) will maintain information
 /// regarding an instance once its `instance_state` becomes [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind). After this time elapses, the [`DataReader`](crate::subscription::data_reader::DataReader)

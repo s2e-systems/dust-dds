@@ -1,0 +1,16 @@
+[package]
+name = "dust_dds_python"
+version = "0.10.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "dust_dds"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.21.1"
+dust_dds = { path = "../../dds" }
+
+[build-dependencies]
+syn = { version = "2.0.68", features = ["visit"] }

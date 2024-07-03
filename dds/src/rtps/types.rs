@@ -26,25 +26,29 @@ impl WriteIntoBytes for Octet {
 
 impl WriteIntoBytes for Long {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for UnsignedLong {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for u16 {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for i16 {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        buf.write_all(self.to_le_bytes().as_slice()).expect("buffer big enough");
+        buf.write_all(self.to_le_bytes().as_slice())
+            .expect("buffer big enough");
     }
 }
 
@@ -339,7 +343,7 @@ impl Locator {
 }
 
 /// TopicKind_t
-/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
+/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY, WITH_KEY
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TopicKind {

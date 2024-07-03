@@ -38,6 +38,10 @@ pub trait DynamicTypeInterface {
     ) -> DdsResult<InstanceHandle>;
 
     fn xml_type(&self) -> String;
+
+    fn user_data(&self) -> Option<&dyn std::any::Any> {
+        None
+    }
 }
 
 /// This trait indicates whether the associated type is keyed or not, i.e. if the middleware

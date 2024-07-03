@@ -98,7 +98,7 @@ where
     /// If after that, the application wants to modify (write or dispose) the instance, it has to register it again,
     /// or else pass [`None`] as the `handle` value of those operations.
     /// This operation does not indicate that the instance is deleted (that is the purpose of dispose). This operation
-    /// just indicates that the [`DataWriter`] no longer has ‘anything to say’ about the instance.
+    /// just indicates that the [`DataWriter`] no longer has 'anything to say' about the instance.
     /// [`DataReader`](crate::subscription::data_reader::DataReader) entities that are reading the instance will eventually
     /// receive a sample with an [`InstanceStateKind::NotAliveNoWriter`](crate::subscription::sample_info::InstanceStateKind)
     /// if no other [`DataWriter`] entities are writing the instance.
@@ -163,7 +163,7 @@ where
     /// from the `data` (by means of the key).
     /// If `handle` is any value other than [`None`], then it must correspond to the value returned by [`DataWriter::register_instance`]
     /// when the instance (identified by its key) was registered. Otherwise the behavior is as follows:
-    /// - If the `handle` corresponds to an existing instance but does not correspond to the same instance referred by the ‘data’
+    /// - If the `handle` corresponds to an existing instance but does not correspond to the same instance referred by the 'data'
     /// parameter, the operation fails and returns [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// - If the `handle` does not correspond to an existing instance the operation fails and returns [`DdsError::BadParameter`](crate::infrastructure::error::DdsError).
     ///
@@ -305,7 +305,7 @@ impl<Foo> DataWriter<Foo> {
         block_on(self.writer_async.assert_liveliness())
     }
 
-    /// This operation retrieves information on a subscription that is currently “associated” with the [`DataWriter`]; that is, a subscription
+    /// This operation retrieves information on a subscription that is currently *associated* with the [`DataWriter`]; that is, a subscription
     /// with a matching [`Topic`] and compatible QoS that the application has not indicated should be ignored by means of the
     /// [`DomainParticipant::ignore_subscription`](crate::domain::domain_participant::DomainParticipant) operation.
     /// The `subscription_handle` must correspond to a subscription currently associated with the [`DataWriter`], otherwise the operation
@@ -322,12 +322,12 @@ impl<Foo> DataWriter<Foo> {
         )
     }
 
-    /// This operation retrieves the list of subscriptions currently “associated” with the [`DataWriter`]]; that is, subscriptions that have a
-    /// matching [`Topic`] and compatible QoS that the application has not indicated should be “ignored” by means of the
+    /// This operation retrieves the list of subscriptions currently *associated* with the [`DataWriter`]]; that is, subscriptions that have a
+    /// matching [`Topic`] and compatible QoS that the application has not indicated should be *ignored* by means of the
     ///  [`DomainParticipant::ignore_subscription`](crate::domain::domain_participant::DomainParticipant) operation.
     /// The handles returned are the ones that are used by the DDS implementation to locally identify the corresponding matched
     /// [`DataReader`](crate::subscription::data_reader::DataReader) entities. These handles match the ones that appear in the
-    /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
+    /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the *DCPSSubscriptions* builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         block_on(self.writer_async.get_matched_subscriptions())
@@ -337,17 +337,17 @@ impl<Foo> DataWriter<Foo> {
 /// This implementation block contains the Entity operations for the [`DataWriter`].
 impl<Foo> DataWriter<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
-    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
-    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
     /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
     /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
     /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
     /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity's factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
-    /// modified to match the current default for the Entity’s factory.
+    /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         block_on(self.writer_async.set_qos(qos))
@@ -367,9 +367,9 @@ impl<Foo> DataWriter<Foo> {
         StatusCondition::new(self.writer_async.get_statuscondition())
     }
 
-    /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
+    /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
-    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
+    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the *untriggered* state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
@@ -384,7 +384,7 @@ impl<Foo> DataWriter<Foo> {
     /// created entities.
     /// The [`Self::enable()`] operation is idempotent. Calling [`Self::enable()`] on an already enabled Entity returns [`Ok`] and has no effect.
     /// If an Entity has not yet been enabled, the following kinds of operations may be invoked on it:
-    /// - Operations to set or get an Entity’s QoS policies (including default QoS policies) and listener
+    /// - Operations to set or get an Entity's QoS policies (including default QoS policies) and listener
     /// - [`Self::get_statuscondition()`]
     /// - Factory and lookup operations
     /// - [`Self::get_status_changes()`] and other get status operations (although the status of a disabled entity never changes)
@@ -397,7 +397,7 @@ impl<Foo> DataWriter<Foo> {
     /// If the `autoenable_created_entities` field of [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy) is set to [`true`], the [`Self::enable()`] operation on the factory will
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
-    /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    /// enabled are *inactive,* that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         block_on(self.writer_async.enable())

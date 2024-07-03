@@ -169,7 +169,7 @@ impl<Foo> DataReader<Foo> {
     /// operation. This operation is semantically equivalent to the read operation where the input Data sequence has
     /// `max_samples=1`, the `sample_states = &[SampleStateKind::NotRead]`, `view_states=ANY_VIEW_STATE`, and
     /// `instance_states=ANY_INSTANCE_STATE`.
-    /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
+    /// This operation provides a simplified API to 'read' samples avoiding the need for the application to manage
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
@@ -181,7 +181,7 @@ impl<Foo> DataReader<Foo> {
     /// operation. This operation is semantically equivalent to the read operation where the input Data sequence has
     /// `max_samples=1`, the `sample_states = &[SampleStateKind::NotRead]`, `view_states=ANY_VIEW_STATE`, and
     /// `instance_states=ANY_INSTANCE_STATE`.
-    /// This operation provides a simplified API to ‘take’ samples avoiding the need for the application to manage
+    /// This operation provides a simplified API to 'take' samples avoiding the need for the application to manage
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
@@ -242,7 +242,7 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`] where all the samples belong to a single instance.
     /// The behavior is similar to [`DataReader::read_instance`] except that the actual instance is not directly specified.
-    /// Rather the samples will all belong to the ‘next’ instance with instance_handle ‘greater’ than the specified
+    /// Rather the samples will all belong to the 'next' instance with instance_handle 'greater' than the specified
     /// `previous_handle` that has available samples.
     /// This operation implies the existence of a total order *greater-than* relationship between the instance handles.
     /// The specifics of this relationship are not all important and are implementation specific. The important thing is that,
@@ -282,8 +282,8 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation accesses a collection of [`Sample`] values from the [`DataReader`] and removes them from the [`DataReader`].
-    /// This operation has the same behavior as [`DataReader::read_next_instance`] except that the samples are ‘taken’ from the [`DataReader`] such
-    /// that they are no longer accessible via subsequent ‘read’ or ‘take’ operations.
+    /// This operation has the same behavior as [`DataReader::read_next_instance`] except that the samples are 'taken' from the [`DataReader`] such
+    /// that they are no longer accessible via subsequent 'read' or 'take' operations.
     #[tracing::instrument(skip(self))]
     pub fn take_next_instance(
         &self,
@@ -375,24 +375,24 @@ impl<Foo> DataReader<Foo> {
         Subscriber::new(self.reader_async.get_subscriber())
     }
 
-    /// This operation blocks the calling thread until either all “historical” data is received, or else the
+    /// This operation blocks the calling thread until either all *historical* data is received, or else the
     /// duration specified by the `max_wait` parameter elapses, whichever happens first.
-    /// A return value of [`Ok`] indicates that all the “historical” data was received;
+    /// A return value of [`Ok`] indicates that all the *historical* data was received;
     /// a return value of [`DdsError`](crate::infrastructure::error::DdsError) indicates that `max_wait`
     /// elapsed before all the data was received.
     /// This operation is intended only for [`DataReader`] entities that have a non-VOLATILE
     /// [`DurabilityQosPolicy`](crate::infrastructure::qos_policy::DurabilityQosPolicy).
     /// As soon as an application enables a non-VOLATILE [`DataReader`] it will start receiving both
-    /// “historical” data, i.e., the data that was written prior to the time the [`DataReader`] joined the
+    /// *historical* data, i.e., the data that was written prior to the time the [`DataReader`] joined the
     /// domain, as well as any new data written by the [`DataWriter`](crate::publication::data_writer::DataWriter) entities.
-    /// There are situations where the application logic may require the application to wait until all “historical”
+    /// There are situations where the application logic may require the application to wait until all *historical*
     /// data is received.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         block_on(self.reader_async.wait_for_historical_data(max_wait))
     }
 
-    /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
+    /// This operation retrieves information on a publication that is currently *associated* with the [`DataReader`];
     /// that is, a publication with a matching [`Topic`] and compatible qos that the application  has not indicated should be ignored by means of the
     /// [`DomainParticipant::ignore_publication`](crate::domain::domain_participant::DomainParticipant) operation.
     /// The `publication_handle` must correspond to a publication currently associated with the [`DataReader`] otherwise the operation
@@ -410,12 +410,12 @@ impl<Foo> DataReader<Foo> {
         )
     }
 
-    /// This operation retrieves the list of publications currently “associated” with the [`DataReader`]; that is, publications that have a
+    /// This operation retrieves the list of publications currently *associated* with the [`DataReader`]; that is, publications that have a
     /// matching [`Topic`] and compatible qos that the application has not indicated should be ignored by means of the
     /// [`DomainParticipant::ignore_publication`](crate::domain::domain_participant::DomainParticipant) operation.
     /// The handles returned are the ones that are used by the DDS implementation to locally identify
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
-    /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
+    /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the *DCPSPublications* builtin topic.
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         block_on(self.reader_async.get_matched_publications())
@@ -424,17 +424,17 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> DataReader<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
-    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
-    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
     /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
     /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
     /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
     /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity's factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
-    /// modified to match the current default for the Entity’s factory.
+    /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         block_on(self.reader_async.set_qos(qos))
@@ -454,9 +454,9 @@ impl<Foo> DataReader<Foo> {
         StatusCondition::new(self.reader_async.get_statuscondition())
     }
 
-    /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
+    /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
-    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
+    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the *untriggered* state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
@@ -471,7 +471,7 @@ impl<Foo> DataReader<Foo> {
     /// created entities.
     /// The [`Self::enable()`] operation is idempotent. Calling [`Self::enable()`] on an already enabled Entity returns [`Ok`] and has no effect.
     /// If an Entity has not yet been enabled, the following kinds of operations may be invoked on it:
-    /// - Operations to set or get an Entity’s QoS policies (including default QoS policies) and listener
+    /// - Operations to set or get an Entity's QoS policies (including default QoS policies) and listener
     /// - [`Self::get_statuscondition()`]
     /// - Factory and lookup operations
     /// - [`Self::get_status_changes()`] and other get status operations (although the status of a disabled entity never changes)
@@ -484,7 +484,7 @@ impl<Foo> DataReader<Foo> {
     /// If the `autoenable_created_entities` field of [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy) is set to [`true`], the [`Self::enable()`] operation on the factory will
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
-    /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    /// enabled are *inactive,* that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         block_on(self.reader_async.enable())

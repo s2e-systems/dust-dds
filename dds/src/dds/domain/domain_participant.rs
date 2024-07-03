@@ -29,7 +29,7 @@ use super::{
 };
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
-/// same set of physical computers from each other. A domain establishes a “virtual network” linking all applications that
+/// same set of physical computers from each other. A domain establishes a *virtual network* linking all applications that
 /// share the same domain_id and isolating them from applications running on different domains. In this way, several
 /// independent distributed applications can coexist in the same physical network without interfering, or even being aware
 /// of each other.
@@ -37,7 +37,7 @@ use super::{
 /// The [`DomainParticipant`] object plays several roles:
 /// - It acts as a container for all other Entity objects
 /// - It acts as factory for the [`Publisher`], [`Subscriber`] and [`Topic`] Entity objects
-/// - It provides administration services in the domain, offering operations that allow the application to ‘ignore’ locally any
+/// - It provides administration services in the domain, offering operations that allow the application to 'ignore' locally any
 /// information about a given participant ([`DomainParticipant::ignore_participant()`]), publication ([`DomainParticipant::ignore_publication()`]), subscription
 /// ([`DomainParticipant::ignore_subscription()`]), or topic ([`DomainParticipant::ignore_topic()`]).
 ///
@@ -202,7 +202,7 @@ impl DomainParticipant {
     /// as arguments the name of the [`Topic`], a timeout and the type as a generic type argument `Foo`.
     /// If a [`Topic`] of the same name and type already exists, it gives access to it, otherwise it waits (blocks the caller) until another mechanism
     /// creates it (or the specified timeout occurs). This other mechanism can be another thread, a configuration tool, or some other
-    /// middleware service. Note that the [`Topic`] is a local object that acts as a ‘proxy’ to designate the global concept of topic.
+    /// middleware service. Note that the [`Topic`] is a local object that acts as a 'proxy' to designate the global concept of topic.
     /// Middleware implementations could choose to propagate topics and make remotely created topics locally available.
     /// A [`Topic`] obtained by means of [`DomainParticipant::find_topic()`], must also be deleted by means of [`DomainParticipant::delete_topic()`] so that the local resources can be
     /// released. If a [`Topic`] is obtained multiple times by means of [`DomainParticipant::find_topic()`] or [`DomainParticipant::create_topic()`], it must also be deleted that same number
@@ -249,11 +249,11 @@ impl DomainParticipant {
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any topic,
     /// publication, or subscription that originates on that domain participant.
     /// This operation can be used, in conjunction with the discovery of remote participants offered by means of the
-    /// “DCPSParticipant” built-in [`Topic`], to provide, for example, access control.
+    /// *DCPSParticipant* built-in [`Topic`], to provide, for example, access control.
     /// Application data can be associated with a [`DomainParticipant`] by means of the [`UserDataQosPolicy`](crate::infrastructure::qos_policy::UserDataQosPolicy).
     /// This application data is propagated as a field in the built-in topic and can be used by an application to implement its own access control policy.
     /// The domain participant to ignore is identified by the `handle` argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo)
-    /// retrieved when reading the data-samples available for the built-in DataReader to the “DCPSParticipant” topic. The built-in
+    /// retrieved when reading the data-samples available for the built-in DataReader to the *DCPSParticipant* topic. The built-in
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
@@ -266,7 +266,7 @@ impl DomainParticipant {
     /// This operation can be used to save local resources when the application knows that it will never publish or subscribe to data
     /// under certain topics.
     /// The Topic to ignore is identified by the handle argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo) retrieved when
-    /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
+    /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the *DCPSTopic* topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
@@ -276,7 +276,7 @@ impl DomainParticipant {
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
     /// the association of a topic name, and user data and partition set on the Publisher. After this call, any data written related to that publication will be ignored.
     /// The DataWriter to ignore is identified by the handle argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo) retrieved
-    /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
+    /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the *DCPSPublication* topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
@@ -287,7 +287,7 @@ impl DomainParticipant {
     /// the association of a topic name, and user data and partition set on the Subscriber.
     /// After this call, any data received related to that subscription will be ignored.
     /// The DataReader to ignore is identified by the handle argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo)
-    /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
+    /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the *DCPSSubscription* topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     #[tracing::instrument(skip(self))]
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
@@ -295,13 +295,13 @@ impl DomainParticipant {
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
-    /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
+    /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data *communication plane* isolated from other domains.
     #[tracing::instrument(skip(self))]
     pub fn get_domain_id(&self) -> DomainId {
         self.participant_async.get_domain_id()
     }
 
-    /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
+    /// This operation deletes all the entities that were created by means of the *create* operations on the DomainParticipant. That is,
     /// it deletes all contained [`Publisher`], [`Subscriber`] and [`Topic`] entities.
     /// Prior to deleting each contained entity, this operation will recursively call the corresponding `delete_contained_entities()`
     /// operation on each contained entity (if applicable). This pattern is applied recursively. In this manner the operation
@@ -389,14 +389,14 @@ impl DomainParticipant {
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
-    /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
+    /// indicated should be *ignored* by means of the [`DomainParticipant::ignore_participant()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         block_on(self.participant_async.get_discovered_participants())
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
-    /// be in the same domain as the participant on which this operation is invoked and must not have been “ignored” by means of the
+    /// be in the same domain as the participant on which this operation is invoked and must not have been *ignored* by means of the
     /// [`DomainParticipant::ignore_participant()`] operation.
     /// The participant_handle must correspond to such a DomainParticipant. Otherwise, the operation will fail and return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
@@ -413,14 +413,14 @@ impl DomainParticipant {
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
-    /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
+    /// should be *ignored* by means of the [`DomainParticipant::ignore_topic()`] operation.
     #[tracing::instrument(skip(self))]
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         block_on(self.participant_async.get_discovered_topics())
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
-    /// a participant in the same domain as the participant on which this operation is invoked and must not have been “ignored” by
+    /// a participant in the same domain as the participant on which this operation is invoked and must not have been *ignored* by
     /// means of the [`DomainParticipant::ignore_topic()`] operation.
     /// The `topic_handle` must correspond to such a topic. Otherwise, the operation will fail and return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
@@ -458,17 +458,17 @@ impl DomainParticipant {
 /// This implementation block contains the Entity operations for the [`DomainParticipant`].
 impl DomainParticipant {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
-    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
-    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// Certain policies are *immutable;* they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an *immutable* policy, the operation will
     /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
     /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
     /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
     /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity's factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
-    /// modified to match the current default for the Entity’s factory.
+    /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         block_on(self.participant_async.set_qos(qos))
@@ -506,9 +506,9 @@ impl DomainParticipant {
         StatusCondition::new(self.participant_async.get_statuscondition())
     }
 
-    /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
+    /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
-    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
+    /// When the entity is first created or if the entity is not enabled, all communication statuses are in the *untriggered* state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
@@ -523,7 +523,7 @@ impl DomainParticipant {
     /// created entities.
     /// The [`Self::enable()`] operation is idempotent. Calling [`Self::enable()`] on an already enabled Entity returns [`Ok`] and has no effect.
     /// If an Entity has not yet been enabled, the following kinds of operations may be invoked on it:
-    /// - Operations to set or get an Entity’s QoS policies (including default QoS policies) and listener
+    /// - Operations to set or get an Entity's QoS policies (including default QoS policies) and listener
     /// - [`Self::get_statuscondition()`]
     /// - Factory and lookup operations
     /// - [`Self::get_status_changes()`] and other get status operations (although the status of a disabled entity never changes)
@@ -536,7 +536,7 @@ impl DomainParticipant {
     /// If the `autoenable_created_entities` field of [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy) is set to [`true`], the [`Self::enable()`] operation on the factory will
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
-    /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    /// enabled are *inactive*, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     #[tracing::instrument(skip(self))]
     pub fn enable(&self) -> DdsResult<()> {
         block_on(self.participant_async.enable())

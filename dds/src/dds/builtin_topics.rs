@@ -389,7 +389,7 @@ impl PublicationBuiltinTopicData {
     }
 
     /// Get the XML type representation of the discovered writer.
-    /// Note: This is only available if matched with a DustDDS reader which transmits this information as part of the discovery.
+    /// Note: This is only available if matched with a Dust DDS reader which transmits this information as part of the discovery.
     pub fn xml_type(&self) -> &str {
         &self.xml_type
     }

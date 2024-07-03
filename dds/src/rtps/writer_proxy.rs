@@ -131,7 +131,7 @@ impl RtpsWriterProxy {
     }
 
     pub fn available_changes_max(&self) -> SequenceNumber {
-        // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
+        // The condition to make any CacheChange 'a_change' available for 'access' by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
 
         max(
@@ -142,7 +142,7 @@ impl RtpsWriterProxy {
 
     pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
         // This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
-        // SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader. Logical action in the virtual machine:
+        // SequenceNumber_t 'a_seq_num' is irrelevant to the RTPS Reader. Logical action in the virtual machine:
         // FIND change FROM this.changes_from_writer SUCH-THAT
         // (change.sequenceNumber == a_seq_num);
         // change.status := RECEIVED; change.is_relevant := FALSE;
@@ -161,7 +161,7 @@ impl RtpsWriterProxy {
     }
 
     pub fn missing_changes(&self) -> impl Iterator<Item = SequenceNumber> {
-        // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
+        // The changes with status 'MISSING' represent the set of changes available in the HistoryCache of the RTPS Writer
         // represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
 
