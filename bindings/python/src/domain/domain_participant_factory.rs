@@ -18,8 +18,8 @@ pub struct DomainParticipantFactory(
 
 #[pymethods]
 impl DomainParticipantFactory {
-    #[new]
-    pub fn get_instance() -> Self {
+    #[staticmethod]
+    pub fn get_instance() -> DomainParticipantFactory {
         Self(dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance())
     }
 

@@ -12,7 +12,7 @@ class MyDataType:
 
 
 def test_write_read_my_data_type():
-    participant_factory = dust_dds.DomainParticipantFactory()
+    participant_factory = dust_dds.DomainParticipantFactory.get_instance()
     participant = participant_factory.create_participant(domain_id = 100)
     topic = participant.create_topic(topic_name = "TestTopic", type_ = MyDataType)
 

@@ -25,8 +25,9 @@ class MyDataType:
 class MyReaderListener:
     def on_data_available(reader):
         received_data = reader.read(max_samples = 1)
+        print(f"On data available, data: {received_data[0].get_data()}")
 
-participant_factory = dust_dds.DomainParticipantFactory()
+participant_factory = dust_dds.DomainParticipantFactory.get_instance()
 participant = participant_factory.create_participant(domain_id = 100)
 topic = participant.create_topic(topic_name = "TestTopic", type_ = MyDataType)
 
