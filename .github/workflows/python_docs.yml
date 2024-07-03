@@ -12,9 +12,6 @@ jobs:
   # Build the documentation and upload the static HTML files as an artifact.
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./bindings/python
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,7 +22,8 @@ jobs:
         with:
           target: x86_64
           args: --out dist --find-interpreter
-      - run: pip install pdoc dist/dust_dds*.whl
+          working-directory: bindings/python
+      - run: pip install pdoc bindings/python/dist/dust_dds*.whl
       - run: pdoc -o docs/ dust_dds
 
       - uses: actions/upload-pages-artifact@v3
