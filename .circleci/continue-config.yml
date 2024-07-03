@@ -274,9 +274,16 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Decode_Android_key_store
+          command: echo $BASE64_KEYSTORE | base64 -d | tee keystore shapes_demo/android/app/keystore.jks > /dev/null
+      - run:
+          name: Create_keystore_properties
+          command: cd shapes_demo/android && printf 'keyAlias=%s\nkeyPassword=%s\nstoreFile=keystore.jks\nstorePassword=%s' $RELEASE_KEY_ALIAS $RELEASE_KEY_PASSWORD $RELEASE_STORE_PASSWORD > keystore.properties
+      - run:
           name: Build_Android
-          command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleDebug
-
+          command: ./shapes_demo/android/gradlew --project-dir shapes_demo/android bundleRelease
+      - store_artifacts:
+          path: shapes_demo/android/app/build/outputs/bundle/release
 workflows:
   build_and_run_tests:
     jobs:

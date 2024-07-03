@@ -80,3 +80,5 @@ docs/_build/
 # Pyenv
 .python-version
 *.pyi
+shapes_demo/android/keystore.properties
+shapes_demo/android/app/keystore.jks
