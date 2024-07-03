@@ -209,21 +209,7 @@ impl<'ast> PyiImplVisitor<'ast> {
             }
         }
 
-        // After the method definition write the same as the return type instead of "..." so that
-        // the IDE can identify the returned type. With "..." the IDE gives Any as the return independent
-        // of the annotations on the type signature
-        write!(self.pyi_file, "\t\t").unwrap();
-        if is_constructor(fn_item) {
-            write!(self.pyi_file, "{}", self.class_name).unwrap();
-        } else {
-            match &fn_item.sig.output {
-                syn::ReturnType::Default => write!(self.pyi_file, "None").unwrap(),
-                syn::ReturnType::Type(_, return_type) => {
-                    write_type(self.pyi_file, return_type);
-                }
-            }
-        }
-        writeln!(self.pyi_file, "\n").unwrap();
+        writeln!(self.pyi_file, "\t\t...\n").unwrap();
 
         self.is_empty = false;
     }
