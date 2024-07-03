@@ -1,12 +1,15 @@
-use dust_dds::infrastructure::{qos::QosKind, status::NO_STATUS};
+use dust_dds::infrastructure::qos::QosKind;
 use pyo3::prelude::*;
 
 use crate::infrastructure::{
     error::into_pyerr,
     qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+    status::StatusKind,
 };
 
-use super::domain_participant::DomainParticipant;
+use super::{
+    domain_participant::DomainParticipant, domain_participant_listener::DomainParticipantListener,
+};
 
 #[pyclass]
 pub struct DomainParticipantFactory(
@@ -20,17 +23,34 @@ impl DomainParticipantFactory {
         Self(dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance())
     }
 
+    #[pyo3(signature = (domain_id, qos = None, a_listener = None, mask = Vec::new()))]
     pub fn create_participant(
         &self,
         domain_id: i32,
         qos: Option<DomainParticipantQos>,
+        a_listener: Option<Py<PyAny>>,
+        mask: Vec<StatusKind>,
     ) -> PyResult<DomainParticipant> {
         let qos = match qos {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
         };
 
-        match self.0.create_participant(domain_id, qos, None, NO_STATUS) {
+        let mask: Vec<dust_dds::infrastructure::status::StatusKind> = mask
+            .into_iter()
+            .map(dust_dds::infrastructure::status::StatusKind::from)
+            .collect();
+
+        let listener: Option<
+            Box<
+                dyn dust_dds::domain::domain_participant_listener::DomainParticipantListener + Send,
+            >,
+        > = match a_listener {
+            Some(l) => Some(Box::new(DomainParticipantListener::from(l))),
+            None => None,
+        };
+
+        match self.0.create_participant(domain_id, qos, listener, &mask) {
             Ok(dp) => Ok(dp.into()),
             Err(e) => Err(into_pyerr(e)),
         }
