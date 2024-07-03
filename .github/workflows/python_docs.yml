@@ -2,12 +2,8 @@ name: python_docs
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    # Alternative: only build for tags.
-    # tags:
-    #   - '*'
+  pull_request:
+
 
 permissions:
   contents: read
