@@ -12,12 +12,14 @@ jobs:
   # Build the documentation and upload the static HTML files as an artifact.
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./bindings/python
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
