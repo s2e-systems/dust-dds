@@ -6,13 +6,8 @@
 name: pypi_deploy
 
 on:
-  push:
-    branches:
-      - main
-      - master
-    tags:
-      - '*'
-  pull_request:
+  release:
+    types: published
   workflow_dispatch:
 
 permissions:
@@ -170,5 +165,5 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
-          args: --repository testpypi --non-interactive --skip-existing wheels-*/*
+          args: --non-interactive --skip-existing wheels-*/*
 
