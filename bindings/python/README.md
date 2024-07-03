@@ -54,7 +54,7 @@ ws_data_available.attach_condition(dust_dds.Condition.StatusCondition(cond))
 ws_data_available.wait(dust_dds.Duration(sec=2, nanosec=0))
 
 received_data = data_reader.read(max_samples = 1)
-print(f"Received data {received_data[0].data}")
+print(f"Received data {received_data[0].get_data()}")
 
 ```
 
