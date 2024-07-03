@@ -19,6 +19,12 @@ use subscription::sample_info::{
 #[pymodule]
 fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<domain::domain_participant_factory::DomainParticipantFactory>()?;
+    m.add_class::<domain::domain_participant::DomainParticipant>()?;
+    m.add_class::<publication::publisher::Publisher>()?;
+    m.add_class::<publication::data_writer::DataWriter>()?;
+    m.add_class::<subscription::subscriber::Subscriber>()?;
+    m.add_class::<subscription::data_reader::DataReader>()?;
+    m.add_class::<topic_definition::topic::Topic>()?;
     m.add_class::<topic_definition::type_support::TypeKind>()?;
 
     m.add_class::<infrastructure::time::Duration>()?;

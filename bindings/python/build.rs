@@ -138,11 +138,7 @@ fn write_default_value(pyi_file: &mut fs::File, field_ident: &Ident, attrs: &Vec
                                                                         {
                                                                             write!(
                                                                                 pyi_file,
-                                                                                " = {}()",
-                                                                                call_path
-                                                                                    .path
-                                                                                    .segments[0]
-                                                                                    .ident
+                                                                                " = ...",
                                                                             )
                                                                             .unwrap()
                                                                         } else if call_path
@@ -302,21 +298,19 @@ impl<'ast> PyiImplVisitor<'ast> {
             _ => None,
         }) {
             if let syn::Type::Path(p) = impl_block.self_ty.as_ref() {
-                if let Some(ident) = p.path.get_ident() {
-                    if *ident == *self.class_name {
-                        if let Some(f) = impl_block
-                            .items
-                            .iter()
-                            .filter_map(|i| match i {
-                                syn::ImplItem::Fn(f) => Some(f),
-                                _ => None,
-                            })
-                            .find(|f| f.sig.ident == fn_item.sig.ident)
-                        {
-                            writeln!(self.pyi_file, "\t\tr\"\"\"").unwrap();
-                            write_docs(self.pyi_file, &f.attrs);
-                            writeln!(self.pyi_file, "\t\t\"\"\"").unwrap();
-                        }
+                if p.path.segments[0].ident == *self.class_name {
+                    if let Some(f) = impl_block
+                        .items
+                        .iter()
+                        .filter_map(|i| match i {
+                            syn::ImplItem::Fn(f) => Some(f),
+                            _ => None,
+                        })
+                        .find(|f| f.sig.ident == fn_item.sig.ident)
+                    {
+                        writeln!(self.pyi_file, "\t\tr\"\"\"").unwrap();
+                        write_docs(self.pyi_file, &f.attrs);
+                        writeln!(self.pyi_file, "\t\t\"\"\"").unwrap();
                     }
                 }
             }
@@ -540,8 +534,6 @@ fn main() -> io::Result<()> {
 
     writeln!(pyi_file, "from typing import Any \n").unwrap();
 
-    visit_fs_dir(cargo_dir_path, &mut pyi_file)?;
-
     // Add the constants manually
     writeln!(pyi_file, "ANY_SAMPLE_STATE : SampleStateKind= ...").unwrap();
     writeln!(pyi_file, "ANY_VIEW_STATE : ViewStateKind = ...").unwrap();
@@ -561,6 +553,8 @@ fn main() -> io::Result<()> {
         "DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER : ReliabilityQosPolicy = ..."
     )
     .unwrap();
+
+    visit_fs_dir(cargo_dir_path, &mut pyi_file)?;
 
     Ok(())
 }
