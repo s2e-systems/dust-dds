@@ -1,16 +1,13 @@
 use pyo3::prelude::*;
 
-use crate::infrastructure::{
-    qos_policy::{PresentationQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy},
-    time::{Duration, DurationKind},
-};
-
 use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, ReaderDataLifecycleQosPolicy,
-    ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-    UserDataQosPolicy, WriterDataLifecycleQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+    ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
+    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    WriterDataLifecycleQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
 
 #[pyclass]
@@ -36,7 +33,7 @@ impl From<dust_dds::infrastructure::qos::DomainParticipantFactoryQos>
 #[pymethods]
 impl DomainParticipantFactoryQos {
     #[new]
-    #[pyo3(signature = (entity_factory = EntityFactoryQosPolicy::default()))]
+    #[pyo3(signature = (entity_factory = EntityFactoryQosPolicy::default(), ))]
     pub fn new(entity_factory: EntityFactoryQosPolicy) -> Self {
         Self(dust_dds::infrastructure::qos::DomainParticipantFactoryQos {
             entity_factory: entity_factory.into(),
@@ -221,12 +218,7 @@ impl TopicQos {
         deadline = DeadlineQosPolicy::default(),
         latency_budget = LatencyBudgetQosPolicy::default(),
         liveliness = LivelinessQosPolicy::default(),
-        reliability = ReliabilityQosPolicy::new(
-            ReliabilityQosPolicyKind::BestEffort,
-            DurationKind::Finite{duration :Duration::new(
-                0,
-                100_000_000, /*100ms*/
-            )}),
+        reliability = DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         destination_order = DestinationOrderQosPolicy::default(),
         history = HistoryQosPolicy::default(),
         resource_limits = ResourceLimitsQosPolicy::default(),
@@ -338,12 +330,7 @@ impl DataWriterQos {
         deadline = DeadlineQosPolicy::default(),
         latency_budget = LatencyBudgetQosPolicy::default(),
         liveliness = LivelinessQosPolicy::default(),
-        reliability = ReliabilityQosPolicy::new(
-            ReliabilityQosPolicyKind::Reliable,
-            DurationKind::Finite{duration :Duration::new(
-                0,
-                100_000_000, /*100ms*/
-            )}),
+        reliability = DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         destination_order = DestinationOrderQosPolicy::default(),
         history = HistoryQosPolicy::default(),
         resource_limits = ResourceLimitsQosPolicy::default(),
@@ -463,12 +450,7 @@ impl DataReaderQos {
         deadline = DeadlineQosPolicy::default(),
         latency_budget = LatencyBudgetQosPolicy::default(),
         liveliness = LivelinessQosPolicy::default(),
-        reliability = ReliabilityQosPolicy::new(
-            ReliabilityQosPolicyKind::BestEffort,
-            DurationKind::Finite{duration :Duration::new(
-                0,
-                100_000_000, /*100ms*/
-            )}),
+        reliability = DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         destination_order = DestinationOrderQosPolicy::default(),
         history = HistoryQosPolicy::default(),
         resource_limits = ResourceLimitsQosPolicy::default(),

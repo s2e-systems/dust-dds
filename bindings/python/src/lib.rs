@@ -6,6 +6,10 @@ mod subscription;
 mod topic_definition;
 mod xtypes;
 
+use infrastructure::qos_policy::{
+    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+};
 use pyo3::prelude::*;
 use subscription::sample_info::{
     ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, NOT_ALIVE_INSTANCE_STATE,
@@ -68,6 +72,15 @@ fn dust_dds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add(
         "NOT_ALIVE_INSTANCE_STATE",
         NOT_ALIVE_INSTANCE_STATE.to_vec(),
+    )?;
+
+    m.add(
+        "DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS",
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    )?;
+    m.add(
+        "DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER",
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     )?;
 
     Ok(())

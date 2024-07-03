@@ -1053,3 +1053,22 @@ impl ReaderDataLifecycleQosPolicy {
         self.0.autopurge_disposed_samples_delay = value.into();
     }
 }
+
+// default for Reliability is differnet for reader and writer, hence
+// added here as constants
+const DEFAULT_MAX_BLOCKING_TIME: dust_dds::infrastructure::time::Duration =
+    dust_dds::infrastructure::time::Duration::new(0, 100_000_000);
+pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
+    ReliabilityQosPolicy(dust_dds::infrastructure::qos_policy::ReliabilityQosPolicy {
+        kind: dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffort,
+        max_blocking_time: dust_dds::infrastructure::time::DurationKind::Finite(
+            DEFAULT_MAX_BLOCKING_TIME,
+        ),
+    });
+pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy =
+    ReliabilityQosPolicy(dust_dds::infrastructure::qos_policy::ReliabilityQosPolicy {
+        kind: dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::Reliable,
+        max_blocking_time: dust_dds::infrastructure::time::DurationKind::Finite(
+            DEFAULT_MAX_BLOCKING_TIME,
+        ),
+    });

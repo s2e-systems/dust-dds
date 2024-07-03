@@ -155,14 +155,91 @@ impl<'ast> PyiImplVisitor<'ast> {
                     if !is_first {
                         write!(self.pyi_file, ", ").unwrap();
                     }
-                    match t.pat.as_ref() {
-                        syn::Pat::Ident(i) => {
-                            write!(self.pyi_file, "{}", i.ident).unwrap();
-                        }
-                        _ => unimplemented!(),
+                    let field_ident = match t.pat.as_ref() {
+                        syn::Pat::Ident(i) => &i.ident,
+                        _ => unreachable!(),
                     };
+                    write!(self.pyi_file, "{}", field_ident).unwrap();
                     write!(self.pyi_file, ": ").unwrap();
                     write_type(self.pyi_file, t.ty.as_ref());
+
+                    for attr in fn_item.attrs.iter() {
+                        match &attr.meta {
+                            syn::Meta::List(l) => {
+                                if l.path.segments[0].ident == "pyo3" {
+                                    if let Ok(syn::Meta::NameValue(n)) = l.parse_args::<syn::Meta>()
+                                    {
+                                        if n.path.segments[0].ident == "signature" {
+                                            match &n.value {
+                                                syn::Expr::Tuple(t) => {
+                                                    for elem in t.elems.iter() {
+                                                        match elem {
+                                                            syn::Expr::Assign(a) => {
+                                                                match a.left.as_ref() {
+                                                                    syn::Expr::Path(p) => {
+                                                                        if p.path
+                                                                            .get_ident()
+                                                                            .unwrap()
+                                                                            == field_ident
+                                                                        {
+                                                                            match a.right.as_ref() {
+                                                                                syn::Expr::Call(right_call) => {
+                                                                                    match right_call.func.as_ref() {
+                                                                                        syn::Expr::Path(call_path) => {
+                                                                                            if call_path.path.segments[1].ident == "default" {
+                                                                                                write!(self.pyi_file, " = {}()", call_path.path.segments[0].ident).unwrap()
+                                                                                            } else if call_path.path.segments[0].ident == "Vec" && call_path.path.segments[1].ident == "new" {
+                                                                                                write!(self.pyi_file, " = []").unwrap()
+                                                                                            } else {
+                                                                                                write!(self.pyi_file, "Assign call path {:?}", call_path.path).unwrap();
+                                                                                                todo!()
+                                                                                            }
+                                                                                        },
+                                                                                        _ => unreachable!(),
+                                                                                    }
+
+                                                                                },
+                                                                                syn::Expr::MethodCall(method_call) => {
+                                                                                    match method_call.receiver.as_ref() {
+                                                                                        syn::Expr::Path(receiver_path) => write!(self.pyi_file, " = {}", receiver_path.path.segments[0].ident).unwrap(),
+                                                                                        _ => unreachable!(),
+                                                                                    }
+
+                                                                                },
+                                                                                syn::Expr::Path(right_path) => {
+                                                                                    write!(self.pyi_file, " = {}", right_path.path.get_ident().unwrap()).unwrap();
+                                                                                    break;
+                                                                                },
+                                                                                _ => unreachable!(),
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    _ => unreachable!(),
+                                                                }
+                                                            }
+                                                            syn::Expr::Path(p) => {
+                                                                if p.path.get_ident().unwrap()
+                                                                    == field_ident
+                                                                {
+                                                                    break;
+                                                                }
+                                                            } // No default value when mentioned only by name
+                                                            _ => unreachable!(),
+                                                        }
+                                                    }
+                                                }
+                                                _ => unreachable!(),
+                                            }
+                                        }
+                                    }
+                                }
+
+                                //
+                            }
+                            _ => (),
+                        }
+                    }
+
                     is_first = false;
                 }
             }
@@ -428,6 +505,26 @@ fn main() -> io::Result<()> {
     writeln!(pyi_file, "from typing import Any \n").unwrap();
 
     visit_fs_dir(cargo_dir_path, &mut pyi_file)?;
+
+    // Add the constants manually
+    writeln!(pyi_file, "ANY_SAMPLE_STATE : SampleStateKind= ...").unwrap();
+    writeln!(pyi_file, "ANY_VIEW_STATE : ViewStateKind = ...").unwrap();
+    writeln!(pyi_file, "ANY_INSTANCE_STATE : InstanceStateKind= ...").unwrap();
+    writeln!(
+        pyi_file,
+        "NOT_ALIVE_INSTANCE_STATE : InstanceStateKind= ..."
+    )
+    .unwrap();
+    writeln!(
+        pyi_file,
+        "DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS : ReliabilityQosPolicy = ..."
+    )
+    .unwrap();
+    writeln!(
+        pyi_file,
+        "DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER : ReliabilityQosPolicy = ..."
+    )
+    .unwrap();
 
     Ok(())
 }
