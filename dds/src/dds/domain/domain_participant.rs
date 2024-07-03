@@ -37,7 +37,7 @@ use super::{
 /// The [`DomainParticipant`] object plays several roles:
 /// - It acts as a container for all other Entity objects
 /// - It acts as factory for the [`Publisher`], [`Subscriber`] and [`Topic`] Entity objects
-/// - It provides administration services in the domain, offering operations that allow the application to ‘ignore’ locally any
+/// - It provides administration services in the domain, offering operations that allow the application to 'ignore' locally any
 /// information about a given participant ([`DomainParticipant::ignore_participant()`]), publication ([`DomainParticipant::ignore_publication()`]), subscription
 /// ([`DomainParticipant::ignore_subscription()`]), or topic ([`DomainParticipant::ignore_topic()`]).
 ///
@@ -202,7 +202,7 @@ impl DomainParticipant {
     /// as arguments the name of the [`Topic`], a timeout and the type as a generic type argument `Foo`.
     /// If a [`Topic`] of the same name and type already exists, it gives access to it, otherwise it waits (blocks the caller) until another mechanism
     /// creates it (or the specified timeout occurs). This other mechanism can be another thread, a configuration tool, or some other
-    /// middleware service. Note that the [`Topic`] is a local object that acts as a ‘proxy’ to designate the global concept of topic.
+    /// middleware service. Note that the [`Topic`] is a local object that acts as a 'proxy' to designate the global concept of topic.
     /// Middleware implementations could choose to propagate topics and make remotely created topics locally available.
     /// A [`Topic`] obtained by means of [`DomainParticipant::find_topic()`], must also be deleted by means of [`DomainParticipant::delete_topic()`] so that the local resources can be
     /// released. If a [`Topic`] is obtained multiple times by means of [`DomainParticipant::find_topic()`] or [`DomainParticipant::create_topic()`], it must also be deleted that same number
@@ -466,9 +466,9 @@ impl DomainParticipant {
     /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity's factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
-    /// modified to match the current default for the Entity’s factory.
+    /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         block_on(self.participant_async.set_qos(qos))
@@ -506,7 +506,7 @@ impl DomainParticipant {
         StatusCondition::new(self.participant_async.get_statuscondition())
     }
 
-    /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
+    /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
     /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
@@ -523,7 +523,7 @@ impl DomainParticipant {
     /// created entities.
     /// The [`Self::enable()`] operation is idempotent. Calling [`Self::enable()`] on an already enabled Entity returns [`Ok`] and has no effect.
     /// If an Entity has not yet been enabled, the following kinds of operations may be invoked on it:
-    /// - Operations to set or get an Entity’s QoS policies (including default QoS policies) and listener
+    /// - Operations to set or get an Entity's QoS policies (including default QoS policies) and listener
     /// - [`Self::get_statuscondition()`]
     /// - Factory and lookup operations
     /// - [`Self::get_status_changes()`] and other get status operations (although the status of a disabled entity never changes)

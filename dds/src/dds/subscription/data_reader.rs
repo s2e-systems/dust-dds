@@ -169,7 +169,7 @@ impl<Foo> DataReader<Foo> {
     /// operation. This operation is semantically equivalent to the read operation where the input Data sequence has
     /// `max_samples=1`, the `sample_states = &[SampleStateKind::NotRead]`, `view_states=ANY_VIEW_STATE`, and
     /// `instance_states=ANY_INSTANCE_STATE`.
-    /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
+    /// This operation provides a simplified API to 'read' samples avoiding the need for the application to manage
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
@@ -181,7 +181,7 @@ impl<Foo> DataReader<Foo> {
     /// operation. This operation is semantically equivalent to the read operation where the input Data sequence has
     /// `max_samples=1`, the `sample_states = &[SampleStateKind::NotRead]`, `view_states=ANY_VIEW_STATE`, and
     /// `instance_states=ANY_INSTANCE_STATE`.
-    /// This operation provides a simplified API to ‘take’ samples avoiding the need for the application to manage
+    /// This operation provides a simplified API to 'take' samples avoiding the need for the application to manage
     /// sequences and specify states.
     #[tracing::instrument(skip(self))]
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
@@ -242,7 +242,7 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`] where all the samples belong to a single instance.
     /// The behavior is similar to [`DataReader::read_instance`] except that the actual instance is not directly specified.
-    /// Rather the samples will all belong to the ‘next’ instance with instance_handle ‘greater’ than the specified
+    /// Rather the samples will all belong to the 'next' instance with instance_handle 'greater' than the specified
     /// `previous_handle` that has available samples.
     /// This operation implies the existence of a total order *greater-than* relationship between the instance handles.
     /// The specifics of this relationship are not all important and are implementation specific. The important thing is that,
@@ -282,8 +282,8 @@ impl<Foo> DataReader<Foo> {
     }
 
     /// This operation accesses a collection of [`Sample`] values from the [`DataReader`] and removes them from the [`DataReader`].
-    /// This operation has the same behavior as [`DataReader::read_next_instance`] except that the samples are ‘taken’ from the [`DataReader`] such
-    /// that they are no longer accessible via subsequent ‘read’ or ‘take’ operations.
+    /// This operation has the same behavior as [`DataReader::read_next_instance`] except that the samples are 'taken' from the [`DataReader`] such
+    /// that they are no longer accessible via subsequent 'read' or 'take' operations.
     #[tracing::instrument(skip(self))]
     pub fn take_next_instance(
         &self,
@@ -432,9 +432,9 @@ impl<Foo> DataReader<Foo> {
     /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity's factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
-    /// modified to match the current default for the Entity’s factory.
+    /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         block_on(self.reader_async.set_qos(qos))
@@ -454,7 +454,7 @@ impl<Foo> DataReader<Foo> {
         StatusCondition::new(self.reader_async.get_statuscondition())
     }
 
-    /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
+    /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
     /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
@@ -471,7 +471,7 @@ impl<Foo> DataReader<Foo> {
     /// created entities.
     /// The [`Self::enable()`] operation is idempotent. Calling [`Self::enable()`] on an already enabled Entity returns [`Ok`] and has no effect.
     /// If an Entity has not yet been enabled, the following kinds of operations may be invoked on it:
-    /// - Operations to set or get an Entity’s QoS policies (including default QoS policies) and listener
+    /// - Operations to set or get an Entity's QoS policies (including default QoS policies) and listener
     /// - [`Self::get_statuscondition()`]
     /// - Factory and lookup operations
     /// - [`Self::get_status_changes()`] and other get status operations (although the status of a disabled entity never changes)

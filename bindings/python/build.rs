@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use syn::{visit::Visit, ImplItemFn};
+use syn::{visit::Visit, Attribute, ImplItemFn};
 
 fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
     match type_path {
@@ -84,10 +84,40 @@ fn write_type(pyi_file: &mut fs::File, type_path: &syn::Type) {
     }
 }
 
+fn write_docs(pyi_file: &mut fs::File, attrs: &Vec<Attribute>) {
+    for attr in attrs.iter() {
+        match &attr.meta {
+            syn::Meta::NameValue(n) => {
+                if let Some(path_ident) = n.path.get_ident() {
+                    if path_ident == "doc" {
+                        match &n.value {
+                            syn::Expr::Lit(l) => match &l.lit {
+                                syn::Lit::Str(s) => {
+                                    let doc_string = s.token().to_string();
+                                    writeln!(
+                                        pyi_file,
+                                        "{}",
+                                        &doc_string[1..doc_string.len() - 1] // Do not print the initial and final ""
+                                    )
+                                    .unwrap();
+                                }
+                                _ => unreachable!(),
+                            },
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
 struct PyiImplVisitor<'ast> {
     pyi_file: &'ast mut File,
     class_name: String,
     is_empty: bool,
+    dust_dds_ast_file: &'ast syn::File,
 }
 
 impl<'ast> PyiImplVisitor<'ast> {
@@ -152,7 +182,48 @@ impl<'ast> PyiImplVisitor<'ast> {
             }
         }
 
-        writeln!(self.pyi_file, " : ...").unwrap();
+        writeln!(self.pyi_file, " :").unwrap();
+
+        for impl_block in self.dust_dds_ast_file.items.iter().filter_map(|i| match i {
+            syn::Item::Impl(i) => Some(i),
+            _ => None,
+        }) {
+            if let syn::Type::Path(p) = impl_block.self_ty.as_ref() {
+                if let Some(ident) = p.path.get_ident() {
+                    if *ident == *self.class_name {
+                        if let Some(f) = impl_block
+                            .items
+                            .iter()
+                            .filter_map(|i| match i {
+                                syn::ImplItem::Fn(f) => Some(f),
+                                _ => None,
+                            })
+                            .find(|f| f.sig.ident == fn_item.sig.ident)
+                        {
+                            writeln!(self.pyi_file, "\t\tr\"\"\"").unwrap();
+                            write_docs(self.pyi_file, &f.attrs);
+                            writeln!(self.pyi_file, "\t\t\"\"\"").unwrap();
+                        }
+                    }
+                }
+            }
+        }
+
+        // After the method definition write the same as the return type instead of "..." so that
+        // the IDE can identify the returned type. With "..." the IDE gives Any as the return independent
+        // of the annotations on the type signature
+        write!(self.pyi_file, "\t\t").unwrap();
+        if is_constructor(fn_item) {
+            write!(self.pyi_file, "{}", self.class_name).unwrap();
+        } else {
+            match &fn_item.sig.output {
+                syn::ReturnType::Default => write!(self.pyi_file, "None").unwrap(),
+                syn::ReturnType::Type(_, return_type) => {
+                    write_type(self.pyi_file, return_type);
+                }
+            }
+        }
+        writeln!(self.pyi_file, "\n").unwrap();
 
         self.is_empty = false;
     }
@@ -194,7 +265,7 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
 
             let class_name = node.ident.to_string();
             writeln!(self.pyi_file, "class {}:", class_name).unwrap();
-            // Copy the doc from Dust DDS struct to the pyi file
+
             if let Some(s) = self
                 .dust_dds_ast_file
                 .items
@@ -206,38 +277,14 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
                 .find(|s| s.ident == node.ident)
             {
                 writeln!(self.pyi_file, "\tr\"\"\"").unwrap();
-                for attr in s.attrs.iter() {
-                    match &attr.meta {
-                        syn::Meta::NameValue(n) => {
-                            if let Some(path_ident) = n.path.get_ident() {
-                                if path_ident == "doc" {
-                                    match &n.value {
-                                        syn::Expr::Lit(l) => match &l.lit {
-                                            syn::Lit::Str(s) => {
-                                                let doc_string = s.token().to_string();
-                                                writeln!(
-                                                    self.pyi_file,
-                                                    "\t{}",
-                                                    &doc_string[1..doc_string.len() - 1]
-                                                )
-                                                .unwrap();
-                                            }
-                                            _ => unreachable!(),
-                                        },
-                                        _ => unreachable!(),
-                                    }
-                                }
-                            }
-                        }
-                        _ => (),
-                    }
-                }
+                write_docs(self.pyi_file, &s.attrs);
                 writeln!(self.pyi_file, "\t\"\"\"").unwrap();
             }
             let mut impl_visitor = PyiImplVisitor {
                 pyi_file: self.pyi_file,
                 class_name: node.ident.to_string(),
                 is_empty: true,
+                dust_dds_ast_file: self.dust_dds_ast_file,
             };
             impl_visitor.visit_file(self.ast_file);
             if impl_visitor.is_empty {
@@ -261,6 +308,20 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
                     for variant in i.variants.iter() {
                         writeln!(self.pyi_file, "\nclass {}_{}:", enum_name, variant.ident)
                             .unwrap();
+                        if let Some(s) = self
+                            .dust_dds_ast_file
+                            .items
+                            .iter()
+                            .filter_map(|i| match i {
+                                syn::Item::Enum(e) => Some(e),
+                                _ => None,
+                            })
+                            .find(|e| e.ident == i.ident)
+                        {
+                            writeln!(self.pyi_file, "\tr\"\"\"").unwrap();
+                            write_docs(self.pyi_file, &s.attrs);
+                            writeln!(self.pyi_file, "\t\"\"\"").unwrap();
+                        }
                         write!(self.pyi_file, "\tdef __init__(self").unwrap();
                         for field in variant.fields.iter() {
                             write!(self.pyi_file, ", ").unwrap();
@@ -290,6 +351,20 @@ impl<'ast> Visit<'ast> for PyiStructVisitor<'ast> {
                 }
                 syn::Fields::Unit => {
                     writeln!(self.pyi_file, "\nclass {}: ", enum_name).unwrap();
+                    if let Some(s) = self
+                        .dust_dds_ast_file
+                        .items
+                        .iter()
+                        .filter_map(|i| match i {
+                            syn::Item::Enum(e) => Some(e),
+                            _ => None,
+                        })
+                        .find(|e| e.ident == i.ident)
+                    {
+                        writeln!(self.pyi_file, "\tr\"\"\"").unwrap();
+                        write_docs(self.pyi_file, &s.attrs);
+                        writeln!(self.pyi_file, "\t\"\"\"").unwrap();
+                    }
                     for (idx, variant) in i.variants.iter().enumerate() {
                         writeln!(self.pyi_file, "\t{} = {}", variant.ident, idx).unwrap();
                     }

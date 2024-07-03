@@ -179,9 +179,9 @@ impl Subscriber {
     /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity's factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
-    /// modified to match the current default for the Entity’s factory.
+    /// modified to match the current default for the Entity's factory.
     #[tracing::instrument(skip(self))]
     pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         block_on(self.subscriber_async.set_qos(qos))
@@ -219,7 +219,7 @@ impl Subscriber {
         StatusCondition::new(self.subscriber_async.get_statuscondition())
     }
 
-    /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
+    /// This operation retrieves the list of communication statuses in the Entity that are 'triggered.' That is, the list of statuses whose
     /// value has changed since the last time the application read the status.
     /// When the entity is first created or if the entity is not enabled, all communication statuses are in the “untriggered” state so the
     /// list returned by the [`Self::get_status_changes`] operation will be empty.
@@ -236,7 +236,7 @@ impl Subscriber {
     /// created entities.
     /// The [`Self::enable()`] operation is idempotent. Calling [`Self::enable()`] on an already enabled Entity returns [`Ok`] and has no effect.
     /// If an Entity has not yet been enabled, the following kinds of operations may be invoked on it:
-    /// - Operations to set or get an Entity’s QoS policies (including default QoS policies) and listener
+    /// - Operations to set or get an Entity's QoS policies (including default QoS policies) and listener
     /// - [`Self::get_statuscondition()`]
     /// - Factory and lookup operations
     /// - [`Self::get_status_changes()`] and other get status operations (although the status of a disabled entity never changes)

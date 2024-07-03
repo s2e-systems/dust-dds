@@ -253,17 +253,17 @@ impl QosPolicy for TransportPriorityQosPolicy {
 
 /// This policy is used to avoid delivering “stale” data to the application.
 ///
-/// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated ‘expiration time’ beyond which the data should not be delivered
+/// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated 'expiration time' beyond which the data should not be delivered
 /// to any application. Once the sample expires, the data will be removed from the [`DataReader`](crate::subscription::data_reader::DataReader) caches as well as from the
 /// transient and persistent information caches.
-/// The ‘expiration time’ of each sample is computed by adding the duration specified by the [`LifespanQosPolicy`] to the source
+/// The 'expiration time' of each sample is computed by adding the duration specified by the [`LifespanQosPolicy`] to the source
 /// timestamp. The source timestamp is either automatically computed by the Service
 /// each time the [`DataWriter::write()`](crate::publication::data_writer::DataWriter) operation is called, or else supplied by the application by means
 /// of the  [`DataWriter::write_w_timestamp()`](crate::publication::data_writer::DataWriter)
 /// operation.
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
 /// and the Service can detect it, the [`DataReader`](crate::subscription::data_reader::DataReader) is allowed to use the reception timestamp instead of the source timestamp in its
-/// computation of the ‘expiration time.’
+/// computation of the 'expiration time.'
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
 pub struct LifespanQosPolicy {
     /// Lifespan duration
@@ -483,7 +483,7 @@ impl Default for PresentationQosPolicy {
 ///
 /// On the subscribing side the setting establishes a minimum
 /// requirement for the remote publishers that are expected to supply the data values.
-/// When the Service ‘matches’ a [`DataWriter`](crate::publication::data_writer::DataWriter) and a [`DataReader`](crate::subscription::data_reader::DataReader) it checks whether the settings are compatible (i.e., *offered
+/// When the Service 'matches' a [`DataWriter`](crate::publication::data_writer::DataWriter) and a [`DataReader`](crate::subscription::data_reader::DataReader) it checks whether the settings are compatible (i.e., *offered
 /// deadline period <= requested deadline period*) if they are not, the two entities are informed (via the listener or condition
 /// mechanism) of the incompatibility of the QoS settings and communication will not occur.
 /// Assuming that the reader and writer ends have compatible settings, the fulfillment of this contract is monitored by the Service
@@ -748,7 +748,7 @@ impl Default for TimeBasedFilterQosPolicy {
     }
 }
 
-/// This policy allows the introduction of a logical partition concept inside the ‘physical’ partition induced by a domain.
+/// This policy allows the introduction of a logical partition concept inside the 'physical' partition induced by a domain.
 ///
 /// For a [`DataReader`](crate::subscription::data_reader::DataReader) to see the changes made to an instance by a [`DataWriter`](crate::publication::data_writer::DataWriter),
 /// not only the [`Topic`](crate::topic_definition::topic::Topic) must match, but also they must share a common partition.
@@ -1163,13 +1163,13 @@ impl Default for WriterDataLifecycleQosPolicy {
 /// The [`DataReader`](crate::subscription::data_reader::DataReader) internally maintains the samples that have not been taken by the application, subject to the constraints
 /// imposed by other QoS policies such as [`HistoryQosPolicy`] and [`ResourceLimitsQosPolicy`].
 /// The [`DataReader`](crate::subscription::data_reader::DataReader) also maintains information regarding the identity, view_state and instance_state
-/// of data-instances even after all samples have been ‘taken.’ This is needed to properly compute the states when future samples arrive.
+/// of data-instances even after all samples have been 'taken.' This is needed to properly compute the states when future samples arrive.
 /// Under normal circumstances the [`DataReader`](crate::subscription::data_reader::DataReader) can only reclaim all resources for instances for which there are no writers and for
-/// which all samples have been ‘taken’. The last sample the [`DataReader`](crate::subscription::data_reader::DataReader) will have taken for that instance will have an
+/// which all samples have been 'taken'. The last sample the [`DataReader`](crate::subscription::data_reader::DataReader) will have taken for that instance will have an
 /// `instance_state` of either [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind) or
 /// [`InstanceStateKind::NotAliveDisposed`](crate::subscription::sample_info::InstanceStateKind) depending on whether the last writer
 /// that had ownership of the instance disposed it or not.  In the absence of the [`ReaderDataLifecycleQosPolicy`] this behavior could cause problems if the
-/// application “forgets” to ‘take’ those samples. The ‘untaken’ samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
+/// application “forgets” to 'take' those samples. The 'untaken' samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
 /// resources and they would remain in the [`DataReader`](crate::subscription::data_reader::DataReader) indefinitely.
 /// The [`ReaderDataLifecycleQosPolicy::autopurge_nowriter_samples_delay`] defines the maximum duration for which the [`DataReader`](crate::subscription::data_reader::DataReader) will maintain information
 /// regarding an instance once its `instance_state` becomes [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind). After this time elapses, the [`DataReader`](crate::subscription::data_reader::DataReader)
