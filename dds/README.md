@@ -28,32 +28,30 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
         msg: String,
     }
 
-    fn main() {
-        let domain_id = 0;
-        let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
 
-        let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let topic = participant
-            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let topic = participant
+        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let publisher = participant
-            .create_publisher(QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let writer = publisher
-            .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let writer = publisher
+        .create_datawriter::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let hello_world = HelloWorldType {
-            id: 8,
-            msg: "Hello world!".to_string(),
-        };
-        writer.write(&hello_world, None).unwrap();
-    }
+    let hello_world = HelloWorldType {
+        id: 8,
+        msg: "Hello world!".to_string(),
+    };
+    writer.write(&hello_world, None).unwrap();
 ```
 
 The subscriber side can be implemented as:
@@ -73,32 +71,30 @@ The subscriber side can be implemented as:
         msg: String,
     }
 
-    fn main() {
-        let domain_id = 0;
-        let participant_factory = DomainParticipantFactory::get_instance();
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
 
-        let participant = participant_factory
-            .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let topic = participant
-            .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let topic = participant
+        .create_topic::<HelloWorldType>("HelloWorld", "HelloWorldType", QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let subscriber = participant
-            .create_subscriber(QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let reader = subscriber
-            .create_datareader::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
-            .unwrap();
+    let reader = subscriber
+        .create_datareader::<HelloWorldType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-        let samples = reader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    let samples = reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
-        if let Ok(hello_world_samples) = samples {
-            println!("Received: {:?}", hello_world_samples[0].data().unwrap());
-        }
+    if let Ok(hello_world_samples) = samples {
+        println!("Received: {:?}", hello_world_samples[0].data().unwrap());
     }
 ```
 

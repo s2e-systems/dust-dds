@@ -333,7 +333,7 @@ impl eframe::App for ShapesDemoApp {
 
         if is_landscape {
             egui::SidePanel::left("menu_panel")
-                .max_width(100.0)
+                .max_width(180.0)
                 .resizable(false)
                 .show(ctx, |ui| self.menu_panel(ui));
             egui::TopBottomPanel::bottom("reader_writer_list")
