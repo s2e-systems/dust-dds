@@ -19,6 +19,6 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Dust DDS Shapes Demo",
         options,
-        Box::new(|_cc| Box::<app::ShapesDemoApp>::default()),
+        Box::new(|_cc| Ok(Box::<app::ShapesDemoApp>::default())),
     )
 }

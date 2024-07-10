@@ -94,7 +94,7 @@ impl GuiShape {
                 ],
                 closed: true,
                 fill: self.color,
-                stroke,
+                stroke: stroke.into(),
             }
             .into(),
             "Square" => epaint::RectShape::new(

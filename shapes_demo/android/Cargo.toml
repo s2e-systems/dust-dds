@@ -1,6 +1,6 @@
 [package]
 name = "shapes_demo_app"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 dust_dds_shapes_demo = { path = "../" }
-winit = { version = "0.29.2", features = [ "android-native-activity" ] }
+winit = { version = "0.29.4", features = [ "android-native-activity" ] }
 log = "0.4"
 android_logger = "0.13.1"
 
