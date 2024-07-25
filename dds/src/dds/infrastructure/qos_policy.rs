@@ -1216,7 +1216,7 @@ type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
 /// [`DataWriter`](crate::publication::data_writer::DataWriter) and [`DataReader`](crate::subscription::data_reader::DataReader) must be able to negotiate which data representation(s) to use.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, CdrSerialize, CdrDeserialize)]
 pub struct DataRepresentationQosPolicy {
     /// List of data representation values
     pub value: DataRepresentationIdSeq,
@@ -1225,12 +1225,6 @@ pub struct DataRepresentationQosPolicy {
 impl QosPolicy for DataRepresentationQosPolicy {
     fn name(&self) -> &str {
         DATA_REPRESENTATION_QOS_POLICY_NAME
-    }
-}
-
-impl Default for DataRepresentationQosPolicy {
-    fn default() -> Self {
-        Self { value: Vec::new() }
     }
 }
 

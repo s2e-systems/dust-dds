@@ -1523,18 +1523,16 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     let writer_offered_representation = writer_qos
         .representation
         .value
-        .get(0)
+        .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !discovered_reader_data
+    if !(discovered_reader_data
         .representation()
         .value
         .contains(writer_offered_representation)
-    {
-        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
+        || writer_offered_representation == &XCDR_DATA_REPRESENTATION
             && discovered_reader_data.representation().value.is_empty())
-        {
-            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
-        }
+    {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
     incompatible_qos_policy_list

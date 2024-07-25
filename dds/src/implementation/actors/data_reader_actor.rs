@@ -900,7 +900,7 @@ impl DataReaderActor {
         let writer_offered_representation = writer_info
             .representation()
             .value
-            .get(0)
+            .first()
             .unwrap_or(&XCDR_DATA_REPRESENTATION);
         if !self
             .qos
