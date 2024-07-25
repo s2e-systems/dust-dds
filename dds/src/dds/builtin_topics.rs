@@ -2,21 +2,22 @@ use dust_dds_derive::DdsDeserialize;
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
-        PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
-        PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
-        PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-        PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_USER_DATA,
+        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
+        PID_LIVELINESS, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION,
+        PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
+        PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_TYPE_REPRESENTATION,
+        PID_USER_DATA,
     },
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+            PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
+            TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+            UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
@@ -116,6 +117,8 @@ pub struct TopicBuiltinTopicData {
     ownership: OwnershipQosPolicy,
     #[parameter(id = PID_TOPIC_DATA, default=Default::default())]
     topic_data: TopicDataQosPolicy,
+    #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
+    representation: DataRepresentationQosPolicy,
 }
 
 impl TopicBuiltinTopicData {
@@ -141,6 +144,7 @@ impl TopicBuiltinTopicData {
             resource_limits: topic_qos.resource_limits,
             ownership: topic_qos.ownership,
             topic_data: topic_qos.topic_data,
+            representation: topic_qos.representation,
         }
     }
 
@@ -218,6 +222,11 @@ impl TopicBuiltinTopicData {
     pub fn topic_data(&self) -> &TopicDataQosPolicy {
         &self.topic_data
     }
+
+    /// Get the data representation QoS policy of the discovered topic.
+    pub fn representation(&self) -> &DataRepresentationQosPolicy {
+        &self.representation
+    }
 }
 
 impl DdsHasKey for TopicBuiltinTopicData {
@@ -267,6 +276,8 @@ pub struct PublicationBuiltinTopicData {
     group_data: GroupDataQosPolicy,
     #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
     xml_type: String,
+    #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
+    representation: DataRepresentationQosPolicy,
 }
 
 impl PublicationBuiltinTopicData {
@@ -300,6 +311,7 @@ impl PublicationBuiltinTopicData {
             group_data: publisher_qos.group_data,
             topic_data,
             xml_type,
+            representation: data_writer_qos.representation,
         }
     }
 
@@ -393,6 +405,11 @@ impl PublicationBuiltinTopicData {
     pub fn xml_type(&self) -> &str {
         &self.xml_type
     }
+
+    /// Get the data representation QoS policy of the discovered writer.
+    pub fn representation(&self) -> &DataRepresentationQosPolicy {
+        &self.representation
+    }
 }
 
 impl DdsHasKey for PublicationBuiltinTopicData {
@@ -442,6 +459,8 @@ pub struct SubscriptionBuiltinTopicData {
     group_data: GroupDataQosPolicy,
     #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
     xml_type: String,
+    #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
+    representation: DataRepresentationQosPolicy,
 }
 
 impl SubscriptionBuiltinTopicData {
@@ -476,6 +495,7 @@ impl SubscriptionBuiltinTopicData {
             group_data: subscriber_qos.group_data,
             topic_data,
             xml_type,
+            representation: data_reader_qos.representation,
         }
     }
 
@@ -568,6 +588,11 @@ impl SubscriptionBuiltinTopicData {
     /// Note: This is only available if matched with a DustDDS writer which transmits this information as part of the discovery.
     pub fn xml_type(&self) -> &str {
         &self.xml_type
+    }
+
+    /// Get the data representation QoS policy of the discovered reader.
+    pub fn representation(&self) -> &DataRepresentationQosPolicy {
+        &self.representation
     }
 }
 

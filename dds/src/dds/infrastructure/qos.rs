@@ -5,13 +5,13 @@ use crate::infrastructure::{
 
 use super::{
     qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
-        GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy,
-        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
-        ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-        TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-        WriterDataLifecycleQosPolicy,
+        DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+        DurabilityQosPolicy, EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
+        HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+        OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+        ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+        TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
     },
     time::DurationKind,
 };
@@ -83,6 +83,8 @@ pub struct DataWriterQos {
     pub ownership: OwnershipQosPolicy,
     /// Value of the writer data lifecycle QoS policy.
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
+    /// Value of the data representation QoS policy.
+    pub representation: DataRepresentationQosPolicy,
 }
 
 impl Default for DataWriterQos {
@@ -107,12 +109,18 @@ impl Default for DataWriterQos {
             lifespan: LifespanQosPolicy::default(),
             transport_priority: TransportPriorityQosPolicy::default(),
             writer_data_lifecycle: WriterDataLifecycleQosPolicy::default(),
+            representation: DataRepresentationQosPolicy::default(),
         }
     }
 }
 
 impl DataWriterQos {
     pub(crate) fn is_consistent(&self) -> DdsResult<()> {
+        // On the writer there can be no more than one value on the representation
+        if self.representation.value.len() > 1 {
+            return Err(DdsError::InconsistentPolicy);
+        }
+
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that *max_samples >= max_samples_per_instanc
         if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
@@ -199,6 +207,8 @@ pub struct DataReaderQos {
     pub time_based_filter: TimeBasedFilterQosPolicy,
     /// Value of the reader data lifecycle QoS policy.
     pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
+    /// Value of the data representation QoS policy.
+    pub representation: DataRepresentationQosPolicy,
 }
 
 impl Default for DataReaderQos {
@@ -222,6 +232,7 @@ impl Default for DataReaderQos {
             ownership: OwnershipQosPolicy::default(),
             time_based_filter: TimeBasedFilterQosPolicy::default(),
             reader_data_lifecycle: ReaderDataLifecycleQosPolicy::default(),
+            representation: DataRepresentationQosPolicy::default(),
         }
     }
 }
@@ -297,6 +308,8 @@ pub struct TopicQos {
     pub lifespan: LifespanQosPolicy,
     /// Value of the ownership QoS policy.
     pub ownership: OwnershipQosPolicy,
+    /// Value of the data representation QoS policy.
+    pub representation: DataRepresentationQosPolicy,
 }
 
 impl Default for TopicQos {
@@ -320,6 +333,7 @@ impl Default for TopicQos {
             transport_priority: TransportPriorityQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
             ownership: OwnershipQosPolicy::default(),
+            representation: DataRepresentationQosPolicy::default(),
         }
     }
 }
