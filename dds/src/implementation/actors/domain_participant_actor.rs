@@ -417,6 +417,7 @@ impl DomainParticipantActor {
                     transport_priority: discovered_topic_data.transport_priority().clone(),
                     lifespan: discovered_topic_data.lifespan().clone(),
                     ownership: discovered_topic_data.ownership().clone(),
+                    representation: discovered_topic_data.representation().clone(),
                 };
                 let type_name = discovered_topic_data.get_type_name().to_owned();
                 let (topic_address, status_condition_address) = self.create_user_defined_topic(
@@ -1818,6 +1819,11 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                             .dds_publication_data()
                             .ownership()
                             .clone(),
+                        representation: message
+                            .discovered_writer_data
+                            .dds_publication_data()
+                            .representation()
+                            .clone(),
                     },
                 );
                 self.discovered_topic_list
@@ -1990,6 +1996,11 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                             .discovered_reader_data
                             .subscription_builtin_topic_data()
                             .ownership()
+                            .clone(),
+                        representation: message
+                            .discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .representation()
                             .clone(),
                     },
                 );

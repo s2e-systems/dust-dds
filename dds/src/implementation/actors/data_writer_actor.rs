@@ -28,9 +28,10 @@ use crate::{
         qos::{DataWriterQos, PublisherQos},
         qos_policy::{
             DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
-            TopicDataQosPolicy, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
-            DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
-            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            TopicDataQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
+            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::{
             OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -1518,6 +1519,22 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     if &writer_qos.destination_order < discovered_reader_data.destination_order() {
         incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
     }
+
+    let writer_offered_representation = writer_qos
+        .representation
+        .value
+        .first()
+        .unwrap_or(&XCDR_DATA_REPRESENTATION);
+    if !(discovered_reader_data
+        .representation()
+        .value
+        .contains(writer_offered_representation)
+        || writer_offered_representation == &XCDR_DATA_REPRESENTATION
+            && discovered_reader_data.representation().value.is_empty())
+    {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
+    }
+
     incompatible_qos_policy_list
 }
 

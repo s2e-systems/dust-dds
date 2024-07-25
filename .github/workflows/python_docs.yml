@@ -2,7 +2,8 @@ name: python_docs
 
 on:
   workflow_dispatch:
-  pull_request:
+  release:
+    types: published
 
 
 permissions:

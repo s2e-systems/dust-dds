@@ -38,9 +38,11 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         qos_policy::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
-            QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy, DEADLINE_QOS_POLICY_ID,
+            QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            XCDR_DATA_REPRESENTATION,
         },
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
@@ -893,6 +895,25 @@ impl DataReaderActor {
         }
         if &self.qos.destination_order > writer_info.destination_order() {
             incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+        }
+
+        let writer_offered_representation = writer_info
+            .representation()
+            .value
+            .first()
+            .unwrap_or(&XCDR_DATA_REPRESENTATION);
+        if !self
+            .qos
+            .representation
+            .value
+            .contains(writer_offered_representation)
+        {
+            // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
+            if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
+                && self.qos.representation.value.is_empty())
+            {
+                incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
+            }
         }
 
         incompatible_qos_policy_list
