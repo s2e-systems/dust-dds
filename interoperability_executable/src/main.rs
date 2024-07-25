@@ -1,4 +1,14 @@
 use clap::Parser;
+use dust_dds::{
+    domain::domain_participant_factory::DomainParticipantFactory,
+    infrastructure::{
+        error::DdsError,
+        qos::QosKind,
+        status::{StatusKind, NO_STATUS},
+        time::Duration,
+        wait_set::{Condition, WaitSet},
+    }, publication::data_writer_listener::DataWriterListener,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -40,12 +50,12 @@ struct Cli {
     ownership_strength: i32,
 
     ///  set the topic name
-    #[clap(short = 't')]
-    topic_name: Option<String>,
+    #[clap(short = 't', default_value = "Square")]
+    topic_name: String,
 
     /// set color to publish (filter if subscriber)
-    #[clap(short = 'c')]
-    color: Option<String>,
+    #[clap(short = 'c', default_value = "BLUE")]
+    color: String,
 
     /// set a 'partition' string
     #[clap(short = 'p')]
@@ -84,8 +94,118 @@ struct Cli {
     log_message_verbosity: char,
 }
 
-fn main() -> Result<(), String> {
+#[derive(Debug)]
+struct Error(String);
+impl From<DdsError> for Error {
+    fn from(value: DdsError) -> Self {
+        Self(format!("DDS error: {:?}", value))
+    }
+}
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+pub struct ShapeType {
+    #[dust_dds(key)]
+    pub color: String,
+    pub x: i32,
+    pub y: i32,
+    pub shapesize: i32,
+}
+
+
+struct Listener;
+impl DataWriterListener<'_> for Listener {
+    type Foo = ShapeType;
+    
+    fn on_liveliness_lost(
+        &mut self,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        _status: dust_dds::infrastructure::status::LivelinessLostStatus,
+    ) {
+    }
+    
+    fn on_offered_deadline_missed(
+        &mut self,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        _status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
+    ) {
+    }
+    
+    fn on_offered_incompatible_qos(
+        &mut self,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        _status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
+    ) {
+    }
+    
+    fn on_publication_matched(
+        &mut self,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        _status: dust_dds::infrastructure::status::PublicationMatchedStatus,
+    ) {
+    }
+    
+}
+
+
+
+
+fn main() -> Result<(), Error> {
     let cli = Cli::parse();
-    println!("{:?} {:?}", cli.color, cli.ownership_strength);
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant = participant_factory.create_participant(
+        cli.domain_id,
+        QosKind::Default,
+        None,
+        NO_STATUS,
+    )?;
+    println!("Create topic: {}", cli.topic_name);
+    let topic = participant.create_topic::<ShapeType>(
+        &cli.topic_name,
+        "ShapeType",
+        QosKind::Default,
+        None,
+        NO_STATUS,
+    )?;
+
+    if cli.publish {
+
+        let publisher = participant.create_publisher(QosKind::Default, None, NO_STATUS)?;
+        println!("Create writer for topic: {} color: {}", cli.topic_name, cli.color);
+        let data_writer =
+            publisher.create_datawriter::<ShapeType>(&topic, QosKind::Default, None, NO_STATUS)?;
+        let writer_cond = data_writer.get_statuscondition();
+        writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
+        let mut wait_set = WaitSet::new();
+        wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
+        wait_set.wait(Duration::new(60, 0))?;
+
+        let sample = ShapeType {
+            color: cli.color,
+            x: 0,
+            y: 0,
+            shapesize: cli.shapesize,
+        };
+        data_writer.write(&sample, None)?;
+
+
+
+        // Todo: Maybe wait_for_ackn for reliablity or subcription matched decreases
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        
+        // let reader_cond = reader.get_statuscondition();
+        // reader_cond
+        //     .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        //     .unwrap();
+        // let mut wait_set = WaitSet::new();
+        // wait_set
+        //     .attach_condition(Condition::StatusCondition(reader_cond.clone()))
+        //     .unwrap();
+        // wait_set.wait(Duration::new(600, 0)).unwrap();
+    }
     Ok(())
 }
