@@ -138,6 +138,7 @@ const TOPICDATA_QOS_POLICY_NAME: &str = "TopicData";
 const TRANSPORTPRIORITY_QOS_POLICY_NAME: &str = "TransportPriority";
 const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
+const DATA_REPRESENTATION_QOS_POLICY_NAME: &str = "DataRepresentation";
 
 /// QosPolicy Id representing an invalid QoS policy
 pub const INVALID_QOS_POLICY_ID: QosPolicyId = 0;
@@ -183,6 +184,8 @@ pub const TRANSPORTPRIORITY_QOS_POLICY_ID: QosPolicyId = 20;
 pub const LIFESPAN_QOS_POLICY_ID: QosPolicyId = 21;
 /// Id for the DurabilityServiceQosPolicy
 pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
+/// Id for the DataRepresentationQosPolicy
+pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
@@ -1197,6 +1200,36 @@ impl Default for ReaderDataLifecycleQosPolicy {
             autopurge_nowriter_samples_delay: DurationKind::Infinite,
             autopurge_disposed_samples_delay: DurationKind::Infinite,
         }
+    }
+}
+
+/*******  DDS X-TYPES Extension **********/
+
+type DataRepresentationId = u16;
+/// XCDR data representation
+pub const XCDR_DATA_REPRESENTATION: DataRepresentationId = 0;
+/// XML data representation
+pub const XML_DATA_REPRESENTATION: DataRepresentationId = 1;
+/// XCDR2 data representation
+pub const XCDR2_DATA_REPRESENTATION: DataRepresentationId = 2;
+type DataRepresentationIdSeq = Vec<DataRepresentationId>;
+
+/// This policy is a DDS-XTypes extension and represents the standard data Representations available.
+/// [`DataWriter`](crate::publication::data_writer::DataWriter) and [`DataReader`](crate::subscription::data_reader::DataReader) must be able to negotiate which data representation(s) to use.
+pub struct DataRepresentationQosPolicy {
+    /// List of data representation values
+    pub value: DataRepresentationIdSeq,
+}
+
+impl QosPolicy for DataRepresentationQosPolicy {
+    fn name(&self) -> &str {
+        DATA_REPRESENTATION_QOS_POLICY_NAME
+    }
+}
+
+impl Default for DataRepresentationQosPolicy {
+    fn default() -> Self {
+        Self { value: Vec::new() }
     }
 }
 
