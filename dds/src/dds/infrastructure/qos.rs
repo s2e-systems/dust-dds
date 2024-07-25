@@ -116,6 +116,11 @@ impl Default for DataWriterQos {
 
 impl DataWriterQos {
     pub(crate) fn is_consistent(&self) -> DdsResult<()> {
+        // On the writer there can be no more than one value on the representation
+        if self.representation.value.len() > 1 {
+            return Err(DdsError::InconsistentPolicy);
+        }
+
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that *max_samples >= max_samples_per_instanc
         if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
