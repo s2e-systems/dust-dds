@@ -3,8 +3,8 @@ use pyo3::prelude::*;
 use super::qos_policy::{
     DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
     EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-    LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+    LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+    PartitionQosPolicy, PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
     ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
     TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
@@ -342,6 +342,7 @@ impl DataWriterQos {
         lifespan = LifespanQosPolicy::default(),
         user_data = UserDataQosPolicy::default(),
         ownership = OwnershipQosPolicy::default(),
+        ownership_strength = OwnershipStrengthQosPolicy::default(),
         writer_data_lifecycle = WriterDataLifecycleQosPolicy::default(),
         representation = DataRepresentationQosPolicy::default(),
     ))]
@@ -359,6 +360,7 @@ impl DataWriterQos {
         lifespan: LifespanQosPolicy,
         user_data: UserDataQosPolicy,
         ownership: OwnershipQosPolicy,
+        ownership_strength: OwnershipStrengthQosPolicy,
         writer_data_lifecycle: WriterDataLifecycleQosPolicy,
         representation: DataRepresentationQosPolicy,
     ) -> Self {
@@ -375,6 +377,7 @@ impl DataWriterQos {
             lifespan: lifespan.into(),
             user_data: user_data.into(),
             ownership: ownership.into(),
+            ownership_strength: ownership_strength.into(),
             writer_data_lifecycle: writer_data_lifecycle.into(),
             representation: representation.into(),
         })

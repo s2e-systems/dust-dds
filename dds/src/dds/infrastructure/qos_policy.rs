@@ -124,6 +124,7 @@ const PRESENTATION_QOS_POLICY_NAME: &str = "Presentation";
 const DEADLINE_QOS_POLICY_NAME: &str = "Deadline";
 const LATENCYBUDGET_QOS_POLICY_NAME: &str = "LatencyBudget";
 const OWNERSHIP_QOS_POLICY_NAME: &str = "Ownership";
+const OWNERSHIP_STRENGTH_QOS_POLICY_NAME: &str = "OwnershipStrength";
 const LIVELINESS_QOS_POLICY_NAME: &str = "Liveliness";
 const TIMEBASEDFILTER_QOS_POLICY_NAME: &str = "TimeBasedFilter";
 const PARTITION_QOS_POLICY_NAME: &str = "Partition";
@@ -154,6 +155,8 @@ pub const DEADLINE_QOS_POLICY_ID: QosPolicyId = 4;
 pub const LATENCYBUDGET_QOS_POLICY_ID: QosPolicyId = 5;
 /// Id for the OwnershipQosPolicy
 pub const OWNERSHIP_QOS_POLICY_ID: QosPolicyId = 6;
+/// Id for the OwnershipStrengthQosPolicy
+pub const OWNERSHIP_STRENGTH_QOS_POLICY_ID: QosPolicyId = 7;
 /// Id for the LivelinessQosPolicy
 pub const LIVELINESS_QOS_POLICY_ID: QosPolicyId = 8;
 /// Id for the TimeBasedFilterQosPolicy
@@ -294,6 +297,10 @@ pub enum DurabilityQosPolicyKind {
     Volatile,
     /// TransientLocal durability QoS policy
     TransientLocal,
+    /// Transient durability QoS policy
+    Transient,
+    /// Persistent durability QoS policy
+    Persistent,
 }
 
 impl CdrSerialize for DurabilityQosPolicyKind {
@@ -301,6 +308,8 @@ impl CdrSerialize for DurabilityQosPolicyKind {
         match self {
             DurabilityQosPolicyKind::Volatile => 0u8,
             DurabilityQosPolicyKind::TransientLocal => 1,
+            DurabilityQosPolicyKind::Transient => 2,
+            DurabilityQosPolicyKind::Persistent => 3,
         }
         .serialize(serializer)
     }
@@ -312,6 +321,8 @@ impl<'de> CdrDeserialize<'de> for DurabilityQosPolicyKind {
         match value {
             0 => Ok(DurabilityQosPolicyKind::Volatile),
             1 => Ok(DurabilityQosPolicyKind::TransientLocal),
+            2 => Ok(DurabilityQosPolicyKind::Transient),
+            3 => Ok(DurabilityQosPolicyKind::Persistent),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Invalid value for DurabilityQosPolicyKind {}", value),
@@ -326,11 +337,28 @@ impl PartialOrd for DurabilityQosPolicyKind {
             DurabilityQosPolicyKind::Volatile => match other {
                 DurabilityQosPolicyKind::Volatile => Some(Ordering::Equal),
                 DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Less),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Less),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Less),
             },
             DurabilityQosPolicyKind::TransientLocal => match other {
                 DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
                 DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Equal),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Less),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Less),
             },
+            DurabilityQosPolicyKind::Transient => match other {
+                DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Equal),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Less),
+            },
+            DurabilityQosPolicyKind::Persistent => match other {
+                DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Equal),
+            },
+
         }
     }
 }
@@ -546,12 +574,15 @@ impl Default for LatencyBudgetQosPolicy {
 pub enum OwnershipQosPolicyKind {
     /// Shared ownership QoS policy
     Shared,
+    /// Exclusive ownership QoS policy
+    Exclusive,
 }
 
 impl CdrSerialize for OwnershipQosPolicyKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             OwnershipQosPolicyKind::Shared => 0u8,
+            OwnershipQosPolicyKind::Exclusive => 1u8,
         }
         .serialize(serializer)
     }
@@ -562,6 +593,7 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(OwnershipQosPolicyKind::Shared),
+            1 => Ok(OwnershipQosPolicyKind::Exclusive),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Invalid value for OwnershipQosPolicyKind {}", value),
@@ -596,6 +628,46 @@ impl Default for OwnershipQosPolicy {
         Self {
             kind: OwnershipQosPolicyKind::Shared,
         }
+    }
+}
+
+/// This policy should be used in combination with the [`OwnershipQosPolicy`]. It only applies to the case where
+/// [`OwnershipQosPolicy`] kind is set to [`OwnershipQosPolicyKind::Exclusive`].
+///
+/// The value of the [`OwnershipStrengthQosPolicy`] is used to determine the ownership of a data-instance (identified by the key).
+/// The arbitration is performed by the DataReader.
+/// This setting indicates that each instance of a data-object can only be modified by one DataWriter. In other words, at any point
+/// in time a single DataWriter "owns" each instance and is the only one whose modifications will be visible to the DataReader
+/// objects. The owner is determined by selecting the DataWriter with the highest value of the strength that is both "alive" as
+/// defined by the LIVELINESS QoS policy and has not violated its DEADLINE contract with regards to the data-instance.
+/// Ownership can therefore change as a result of (a) a DataWriter in the system with a higher value of the strength that modifies
+/// the instance, (b) a change in the strength value of the DataWriter that owns the instance, (c) a change in the liveliness of the
+/// DataWriter that owns the instance, and (d) a deadline with regards to the instance that is missed by the DataWriter that owns
+/// the instance.
+/// The behavior of the system is as if the determination was made independently by each DataReader. Each DataReader may
+/// detect the change of ownership at a different time. It is not a requirement that at a particular point in time all the DataReader
+/// objects for that Topic have a consistent picture of who owns each instance.
+/// It is also not a requirement that the DataWriter objects are aware of whether they own a particular instance. There is no error or
+/// notification given to a DataWriter that modifies an instance it does not currently own.
+/// The requirements are chosen to (a) preserve the decoupling of publishers and subscriber, and (b) allow the policy to be
+/// implemented efficiently.
+/// It is possible that multiple DataWriter objects with the same strength modify the same instance. If this occurs the Service will
+/// pick one of the DataWriter objects as the "owner". It is not specified how the owner is selected. However, it is required that the
+/// policy used to select the owner is such that all DataReader objects will make the same choice of the particular DataWriter that
+/// is the owner. It is also required that the owner remains the same until there is a change in strength, liveliness, the owner misses
+/// a deadline on the instance, a new DataWriter with higher strength modifies the instance, or another DataWriter with the same
+/// strength that is deemed by the Service to be the new owner modifies the instance.
+/// Exclusive ownership is on an instance-by-instance basis. That is, a subscriber can receive values written by a lower
+/// strength DataWriter as long as they affect instances whose values have not been set by the higher-strength
+/// DataWriter.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, Default)]
+pub struct OwnershipStrengthQosPolicy {
+    value: i32,
+}
+
+impl QosPolicy for OwnershipStrengthQosPolicy {
+    fn name(&self) -> &str {
+        OWNERSHIP_STRENGTH_QOS_POLICY_NAME
     }
 }
 

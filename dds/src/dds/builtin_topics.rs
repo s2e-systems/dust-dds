@@ -4,20 +4,21 @@ use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
         PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
         PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
-        PID_LIVELINESS, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION,
-        PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
-        PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_TYPE_REPRESENTATION,
-        PID_USER_DATA,
+        PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
+        PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+        PID_TYPE_REPRESENTATION, PID_USER_DATA,
     },
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
             DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
             DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-            PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-            TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-            UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+            TransportPriorityQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
@@ -264,6 +265,8 @@ pub struct PublicationBuiltinTopicData {
     user_data: UserDataQosPolicy,
     #[parameter(id = PID_OWNERSHIP, default=Default::default())]
     ownership: OwnershipQosPolicy,
+    #[parameter(id = PID_OWNERSHIP_STRENGTH, default=Default::default())]
+    ownership_strength: OwnershipStrengthQosPolicy,
     #[parameter(id = PID_DESTINATION_ORDER, default=Default::default())]
     destination_order: DestinationOrderQosPolicy,
     #[parameter(id = PID_PRESENTATION, default=Default::default())]
@@ -305,6 +308,7 @@ impl PublicationBuiltinTopicData {
             lifespan: data_writer_qos.lifespan,
             user_data: data_writer_qos.user_data,
             ownership: data_writer_qos.ownership,
+            ownership_strength: data_writer_qos.ownership_strength,
             destination_order: data_writer_qos.destination_order,
             presentation: publisher_qos.presentation,
             partition: publisher_qos.partition,
@@ -373,6 +377,11 @@ impl PublicationBuiltinTopicData {
     /// Get the ownership QoS policy of the discovered writer.
     pub fn ownership(&self) -> &OwnershipQosPolicy {
         &self.ownership
+    }
+
+    /// Get the ownership strength QoS policy of the discovered writer.
+    pub fn ownership_strength(&self) -> &OwnershipStrengthQosPolicy {
+        &self.ownership_strength
     }
 
     /// Get the destination order QoS policy of the discovered writer.

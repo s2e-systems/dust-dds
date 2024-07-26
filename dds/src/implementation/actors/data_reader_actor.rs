@@ -1863,7 +1863,9 @@ impl MailHandler<IsHistoricalDataReceived> for DataReaderActor {
 
         match self.qos.durability.kind {
             DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
-            DurabilityQosPolicyKind::TransientLocal => Ok(()),
+            DurabilityQosPolicyKind::TransientLocal
+            | DurabilityQosPolicyKind::Transient
+            | DurabilityQosPolicyKind::Persistent => Ok(()),
         }?;
 
         match &self.rtps_reader {
