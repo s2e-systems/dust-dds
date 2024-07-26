@@ -395,15 +395,6 @@ impl DataWriterActor {
         Ok(Some(instance_handle))
     }
 
-    fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
-        self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::PublicationMatched,
-            });
-
-        self.matched_subscriptions.get_publication_matched_status()
-    }
-
     fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
@@ -572,11 +563,6 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::PublicationMatched,
-            });
-
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let participant = publisher.get_participant();
@@ -590,7 +576,7 @@ impl DataWriterActor {
             participant,
         );
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status();
+            let status = self.matched_subscriptions.get_publication_matched_status();
             if let Some(listener) = &self.data_writer_listener_thread {
                 listener.sender().send(DataWriterListenerMessage {
                     listener_operation: DataWriterListenerOperation::PublicationMatched(status),
@@ -601,7 +587,7 @@ impl DataWriterActor {
                 })?;
             }
         } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status();
+            let status = self.matched_subscriptions.get_publication_matched_status();
             if let Some(listener) = publisher_listener {
                 listener.send(PublisherListenerMessage {
                     listener_operation: PublisherListenerOperation::PublicationMatched(status),
@@ -612,7 +598,7 @@ impl DataWriterActor {
                 })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.get_publication_matched_status();
+            let status = self.matched_subscriptions.get_publication_matched_status();
             if let Some(listener) = participant_listener {
                 listener.send(ParticipantListenerMessage {
                     listener_operation: ParticipantListenerOperation::PublicationMatched(status),
@@ -625,6 +611,11 @@ impl DataWriterActor {
                 })?;
             }
         }
+        self.status_condition
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::PublicationMatched,
+            });
+
         Ok(())
     }
 
@@ -641,11 +632,6 @@ impl DataWriterActor {
             Vec<StatusKind>,
         ),
     ) -> DdsResult<()> {
-        self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::OfferedIncompatibleQos,
-            });
-
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let participant = publisher.get_participant();
@@ -707,6 +693,10 @@ impl DataWriterActor {
                 })?;
             }
         }
+        self.status_condition
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::OfferedIncompatibleQos,
+            });
         Ok(())
     }
 }
@@ -1133,7 +1123,12 @@ impl MailHandler<GetPublicationMatchedStatus> for DataWriterActor {
         &mut self,
         _: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
-        self.get_publication_matched_status()
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::PublicationMatched,
+            });
+
+        self.matched_subscriptions.get_publication_matched_status()
     }
 }
 
