@@ -112,7 +112,7 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - run: cargo build --timings --tests --examples
+      - run: cargo build --package dust_dds --timings --tests --examples
       - store_artifacts:
           path: ./target/cargo-timings
 

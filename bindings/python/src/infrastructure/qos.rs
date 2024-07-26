@@ -1,12 +1,13 @@
 use pyo3::prelude::*;
 
 use super::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
-    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-    ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+    EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
+    LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+    PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+    ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+    TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
+    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
 
@@ -225,6 +226,7 @@ impl TopicQos {
         transport_priority = TransportPriorityQosPolicy::default(),
         lifespan = LifespanQosPolicy::default(),
         ownership = OwnershipQosPolicy::default(),
+        representation = DataRepresentationQosPolicy::default(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -240,6 +242,7 @@ impl TopicQos {
         transport_priority: TransportPriorityQosPolicy,
         lifespan: LifespanQosPolicy,
         ownership: OwnershipQosPolicy,
+        representation: DataRepresentationQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::TopicQos {
             topic_data: topic_data.into(),
@@ -254,6 +257,7 @@ impl TopicQos {
             transport_priority: transport_priority.into(),
             lifespan: lifespan.into(),
             ownership: ownership.into(),
+            representation: representation.into(),
         })
     }
 
@@ -339,6 +343,7 @@ impl DataWriterQos {
         user_data = UserDataQosPolicy::default(),
         ownership = OwnershipQosPolicy::default(),
         writer_data_lifecycle = WriterDataLifecycleQosPolicy::default(),
+        representation = DataRepresentationQosPolicy::default(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -355,6 +360,7 @@ impl DataWriterQos {
         user_data: UserDataQosPolicy,
         ownership: OwnershipQosPolicy,
         writer_data_lifecycle: WriterDataLifecycleQosPolicy,
+        representation: DataRepresentationQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::DataWriterQos {
             durability: durability.into(),
@@ -370,6 +376,7 @@ impl DataWriterQos {
             user_data: user_data.into(),
             ownership: ownership.into(),
             writer_data_lifecycle: writer_data_lifecycle.into(),
+            representation: representation.into(),
         })
     }
 
@@ -458,6 +465,7 @@ impl DataReaderQos {
         ownership = OwnershipQosPolicy::default(),
         time_based_filter = TimeBasedFilterQosPolicy::default(),
         reader_data_lifecycle = ReaderDataLifecycleQosPolicy::default(),
+        representation = DataRepresentationQosPolicy::default(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -473,6 +481,7 @@ impl DataReaderQos {
         ownership: OwnershipQosPolicy,
         time_based_filter: TimeBasedFilterQosPolicy,
         reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
+        representation: DataRepresentationQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::DataReaderQos {
             durability: durability.into(),
@@ -487,6 +496,7 @@ impl DataReaderQos {
             ownership: ownership.into(),
             time_based_filter: time_based_filter.into(),
             reader_data_lifecycle: reader_data_lifecycle.into(),
+            representation: representation.into(),
         })
     }
 

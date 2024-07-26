@@ -12,5 +12,5 @@ members = [
     "bindings/python",
     "interoperability_executable"
 ]
-default-members = ["dds", "dds_derive", "dds_gen"]
+default-members = ["dds", "dds_derive", "dds_gen", "bindings/python"]
 resolver = "2"

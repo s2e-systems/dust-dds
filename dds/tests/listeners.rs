@@ -18,14 +18,11 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     publication::{
-        data_writer::{AnyDataWriter, DataWriter},
-        data_writer_listener::DataWriterListener,
+        data_writer::DataWriter, data_writer_listener::DataWriterListener,
         publisher_listener::PublisherListener,
     },
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
-        data_reader_listener::DataReaderListener,
-        subscriber::Subscriber,
+        data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
     },
     topic_definition::{topic_listener::TopicListener, type_support::DdsType},
@@ -50,7 +47,7 @@ fn deadline_missed_listener() {
     impl DomainParticipantListener for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: RequestedDeadlineMissedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -141,7 +138,7 @@ fn sample_rejected_listener() {
     impl DomainParticipantListener for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: SampleRejectedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -248,7 +245,7 @@ fn subscription_matched_listener() {
     impl DomainParticipantListener for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: SubscriptionMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -333,7 +330,7 @@ fn requested_incompatible_qos_listener() {
     impl DomainParticipantListener for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: RequestedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -418,7 +415,7 @@ fn publication_matched_listener() {
     impl DomainParticipantListener for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -504,7 +501,7 @@ fn offered_incompatible_qos_listener() {
     impl DomainParticipantListener for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1214,7 +1211,7 @@ fn publisher_publication_matched_listener() {
     impl PublisherListener for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1298,7 +1295,7 @@ fn publisher_offered_incompatible_qos_listener() {
     impl PublisherListener for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1383,7 +1380,7 @@ fn subscriber_deadline_missed_listener() {
     impl SubscriberListener for DeadlineMissedListener {
         fn on_requested_deadline_missed(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: RequestedDeadlineMissedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1470,7 +1467,7 @@ fn subscriber_sample_rejected_listener() {
     impl SubscriberListener for SampleRejectedListener {
         fn on_sample_rejected(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: SampleRejectedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1575,7 +1572,7 @@ fn subscriber_subscription_matched_listener() {
     impl SubscriberListener for SubscriptionMatchedListener {
         fn on_subscription_matched(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: SubscriptionMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1659,7 +1656,7 @@ fn subscriber_requested_incompatible_qos_listener() {
     impl SubscriberListener for RequestedIncompatibleQosListener {
         fn on_requested_incompatible_qos(
             &mut self,
-            _the_reader: &dyn AnyDataReader,
+            _the_reader: DataReader<()>,
             status: RequestedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();

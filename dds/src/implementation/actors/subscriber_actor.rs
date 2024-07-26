@@ -13,8 +13,9 @@ use super::{
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_async::{
-        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync,
+        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
+        subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
+        topic::TopicAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -66,6 +67,10 @@ pub enum SubscriberListenerOperation {
 
 pub struct SubscriberListenerMessage {
     pub listener_operation: SubscriberListenerOperation,
+    pub reader_address: ActorAddress<DataReaderActor>,
+    pub status_condition_address: ActorAddress<StatusConditionActor>,
+    pub subscriber: SubscriberAsync,
+    pub topic: TopicAsync,
 }
 
 struct SubscriberListenerThread {
@@ -79,30 +84,40 @@ impl SubscriberListenerThread {
         let thread = std::thread::spawn(move || {
             block_on(async {
                 while let Some(m) = receiver.recv().await {
+                    let data_reader = DataReaderAsync::new(
+                        m.reader_address,
+                        m.status_condition_address,
+                        m.subscriber,
+                        m.topic,
+                    );
                     match m.listener_operation {
                         SubscriberListenerOperation::DataOnReaders(the_subscriber) => {
                             listener.on_data_on_readers(the_subscriber).await
                         }
                         SubscriberListenerOperation::_DataAvailable => {
-                            listener.on_data_available(&()).await
+                            listener.on_data_available(data_reader).await
                         }
                         SubscriberListenerOperation::SampleRejected(status) => {
-                            listener.on_sample_rejected(&(), status).await
+                            listener.on_sample_rejected(data_reader, status).await
                         }
                         SubscriberListenerOperation::_LivenessChanged(status) => {
-                            listener.on_liveliness_changed(&(), status).await
+                            listener.on_liveliness_changed(data_reader, status).await
                         }
                         SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
-                            listener.on_requested_deadline_missed(&(), status).await
+                            listener
+                                .on_requested_deadline_missed(data_reader, status)
+                                .await
                         }
                         SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
-                            listener.on_requested_incompatible_qos(&(), status).await
+                            listener
+                                .on_requested_incompatible_qos(data_reader, status)
+                                .await
                         }
                         SubscriberListenerOperation::SubscriptionMatched(status) => {
-                            listener.on_subscription_matched(&(), status).await
+                            listener.on_subscription_matched(data_reader, status).await
                         }
                         SubscriberListenerOperation::SampleLost(status) => {
-                            listener.on_sample_lost(&(), status).await
+                            listener.on_sample_lost(data_reader, status).await
                         }
                     }
                 }
