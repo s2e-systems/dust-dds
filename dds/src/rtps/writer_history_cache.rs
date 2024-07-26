@@ -1,4 +1,7 @@
-use crate::infrastructure::qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind};
+use crate::infrastructure::{
+    error::{DdsError, DdsResult},
+    qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, Length, ResourceLimitsQosPolicy},
+};
 
 use super::{
     behavior_types::InstanceHandle,
@@ -117,12 +120,47 @@ impl WriterHistoryCache {
         &mut self,
         change: RtpsWriterCacheChange,
         history_qos_policy: &HistoryQosPolicy,
-    ) {
-        let changes_of_instance = self.changes.entry(change.instance_handle()).or_default();
+        resource_limits_qos_policy: &ResourceLimitsQosPolicy,
+    ) -> DdsResult<()> {
+        if let Length::Limited(max_instances) = resource_limits_qos_policy.max_instances {
+            if !self.changes.contains_key(&change.instance_handle)
+                && self.changes.len() == max_instances as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
 
-        if let HistoryQosPolicyKind::KeepLast(max_changes) = history_qos_policy.kind {
-            if changes_of_instance.len() == max_changes as usize {
-                changes_of_instance.pop_front();
+        self.changes.entry(change.instance_handle()).or_default();
+
+        if let HistoryQosPolicyKind::KeepLast(depth) = history_qos_policy.kind {
+            if self.changes[&change.instance_handle()].len() == depth as usize {
+                self.changes
+                    .get_mut(&change.instance_handle())
+                    .expect("InstanceHandle entry must exist")
+                    .pop_front();
+            }
+        }
+
+        // Only Alive changes count towards the resource limits
+        if let Length::Limited(max_samples_per_instance) =
+            resource_limits_qos_policy.max_samples_per_instance
+        {
+            if change.kind == ChangeKind::Alive
+                && self.changes[&change.instance_handle()].len()
+                    == max_samples_per_instance as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_samples) = resource_limits_qos_policy.max_samples {
+            let total_samples = self.changes.iter().fold(0, |acc, (_, s)| {
+                let total_instance_samples =
+                    s.iter().filter(|cc| cc.kind == ChangeKind::Alive).count();
+                acc + total_instance_samples
+            });
+            if total_samples == max_samples as usize {
+                return Err(DdsError::OutOfResources);
             }
         }
 
@@ -130,7 +168,12 @@ impl WriterHistoryCache {
             self.max_seq_num = Some(change.sequence_number())
         }
 
-        changes_of_instance.push_back(change);
+        self.changes
+            .get_mut(&change.instance_handle())
+            .expect("InstanceHandle entry must exist")
+            .push_back(change);
+
+        Ok(())
     }
 
     pub fn remove_change<F>(&mut self, mut f: F)
@@ -175,7 +218,12 @@ mod tests {
             Data::default(),
             ParameterList::empty(),
         );
-        hc.add_change(change, &HistoryQosPolicy::default());
+        hc.add_change(
+            change,
+            &HistoryQosPolicy::default(),
+            &ResourceLimitsQosPolicy::default(),
+        )
+        .unwrap();
         hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.change_list().count() == 0);
     }
@@ -206,13 +254,17 @@ mod tests {
             &HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
-        );
+            &ResourceLimitsQosPolicy::default(),
+        )
+        .unwrap();
         hc.add_change(
             change2,
             &HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
-        );
+            &ResourceLimitsQosPolicy::default(),
+        )
+        .unwrap();
         assert_eq!(hc.get_seq_num_min(), Some(1));
     }
 
@@ -242,13 +294,17 @@ mod tests {
             &HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
-        );
+            &ResourceLimitsQosPolicy::default(),
+        )
+        .unwrap();
         hc.add_change(
             change2,
             &HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
-        );
+            &ResourceLimitsQosPolicy::default(),
+        )
+        .unwrap();
         assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 }

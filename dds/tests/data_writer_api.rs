@@ -3,7 +3,7 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         qos::{DataWriterQos, QosKind},
-        qos_policy::{Length, ResourceLimitsQosPolicy},
+        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, Length, ResourceLimitsQosPolicy},
         status::NO_STATUS,
     },
     topic_definition::type_support::DdsType,
@@ -74,6 +74,43 @@ fn data_writer_write_more_than_max_samples_per_instances_should_fail() {
             max_instances: Length::Unlimited,
             max_samples_per_instance: Length::Limited(1),
         },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let data_writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .unwrap();
+    let data1_instance1 = KeyedData { id: 1, value: 0 };
+    let data2_instance1 = KeyedData { id: 1, value: 1 };
+    data_writer.write(&data1_instance1, None).unwrap();
+
+    let result = data_writer.write(&data2_instance1, None);
+    assert_eq!(result, Err(DdsError::OutOfResources));
+}
+
+#[test]
+fn data_writer_write_more_than_max_samples_should_fail() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("MyTopic", "KeyedData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let data_writer_qos = DataWriterQos {
+        resource_limits: ResourceLimitsQosPolicy {
+            max_samples: Length::Limited(2),
+            max_instances: Length::Unlimited,
+            max_samples_per_instance: Length::Limited(1),
+        },
         ..Default::default()
     };
     let data_writer = publisher
@@ -81,8 +118,10 @@ fn data_writer_write_more_than_max_samples_per_instances_should_fail() {
         .unwrap();
     let data_instance1 = KeyedData { id: 1, value: 0 };
     let data_instance2 = KeyedData { id: 2, value: 0 };
+    let data_instance3 = KeyedData { id: 3, value: 0 };
     data_writer.write(&data_instance1, None).unwrap();
+    data_writer.write(&data_instance2, None).unwrap();
 
-    let result = data_writer.write(&data_instance2, None);
+    let result = data_writer.write(&data_instance3, None);
     assert_eq!(result, Err(DdsError::OutOfResources));
 }

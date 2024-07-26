@@ -329,14 +329,18 @@ impl DataWriterActor {
         writer_address: ActorAddress<DataWriterActor>,
         executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
-    ) {
+    ) -> DdsResult<()> {
         let seq_num = change.sequence_number();
 
         if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
             let change_lifespan =
                 (crate::infrastructure::time::Time::from(change.timestamp()) - now) + lifespan;
             if change_lifespan > Duration::new(0, 0) {
-                self.writer_cache.add_change(change, &self.qos.history);
+                self.writer_cache.add_change(
+                    change,
+                    &self.qos.history,
+                    &self.qos.resource_limits,
+                )?;
 
                 executor_handle.spawn(async move {
                     timer_handle.sleep(change_lifespan.into()).await;
@@ -347,10 +351,12 @@ impl DataWriterActor {
                 });
             }
         } else {
-            self.writer_cache.add_change(change, &self.qos.history);
+            self.writer_cache
+                .add_change(change, &self.qos.history, &self.qos.resource_limits)?;
         }
 
         self.send_message(message_sender_actor);
+        Ok(())
     }
 
     fn remove_change(&mut self, seq_num: SequenceNumber) {
@@ -968,8 +974,7 @@ impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
             message.data_writer_address,
             message.executor_handle,
             message.timer_handle,
-        );
-        Ok(())
+        )
     }
 }
 
@@ -1041,9 +1046,7 @@ impl MailHandler<DisposeWTimestamp> for DataWriterActor {
             message.data_writer_address,
             message.executor_handle,
             message.timer_handle,
-        );
-
-        Ok(())
+        )
     }
 }
 
@@ -1180,9 +1183,7 @@ impl MailHandler<WriteWTimestamp> for DataWriterActor {
             message.data_writer_address,
             message.executor_handle,
             message.timer_handle,
-        );
-
-        Ok(())
+        )
     }
 }
 
