@@ -16,8 +16,9 @@ use crate::{
     dds::infrastructure,
     dds_async::{
         domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync,
-        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
+        publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
+        subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
         topic_listener::TopicListenerAsync,
     },
     domain::domain_participant_factory::DomainId,
@@ -183,6 +184,21 @@ impl DynamicTypeInterface for FooTypeSupport {
     }
 }
 
+pub enum ListenerKind {
+    Reader {
+        reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        subscriber: SubscriberAsync,
+        topic: TopicAsync,
+    },
+    Writer {
+        writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        publisher: PublisherAsync,
+        topic: TopicAsync,
+    },
+}
+
 pub enum ParticipantListenerOperation {
     _DataAvailable,
     SampleRejected(SampleRejectedStatus),
@@ -199,6 +215,7 @@ pub enum ParticipantListenerOperation {
 
 pub struct ParticipantListenerMessage {
     pub listener_operation: ParticipantListenerOperation,
+    pub listener_kind: ListenerKind,
 }
 
 struct ParticipantListenerThread {

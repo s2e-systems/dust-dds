@@ -13,8 +13,9 @@ use super::{
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_async::{
-        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync,
-        subscriber_listener::SubscriberListenerAsync,
+        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
+        subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
+        topic::TopicAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -66,6 +67,10 @@ pub enum SubscriberListenerOperation {
 
 pub struct SubscriberListenerMessage {
     pub listener_operation: SubscriberListenerOperation,
+    pub reader_address: ActorAddress<DataReaderActor>,
+    pub status_condition_address: ActorAddress<StatusConditionActor>,
+    pub subscriber: SubscriberAsync,
+    pub topic: TopicAsync,
 }
 
 struct SubscriberListenerThread {
@@ -79,6 +84,12 @@ impl SubscriberListenerThread {
         let thread = std::thread::spawn(move || {
             block_on(async {
                 while let Some(m) = receiver.recv().await {
+                    // let data_reader = DataReaderAsync::new(
+                    //     m.reader_address,
+                    //     m.status_condition_address,
+                    //     m.subscriber,
+                    //     m.topic,
+                    // );
                     match m.listener_operation {
                         SubscriberListenerOperation::DataOnReaders(the_subscriber) => {
                             listener.on_data_on_readers(the_subscriber).await

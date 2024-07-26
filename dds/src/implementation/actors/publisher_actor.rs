@@ -6,8 +6,8 @@ use tracing::warn;
 use crate::{
     data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     dds_async::{
-        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync,
+        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
+        publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -58,6 +58,10 @@ pub enum PublisherListenerOperation {
 
 pub struct PublisherListenerMessage {
     pub listener_operation: PublisherListenerOperation,
+    pub writer_address: ActorAddress<DataWriterActor>,
+    pub status_condition_address: ActorAddress<StatusConditionActor>,
+    pub publisher: PublisherAsync,
+    pub topic: TopicAsync,
 }
 
 struct PublisherListenerThread {
@@ -71,6 +75,12 @@ impl PublisherListenerThread {
         let thread = std::thread::spawn(move || {
             block_on(async {
                 while let Some(m) = receiver.recv().await {
+                    // let data_writer = DataWriterAsync::new(
+                    //     m.writer_address,
+                    //     m.status_condition_address,
+                    //     m.publisher,
+                    //     m.topic,
+                    // );
                     match m.listener_operation {
                         PublisherListenerOperation::_LivelinessLost(status) => {
                             listener.on_liveliness_lost(&(), status).await
