@@ -84,36 +84,40 @@ impl SubscriberListenerThread {
         let thread = std::thread::spawn(move || {
             block_on(async {
                 while let Some(m) = receiver.recv().await {
-                    // let data_reader = DataReaderAsync::new(
-                    //     m.reader_address,
-                    //     m.status_condition_address,
-                    //     m.subscriber,
-                    //     m.topic,
-                    // );
+                    let data_reader = DataReaderAsync::new(
+                        m.reader_address,
+                        m.status_condition_address,
+                        m.subscriber,
+                        m.topic,
+                    );
                     match m.listener_operation {
                         SubscriberListenerOperation::DataOnReaders(the_subscriber) => {
                             listener.on_data_on_readers(the_subscriber).await
                         }
                         SubscriberListenerOperation::_DataAvailable => {
-                            listener.on_data_available(&()).await
+                            listener.on_data_available(data_reader).await
                         }
                         SubscriberListenerOperation::SampleRejected(status) => {
-                            listener.on_sample_rejected(&(), status).await
+                            listener.on_sample_rejected(data_reader, status).await
                         }
                         SubscriberListenerOperation::_LivenessChanged(status) => {
-                            listener.on_liveliness_changed(&(), status).await
+                            listener.on_liveliness_changed(data_reader, status).await
                         }
                         SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
-                            listener.on_requested_deadline_missed(&(), status).await
+                            listener
+                                .on_requested_deadline_missed(data_reader, status)
+                                .await
                         }
                         SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
-                            listener.on_requested_incompatible_qos(&(), status).await
+                            listener
+                                .on_requested_incompatible_qos(data_reader, status)
+                                .await
                         }
                         SubscriberListenerOperation::SubscriptionMatched(status) => {
-                            listener.on_subscription_matched(&(), status).await
+                            listener.on_subscription_matched(data_reader, status).await
                         }
                         SubscriberListenerOperation::SampleLost(status) => {
-                            listener.on_sample_lost(&(), status).await
+                            listener.on_sample_lost(data_reader, status).await
                         }
                     }
                 }
