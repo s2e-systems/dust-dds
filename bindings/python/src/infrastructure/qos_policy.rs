@@ -707,6 +707,7 @@ impl LifespanQosPolicy {
 #[derive(Clone)]
 pub enum OwnershipQosPolicyKind {
     Shared,
+    Exclusive,
 }
 
 impl From<OwnershipQosPolicyKind> for dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind {
@@ -714,6 +715,9 @@ impl From<OwnershipQosPolicyKind> for dust_dds::infrastructure::qos_policy::Owne
         match value {
             OwnershipQosPolicyKind::Shared => {
                 dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Shared
+            }
+            OwnershipQosPolicyKind::Exclusive => {
+                dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Exclusive
             }
         }
     }
@@ -724,6 +728,9 @@ impl From<dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind> for Owne
         match value {
             dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Shared => {
                 OwnershipQosPolicyKind::Shared
+            }
+            dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Exclusive => {
+                OwnershipQosPolicyKind::Exclusive
             }
         }
     }
@@ -758,6 +765,28 @@ impl OwnershipQosPolicy {
 
     pub fn set_kind(&mut self, value: OwnershipQosPolicyKind) {
         self.0.kind = value.into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct OwnershipStrengthQosPolicy(
+    dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy,
+);
+
+impl From<OwnershipStrengthQosPolicy>
+    for dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy
+{
+    fn from(value: OwnershipStrengthQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy>
+    for OwnershipStrengthQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy) -> Self {
+        Self(value)
     }
 }
 
