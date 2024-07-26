@@ -546,12 +546,15 @@ impl Default for LatencyBudgetQosPolicy {
 pub enum OwnershipQosPolicyKind {
     /// Shared ownership QoS policy
     Shared,
+    /// Exclusive ownership QoS policy
+    Exclusive,
 }
 
 impl CdrSerialize for OwnershipQosPolicyKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
             OwnershipQosPolicyKind::Shared => 0u8,
+            OwnershipQosPolicyKind::Exclusive => 1u8,
         }
         .serialize(serializer)
     }
@@ -562,6 +565,7 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
         let value: u8 = CdrDeserialize::deserialize(deserializer)?;
         match value {
             0 => Ok(OwnershipQosPolicyKind::Shared),
+            1 => Ok(OwnershipQosPolicyKind::Exclusive),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Invalid value for OwnershipQosPolicyKind {}", value),
