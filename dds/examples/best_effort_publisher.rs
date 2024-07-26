@@ -50,7 +50,7 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    for id in 1..=10 {
+    for id in 1..=1000 {
         let sample = BestEffortExampleType { id };
         writer.write(&sample, None).unwrap();
         println!("Wrote sample: {:?}", sample);
