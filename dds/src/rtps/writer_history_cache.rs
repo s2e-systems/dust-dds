@@ -1,3 +1,5 @@
+use crate::infrastructure::qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind};
+
 use super::{
     behavior_types::InstanceHandle,
     messages::{
@@ -97,15 +99,13 @@ impl RtpsWriterCacheChange {
 pub struct WriterHistoryCache {
     changes: HashMap<InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
     max_seq_num: Option<SequenceNumber>,
-    max_changes: Option<i32>,
 }
 
 impl WriterHistoryCache {
-    pub fn new(max_changes: Option<i32>) -> Self {
+    pub fn new() -> Self {
         Self {
             changes: HashMap::new(),
             max_seq_num: None,
-            max_changes,
         }
     }
 
@@ -113,10 +113,14 @@ impl WriterHistoryCache {
         self.changes.values().flatten()
     }
 
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+    pub fn add_change(
+        &mut self,
+        change: RtpsWriterCacheChange,
+        history_qos_policy: &HistoryQosPolicy,
+    ) {
         let changes_of_instance = self.changes.entry(change.instance_handle()).or_default();
 
-        if let Some(max_changes) = self.max_changes {
+        if let HistoryQosPolicyKind::KeepLast(max_changes) = history_qos_policy.kind {
             if changes_of_instance.len() == max_changes as usize {
                 changes_of_instance.pop_front();
             }
@@ -161,7 +165,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc = WriterHistoryCache::new(None);
+        let mut hc = WriterHistoryCache::new();
         let change = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -171,14 +175,14 @@ mod tests {
             Data::default(),
             ParameterList::empty(),
         );
-        hc.add_change(change);
+        hc.add_change(change, &HistoryQosPolicy::default());
         hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.change_list().count() == 0);
     }
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc = WriterHistoryCache::new(None);
+        let mut hc = WriterHistoryCache::new();
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -197,14 +201,24 @@ mod tests {
             Data::default(),
             ParameterList::empty(),
         );
-        hc.add_change(change1);
-        hc.add_change(change2);
+        hc.add_change(
+            change1,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
+        hc.add_change(
+            change2,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
         assert_eq!(hc.get_seq_num_min(), Some(1));
     }
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc = WriterHistoryCache::new(None);
+        let mut hc = WriterHistoryCache::new();
         let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -223,8 +237,18 @@ mod tests {
             Data::default(),
             ParameterList::empty(),
         );
-        hc.add_change(change1);
-        hc.add_change(change2);
+        hc.add_change(
+            change1,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
+        hc.add_change(
+            change2,
+            &HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+        );
         assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 }

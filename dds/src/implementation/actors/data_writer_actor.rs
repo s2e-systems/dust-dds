@@ -27,8 +27,8 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataWriterQos, PublisherQos},
         qos_policy::{
-            DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
-            TopicDataQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
@@ -290,10 +290,6 @@ impl DataWriterActor {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
 
-        let max_changes = match qos.history.kind {
-            HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
-            HistoryQosPolicyKind::KeepAll => None,
-        };
         DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -308,7 +304,7 @@ impl DataWriterActor {
             status_condition,
             data_writer_listener_thread,
             status_kind,
-            writer_cache: WriterHistoryCache::new(max_changes),
+            writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashSet::new(),
         }
@@ -338,7 +334,7 @@ impl DataWriterActor {
             let change_lifespan =
                 (crate::infrastructure::time::Time::from(change.timestamp()) - now) + lifespan;
             if change_lifespan > Duration::new(0, 0) {
-                self.writer_cache.add_change(change);
+                self.writer_cache.add_change(change, &self.qos.history);
 
                 executor_handle.spawn(async move {
                     timer_handle.sleep(change_lifespan.into()).await;
@@ -349,7 +345,7 @@ impl DataWriterActor {
                 });
             }
         } else {
-            self.writer_cache.add_change(change);
+            self.writer_cache.add_change(change, &self.qos.history);
         }
 
         self.send_message(message_sender_actor);

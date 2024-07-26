@@ -3,7 +3,7 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         qos::{DataWriterQos, QosKind},
-        qos_policy::{Length, ResourceLimitsQosPolicy, UserDataQosPolicy},
+        qos_policy::{Length, ResourceLimitsQosPolicy},
         status::NO_STATUS,
     },
     topic_definition::type_support::DdsType,
