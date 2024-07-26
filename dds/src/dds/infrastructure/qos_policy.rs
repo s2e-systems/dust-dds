@@ -297,6 +297,10 @@ pub enum DurabilityQosPolicyKind {
     Volatile,
     /// TransientLocal durability QoS policy
     TransientLocal,
+    /// Transient durability QoS policy
+    Transient,
+    /// Persistent durability QoS policy
+    Persistent,
 }
 
 impl CdrSerialize for DurabilityQosPolicyKind {
@@ -304,6 +308,8 @@ impl CdrSerialize for DurabilityQosPolicyKind {
         match self {
             DurabilityQosPolicyKind::Volatile => 0u8,
             DurabilityQosPolicyKind::TransientLocal => 1,
+            DurabilityQosPolicyKind::Transient => 2,
+            DurabilityQosPolicyKind::Persistent => 3,
         }
         .serialize(serializer)
     }
@@ -315,6 +321,8 @@ impl<'de> CdrDeserialize<'de> for DurabilityQosPolicyKind {
         match value {
             0 => Ok(DurabilityQosPolicyKind::Volatile),
             1 => Ok(DurabilityQosPolicyKind::TransientLocal),
+            2 => Ok(DurabilityQosPolicyKind::Transient),
+            3 => Ok(DurabilityQosPolicyKind::Persistent),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Invalid value for DurabilityQosPolicyKind {}", value),
@@ -329,11 +337,28 @@ impl PartialOrd for DurabilityQosPolicyKind {
             DurabilityQosPolicyKind::Volatile => match other {
                 DurabilityQosPolicyKind::Volatile => Some(Ordering::Equal),
                 DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Less),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Less),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Less),
             },
             DurabilityQosPolicyKind::TransientLocal => match other {
                 DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
                 DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Equal),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Less),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Less),
             },
+            DurabilityQosPolicyKind::Transient => match other {
+                DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Equal),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Less),
+            },
+            DurabilityQosPolicyKind::Persistent => match other {
+                DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::Transient => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::Persistent => Some(Ordering::Equal),
+            },
+
         }
     }
 }

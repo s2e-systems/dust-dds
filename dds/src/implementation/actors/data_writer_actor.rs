@@ -1302,7 +1302,9 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     DurabilityQosPolicyKind::Volatile => {
                         self.writer_cache.get_seq_num_max().unwrap_or(0)
                     }
-                    DurabilityQosPolicyKind::TransientLocal => 0,
+                    DurabilityQosPolicyKind::TransientLocal
+                    | DurabilityQosPolicyKind::Transient
+                    | DurabilityQosPolicyKind::Persistent => 0,
                 };
 
                 let reader_proxy = RtpsReaderProxy::new(

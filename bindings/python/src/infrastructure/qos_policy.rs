@@ -136,6 +136,8 @@ impl TopicDataQosPolicy {
 pub enum DurabilityQosPolicyKind {
     Volatile,
     TransientLocal,
+    Transient,
+    Persistent,
 }
 
 impl From<DurabilityQosPolicyKind>
@@ -148,6 +150,12 @@ impl From<DurabilityQosPolicyKind>
             }
             DurabilityQosPolicyKind::TransientLocal => {
                 dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::TransientLocal
+            }
+            DurabilityQosPolicyKind::Transient => {
+                dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Transient
+            }
+            DurabilityQosPolicyKind::Persistent => {
+                dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Persistent
             }
         }
     }
@@ -163,6 +171,12 @@ impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind>
             }
             dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::TransientLocal => {
                 DurabilityQosPolicyKind::TransientLocal
+            }
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Transient => {
+                DurabilityQosPolicyKind::Transient
+            }
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Persistent => {
+                DurabilityQosPolicyKind::Persistent
             }
         }
     }
