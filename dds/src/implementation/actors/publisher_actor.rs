@@ -75,24 +75,28 @@ impl PublisherListenerThread {
         let thread = std::thread::spawn(move || {
             block_on(async {
                 while let Some(m) = receiver.recv().await {
-                    // let data_writer = DataWriterAsync::new(
-                    //     m.writer_address,
-                    //     m.status_condition_address,
-                    //     m.publisher,
-                    //     m.topic,
-                    // );
+                    let data_writer = DataWriterAsync::new(
+                        m.writer_address,
+                        m.status_condition_address,
+                        m.publisher,
+                        m.topic,
+                    );
                     match m.listener_operation {
                         PublisherListenerOperation::_LivelinessLost(status) => {
-                            listener.on_liveliness_lost(&(), status).await
+                            listener.on_liveliness_lost(data_writer, status).await
                         }
                         PublisherListenerOperation::_OfferedDeadlineMissed(status) => {
-                            listener.on_offered_deadline_missed(&(), status).await
+                            listener
+                                .on_offered_deadline_missed(data_writer, status)
+                                .await
                         }
                         PublisherListenerOperation::OfferedIncompatibleQos(status) => {
-                            listener.on_offered_incompatible_qos(&(), status).await
+                            listener
+                                .on_offered_incompatible_qos(data_writer, status)
+                                .await
                         }
                         PublisherListenerOperation::PublicationMatched(status) => {
-                            listener.on_publication_matched(&(), status).await
+                            listener.on_publication_matched(data_writer, status).await
                         }
                     }
                 }

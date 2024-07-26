@@ -15,7 +15,8 @@ use crate::{
     },
     dds::infrastructure,
     dds_async::{
-        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
+        domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
@@ -368,16 +369,84 @@ impl ParticipantListenerThread {
                             listener.on_sample_lost(data_reader, status).await
                         }
                         ParticipantListenerOperation::_LivelinessLost(status) => {
-                            listener.on_liveliness_lost(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener.on_liveliness_lost(data_writer, status).await
                         }
                         ParticipantListenerOperation::_OfferedDeadlineMissed(status) => {
-                            listener.on_offered_deadline_missed(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener
+                                .on_offered_deadline_missed(data_writer, status)
+                                .await
                         }
                         ParticipantListenerOperation::OfferedIncompatibleQos(status) => {
-                            listener.on_offered_incompatible_qos(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener
+                                .on_offered_incompatible_qos(data_writer, status)
+                                .await
                         }
                         ParticipantListenerOperation::PublicationMatched(status) => {
-                            listener.on_publication_matched(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener.on_publication_matched(data_writer, status).await
                         }
                     }
                 }

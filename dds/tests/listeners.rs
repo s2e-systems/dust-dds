@@ -18,8 +18,7 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     publication::{
-        data_writer::{AnyDataWriter, DataWriter},
-        data_writer_listener::DataWriterListener,
+        data_writer::DataWriter, data_writer_listener::DataWriterListener,
         publisher_listener::PublisherListener,
     },
     subscription::{
@@ -416,7 +415,7 @@ fn publication_matched_listener() {
     impl DomainParticipantListener for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -502,7 +501,7 @@ fn offered_incompatible_qos_listener() {
     impl DomainParticipantListener for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1212,7 +1211,7 @@ fn publisher_publication_matched_listener() {
     impl PublisherListener for PublicationMatchedListener {
         fn on_publication_matched(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: PublicationMatchedStatus,
         ) {
             self.sender.send(status).unwrap();
@@ -1296,7 +1295,7 @@ fn publisher_offered_incompatible_qos_listener() {
     impl PublisherListener for OfferedIncompatibleQosListener {
         fn on_offered_incompatible_qos(
             &mut self,
-            _the_reader: &dyn AnyDataWriter,
+            _the_writer: DataWriter<()>,
             status: OfferedIncompatibleQosStatus,
         ) {
             self.sender.send(status).unwrap();

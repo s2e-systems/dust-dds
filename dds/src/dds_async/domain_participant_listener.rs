@@ -1,16 +1,13 @@
 use std::{future::Future, pin::Pin};
 
-use crate::{
-    infrastructure::status::{
-        InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
-        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-        SampleRejectedStatus, SubscriptionMatchedStatus,
-    },
-    publication::data_writer::AnyDataWriter,
+use crate::infrastructure::status::{
+    InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
+    OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+    RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+    SampleRejectedStatus, SubscriptionMatchedStatus,
 };
 
-use super::{data_reader::DataReaderAsync, topic::TopicAsync};
+use super::{data_reader::DataReaderAsync, data_writer::DataWriterAsync, topic::TopicAsync};
 
 /// This trait represents a listener object which can be associated with the [`DomainParticipantAsync`] entity.
 pub trait DomainParticipantListenerAsync {
@@ -24,38 +21,29 @@ pub trait DomainParticipantListenerAsync {
     }
 
     /// Method that is called when any writer in the domain participant reports a liveliness lost status.
-    fn on_liveliness_lost<'a, 'b>(
-        &'a mut self,
-        _the_writer: &'b (dyn AnyDataWriter + Sync),
+    fn on_liveliness_lost(
+        &mut self,
+        _the_writer: DataWriterAsync<()>,
         _status: LivelinessLostStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
-    where
-        'a: 'b,
-    {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports a deadline missed status.
-    fn on_offered_deadline_missed<'a, 'b>(
-        &'a mut self,
-        _the_writer: &'b (dyn AnyDataWriter + Sync),
+    fn on_offered_deadline_missed(
+        &mut self,
+        _the_writer: DataWriterAsync<()>,
         _status: OfferedDeadlineMissedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
-    where
-        'a: 'b,
-    {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(std::future::ready(()))
     }
 
     /// Method that is called when any data writer in the domain participant reports an offered incompatible QoS status.
-    fn on_offered_incompatible_qos<'a, 'b>(
-        &'a mut self,
-        _the_writer: &'b (dyn AnyDataWriter + Sync),
+    fn on_offered_incompatible_qos(
+        &mut self,
+        _the_writer: DataWriterAsync<()>,
         _status: OfferedIncompatibleQosStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
-    where
-        'a: 'b,
-    {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(std::future::ready(()))
     }
 
@@ -113,14 +101,11 @@ pub trait DomainParticipantListenerAsync {
     }
 
     /// Method that is called when any data writer in the domain participant reports a publication matched status.
-    fn on_publication_matched<'a, 'b>(
-        &'a mut self,
-        _the_writer: &'b (dyn AnyDataWriter + Sync),
+    fn on_publication_matched(
+        &mut self,
+        _the_writer: DataWriterAsync<()>,
         _status: PublicationMatchedStatus,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'b>>
-    where
-        'a: 'b,
-    {
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(std::future::ready(()))
     }
 
