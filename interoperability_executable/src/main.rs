@@ -10,7 +10,9 @@ use dust_dds::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
-            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION
+            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy,
+            OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
+            XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
         },
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
@@ -195,7 +197,9 @@ impl Cli {
         if self.ownership_strength < -1 {
             panic!("Ownership strength must be positive or zero")
         }
-        OwnershipStrengthQosPolicy { value: self.ownership_strength }
+        OwnershipStrengthQosPolicy {
+            value: self.ownership_strength,
+        }
     }
 }
 
@@ -515,7 +519,7 @@ fn main() -> Result<(), Error> {
     if cli.publish {
         let cli = cli.clone();
         let publisher_qos = QosKind::Specific(PublisherQos {
-            partition: partition.clone(),
+            partition: cli.partition_qos_policy(),
             ..Default::default()
         });
         let publisher = participant.create_publisher(publisher_qos, None, NO_STATUS)?;
@@ -543,18 +547,18 @@ fn main() -> Result<(), Error> {
             None,
             NO_STATUS,
         )?;
-        // let writer_cond = data_writer.get_statuscondition();
-        // writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
-        // let mut wait_set = WaitSet::new();
-        // wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
-        // wait_set.wait(Duration::new(60, 0))?;
+        let writer_cond = data_writer.get_statuscondition();
+        writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
+        let mut wait_set = WaitSet::new();
+        wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
+        wait_set.wait(Duration::new(60, 0))?;
 
         run_publisher(&data_writer, cli);
     }
 
     if cli.subscribe {
         let subscriber_qos = QosKind::Specific(SubscriberQos {
-            partition: partition.clone(),
+            partition: cli.partition_qos_policy(),
             ..Default::default()
         });
         let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
@@ -567,10 +571,10 @@ fn main() -> Result<(), Error> {
         }
 
         let mut data_reader_qos = DataReaderQos {
-            durability: durability.clone(),
-            reliability: reliability.clone(),
-            representation: representation.clone(),
-            ownership: ownership.clone(),
+            durability: cli.durability_qos_policy(),
+            reliability: cli.reliability_qos_policy(),
+            representation: cli.data_representation_qos_policy(),
+            ownership: cli.ownership_qos_policy(),
             ..Default::default()
         };
         if cli.deadline_interval > 0 {
@@ -584,11 +588,11 @@ fn main() -> Result<(), Error> {
             None,
             NO_STATUS,
         )?;
-        // let condition = data_reader.get_statuscondition();
-        // condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
-        // let mut wait_set = WaitSet::new();
-        // wait_set.attach_condition(Condition::StatusCondition(condition))?;
-        // wait_set.wait(Duration::new(60, 0))?;
+        let condition = data_reader.get_statuscondition();
+        condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
+        let mut wait_set = WaitSet::new();
+        wait_set.attach_condition(Condition::StatusCondition(condition))?;
+        wait_set.wait(Duration::new(60, 0))?;
         run_subscriber(&data_reader, cli);
     }
     println!("Done.");
