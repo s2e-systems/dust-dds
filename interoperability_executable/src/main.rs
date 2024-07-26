@@ -1,8 +1,9 @@
-use std::io::Write;
+use std::{io::Write, process::{ExitCode, Termination}};
 
 use clap::Parser;
 use dust_dds::{
     domain::{
+        domain_participant::DomainParticipant,
         domain_participant_factory::DomainParticipantFactory,
         domain_participant_listener::DomainParticipantListener,
     },
@@ -188,7 +189,7 @@ impl Cli {
         OwnershipQosPolicy {
             kind: match self.ownership_strength {
                 -1 => qos_policy::OwnershipQosPolicyKind::Shared,
-                _ => qos_policy::OwnershipQosPolicyKind::Exclusive, 
+                _ => qos_policy::OwnershipQosPolicyKind::Exclusive,
             },
         }
     }
@@ -203,18 +204,6 @@ impl Cli {
     }
 }
 
-#[derive(Debug)]
-struct Error(String);
-impl From<DdsError> for Error {
-    fn from(value: DdsError) -> Self {
-        Self(format!("DDS error: {:?}", value))
-    }
-}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
 
 #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
 pub struct ShapeType {
@@ -377,7 +366,50 @@ fn move_shape(
     }
 }
 
-fn init_publisher() {}
+fn init_publisher(
+    participant: &DomainParticipant,
+    cli: Cli,
+) -> Result<DataWriter<ShapeType>, Error> {
+    let topic = participant
+        .lookup_topicdescription(&cli.topic_name)
+        .expect("lookup_topicdescription succeeds")
+        .expect("topic existes");
+    let publisher_qos = QosKind::Specific(PublisherQos {
+        partition: cli.partition_qos_policy(),
+        ..Default::default()
+    });
+    let publisher = participant.create_publisher(publisher_qos, None, NO_STATUS)?;
+    println!(
+        "Create writer for topic: {} color: {}",
+        cli.topic_name,
+        cli.color.clone().expect("Color must be set for publish")
+    );
+
+    let mut data_writer_qos = DataWriterQos {
+        durability: cli.durability_qos_policy(),
+        reliability: cli.reliability_qos_policy(),
+        representation: cli.data_representation_qos_policy(),
+        ownership: cli.ownership_qos_policy(),
+        ..Default::default()
+    };
+    if cli.deadline_interval > 0 {
+        data_writer_qos.deadline.period =
+            DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
+    }
+
+    let data_writer = publisher.create_datawriter::<ShapeType>(
+        &topic,
+        QosKind::Specific(data_writer_qos),
+        None,
+        NO_STATUS,
+    )?;
+    let writer_cond = data_writer.get_statuscondition();
+    writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
+    let mut wait_set = WaitSet::new();
+    wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
+    wait_set.wait(Duration::new(60, 0))?;
+    Ok(data_writer)
+}
 
 fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
     let mut random_gen = thread_rng();
@@ -424,6 +456,53 @@ fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
         }
         std::thread::sleep(std::time::Duration::from_millis(cli.write_period_ms as u64));
     }
+}
+
+fn init_subscriber(
+    participant: &DomainParticipant,
+    cli: Cli,
+) -> Result<DataReader<ShapeType>, Error> {
+    let topic = participant
+        .lookup_topicdescription(&cli.topic_name)
+        .expect("lookup_topicdescription succeeds")
+        .expect("topic existes");
+    let subscriber_qos = QosKind::Specific(SubscriberQos {
+        partition: cli.partition_qos_policy(),
+        ..Default::default()
+    });
+    let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
+    match &cli.color {
+        Some(color) => println!(
+            "Create reader for topic: {} color: {}",
+            cli.topic_name, color
+        ),
+        None => println!("Create reader for topic: {} ", cli.topic_name),
+    }
+
+    let mut data_reader_qos = DataReaderQos {
+        durability: cli.durability_qos_policy(),
+        reliability: cli.reliability_qos_policy(),
+        representation: cli.data_representation_qos_policy(),
+        ownership: cli.ownership_qos_policy(),
+        ..Default::default()
+    };
+    if cli.deadline_interval > 0 {
+        data_reader_qos.deadline.period =
+            DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
+    }
+
+    let data_reader = subscriber.create_datareader::<ShapeType>(
+        &topic,
+        QosKind::Specific(data_reader_qos),
+        None,
+        NO_STATUS,
+    )?;
+    let condition = data_reader.get_statuscondition();
+    condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
+    let mut wait_set = WaitSet::new();
+    wait_set.attach_condition(Condition::StatusCondition(condition))?;
+    wait_set.wait(Duration::new(60, 0))?;
+    Ok(data_reader)
 }
 
 fn run_subscriber(data_reader: &DataReader<ShapeType>, cli: Cli) {
@@ -473,7 +552,29 @@ fn run_subscriber(data_reader: &DataReader<ShapeType>, cli: Cli) {
     }
 }
 
-fn main() -> Result<(), Error> {
+#[derive(Debug)]
+struct Error(String);
+impl From<DdsError> for Error {
+    fn from(value: DdsError) -> Self {
+        Self(format!("DDS error: {:?}", value))
+    }
+}
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+enum ReturnCode {
+    ERROR_INITIALIZING,
+    ERROR_RUNNING,
+}
+impl Termination for ReturnCode {
+    fn report(self) -> ExitCode {
+        todo!()
+    }
+}
+fn main() -> Result<ExitCode, Error> {
     let cli = Cli::parse();
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory.create_participant(
@@ -493,7 +594,7 @@ fn main() -> Result<(), Error> {
         ],
     )?;
     println!("Create topic: {}", cli.topic_name);
-    let topic = participant.create_topic::<ShapeType>(
+    let _topic = participant.create_topic::<ShapeType>(
         &cli.topic_name,
         "ShapeType",
         QosKind::Default,
@@ -508,93 +609,16 @@ fn main() -> Result<(), Error> {
     {
         panic!("reliability must be either best effort or reliable")
     }
-    let mut reliability = DataWriterQos::default().reliability;
-    if cli.best_effort_reliability {
-        reliability.kind = qos_policy::ReliabilityQosPolicyKind::BestEffort;
-    }
-    if cli.reliable_reliability {
-        reliability.kind = qos_policy::ReliabilityQosPolicyKind::Reliable;
-    }
 
     if cli.publish {
-        let cli = cli.clone();
-        let publisher_qos = QosKind::Specific(PublisherQos {
-            partition: cli.partition_qos_policy(),
-            ..Default::default()
-        });
-        let publisher = participant.create_publisher(publisher_qos, None, NO_STATUS)?;
-        println!(
-            "Create writer for topic: {} color: {}",
-            cli.topic_name,
-            cli.color.clone().expect("Color must be set for publish")
-        );
-
-        let mut data_writer_qos = DataWriterQos {
-            durability: cli.durability_qos_policy(),
-            reliability: cli.reliability_qos_policy(),
-            representation: cli.data_representation_qos_policy(),
-            ownership: cli.ownership_qos_policy(),
-            ..Default::default()
-        };
-        if cli.deadline_interval > 0 {
-            data_writer_qos.deadline.period =
-                DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
-        }
-
-        let data_writer = publisher.create_datawriter::<ShapeType>(
-            &topic,
-            QosKind::Specific(data_writer_qos),
-            None,
-            NO_STATUS,
-        )?;
-        let writer_cond = data_writer.get_statuscondition();
-        writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
-        let mut wait_set = WaitSet::new();
-        wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
-        wait_set.wait(Duration::new(60, 0))?;
-
-        run_publisher(&data_writer, cli);
+        let data_writer = init_publisher(&participant, cli.clone()).unwrap();
+        run_publisher(&data_writer, cli.clone());
     }
 
     if cli.subscribe {
-        let subscriber_qos = QosKind::Specific(SubscriberQos {
-            partition: cli.partition_qos_policy(),
-            ..Default::default()
-        });
-        let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
-        match &cli.color {
-            Some(color) => println!(
-                "Create reader for topic: {} color: {}",
-                cli.topic_name, color
-            ),
-            None => println!("Create reader for topic: {} ", cli.topic_name),
-        }
-
-        let mut data_reader_qos = DataReaderQos {
-            durability: cli.durability_qos_policy(),
-            reliability: cli.reliability_qos_policy(),
-            representation: cli.data_representation_qos_policy(),
-            ownership: cli.ownership_qos_policy(),
-            ..Default::default()
-        };
-        if cli.deadline_interval > 0 {
-            data_reader_qos.deadline.period =
-                DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
-        }
-
-        let data_reader = subscriber.create_datareader::<ShapeType>(
-            &topic,
-            QosKind::Specific(data_reader_qos),
-            None,
-            NO_STATUS,
-        )?;
-        let condition = data_reader.get_statuscondition();
-        condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
-        let mut wait_set = WaitSet::new();
-        wait_set.attach_condition(Condition::StatusCondition(condition))?;
-        wait_set.wait(Duration::new(60, 0))?;
-        run_subscriber(&data_reader, cli);
+        let data_reader = init_subscriber(&participant, cli.clone()).unwrap();
+        run_subscriber(&data_reader, cli.clone());
     }
     println!("Done.");
-    Ok(())
+    Ok(ExitCode::from(0))
 }
