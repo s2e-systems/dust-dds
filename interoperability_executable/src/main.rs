@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use clap::Parser;
 use dust_dds::{
     domain::{
@@ -7,8 +9,8 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
-        qos_policy::{self, DurabilityQosPolicy, PartitionQosPolicy},
-        status::{StatusKind, NO_STATUS},
+        qos_policy::{self, DurabilityQosPolicy, PartitionQosPolicy, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION},
+        status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
@@ -17,6 +19,7 @@ use dust_dds::{
         data_reader::DataReader,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
+    topic_definition::topic::Topic,
 };
 use rand::{random, thread_rng, Rng};
 
@@ -156,31 +159,11 @@ pub struct ShapeType {
 
 struct Listener;
 impl DomainParticipantListener for Listener {
-    fn on_liveliness_lost(
-        &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
-        status: dust_dds::infrastructure::status::LivelinessLostStatus,
-    ) {
+    fn on_inconsistent_topic(&mut self, the_topic: Topic, _status: InconsistentTopicStatus) {
         println!(
-            "on_liveliness_lost() topic: '{}'  type: '{}' : (total = {}, change = {})",
-            the_writer.get_topic().get_name(),
-            the_writer.get_topic().get_type_name(),
-            status.total_count,
-            status.total_count_change
-        );
-    }
-
-    fn on_offered_deadline_missed(
-        &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
-        status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
-    ) {
-        println!(
-            "on_offered_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})",
-            the_writer.get_topic().get_name(),
-            the_writer.get_topic().get_type_name(),
-            status.total_count,
-            status.total_count_change
+            "on_inconsistent_topic() topic: '{}'  type: '{}'",
+            the_topic.get_name(),
+            the_topic.get_type_name(),
         );
     }
 
@@ -210,6 +193,91 @@ impl DomainParticipantListener for Listener {
             the_writer.get_topic().get_type_name(),
             status.current_count,
             status.current_count_change
+        );
+    }
+
+    fn on_offered_deadline_missed(
+        &mut self,
+        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
+        status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
+    ) {
+        println!(
+            "on_offered_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})",
+            the_writer.get_topic().get_name(),
+            the_writer.get_topic().get_type_name(),
+            status.total_count,
+            status.total_count_change
+        );
+    }
+
+    fn on_liveliness_lost(
+        &mut self,
+        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
+        status: dust_dds::infrastructure::status::LivelinessLostStatus,
+    ) {
+        println!(
+            "on_liveliness_lost() topic: '{}'  type: '{}' : (total = {}, change = {})",
+            the_writer.get_topic().get_name(),
+            the_writer.get_topic().get_type_name(),
+            status.total_count,
+            status.total_count_change
+        );
+    }
+
+    fn on_requested_incompatible_qos(
+        &mut self,
+        the_reader: DataReader<()>,
+        status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
+    ) {
+        let policy_name = qos_policy_name(status.last_policy_id);
+        println!(
+            "on_requested_incompatible_qos() topic: '{}'  type: '{}' : {} ({})\n",
+            the_reader.get_topicdescription().get_name(),
+            the_reader.get_topicdescription().get_type_name(),
+            status.last_policy_id,
+            policy_name
+        );
+    }
+
+    fn on_subscription_matched(
+        &mut self,
+        the_reader: DataReader<()>,
+        status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
+    ) {
+        println!(
+            "on_subscription_matched() topic: '{}'  type: '{}' : matched writers {} (change = {})",
+            the_reader.get_topicdescription().get_name(),
+            the_reader.get_topicdescription().get_type_name(),
+            status.current_count,
+            status.current_count_change
+        );
+    }
+
+    fn on_requested_deadline_missed(
+        &mut self,
+        the_reader: DataReader<()>,
+        status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
+    ) {
+        println!(
+            "on_requested_deadline_missed() topic: '{}'  type: '{}' : (total = {}, change = {})\n",
+            the_reader.get_topicdescription().get_name(),
+            the_reader.get_topicdescription().get_type_name(),
+            status.total_count,
+            status.total_count_change
+        );
+    }
+
+    fn on_liveliness_changed(
+        &mut self,
+        the_reader: DataReader<()>,
+        status: dust_dds::infrastructure::status::LivelinessChangedStatus,
+    ) {
+        println!(
+            "on_liveliness_changed() topic: '{}'  type: '{}' : (alive = {}, not_alive = {})",
+            the_reader.get_topicdescription().get_name(),
+            the_reader.get_topicdescription().get_type_name(),
+            status.alive_count,
+            status.not_alive_count,
         );
     }
 }
@@ -332,6 +400,7 @@ fn run_subscriber(data_reader: &DataReader<ShapeType>, cli: Cli) {
                                 smaple_data.y,
                                 smaple_data.shapesize
                             );
+                            std::io::stdout().flush().expect("flush stdout succeeds");
                         }
                         previous_handle = Some(sample.sample_info().instance_handle);
                     }
@@ -350,7 +419,17 @@ fn main() -> Result<(), Error> {
         cli.domain_id,
         QosKind::Default,
         Some(Box::new(Listener)),
-        NO_STATUS,
+        &[
+            StatusKind::InconsistentTopic,
+            StatusKind::OfferedIncompatibleQos,
+            StatusKind::PublicationMatched,
+            StatusKind::OfferedDeadlineMissed,
+            StatusKind::LivelinessLost,
+            StatusKind::RequestedIncompatibleQos,
+            StatusKind::SubscriptionMatched,
+            StatusKind::RequestedDeadlineMissed,
+            StatusKind::LivelinessChanged,
+        ],
     )?;
     println!("Create topic: {}", cli.topic_name);
     let topic = participant.create_topic::<ShapeType>(
@@ -392,9 +471,13 @@ fn main() -> Result<(), Error> {
             _ => panic!("durability not valid"),
         },
     };
-
-    let _representation = qos_policy::DataRepresentationQosPolicy {
-        value: vec![cli.data_representation],
+    let data_representation = match cli.data_representation {
+        1 => XCDR_DATA_REPRESENTATION,
+        2 => XCDR2_DATA_REPRESENTATION,
+        _ => panic!("Wrong data representation")
+    };
+    let representation = qos_policy::DataRepresentationQosPolicy {
+        value: vec![data_representation],
     };
 
     let ownership = qos_policy::OwnershipQosPolicy {
@@ -420,7 +503,7 @@ fn main() -> Result<(), Error> {
         let mut data_writer_qos = DataWriterQos {
             durability: durability.clone(),
             reliability: reliability.clone(),
-            // representation: representation.clone(),
+            representation: representation.clone(),
             ownership: ownership.clone(),
             ..Default::default()
         };
@@ -435,12 +518,12 @@ fn main() -> Result<(), Error> {
             None,
             NO_STATUS,
         )?;
-        let writer_cond = data_writer.get_statuscondition();
-        writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
-        let mut wait_set = WaitSet::new();
-        wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
-        wait_set.wait(Duration::new(60, 0))?;
-        
+        // let writer_cond = data_writer.get_statuscondition();
+        // writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
+        // let mut wait_set = WaitSet::new();
+        // wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
+        // wait_set.wait(Duration::new(60, 0))?;
+
         run_publisher(&data_writer, cli);
     }
 
@@ -461,7 +544,7 @@ fn main() -> Result<(), Error> {
         let mut data_reader_qos = DataReaderQos {
             durability: durability.clone(),
             reliability: reliability.clone(),
-            // representation: representation.clone(),
+            representation: representation.clone(),
             ownership: ownership.clone(),
             ..Default::default()
         };
@@ -476,11 +559,11 @@ fn main() -> Result<(), Error> {
             None,
             NO_STATUS,
         )?;
-        let condition = data_reader.get_statuscondition();
-        condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
-        let mut wait_set = WaitSet::new();
-        wait_set.attach_condition(Condition::StatusCondition(condition))?;
-        wait_set.wait(Duration::new(60, 0))?;
+        // let condition = data_reader.get_statuscondition();
+        // condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
+        // let mut wait_set = WaitSet::new();
+        // wait_set.attach_condition(Condition::StatusCondition(condition))?;
+        // wait_set.wait(Duration::new(60, 0))?;
         run_subscriber(&data_reader, cli);
     }
     println!("Done.");
