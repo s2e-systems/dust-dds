@@ -9,7 +9,11 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
-        qos_policy::{self, DurabilityQosPolicy, PartitionQosPolicy, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION},
+        qos_policy::{
+            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy,
+            PartitionQosPolicy, ReliabilityQosPolicy, XCDR2_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION,
+        },
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
@@ -133,6 +137,68 @@ struct Cli {
     /// set log message verbosity (e: ERROR, d: DEBUG)
     #[clap(short = 'v', default_value_t = 'e')]
     log_message_verbosity: char,
+}
+
+impl Cli {
+    fn reliability_qos_policy(&self) -> ReliabilityQosPolicy {
+        let mut reliability = DataWriterQos::default().reliability;
+        if self.best_effort_reliability {
+            reliability.kind = qos_policy::ReliabilityQosPolicyKind::BestEffort;
+        }
+        if self.reliable_reliability {
+            reliability.kind = qos_policy::ReliabilityQosPolicyKind::Reliable;
+        }
+        reliability
+    }
+
+    fn partition_qos_policy(&self) -> PartitionQosPolicy {
+        if let Some(partition) = &self.partition {
+            PartitionQosPolicy {
+                name: vec![partition.to_owned()],
+            }
+        } else {
+            PartitionQosPolicy::default()
+        }
+    }
+
+    fn durability_qos_policy(&self) -> DurabilityQosPolicy {
+        DurabilityQosPolicy {
+            kind: match self.durability_kind {
+                'v' => qos_policy::DurabilityQosPolicyKind::Volatile,
+                'l' => qos_policy::DurabilityQosPolicyKind::TransientLocal,
+                't' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: TRANSIENT
+                'p' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: PERSISTENT
+                _ => panic!("durability not valid"),
+            },
+        }
+    }
+
+    fn data_representation_qos_policy(&self) -> DataRepresentationQosPolicy {
+        let data_representation = match self.data_representation {
+            1 => XCDR_DATA_REPRESENTATION,
+            2 => XCDR2_DATA_REPRESENTATION,
+            _ => panic!("Wrong data representation"),
+        };
+        qos_policy::DataRepresentationQosPolicy {
+            value: vec![data_representation],
+        }
+    }
+
+    fn ownership_qos_policy(&self) -> OwnershipQosPolicy {
+        OwnershipQosPolicy {
+            kind: match self.ownership_strength {
+                -1 => qos_policy::OwnershipQosPolicyKind::Shared,
+                _ => qos_policy::OwnershipQosPolicyKind::Shared, //Todo: Exclusive,
+            },
+        }
+    }
+
+    // fn ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
+    //     if self.ownership_strength < -1 {
+    //         panic!("Ownership strength must be positive or zero")
+    //     }
+    //     OwnershipStrengthQosPolicy { value: self.ownership_strength }
+    // }
 }
 
 #[derive(Debug)]
@@ -309,14 +375,7 @@ fn move_shape(
     }
 }
 
-#[test]
-fn te() {
-    //%-10s %-10s %03d %03d [%d]
-    println!(
-        "{:10} {:10} {:03} {:03} [{:}]",
-        "hellohellohello", "world", 3, 4, 5
-    );
-}
+fn init_publisher() {}
 
 fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
     let mut random_gen = thread_rng();
@@ -474,13 +533,13 @@ fn main() -> Result<(), Error> {
     let data_representation = match cli.data_representation {
         1 => XCDR_DATA_REPRESENTATION,
         2 => XCDR2_DATA_REPRESENTATION,
-        _ => panic!("Wrong data representation")
+        _ => panic!("Wrong data representation"),
     };
     let representation = qos_policy::DataRepresentationQosPolicy {
         value: vec![data_representation],
     };
 
-    let ownership = qos_policy::OwnershipQosPolicy {
+    let ownership = OwnershipQosPolicy {
         kind: match cli.ownership_strength {
             -1 => qos_policy::OwnershipQosPolicyKind::Shared,
             _ => qos_policy::OwnershipQosPolicyKind::Shared, //Todo: Exclusive,
@@ -501,8 +560,8 @@ fn main() -> Result<(), Error> {
         );
 
         let mut data_writer_qos = DataWriterQos {
-            durability: durability.clone(),
-            reliability: reliability.clone(),
+            durability: cli.durability_qos_policy(),
+            reliability: cli.reliability_qos_policy(),
             representation: representation.clone(),
             ownership: ownership.clone(),
             ..Default::default()
