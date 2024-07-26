@@ -522,9 +522,3 @@ where
         )
     }
 }
-
-/// Trait representing a generic data reader. This trait is not meant to be implemented by the user and is used
-/// to represent a generic DataReader (i.e. without Foo) type on the listeners.
-pub trait AnyDataReader {}
-
-impl AnyDataReader for () {}
