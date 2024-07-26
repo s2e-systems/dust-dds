@@ -1,6 +1,8 @@
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-    domain_participant_actor::{ParticipantListenerMessage, ParticipantListenerOperation},
+    domain_participant_actor::{
+        ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
+    },
     message_sender_actor::MessageSenderActor,
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     subscriber_actor::{SubscriberListenerMessage, SubscriberListenerOperation},
@@ -570,28 +572,32 @@ impl DataReaderActor {
                 state: StatusKind::DataAvailable,
             })?;
 
+        let topic_status_condition_address = self.topic_status_condition.clone();
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let reader_address = data_reader_address.clone();
+        let status_condition_address = self.status_condition.address();
+        let subscriber = subscriber.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address.clone(),
+            type_name.clone(),
+            topic_name.clone(),
+            subscriber.get_participant(),
+        );
         if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
             if let Some(listener) = subscriber_listener {
                 listener.send(SubscriberListenerMessage {
                     listener_operation: SubscriberListenerOperation::DataOnReaders(
                         subscriber.clone(),
                     ),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
                 })?;
             }
         } else if self.status_kind.contains(&StatusKind::DataAvailable) {
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
-            let reader_address = data_reader_address.clone();
-            let status_condition_address = self.status_condition.address();
-            let subscriber = subscriber.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address.clone(),
-                type_name.clone(),
-                topic_name.clone(),
-                subscriber.get_participant(),
-            );
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
                     listener_operation: DataReaderListenerOperation::DataAvailable,
@@ -960,20 +966,20 @@ impl DataReaderActor {
                 state: StatusKind::SampleLost,
             });
         let topic_status_condition_address = self.topic_status_condition.clone();
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let reader_address = data_reader_address.clone();
+        let status_condition_address = self.status_condition.address();
+        let subscriber = subscriber.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address.clone(),
+            type_name.clone(),
+            topic_name.clone(),
+            subscriber.get_participant(),
+        );
         if self.status_kind.contains(&StatusKind::SampleLost) {
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
             let status = self.get_sample_lost_status();
-            let reader_address = data_reader_address.clone();
-            let status_condition_address = self.status_condition.address();
-            let subscriber = subscriber.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address.clone(),
-                type_name.clone(),
-                topic_name.clone(),
-                subscriber.get_participant(),
-            );
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
                     listener_operation: DataReaderListenerOperation::SampleLost(status),
@@ -988,6 +994,10 @@ impl DataReaderActor {
             if let Some(listener) = subscriber_listener {
                 listener.send(SubscriberListenerMessage {
                     listener_operation: SubscriberListenerOperation::SampleLost(status),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
                 })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
@@ -995,6 +1005,12 @@ impl DataReaderActor {
             if let Some(listener) = participant_listener {
                 listener.send(ParticipantListenerMessage {
                     listener_operation: ParticipantListenerOperation::SampleLost(status),
+                    listener_kind: ListenerKind::Reader {
+                        reader_address,
+                        status_condition_address,
+                        subscriber,
+                        topic,
+                    },
                 })?;
             }
         }
@@ -1023,22 +1039,22 @@ impl DataReaderActor {
             });
 
         const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-        if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
-            let status = self.get_subscription_matched_status();
-            let reader_address = data_reader_address.clone();
-            let status_condition_address = self.status_condition.address();
-            let subscriber = subscriber.clone();
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let reader_address = data_reader_address.clone();
+        let status_condition_address = self.status_condition.address();
+        let subscriber = subscriber.clone();
 
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address.clone(),
-                type_name.clone(),
-                topic_name.clone(),
-                subscriber.get_participant(),
-            );
+        let topic_status_condition_address = self.topic_status_condition.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address.clone(),
+            type_name.clone(),
+            topic_name.clone(),
+            subscriber.get_participant(),
+        );
+        if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+            let status = self.get_subscription_matched_status();
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
                     listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
@@ -1053,6 +1069,10 @@ impl DataReaderActor {
             if let Some(listener) = subscriber_listener {
                 listener.send(SubscriberListenerMessage {
                     listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
                 })?;
             }
         } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
@@ -1060,6 +1080,12 @@ impl DataReaderActor {
             if let Some(listener) = participant_listener {
                 listener.send(ParticipantListenerMessage {
                     listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+                    listener_kind: ListenerKind::Reader {
+                        reader_address,
+                        status_condition_address,
+                        subscriber,
+                        topic,
+                    },
                 })?;
             }
         }
@@ -1089,22 +1115,22 @@ impl DataReaderActor {
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SampleRejected,
             });
-        if self.status_kind.contains(&StatusKind::SampleRejected) {
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
-            let status = self.get_sample_rejected_status();
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
 
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let reader_address = data_reader_address.clone();
-            let status_condition_address = self.status_condition.address();
-            let subscriber = subscriber.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address.clone(),
-                type_name.clone(),
-                topic_name.clone(),
-                subscriber.get_participant(),
-            );
+        let topic_status_condition_address = self.topic_status_condition.clone();
+        let reader_address = data_reader_address.clone();
+        let status_condition_address = self.status_condition.address();
+        let subscriber = subscriber.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address.clone(),
+            type_name.clone(),
+            topic_name.clone(),
+            subscriber.get_participant(),
+        );
+        if self.status_kind.contains(&StatusKind::SampleRejected) {
+            let status = self.get_sample_rejected_status();
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
                     listener_operation: DataReaderListenerOperation::SampleRejected(status),
@@ -1119,6 +1145,10 @@ impl DataReaderActor {
             if let Some(listener) = subscriber_listener {
                 listener.send(SubscriberListenerMessage {
                     listener_operation: SubscriberListenerOperation::SampleRejected(status),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
                 })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
@@ -1126,6 +1156,12 @@ impl DataReaderActor {
             if let Some(listener) = participant_listener {
                 listener.send(ParticipantListenerMessage {
                     listener_operation: ParticipantListenerOperation::SampleRejected(status),
+                    listener_kind: ListenerKind::Reader {
+                        reader_address,
+                        status_condition_address,
+                        subscriber,
+                        topic,
+                    },
                 })?;
             }
         }
@@ -1154,24 +1190,24 @@ impl DataReaderActor {
                 state: StatusKind::RequestedIncompatibleQos,
             });
 
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let topic_status_condition_address = self.topic_status_condition.clone();
+        let reader_address = data_reader_address.clone();
+        let status_condition_address = self.status_condition.address();
+        let subscriber = subscriber.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address.clone(),
+            type_name.clone(),
+            topic_name.clone(),
+            subscriber.get_participant(),
+        );
         if self
             .status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
             let status = self.get_requested_incompatible_qos_status();
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let reader_address = data_reader_address.clone();
-            let status_condition_address = self.status_condition.address();
-            let subscriber = subscriber.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address.clone(),
-                type_name.clone(),
-                topic_name.clone(),
-                subscriber.get_participant(),
-            );
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
                     listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
@@ -1190,6 +1226,10 @@ impl DataReaderActor {
                     listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
                         status,
                     ),
+                    reader_address,
+                    status_condition_address,
+                    subscriber,
+                    topic,
                 })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
@@ -1199,6 +1239,12 @@ impl DataReaderActor {
                     listener_operation: ParticipantListenerOperation::RequestedIncompatibleQos(
                         status,
                     ),
+                    listener_kind: ListenerKind::Reader {
+                        reader_address,
+                        status_condition_address,
+                        subscriber,
+                        topic,
+                    },
                 })?;
             }
         }
@@ -1644,38 +1690,37 @@ impl DataReaderActor {
                     timer_handle.sleep(deadline_missed_interval).await;
                     let subscriber_listener = subscriber_listener.clone();
                     let participant_listener = participant_listener.clone();
-                    let r: DdsResult<()> =
-                        async {
-                            data_reader_address.send_actor_mail(
-                                IncrementRequestedDeadlineMissedStatus {
-                                    instance_handle: change_instance_handle,
-                                },
-                            )?;
+                    let r: DdsResult<()> = async {
+                        data_reader_address.send_actor_mail(
+                            IncrementRequestedDeadlineMissedStatus {
+                                instance_handle: change_instance_handle,
+                            },
+                        )?;
 
-                            reader_status_condition
-                                .send_actor_mail(AddCommunicationState {
-                                    state: StatusKind::RequestedDeadlineMissed,
-                                })?
+                        reader_status_condition
+                            .send_actor_mail(AddCommunicationState {
+                                state: StatusKind::RequestedDeadlineMissed,
+                            })?
+                            .receive_reply()
+                            .await;
+
+                        let reader_address = data_reader_address.clone();
+                        let subscriber = subscriber.clone();
+                        let topic = TopicAsync::new(
+                            topic_address.clone(),
+                            topic_status_condition_address.clone(),
+                            type_name.clone(),
+                            topic_name.clone(),
+                            subscriber.get_participant(),
+                        );
+                        let status_condition_address = status_condition_address.clone();
+                        if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+                            let status = data_reader_address
+                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
                                 .receive_reply()
                                 .await;
-                            if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                                let status = data_reader_address
-                                    .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                    .receive_reply()
-                                    .await;
-                                let reader_address = data_reader_address.clone();
-                                let subscriber = subscriber.clone();
-                                let topic = TopicAsync::new(
-                                    topic_address.clone(),
-                                    topic_status_condition_address.clone(),
-                                    type_name.clone(),
-                                    topic_name.clone(),
-                                    subscriber.get_participant(),
-                                );
-                                let status_condition_address = status_condition_address.clone();
-
-                                if let Some(listener) = &data_reader_listener_sender {
-                                    listener
+                            if let Some(listener) = &data_reader_listener_sender {
+                                listener
                                     .send(DataReaderListenerMessage {
                                         listener_operation:
                                             DataReaderListenerOperation::RequestedDeadlineMissed(
@@ -1687,43 +1732,55 @@ impl DataReaderActor {
                                         topic,
                                     })
                                     .ok();
-                                }
-                            } else if subscriber_listener_mask
-                                .contains(&StatusKind::RequestedDeadlineMissed)
-                            {
-                                let status = data_reader_address
-                                    .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                    .receive_reply()
-                                    .await;
-                                if let Some(listener) = subscriber_listener {
-                                    listener
+                            }
+                        } else if subscriber_listener_mask
+                            .contains(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = data_reader_address
+                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                                .receive_reply()
+                                .await;
+                            if let Some(listener) = subscriber_listener {
+                                listener
                                     .send(SubscriberListenerMessage {
                                         listener_operation:
                                             SubscriberListenerOperation::RequestedDeadlineMissed(
                                                 status,
                                             ),
+                                        reader_address,
+                                        status_condition_address,
+                                        subscriber,
+                                        topic,
                                     })
                                     .ok();
-                                }
-                            } else if participant_listener_mask
-                                .contains(&StatusKind::RequestedDeadlineMissed)
-                            {
-                                let status = data_reader_address
-                                    .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                    .receive_reply()
-                                    .await;
-                                if let Some(listener) = participant_listener {
-                                    listener.send(ParticipantListenerMessage {
-                                    listener_operation:
-                                        ParticipantListenerOperation::RequestedDeadlineMissed(
-                                            status,
-                                        ),
-                                }).ok();
-                                }
                             }
-                            Ok(())
+                        } else if participant_listener_mask
+                            .contains(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = data_reader_address
+                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                                .receive_reply()
+                                .await;
+                            if let Some(listener) = participant_listener {
+                                listener
+                                    .send(ParticipantListenerMessage {
+                                        listener_operation:
+                                            ParticipantListenerOperation::RequestedDeadlineMissed(
+                                                status,
+                                            ),
+                                        listener_kind: ListenerKind::Reader {
+                                            reader_address,
+                                            status_condition_address,
+                                            subscriber,
+                                            topic,
+                                        },
+                                    })
+                                    .ok();
+                            }
                         }
-                        .await;
+                        Ok(())
+                    }
+                    .await;
 
                     if r.is_err() {
                         break;

@@ -16,7 +16,7 @@ impl From<Py<PyAny>> for PublisherListener {
 impl dust_dds::publication::publisher_listener::PublisherListener for PublisherListener {
     fn on_liveliness_lost(
         &mut self,
-        _the_writer: &dyn dust_dds::publication::data_writer::AnyDataWriter,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         let args = ((), LivelinessLostStatus::from(status));
@@ -30,7 +30,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener for PublisherL
 
     fn on_offered_deadline_missed(
         &mut self,
-        _the_writer: &dyn dust_dds::publication::data_writer::AnyDataWriter,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         let args = ((), OfferedDeadlineMissedStatus::from(status));
@@ -44,7 +44,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener for PublisherL
 
     fn on_offered_incompatible_qos(
         &mut self,
-        _the_writer: &dyn dust_dds::publication::data_writer::AnyDataWriter,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let args = ((), OfferedIncompatibleQosStatus::from(status));
@@ -58,7 +58,7 @@ impl dust_dds::publication::publisher_listener::PublisherListener for PublisherL
 
     fn on_publication_matched(
         &mut self,
-        _the_writer: &dyn dust_dds::publication::data_writer::AnyDataWriter,
+        _the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         let args = ((), PublicationMatchedStatus::from(status));
