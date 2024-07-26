@@ -15,9 +15,11 @@ use crate::{
     },
     dds::infrastructure,
     dds_async::{
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync,
-        publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
+        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
+        publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
+        subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
         topic_listener::TopicListenerAsync,
     },
     domain::domain_participant_factory::DomainId,
@@ -183,6 +185,21 @@ impl DynamicTypeInterface for FooTypeSupport {
     }
 }
 
+pub enum ListenerKind {
+    Reader {
+        reader_address: ActorAddress<DataReaderActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        subscriber: SubscriberAsync,
+        topic: TopicAsync,
+    },
+    Writer {
+        writer_address: ActorAddress<DataWriterActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        publisher: PublisherAsync,
+        topic: TopicAsync,
+    },
+}
+
 pub enum ParticipantListenerOperation {
     _DataAvailable,
     SampleRejected(SampleRejectedStatus),
@@ -199,6 +216,7 @@ pub enum ParticipantListenerOperation {
 
 pub struct ParticipantListenerMessage {
     pub listener_operation: ParticipantListenerOperation,
+    pub listener_kind: ListenerKind,
 }
 
 struct ParticipantListenerThread {
@@ -214,37 +232,221 @@ impl ParticipantListenerThread {
                 while let Some(m) = receiver.recv().await {
                     match m.listener_operation {
                         ParticipantListenerOperation::_DataAvailable => {
-                            listener.on_data_available(&()).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener.on_data_available(data_reader).await
                         }
                         ParticipantListenerOperation::SampleRejected(status) => {
-                            listener.on_sample_rejected(&(), status).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener.on_sample_rejected(data_reader, status).await
                         }
                         ParticipantListenerOperation::_LivenessChanged(status) => {
-                            listener.on_liveliness_changed(&(), status).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener.on_liveliness_changed(data_reader, status).await
                         }
                         ParticipantListenerOperation::RequestedDeadlineMissed(status) => {
-                            listener.on_requested_deadline_missed(&(), status).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener
+                                .on_requested_deadline_missed(data_reader, status)
+                                .await
                         }
                         ParticipantListenerOperation::RequestedIncompatibleQos(status) => {
-                            listener.on_requested_incompatible_qos(&(), status).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener
+                                .on_requested_incompatible_qos(data_reader, status)
+                                .await
                         }
                         ParticipantListenerOperation::SubscriptionMatched(status) => {
-                            listener.on_subscription_matched(&(), status).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener.on_subscription_matched(data_reader, status).await
                         }
                         ParticipantListenerOperation::SampleLost(status) => {
-                            listener.on_sample_lost(&(), status).await
+                            let data_reader = match m.listener_kind {
+                                ListenerKind::Reader {
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                } => DataReaderAsync::new(
+                                    reader_address,
+                                    status_condition_address,
+                                    subscriber,
+                                    topic,
+                                ),
+                                ListenerKind::Writer { .. } => {
+                                    panic!("Expected Reader on this listener")
+                                }
+                            };
+                            listener.on_sample_lost(data_reader, status).await
                         }
                         ParticipantListenerOperation::_LivelinessLost(status) => {
-                            listener.on_liveliness_lost(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener.on_liveliness_lost(data_writer, status).await
                         }
                         ParticipantListenerOperation::_OfferedDeadlineMissed(status) => {
-                            listener.on_offered_deadline_missed(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener
+                                .on_offered_deadline_missed(data_writer, status)
+                                .await
                         }
                         ParticipantListenerOperation::OfferedIncompatibleQos(status) => {
-                            listener.on_offered_incompatible_qos(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener
+                                .on_offered_incompatible_qos(data_writer, status)
+                                .await
                         }
                         ParticipantListenerOperation::PublicationMatched(status) => {
-                            listener.on_publication_matched(&(), status).await
+                            let data_writer = match m.listener_kind {
+                                ListenerKind::Reader { .. } => {
+                                    panic!("Expected Writer on this listener")
+                                }
+                                ListenerKind::Writer {
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                } => DataWriterAsync::new(
+                                    writer_address,
+                                    status_condition_address,
+                                    publisher,
+                                    topic,
+                                ),
+                            };
+                            listener.on_publication_matched(data_writer, status).await
                         }
                     }
                 }

@@ -69,7 +69,9 @@ use std::{
 
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    domain_participant_actor::{ParticipantListenerMessage, ParticipantListenerOperation},
+    domain_participant_actor::{
+        ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
+    },
     message_sender_actor::{self, MessageSenderActor},
     publisher_actor::{PublisherListenerMessage, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
@@ -571,20 +573,20 @@ impl DataWriterActor {
                 state: StatusKind::PublicationMatched,
             });
 
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let participant = publisher.get_participant();
+        let status_condition_address = self.status_condition.address();
+        let topic_status_condition_address = self.topic_status_condition.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address,
+            type_name,
+            topic_name,
+            participant,
+        );
         if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
             let status = self.get_publication_matched_status();
-            let participant = publisher.get_participant();
-            let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address,
-                type_name,
-                topic_name,
-                participant,
-            );
             if let Some(listener) = &self.data_writer_listener_thread {
                 listener.sender().send(DataWriterListenerMessage {
                     listener_operation: DataWriterListenerOperation::PublicationMatched(status),
@@ -599,6 +601,10 @@ impl DataWriterActor {
             if let Some(listener) = publisher_listener {
                 listener.send(PublisherListenerMessage {
                     listener_operation: PublisherListenerOperation::PublicationMatched(status),
+                    writer_address: data_writer_address,
+                    status_condition_address,
+                    publisher,
+                    topic,
                 })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
@@ -606,6 +612,12 @@ impl DataWriterActor {
             if let Some(listener) = participant_listener {
                 listener.send(ParticipantListenerMessage {
                     listener_operation: ParticipantListenerOperation::PublicationMatched(status),
+                    listener_kind: ListenerKind::Writer {
+                        writer_address: data_writer_address,
+                        status_condition_address,
+                        publisher,
+                        topic,
+                    },
                 })?;
             }
         }
@@ -630,26 +642,26 @@ impl DataWriterActor {
                 state: StatusKind::OfferedIncompatibleQos,
             });
 
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let participant = publisher.get_participant();
+        let status_condition_address = self.status_condition.address();
+        let topic_status_condition_address = self.topic_status_condition.clone();
+        let topic = TopicAsync::new(
+            self.topic_address.clone(),
+            topic_status_condition_address,
+            type_name,
+            topic_name,
+            participant,
+        );
+
         if self
             .status_kind
             .contains(&StatusKind::OfferedIncompatibleQos)
         {
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
-            let participant = publisher.get_participant();
-            let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let topic = TopicAsync::new(
-                self.topic_address.clone(),
-                topic_status_condition_address,
-                type_name,
-                topic_name,
-                participant,
-            );
-
             if let Some(listener) = &self.data_writer_listener_thread {
                 listener.sender().send(DataWriterListenerMessage {
                     listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
@@ -663,9 +675,14 @@ impl DataWriterActor {
             let status = self
                 .incompatible_subscriptions
                 .get_offered_incompatible_qos_status();
+
             if let Some(listener) = publisher_listener {
                 listener.send(PublisherListenerMessage {
                     listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
+                    writer_address: data_writer_address,
+                    status_condition_address,
+                    publisher,
+                    topic,
                 })?;
             }
         } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
@@ -677,6 +694,12 @@ impl DataWriterActor {
                     listener_operation: ParticipantListenerOperation::OfferedIncompatibleQos(
                         status,
                     ),
+                    listener_kind: ListenerKind::Writer {
+                        writer_address: data_writer_address,
+                        status_condition_address,
+                        publisher,
+                        topic,
+                    },
                 })?;
             }
         }
