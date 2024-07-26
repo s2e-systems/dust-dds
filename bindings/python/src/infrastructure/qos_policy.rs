@@ -1072,3 +1072,25 @@ pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy =
             DEFAULT_MAX_BLOCKING_TIME,
         ),
     });
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct DataRepresentationQosPolicy(
+    dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy,
+);
+
+impl From<DataRepresentationQosPolicy>
+    for dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy
+{
+    fn from(value: DataRepresentationQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy>
+    for DataRepresentationQosPolicy
+{
+    fn from(value: dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy) -> Self {
+        Self(value)
+    }
+}
