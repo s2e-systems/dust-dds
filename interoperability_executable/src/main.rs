@@ -10,9 +10,7 @@ use dust_dds::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
-            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy,
-            PartitionQosPolicy, ReliabilityQosPolicy, XCDR2_DATA_REPRESENTATION,
-            XCDR_DATA_REPRESENTATION,
+            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION
         },
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
@@ -166,8 +164,8 @@ impl Cli {
             kind: match self.durability_kind {
                 'v' => qos_policy::DurabilityQosPolicyKind::Volatile,
                 'l' => qos_policy::DurabilityQosPolicyKind::TransientLocal,
-                't' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: TRANSIENT
-                'p' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: PERSISTENT
+                't' => qos_policy::DurabilityQosPolicyKind::Transient,
+                'p' => qos_policy::DurabilityQosPolicyKind::Persistent,
                 _ => panic!("durability not valid"),
             },
         }
@@ -188,17 +186,17 @@ impl Cli {
         OwnershipQosPolicy {
             kind: match self.ownership_strength {
                 -1 => qos_policy::OwnershipQosPolicyKind::Shared,
-                _ => qos_policy::OwnershipQosPolicyKind::Shared, //Todo: Exclusive,
+                _ => qos_policy::OwnershipQosPolicyKind::Exclusive, 
             },
         }
     }
 
-    // fn ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
-    //     if self.ownership_strength < -1 {
-    //         panic!("Ownership strength must be positive or zero")
-    //     }
-    //     OwnershipStrengthQosPolicy { value: self.ownership_strength }
-    // }
+    fn ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
+        if self.ownership_strength < -1 {
+            panic!("Ownership strength must be positive or zero")
+        }
+        OwnershipStrengthQosPolicy { value: self.ownership_strength }
+    }
 }
 
 #[derive(Debug)]
@@ -513,38 +511,6 @@ fn main() -> Result<(), Error> {
     if cli.reliable_reliability {
         reliability.kind = qos_policy::ReliabilityQosPolicyKind::Reliable;
     }
-    let partition = if let Some(partition) = &cli.partition {
-        PartitionQosPolicy {
-            name: vec![partition.to_owned()],
-        }
-    } else {
-        PartitionQosPolicy::default()
-    };
-
-    let durability = DurabilityQosPolicy {
-        kind: match cli.durability_kind {
-            'v' => qos_policy::DurabilityQosPolicyKind::Volatile,
-            'l' => qos_policy::DurabilityQosPolicyKind::TransientLocal,
-            't' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: TRANSIENT
-            'p' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: PERSISTENT
-            _ => panic!("durability not valid"),
-        },
-    };
-    let data_representation = match cli.data_representation {
-        1 => XCDR_DATA_REPRESENTATION,
-        2 => XCDR2_DATA_REPRESENTATION,
-        _ => panic!("Wrong data representation"),
-    };
-    let representation = qos_policy::DataRepresentationQosPolicy {
-        value: vec![data_representation],
-    };
-
-    let ownership = OwnershipQosPolicy {
-        kind: match cli.ownership_strength {
-            -1 => qos_policy::OwnershipQosPolicyKind::Shared,
-            _ => qos_policy::OwnershipQosPolicyKind::Shared, //Todo: Exclusive,
-        },
-    };
 
     if cli.publish {
         let cli = cli.clone();
@@ -562,8 +528,8 @@ fn main() -> Result<(), Error> {
         let mut data_writer_qos = DataWriterQos {
             durability: cli.durability_qos_policy(),
             reliability: cli.reliability_qos_policy(),
-            representation: representation.clone(),
-            ownership: ownership.clone(),
+            representation: cli.data_representation_qos_policy(),
+            ownership: cli.ownership_qos_policy(),
             ..Default::default()
         };
         if cli.deadline_interval > 0 {

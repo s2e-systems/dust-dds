@@ -662,7 +662,8 @@ impl Default for OwnershipQosPolicy {
 /// DataWriter.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, Default)]
 pub struct OwnershipStrengthQosPolicy {
-    value: i32,
+    /// Ownership strength value
+    pub value: i32,
 }
 
 impl QosPolicy for OwnershipStrengthQosPolicy {
