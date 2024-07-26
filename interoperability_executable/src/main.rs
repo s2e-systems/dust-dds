@@ -1,15 +1,22 @@
 use clap::Parser;
 use dust_dds::{
-    domain::domain_participant_factory::DomainParticipantFactory,
+    domain::{
+        domain_participant_factory::DomainParticipantFactory,
+        domain_participant_listener::DomainParticipantListener,
+    },
     infrastructure::{
         error::DdsError,
-        qos::{PublisherQos, QosKind},
-        qos_policy::{self, PartitionQosPolicy},
+        qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
+        qos_policy::{self, DurabilityQosPolicy, PartitionQosPolicy},
         status::{StatusKind, NO_STATUS},
-        time::Duration,
+        time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
-    publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
+    publication::data_writer::DataWriter,
+    subscription::{
+        data_reader::DataReader,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    },
 };
 use rand::{random, thread_rng, Rng};
 
@@ -41,7 +48,7 @@ fn qos_policy_name(id: i32) -> String {
     .to_string()
 }
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// publish samples
@@ -85,8 +92,8 @@ struct Cli {
     topic_name: String,
 
     /// set color to publish (filter if subscriber)
-    #[clap(short = 'c', default_value = "BLUE")]
-    color: String,
+    #[clap(short = 'c', default_value = None)]
+    color: Option<String>,
 
     /// set a 'partition' string
     #[clap(short = 'p')]
@@ -98,7 +105,7 @@ struct Cli {
 
     /// set data representation (1: XCDR, 2: XCDR2)
     #[clap(short = 'x', default_value_t = 1)]
-    data_representation: i32,
+    data_representation: u16,
 
     /// print Publisher's samples
     #[clap(short = 'w', default_value_t = false)]
@@ -148,12 +155,10 @@ pub struct ShapeType {
 }
 
 struct Listener;
-impl DataWriterListener<'_> for Listener {
-    type Foo = ShapeType;
-
+impl DomainParticipantListener for Listener {
     fn on_liveliness_lost(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) {
         println!(
@@ -167,7 +172,7 @@ impl DataWriterListener<'_> for Listener {
 
     fn on_offered_deadline_missed(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) {
         println!(
@@ -181,7 +186,7 @@ impl DataWriterListener<'_> for Listener {
 
     fn on_offered_incompatible_qos(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) {
         let policy_name = qos_policy_name(status.last_policy_id);
@@ -196,7 +201,7 @@ impl DataWriterListener<'_> for Listener {
 
     fn on_publication_matched(
         &mut self,
-        the_writer: dust_dds::publication::data_writer::DataWriter<Self::Foo>,
+        the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
         println!(
@@ -244,13 +249,14 @@ fn te() {
         "hellohellohello", "world", 3, 4, 5
     );
 }
+
 fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
     let mut random_gen = thread_rng();
 
     let da_width = 240;
     let da_height = 270;
     let mut shape = ShapeType {
-        color: cli.color,
+        color: cli.color.unwrap_or("BLUE".to_string()),
         x: random::<i32>() % da_width,
         y: random::<i32>() % da_height,
         shapesize: cli.shapesize,
@@ -291,11 +297,61 @@ fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
     }
 }
 
+fn run_subscriber(data_reader: &DataReader<ShapeType>, cli: Cli) {
+    loop {
+        let mut previous_handle = None;
+        loop {
+            let max_samples = i32::MAX;
+            let result = if cli.use_read {
+                data_reader.read_next_instance(
+                    max_samples,
+                    previous_handle,
+                    ANY_SAMPLE_STATE,
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                )
+            } else {
+                data_reader.take_next_instance(
+                    max_samples,
+                    previous_handle,
+                    ANY_SAMPLE_STATE,
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                )
+            };
+            match result {
+                Ok(samples) => {
+                    for sample in samples {
+                        if sample.sample_info().valid_data {
+                            let smaple_data = sample.data().expect("data present");
+                            println!(
+                                "{:10} {:10} {:03} {:03} [{}]",
+                                data_reader.get_topicdescription().get_name(),
+                                smaple_data.color,
+                                smaple_data.x,
+                                smaple_data.y,
+                                smaple_data.shapesize
+                            );
+                        }
+                        previous_handle = Some(sample.sample_info().instance_handle);
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(cli.read_period_ms as u64));
+    }
+}
+
 fn main() -> Result<(), Error> {
     let cli = Cli::parse();
     let participant_factory = DomainParticipantFactory::get_instance();
-    let participant =
-        participant_factory.create_participant(cli.domain_id, QosKind::Default, None, NO_STATUS)?;
+    let participant = participant_factory.create_participant(
+        cli.domain_id,
+        QosKind::Default,
+        Some(Box::new(Listener)),
+        NO_STATUS,
+    )?;
     println!("Create topic: {}", cli.topic_name);
     let topic = participant.create_topic::<ShapeType>(
         &cli.topic_name,
@@ -304,27 +360,79 @@ fn main() -> Result<(), Error> {
         None,
         NO_STATUS,
     )?;
+    if cli.subscribe && cli.publish || (!cli.subscribe && !cli.publish) {
+        panic!("must be either subscribe or publish")
+    }
+    if cli.best_effort_reliability && cli.reliable_reliability
+        || (!cli.best_effort_reliability && !cli.reliable_reliability)
+    {
+        panic!("reliability must be either best effort or reliable")
+    }
+    let mut reliability = DataWriterQos::default().reliability;
+    if cli.best_effort_reliability {
+        reliability.kind = qos_policy::ReliabilityQosPolicyKind::BestEffort;
+    }
+    if cli.reliable_reliability {
+        reliability.kind = qos_policy::ReliabilityQosPolicyKind::Reliable;
+    }
+    let partition = if let Some(partition) = &cli.partition {
+        PartitionQosPolicy {
+            name: vec![partition.to_owned()],
+        }
+    } else {
+        PartitionQosPolicy::default()
+    };
+
+    let durability = DurabilityQosPolicy {
+        kind: match cli.durability_kind {
+            'v' => qos_policy::DurabilityQosPolicyKind::Volatile,
+            'l' => qos_policy::DurabilityQosPolicyKind::TransientLocal,
+            't' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: TRANSIENT
+            'p' => qos_policy::DurabilityQosPolicyKind::Volatile, // Todo: PERSISTENT
+            _ => panic!("durability not valid"),
+        },
+    };
+
+    let _representation = qos_policy::DataRepresentationQosPolicy {
+        value: vec![cli.data_representation],
+    };
+
+    let ownership = qos_policy::OwnershipQosPolicy {
+        kind: match cli.ownership_strength {
+            -1 => qos_policy::OwnershipQosPolicyKind::Shared,
+            _ => qos_policy::OwnershipQosPolicyKind::Shared, //Todo: Exclusive,
+        },
+    };
 
     if cli.publish {
-        let publisher_qos = if let Some(partition) = &cli.partition {
-            QosKind::Specific(PublisherQos {
-                partition: PartitionQosPolicy {
-                    name: vec![partition.clone()],
-                },
-                ..Default::default()
-            })
-        } else {
-            QosKind::Default
-        };
+        let cli = cli.clone();
+        let publisher_qos = QosKind::Specific(PublisherQos {
+            partition: partition.clone(),
+            ..Default::default()
+        });
         let publisher = participant.create_publisher(publisher_qos, None, NO_STATUS)?;
         println!(
             "Create writer for topic: {} color: {}",
-            cli.topic_name, cli.color
+            cli.topic_name,
+            cli.color.clone().expect("Color must be set for publish")
         );
+
+        let mut data_writer_qos = DataWriterQos {
+            durability: durability.clone(),
+            reliability: reliability.clone(),
+            // representation: representation.clone(),
+            ownership: ownership.clone(),
+            ..Default::default()
+        };
+        if cli.deadline_interval > 0 {
+            data_writer_qos.deadline.period =
+                DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
+        }
+
         let data_writer = publisher.create_datawriter::<ShapeType>(
             &topic,
-            QosKind::Default,
-            Some(Box::new(Listener)),
+            QosKind::Specific(data_writer_qos),
+            None,
             NO_STATUS,
         )?;
         let writer_cond = data_writer.get_statuscondition();
@@ -332,7 +440,49 @@ fn main() -> Result<(), Error> {
         let mut wait_set = WaitSet::new();
         wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
         wait_set.wait(Duration::new(60, 0))?;
+        
         run_publisher(&data_writer, cli);
     }
+
+    if cli.subscribe {
+        let subscriber_qos = QosKind::Specific(SubscriberQos {
+            partition: partition.clone(),
+            ..Default::default()
+        });
+        let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
+        match &cli.color {
+            Some(color) => println!(
+                "Create reader for topic: {} color: {}",
+                cli.topic_name, color
+            ),
+            None => println!("Create reader for topic: {} ", cli.topic_name),
+        }
+
+        let mut data_reader_qos = DataReaderQos {
+            durability: durability.clone(),
+            reliability: reliability.clone(),
+            // representation: representation.clone(),
+            ownership: ownership.clone(),
+            ..Default::default()
+        };
+        if cli.deadline_interval > 0 {
+            data_reader_qos.deadline.period =
+                DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
+        }
+
+        let data_reader = subscriber.create_datareader::<ShapeType>(
+            &topic,
+            QosKind::Specific(data_reader_qos),
+            None,
+            NO_STATUS,
+        )?;
+        let condition = data_reader.get_statuscondition();
+        condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
+        let mut wait_set = WaitSet::new();
+        wait_set.attach_condition(Condition::StatusCondition(condition))?;
+        wait_set.wait(Duration::new(60, 0))?;
+        run_subscriber(&data_reader, cli);
+    }
+    println!("Done.");
     Ok(())
 }
