@@ -1,50 +1,22 @@
-use std::{
-    sync::mpsc::{sync_channel, SyncSender},
-    time::Duration,
-};
-
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::QosKind,
+        qos::{DataReaderQos, QosKind},
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
         status::{StatusKind, NO_STATUS},
-    },
-    subscription::{
-        data_reader::DataReader,
-        data_reader_listener::DataReaderListener,
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        time::{Duration, DurationKind},
+        wait_set::{Condition, WaitSet},
     },
     topic_definition::type_support::DdsType,
 };
 
 #[derive(DdsType, Debug)]
 struct ReliableExampleType {
+    #[dust_dds(key)]
     id: i32,
-}
-
-struct Listener {
-    sender: SyncSender<()>,
-}
-
-impl DataReaderListener<'_> for Listener {
-    type Foo = ReliableExampleType;
-    fn on_data_available(&mut self, the_reader: DataReader<ReliableExampleType>) {
-        if let Ok(samples) =
-            the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
-            let sample = samples[0].data().unwrap();
-            println!("Read sample: {:?}", sample);
-        }
-    }
-    fn on_subscription_matched(
-        &mut self,
-        _the_reader: DataReader<ReliableExampleType>,
-        status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
-    ) {
-        if status.current_count == 0 {
-            self.sender.send(()).unwrap();
-        }
-    }
+    data: i32,
 }
 
 fn main() {
@@ -69,16 +41,42 @@ fn main() {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let (sender, receiver) = sync_channel(0);
-    let listener = Listener { sender };
-
-    let _reader = subscriber
-        .create_datareader(
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<ReliableExampleType>(
             &topic,
-            QosKind::Default,
-            Some(Box::new(listener)),
-            &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
+            QosKind::Specific(reader_qos),
+            None,
+            NO_STATUS,
         )
         .unwrap();
-    receiver.recv_timeout(Duration::from_secs(20)).ok();
+    let reader_status = reader.get_statuscondition();
+    reader_status
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut waitset = WaitSet::new();
+    waitset
+        .attach_condition(Condition::StatusCondition(reader_status))
+        .unwrap();
+    waitset.wait(Duration::new(30, 0)).unwrap();
+
+    for _ in 1..=100 {
+        if let Ok(samples) = reader.take_next_sample() {
+            let sample = samples.data().unwrap();
+            println!("Read sample: {:?}", sample);
+        } else {
+            println!("Error reading sample");
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(2000));
+    }
 }

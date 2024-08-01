@@ -2,7 +2,9 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
@@ -12,7 +14,9 @@ use dust_dds::{
 
 #[derive(DdsType, Debug)]
 struct ReliableExampleType {
+    #[dust_dds(key)]
     id: i32,
+    data: i32,
 }
 
 fn main() {
@@ -41,6 +45,9 @@ fn main() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(5, 0)),
         },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
         ..Default::default()
     };
     let writer = publisher
@@ -57,8 +64,8 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    for id in 1..=10 {
-        let sample = ReliableExampleType { id };
+    for data in 1..=100 {
+        let sample = ReliableExampleType { id: 0, data };
         writer.write(&sample, None).unwrap();
         println!("Wrote sample: {:?}", sample);
         std::thread::sleep(std::time::Duration::from_millis(100));
