@@ -8,7 +8,7 @@ use super::{
         DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
         DurabilityQosPolicy, EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
         HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-        OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+        OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
         ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
         TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
@@ -81,6 +81,8 @@ pub struct DataWriterQos {
     pub user_data: UserDataQosPolicy,
     /// Value of the ownership QoS policy.
     pub ownership: OwnershipQosPolicy,
+    /// Value of the ownership strength QoS policy.
+    pub ownership_strength: OwnershipStrengthQosPolicy,
     /// Value of the writer data lifecycle QoS policy.
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
     /// Value of the data representation QoS policy.
@@ -106,6 +108,7 @@ impl Default for DataWriterQos {
             resource_limits: ResourceLimitsQosPolicy::default(),
             user_data: UserDataQosPolicy::default(),
             ownership: OwnershipQosPolicy::default(),
+            ownership_strength: OwnershipStrengthQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
             transport_priority: TransportPriorityQosPolicy::default(),
             writer_data_lifecycle: WriterDataLifecycleQosPolicy::default(),
