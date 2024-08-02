@@ -68,7 +68,6 @@ fn main() {
         let sample = ReliableExampleType { id: 0, data };
         writer.write(&sample, None).unwrap();
         println!("Wrote sample: {:?}", sample);
-        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
     publisher.delete_datawriter(&writer).unwrap();
