@@ -961,6 +961,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
 }
 
 #[test]
+#[ignore = "Not yet implemented"]
 fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 

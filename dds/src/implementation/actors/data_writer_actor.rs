@@ -439,7 +439,7 @@ impl DataWriterActor {
             match &self.qos.reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     while let Some(unsent_change_seq_num) =
-                        reader_locator.next_unsent_change(&self.writer_cache)
+                        reader_locator.next_unsent_change(self.writer_cache.change_list())
                     {
                         // The post-condition:
                         // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
@@ -1052,7 +1052,7 @@ impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
         !self
             .matched_readers
             .iter()
-            .any(|rp| rp.unacked_changes(&self.writer_cache))
+            .any(|rp| rp.unacked_changes(self.writer_cache.get_seq_num_max()))
     }
 }
 
@@ -1586,7 +1586,9 @@ fn send_message_to_reader_proxy_best_effort(
     //      send GAP;
     // }
     // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
-    while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(writer_cache) {
+    while let Some(next_unsent_change_seq_num) =
+        reader_proxy.next_unsent_change(writer_cache.change_list())
+    {
         if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
             let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
             let gap_end_sequence_number = next_unsent_change_seq_num - 1;
@@ -1721,8 +1723,10 @@ fn send_message_to_reader_proxy_reliable(
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
-    if reader_proxy.unsent_changes(writer_cache) {
-        while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(writer_cache) {
+    if reader_proxy.unsent_changes(writer_cache.change_list()) {
+        while let Some(next_unsent_change_seq_num) =
+            reader_proxy.next_unsent_change(writer_cache.change_list())
+        {
             if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
                 let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
                 let gap_end_sequence_number = next_unsent_change_seq_num - 1;
@@ -1757,7 +1761,7 @@ fn send_message_to_reader_proxy_reliable(
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
-    } else if !reader_proxy.unacked_changes(writer_cache) {
+    } else if !reader_proxy.unacked_changes(writer_cache.get_seq_num_max()) {
         // Idle
     } else if reader_proxy
         .heartbeat_machine()
