@@ -27,11 +27,11 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataWriterQos, PublisherQos},
         qos_policy::{
-            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
-            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
+            DurabilityQosPolicyKind, HistoryQosPolicyKind, Length, QosPolicyId,
+            ReliabilityQosPolicyKind, TopicDataQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID,
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::{
             OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -56,13 +56,13 @@ use crate::{
             ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
         writer::RtpsWriter,
-        writer_history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+        writer_history_cache::RtpsWriterCacheChange,
     },
     serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
     thread::JoinHandle,
 };
@@ -271,7 +271,8 @@ pub struct DataWriterActor {
     status_condition: Actor<StatusConditionActor>,
     data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
-    writer_cache: WriterHistoryCache,
+    changes: HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    max_seq_num: Option<SequenceNumber>,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
 }
@@ -306,7 +307,8 @@ impl DataWriterActor {
             status_condition,
             data_writer_listener_thread,
             status_kind,
-            writer_cache: WriterHistoryCache::new(),
+            changes: HashMap::new(),
+            max_seq_num: None,
             qos,
             registered_instance_list: HashSet::new(),
         }
@@ -314,7 +316,7 @@ impl DataWriterActor {
 
     pub fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let mut locator = a_locator;
-        if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
+        if let Some(highest_available_change_sn) = self.max_seq_num {
             locator.set_highest_sent_change_sn(highest_available_change_sn)
         }
 
@@ -331,17 +333,63 @@ impl DataWriterActor {
         timer_handle: TimerHandle,
     ) -> DdsResult<()> {
         let seq_num = change.sequence_number();
+        let change_timestamp = change.timestamp();
+
+        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
+            if !self.changes.contains_key(&change.instance_handle())
+                && self.changes.len() == max_instances as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        self.changes.entry(change.instance_handle()).or_default();
+
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if self.changes[&change.instance_handle()].len() == depth as usize {
+                self.changes
+                    .get_mut(&change.instance_handle())
+                    .expect("InstanceHandle entry must exist")
+                    .pop_front();
+            }
+        }
+
+        // Only Alive changes count towards the resource limits
+        if let Length::Limited(max_samples_per_instance) =
+            self.qos.resource_limits.max_samples_per_instance
+        {
+            if change.kind() == ChangeKind::Alive
+                && self.changes[&change.instance_handle()].len()
+                    == max_samples_per_instance as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
+            let total_samples = self.changes.iter().fold(0, |acc, (_, s)| {
+                let total_instance_samples =
+                    s.iter().filter(|cc| cc.kind() == ChangeKind::Alive).count();
+                acc + total_instance_samples
+            });
+            if total_samples == max_samples as usize {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if change.sequence_number() > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(change.sequence_number())
+        }
+
+        self.changes
+            .get_mut(&change.instance_handle())
+            .expect("InstanceHandle entry must exist")
+            .push_back(change);
 
         if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
             let change_lifespan =
-                (crate::infrastructure::time::Time::from(change.timestamp()) - now) + lifespan;
+                (crate::infrastructure::time::Time::from(change_timestamp) - now) + lifespan;
             if change_lifespan > Duration::new(0, 0) {
-                self.writer_cache.add_change(
-                    change,
-                    &self.qos.history,
-                    &self.qos.resource_limits,
-                )?;
-
                 executor_handle.spawn(async move {
                     timer_handle.sleep(change_lifespan.into()).await;
 
@@ -349,10 +397,9 @@ impl DataWriterActor {
                         .send_actor_mail(RemoveChange { seq_num })
                         .ok();
                 });
+            } else {
+                self.remove_change(seq_num);
             }
-        } else {
-            self.writer_cache
-                .add_change(change, &self.qos.history, &self.qos.resource_limits)?;
         }
 
         self.send_message(message_sender_actor);
@@ -360,8 +407,9 @@ impl DataWriterActor {
     }
 
     fn remove_change(&mut self, seq_num: SequenceNumber) {
-        self.writer_cache
-            .remove_change(|cc| cc.sequence_number() == seq_num)
+        for changes_of_instance in self.changes.values_mut() {
+            changes_of_instance.retain(|cc| !(cc.sequence_number() == seq_num));
+        }
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
@@ -439,15 +487,16 @@ impl DataWriterActor {
             match &self.qos.reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     while let Some(unsent_change_seq_num) =
-                        reader_locator.next_unsent_change(self.writer_cache.change_list())
+                        reader_locator.next_unsent_change(self.changes.values().flatten())
                     {
                         // The post-condition:
                         // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
                         // should be full-filled by next_unsent_change()
 
                         if let Some(cache_change) = self
-                            .writer_cache
-                            .change_list()
+                            .changes
+                            .values()
+                            .flatten()
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
                             let info_ts_submessage = Box::new(InfoTimestampSubmessage::new(
@@ -499,7 +548,7 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_best_effort(
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
-                        &self.writer_cache,
+                        &self.changes,
                         self.rtps_writer.data_max_size_serialized(),
                         message_sender_actor,
                     )
@@ -508,7 +557,13 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_reliable(
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
-                        &self.writer_cache,
+                        &self.changes,
+                        self.changes
+                            .values()
+                            .flatten()
+                            .map(|cc| cc.sequence_number())
+                            .min(),
+                        self.max_seq_num,
                         self.rtps_writer.data_max_size_serialized(),
                         self.rtps_writer.heartbeat_period().into(),
                         message_sender_actor,
@@ -1052,7 +1107,7 @@ impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
         !self
             .matched_readers
             .iter()
-            .any(|rp| rp.unacked_changes(self.writer_cache.get_seq_num_max()))
+            .any(|rp| rp.unacked_changes(self.max_seq_num))
     }
 }
 
@@ -1291,9 +1346,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     .durability()
                     .kind
                 {
-                    DurabilityQosPolicyKind::Volatile => {
-                        self.writer_cache.get_seq_num_max().unwrap_or(0)
-                    }
+                    DurabilityQosPolicyKind::Volatile => self.max_seq_num.unwrap_or(0),
                     DurabilityQosPolicyKind::TransientLocal
                     | DurabilityQosPolicyKind::Transient
                     | DurabilityQosPolicyKind::Persistent => 0,
@@ -1558,7 +1611,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    writer_cache: &WriterHistoryCache,
+    changes: &HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
     data_max_size_serialized: usize,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
@@ -1587,7 +1640,7 @@ fn send_message_to_reader_proxy_best_effort(
     // }
     // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
     while let Some(next_unsent_change_seq_num) =
-        reader_proxy.next_unsent_change(writer_cache.change_list())
+        reader_proxy.next_unsent_change(changes.values().flatten())
     {
         if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
             let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
@@ -1607,8 +1660,9 @@ fn send_message_to_reader_proxy_best_effort(
                 .ok();
 
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
-        } else if let Some(cache_change) = writer_cache
-            .change_list()
+        } else if let Some(cache_change) = changes
+            .values()
+            .flatten()
             .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
         {
             let number_of_fragments = cache_change
@@ -1717,15 +1771,17 @@ fn send_message_to_reader_proxy_best_effort(
 fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    writer_cache: &WriterHistoryCache,
+    changes: &HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    seq_num_min: Option<SequenceNumber>,
+    seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
     heartbeat_period: Duration,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
-    if reader_proxy.unsent_changes(writer_cache.change_list()) {
+    if reader_proxy.unsent_changes(changes.values().flatten()) {
         while let Some(next_unsent_change_seq_num) =
-            reader_proxy.next_unsent_change(writer_cache.change_list())
+            reader_proxy.next_unsent_change(changes.values().flatten())
         {
             if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
                 let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
@@ -1736,8 +1792,8 @@ fn send_message_to_reader_proxy_reliable(
                     gap_start_sequence_number,
                     SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                 ));
-                let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
-                let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
+                let first_sn = seq_num_min.unwrap_or(1);
+                let last_sn = seq_num_max.unwrap_or(0);
                 let heartbeat_submessage = Box::new(
                     reader_proxy
                         .heartbeat_machine()
@@ -1753,7 +1809,9 @@ fn send_message_to_reader_proxy_reliable(
                 send_change_message_reader_proxy_reliable(
                     reader_proxy,
                     writer_id,
-                    writer_cache,
+                    changes,
+                    seq_num_min,
+                    seq_num_max,
                     data_max_size_serialized,
                     next_unsent_change_seq_num,
                     message_sender_actor,
@@ -1761,14 +1819,14 @@ fn send_message_to_reader_proxy_reliable(
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
-    } else if !reader_proxy.unacked_changes(writer_cache.get_seq_num_max()) {
+    } else if !reader_proxy.unacked_changes(seq_num_max) {
         // Idle
     } else if reader_proxy
         .heartbeat_machine()
         .is_time_for_heartbeat(heartbeat_period.into())
     {
-        let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
-        let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
+        let first_sn = seq_num_min.unwrap_or(1);
+        let last_sn = seq_num_max.unwrap_or(0);
         let heartbeat_submessage = Box::new(
             reader_proxy
                 .heartbeat_machine()
@@ -1794,7 +1852,9 @@ fn send_message_to_reader_proxy_reliable(
             send_change_message_reader_proxy_reliable(
                 reader_proxy,
                 writer_id,
-                writer_cache,
+                changes,
+                seq_num_min,
+                seq_num_max,
                 data_max_size_serialized,
                 next_requested_change_seq_num,
                 message_sender_actor,
@@ -1806,13 +1866,16 @@ fn send_message_to_reader_proxy_reliable(
 fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    writer_cache: &WriterHistoryCache,
+    changes: &HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    seq_num_min: Option<SequenceNumber>,
+    seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
     change_seq_num: SequenceNumber,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
-    match writer_cache
-        .change_list()
+    match changes
+        .values()
+        .flatten()
         .find(|cc| cc.sequence_number() == change_seq_num)
     {
         Some(cache_change) if change_seq_num > reader_proxy.first_relevant_sample_seq_num() => {
@@ -1894,8 +1957,8 @@ fn send_change_message_reader_proxy_reliable(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
 
-                let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
-                let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
+                let first_sn = seq_num_min.unwrap_or(1);
+                let last_sn = seq_num_max.unwrap_or(0);
                 let heartbeat = Box::new(
                     reader_proxy
                         .heartbeat_machine()
