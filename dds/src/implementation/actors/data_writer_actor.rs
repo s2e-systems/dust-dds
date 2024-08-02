@@ -347,6 +347,21 @@ impl DataWriterActor {
 
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if self.changes[&change.instance_handle()].len() == depth as usize {
+                // Reliable writers may block until the change is acknowledge and
+                // fail if the change isn't acknowledged within the timeout
+                if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                    let change_seq_num = self.changes[&change.instance_handle()]
+                        .front()
+                        .map(|cc| cc.sequence_number());
+                    if self
+                        .matched_readers
+                        .iter()
+                        .any(|rp| rp.unacked_changes(change_seq_num))
+                    {
+                        return Err(DdsError::Timeout);
+                    }
+                }
+
                 self.changes
                     .get_mut(&change.instance_handle())
                     .expect("InstanceHandle entry must exist")
