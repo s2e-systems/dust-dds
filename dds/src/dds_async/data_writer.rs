@@ -173,7 +173,7 @@ where
     pub async fn register_instance_w_timestamp(
         &self,
         instance: &Foo,
-        timestamp: Time,
+        _timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         if !self
             .writer_address
@@ -195,10 +195,7 @@ where
         let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
 
         self.writer_address
-            .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp {
-                instance_handle,
-                timestamp,
-            })?
+            .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp { instance_handle })?
             .receive_reply()
             .await
     }
@@ -448,7 +445,6 @@ where
             .writer_address
             .send_actor_mail(data_writer_actor::IsResourcesLimitReached {
                 instance_handle: change.instance_handle().into(),
-                change_kind: ChangeKind::Alive,
             })?
             .receive_reply()
             .await

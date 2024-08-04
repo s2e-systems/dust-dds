@@ -829,7 +829,6 @@ impl MailHandler<SetQos> for DataWriterActor {
 
 pub struct RegisterInstanceWTimestamp {
     pub instance_handle: InstanceHandle,
-    pub timestamp: Time,
 }
 impl Mail for RegisterInstanceWTimestamp {
     type Result = DdsResult<Option<InstanceHandle>>;
@@ -1378,7 +1377,6 @@ impl MailHandler<GetTopicAddress> for DataWriterActor {
 
 pub struct IsResourcesLimitReached {
     pub instance_handle: InstanceHandle,
-    pub change_kind: ChangeKind,
 }
 impl Mail for IsResourcesLimitReached {
     type Result = bool;
