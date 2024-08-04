@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -15,6 +15,7 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor,
         },
+        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -25,6 +26,10 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
+    },
+    rtps::{
+        messages::submessage_elements::{Data, Parameter, ParameterList},
+        types::ChangeKind,
     },
     topic_definition::type_support::DdsSerialize,
 };
@@ -338,20 +343,78 @@ where
             .send_actor_mail(domain_participant_actor::GetCurrentTime)?
             .receive_reply()
             .await;
+
+        let instance_handle = match handle {
+            Some(_) => todo!(),
+            None => self.register_instance_w_timestamp(data, timestamp),
+        }
+        .await?
+        .ok_or(DdsError::PreconditionNotMet(
+            "Failed to register instance".to_string(),
+        ))?;
+
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
+        let parameter_list = ParameterList::new(vec![pid_key_hash]);
+
+        let change = self
+            .writer_address
+            .send_actor_mail(data_writer_actor::NewChange {
+                kind: ChangeKind::Alive,
+                data: Data::from(serialized_data),
+                inline_qos: parameter_list,
+                handle: key,
+                timestamp: timestamp.into(),
+            })?
+            .receive_reply()
+            .await;
+
+        if self
+            .writer_address
+            .send_actor_mail(data_writer_actor::IsResourcesLimitReached {
+                instance_handle: change.instance_handle().into(),
+                change_kind: ChangeKind::Alive,
+            })?
+            .receive_reply()
+            .await
+        {
+            return Err(DdsError::OutOfResources);
+        }
+
+        // if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+        //     if instance_changes.len() == depth as usize {
+        //         // Reliable writers may block until the change is acknowledge and
+        //         // fail if the change isn't acknowledged within the timeout
+        //         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+        //             let change_seq_num = self.changes[&message.change.instance_handle()]
+        //                 .front()
+        //                 .map(|cc| cc.sequence_number());
+        //             if self
+        //                 .matched_readers
+        //                 .iter()
+        //                 .any(|rp| rp.unacked_changes(change_seq_num))
+        //             {
+        //                 return Err(DdsError::Timeout);
+        //             }
+        //         }
+
+        //         self.changes
+        //             .get_mut(&change.instance_handle())
+        //             .expect("InstanceHandle entry must exist")
+        //             .pop_front();
+        //     }
+        // }
+
         self.writer_address
-            .send_actor_mail(data_writer_actor::WriteWTimestamp {
-                serialized_data: serialized_data.into(),
-                instance_handle: key,
-                _handle: handle,
-                timestamp,
-                message_sender_actor,
+            .send_actor_mail(data_writer_actor::AddChange {
+                change,
                 now,
-                data_writer_address: self.writer_address.clone(),
+                message_sender_actor,
+                writer_address: self.writer_address.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
-            .await?;
+            .await;
 
         Ok(())
     }

@@ -1549,10 +1549,85 @@ impl MailHandler<SetListener> for DataWriterActor {
     }
 }
 
+pub struct NewChange {
+    pub kind: ChangeKind,
+    pub data: Data,
+    pub inline_qos: ParameterList,
+    pub handle: InstanceHandle,
+    pub timestamp: Time,
+}
+impl Mail for NewChange {
+    type Result = RtpsWriterCacheChange;
+}
+impl MailHandler<NewChange> for DataWriterActor {
+    fn handle(&mut self, message: NewChange) -> <NewChange as Mail>::Result {
+        self.rtps_writer.new_change(
+            message.kind,
+            message.data,
+            message.inline_qos,
+            message.handle.into(),
+            message.timestamp.into(),
+        )
+    }
+}
+
+pub struct AddChange {
+    pub change: RtpsWriterCacheChange,
+    pub now: Time,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
+    pub writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
+}
+impl Mail for AddChange {
+    type Result = ();
+}
+impl MailHandler<AddChange> for DataWriterActor {
+    fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
+        let instance_changes = self
+            .changes
+            .entry(message.change.instance_handle())
+            .or_default();
+
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if instance_changes.len() == depth as usize {
+                instance_changes.pop_front();
+            }
+        }
+
+        let change_timestamp = message.change.timestamp();
+        let seq_num = message.change.sequence_number();
+
+        if seq_num > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(seq_num)
+        }
+
+        instance_changes.push_back(message.change);
+
+        if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
+            let change_lifespan =
+                crate::infrastructure::time::Time::from(change_timestamp) - message.now + lifespan;
+            if change_lifespan > Duration::new(0, 0) {
+                message.executor_handle.spawn(async move {
+                    message.timer_handle.sleep(change_lifespan.into()).await;
+
+                    message
+                        .writer_address
+                        .send_actor_mail(RemoveChange { seq_num })
+                        .ok();
+                });
+            } else {
+                self.remove_change(seq_num);
+            }
+        }
+
+        self.send_message(message.message_sender_actor);
+    }
+}
+
 pub struct RemoveChange {
     pub seq_num: SequenceNumber,
 }
-
 impl Mail for RemoveChange {
     type Result = ();
 }
@@ -1569,6 +1644,98 @@ impl Mail for GetTopicAddress {
 impl MailHandler<GetTopicAddress> for DataWriterActor {
     fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
         self.topic_address.clone()
+    }
+}
+
+pub struct IsResourcesLimitReached {
+    pub instance_handle: InstanceHandle,
+    pub change_kind: ChangeKind,
+}
+impl Mail for IsResourcesLimitReached {
+    type Result = bool;
+}
+impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
+    fn handle(
+        &mut self,
+        message: IsResourcesLimitReached,
+    ) -> <IsResourcesLimitReached as Mail>::Result {
+        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
+            if !self.changes.contains_key(&message.instance_handle.into())
+                && self.changes.len() == max_instances as usize
+            {
+                return true;
+            }
+        }
+
+        if let Length::Limited(max_samples_per_instance) =
+            self.qos.resource_limits.max_samples_per_instance
+        {
+            // If the history Qos guarantess that the number of samples
+            // is below the limit there is no need to check
+            match self.qos.history.kind {
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as u32 <= max_samples_per_instance =>
+                {
+                    ()
+                }
+                _ => {
+                    if let Some(changes) = self.changes.get(&message.instance_handle.into()) {
+                        // Only Alive changes count towards the resource limits
+                        if changes
+                            .iter()
+                            .filter(|cc| cc.kind() == ChangeKind::Alive)
+                            .count()
+                            >= max_samples_per_instance as usize
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
+            let total_samples = self.changes.iter().fold(0, |acc, (instance, s)| {
+                let mut total_instance_samples =
+                    s.iter().filter(|cc| cc.kind() == ChangeKind::Alive).count();
+                // If the History QoS would remove one of the samples then the limit shouldn't
+                // be reached
+                if InstanceHandle::from(*instance) == message.instance_handle {
+                    if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                        if depth as usize == total_instance_samples {
+                            total_instance_samples -= 1;
+                        }
+                    }
+                }
+                acc + total_instance_samples
+            });
+            if total_samples >= max_samples as usize {
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+pub struct IsMaxSamplesLimitReached {
+    pub instance_handle: InstanceHandle,
+}
+impl Mail for IsMaxSamplesLimitReached {
+    type Result = bool;
+}
+impl MailHandler<IsMaxSamplesLimitReached> for DataWriterActor {
+    fn handle(
+        &mut self,
+        message: IsMaxSamplesLimitReached,
+    ) -> <IsMaxSamplesLimitReached as Mail>::Result {
+        match self.qos.resource_limits.max_samples {
+            Length::Unlimited => false,
+            Length::Limited(max_instances) => {
+                !self.changes.contains_key(&message.instance_handle.into())
+                    && self.changes.len() == max_instances as usize
+            }
+        }
     }
 }
 
