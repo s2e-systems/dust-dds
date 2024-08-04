@@ -1361,7 +1361,7 @@ impl Mail for RemoveChange {
 impl MailHandler<RemoveChange> for DataWriterActor {
     fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
         for changes_of_instance in self.changes.values_mut() {
-            changes_of_instance.retain(|cc| !(cc.sequence_number() == message.seq_num));
+            changes_of_instance.retain(|cc| cc.sequence_number() != message.seq_num);
         }
     }
 }
@@ -1402,11 +1402,7 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
             // If the history Qos guarantess that the number of samples
             // is below the limit there is no need to check
             match self.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth)
-                    if depth as u32 <= max_samples_per_instance =>
-                {
-                    ()
-                }
+                HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
                 _ => {
                     if let Some(changes) = self.changes.get(&message.instance_handle.into()) {
                         // Only Alive changes count towards the resource limits
@@ -1687,6 +1683,7 @@ fn send_message_to_reader_proxy_best_effort(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
@@ -1782,6 +1779,7 @@ fn send_message_to_reader_proxy_reliable(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,

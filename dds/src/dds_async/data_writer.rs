@@ -439,7 +439,7 @@ where
                 data: Data::from(serialized_data),
                 inline_qos: parameter_list,
                 handle: key,
-                timestamp: timestamp.into(),
+                timestamp,
             })?
             .receive_reply()
             .await;
