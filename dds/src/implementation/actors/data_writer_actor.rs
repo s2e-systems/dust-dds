@@ -1459,6 +1459,7 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
                     if self
                         .matched_readers
                         .iter()
+                        .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
                         .any(|rp| rp.unacked_changes(change_seq_num))
                     {
                         return true;
