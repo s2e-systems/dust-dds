@@ -23,7 +23,6 @@ struct BestEffortExampleType {
 }
 
 struct Listener {
-    last_received: Option<i32>,
     sender: SyncSender<()>,
 }
 
@@ -35,13 +34,6 @@ impl DataReaderListener<'_> for Listener {
         {
             let sample = samples[0].data().unwrap();
             println!("Read sample: {:?}", sample);
-
-            match self.last_received {
-                Some(last_id) => assert_eq!(sample.id, last_id + 1),
-                None => assert_eq!(sample.id, 1),
-            }
-
-            self.last_received = Some(sample.id);
         }
     }
     fn on_subscription_matched(
@@ -78,10 +70,7 @@ fn main() {
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
-    let listener = Listener {
-        sender,
-        last_received: None,
-    };
+    let listener = Listener { sender };
 
     let _reader = subscriber
         .create_datareader(
@@ -91,5 +80,5 @@ fn main() {
             &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();
-    receiver.recv_timeout(Duration::from_secs(2000)).ok();
+    receiver.recv_timeout(Duration::from_secs(20)).ok();
 }
