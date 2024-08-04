@@ -1718,24 +1718,32 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
     }
 }
 
-pub struct IsMaxSamplesLimitReached {
+pub struct IsDataLostAfterAddingChange {
     pub instance_handle: InstanceHandle,
 }
-impl Mail for IsMaxSamplesLimitReached {
+impl Mail for IsDataLostAfterAddingChange {
     type Result = bool;
 }
-impl MailHandler<IsMaxSamplesLimitReached> for DataWriterActor {
+impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
     fn handle(
         &mut self,
-        message: IsMaxSamplesLimitReached,
-    ) -> <IsMaxSamplesLimitReached as Mail>::Result {
-        match self.qos.resource_limits.max_samples {
-            Length::Unlimited => false,
-            Length::Limited(max_instances) => {
-                !self.changes.contains_key(&message.instance_handle.into())
-                    && self.changes.len() == max_instances as usize
+        message: IsDataLostAfterAddingChange,
+    ) -> <IsDataLostAfterAddingChange as Mail>::Result {
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if let Some(instance_changes) = self.changes.get(&message.instance_handle.into()) {
+                if instance_changes.len() == depth as usize {
+                    let change_seq_num = instance_changes.front().map(|cc| cc.sequence_number());
+                    if self
+                        .matched_readers
+                        .iter()
+                        .any(|rp| rp.unacked_changes(change_seq_num))
+                    {
+                        return true;
+                    }
+                }
             }
         }
+        false
     }
 }
 

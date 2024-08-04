@@ -21,11 +21,12 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
+        qos_policy::ReliabilityQosPolicyKind,
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
         },
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     rtps::{
         messages::submessage_elements::{Data, Parameter, ParameterList},
@@ -323,6 +324,11 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let writer_qos = self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetQos)?
+            .receive_reply()
+            .await;
         let type_support = self
             .topic
             .topic_address()
@@ -380,29 +386,30 @@ where
             return Err(DdsError::OutOfResources);
         }
 
-        // if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-        //     if instance_changes.len() == depth as usize {
-        //         // Reliable writers may block until the change is acknowledge and
-        //         // fail if the change isn't acknowledged within the timeout
-        //         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-        //             let change_seq_num = self.changes[&message.change.instance_handle()]
-        //                 .front()
-        //                 .map(|cc| cc.sequence_number());
-        //             if self
-        //                 .matched_readers
-        //                 .iter()
-        //                 .any(|rp| rp.unacked_changes(change_seq_num))
-        //             {
-        //                 return Err(DdsError::Timeout);
-        //             }
-        //         }
-
-        //         self.changes
-        //             .get_mut(&change.instance_handle())
-        //             .expect("InstanceHandle entry must exist")
-        //             .pop_front();
-        //     }
-        // }
+        if writer_qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let start = std::time::Instant::now();
+            let timer_handle = self.publisher.get_participant().timer_handle().clone();
+            loop {
+                if !self
+                    .writer_address
+                    .send_actor_mail(data_writer_actor::IsDataLostAfterAddingChange {
+                        instance_handle: change.instance_handle().into(),
+                    })?
+                    .receive_reply()
+                    .await
+                {
+                    break;
+                }
+                timer_handle
+                    .sleep(std::time::Duration::from_millis(20))
+                    .await;
+                if let DurationKind::Finite(timeout) = writer_qos.reliability.max_blocking_time {
+                    if std::time::Instant::now().duration_since(start) > timeout.into() {
+                        return Err(DdsError::Timeout);
+                    }
+                }
+            }
+        }
 
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
