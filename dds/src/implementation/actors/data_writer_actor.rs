@@ -7,15 +7,6 @@ use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        data_representation_inline_qos::{
-            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-            types::{
-                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
-            },
-        },
-        payload_serializer_deserializer::{
-            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
-        },
         runtime::{
             executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -40,9 +31,7 @@ use crate::{
     },
     rtps::{
         messages::{
-            submessage_elements::{
-                Data, Parameter, ParameterList, SequenceNumberSet, SerializedDataFragment,
-            },
+            submessage_elements::{Data, ParameterList, SequenceNumberSet, SerializedDataFragment},
             submessages::{
                 ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
                 info_destination::InfoDestinationSubmessage,
@@ -58,12 +47,10 @@ use crate::{
         writer::RtpsWriter,
         writer_history_cache::RtpsWriterCacheChange,
     },
-    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    sync::Arc,
     thread::JoinHandle,
 };
 
@@ -323,110 +310,6 @@ impl DataWriterActor {
         self.reader_locators.push(locator);
     }
 
-    fn add_change(
-        &mut self,
-        change: RtpsWriterCacheChange,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
-        now: Time,
-        writer_address: ActorAddress<DataWriterActor>,
-        executor_handle: ExecutorHandle,
-        timer_handle: TimerHandle,
-    ) -> DdsResult<()> {
-        let seq_num = change.sequence_number();
-        let change_timestamp = change.timestamp();
-
-        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
-            if !self.changes.contains_key(&change.instance_handle())
-                && self.changes.len() == max_instances as usize
-            {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        self.changes.entry(change.instance_handle()).or_default();
-
-        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if self.changes[&change.instance_handle()].len() == depth as usize {
-                // Reliable writers may block until the change is acknowledge and
-                // fail if the change isn't acknowledged within the timeout
-                if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                    let change_seq_num = self.changes[&change.instance_handle()]
-                        .front()
-                        .map(|cc| cc.sequence_number());
-                    if self
-                        .matched_readers
-                        .iter()
-                        .any(|rp| rp.unacked_changes(change_seq_num))
-                    {
-                        return Err(DdsError::Timeout);
-                    }
-                }
-
-                self.changes
-                    .get_mut(&change.instance_handle())
-                    .expect("InstanceHandle entry must exist")
-                    .pop_front();
-            }
-        }
-
-        // Only Alive changes count towards the resource limits
-        if let Length::Limited(max_samples_per_instance) =
-            self.qos.resource_limits.max_samples_per_instance
-        {
-            if change.kind() == ChangeKind::Alive
-                && self.changes[&change.instance_handle()].len()
-                    == max_samples_per_instance as usize
-            {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
-            let total_samples = self.changes.iter().fold(0, |acc, (_, s)| {
-                let total_instance_samples =
-                    s.iter().filter(|cc| cc.kind() == ChangeKind::Alive).count();
-                acc + total_instance_samples
-            });
-            if total_samples == max_samples as usize {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if change.sequence_number() > self.max_seq_num.unwrap_or(0) {
-            self.max_seq_num = Some(change.sequence_number())
-        }
-
-        self.changes
-            .get_mut(&change.instance_handle())
-            .expect("InstanceHandle entry must exist")
-            .push_back(change);
-
-        if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
-            let change_lifespan =
-                (crate::infrastructure::time::Time::from(change_timestamp) - now) + lifespan;
-            if change_lifespan > Duration::new(0, 0) {
-                executor_handle.spawn(async move {
-                    timer_handle.sleep(change_lifespan.into()).await;
-
-                    writer_address
-                        .send_actor_mail(RemoveChange { seq_num })
-                        .ok();
-                });
-            } else {
-                self.remove_change(seq_num);
-            }
-        }
-
-        self.send_message(message_sender_actor);
-        Ok(())
-    }
-
-    fn remove_change(&mut self, seq_num: SequenceNumber) {
-        for changes_of_instance in self.changes.values_mut() {
-            changes_of_instance.retain(|cc| !(cc.sequence_number() == seq_num));
-        }
-    }
-
     pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_writer.guid().into())
     }
@@ -439,25 +322,6 @@ impl DataWriterActor {
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
-    }
-
-    fn register_instance_w_timestamp(
-        &mut self,
-        instance_handle: InstanceHandle,
-        _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        if !self.registered_instance_list.contains(&instance_handle) {
-            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list.insert(instance_handle);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-        Ok(Some(instance_handle))
     }
 
     fn on_acknack_submessage_received(
@@ -779,7 +643,7 @@ impl Mail for GetInstanceHandle {
 }
 impl MailHandler<GetInstanceHandle> for DataWriterActor {
     fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        self.get_instance_handle()
+        InstanceHandle::new(self.rtps_writer.guid().into())
     }
 }
 
@@ -975,66 +839,18 @@ impl MailHandler<RegisterInstanceWTimestamp> for DataWriterActor {
         &mut self,
         message: RegisterInstanceWTimestamp,
     ) -> <RegisterInstanceWTimestamp as Mail>::Result {
-        self.register_instance_w_timestamp(message.instance_handle, message.timestamp)
-    }
-}
-
-pub struct UnregisterInstanceWTimestamp {
-    pub instance_serialized_key: Data,
-    pub handle: InstanceHandle,
-    pub timestamp: Time,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub now: Time,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for UnregisterInstanceWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: UnregisterInstanceWTimestamp,
-    ) -> <UnregisterInstanceWTimestamp as Mail>::Result {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-        if self
-            .qos
-            .writer_data_lifecycle
-            .autodispose_unregistered_instances
+        if !self
+            .registered_instance_list
+            .contains(&message.instance_handle)
         {
-            STATUS_INFO_DISPOSED_UNREGISTERED
-                .serialize(&mut serializer)
-                .unwrap();
-        } else {
-            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_list
+                    .insert(message.instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
         }
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
-        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
-            ChangeKind::NotAliveUnregistered,
-            message.instance_serialized_key,
-            inline_qos,
-            message.handle.into(),
-            message.timestamp.into(),
-        );
-
-        self.add_change(
-            change,
-            message.message_sender_actor,
-            message.now,
-            message.data_writer_address,
-            message.executor_handle,
-            message.timer_handle,
-        )
+        Ok(Some(message.instance_handle))
     }
 }
 
@@ -1059,53 +875,6 @@ impl MailHandler<LookupInstance> for DataWriterActor {
             } else {
                 None
             },
-        )
-    }
-}
-
-pub struct DisposeWTimestamp {
-    pub instance_serialized_key: Data,
-    pub handle: InstanceHandle,
-    pub timestamp: Time,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub now: Time,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for DisposeWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<DisposeWTimestamp> for DataWriterActor {
-    fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
-
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
-        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
-            ChangeKind::NotAliveDisposed,
-            message.instance_serialized_key,
-            inline_qos,
-            message.handle.into(),
-            message.timestamp.into(),
-        );
-
-        self.add_change(
-            change,
-            message.message_sender_actor,
-            message.now,
-            message.data_writer_address,
-            message.executor_handle,
-            message.timer_handle,
         )
     }
 }
@@ -1208,47 +977,6 @@ impl Mail for GetTopicName {
 impl MailHandler<GetTopicName> for DataWriterActor {
     fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
         Ok(self.topic_name.clone())
-    }
-}
-
-pub struct WriteWTimestamp {
-    pub serialized_data: Data,
-    pub instance_handle: InstanceHandle,
-    pub _handle: Option<InstanceHandle>,
-    pub timestamp: Time,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub now: Time,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for WriteWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<WriteWTimestamp> for DataWriterActor {
-    fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
-        let handle = self
-            .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
-            .unwrap_or(HANDLE_NIL);
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_key_hash]);
-        let change = self.rtps_writer.new_change(
-            ChangeKind::Alive,
-            message.serialized_data,
-            parameter_list,
-            handle.into(),
-            message.timestamp.into(),
-        );
-
-        self.add_change(
-            change,
-            message.message_sender_actor,
-            message.now,
-            message.data_writer_address,
-            message.executor_handle,
-            message.timer_handle,
-        )
     }
 }
 
@@ -1602,12 +1330,11 @@ impl MailHandler<AddChange> for DataWriterActor {
             self.max_seq_num = Some(seq_num)
         }
 
-        instance_changes.push_back(message.change);
-
         if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
             let change_lifespan =
                 crate::infrastructure::time::Time::from(change_timestamp) - message.now + lifespan;
             if change_lifespan > Duration::new(0, 0) {
+                instance_changes.push_back(message.change);
                 message.executor_handle.spawn(async move {
                     message.timer_handle.sleep(change_lifespan.into()).await;
 
@@ -1616,9 +1343,9 @@ impl MailHandler<AddChange> for DataWriterActor {
                         .send_actor_mail(RemoveChange { seq_num })
                         .ok();
                 });
-            } else {
-                self.remove_change(seq_num);
             }
+        } else {
+            instance_changes.push_back(message.change);
         }
 
         self.send_message(message.message_sender_actor);
@@ -1633,7 +1360,9 @@ impl Mail for RemoveChange {
 }
 impl MailHandler<RemoveChange> for DataWriterActor {
     fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
-        self.remove_change(message.seq_num)
+        for changes_of_instance in self.changes.values_mut() {
+            changes_of_instance.retain(|cc| !(cc.sequence_number() == message.seq_num));
+        }
     }
 }
 

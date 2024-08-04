@@ -15,7 +15,15 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor,
         },
-        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
+        data_representation_inline_qos::{
+            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
+            types::{
+                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
+            },
+        },
+        payload_serializer_deserializer::{
+            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -32,6 +40,7 @@ use crate::{
         messages::submessage_elements::{Data, Parameter, ParameterList},
         types::ChangeKind,
     },
+    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsSerialize,
 };
 
@@ -166,6 +175,15 @@ where
         instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
+        if !self
+            .writer_address
+            .send_actor_mail(data_writer_actor::IsEnabled)?
+            .receive_reply()
+            .await
+        {
+            return Err(DdsError::NotEnabled);
+        }
+
         let type_support = self
             .topic
             .topic_address()
@@ -209,71 +227,114 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !self
+            .writer_address
+            .send_actor_mail(data_writer_actor::IsEnabled)?
+            .receive_reply()
+            .await
+        {
+            return Err(DdsError::NotEnabled);
+        }
+
         let type_support = self
             .topic
             .topic_address()
             .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
             .await;
-        let has_key = type_support.has_key();
-        if has_key {
-            let instance_handle = match handle {
-                Some(h) => {
-                    if let Some(stored_handle) = self.lookup_instance(instance).await? {
-                        if stored_handle == h {
-                            Ok(h)
-                        } else {
-                            Err(DdsError::PreconditionNotMet(
-                                "Handle does not match instance".to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(DdsError::BadParameter)
-                    }
-                }
-                None => {
-                    if let Some(stored_handle) = self.lookup_instance(instance).await? {
-                        Ok(stored_handle)
+
+        if !type_support.has_key() {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let writer_qos = self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetQos)?
+            .receive_reply()
+            .await;
+        let instance_handle = match handle {
+            Some(h) => {
+                if let Some(stored_handle) = self.lookup_instance(instance).await? {
+                    if stored_handle == h {
+                        Ok(h)
                     } else {
                         Err(DdsError::PreconditionNotMet(
-                            "Instance not registered with this DataWriter".to_string(),
+                            "Handle does not match instance".to_string(),
                         ))
                     }
+                } else {
+                    Err(DdsError::BadParameter)
                 }
-            }?;
+            }
+            None => {
+                if let Some(stored_handle) = self.lookup_instance(instance).await? {
+                    Ok(stored_handle)
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Instance not registered with this DataWriter".to_string(),
+                    ))
+                }
+            }
+        }?;
 
-            let serialized_foo = instance.serialize_data()?;
-            let instance_serialized_key = type_support
-                .get_serialized_key_from_serialized_foo(&serialized_foo)?
-                .into();
+        let serialized_foo = instance.serialize_data()?;
+        let instance_serialized_key = type_support
+            .get_serialized_key_from_serialized_foo(&serialized_foo)?
+            .into();
 
-            let message_sender_actor = self
-                .participant_address()
-                .send_actor_mail(domain_participant_actor::GetMessageSender)?
-                .receive_reply()
-                .await;
-            let now = self
-                .participant_address()
-                .send_actor_mail(domain_participant_actor::GetCurrentTime)?
-                .receive_reply()
-                .await;
+        let message_sender_actor = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetMessageSender)?
+            .receive_reply()
+            .await;
+        let now = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetCurrentTime)?
+            .receive_reply()
+            .await;
 
-            self.writer_address
-                .send_actor_mail(data_writer_actor::UnregisterInstanceWTimestamp {
-                    instance_serialized_key,
-                    handle: instance_handle,
-                    timestamp,
-                    message_sender_actor,
-                    now,
-                    data_writer_address: self.writer_address.clone(),
-                    executor_handle: self.publisher.get_participant().executor_handle().clone(),
-                    timer_handle: self.publisher.get_participant().timer_handle().clone(),
-                })?
-                .receive_reply()
-                .await
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+        if writer_qos
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            STATUS_INFO_DISPOSED_UNREGISTERED
+                .serialize(&mut serializer)
+                .unwrap();
         } else {
-            Err(DdsError::IllegalOperation)
+            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
+        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
+
+        let change = self
+            .writer_address
+            .send_actor_mail(data_writer_actor::NewChange {
+                kind: ChangeKind::NotAliveUnregistered,
+                data: instance_serialized_key,
+                inline_qos,
+                handle: instance_handle,
+                timestamp,
+            })?
+            .receive_reply()
+            .await;
+
+        self.writer_address
+            .send_actor_mail(data_writer_actor::AddChange {
+                change,
+                now,
+                message_sender_actor,
+                writer_address: self.writer_address.clone(),
+                executor_handle: self.publisher.get_participant().executor_handle().clone(),
+                timer_handle: self.publisher.get_participant().timer_handle().clone(),
+            })?
+            .receive_reply()
+            .await;
+
+        Ok(())
     }
 
     /// Async version of [`get_key_value`](crate::publication::data_writer::DataWriter::get_key_value).
@@ -324,6 +385,15 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !self
+            .writer_address
+            .send_actor_mail(data_writer_actor::IsEnabled)?
+            .receive_reply()
+            .await
+        {
+            return Err(DdsError::NotEnabled);
+        }
+
         let writer_qos = self
             .writer_address
             .send_actor_mail(data_writer_actor::GetQos)?
@@ -445,6 +515,15 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !self
+            .writer_address
+            .send_actor_mail(data_writer_actor::IsEnabled)?
+            .receive_reply()
+            .await
+        {
+            return Err(DdsError::NotEnabled);
+        }
+
         let instance_handle = match handle {
             Some(h) => {
                 if let Some(stored_handle) = self.lookup_instance(data).await? {
@@ -477,6 +556,10 @@ where
             .receive_reply()
             .await;
 
+        if !type_support.has_key() {
+            return Err(DdsError::IllegalOperation);
+        }
+
         let serialized_foo = data.serialize_data()?;
         let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
         let message_sender_actor = self
@@ -489,19 +572,40 @@ where
             .send_actor_mail(domain_participant_actor::GetCurrentTime)?
             .receive_reply()
             .await;
-        self.writer_address
-            .send_actor_mail(data_writer_actor::DisposeWTimestamp {
-                instance_serialized_key: key.into(),
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
+
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
+        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
+
+        let change = self
+            .writer_address
+            .send_actor_mail(data_writer_actor::NewChange {
+                kind: ChangeKind::NotAliveDisposed,
+                data: key.into(),
+                inline_qos,
                 handle: instance_handle,
                 timestamp,
-                message_sender_actor,
+            })?
+            .receive_reply()
+            .await;
+
+        self.writer_address
+            .send_actor_mail(data_writer_actor::AddChange {
+                change,
                 now,
-                data_writer_address: self.writer_address.clone(),
+                message_sender_actor,
+                writer_address: self.writer_address.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
             .receive_reply()
-            .await
+            .await;
+
+        Ok(())
     }
 }
 
