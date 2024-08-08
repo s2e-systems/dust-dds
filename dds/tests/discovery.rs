@@ -5,8 +5,9 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
-            DataRepresentationQosPolicy, PartitionQosPolicy, UserDataQosPolicy,
-            XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
+            PartitionQosPolicy, UserDataQosPolicy, XCDR2_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION,
         },
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -850,6 +851,96 @@ fn reader_requesting_xcdr2_should_not_match_writer_offering_xcdr1() {
     let reader_qos = DataReaderQos {
         representation: DataRepresentationQosPolicy {
             value: vec![XCDR2_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    };
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+    let cond = data_reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::RequestedIncompatibleQos])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn writer_offering_exclusive_ownership_should_not_match_reader_requesting_shared_ownership() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Exclusive,
+        },
+        ..Default::default()
+    };
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Shared,
+        },
+        ..Default::default()
+    };
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn reader_requesting_exclusive_ownership_should_not_match_writer_offering_shared_ownership() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Shared,
+        },
+        ..Default::default()
+    };
+    let _data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Exclusive,
         },
         ..Default::default()
     };
