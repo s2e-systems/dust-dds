@@ -4,7 +4,7 @@ use super::{
         types::{Count, FragmentNumber},
     },
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
-    writer_history_cache::WriterHistoryCache,
+    writer_history_cache::RtpsWriterCacheChange,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -164,9 +164,9 @@ impl RtpsReaderProxy {
         next_requested_change
     }
 
-    pub fn next_unsent_change(
-        &self,
-        writer_history_cache: &WriterHistoryCache,
+    pub fn next_unsent_change<'a>(
+        &'a self,
+        writer_history_cache: impl Iterator<Item = &'a RtpsWriterCacheChange>,
     ) -> Option<SequenceNumber> {
         //         unsent_changes :=
         // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
@@ -174,13 +174,15 @@ impl RtpsReaderProxy {
         // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID
         // ELSE return MIN { unsent_changes.sequenceNumber }
         writer_history_cache
-            .change_list()
             .map(|cc| cc.sequence_number())
             .filter(|cc_sn| cc_sn > &self.highest_sent_seq_num)
             .min()
     }
 
-    pub fn unsent_changes(&self, writer_history_cache: &WriterHistoryCache) -> bool {
+    pub fn unsent_changes<'a>(
+        &'a self,
+        writer_history_cache: impl Iterator<Item = &'a RtpsWriterCacheChange>,
+    ) -> bool {
         // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
         self.next_unsent_change(writer_history_cache).is_some()
     }
@@ -202,12 +204,10 @@ impl RtpsReaderProxy {
         }
     }
 
-    pub fn unacked_changes(&self, writer_history_cache: &WriterHistoryCache) -> bool {
+    pub fn unacked_changes(&self, highest_available_seq_num: Option<SequenceNumber>) -> bool {
         // highest_available_seq_num := MAX { change.sequenceNumber }
         // highest_acked_seq_num := MAX { this.acknowledged_changes }
         // return ( highest_available_seq_num > highest_acked_seq_num )
-
-        let highest_available_seq_num = writer_history_cache.get_seq_num_max();
 
         match highest_available_seq_num {
             Some(highest_available_seq_num) => {
