@@ -1,10 +1,5 @@
-use std::{
-    fmt::Debug,
-    io::Write,
-    process::{ExitCode, Termination},
-};
-
 use clap::Parser;
+use ctrlc;
 use dust_dds::{
     domain::{
         domain_participant::DomainParticipant,
@@ -31,6 +26,12 @@ use dust_dds::{
     topic_definition::topic::Topic,
 };
 use rand::{random, thread_rng, Rng};
+use std::{
+    fmt::Debug,
+    io::Write,
+    process::{ExitCode, Termination},
+    sync::mpsc::Receiver,
+};
 
 fn qos_policy_name(id: i32) -> String {
     match id {
@@ -159,6 +160,10 @@ impl Options {
             ));
         }
         Ok(())
+    }
+
+    fn color_for_publisher(&self) -> String {
+        self.color.clone().unwrap_or("BLUE".to_string())
     }
 
     fn reliability_qos_policy(&self) -> ReliabilityQosPolicy {
@@ -401,10 +406,7 @@ fn init_publisher(
     println!(
         "Create writer for topic: {} color: {}",
         options.topic_name,
-        options
-            .color
-            .clone()
-            .expect("Color must be set for publish")
+        options.color_for_publisher()
     );
 
     let mut data_writer_qos = DataWriterQos {
@@ -436,13 +438,14 @@ fn init_publisher(
 fn run_publisher(
     data_writer: &DataWriter<ShapeType>,
     options: Options,
+    all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
     let mut random_gen = thread_rng();
 
     let da_width = 240;
     let da_height = 270;
     let mut shape = ShapeType {
-        color: options.color.unwrap_or("BLUE".to_string()),
+        color: options.color_for_publisher(),
         x: random::<i32>() % da_width,
         y: random::<i32>() % da_height,
         shapesize: options.shapesize,
@@ -460,7 +463,7 @@ fn run_publisher(
         random_gen.gen_range(-5..-1)
     };
 
-    loop {
+    while all_done.try_recv().is_err() {
         if options.shapesize == 0 {
             shape.shapesize += 1;
         }
@@ -481,6 +484,7 @@ fn run_publisher(
             options.write_period_ms as u64,
         ));
     }
+    Ok(())
 }
 
 fn init_subscriber(
@@ -533,8 +537,9 @@ fn init_subscriber(
 fn run_subscriber(
     data_reader: &DataReader<ShapeType>,
     options: Options,
+    all_done: Receiver<()>,
 ) -> Result<(), RunningError> {
-    loop {
+    while all_done.try_recv().is_err() {
         let mut previous_handle = None;
         loop {
             let max_samples = i32::MAX;
@@ -577,6 +582,7 @@ fn run_subscriber(
             ));
         }
     }
+    Ok(())
 }
 
 fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
@@ -668,17 +674,20 @@ impl From<RunningError> for Return {
 }
 
 fn main() -> Result<(), Return> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    ctrlc::set_handler(move || tx.send(()).expect("Could not send signal on channel."))
+        .expect("Error setting Ctrl-C handler");
+
     let options = Options::parse();
     options.validate()?;
     let participant = initialize(&options)?;
     if options.publish {
         let data_writer = init_publisher(&participant, options.clone())?;
-        run_publisher(&data_writer, options.clone())?;
-    }
-
-    if options.subscribe {
+        run_publisher(&data_writer, options.clone(), rx)?;
+    } else {
         let data_reader = init_subscriber(&participant, options.clone())?;
-        run_subscriber(&data_reader, options.clone())?;
+        run_subscriber(&data_reader, options.clone(), rx)?;
     }
     println!("Done.");
     Ok(())
