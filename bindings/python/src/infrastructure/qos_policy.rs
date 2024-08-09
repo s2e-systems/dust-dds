@@ -521,7 +521,7 @@ impl DestinationOrderQosPolicy {
 #[pyclass]
 #[derive(Clone)]
 pub enum HistoryQosPolicyKind {
-    KeepLast { depth: i32 },
+    KeepLast { depth: u32 },
     KeepAll {},
 }
 
