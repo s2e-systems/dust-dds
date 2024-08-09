@@ -1,4 +1,8 @@
-use std::{io::Write, process::{ExitCode, Termination}};
+use std::{
+    fmt::Debug,
+    io::Write,
+    process::{ExitCode, Termination},
+};
 
 use clap::Parser;
 use dust_dds::{
@@ -58,7 +62,7 @@ fn qos_policy_name(id: i32) -> String {
 
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
-struct Cli {
+struct Options {
     /// publish samples
     #[clap(short = 'P', default_value_t = false)]
     publish: bool,
@@ -140,7 +144,23 @@ struct Cli {
     log_message_verbosity: char,
 }
 
-impl Cli {
+impl Options {
+    fn validate(&self) -> Result<(), ParsingError> {
+        if self.subscribe && self.publish || (!self.subscribe && !self.publish) {
+            return Err(ParsingError(
+                "must be either subscribe or publish".to_string(),
+            ));
+        }
+        if self.best_effort_reliability && self.reliable_reliability
+            || (!self.best_effort_reliability && !self.reliable_reliability)
+        {
+            return Err(ParsingError(
+                "reliability must be either best effort or reliable".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
     fn reliability_qos_policy(&self) -> ReliabilityQosPolicy {
         let mut reliability = DataWriterQos::default().reliability;
         if self.best_effort_reliability {
@@ -194,7 +214,7 @@ impl Cli {
         }
     }
 
-    fn ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
+    fn _ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
         if self.ownership_strength < -1 {
             panic!("Ownership strength must be positive or zero")
         }
@@ -203,7 +223,6 @@ impl Cli {
         }
     }
 }
-
 
 #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
 pub struct ShapeType {
@@ -368,33 +387,36 @@ fn move_shape(
 
 fn init_publisher(
     participant: &DomainParticipant,
-    cli: Cli,
-) -> Result<DataWriter<ShapeType>, Error> {
+    options: Options,
+) -> Result<DataWriter<ShapeType>, InitializeError> {
     let topic = participant
-        .lookup_topicdescription(&cli.topic_name)
+        .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
         .expect("topic existes");
     let publisher_qos = QosKind::Specific(PublisherQos {
-        partition: cli.partition_qos_policy(),
+        partition: options.partition_qos_policy(),
         ..Default::default()
     });
     let publisher = participant.create_publisher(publisher_qos, None, NO_STATUS)?;
     println!(
         "Create writer for topic: {} color: {}",
-        cli.topic_name,
-        cli.color.clone().expect("Color must be set for publish")
+        options.topic_name,
+        options
+            .color
+            .clone()
+            .expect("Color must be set for publish")
     );
 
     let mut data_writer_qos = DataWriterQos {
-        durability: cli.durability_qos_policy(),
-        reliability: cli.reliability_qos_policy(),
-        representation: cli.data_representation_qos_policy(),
-        ownership: cli.ownership_qos_policy(),
+        durability: options.durability_qos_policy(),
+        reliability: options.reliability_qos_policy(),
+        representation: options.data_representation_qos_policy(),
+        ownership: options.ownership_qos_policy(),
         ..Default::default()
     };
-    if cli.deadline_interval > 0 {
+    if options.deadline_interval > 0 {
         data_writer_qos.deadline.period =
-            DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
+            DurationKind::Finite(Duration::new(options.deadline_interval, 0));
     }
 
     let data_writer = publisher.create_datawriter::<ShapeType>(
@@ -411,16 +433,19 @@ fn init_publisher(
     Ok(data_writer)
 }
 
-fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
+fn run_publisher(
+    data_writer: &DataWriter<ShapeType>,
+    options: Options,
+) -> Result<(), RunningError> {
     let mut random_gen = thread_rng();
 
     let da_width = 240;
     let da_height = 270;
     let mut shape = ShapeType {
-        color: cli.color.unwrap_or("BLUE".to_string()),
+        color: options.color.unwrap_or("BLUE".to_string()),
         x: random::<i32>() % da_width,
         y: random::<i32>() % da_height,
-        shapesize: cli.shapesize,
+        shapesize: options.shapesize,
     };
 
     // get random non-zero velocity.
@@ -436,59 +461,59 @@ fn run_publisher(data_writer: &DataWriter<ShapeType>, cli: Cli) {
     };
 
     loop {
-        if cli.shapesize == 0 {
+        if options.shapesize == 0 {
             shape.shapesize += 1;
         }
 
         move_shape(&mut shape, &mut x_vel, &mut y_vel, da_width, da_height);
-        data_writer
-            .write(&shape, None)
-            .expect("write shape sample succeeds");
-        if cli.print_writer_samples {
+        data_writer.write(&shape, None)?;
+        if options.print_writer_samples {
             println!(
                 "{:10} {:10} {:03} {:03} [{:}]",
-                cli.topic_name.as_str(),
+                options.topic_name.as_str(),
                 shape.color,
                 shape.x,
                 shape.y,
                 shape.shapesize
             );
         }
-        std::thread::sleep(std::time::Duration::from_millis(cli.write_period_ms as u64));
+        std::thread::sleep(std::time::Duration::from_millis(
+            options.write_period_ms as u64,
+        ));
     }
 }
 
 fn init_subscriber(
     participant: &DomainParticipant,
-    cli: Cli,
-) -> Result<DataReader<ShapeType>, Error> {
+    options: Options,
+) -> Result<DataReader<ShapeType>, InitializeError> {
     let topic = participant
-        .lookup_topicdescription(&cli.topic_name)
+        .lookup_topicdescription(&options.topic_name)
         .expect("lookup_topicdescription succeeds")
         .expect("topic existes");
     let subscriber_qos = QosKind::Specific(SubscriberQos {
-        partition: cli.partition_qos_policy(),
+        partition: options.partition_qos_policy(),
         ..Default::default()
     });
     let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
-    match &cli.color {
+    match &options.color {
         Some(color) => println!(
             "Create reader for topic: {} color: {}",
-            cli.topic_name, color
+            options.topic_name, color
         ),
-        None => println!("Create reader for topic: {} ", cli.topic_name),
+        None => println!("Create reader for topic: {} ", options.topic_name),
     }
 
     let mut data_reader_qos = DataReaderQos {
-        durability: cli.durability_qos_policy(),
-        reliability: cli.reliability_qos_policy(),
-        representation: cli.data_representation_qos_policy(),
-        ownership: cli.ownership_qos_policy(),
+        durability: options.durability_qos_policy(),
+        reliability: options.reliability_qos_policy(),
+        representation: options.data_representation_qos_policy(),
+        ownership: options.ownership_qos_policy(),
         ..Default::default()
     };
-    if cli.deadline_interval > 0 {
+    if options.deadline_interval > 0 {
         data_reader_qos.deadline.period =
-            DurationKind::Finite(Duration::new(cli.deadline_interval, 0));
+            DurationKind::Finite(Duration::new(options.deadline_interval, 0));
     }
 
     let data_reader = subscriber.create_datareader::<ShapeType>(
@@ -505,12 +530,15 @@ fn init_subscriber(
     Ok(data_reader)
 }
 
-fn run_subscriber(data_reader: &DataReader<ShapeType>, cli: Cli) {
+fn run_subscriber(
+    data_reader: &DataReader<ShapeType>,
+    options: Options,
+) -> Result<(), RunningError> {
     loop {
         let mut previous_handle = None;
         loop {
             let max_samples = i32::MAX;
-            let result = if cli.use_read {
+            let samples = if options.use_read {
                 data_reader.read_next_instance(
                     max_samples,
                     previous_handle,
@@ -526,59 +554,35 @@ fn run_subscriber(data_reader: &DataReader<ShapeType>, cli: Cli) {
                     ANY_VIEW_STATE,
                     ANY_INSTANCE_STATE,
                 )
-            };
-            match result {
-                Ok(samples) => {
-                    for sample in samples {
-                        if sample.sample_info().valid_data {
-                            let smaple_data = sample.data().expect("data present");
-                            println!(
-                                "{:10} {:10} {:03} {:03} [{}]",
-                                data_reader.get_topicdescription().get_name(),
-                                smaple_data.color,
-                                smaple_data.x,
-                                smaple_data.y,
-                                smaple_data.shapesize
-                            );
-                            std::io::stdout().flush().expect("flush stdout succeeds");
-                        }
-                        previous_handle = Some(sample.sample_info().instance_handle);
-                    }
+            }?;
+
+            for sample in samples {
+                if sample.sample_info().valid_data {
+                    let smaple_data = sample.data().expect("data present");
+                    println!(
+                        "{:10} {:10} {:03} {:03} [{}]",
+                        data_reader.get_topicdescription().get_name(),
+                        smaple_data.color,
+                        smaple_data.x,
+                        smaple_data.y,
+                        smaple_data.shapesize
+                    );
+                    std::io::stdout().flush().expect("flush stdout succeeds");
                 }
-                Err(_) => break,
+                previous_handle = Some(sample.sample_info().instance_handle);
             }
+
+            std::thread::sleep(std::time::Duration::from_millis(
+                options.read_period_ms as u64,
+            ));
         }
-        std::thread::sleep(std::time::Duration::from_millis(cli.read_period_ms as u64));
     }
 }
 
-#[derive(Debug)]
-struct Error(String);
-impl From<DdsError> for Error {
-    fn from(value: DdsError) -> Self {
-        Self(format!("DDS error: {:?}", value))
-    }
-}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-enum ReturnCode {
-    ERROR_INITIALIZING,
-    ERROR_RUNNING,
-}
-impl Termination for ReturnCode {
-    fn report(self) -> ExitCode {
-        todo!()
-    }
-}
-fn main() -> Result<ExitCode, Error> {
-    let cli = Cli::parse();
+fn initialize(options: &Options) -> Result<DomainParticipant, InitializeError> {
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory.create_participant(
-        cli.domain_id,
+        options.domain_id,
         QosKind::Default,
         Some(Box::new(Listener)),
         &[
@@ -593,32 +597,89 @@ fn main() -> Result<ExitCode, Error> {
             StatusKind::LivelinessChanged,
         ],
     )?;
-    println!("Create topic: {}", cli.topic_name);
+    println!("Create topic: {}", options.topic_name);
     let _topic = participant.create_topic::<ShapeType>(
-        &cli.topic_name,
+        &options.topic_name,
         "ShapeType",
         QosKind::Default,
         None,
         NO_STATUS,
     )?;
-    if cli.subscribe && cli.publish || (!cli.subscribe && !cli.publish) {
-        panic!("must be either subscribe or publish")
+
+    Ok(participant)
+}
+
+struct ParsingError(String);
+struct InitializeError(String);
+struct RunningError(String);
+
+impl From<DdsError> for InitializeError {
+    fn from(value: DdsError) -> Self {
+        Self(format!("{:?}", value))
     }
-    if cli.best_effort_reliability && cli.reliable_reliability
-        || (!cli.best_effort_reliability && !cli.reliable_reliability)
-    {
-        panic!("reliability must be either best effort or reliable")
+}
+impl From<DdsError> for RunningError {
+    fn from(value: DdsError) -> Self {
+        Self(format!("{:?}", value))
+    }
+}
+
+struct Return {
+    code: u8,
+    describtion: String,
+}
+impl Debug for Return {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("code {}: {}", self.code, self.describtion))
+    }
+}
+
+impl Termination for Return {
+    fn report(self) -> ExitCode {
+        self.code.into()
+    }
+}
+
+impl From<ParsingError> for Return {
+    fn from(value: ParsingError) -> Self {
+        Self {
+            code: 1,
+            describtion: value.0,
+        }
+    }
+}
+
+impl From<InitializeError> for Return {
+    fn from(value: InitializeError) -> Self {
+        Self {
+            code: 2,
+            describtion: value.0,
+        }
+    }
+}
+
+impl From<RunningError> for Return {
+    fn from(value: RunningError) -> Self {
+        Self {
+            code: 3,
+            describtion: value.0,
+        }
+    }
+}
+
+fn main() -> Result<(), Return> {
+    let options = Options::parse();
+    options.validate()?;
+    let participant = initialize(&options)?;
+    if options.publish {
+        let data_writer = init_publisher(&participant, options.clone())?;
+        run_publisher(&data_writer, options.clone())?;
     }
 
-    if cli.publish {
-        let data_writer = init_publisher(&participant, cli.clone()).unwrap();
-        run_publisher(&data_writer, cli.clone());
-    }
-
-    if cli.subscribe {
-        let data_reader = init_subscriber(&participant, cli.clone()).unwrap();
-        run_subscriber(&data_reader, cli.clone());
+    if options.subscribe {
+        let data_reader = init_subscriber(&participant, options.clone())?;
+        run_subscriber(&data_reader, options.clone())?;
     }
     println!("Done.");
-    Ok(ExitCode::from(0))
+    Ok(())
 }
