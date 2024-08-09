@@ -43,9 +43,6 @@ impl<T> OneshotSender<T> {
                 w.wake()
             }
         }
-
-        // Don't run the drop since the channel is already woken up with a value
-        std::mem::forget(self)
     }
 }
 
