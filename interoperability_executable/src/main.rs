@@ -16,7 +16,6 @@ use dust_dds::{
         },
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
-        wait_set::{Condition, WaitSet},
     },
     publication::data_writer::DataWriter,
     subscription::{
@@ -85,7 +84,7 @@ struct Options {
     reliable_reliability: bool,
 
     /// keep history depth (-1: use default, 0: KEEP_ALL)
-    #[clap(short = 'k', default_value_t = -1)]
+    #[clap(short = 'k', default_value_t = -1, allow_negative_numbers = true)]
     history_depth: i32,
 
     /// set a 'deadline' with interval (seconds) (0: OFF)
@@ -97,7 +96,7 @@ struct Options {
     timebasedfilter_interval: i32,
 
     /// set ownership strength (-1: SHARED)
-    #[clap(short = 's', default_value_t = -1)]
+    #[clap(short = 's', default_value_t = -1, allow_negative_numbers = true)]
     ownership_strength: i32,
 
     ///  set the topic name
@@ -152,18 +151,22 @@ impl Options {
                 "must be either subscribe or publish".to_string(),
             ));
         }
-        if self.best_effort_reliability && self.reliable_reliability
-            || (!self.best_effort_reliability && !self.reliable_reliability)
-        {
-            return Err(ParsingError(
-                "reliability must be either best effort or reliable".to_string(),
-            ));
-        }
+
         Ok(())
     }
 
     fn color_for_publisher(&self) -> String {
-        self.color.clone().unwrap_or("BLUE".to_string())
+        match self.color.clone() {
+            Some(color) => color,
+            None => {
+                let default_color = "BLUE".to_string();
+                println!(
+                    "warning: color was not specified, defaulting to \"{}\"",
+                    default_color
+                );
+                default_color
+            }
+        }
     }
 
     fn reliability_qos_policy(&self) -> ReliabilityQosPolicy {
@@ -427,11 +430,7 @@ fn init_publisher(
         None,
         NO_STATUS,
     )?;
-    let writer_cond = data_writer.get_statuscondition();
-    writer_cond.set_enabled_statuses(&[StatusKind::PublicationMatched])?;
-    let mut wait_set = WaitSet::new();
-    wait_set.attach_condition(Condition::StatusCondition(writer_cond))?;
-    wait_set.wait(Duration::new(60, 0))?;
+
     Ok(data_writer)
 }
 
@@ -500,13 +499,6 @@ fn init_subscriber(
         ..Default::default()
     });
     let subscriber = participant.create_subscriber(subscriber_qos, None, NO_STATUS)?;
-    match &options.color {
-        Some(color) => println!(
-            "Create reader for topic: {} color: {}",
-            options.topic_name, color
-        ),
-        None => println!("Create reader for topic: {} ", options.topic_name),
-    }
 
     let mut data_reader_qos = DataReaderQos {
         durability: options.durability_qos_policy(),
@@ -520,17 +512,36 @@ fn init_subscriber(
             DurationKind::Finite(Duration::new(options.deadline_interval, 0));
     }
 
-    let data_reader = subscriber.create_datareader::<ShapeType>(
-        &topic,
-        QosKind::Specific(data_reader_qos),
-        None,
-        NO_STATUS,
-    )?;
-    let condition = data_reader.get_statuscondition();
-    condition.set_enabled_statuses(&[StatusKind::SubscriptionMatched])?;
-    let mut wait_set = WaitSet::new();
-    wait_set.attach_condition(Condition::StatusCondition(condition))?;
-    wait_set.wait(Duration::new(60, 0))?;
+    let data_reader = match &options.color {
+        // filter on specified color
+        Some(color) => {
+            let filtered_topic_name = options.topic_name + "_filtered";
+            // return Err(InitializeError(
+            //     "contenfilter topic not implemented".to_string(),
+            // ));
+            println!(
+                "Create reader for topic: {} color: {}",
+                filtered_topic_name, color
+            );
+            subscriber.create_datareader::<ShapeType>(
+                &topic,
+                QosKind::Specific(data_reader_qos),
+                None,
+                NO_STATUS,
+            )?
+        }
+        // No filter on specified color
+        None => {
+            println!("Create reader for topic: {} ", options.topic_name);
+            subscriber.create_datareader::<ShapeType>(
+                &topic,
+                QosKind::Specific(data_reader_qos),
+                None,
+                NO_STATUS,
+            )?
+        }
+    };
+
     Ok(data_reader)
 }
 
@@ -543,7 +554,7 @@ fn run_subscriber(
         let mut previous_handle = None;
         loop {
             let max_samples = i32::MAX;
-            let samples = if options.use_read {
+            let read_result = if options.use_read {
                 data_reader.read_next_instance(
                     max_samples,
                     previous_handle,
@@ -559,27 +570,31 @@ fn run_subscriber(
                     ANY_VIEW_STATE,
                     ANY_INSTANCE_STATE,
                 )
-            }?;
+            };
+            match read_result {
+                Ok(samples) => {
+                    for sample in samples {
+                        if sample.sample_info().valid_data {
+                            let smaple_data = sample.data().expect("data present");
+                            println!(
+                                "{:10} {:10} {:03} {:03} [{}]",
+                                data_reader.get_topicdescription().get_name(),
+                                smaple_data.color,
+                                smaple_data.x,
+                                smaple_data.y,
+                                smaple_data.shapesize
+                            );
+                            std::io::stdout().flush().expect("flush stdout succeeds");
+                        }
+                        previous_handle = Some(sample.sample_info().instance_handle);
+                    }
 
-            for sample in samples {
-                if sample.sample_info().valid_data {
-                    let smaple_data = sample.data().expect("data present");
-                    println!(
-                        "{:10} {:10} {:03} {:03} [{}]",
-                        data_reader.get_topicdescription().get_name(),
-                        smaple_data.color,
-                        smaple_data.x,
-                        smaple_data.y,
-                        smaple_data.shapesize
-                    );
-                    std::io::stdout().flush().expect("flush stdout succeeds");
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        options.read_period_ms as u64,
+                    ));
                 }
-                previous_handle = Some(sample.sample_info().instance_handle);
+                Err(_) => break,
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(
-                options.read_period_ms as u64,
-            ));
         }
     }
     Ok(())
