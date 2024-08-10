@@ -43,8 +43,8 @@ use crate::{
             QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
-            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
-            XCDR_DATA_REPRESENTATION,
+            LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
@@ -892,6 +892,9 @@ impl DataReaderActor {
         if &self.qos.destination_order > writer_info.destination_order() {
             incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
         }
+        if self.qos.ownership.kind != writer_info.ownership().kind {
+            incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
+        }
 
         let writer_offered_representation = writer_info
             .representation()
@@ -1377,7 +1380,7 @@ impl DataReaderActor {
                         cc.instance_handle() == change.instance_handle()
                             && cc.rtps_cache_change.kind == ChangeKind::Alive
                     })
-                    .count() as i32;
+                    .count() as u32;
 
                 if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
                     if depth == num_alive_samples_of_instance {

@@ -358,7 +358,6 @@ impl PartialOrd for DurabilityQosPolicyKind {
                 DurabilityQosPolicyKind::Transient => Some(Ordering::Greater),
                 DurabilityQosPolicyKind::Persistent => Some(Ordering::Equal),
             },
-
         }
     }
 }
@@ -1051,7 +1050,7 @@ impl Default for DestinationOrderQosPolicy {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HistoryQosPolicyKind {
     /// Keep number of samples indicated by the associated value.
-    KeepLast(i32),
+    KeepLast(u32),
     /// Keep all samples.
     KeepAll,
 }
@@ -1061,11 +1060,11 @@ impl CdrSerialize for HistoryQosPolicyKind {
         match self {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 serializer.serialize_u8(0)?;
-                serializer.serialize_i32(*depth)
+                serializer.serialize_u32(*depth)
             }
             HistoryQosPolicyKind::KeepAll => {
                 serializer.serialize_u8(1)?;
-                serializer.serialize_i32(0) // Depth is part of the idl
+                serializer.serialize_u32(0) // Depth is part of the idl
             }
         }
     }
@@ -1074,7 +1073,7 @@ impl CdrSerialize for HistoryQosPolicyKind {
 impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let kind: u8 = CdrDeserialize::deserialize(deserializer)?;
-        let depth: i32 = CdrDeserialize::deserialize(deserializer)?;
+        let depth: u32 = CdrDeserialize::deserialize(deserializer)?;
         match kind {
             0 => Ok(HistoryQosPolicyKind::KeepLast(depth)),
             1 => Ok(HistoryQosPolicyKind::KeepAll),
