@@ -810,6 +810,7 @@ fn get_multicast_socket(
     )?;
 
     socket.set_reuse_address(true)?;
+    socket.set_reuse_port(true)?;
     socket.set_nonblocking(false)?;
     socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
 
