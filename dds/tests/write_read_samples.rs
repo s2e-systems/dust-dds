@@ -2731,6 +2731,19 @@ fn reader_with_exclusive_ownership_should_not_read_samples_from_second_writer() 
         .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
+    let start_time = std::time::Instant::now();
+    while std::time::Instant::now().duration_since(start_time) < std::time::Duration::from_secs(10)
+    {
+        if reader.get_matched_publications().unwrap().len() >= 2 {
+            break;
+        }
+    }
+    assert_eq!(
+        reader.get_matched_publications().unwrap().len(),
+        2,
+        "Reader must have 2 matched writers"
+    );
+
     let cond = writer1.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
@@ -2839,6 +2852,19 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_h
     let reader = subscriber
         .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
+
+    let start_time = std::time::Instant::now();
+    while std::time::Instant::now().duration_since(start_time) < std::time::Duration::from_secs(10)
+    {
+        if reader.get_matched_publications().unwrap().len() >= 2 {
+            break;
+        }
+    }
+    assert_eq!(
+        reader.get_matched_publications().unwrap().len(),
+        2,
+        "Reader must have 2 matched writers"
+    );
 
     let cond = writer1.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
