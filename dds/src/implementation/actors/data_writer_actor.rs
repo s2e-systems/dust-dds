@@ -1489,7 +1489,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
-    if &writer_qos.deadline < discovered_reader_data.deadline() {
+    if &writer_qos.deadline > discovered_reader_data.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
     if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
