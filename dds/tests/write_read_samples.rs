@@ -2741,6 +2741,15 @@ fn reader_with_exclusive_ownership_should_not_read_samples_from_second_writer() 
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
+    let cond = writer2.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
     let data1 = KeyedData { id: 1, value: 10 };
     writer1
         .write_w_timestamp(&data1, None, Time::new(0, 0))
@@ -2748,16 +2757,6 @@ fn reader_with_exclusive_ownership_should_not_read_samples_from_second_writer() 
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
-
-    let cond = writer2.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data2 = KeyedData { id: 1, value: 20 };
     writer2
@@ -2844,7 +2843,15 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_h
     let cond = writer1.get_statuscondition();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
+    let cond = writer2.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
@@ -2858,16 +2865,6 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_h
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
-
-    let cond = writer2.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data2 = KeyedData { id: 1, value: 20 };
     writer2
