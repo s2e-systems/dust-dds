@@ -7,15 +7,6 @@ use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        data_representation_inline_qos::{
-            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-            types::{
-                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
-            },
-        },
-        payload_serializer_deserializer::{
-            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
-        },
         runtime::{
             executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -27,11 +18,12 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataWriterQos, PublisherQos},
         qos_policy::{
-            DurabilityQosPolicyKind, HistoryQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
-            TopicDataQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, INVALID_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
+            DurabilityQosPolicyKind, HistoryQosPolicyKind, Length, QosPolicyId,
+            ReliabilityQosPolicyKind, TopicDataQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID,
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            INVALID_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+            OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            XCDR_DATA_REPRESENTATION,
         },
         status::{
             OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -40,9 +32,7 @@ use crate::{
     },
     rtps::{
         messages::{
-            submessage_elements::{
-                Data, Parameter, ParameterList, SequenceNumberSet, SerializedDataFragment,
-            },
+            submessage_elements::{Data, ParameterList, SequenceNumberSet, SerializedDataFragment},
             submessages::{
                 ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
                 info_destination::InfoDestinationSubmessage,
@@ -56,14 +46,12 @@ use crate::{
             ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
         writer::RtpsWriter,
-        writer_history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+        writer_history_cache::RtpsWriterCacheChange,
     },
-    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsKey,
 };
 use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
+    collections::{HashMap, HashSet, VecDeque},
     thread::JoinHandle,
 };
 
@@ -271,7 +259,8 @@ pub struct DataWriterActor {
     status_condition: Actor<StatusConditionActor>,
     data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
-    writer_cache: WriterHistoryCache,
+    changes: HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    max_seq_num: Option<SequenceNumber>,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
 }
@@ -292,10 +281,6 @@ impl DataWriterActor {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
 
-        let max_changes = match qos.history.kind {
-            HistoryQosPolicyKind::KeepLast(keep_last) => Some(keep_last),
-            HistoryQosPolicyKind::KeepAll => None,
-        };
         DataWriterActor {
             rtps_writer,
             reader_locators: Vec::new(),
@@ -310,7 +295,8 @@ impl DataWriterActor {
             status_condition,
             data_writer_listener_thread,
             status_kind,
-            writer_cache: WriterHistoryCache::new(max_changes),
+            changes: HashMap::new(),
+            max_seq_num: None,
             qos,
             registered_instance_list: HashSet::new(),
         }
@@ -318,48 +304,11 @@ impl DataWriterActor {
 
     pub fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let mut locator = a_locator;
-        if let Some(highest_available_change_sn) = self.writer_cache.get_seq_num_max() {
+        if let Some(highest_available_change_sn) = self.max_seq_num {
             locator.set_highest_sent_change_sn(highest_available_change_sn)
         }
 
         self.reader_locators.push(locator);
-    }
-
-    fn add_change(
-        &mut self,
-        change: RtpsWriterCacheChange,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
-        now: Time,
-        writer_address: ActorAddress<DataWriterActor>,
-        executor_handle: ExecutorHandle,
-        timer_handle: TimerHandle,
-    ) {
-        let seq_num = change.sequence_number();
-
-        if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
-            let change_lifespan =
-                (crate::infrastructure::time::Time::from(change.timestamp()) - now) + lifespan;
-            if change_lifespan > Duration::new(0, 0) {
-                self.writer_cache.add_change(change);
-
-                executor_handle.spawn(async move {
-                    timer_handle.sleep(change_lifespan.into()).await;
-
-                    writer_address
-                        .send_actor_mail(RemoveChange { seq_num })
-                        .ok();
-                });
-            }
-        } else {
-            self.writer_cache.add_change(change);
-        }
-
-        self.send_message(message_sender_actor);
-    }
-
-    fn remove_change(&mut self, seq_num: SequenceNumber) {
-        self.writer_cache
-            .remove_change(|cc| cc.sequence_number() == seq_num)
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
@@ -374,25 +323,6 @@ impl DataWriterActor {
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
-    }
-
-    fn register_instance_w_timestamp(
-        &mut self,
-        instance_handle: InstanceHandle,
-        _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        if !self.registered_instance_list.contains(&instance_handle) {
-            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list.insert(instance_handle);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-        Ok(Some(instance_handle))
     }
 
     fn on_acknack_submessage_received(
@@ -437,15 +367,16 @@ impl DataWriterActor {
             match &self.qos.reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     while let Some(unsent_change_seq_num) =
-                        reader_locator.next_unsent_change(&self.writer_cache)
+                        reader_locator.next_unsent_change(self.changes.values().flatten())
                     {
                         // The post-condition:
                         // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
                         // should be full-filled by next_unsent_change()
 
                         if let Some(cache_change) = self
-                            .writer_cache
-                            .change_list()
+                            .changes
+                            .values()
+                            .flatten()
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
                             let info_ts_submessage = Box::new(InfoTimestampSubmessage::new(
@@ -497,7 +428,7 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_best_effort(
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
-                        &self.writer_cache,
+                        &self.changes,
                         self.rtps_writer.data_max_size_serialized(),
                         message_sender_actor,
                     )
@@ -506,7 +437,13 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_reliable(
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
-                        &self.writer_cache,
+                        &self.changes,
+                        self.changes
+                            .values()
+                            .flatten()
+                            .map(|cc| cc.sequence_number())
+                            .min(),
+                        self.max_seq_num,
                         self.rtps_writer.data_max_size_serialized(),
                         self.rtps_writer.heartbeat_period().into(),
                         message_sender_actor,
@@ -707,7 +644,7 @@ impl Mail for GetInstanceHandle {
 }
 impl MailHandler<GetInstanceHandle> for DataWriterActor {
     fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        self.get_instance_handle()
+        InstanceHandle::new(self.rtps_writer.guid().into())
     }
 }
 
@@ -893,7 +830,6 @@ impl MailHandler<SetQos> for DataWriterActor {
 
 pub struct RegisterInstanceWTimestamp {
     pub instance_handle: InstanceHandle,
-    pub timestamp: Time,
 }
 impl Mail for RegisterInstanceWTimestamp {
     type Result = DdsResult<Option<InstanceHandle>>;
@@ -903,67 +839,18 @@ impl MailHandler<RegisterInstanceWTimestamp> for DataWriterActor {
         &mut self,
         message: RegisterInstanceWTimestamp,
     ) -> <RegisterInstanceWTimestamp as Mail>::Result {
-        self.register_instance_w_timestamp(message.instance_handle, message.timestamp)
-    }
-}
-
-pub struct UnregisterInstanceWTimestamp {
-    pub instance_serialized_key: Data,
-    pub handle: InstanceHandle,
-    pub timestamp: Time,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub now: Time,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for UnregisterInstanceWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<UnregisterInstanceWTimestamp> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: UnregisterInstanceWTimestamp,
-    ) -> <UnregisterInstanceWTimestamp as Mail>::Result {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-        if self
-            .qos
-            .writer_data_lifecycle
-            .autodispose_unregistered_instances
+        if !self
+            .registered_instance_list
+            .contains(&message.instance_handle)
         {
-            STATUS_INFO_DISPOSED_UNREGISTERED
-                .serialize(&mut serializer)
-                .unwrap();
-        } else {
-            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_list
+                    .insert(message.instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
         }
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
-        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
-            ChangeKind::NotAliveUnregistered,
-            message.instance_serialized_key,
-            inline_qos,
-            message.handle.into(),
-            message.timestamp.into(),
-        );
-
-        self.add_change(
-            change,
-            message.message_sender_actor,
-            message.now,
-            message.data_writer_address,
-            message.executor_handle,
-            message.timer_handle,
-        );
-        Ok(())
+        Ok(Some(message.instance_handle))
     }
 }
 
@@ -992,55 +879,6 @@ impl MailHandler<LookupInstance> for DataWriterActor {
     }
 }
 
-pub struct DisposeWTimestamp {
-    pub instance_serialized_key: Data,
-    pub handle: InstanceHandle,
-    pub timestamp: Time,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub now: Time,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for DisposeWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<DisposeWTimestamp> for DataWriterActor {
-    fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
-
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*message.handle.as_ref()));
-        let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        let change: RtpsWriterCacheChange = self.rtps_writer.new_change(
-            ChangeKind::NotAliveDisposed,
-            message.instance_serialized_key,
-            inline_qos,
-            message.handle.into(),
-            message.timestamp.into(),
-        );
-
-        self.add_change(
-            change,
-            message.message_sender_actor,
-            message.now,
-            message.data_writer_address,
-            message.executor_handle,
-            message.timer_handle,
-        );
-
-        Ok(())
-    }
-}
-
 pub struct AreAllChangesAcknowledge;
 impl Mail for AreAllChangesAcknowledge {
     type Result = bool;
@@ -1053,7 +891,7 @@ impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
         !self
             .matched_readers
             .iter()
-            .any(|rp| rp.unacked_changes(&self.writer_cache))
+            .any(|rp| rp.unacked_changes(self.max_seq_num))
     }
 }
 
@@ -1139,49 +977,6 @@ impl Mail for GetTopicName {
 impl MailHandler<GetTopicName> for DataWriterActor {
     fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
         Ok(self.topic_name.clone())
-    }
-}
-
-pub struct WriteWTimestamp {
-    pub serialized_data: Data,
-    pub instance_handle: InstanceHandle,
-    pub _handle: Option<InstanceHandle>,
-    pub timestamp: Time,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub now: Time,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for WriteWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<WriteWTimestamp> for DataWriterActor {
-    fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
-        let handle = self
-            .register_instance_w_timestamp(message.instance_handle, message.timestamp)?
-            .unwrap_or(HANDLE_NIL);
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_key_hash]);
-        let change = self.rtps_writer.new_change(
-            ChangeKind::Alive,
-            message.serialized_data,
-            parameter_list,
-            handle.into(),
-            message.timestamp.into(),
-        );
-
-        self.add_change(
-            change,
-            message.message_sender_actor,
-            message.now,
-            message.data_writer_address,
-            message.executor_handle,
-            message.timer_handle,
-        );
-
-        Ok(())
     }
 }
 
@@ -1294,9 +1089,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     .durability()
                     .kind
                 {
-                    DurabilityQosPolicyKind::Volatile => {
-                        self.writer_cache.get_seq_num_max().unwrap_or(0)
-                    }
+                    DurabilityQosPolicyKind::Volatile => self.max_seq_num.unwrap_or(0),
                     DurabilityQosPolicyKind::TransientLocal
                     | DurabilityQosPolicyKind::Transient
                     | DurabilityQosPolicyKind::Persistent => 0,
@@ -1484,16 +1277,92 @@ impl MailHandler<SetListener> for DataWriterActor {
     }
 }
 
+pub struct NewChange {
+    pub kind: ChangeKind,
+    pub data: Data,
+    pub inline_qos: ParameterList,
+    pub handle: InstanceHandle,
+    pub timestamp: Time,
+}
+impl Mail for NewChange {
+    type Result = RtpsWriterCacheChange;
+}
+impl MailHandler<NewChange> for DataWriterActor {
+    fn handle(&mut self, message: NewChange) -> <NewChange as Mail>::Result {
+        self.rtps_writer.new_change(
+            message.kind,
+            message.data,
+            message.inline_qos,
+            message.handle.into(),
+            message.timestamp.into(),
+        )
+    }
+}
+
+pub struct AddChange {
+    pub change: RtpsWriterCacheChange,
+    pub now: Time,
+    pub message_sender_actor: ActorAddress<MessageSenderActor>,
+    pub writer_address: ActorAddress<DataWriterActor>,
+    pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
+}
+impl Mail for AddChange {
+    type Result = ();
+}
+impl MailHandler<AddChange> for DataWriterActor {
+    fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
+        let instance_changes = self
+            .changes
+            .entry(message.change.instance_handle())
+            .or_default();
+
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if instance_changes.len() == depth as usize {
+                instance_changes.pop_front();
+            }
+        }
+
+        let change_timestamp = message.change.timestamp();
+        let seq_num = message.change.sequence_number();
+
+        if seq_num > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(seq_num)
+        }
+
+        if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
+            let change_lifespan =
+                crate::infrastructure::time::Time::from(change_timestamp) - message.now + lifespan;
+            if change_lifespan > Duration::new(0, 0) {
+                instance_changes.push_back(message.change);
+                message.executor_handle.spawn(async move {
+                    message.timer_handle.sleep(change_lifespan.into()).await;
+
+                    message
+                        .writer_address
+                        .send_actor_mail(RemoveChange { seq_num })
+                        .ok();
+                });
+            }
+        } else {
+            instance_changes.push_back(message.change);
+        }
+
+        self.send_message(message.message_sender_actor);
+    }
+}
+
 pub struct RemoveChange {
     pub seq_num: SequenceNumber,
 }
-
 impl Mail for RemoveChange {
     type Result = ();
 }
 impl MailHandler<RemoveChange> for DataWriterActor {
     fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
-        self.remove_change(message.seq_num)
+        for changes_of_instance in self.changes.values_mut() {
+            changes_of_instance.retain(|cc| cc.sequence_number() != message.seq_num);
+        }
     }
 }
 
@@ -1504,6 +1373,102 @@ impl Mail for GetTopicAddress {
 impl MailHandler<GetTopicAddress> for DataWriterActor {
     fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
         self.topic_address.clone()
+    }
+}
+
+pub struct IsResourcesLimitReached {
+    pub instance_handle: InstanceHandle,
+}
+impl Mail for IsResourcesLimitReached {
+    type Result = bool;
+}
+impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
+    fn handle(
+        &mut self,
+        message: IsResourcesLimitReached,
+    ) -> <IsResourcesLimitReached as Mail>::Result {
+        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
+            if !self.changes.contains_key(&message.instance_handle.into())
+                && self.changes.len() == max_instances as usize
+            {
+                return true;
+            }
+        }
+
+        if let Length::Limited(max_samples_per_instance) =
+            self.qos.resource_limits.max_samples_per_instance
+        {
+            // If the history Qos guarantess that the number of samples
+            // is below the limit there is no need to check
+            match self.qos.history.kind {
+                HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
+                _ => {
+                    if let Some(changes) = self.changes.get(&message.instance_handle.into()) {
+                        // Only Alive changes count towards the resource limits
+                        if changes
+                            .iter()
+                            .filter(|cc| cc.kind() == ChangeKind::Alive)
+                            .count()
+                            >= max_samples_per_instance as usize
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
+            let total_samples = self.changes.iter().fold(0, |acc, (instance, s)| {
+                let mut total_instance_samples =
+                    s.iter().filter(|cc| cc.kind() == ChangeKind::Alive).count();
+                // If the History QoS would remove one of the samples then the limit shouldn't
+                // be reached
+                if InstanceHandle::from(*instance) == message.instance_handle {
+                    if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                        if depth as usize == total_instance_samples {
+                            total_instance_samples -= 1;
+                        }
+                    }
+                }
+                acc + total_instance_samples
+            });
+            if total_samples >= max_samples as usize {
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+pub struct IsDataLostAfterAddingChange {
+    pub instance_handle: InstanceHandle,
+}
+impl Mail for IsDataLostAfterAddingChange {
+    type Result = bool;
+}
+impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
+    fn handle(
+        &mut self,
+        message: IsDataLostAfterAddingChange,
+    ) -> <IsDataLostAfterAddingChange as Mail>::Result {
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if let Some(instance_changes) = self.changes.get(&message.instance_handle.into()) {
+                if instance_changes.len() == depth as usize {
+                    let change_seq_num = instance_changes.front().map(|cc| cc.sequence_number());
+                    if self
+                        .matched_readers
+                        .iter()
+                        .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
+                        .any(|rp| rp.unacked_changes(change_seq_num))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
@@ -1564,7 +1529,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    writer_cache: &WriterHistoryCache,
+    changes: &HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
     data_max_size_serialized: usize,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
@@ -1592,7 +1557,9 @@ fn send_message_to_reader_proxy_best_effort(
     //      send GAP;
     // }
     // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
-    while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(writer_cache) {
+    while let Some(next_unsent_change_seq_num) =
+        reader_proxy.next_unsent_change(changes.values().flatten())
+    {
         if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
             let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
             let gap_end_sequence_number = next_unsent_change_seq_num - 1;
@@ -1611,8 +1578,9 @@ fn send_message_to_reader_proxy_best_effort(
                 .ok();
 
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
-        } else if let Some(cache_change) = writer_cache
-            .change_list()
+        } else if let Some(cache_change) = changes
+            .values()
+            .flatten()
             .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
         {
             let number_of_fragments = cache_change
@@ -1718,17 +1686,22 @@ fn send_message_to_reader_proxy_best_effort(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    writer_cache: &WriterHistoryCache,
+    changes: &HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    seq_num_min: Option<SequenceNumber>,
+    seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
     heartbeat_period: Duration,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
     // Top part of the state machine - Figure 8.19 RTPS standard
-    if reader_proxy.unsent_changes(writer_cache) {
-        while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(writer_cache) {
+    if reader_proxy.unsent_changes(changes.values().flatten()) {
+        while let Some(next_unsent_change_seq_num) =
+            reader_proxy.next_unsent_change(changes.values().flatten())
+        {
             if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
                 let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
                 let gap_end_sequence_number = next_unsent_change_seq_num - 1;
@@ -1738,8 +1711,8 @@ fn send_message_to_reader_proxy_reliable(
                     gap_start_sequence_number,
                     SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                 ));
-                let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
-                let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
+                let first_sn = seq_num_min.unwrap_or(1);
+                let last_sn = seq_num_max.unwrap_or(0);
                 let heartbeat_submessage = Box::new(
                     reader_proxy
                         .heartbeat_machine()
@@ -1755,7 +1728,9 @@ fn send_message_to_reader_proxy_reliable(
                 send_change_message_reader_proxy_reliable(
                     reader_proxy,
                     writer_id,
-                    writer_cache,
+                    changes,
+                    seq_num_min,
+                    seq_num_max,
                     data_max_size_serialized,
                     next_unsent_change_seq_num,
                     message_sender_actor,
@@ -1763,14 +1738,14 @@ fn send_message_to_reader_proxy_reliable(
             }
             reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
         }
-    } else if !reader_proxy.unacked_changes(writer_cache) {
+    } else if !reader_proxy.unacked_changes(seq_num_max) {
         // Idle
     } else if reader_proxy
         .heartbeat_machine()
         .is_time_for_heartbeat(heartbeat_period.into())
     {
-        let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
-        let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
+        let first_sn = seq_num_min.unwrap_or(1);
+        let last_sn = seq_num_max.unwrap_or(0);
         let heartbeat_submessage = Box::new(
             reader_proxy
                 .heartbeat_machine()
@@ -1796,7 +1771,9 @@ fn send_message_to_reader_proxy_reliable(
             send_change_message_reader_proxy_reliable(
                 reader_proxy,
                 writer_id,
-                writer_cache,
+                changes,
+                seq_num_min,
+                seq_num_max,
                 data_max_size_serialized,
                 next_requested_change_seq_num,
                 message_sender_actor,
@@ -1805,16 +1782,20 @@ fn send_message_to_reader_proxy_reliable(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    writer_cache: &WriterHistoryCache,
+    changes: &HashMap<crate::rtps::behavior_types::InstanceHandle, VecDeque<RtpsWriterCacheChange>>,
+    seq_num_min: Option<SequenceNumber>,
+    seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
     change_seq_num: SequenceNumber,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
-    match writer_cache
-        .change_list()
+    match changes
+        .values()
+        .flatten()
         .find(|cc| cc.sequence_number() == change_seq_num)
     {
         Some(cache_change) if change_seq_num > reader_proxy.first_relevant_sample_seq_num() => {
@@ -1896,8 +1877,8 @@ fn send_change_message_reader_proxy_reliable(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
                 );
 
-                let first_sn = writer_cache.get_seq_num_min().unwrap_or(1);
-                let last_sn = writer_cache.get_seq_num_max().unwrap_or(0);
+                let first_sn = seq_num_min.unwrap_or(1);
+                let last_sn = seq_num_max.unwrap_or(0);
                 let heartbeat = Box::new(
                     reader_proxy
                         .heartbeat_machine()

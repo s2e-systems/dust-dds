@@ -1409,7 +1409,7 @@ impl DataReaderActor {
                         cc.instance_handle() == change.instance_handle()
                             && cc.rtps_cache_change.kind == ChangeKind::Alive
                     })
-                    .count() as i32;
+                    .count() as u32;
 
                 if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
                     if depth == num_alive_samples_of_instance {
