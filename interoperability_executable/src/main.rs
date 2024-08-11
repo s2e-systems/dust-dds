@@ -10,7 +10,10 @@ use dust_dds::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
-            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION
+            self, DataRepresentationQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+            HistoryQosPolicyKind, OwnershipQosPolicy, OwnershipQosPolicyKind,
+            OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
+            XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
         },
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
@@ -220,6 +223,18 @@ impl Options {
         }
     }
 
+    fn history_depth_qos_policy(&self) -> HistoryQosPolicy {
+        match self.history_depth {
+            -1 => HistoryQosPolicy::default(),
+            0 => HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+            },
+            x => HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(x as u32),
+            },
+        }
+    }
+
     fn ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
         if self.ownership_strength < -1 {
             panic!("Ownership strength must be positive or zero")
@@ -415,6 +430,7 @@ fn init_publisher(
         reliability: options.reliability_qos_policy(),
         representation: options.data_representation_qos_policy(),
         ownership: options.ownership_qos_policy(),
+        history: options.history_depth_qos_policy(),
         ..Default::default()
     };
     if options.deadline_interval > 0 {
@@ -506,6 +522,7 @@ fn init_subscriber(
         reliability: options.reliability_qos_policy(),
         representation: options.data_representation_qos_policy(),
         ownership: options.ownership_qos_policy(),
+        history: options.history_depth_qos_policy(),
         ..Default::default()
     };
     if options.deadline_interval > 0 {
