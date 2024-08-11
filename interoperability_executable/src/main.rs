@@ -10,9 +10,7 @@ use dust_dds::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
-            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy,
-            OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy,
-            XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION,
+            self, DataRepresentationQosPolicy, DurabilityQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy, ReliabilityQosPolicy, XCDR2_DATA_REPRESENTATION, XCDR_DATA_REPRESENTATION
         },
         status::{InconsistentTopicStatus, StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
@@ -222,7 +220,7 @@ impl Options {
         }
     }
 
-    fn _ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
+    fn ownership_strength_qos_policy(&self) -> OwnershipStrengthQosPolicy {
         if self.ownership_strength < -1 {
             panic!("Ownership strength must be positive or zero")
         }
@@ -423,6 +421,9 @@ fn init_publisher(
         data_writer_qos.deadline.period =
             DurationKind::Finite(Duration::new(options.deadline_interval, 0));
     }
+    if options.ownership_qos_policy().kind == OwnershipQosPolicyKind::Exclusive {
+        data_writer_qos.ownership_strength = options.ownership_strength_qos_policy();
+    }
 
     let data_writer = publisher.create_datawriter::<ShapeType>(
         &topic,
@@ -468,7 +469,7 @@ fn run_publisher(
         }
 
         move_shape(&mut shape, &mut x_vel, &mut y_vel, da_width, da_height);
-        data_writer.write(&shape, None)?;
+        data_writer.write(&shape, None).ok();
         if options.print_writer_samples {
             println!(
                 "{:10} {:10} {:03} {:03} [{:}]",
@@ -636,12 +637,12 @@ struct RunningError(String);
 
 impl From<DdsError> for InitializeError {
     fn from(value: DdsError) -> Self {
-        Self(format!("{:?}", value))
+        Self(format!("DdsError: {:?}", value))
     }
 }
 impl From<DdsError> for RunningError {
     fn from(value: DdsError) -> Self {
-        Self(format!("{:?}", value))
+        Self(format!("DdsError: {:?}", value))
     }
 }
 
