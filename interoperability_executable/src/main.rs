@@ -229,9 +229,10 @@ impl Options {
             0 => HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
-            x => HistoryQosPolicy {
+            x if x >= 1 => HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast(x as u32),
             },
+            _ => panic!("history_depth not valid"),
         }
     }
 
@@ -722,6 +723,9 @@ fn main() -> Result<(), Return> {
         let data_reader = init_subscriber(&participant, options.clone())?;
         run_subscriber(&data_reader, options.clone(), rx)?;
     }
+    participant
+        .delete_contained_entities()
+        .expect("Entites beeing deleted");
     println!("Done.");
     Ok(())
 }
