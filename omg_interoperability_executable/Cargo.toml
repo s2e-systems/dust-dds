@@ -1,0 +1,16 @@
+[package]
+name = "dust_dds_shape_main_linux"
+version = "0.1.0"
+authors = [
+	"Joao Rebelo <jrebelo@s2e-systems.com>",
+	"Stefan Kimmer <skimmer@s2e-systems.com>",
+]
+license = "Apache-2.0"
+edition = "2021"
+description = "OMG DDS_RTPS Interoperability"
+
+[dependencies]
+dust_dds = { path = "../dds" }
+clap = { version = "4.4.11", features = ["derive", "string"] }
+rand = "0.8.5"
+ctrlc = "3.4"

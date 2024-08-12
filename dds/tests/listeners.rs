@@ -81,6 +81,9 @@ fn deadline_missed_listener() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
         ..Default::default()
     };
     let writer = publisher
@@ -864,6 +867,9 @@ fn participant_deadline_missed_listener() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
         ..Default::default()
     };
     let writer = publisher
@@ -1403,6 +1409,9 @@ fn subscriber_deadline_missed_listener() {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };

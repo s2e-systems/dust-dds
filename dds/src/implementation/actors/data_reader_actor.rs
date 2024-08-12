@@ -877,7 +877,7 @@ impl DataReaderActor {
         if &self.qos.durability > writer_info.durability() {
             incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
         }
-        if &self.qos.deadline > writer_info.deadline() {
+        if &self.qos.deadline < writer_info.deadline() {
             incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
         }
         if &self.qos.latency_budget > writer_info.latency_budget() {

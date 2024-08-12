@@ -1,0 +1,54 @@
+name: interoperability
+
+on:
+  workflow_dispatch:
+
+jobs:
+    publish:
+        name: Publish
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout sources
+          uses: actions/checkout@v4
+        - name: Checkout dds-rtps
+          uses: actions/checkout@v4
+          with:
+            repository: omg-dds/dds-rtps
+            ref: 'v1.1.2024'
+            path: omg-dds-rtps
+            sparse-checkout-cone-mode: false
+            sparse-checkout: |
+              interoperability_report.py
+              rtps_test_utilities.py
+        - name: Install stable toolchain
+          uses: actions-rs/toolchain@v1
+          with:
+            profile: minimal
+            toolchain: stable
+            override: true
+        - run: cargo build --package dust_dds_shape_main_linux 
+        - uses: actions/setup-python@v5
+          with:
+            python-version: '3.11.4'
+        - name: Downloads assets
+          uses: robinraju/release-downloader@v1.10
+          with:
+            repository: omg-dds/dds-rtps
+            latest: true
+            fileName: "*"
+        - name: Unzip
+          run: unzip '*.zip' -d executables
+        - name: Setting up environment
+          run: pip install -r requirements.txt
+        - name: Run tests
+          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
+        - name: XUnit
+          uses: AutoModality/action-xunit-viewer@v1
+          with:
+            results: ./report.xml
+            fail: false
+        - name: Upload report
+          uses: actions/upload-artifact@v4
+          with:
+            name: interoperability_report
+            path: ./index.html
