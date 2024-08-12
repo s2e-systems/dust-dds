@@ -35,27 +35,28 @@ use std::{
 
 fn qos_policy_name(id: i32) -> String {
     match id {
-        qos_policy::USERDATA_QOS_POLICY_ID => "USERDATA",
-        qos_policy::DURABILITY_QOS_POLICY_ID => "DURABILITY",
-        qos_policy::PRESENTATION_QOS_POLICY_ID => "PRESENTATION",
+        qos_policy::DATA_REPRESENTATION_QOS_POLICY_ID => "DATAREPRESENTATION",
         qos_policy::DEADLINE_QOS_POLICY_ID => "DEADLINE",
-        qos_policy::LATENCYBUDGET_QOS_POLICY_ID => "LATENCYBUDGET",
-        qos_policy::OWNERSHIP_QOS_POLICY_ID => "OWNERSHIP",
-        qos_policy::LIVELINESS_QOS_POLICY_ID => "LIVELINESS",
-        qos_policy::TIMEBASEDFILTER_QOS_POLICY_ID => "TIMEBASEDFILTER",
-        qos_policy::PARTITION_QOS_POLICY_ID => "PARTITION",
-        qos_policy::RELIABILITY_QOS_POLICY_ID => "RELIABILITY",
         qos_policy::DESTINATIONORDER_QOS_POLICY_ID => "DESTINATIONORDER",
-        qos_policy::HISTORY_QOS_POLICY_ID => "HISTORY",
-        qos_policy::RESOURCELIMITS_QOS_POLICY_ID => "RESOURCELIMITS",
-        qos_policy::ENTITYFACTORY_QOS_POLICY_ID => "ENTITYFACTORY",
-        qos_policy::WRITERDATALIFECYCLE_QOS_POLICY_ID => "WRITERDATALIFECYCLE",
-        qos_policy::READERDATALIFECYCLE_QOS_POLICY_ID => "READERDATALIFECYCLE",
-        qos_policy::TOPICDATA_QOS_POLICY_ID => "TOPICDATA",
-        qos_policy::GROUPDATA_QOS_POLICY_ID => "GROUPDATA",
-        qos_policy::TRANSPORTPRIORITY_QOS_POLICY_ID => "TRANSPORTPRIORITY",
-        qos_policy::LIFESPAN_QOS_POLICY_ID => "LIFESPAN",
+        qos_policy::DURABILITY_QOS_POLICY_ID => "DURABILITY",
         qos_policy::DURABILITYSERVICE_QOS_POLICY_ID => "DURABILITYSERVICE",
+        qos_policy::ENTITYFACTORY_QOS_POLICY_ID => "ENTITYFACTORY",
+        qos_policy::GROUPDATA_QOS_POLICY_ID => "GROUPDATA",
+        qos_policy::HISTORY_QOS_POLICY_ID => "HISTORY",
+        qos_policy::LATENCYBUDGET_QOS_POLICY_ID => "LATENCYBUDGET",
+        qos_policy::LIFESPAN_QOS_POLICY_ID => "LIFESPAN",
+        qos_policy::LIVELINESS_QOS_POLICY_ID => "LIVELINESS",
+        qos_policy::OWNERSHIP_QOS_POLICY_ID => "OWNERSHIP",
+        qos_policy::PARTITION_QOS_POLICY_ID => "PARTITION",
+        qos_policy::PRESENTATION_QOS_POLICY_ID => "PRESENTATION",
+        qos_policy::READERDATALIFECYCLE_QOS_POLICY_ID => "READERDATALIFECYCLE",
+        qos_policy::RELIABILITY_QOS_POLICY_ID => "RELIABILITY",
+        qos_policy::RESOURCELIMITS_QOS_POLICY_ID => "RESOURCELIMITS",
+        qos_policy::TIMEBASEDFILTER_QOS_POLICY_ID => "TIMEBASEDFILTER",
+        qos_policy::TOPICDATA_QOS_POLICY_ID => "TOPICDATA",
+        qos_policy::TRANSPORTPRIORITY_QOS_POLICY_ID => "TRANSPORTPRIORITY",
+        qos_policy::USERDATA_QOS_POLICY_ID => "USERDATA",
+        qos_policy::WRITERDATALIFECYCLE_QOS_POLICY_ID => "WRITERDATALIFECYCLE",
         _ => "UNKNOWN",
     }
     .to_string()
@@ -285,13 +286,15 @@ impl DomainParticipantListener for Listener {
         the_writer: dust_dds::publication::data_writer::DataWriter<()>,
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) {
-        println!(
+        if !the_writer.get_topic().get_name().starts_with("DCPS") {
+            println!(
             "on_publication_matched() topic: '{}'  type: '{}' : matched readers {} (change = {})",
             the_writer.get_topic().get_name(),
             the_writer.get_topic().get_type_name(),
             status.current_count,
             status.current_count_change
         );
+        }
     }
 
     fn on_offered_deadline_missed(
@@ -342,13 +345,19 @@ impl DomainParticipantListener for Listener {
         the_reader: DataReader<()>,
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
-        println!(
+        if !the_reader
+            .get_topicdescription()
+            .get_name()
+            .starts_with("DCPS")
+        {
+            println!(
             "on_subscription_matched() topic: '{}'  type: '{}' : matched writers {} (change = {})",
             the_reader.get_topicdescription().get_name(),
             the_reader.get_topicdescription().get_type_name(),
             status.current_count,
             status.current_count_change
         );
+        }
     }
 
     fn on_requested_deadline_missed(
