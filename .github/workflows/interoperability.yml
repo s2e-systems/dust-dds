@@ -9,7 +9,17 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         - name: Checkout sources
-          uses: actions/checkout@v2
+          uses: actions/checkout@v4
+        - name: Checkout dds-rtps
+          uses: actions/checkout@v4
+          with:
+            repository: omg-dds/dds-rtps
+            ref: 'v1.1.2024'
+            path: omg-dds-rtps
+            sparse-checkout-cone-mode: false
+            sparse-checkout: |
+              interoperability_report.py
+              rtps_test_utilities.py
         - name: Install stable toolchain
           uses: actions-rs/toolchain@v1
           with:
@@ -31,7 +41,7 @@ jobs:
         - name: Setting up environment
           run: pip install -r requirements.txt
         - name: Run tests
-          run: python3 ./interoperability_executable/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
+          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
         - name: XUnit
           uses: AutoModality/action-xunit-viewer@v1
           with:
