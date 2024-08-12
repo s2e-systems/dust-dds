@@ -7,7 +7,7 @@ authors = [
 ]
 license = "Apache-2.0"
 edition = "2021"
-description = "Dust DDS Shapes Demo"
+description = "OMG DDS_RTPS Interoperability"
 
 [dependencies]
 dust_dds = { path = "../dds" }
