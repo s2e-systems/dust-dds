@@ -19,6 +19,7 @@ jobs:
             sparse-checkout-cone-mode: false
             sparse-checkout: |
               interoperability_report.py
+              test_suite.py
               rtps_test_utilities.py
               requirements.txt
         - name: Install stable toolchain
