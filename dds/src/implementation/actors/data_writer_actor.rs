@@ -1517,8 +1517,8 @@ fn get_discovered_reader_incompatible_qos_policy_list(
         .representation()
         .value
         .contains(writer_offered_representation)
-        || writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty())
+        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
+            && discovered_reader_data.representation().value.is_empty()))
     {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
