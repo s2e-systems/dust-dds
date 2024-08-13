@@ -17,7 +17,7 @@ use crate::{
         },
     },
 };
-use std::io::{Read, Write};
+use std::io::{BufRead, Read, Write};
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
@@ -158,6 +158,8 @@ type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
@@ -242,6 +244,18 @@ where
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         CDR_LE => {
+            let mut deserializer =
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+        }
+        D_CDR2_BE => {
+            serialized_data.consume(4);
+            let mut deserializer =
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+        }
+        D_CDR2_LE => {
+            serialized_data.consume(4);
             let mut deserializer =
                 ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
