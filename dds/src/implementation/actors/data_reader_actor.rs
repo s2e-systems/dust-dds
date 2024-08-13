@@ -1373,6 +1373,22 @@ impl DataReaderActor {
             );
         }
 
+        match change.rtps_cache_change.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (),
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                // Drop the ownership and stop the deadline task
+                self.instance_ownership.remove(&change.instance_handle());
+                if let Some(t) = self
+                    .instance_deadline_missed_task
+                    .remove(&change.instance_handle())
+                {
+                    t.abort();
+                }
+            }
+        }
+
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(
