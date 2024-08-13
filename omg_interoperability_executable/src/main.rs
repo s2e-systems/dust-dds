@@ -718,12 +718,13 @@ impl From<RunningError> for Return {
 
 fn main() -> Result<(), Return> {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
-    // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-    // will be written to stdout.
-    .with_max_level(tracing::Level::DEBUG)
-    .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ACTIVE)
-    // completes the builder.
-    .finish();
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(tracing::Level::DEBUG)
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ACTIVE)
+        .with_writer(std::io::stderr)
+        // completes the builder.
+        .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
