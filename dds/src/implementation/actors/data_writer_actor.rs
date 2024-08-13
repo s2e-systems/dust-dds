@@ -1359,6 +1359,7 @@ impl MailHandler<AddChange> for DataWriterActor {
                 deadline_missed_period.sec() as u64,
                 deadline_missed_period.nanosec(),
             );
+            let writer_status_condition = self.status_condition.address();
             let writer_address = message.writer_address.clone();
             let timer_handle = message.timer_handle.clone();
             let writer_listener_mask = self.status_kind.clone();
@@ -1462,6 +1463,12 @@ impl MailHandler<AddChange> for DataWriterActor {
                                     .ok();
                             }
                         }
+                        writer_status_condition
+                            .send_actor_mail(AddCommunicationState {
+                                state: StatusKind::OfferedDeadlineMissed,
+                            })?
+                            .receive_reply()
+                            .await;
                         Ok(())
                     }
                     .await;
