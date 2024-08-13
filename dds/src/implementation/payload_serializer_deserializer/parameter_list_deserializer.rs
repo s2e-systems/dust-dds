@@ -84,7 +84,11 @@ impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                return T::deserialize(&mut ClassicCdrDeserializer::new(p.data(), self.endianness));
+                return T::deserialize(&mut ClassicCdrDeserializer::new(
+                    p.data(),
+                    self.endianness,
+                    false,
+                ));
             }
         }
 
@@ -102,7 +106,11 @@ impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
             if p.id() == id {
-                return T::deserialize(&mut ClassicCdrDeserializer::new(p.data(), self.endianness));
+                return T::deserialize(&mut ClassicCdrDeserializer::new(
+                    p.data(),
+                    self.endianness,
+                    false,
+                ));
             }
         }
 
@@ -121,6 +129,7 @@ impl<'de> ParameterListDeserializer<'de> for ParameterListCdrDeserializer<'de> {
                 parameter_values.push(T::deserialize(&mut ClassicCdrDeserializer::new(
                     p.data(),
                     self.endianness,
+                    false,
                 ))?);
             }
         }

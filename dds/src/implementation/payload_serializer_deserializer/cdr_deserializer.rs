@@ -257,7 +257,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::BigEndian);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::BigEndian, false);
         Ok(T::deserialize(&mut deserializer)?)
     }
 
@@ -265,7 +265,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian, false);
         Ok(T::deserialize(&mut deserializer)?)
     }
 
