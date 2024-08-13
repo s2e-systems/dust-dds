@@ -36,18 +36,11 @@ jobs:
         - name: Unzip
           run: unzip '*.zip' -d executables
         - name: Setting up environment
-          run: |
-            python3 -m venv .venv
-            source .venv/bin/activate
-            pip install -r omg-dds-rtps/requirements.txt
-        - name: Run P Dust - S Dust
-          run: |
-            source .venv/bin/activate
-            python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml -t Test_Domain_0 -v
-        # - name: Run P Dust - S Connext
-        #   run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
-        # - name: Run P Connext - S Connext
-        #   run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+          run: pip install -r omg-dds-rtps/requirements.txt
+        - name: Publisher Dust - Subscriber Connext
+          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+        - name: Publisher Connext - Subscriber Dust
+          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
         - name: XUnit
           uses: AutoModality/action-xunit-viewer@v1
           with:
