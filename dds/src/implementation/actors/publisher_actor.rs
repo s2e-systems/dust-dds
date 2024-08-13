@@ -51,7 +51,7 @@ use super::{
 
 pub enum PublisherListenerOperation {
     _LivelinessLost(LivelinessLostStatus),
-    _OfferedDeadlineMissed(OfferedDeadlineMissedStatus),
+    OfferedDeadlineMissed(OfferedDeadlineMissedStatus),
     OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
     PublicationMatched(PublicationMatchedStatus),
 }
@@ -85,7 +85,7 @@ impl PublisherListenerThread {
                         PublisherListenerOperation::_LivelinessLost(status) => {
                             listener.on_liveliness_lost(data_writer, status).await
                         }
-                        PublisherListenerOperation::_OfferedDeadlineMissed(status) => {
+                        PublisherListenerOperation::OfferedDeadlineMissed(status) => {
                             listener
                                 .on_offered_deadline_missed(data_writer, status)
                                 .await
@@ -608,6 +608,24 @@ impl MailHandler<SetListener> for PublisherActor {
         self.publisher_listener_thread = message.listener.map(PublisherListenerThread::new);
         self.status_kind = message.status_kind;
         Ok(())
+    }
+}
+
+pub struct GetListener;
+impl Mail for GetListener {
+    type Result = (
+        Option<MpscSender<PublisherListenerMessage>>,
+        Vec<StatusKind>,
+    );
+}
+impl MailHandler<GetListener> for PublisherActor {
+    fn handle(&mut self, _: GetListener) -> <GetListener as Mail>::Result {
+        (
+            self.publisher_listener_thread
+                .as_ref()
+                .map(|l| l.sender().clone()),
+            self.status_kind.clone(),
+        )
     }
 }
 

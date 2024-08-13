@@ -1311,6 +1311,10 @@ pub struct AddChange {
     pub now: Time,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub writer_address: ActorAddress<DataWriterActor>,
+    pub publisher_mask_listener: (
+        Option<MpscSender<PublisherListenerMessage>>,
+        Vec<StatusKind>,
+    ),
     pub publisher: PublisherAsync,
     pub executor_handle: ExecutorHandle,
     pub timer_handle: TimerHandle,
@@ -1358,6 +1362,8 @@ impl MailHandler<AddChange> for DataWriterActor {
                 .data_writer_listener_thread
                 .as_ref()
                 .map(|l| l.sender().clone());
+            let publisher_listener = message.publisher_mask_listener.0.clone();
+            let publisher_listener_mask = message.publisher_mask_listener.1.clone();
             let status_condition_address = self.status_condition.address();
             let topic_address = self.topic_address.clone();
             let topic_status_condition_address = self.topic_status_condition.clone();
@@ -1368,8 +1374,8 @@ impl MailHandler<AddChange> for DataWriterActor {
             let deadline_missed_task = message.executor_handle.spawn(async move {
                 loop {
                     timer_handle.sleep(deadline_missed_interval).await;
-                    // let subscriber_listener = subscriber_listener.clone();
-                    // let participant_listener = participant_listener.clone();
+                    let publisher_listener = publisher_listener.clone();
+
                     let r: DdsResult<()> = async {
                         writer_address.send_actor_mail(IncrementOfferedDeadlineMissedStatus {
                             instance_handle: change_instance_handle.into(),
@@ -1395,6 +1401,27 @@ impl MailHandler<AddChange> for DataWriterActor {
                                     .send(DataWriterListenerMessage {
                                         listener_operation:
                                             DataWriterListenerOperation::OfferedDeadlineMissed(
+                                                status,
+                                            ),
+                                        writer_address,
+                                        status_condition_address,
+                                        publisher,
+                                        topic,
+                                    })
+                                    .ok();
+                            }
+                        } else if publisher_listener_mask
+                            .contains(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = writer_address
+                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                .receive_reply()
+                                .await;
+                            if let Some(listener) = publisher_listener {
+                                listener
+                                    .send(PublisherListenerMessage {
+                                        listener_operation:
+                                            PublisherListenerOperation::OfferedDeadlineMissed(
                                                 status,
                                             ),
                                         writer_address,
@@ -1583,7 +1610,7 @@ impl Mail for GetOfferedDeadlineMissedStatus {
 impl MailHandler<GetOfferedDeadlineMissedStatus> for DataWriterActor {
     fn handle(
         &mut self,
-        _message: GetOfferedDeadlineMissedStatus,
+        _: GetOfferedDeadlineMissedStatus,
     ) -> <GetOfferedDeadlineMissedStatus as Mail>::Result {
         let status = self.offered_deadline_missed_status.clone();
         self.offered_deadline_missed_status.total_count_change = 0;

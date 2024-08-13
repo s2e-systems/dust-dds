@@ -319,12 +319,18 @@ where
             .receive_reply()
             .await;
 
+        let publisher_mask_listener = self
+            .publisher_address()
+            .send_actor_mail(publisher_actor::GetListener)?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
                 change,
                 now,
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
+                publisher_mask_listener,
                 publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
@@ -478,12 +484,18 @@ where
             }
         }
 
+        let publisher_mask_listener = self
+            .publisher_address()
+            .send_actor_mail(publisher_actor::GetListener)?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
                 change,
                 now,
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
+                publisher_mask_listener,
                 publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
@@ -591,12 +603,18 @@ where
             .receive_reply()
             .await;
 
+        let publisher_mask_listener = self
+            .publisher_address()
+            .send_actor_mail(publisher_actor::GetListener)?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
                 change,
                 now,
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
+                publisher_mask_listener,
                 publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
