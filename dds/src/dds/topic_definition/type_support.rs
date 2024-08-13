@@ -17,7 +17,7 @@ use crate::{
         },
     },
 };
-use std::io::{Read, Write};
+use std::io::{BufRead, Read, Write};
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
@@ -158,6 +158,10 @@ type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
@@ -218,51 +222,6 @@ pub fn serialize_rtps_cdr_pl_be(value: &impl ParameterListSerialize) -> DdsResul
     Ok(writer)
 }
 
-/// This is a helper function to deserialize a type implementing both [`CdrDeserialize`] and [`ParameterListDeserialize`] using either
-/// the RTPS classic CDR or Parameter List representation.
-/// The representation to be used is automatically determined from the representation identifier and options
-pub fn deserialize_rtps<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
-where
-    T: CdrDeserialize<'de> + ParameterListDeserialize<'de>,
-{
-    let mut representation_identifier = [0u8, 0];
-    serialized_data
-        .read_exact(&mut representation_identifier)
-        .map_err(|err| DdsError::Error(err.to_string()))?;
-
-    let mut representation_option = [0u8, 0];
-    serialized_data
-        .read_exact(&mut representation_option)
-        .map_err(|err| DdsError::Error(err.to_string()))?;
-
-    let value = match representation_identifier {
-        CDR_BE => {
-            let mut deserializer =
-                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
-            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
-        }
-        CDR_LE => {
-            let mut deserializer =
-                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
-            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
-        }
-        PL_CDR_BE => {
-            let mut deserializer =
-                ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
-            Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
-        }
-        PL_CDR_LE => {
-            let mut deserializer =
-                ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
-            Ok(ParameterListDeserialize::deserialize(&mut deserializer)?)
-        }
-        _ => Err(DdsError::Error(
-            "Unknownn representation identifier".to_string(),
-        )),
-    }?;
-    Ok(value)
-}
-
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
 /// The representation endianness to be used is automatically determined from the representation identifier and options
 pub fn deserialize_rtps_classic_cdr<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
@@ -283,11 +242,41 @@ where
         CDR_BE => Ok(ClassicCdrDeserializer::new(
             serialized_data,
             CdrEndianness::BigEndian,
+            false,
         )),
         CDR_LE => Ok(ClassicCdrDeserializer::new(
             serialized_data,
             CdrEndianness::LittleEndian,
+            false,
         )),
+        CDR2_BE => Ok(ClassicCdrDeserializer::new(
+            serialized_data,
+            CdrEndianness::BigEndian,
+            true,
+        )),
+        CDR2_LE => Ok(ClassicCdrDeserializer::new(
+            serialized_data,
+            CdrEndianness::LittleEndian,
+            true,
+        )),
+        D_CDR2_BE => {
+            // Ignore DHEADER
+            serialized_data.consume(4);
+            Ok(ClassicCdrDeserializer::new(
+                serialized_data,
+                CdrEndianness::BigEndian,
+                true,
+            ))
+        }
+        D_CDR2_LE => {
+            // Ignore DHEADER
+            serialized_data.consume(4);
+            Ok(ClassicCdrDeserializer::new(
+                serialized_data,
+                CdrEndianness::LittleEndian,
+                true,
+            ))
+        }
         _ => Err(DdsError::Error(
             "Unknownn representation identifier".to_string(),
         )),

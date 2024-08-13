@@ -8,14 +8,16 @@ pub struct ClassicCdrDeserializer<'de> {
     bytes: &'de [u8],
     reader: &'de [u8],
     endianness: CdrEndianness,
+    is_xcdr2: bool,
 }
 
 impl<'de> ClassicCdrDeserializer<'de> {
-    pub fn new(reader: &'de [u8], endianness: CdrEndianness) -> Self {
+    pub fn new(reader: &'de [u8], endianness: CdrEndianness, is_xcdr2: bool) -> Self {
         Self {
             bytes: reader,
             reader,
             endianness,
+            is_xcdr2
         }
     }
 
@@ -23,7 +25,11 @@ impl<'de> ClassicCdrDeserializer<'de> {
         // Calculate the required padding to align with 1-byte, 2-byte, 4-byte, 8-byte
         // boundaries Instead of using the slow modulo operation '%', the faster
         // bit-masking is used
-        let alignment = std::mem::size_of::<T>();
+        let alignment = if self.is_xcdr2 && std::mem::size_of::<T>() > 4 {
+            4
+        } else {
+            std::mem::size_of::<T>()
+        };
         let rem_mask = alignment - 1; // mask like 0x0, 0x1, 0x3, 0x7
         let mut padding: [u8; 8] = [0; 8];
         let pos = self.bytes.len() - self.reader.len();
@@ -251,7 +257,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::BigEndian);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::BigEndian, false);
         Ok(T::deserialize(&mut deserializer)?)
     }
 
@@ -259,7 +265,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian, false);
         Ok(T::deserialize(&mut deserializer)?)
     }
 

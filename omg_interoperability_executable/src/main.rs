@@ -722,7 +722,7 @@ fn main() -> Result<(), Return> {
     ctrlc::set_handler(move || tx.send(()).expect("Could not send signal on channel."))
         .expect("Error setting Ctrl-C handler");
 
-    let options = Options::parse();
+    let options = Options::parse();    
     options.validate()?;
     let participant = initialize(&options)?;
     if options.publish {

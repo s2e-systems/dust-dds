@@ -1269,7 +1269,7 @@ impl DataReaderActor {
             .find(|&x| x.parameter_id() == PID_STATUS_INFO)
         {
             let mut deserializer =
-                ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian);
+                ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian, false);
             let status_info: StatusInfo = CdrDeserialize::deserialize(&mut deserializer).unwrap();
             match status_info {
                 STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
