@@ -325,6 +325,7 @@ where
                 now,
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
+                publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
@@ -483,6 +484,7 @@ where
                 now,
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
+                publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
@@ -595,6 +597,7 @@ where
                 now,
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
+                publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
             })?
