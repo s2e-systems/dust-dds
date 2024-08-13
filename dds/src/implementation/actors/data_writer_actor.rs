@@ -331,7 +331,9 @@ impl DataWriterActor {
         source_guid_prefix: GuidPrefix,
         message_sender_actor: ActorAddress<MessageSenderActor>,
     ) {
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
+            && &self.rtps_writer.guid().entity_id() == acknack_submessage.writer_id()
+        {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
 
             if let Some(reader_proxy) = self

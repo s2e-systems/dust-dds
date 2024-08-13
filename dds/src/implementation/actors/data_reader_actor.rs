@@ -40,7 +40,7 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos},
         qos_policy::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
-            QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+            OwnershipQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
@@ -386,6 +386,7 @@ pub struct DataReaderActor {
     status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
+    instance_ownership: HashMap<InstanceHandle, Guid>,
 }
 
 impl DataReaderActor {
@@ -429,6 +430,7 @@ impl DataReaderActor {
             qos,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
+            instance_ownership: HashMap::new(),
         }
     }
 
@@ -1344,6 +1346,33 @@ impl DataReaderActor {
         executor_handle: &ExecutorHandle,
         timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
+        // For exclusive access if the writer is not the allowed to write the sample do an early return
+        if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
+            // Get the InstanceHandle of the data writer owning this instance
+            if let Some(&instance_owner_handle) =
+                self.instance_ownership.get(&change.instance_handle())
+            {
+                let instance_owner = InstanceHandle::new(instance_owner_handle.into());
+                let instance_writer =
+                    InstanceHandle::new(change.rtps_cache_change.writer_guid.into());
+                if instance_owner_handle != change.rtps_cache_change.writer_guid
+                    && self.matched_publication_list[&instance_writer]
+                        .ownership_strength()
+                        .value
+                        <= self.matched_publication_list[&instance_owner]
+                            .ownership_strength()
+                            .value
+                {
+                    return Ok(());
+                }
+            }
+
+            self.instance_ownership.insert(
+                change.instance_handle(),
+                change.rtps_cache_change.writer_guid,
+            );
+        }
+
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(

@@ -44,7 +44,7 @@ impl AckNackSubmessage {
         &self.reader_id
     }
 
-    pub fn _writer_id(&self) -> &EntityId {
+    pub fn writer_id(&self) -> &EntityId {
         &self.writer_id
     }
 
@@ -148,7 +148,7 @@ mod tests {
 
         assert_eq!(expected_final_flag, submessage._final_flag());
         assert_eq!(&expected_reader_id, submessage.reader_id());
-        assert_eq!(&expected_writer_id, submessage._writer_id());
+        assert_eq!(&expected_writer_id, submessage.writer_id());
         assert_eq!(&expected_reader_sn_state, submessage.reader_sn_state());
         assert_eq!(expected_count, submessage.count());
     }
