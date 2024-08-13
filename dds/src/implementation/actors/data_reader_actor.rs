@@ -1800,13 +1800,13 @@ impl DataReaderActor {
                                     })
                                     .ok();
                             }
-                            reader_status_condition
-                                .send_actor_mail(AddCommunicationState {
-                                    state: StatusKind::RequestedDeadlineMissed,
-                                })?
-                                .receive_reply()
-                                .await;
                         }
+                        reader_status_condition
+                            .send_actor_mail(AddCommunicationState {
+                                state: StatusKind::RequestedDeadlineMissed,
+                            })?
+                            .receive_reply()
+                            .await;
                         Ok(())
                     }
                     .await;
