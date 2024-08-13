@@ -158,6 +158,8 @@ type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
@@ -240,24 +242,36 @@ where
     let value = match representation_identifier {
         CDR_BE => {
             let mut deserializer =
-                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian, false);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         CDR_LE => {
             let mut deserializer =
-                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian, false);
+            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+        }
+        CDR2_BE => {
+            let mut deserializer =
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian, true);
+            Ok(CdrDeserialize::deserialize(&mut deserializer)?)
+        }
+        CDR2_LE => {
+            let mut deserializer =
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian, true);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         D_CDR2_BE => {
+            // Ignore DHEADER
             serialized_data.consume(4);
             let mut deserializer =
-                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian);
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::BigEndian, true);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         D_CDR2_LE => {
+            // Ignore DHEADER
             serialized_data.consume(4);
             let mut deserializer =
-                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+                ClassicCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian, true);
             Ok(CdrDeserialize::deserialize(&mut deserializer)?)
         }
         PL_CDR_BE => {
