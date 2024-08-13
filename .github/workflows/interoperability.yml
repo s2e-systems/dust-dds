@@ -24,6 +24,11 @@ jobs:
               requirements.txt
         - uses: dtolnay/rust-toolchain@stable
         - run: cargo build --package dust_dds_shape_main_linux 
+        - run: |
+              cargo run --example hello_world_publisher &
+              pid=$!
+              cargo run --example hello_world_subscriber
+              wait $pid
         - uses: actions/setup-python@v5
           with:
             python-version: '3.11.4'
