@@ -1491,7 +1491,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
-    if &writer_qos.deadline < discovered_reader_data.deadline() {
+    if &writer_qos.deadline > discovered_reader_data.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
     if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
@@ -1519,8 +1519,8 @@ fn get_discovered_reader_incompatible_qos_policy_list(
         .representation()
         .value
         .contains(writer_offered_representation)
-        || writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty())
+        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
+            && discovered_reader_data.representation().value.is_empty()))
     {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
