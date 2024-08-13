@@ -14,5 +14,3 @@ dust_dds = { path = "../dds" }
 clap = { version = "4.4.11", features = ["derive", "string"] }
 rand = "0.8.5"
 ctrlc = "3.4"
-tracing = "0.1"
-tracing-subscriber = "0.3"
