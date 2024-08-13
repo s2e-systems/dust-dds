@@ -10,9 +10,9 @@ use dust_dds::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
         },
         status::{
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleRejectedStatus, SampleRejectedStatusKind,
-            StatusKind, SubscriptionMatchedStatus, NO_STATUS,
+            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus, NO_STATUS,
         },
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
@@ -39,7 +39,7 @@ struct MyData {
 }
 
 #[test]
-fn deadline_missed_listener() {
+fn requested_deadline_missed_listener() {
     struct DeadlineMissedListener {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
@@ -834,7 +834,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
 }
 
 #[test]
-fn participant_deadline_missed_listener() {
+fn participant_requested_deadline_missed_listener() {
     struct DeadlineMissedListener {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
@@ -1378,7 +1378,7 @@ fn publisher_offered_incompatible_qos_listener() {
 }
 
 #[test]
-fn subscriber_deadline_missed_listener() {
+fn subscriber_requested_deadline_missed_listener() {
     struct DeadlineMissedListener {
         sender: std::sync::mpsc::SyncSender<RequestedDeadlineMissedStatus>,
     }
@@ -1988,4 +1988,279 @@ fn non_sync_listener_should_be_accepted() {
         .unwrap();
 
     // This test doesn't assert. If trait bounds are not correct compilation will fail.
+}
+
+#[test]
+fn writer_offered_deadline_missed_listener() {
+    struct DeadlineMissedListener {
+        sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
+    }
+
+    impl DataWriterListener<'_> for DeadlineMissedListener {
+        type Foo = MyData;
+        fn on_offered_deadline_missed(
+            &mut self,
+            _the_writer: DataWriter<Self::Foo>,
+            status: OfferedDeadlineMissedStatus,
+        ) {
+            self.sender.send(status).unwrap();
+        }
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let writer_listener = DeadlineMissedListener { sender };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            Some(Box::new(writer_listener)),
+            &[StatusKind::OfferedDeadlineMissed],
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = MyData { id: 1, value: 1 };
+    writer.write(&data1, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
+}
+
+#[test]
+fn publisher_offered_deadline_missed_listener() {
+    struct DeadlineMissedListener {
+        sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
+    }
+
+    impl PublisherListener for DeadlineMissedListener {
+        fn on_offered_deadline_missed(
+            &mut self,
+            _the_writer: DataWriter<()>,
+            status: OfferedDeadlineMissedStatus,
+        ) {
+            self.sender.send(status).unwrap();
+        }
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let publisher_listener = DeadlineMissedListener { sender };
+    let publisher = participant
+        .create_publisher(
+            QosKind::Default,
+            Some(Box::new(publisher_listener)),
+            &[StatusKind::OfferedDeadlineMissed],
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = MyData { id: 1, value: 1 };
+    writer.write(&data1, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
+}
+
+#[test]
+fn participant_offered_deadline_missed_listener() {
+    struct DeadlineMissedListener {
+        sender: std::sync::mpsc::SyncSender<OfferedDeadlineMissedStatus>,
+    }
+
+    impl DomainParticipantListener for DeadlineMissedListener {
+        fn on_offered_deadline_missed(
+            &mut self,
+            _the_writer: DataWriter<()>,
+            status: OfferedDeadlineMissedStatus,
+        ) {
+            self.sender.send(status).unwrap();
+        }
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let participant_listener = DeadlineMissedListener { sender };
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::OfferedDeadlineMissed],
+        )
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>("MyTopic", "MyData", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        deadline: DeadlineQosPolicy {
+            period: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader::<MyData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = MyData { id: 1, value: 1 };
+    writer.write(&data1, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let status = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    assert_eq!(status.total_count, 1);
+    assert_eq!(status.total_count_change, 1);
 }

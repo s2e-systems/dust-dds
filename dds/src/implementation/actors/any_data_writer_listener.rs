@@ -6,12 +6,15 @@ use crate::{
         publisher::PublisherAsync, topic::TopicAsync,
     },
     implementation::actor::ActorAddress,
-    infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
+    infrastructure::status::{
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+    },
 };
 
 use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
 
 pub enum DataWriterListenerOperation {
+    OfferedDeadlineMissed(OfferedDeadlineMissedStatus),
     OfferedIncompatibleQos(OfferedIncompatibleQosStatus),
     PublicationMatched(PublicationMatchedStatus),
 }
@@ -43,6 +46,9 @@ where
             let the_writer =
                 DataWriterAsync::new(writer_address, status_condition_address, publisher, topic);
             match listener_operation {
+                DataWriterListenerOperation::OfferedDeadlineMissed(status) => {
+                    self.on_offered_deadline_missed(the_writer, status).await
+                }
                 DataWriterListenerOperation::OfferedIncompatibleQos(status) => {
                     self.on_offered_incompatible_qos(the_writer, status).await
                 }

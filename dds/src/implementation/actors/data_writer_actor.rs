@@ -8,7 +8,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         runtime::{
-            executor::{block_on, ExecutorHandle},
+            executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
             timer::TimerHandle,
         },
@@ -26,7 +26,8 @@ use crate::{
             XCDR_DATA_REPRESENTATION,
         },
         status::{
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            QosPolicyCount, StatusKind,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -263,6 +264,8 @@ pub struct DataWriterActor {
     max_seq_num: Option<SequenceNumber>,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
+    offered_deadline_missed_status: OfferedDeadlineMissedStatus,
+    instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
 }
 
 impl DataWriterActor {
@@ -299,6 +302,8 @@ impl DataWriterActor {
             max_seq_num: None,
             qos,
             registered_instance_list: HashSet::new(),
+            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
+            instance_deadline_missed_task: HashMap::new(),
         }
     }
 
@@ -1306,6 +1311,15 @@ pub struct AddChange {
     pub now: Time,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub writer_address: ActorAddress<DataWriterActor>,
+    pub publisher_mask_listener: (
+        Option<MpscSender<PublisherListenerMessage>>,
+        Vec<StatusKind>,
+    ),
+    pub participant_mask_listener: (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    ),
+    pub publisher: PublisherAsync,
     pub executor_handle: ExecutorHandle,
     pub timer_handle: TimerHandle,
 }
@@ -1325,11 +1339,139 @@ impl MailHandler<AddChange> for DataWriterActor {
             }
         }
 
+        let change_instance_handle = message.change.instance_handle();
         let change_timestamp = message.change.timestamp();
         let seq_num = message.change.sequence_number();
 
         if seq_num > self.max_seq_num.unwrap_or(0) {
             self.max_seq_num = Some(seq_num)
+        }
+
+        if let Some(t) = self
+            .instance_deadline_missed_task
+            .remove(&change_instance_handle.into())
+        {
+            t.abort();
+        }
+
+        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
+            let deadline_missed_interval = std::time::Duration::new(
+                deadline_missed_period.sec() as u64,
+                deadline_missed_period.nanosec(),
+            );
+            let writer_address = message.writer_address.clone();
+            let timer_handle = message.timer_handle.clone();
+            let writer_listener_mask = self.status_kind.clone();
+            let data_writer_listener_sender = self
+                .data_writer_listener_thread
+                .as_ref()
+                .map(|l| l.sender().clone());
+            let publisher_listener = message.publisher_mask_listener.0.clone();
+            let publisher_listener_mask = message.publisher_mask_listener.1.clone();
+            let participant_listener = message.participant_mask_listener.0.clone();
+            let participant_listener_mask = message.participant_mask_listener.1.clone();
+            let status_condition_address = self.status_condition.address();
+            let topic_address = self.topic_address.clone();
+            let topic_status_condition_address = self.topic_status_condition.clone();
+            let type_name = self.type_name.clone();
+            let topic_name = self.topic_name.clone();
+            let publisher = message.publisher.clone();
+
+            let deadline_missed_task = message.executor_handle.spawn(async move {
+                loop {
+                    timer_handle.sleep(deadline_missed_interval).await;
+                    let publisher_listener = publisher_listener.clone();
+                    let participant_listener = participant_listener.clone();
+
+                    let r: DdsResult<()> = async {
+                        writer_address.send_actor_mail(IncrementOfferedDeadlineMissedStatus {
+                            instance_handle: change_instance_handle.into(),
+                        })?;
+
+                        let writer_address = writer_address.clone();
+                        let status_condition_address = status_condition_address.clone();
+                        let publisher = publisher.clone();
+                        let topic = TopicAsync::new(
+                            topic_address.clone(),
+                            topic_status_condition_address.clone(),
+                            type_name.clone(),
+                            topic_name.clone(),
+                            publisher.get_participant(),
+                        );
+                        if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
+                            let status = writer_address
+                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                .receive_reply()
+                                .await;
+                            if let Some(listener) = &data_writer_listener_sender {
+                                listener
+                                    .send(DataWriterListenerMessage {
+                                        listener_operation:
+                                            DataWriterListenerOperation::OfferedDeadlineMissed(
+                                                status,
+                                            ),
+                                        writer_address,
+                                        status_condition_address,
+                                        publisher,
+                                        topic,
+                                    })
+                                    .ok();
+                            }
+                        } else if publisher_listener_mask
+                            .contains(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = writer_address
+                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                .receive_reply()
+                                .await;
+                            if let Some(listener) = publisher_listener {
+                                listener
+                                    .send(PublisherListenerMessage {
+                                        listener_operation:
+                                            PublisherListenerOperation::OfferedDeadlineMissed(
+                                                status,
+                                            ),
+                                        writer_address,
+                                        status_condition_address,
+                                        publisher,
+                                        topic,
+                                    })
+                                    .ok();
+                            }
+                        } else if participant_listener_mask
+                            .contains(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = writer_address
+                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                .receive_reply()
+                                .await;
+                            if let Some(listener) = participant_listener {
+                                listener
+                                    .send(ParticipantListenerMessage {
+                                        listener_operation:
+                                            ParticipantListenerOperation::_OfferedDeadlineMissed(
+                                                status,
+                                            ),
+                                        listener_kind: ListenerKind::Writer {
+                                            writer_address,
+                                            status_condition_address,
+                                            publisher,
+                                            topic,
+                                        },
+                                    })
+                                    .ok();
+                            }
+                        }
+                        Ok(())
+                    }
+                    .await;
+                    if r.is_err() {
+                        break;
+                    }
+                }
+            });
+            self.instance_deadline_missed_task
+                .insert(change_instance_handle.into(), deadline_missed_task);
         }
 
         if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
@@ -1471,6 +1613,38 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
             }
         }
         false
+    }
+}
+
+pub struct IncrementOfferedDeadlineMissedStatus {
+    pub instance_handle: InstanceHandle,
+}
+impl Mail for IncrementOfferedDeadlineMissedStatus {
+    type Result = ();
+}
+impl MailHandler<IncrementOfferedDeadlineMissedStatus> for DataWriterActor {
+    fn handle(
+        &mut self,
+        message: IncrementOfferedDeadlineMissedStatus,
+    ) -> <IncrementOfferedDeadlineMissedStatus as Mail>::Result {
+        self.offered_deadline_missed_status.total_count += 1;
+        self.offered_deadline_missed_status.total_count_change += 1;
+        self.offered_deadline_missed_status.last_instance_handle = message.instance_handle;
+    }
+}
+
+pub struct GetOfferedDeadlineMissedStatus;
+impl Mail for GetOfferedDeadlineMissedStatus {
+    type Result = OfferedDeadlineMissedStatus;
+}
+impl MailHandler<GetOfferedDeadlineMissedStatus> for DataWriterActor {
+    fn handle(
+        &mut self,
+        _: GetOfferedDeadlineMissedStatus,
+    ) -> <GetOfferedDeadlineMissedStatus as Mail>::Result {
+        let status = self.offered_deadline_missed_status.clone();
+        self.offered_deadline_missed_status.total_count_change = 0;
+        status
     }
 }
 
