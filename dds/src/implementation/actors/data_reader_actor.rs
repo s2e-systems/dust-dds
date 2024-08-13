@@ -1726,6 +1726,12 @@ impl DataReaderActor {
                                 instance_handle: change_instance_handle,
                             },
                         )?;
+                        data_reader_address
+                            .send_actor_mail(RemoveInstanceOwnership {
+                                instance: change_instance_handle,
+                            })?
+                            .receive_reply()
+                            .await;
 
                         let reader_address = data_reader_address.clone();
                         let subscriber = subscriber.clone();
@@ -2517,5 +2523,20 @@ impl Mail for GetTopicAddress {
 impl MailHandler<GetTopicAddress> for DataReaderActor {
     fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
         self.topic_address.clone()
+    }
+}
+
+pub struct RemoveInstanceOwnership {
+    pub instance: InstanceHandle,
+}
+impl Mail for RemoveInstanceOwnership {
+    type Result = ();
+}
+impl MailHandler<RemoveInstanceOwnership> for DataReaderActor {
+    fn handle(
+        &mut self,
+        message: RemoveInstanceOwnership,
+    ) -> <RemoveInstanceOwnership as Mail>::Result {
+        self.instance_ownership.remove(&message.instance);
     }
 }
