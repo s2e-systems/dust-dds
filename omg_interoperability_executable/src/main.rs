@@ -717,7 +717,7 @@ impl From<RunningError> for Return {
 }
 
 fn main() -> Result<(), Return> {
-    let file = std::fs::File::open("./trace.log").expect("open file");
+    let file = std::fs::File::create("./trace.log").expect("open file");
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
         // will be written to stdout.
