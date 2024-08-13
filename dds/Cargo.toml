@@ -20,7 +20,7 @@ dust_dds_derive = { version = "0.10", path = "../dds_derive" }
 
 md5 = "0.7.0" # Chose this crate over other possibilities since it doesn't have any other dependencies
 
-socket2 = {version = "0.5", features = ["all"]}
+socket2 = "0.5"
 network-interface = "1.1.1"
 
 fnmatch-regex = "0.2.0"
