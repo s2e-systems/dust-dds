@@ -38,11 +38,16 @@ jobs:
         - name: Setting up environment
           run: pip install -r omg-dds-rtps/requirements.txt
         - name: Run P Dust - S Dust
-          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
-        - name: Run P Dust - S Connext
-          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
-        - name: Run P Connext - S Connext
-          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml -t Test_Domain_0 -v
+        # - name: Run P Dust - S Connext
+        #   run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+        # - name: Run P Connext - S Connext
+        #   run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+        - name: Upload report
+          uses: actions/upload-artifact@v4
+          with:
+            name: interoperability_report
+            path: ./trace.log
         - name: XUnit
           uses: AutoModality/action-xunit-viewer@v1
           with:
