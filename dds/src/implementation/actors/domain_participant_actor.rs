@@ -2295,6 +2295,24 @@ impl MailHandler<GetTimerHandle> for DomainParticipantActor {
     }
 }
 
+pub struct GetListener;
+impl Mail for GetListener {
+    type Result = (
+        Option<MpscSender<ParticipantListenerMessage>>,
+        Vec<StatusKind>,
+    );
+}
+impl MailHandler<GetListener> for DomainParticipantActor {
+    fn handle(&mut self, _: GetListener) -> <GetListener as Mail>::Result {
+        (
+            self.participant_listener_thread
+                .as_ref()
+                .map(|l| l.sender().clone()),
+            self.status_kind.clone(),
+        )
+    }
+}
+
 impl DomainParticipantActor {
     fn add_matched_publications_detector(
         &self,

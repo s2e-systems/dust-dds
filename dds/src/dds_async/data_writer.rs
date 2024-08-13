@@ -324,6 +324,11 @@ where
             .send_actor_mail(publisher_actor::GetListener)?
             .receive_reply()
             .await;
+        let participant_mask_listener = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetListener)?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
                 change,
@@ -331,6 +336,7 @@ where
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
                 publisher_mask_listener,
+                participant_mask_listener,
                 publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
@@ -489,6 +495,11 @@ where
             .send_actor_mail(publisher_actor::GetListener)?
             .receive_reply()
             .await;
+        let participant_mask_listener = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetListener)?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
                 change,
@@ -496,6 +507,7 @@ where
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
                 publisher_mask_listener,
+                participant_mask_listener,
                 publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
@@ -608,6 +620,11 @@ where
             .send_actor_mail(publisher_actor::GetListener)?
             .receive_reply()
             .await;
+        let participant_mask_listener = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetListener)?
+            .receive_reply()
+            .await;
         self.writer_address
             .send_actor_mail(data_writer_actor::AddChange {
                 change,
@@ -615,6 +632,7 @@ where
                 message_sender_actor,
                 writer_address: self.writer_address.clone(),
                 publisher_mask_listener,
+                participant_mask_listener,
                 publisher: self.publisher.clone(),
                 executor_handle: self.publisher.get_participant().executor_handle().clone(),
                 timer_handle: self.publisher.get_participant().timer_handle().clone(),
