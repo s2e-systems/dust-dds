@@ -22,12 +22,7 @@ jobs:
               test_suite.py
               rtps_test_utilities.py
               requirements.txt
-        - name: Install stable toolchain
-          uses: actions-rs/toolchain@v1
-          with:
-            profile: minimal
-            toolchain: stable
-            override: true
+        - uses: dtolnay/rust-toolchain@stable
         - run: cargo build --package dust_dds_shape_main_linux 
         - uses: actions/setup-python@v5
           with:
