@@ -681,7 +681,13 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_offered_deadline_missed_status(
         &self,
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
-        todo!()
+        let status = self
+            .writer_address
+            .send_actor_mail(data_writer_actor::GetOfferedDeadlineMissedStatus)?
+            .receive_reply()
+            .await;
+
+        Ok(status)
     }
 
     /// Async version of [`get_offered_incompatible_qos_status`](crate::publication::data_writer::DataWriter::get_offered_incompatible_qos_status).
