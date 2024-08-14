@@ -11,8 +11,6 @@ parameters:
 orbs:
   rust: circleci/rust@1.6.1
 
-
-
 jobs:
   hello_world_on_macos:
     macos:
@@ -22,7 +20,7 @@ jobs:
     - checkout
     - rust/install
     - run:
-        name: Hello world example
+        name: Run Hello world example
         command: |
           cargo run --example hello_world_publisher &
           pid=$!
@@ -35,13 +33,17 @@ jobs:
       shell: powershell.exe -ExecutionPolicy Bypass
     steps:
     - checkout
-    - run: |
-        curl -o rustup.sh https://sh.rustup.rs
-        bash rustup.sh -y
-    - run: |
-        $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru 
-        Start-Process cargo -ArgumentList 'run --example hello_world_subscriber'
-        $publisher.WaitForExit()
+    - run: 
+        name: Install Rust
+        command: |
+          curl -o rustup.sh https://sh.rustup.rs
+          bash rustup.sh -y
+    - run: 
+        name: Run Hello world example
+        command: |
+          $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru 
+          cargo run --example hello_world_subscriber
+          $publisher.WaitForExit()
 
   build_and_push_docker_image:
     docker:

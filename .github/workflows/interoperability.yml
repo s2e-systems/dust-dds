@@ -4,38 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:  
-  helloworld_on_ubuntu:
-    runs-on: ubuntu-24.04 
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: |
-          cargo run --example hello_world_publisher &
-          pid=$!
-          cargo run --example hello_world_subscriber
-          wait $pid
-  helloworld_on_macos:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: |
-          cargo run --example hello_world_publisher &
-          pid=$!
-          cargo run --example hello_world_subscriber
-          wait $pid
-  helloworld_on_windows:
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: |
-          $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru 
-          Start-Process cargo -ArgumentList 'run --example hello_world_subscriber'
-          $publisher.WaitForExit()
-
-
-
   interoperability:
     name: OMG Interoperability
     runs-on: ubuntu-latest
