@@ -1373,6 +1373,22 @@ impl DataReaderActor {
             );
         }
 
+        match change.rtps_cache_change.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (),
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                // Drop the ownership and stop the deadline task
+                self.instance_ownership.remove(&change.instance_handle());
+                if let Some(t) = self
+                    .instance_deadline_missed_task
+                    .remove(&change.instance_handle())
+                {
+                    t.abort();
+                }
+            }
+        }
+
         if self.is_sample_of_interest_based_on_time(&change) {
             if self.is_max_samples_limit_reached(&change) {
                 self.on_sample_rejected(
@@ -1726,6 +1742,12 @@ impl DataReaderActor {
                                 instance_handle: change_instance_handle,
                             },
                         )?;
+                        data_reader_address
+                            .send_actor_mail(RemoveInstanceOwnership {
+                                instance: change_instance_handle,
+                            })?
+                            .receive_reply()
+                            .await;
 
                         let reader_address = data_reader_address.clone();
                         let subscriber = subscriber.clone();
@@ -1800,13 +1822,13 @@ impl DataReaderActor {
                                     })
                                     .ok();
                             }
-                            reader_status_condition
-                                .send_actor_mail(AddCommunicationState {
-                                    state: StatusKind::RequestedDeadlineMissed,
-                                })?
-                                .receive_reply()
-                                .await;
                         }
+                        reader_status_condition
+                            .send_actor_mail(AddCommunicationState {
+                                state: StatusKind::RequestedDeadlineMissed,
+                            })?
+                            .receive_reply()
+                            .await;
                         Ok(())
                     }
                     .await;
@@ -2517,5 +2539,20 @@ impl Mail for GetTopicAddress {
 impl MailHandler<GetTopicAddress> for DataReaderActor {
     fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
         self.topic_address.clone()
+    }
+}
+
+pub struct RemoveInstanceOwnership {
+    pub instance: InstanceHandle,
+}
+impl Mail for RemoveInstanceOwnership {
+    type Result = ();
+}
+impl MailHandler<RemoveInstanceOwnership> for DataReaderActor {
+    fn handle(
+        &mut self,
+        message: RemoveInstanceOwnership,
+    ) -> <RemoveInstanceOwnership as Mail>::Result {
+        self.instance_ownership.remove(&message.instance);
     }
 }
