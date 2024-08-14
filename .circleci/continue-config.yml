@@ -14,7 +14,7 @@ orbs:
 
 
 jobs:
-  hello_world_platforms:
+  hello_world_on_macos:
     macos:
       xcode: 14.2.0
     resource_class: macos.m1.medium.gen1
@@ -28,7 +28,18 @@ jobs:
           pid=$!
           cargo run --example hello_world_subscriber
           wait $pid
-    
+  hello_world_on_windows:
+    machine:
+      image: 'windows-server-2019-vs2019:2024.05.1'
+      resource_class: windows.medium
+      shell: powershell.exe -ExecutionPolicy Bypass
+    steps:
+    - checkout
+    - rust/install
+    - run: |
+        $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru 
+        Start-Process cargo -ArgumentList 'run --example hello_world_subscriber'
+        $publisher.WaitForExit()
 
   build_and_push_docker_image:
     docker:
@@ -309,7 +320,8 @@ workflows:
   build_and_run_tests:
     jobs:
       - tests
-      - hello_world_platforms
+      - hello_world_on_macos
+      - hello_world_on_windows
       - benchmark
       - compilation_times
       - clippy
