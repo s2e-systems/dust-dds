@@ -11,14 +11,13 @@ parameters:
 orbs:
   rust: circleci/rust@1.6.1
 
-executors:
-  macos:
-    macos:
-      xcode: 12.5.1
+
 
 jobs:
   hello_world_platforms:
-    executor: macos
+    macos:
+      xcode: 14.2.0
+    resource_class: macos.m1.medium.gen1
     steps:
     - checkout
     - rust/install
