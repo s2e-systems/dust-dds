@@ -3,51 +3,51 @@ name: interoperability
 on:
   workflow_dispatch:
 
-jobs:
-    interoperability:
-        name: OMG Interoperability
-        runs-on: ubuntu-latest
-        steps:
-        - name: Checkout sources
-          uses: actions/checkout@v4
-        - name: Checkout dds-rtps
-          uses: actions/checkout@v4
-          with:
-            repository: omg-dds/dds-rtps
-            ref: '53803e70c00cbf60c816bb95c7886701ab9ae597'
-            path: omg-dds-rtps
-            sparse-checkout-cone-mode: false
-            sparse-checkout: |
-              interoperability_report.py
-              test_suite.py
-              rtps_test_utilities.py
-              requirements.txt
-        - uses: dtolnay/rust-toolchain@stable
-        - run: cargo build --package dust_dds_shape_main_linux 
-        - uses: actions/setup-python@v5
-          with:
-            python-version: '3.11.4'
-        - name: Downloads assets
-          uses: robinraju/release-downloader@v1.10
-          with:
-            repository: omg-dds/dds-rtps
-            latest: true
-            fileName: "*"
-        - name: Unzip
-          run: unzip '*.zip' -d executables
-        - name: Setting up environment
-          run: pip install -r omg-dds-rtps/requirements.txt
-        - name: Publisher Dust - Subscriber Connext
-          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
-        - name: Publisher Connext - Subscriber Dust
-          run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
-        - name: XUnit
-          uses: AutoModality/action-xunit-viewer@v1
-          with:
-            results: ./report.xml
-            fail: false
-        - name: Upload report
-          uses: actions/upload-artifact@v4
-          with:
-            name: interoperability_report
-            path: ./index.html
+jobs:  
+  interoperability:
+    name: OMG Interoperability
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+    - name: Checkout dds-rtps
+      uses: actions/checkout@v4
+      with:
+        repository: omg-dds/dds-rtps
+        ref: '53803e70c00cbf60c816bb95c7886701ab9ae597'
+        path: omg-dds-rtps
+        sparse-checkout-cone-mode: false
+        sparse-checkout: |
+          interoperability_report.py
+          test_suite.py
+          rtps_test_utilities.py
+          requirements.txt
+    - uses: dtolnay/rust-toolchain@stable
+    - run: cargo build --package dust_dds_shape_main_linux 
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11.4'
+    - name: Downloads assets
+      uses: robinraju/release-downloader@v1.10
+      with:
+        repository: omg-dds/dds-rtps
+        latest: true
+        fileName: "*"
+    - name: Unzip
+      run: unzip '*.zip' -d executables
+    - name: Setting up environment
+      run: pip install -r omg-dds-rtps/requirements.txt
+    - name: Publisher Dust - Subscriber Connext
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+    - name: Publisher Connext - Subscriber Dust
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
+    - name: XUnit
+      uses: AutoModality/action-xunit-viewer@v1
+      with:
+        results: ./report.xml
+        fail: false
+    - name: Upload report
+      uses: actions/upload-artifact@v4
+      with:
+        name: interoperability_report
+        path: ./index.html
