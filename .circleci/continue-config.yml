@@ -37,7 +37,7 @@ jobs:
     - checkout
     - run: |
         curl -o rustup.sh https://sh.rustup.rs
-        bash rustup.rs -y
+        bash rustup.sh -y
     - run: |
         $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru 
         Start-Process cargo -ArgumentList 'run --example hello_world_subscriber'
