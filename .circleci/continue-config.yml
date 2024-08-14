@@ -8,7 +8,29 @@ parameters:
     type: boolean
     default: false
 
+orbs:
+  rust: circleci/rust@1.6.1
+
+executors:
+  macos:
+    macos:
+      xcode: 12.5.1
+
 jobs:
+  hello_world_platforms:
+    executor: macos
+    steps:
+    - checkout
+    - rust/install
+    - run:
+        name: Hello world example
+        command: |
+          cargo run --example hello_world_publisher &
+          pid=$!
+          cargo run --example hello_world_subscriber
+          wait $pid
+    
+
   build_and_push_docker_image:
     docker:
       - image: cimg/base:current
@@ -288,6 +310,7 @@ workflows:
   build_and_run_tests:
     jobs:
       - tests
+      - hello_world_platforms
       - benchmark
       - compilation_times
       - clippy
