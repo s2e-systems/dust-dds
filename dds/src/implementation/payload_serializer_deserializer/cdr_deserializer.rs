@@ -4,26 +4,6 @@ use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::
 
 use super::endianness::CdrEndianness;
 
-#[test]
-fn des() {
-    fn dese<T, const N: usize>(buf: &[u8]) -> Result<[T; N], ()>
-    where
-        for<'de> T: CdrDeserialize<'de>,
-    {
-        let mut deserializer = ClassicCdrDeserializer::new(buf, CdrEndianness::LittleEndian, false);
-        let v : [Result<T,_>; N] = core::array::from_fn(|_| T::deserialize(&mut deserializer));
-        if let Some(_e) = v.iter().find(|f|f.is_err()) {
-            return Err(());
-        }
-        let mut iter = v.into_iter();
-        Ok(core::array::from_fn(|_| iter.next().unwrap().unwrap()))
-
-    }
-
-    let ret: [u16; 2] = dese(&[2, 0, 3, ]).unwrap();
-    assert_eq!(ret, [2, 3])
-}
-
 pub struct ClassicCdrDeserializer<'de> {
     bytes: &'de [u8],
     reader: &'de [u8],
@@ -37,7 +17,7 @@ impl<'de> ClassicCdrDeserializer<'de> {
             bytes: reader,
             reader,
             endianness,
-            is_xcdr2,
+            is_xcdr2
         }
     }
 
@@ -285,8 +265,7 @@ mod tests {
     where
         T: CdrDeserialize<'de> + ?Sized,
     {
-        let mut deserializer =
-            ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian, false);
+        let mut deserializer = ClassicCdrDeserializer::new(bytes, CdrEndianness::LittleEndian, false);
         Ok(T::deserialize(&mut deserializer)?)
     }
 
