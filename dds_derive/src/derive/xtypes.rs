@@ -1,7 +1,7 @@
 use super::enum_support::{get_enum_bitbound, read_enum_variant_discriminant_mapping, BitBound};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Index, Result};
+use syn::{spanned::Spanned, DeriveInput, Field, Index, Result};
 
 enum Extensibility {
     Final,
@@ -17,12 +17,7 @@ fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
     }
 }
 
-pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
-    let mut field_serialization = quote!();
-
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let ident = &input.ident;
-
+fn get_struct_extensibility(input: &DeriveInput) -> Result<Extensibility> {
     let mut extensibility = Extensibility::Final;
     if let Some(xtypes_attribute) = input
         .attrs
@@ -55,20 +50,52 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
             }
         })?;
     }
+    Ok(extensibility)
+}
 
-    match extensibility {
-        Extensibility::Final => {
-            field_serialization.extend(quote! {let mut s = serializer.serialize_final_struct()?;})
-        }
-        Extensibility::Appendable => field_serialization
-            .extend(quote! {let mut s = serializer.serialize_appendable_struct()?;}),
-        Extensibility::Mutable => {
-            field_serialization.extend(quote! {let mut s = serializer.serialize_mutable_struct()?;})
-        }
-    };
+fn get_field_id(field: &Field) -> Result<syn::Expr> {
+    let mut result = Err(syn::Error::new(
+        field.span(),
+        r#"Field of mutable struct must define id attribute "#,
+    ));
+
+    if let Some(xtypes_attribute) = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("xtypes"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("id") {
+                result = Ok(meta.value()?.parse()?);
+                Ok(())
+            } else {
+                Ok(())
+            }
+        })?;
+    }
+
+    result
+}
+
+pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
+    let mut field_serialization = quote!();
+
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let ident = &input.ident;
 
     match &input.data {
         syn::Data::Struct(data_struct) => {
+            let extensibility = get_struct_extensibility(input)?;
+
+            match extensibility {
+                Extensibility::Final => field_serialization
+                    .extend(quote! {let mut s = serializer.serialize_final_struct()?;}),
+                Extensibility::Appendable => field_serialization
+                    .extend(quote! {let mut s = serializer.serialize_appendable_struct()?;}),
+                Extensibility::Mutable => field_serialization
+                    .extend(quote! {let mut s = serializer.serialize_mutable_struct()?;}),
+            };
+
             for (field_index, field) in data_struct.fields.iter().enumerate() {
                 match &field.ident {
                     Some(field_name) => {
@@ -78,7 +105,12 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Extensibility::Appendable => field_serialization.extend(
                                 quote! {s.serialize_field(&self.#field_name, #field_name_str)?;},
                             ),
-                            Extensibility::Mutable => todo!(),
+                            Extensibility::Mutable => {
+                                let id = get_field_id(&field)?;
+                                field_serialization.extend(
+                                    quote! {s.serialize_field(&self.#field_name, #id, #field_name_str)?;},
+                                );
+                            }
                         }
                     }
                     None => {
@@ -87,10 +119,20 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                         match extensibility {
                             Extensibility::Final | Extensibility::Appendable => field_serialization
                                 .extend(quote! {s.serialize_field(&self.#index, #index_str)?;}),
-                            Extensibility::Mutable => todo!(),
+                            Extensibility::Mutable => {
+                                let id = get_field_id(&field)?;
+                                field_serialization.extend(
+                                    quote! {s.serialize_field(&self.#index, #id, #index_str)?;},
+                                );
+                            }
                         }
                     }
                 }
+            }
+
+            match extensibility {
+                Extensibility::Final | Extensibility::Appendable => (),
+                Extensibility::Mutable => field_serialization.extend(quote! {s.end()?;}),
             }
 
             Ok(quote! {
@@ -385,6 +427,51 @@ mod tests {
     }
 
     #[test]
+    fn xtypes_serialize_mutable_struct_with_basic_types() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            #[xtypes(extensibility = \"Mutable\")]
+            struct MyData {
+                #[xtypes(id = 1)]
+                x: u32,
+                #[xtypes(id = 2)]
+                y: u32,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_xtypes_serialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl xtypes::serialize::XTypesSerialize for MyData {
+                fn serialize(&self, serializer: impl xtypes::serialize::XTypesSerializer) -> Result<(), xtypes::error::XcdrError> {
+                    let mut s = serializer.serialize_mutable_struct()?;
+                    s.serialize_field(&self.x, 1, \"x\")?;
+                    s.serialize_field(&self.y, 2, \"y\")?;
+                    s.end()?;
+                    Ok(())
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
     fn xtypes_serialize_enum() {
         let input = syn::parse2::<DeriveInput>(
             "
@@ -404,7 +491,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl xtypes::serialize::XTypesSerialize for SimpleEnum {
-                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::cdr::serializer::CdrSerializer) -> Result<(), std::io::Error> {
+                fn serialize(&self, serializer: impl xtypes::serialize::XTypesSerializer) -> Result<(), xtypes::error::XcdrError> {
                     let discriminant: u16 = match self {
                         SimpleEnum::a => 10,
                         SimpleEnum::b => 2000,
