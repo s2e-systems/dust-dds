@@ -13,6 +13,7 @@ pub trait DeserializeAppendableStruct<'a> {
 
 pub trait DeserializeMutableStruct<'a> {
     fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, pid: u16, name: &str) -> Result<T, XcdrError>;
+    fn deserialize_optional_field<T: XTypesDeserialize<'a>>(&mut self, pid: u16, name: &str) -> Result<Option<T>, XcdrError>;
 }
 
 pub trait DeserializeCollection<'a> {
