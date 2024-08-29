@@ -10,7 +10,8 @@ members = [
     "telescope",
     "fuzz",
     "bindings/python",
-    "omg_interoperability_executable"
+    "omg_interoperability_executable",
+    "xtypes",
 ]
-default-members = ["dds", "dds_derive", "dds_gen", "bindings/python"]
+default-members = ["dds", "dds_derive", "dds_gen", "bindings/python", "xtypes"]
 resolver = "2"

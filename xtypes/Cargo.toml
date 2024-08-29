@@ -1,0 +1,8 @@
+[package]
+name = "xtypes"
+description = "DDS XCDR serialize/deserialize types"
+version = "0.1.0"
+authors = ["S2E Software Systems B.V. <info@s2e-systems.com>"]
+edition = "2021"
+homepage = "https://www.s2e-systems.com"
+license-file = "EULA.md"
