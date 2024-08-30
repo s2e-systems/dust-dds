@@ -23,7 +23,7 @@ jobs:
           rtps_test_utilities.py
           requirements.txt
     - uses: dtolnay/rust-toolchain@stable
-    - run: cargo build --package dust_dds_shape_main_linux 
+    - run: cargo build --package dust_dds_shape_main_linux --release
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
@@ -51,3 +51,8 @@ jobs:
       with:
         name: interoperability_report
         path: ./index.html
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: interoperability_executable
+        path: ./target/release/dust_dds_shape_main_linux
