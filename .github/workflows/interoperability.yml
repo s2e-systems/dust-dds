@@ -38,9 +38,9 @@ jobs:
     - name: Setting up environment
       run: pip install -r omg-dds-rtps/requirements.txt
     - name: Publisher Dust - Subscriber Connext
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/release/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
     - name: Publisher Connext - Subscriber Dust
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/release/dust_dds_shape_main_linux -o=report.xml
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
