@@ -131,7 +131,7 @@ fn str_len(v: &str) -> Result<u32, XcdrError> {
         into_u32(v.len() + 1)
     }
 }
-const SENTINEL: [u8; 4] = [0u8, 0, 0, 0];
+const SENTINEL: [u8; 4] = [1u8, 0, 0, 0];
 
 fn write_pl_header_be(writer: &mut Writer, header_pos: usize, pid: u16) -> Result<(), XcdrError> {
     let pos = writer.position();
@@ -152,10 +152,10 @@ fn write_pl_header_le(writer: &mut Writer, header_pos: usize, pid: u16) -> Resul
     Ok(())
 }
 
-struct PlCdrBeEncoder<'a> {
-    serializer: Xcdr1BeSerializer<'a>,
+struct PlCdrBeEncoder<'a, 'b> {
+    serializer: &'a mut Xcdr1BeSerializer<'b>,
 }
-impl<'a> SerializeMutableStruct for PlCdrBeEncoder<'a> {
+impl<'a> SerializeMutableStruct for PlCdrBeEncoder<'a, '_> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -164,19 +164,19 @@ impl<'a> SerializeMutableStruct for PlCdrBeEncoder<'a> {
     ) -> Result<(), XcdrError> {
         let header_pos = self.serializer.writer.position();
         self.serializer.writer.set_position(header_pos + 4);
-        value.serialize(&mut self.serializer)?;
+        value.serialize(&mut *self.serializer)?;
         write_pl_header_be(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
     fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut self.serializer)
+        SENTINEL.serialize(&mut *self.serializer)
     }
 }
 
-struct PlCdrLeEncoder<'a> {
-    serializer: Xcdr1LeSerializer<'a>,
+struct PlCdrLeEncoder<'a, 'b> {
+    serializer: &'a mut Xcdr1LeSerializer<'b>,
 }
-impl<'a> SerializeMutableStruct for PlCdrLeEncoder<'a> {
+impl<'a> SerializeMutableStruct for PlCdrLeEncoder<'a, '_> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -185,19 +185,19 @@ impl<'a> SerializeMutableStruct for PlCdrLeEncoder<'a> {
     ) -> Result<(), XcdrError> {
         let header_pos = self.serializer.writer.position();
         self.serializer.writer.set_position(header_pos + 4);
-        value.serialize(&mut self.serializer)?;
+        value.serialize(&mut *self.serializer)?;
         write_pl_header_le(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
     fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut self.serializer)
+        SENTINEL.serialize(&mut *self.serializer)
     }
 }
 
-struct PlCdr2BeEncoder<'a> {
-    serializer: Xcdr2BeSerializer<'a>,
+struct PlCdr2BeEncoder<'a, 'b> {
+    serializer: &'a mut Xcdr2BeSerializer<'b>,
 }
-impl<'a> SerializeMutableStruct for PlCdr2BeEncoder<'a> {
+impl<'a> SerializeMutableStruct for PlCdr2BeEncoder<'a, '_> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -206,19 +206,19 @@ impl<'a> SerializeMutableStruct for PlCdr2BeEncoder<'a> {
     ) -> Result<(), XcdrError> {
         let header_pos = self.serializer.writer.position();
         self.serializer.writer.set_position(header_pos + 4);
-        value.serialize(&mut self.serializer)?;
+        value.serialize(&mut *self.serializer)?;
         write_pl_header_be(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
     fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut self.serializer)
+        SENTINEL.serialize(&mut *self.serializer)
     }
 }
 
-struct PlCdr2LeEncoder<'a> {
-    serializer: Xcdr2LeSerializer<'a>,
+struct PlCdr2LeEncoder<'a, 'b> {
+    serializer: &'a mut Xcdr2LeSerializer<'b>,
 }
-impl<'a> SerializeMutableStruct for PlCdr2LeEncoder<'a> {
+impl<'a> SerializeMutableStruct for PlCdr2LeEncoder<'a, '_> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -227,12 +227,12 @@ impl<'a> SerializeMutableStruct for PlCdr2LeEncoder<'a> {
     ) -> Result<(), XcdrError> {
         let header_pos = self.serializer.writer.position();
         self.serializer.writer.set_position(header_pos + 4);
-        value.serialize(&mut self.serializer)?;
+        value.serialize(&mut *self.serializer)?;
         write_pl_header_le(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
     fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut self.serializer)
+        SENTINEL.serialize(&mut *self.serializer)
     }
 }
 
@@ -416,9 +416,7 @@ impl XTypesSerializer for &mut Xcdr1BeSerializer<'_> {
         Ok(PlainCdrEncoder { serializer: self })
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
-        Ok(PlCdrBeEncoder {
-            serializer: Xcdr1BeSerializer::new(self.writer.data),
-        })
+        Ok(PlCdrBeEncoder { serializer: self })
     }
     fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XcdrError> {
         write_with_padding_v1(&mut self.writer, &into_u32(len)?.to_be_bytes())?;
@@ -480,17 +478,13 @@ impl XTypesSerializer for &mut Xcdr1BeSerializer<'_> {
 
 impl<'a> XTypesSerializer for &'a mut Xcdr1LeSerializer<'_> {
     fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XcdrError> {
-        Ok(PlainCdrLeEncoder {
-            serializer: &mut *self,
-        })
+        Ok(PlainCdrLeEncoder { serializer: self })
     }
     fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XcdrError> {
         Ok(PlainCdrEncoder { serializer: self })
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
-        Ok(PlCdrLeEncoder {
-            serializer: Xcdr1LeSerializer::new(&mut self.writer.data),
-        })
+        Ok(PlCdrLeEncoder { serializer: self })
     }
     fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XcdrError> {
         write_with_padding_v1(&mut self.writer, &into_u32(len)?.to_le_bytes())?;
@@ -560,9 +554,7 @@ impl XTypesSerializer for &mut Xcdr2BeSerializer<'_> {
         })
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
-        Ok(PlCdr2BeEncoder {
-            serializer: Xcdr2BeSerializer::new(&mut self.writer.data),
-        })
+        Ok(PlCdr2BeEncoder { serializer: self })
     }
     fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XcdrError> {
         write_with_padding_v2(&mut self.writer, &into_u32(len)?.to_be_bytes())?;
@@ -632,9 +624,7 @@ impl<'a> XTypesSerializer for &'a mut Xcdr2LeSerializer<'_> {
         })
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
-        Ok(PlCdr2LeEncoder {
-            serializer: Xcdr2LeSerializer::new(&mut self.writer.data),
-        })
+        Ok(PlCdr2LeEncoder { serializer: self })
     }
     fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XcdrError> {
         write_with_padding_v2(&mut self.writer, &into_u32(len)?.to_le_bytes())?;
@@ -1208,7 +1198,7 @@ mod tests {
                 7, 0, 0, 0, // key | padding
                 0x00, 0x050, 0, 4, // PID | length
                 0, 0, 0, 8, // participant_key
-                0, 0, 0, 0, // Sentinel
+                1, 0, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1218,7 +1208,7 @@ mod tests {
                 7, 0, 0, 0, // key | padding
                 0x050, 0x00, 4, 0, // PID | length
                 8, 0, 0, 0, // participant_key
-                0, 0, 0, 0, // Sentinel
+                1, 0, 0, 0, // Sentinel
             ]
         );
         // PL_CDR2:
@@ -1229,7 +1219,7 @@ mod tests {
                 7, 0, 0, 0, // key | padding
                 0x00, 0x050, 0, 4, // PID | length
                 0, 0, 0, 8, // participant_key
-                0, 0, 0, 0, // Sentinel
+                1, 0, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1239,7 +1229,106 @@ mod tests {
                 7, 0, 0, 0, // key | padding
                 0x050, 0x00, 4, 0, // PID | length
                 8, 0, 0, 0, // participant_key
-                0, 0, 0, 0, // Sentinel
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    //@extensibility(MUTABLE)
+    struct NestedMutableType {
+        // @id(0x005A) @key
+        key: u8,
+        // @id(0x0050)
+        participant_key: u32,
+    }
+    impl XTypesSerialize for NestedMutableType {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+            let mut s = serializer.serialize_mutable_struct()?;
+            s.serialize_field(&self.key, 0x005A, "key")?;
+            s.serialize_field(&self.participant_key, 0x0050, "participant_key")
+        }
+    }
+
+    //@extensibility(FINAL)
+    struct TwoNestedMutableTypes {
+        a: NestedMutableType,
+        b: NestedMutableType,
+    }
+    impl XTypesSerialize for TwoNestedMutableTypes {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+            let mut s = serializer.serialize_final_struct()?;
+            s.serialize_field(&self.a, "a")?;
+            s.serialize_field(&self.b, "b")
+        }
+    }
+    #[test]
+    fn serialize_nested_mutable_struct() {
+        let v = TwoNestedMutableTypes {
+            a: NestedMutableType {
+                key: 5,
+                participant_key: 6,
+            },
+            b: NestedMutableType {
+                key: 7,
+                participant_key: 8,
+            },
+        };
+        // PL_CDR:
+        assert_eq!(
+            serialize_v1_be(&v),
+            [
+                0x00, 0x05A, 0, 1, // PID | length
+                5, 0, 0, 0, // key | padding
+                0x00, 0x050, 0, 4, // PID | length
+                0, 0, 0, 6, // participant_key
+                0x00, 0x05A, 0, 1, // PID | length
+                7, 0, 0, 0, // key | padding
+                0x00, 0x050, 0, 4, // PID | length
+                0, 0, 0, 8, // participant_key
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(&v),
+            [
+                0x05A, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // key | padding
+                0x050, 0x00, 4, 0, // PID | length
+                6, 0, 0, 0, // participant_key
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                0x050, 0x00, 4, 0, // PID | length
+                8, 0, 0, 0, // participant_key
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        // PL_CDR2:
+        assert_eq!(
+            serialize_v2_be(&v),
+            [
+                0x00, 0x05A, 0, 1, // PID | length
+                5, 0, 0, 0, // key | padding
+                0x00, 0x050, 0, 4, // PID | length
+                0, 0, 0, 6, // participant_key
+                0x00, 0x05A, 0, 1, // PID | length
+                7, 0, 0, 0, // key | padding
+                0x00, 0x050, 0, 4, // PID | length
+                0, 0, 0, 8, // participant_key
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(&v),
+            [
+                0x05A, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // key | padding
+                0x050, 0x00, 4, 0, // PID | length
+                6, 0, 0, 0, // participant_key
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                0x050, 0x00, 4, 0, // PID | length
+                8, 0, 0, 0, // participant_key
+                1, 0, 0, 0, // Sentinel
             ]
         );
     }
