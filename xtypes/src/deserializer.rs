@@ -4,7 +4,10 @@ use super::deserialize::XTypesDeserialize;
 
 pub trait DeserializeFinalStruct<'a> {
     fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<T, XcdrError>;
-    fn deserialize_optional_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<Option<T>, XcdrError>;
+    fn deserialize_optional_field<T: XTypesDeserialize<'a>>(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<T>, XcdrError>;
 }
 
 pub trait DeserializeAppendableStruct<'a> {
@@ -12,8 +15,25 @@ pub trait DeserializeAppendableStruct<'a> {
 }
 
 pub trait DeserializeMutableStruct<'a> {
-    fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, pid: u16, name: &str) -> Result<T, XcdrError>;
-    fn deserialize_optional_field<T: XTypesDeserialize<'a>>(&mut self, pid: u16, name: &str) -> Result<Option<T>, XcdrError>;
+    type Iter<T: XTypesDeserialize<'a>>: Iterator<Item = T>;
+
+    fn deserialize_field<T: XTypesDeserialize<'a>>(
+        &mut self,
+        pid: u16,
+        name: &str,
+    ) -> Result<T, XcdrError>;
+    fn deserialize_optional_field<T: XTypesDeserialize<'a>>(
+        &mut self,
+        pid: u16,
+        name: &str,
+    ) -> Result<Option<T>, XcdrError>;
+    fn deserialize_list_field<T: XTypesDeserialize<'a>>(
+        &mut self,
+        _pid: u16,
+        _name: &str,
+    ) -> Self::Iter<T> {
+        todo!()
+    }
 }
 
 pub trait DeserializeCollection<'a> {

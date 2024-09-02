@@ -1,4 +1,3 @@
-use core::str;
 use crate::{
     deserialize::XTypesDeserialize,
     deserializer::{
@@ -7,6 +6,7 @@ use crate::{
     },
     error::XcdrError,
 };
+use core::{marker::PhantomData, str};
 
 const PID_SENTINEL: u16 = 1;
 
@@ -188,6 +188,8 @@ struct PlCdrBeDecoder<'a> {
 }
 
 impl<'de> DeserializeMutableStruct<'de> for PlCdrBeDecoder<'de> {
+    type Iter<T: XTypesDeserialize<'de>> = PlListIter<'de, T>;
+
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         pid: u16,
@@ -216,17 +218,47 @@ struct PlCdrLeDecoder<'a> {
     buffer: &'a [u8],
 }
 
+pub struct PlListIter<'a, T> {
+    deserializer: Xcdr1LeDeserializer<'a>,
+    pid: u16,
+    p: core::marker::PhantomData<T>,
+}
+impl<'a, T: XTypesDeserialize<'a>> Iterator for PlListIter<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if seek_to_optional_pid_le(&mut self.deserializer.reader, self.pid).unwrap_or(false) {
+            T::deserialize(&mut self.deserializer).ok()
+        } else {
+            None
+        }
+    }
+}
+
 impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
+    type Iter<T: XTypesDeserialize<'de>> = PlListIter<'de, T>;
+
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         pid: u16,
         _name: &str,
     ) -> Result<T, XcdrError> {
-        let mut reader = Reader::new(self.buffer);
+        let mut reader = Reader::new(&self.buffer);
         seek_to_pid_le(&mut reader, pid)?;
         T::deserialize(&mut Xcdr1LeDeserializer { reader })
     }
 
+    fn deserialize_list_field<T: XTypesDeserialize<'de>>(
+        &mut self,
+        pid: u16,
+        _name: &str,
+    ) -> Self::Iter<T> {
+        PlListIter {
+            deserializer: Xcdr1LeDeserializer::new(&self.buffer),
+            pid,
+            p: PhantomData,
+        }
+    }
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
         pid: u16,
@@ -234,7 +266,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
     ) -> Result<Option<T>, XcdrError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
-            Some(T::deserialize(&mut Xcdr1BeDeserializer { reader })?)
+            Some(T::deserialize(&mut Xcdr1LeDeserializer { reader })?)
         } else {
             None
         })
@@ -246,6 +278,8 @@ struct PlCdr2BeDecoder<'a> {
 }
 
 impl<'de> DeserializeMutableStruct<'de> for PlCdr2BeDecoder<'de> {
+    type Iter<T: XTypesDeserialize<'de>> = PlListIter<'de, T>;
+
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         pid: u16,
@@ -275,6 +309,8 @@ struct PlCdr2LeDecoder<'a> {
 }
 
 impl<'de> DeserializeMutableStruct<'de> for PlCdr2LeDecoder<'de> {
+    type Iter<T: XTypesDeserialize<'de>> = PlListIter<'de, T>;
+
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         pid: u16,
@@ -285,7 +321,11 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdr2LeDecoder<'de> {
         T::deserialize(&mut Xcdr2LeDeserializer { reader })
     }
 
-    fn deserialize_optional_field<T: XTypesDeserialize<'de>>(&mut self, pid: u16, _name: &str) -> Result<Option<T>, XcdrError> {
+    fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
+        &mut self,
+        pid: u16,
+        _name: &str,
+    ) -> Result<Option<T>, XcdrError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
             Some(T::deserialize(&mut Xcdr2BeDeserializer { reader })?)

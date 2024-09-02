@@ -92,7 +92,7 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 pub struct BuiltinEndpointQos(pub u32);
 
 impl BuiltinEndpointQos {
