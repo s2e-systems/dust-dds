@@ -1,5 +1,4 @@
-use core::cmp::Ordering;
-
+use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
     serialized_payload::cdr::{
@@ -7,8 +6,10 @@ use crate::{
         serializer::CdrSerializer,
     },
 };
+use core::cmp::Ordering;
+use dust_dds_derive::XTypesSerialize;
+use xtypes::{deserializer::DeserializeFinalStruct, serializer::SerializeFinalStruct};
 
-use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 /// QosPolicyId type alias
 pub type QosPolicyId = i32;
 
@@ -197,7 +198,23 @@ pub struct UserDataQosPolicy {
     /// User data value
     pub value: Vec<u8>,
 }
-
+impl xtypes::serialize::XTypesSerialize for UserDataQosPolicy {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(&self.value.as_slice(), serializer)
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for UserDataQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            value: deserializer.deserialize_byte_sequence()?.to_owned(),
+        })
+    }
+}
 impl QosPolicy for UserDataQosPolicy {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
@@ -211,7 +228,23 @@ pub struct TopicDataQosPolicy {
     /// Topic data value
     pub value: Vec<u8>,
 }
-
+impl xtypes::serialize::XTypesSerialize for TopicDataQosPolicy {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(&self.value.as_slice(), serializer)
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for TopicDataQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            value: deserializer.deserialize_byte_sequence()?.to_owned(),
+        })
+    }
+}
 impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
@@ -229,7 +262,23 @@ pub struct GroupDataQosPolicy {
     /// Group data value
     pub value: Vec<u8>,
 }
-
+impl xtypes::serialize::XTypesSerialize for GroupDataQosPolicy {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(&self.value.as_slice(), serializer)
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for GroupDataQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            value: deserializer.deserialize_byte_sequence()?.to_owned(),
+        })
+    }
+}
 impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
@@ -290,7 +339,7 @@ impl Default for LifespanQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
 /// Enumeration representing the different types of Durability QoS policies.
 pub enum DurabilityQosPolicyKind {
     /// Volatile durability QoS policy
@@ -301,6 +350,19 @@ pub enum DurabilityQosPolicyKind {
     Transient,
     /// Persistent durability QoS policy
     Persistent,
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DurabilityQosPolicyKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match deserializer.deserialize_uint8()? {
+            0 => Ok(Self::Volatile),
+            1 => Ok(Self::TransientLocal),
+            2 => Ok(Self::Transient),
+            3 => Ok(Self::Persistent),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
+        }
+    }
 }
 
 impl CdrSerialize for DurabilityQosPolicyKind {
@@ -375,10 +437,21 @@ impl PartialOrd for DurabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`DurabilityQosPolicyKind`] kind are considered ordered such
 /// that *Volatile < TransientLocal*.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
+)]
 pub struct DurabilityQosPolicy {
     /// DurabilityQosPolicy kind to be used for this policy
     pub kind: DurabilityQosPolicyKind,
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DurabilityQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            kind: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
+        })
+    }
 }
 
 impl QosPolicy for DurabilityQosPolicy {
@@ -395,7 +468,7 @@ impl Default for DurabilityQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
 /// Enumeration representing the different types of Presentation QoS policy access scope.
 pub enum PresentationQosPolicyAccessScopeKind {
     /// Access scope per instance
@@ -403,7 +476,17 @@ pub enum PresentationQosPolicyAccessScopeKind {
     /// Access scope per topic
     Topic,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for PresentationQosPolicyAccessScopeKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match deserializer.deserialize_uint8()? {
+            0 => Ok(Self::Instance),
+            1 => Ok(Self::Topic),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
+        }
+    }
+}
 impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
@@ -482,7 +565,7 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 pub struct PresentationQosPolicy {
     /// Presentation access scope kind to be used for this policy
     pub access_scope: PresentationQosPolicyAccessScopeKind,
@@ -491,7 +574,18 @@ pub struct PresentationQosPolicy {
     /// Ordered access value
     pub ordered_access: bool,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for PresentationQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            access_scope: f.deserialize_field("access_scope")?,
+            coherent_access: f.deserialize_field("coherent_access")?,
+            ordered_access: f.deserialize_field("ordered_access")?,
+        })
+    }
+}
 impl QosPolicy for PresentationQosPolicy {
     fn name(&self) -> &str {
         PRESENTATION_QOS_POLICY_NAME
@@ -522,10 +616,21 @@ impl Default for PresentationQosPolicy {
 /// requested deadline period* is true.
 /// The setting of the [`DeadlineQosPolicy`] policy must be set consistently with that of the [`TimeBasedFilterQosPolicy`]. For these two policies
 /// to be consistent the settings must be such that *deadline period >= minimum_separation*.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
+)]
 pub struct DeadlineQosPolicy {
     /// Deadline period value
     pub period: DurationKind,
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DeadlineQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            period: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
+        })
+    }
 }
 
 impl QosPolicy for DeadlineQosPolicy {
@@ -548,12 +653,22 @@ impl Default for DeadlineQosPolicy {
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
 /// The value offered is considered compatible with the value requested if and only if the *offered duration <=
 /// requested duration* is true.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    PartialOrd, PartialEq, Eq, Debug, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
+)]
 pub struct LatencyBudgetQosPolicy {
     /// Latency budget duration value
     pub duration: DurationKind,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for LatencyBudgetQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            duration: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
+        })
+    }
+}
 impl QosPolicy for LatencyBudgetQosPolicy {
     fn name(&self) -> &str {
         LATENCYBUDGET_QOS_POLICY_NAME
@@ -569,14 +684,24 @@ impl Default for LatencyBudgetQosPolicy {
 }
 
 /// Enumeration representing the different types of Ownership QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
 pub enum OwnershipQosPolicyKind {
     /// Shared ownership QoS policy
     Shared,
     /// Exclusive ownership QoS policy
     Exclusive,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for OwnershipQosPolicyKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match deserializer.deserialize_uint8()? {
+            0 => Ok(Self::Shared),
+            1 => Ok(Self::Exclusive),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
+        }
+    }
+}
 impl CdrSerialize for OwnershipQosPolicyKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
@@ -610,12 +735,20 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
 /// In any case there is no *filtering* of modifications made based on the identity of the DataWriter that causes the
 /// modification.
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 pub struct OwnershipQosPolicy {
     /// Kind of ownership QoS associated with this policy
     pub kind: OwnershipQosPolicyKind,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for OwnershipQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        Ok(Self {
+            kind: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
+        })
+    }
+}
 impl QosPolicy for OwnershipQosPolicy {
     fn name(&self) -> &str {
         OWNERSHIP_QOS_POLICY_NAME
@@ -672,7 +805,7 @@ impl QosPolicy for OwnershipStrengthQosPolicy {
 }
 
 /// Enumeration representing the different types of Liveliness QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
 pub enum LivelinessQosPolicyKind {
     /// Automatic liveliness
     Automatic,
@@ -681,7 +814,18 @@ pub enum LivelinessQosPolicyKind {
     /// Manual by topic liveliness
     ManualByTopic,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for LivelinessQosPolicyKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match deserializer.deserialize_uint8()? {
+            0 => Ok(Self::Automatic),
+            1 => Ok(Self::ManualByParticipant),
+            2 => Ok(Self::ManualByTopic),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
+        }
+    }
+}
 impl CdrSerialize for LivelinessQosPolicyKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
@@ -755,14 +899,26 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// Changes in liveliness must be detected by the Service with a time-granularity greater or equal to the [`LivelinessQosPolicy::lease_duration`]. This
 /// ensures that the value of the LivelinessChangedStatus is updated at least once during each [`LivelinessQosPolicy::lease_duration`] and the related
 /// Listeners and WaitSets are notified within a [`LivelinessQosPolicy::lease_duration`] from the time the liveliness changed.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
+)]
 pub struct LivelinessQosPolicy {
     /// Kind of liveliness QoS associated with this policy
     pub kind: LivelinessQosPolicyKind,
     /// Liveliness duration
     pub lease_duration: DurationKind,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for LivelinessQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            kind: f.deserialize_field("kind")?,
+            lease_duration: f.deserialize_field("lease_duration")?,
+        })
+    }
+}
 impl QosPolicy for LivelinessQosPolicy {
     fn name(&self) -> &str {
         LIVELINESS_QOS_POLICY_NAME
@@ -800,12 +956,21 @@ impl Default for LivelinessQosPolicy {
 /// the [`TimeBasedFilterQosPolicy::minimum_separation`], the system should guarantee delivery the last sample to the [`DataReader`](crate::subscription::data_reader::DataReader).
 /// The setting of the  [`TimeBasedFilterQosPolicy::minimum_separation`] minimum_separation must be consistent with the [`DeadlineQosPolicy::period`]. For these
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 pub struct TimeBasedFilterQosPolicy {
     /// Minimum separation between samples
     pub minimum_separation: DurationKind,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for TimeBasedFilterQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            minimum_separation: f.deserialize_field("minimum_separation")?,
+        })
+    }
+}
 impl QosPolicy for TimeBasedFilterQosPolicy {
     fn name(&self) -> &str {
         TIMEBASEDFILTER_QOS_POLICY_NAME
@@ -850,6 +1015,29 @@ pub struct PartitionQosPolicy {
     pub name: Vec<String>,
 }
 
+impl xtypes::serialize::XTypesSerialize for PartitionQosPolicy {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        let vec: Vec<_> = self.name.iter().map(String::as_str).collect();
+        xtypes::serialize::XTypesSerialize::serialize(&vec.as_slice(), serializer)
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for PartitionQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        let length = f.deserialize_field::<u32>("length")?;
+        let mut name = Vec::with_capacity(length as usize);
+        while let Some(partition_name) = f.deserialize_optional_field::<&str>("partition_name")? {
+            name.push(partition_name.to_owned());
+        }
+        Ok(Self { name })
+    }
+}
+
 impl QosPolicy for PartitionQosPolicy {
     fn name(&self) -> &str {
         PARTITION_QOS_POLICY_NAME
@@ -857,14 +1045,24 @@ impl QosPolicy for PartitionQosPolicy {
 }
 
 /// Enumeration representing the different types of reliability QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
 pub enum ReliabilityQosPolicyKind {
     /// Best-effort reliability.
     BestEffort,
     /// Reliable reliability.
     Reliable,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for ReliabilityQosPolicyKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match deserializer.deserialize_uint8()? {
+            0 => Ok(Self::BestEffort),
+            1 => Ok(Self::Reliable),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
+        }
+    }
+}
 const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
 
@@ -932,14 +1130,24 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`ReliabilityQosPolicyKind`] are considered ordered such
 /// that *BestEffort < Reliable*.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 pub struct ReliabilityQosPolicy {
     /// Kind of reliability QoS
     pub kind: ReliabilityQosPolicyKind,
     /// Maximum blocking time to block. This only applies when kind is set to [`ReliabilityQosPolicyKind::Reliable`]
     pub max_blocking_time: DurationKind,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for ReliabilityQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            kind: f.deserialize_field("kind")?,
+            max_blocking_time: f.deserialize_field("max_blocking_time")?,
+        })
+    }
+}
 impl QosPolicy for ReliabilityQosPolicy {
     fn name(&self) -> &str {
         RELIABILITY_QOS_POLICY_NAME
@@ -967,14 +1175,24 @@ pub(crate) const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolic
     };
 
 /// Enumeration representing the different types of destination order QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
 pub enum DestinationOrderQosPolicyKind {
     /// Ordered by reception timestamp.
     ByReceptionTimestamp,
     /// Ordered by source timestamp.
     BySourceTimestamp,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DestinationOrderQosPolicyKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match deserializer.deserialize_uint8()? {
+            0 => Ok(Self::ByReceptionTimestamp),
+            1 => Ok(Self::BySourceTimestamp),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
+        }
+    }
+}
 impl CdrSerialize for DestinationOrderQosPolicyKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
@@ -1026,12 +1244,23 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`DestinationOrderQosPolicyKind`] kind are considered
 /// ordered such that *DestinationOrderQosPolicyKind::ByReceptionTimestamp < DestinationOrderQosPolicyKind::BySourceTimestamp*.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
+)]
 pub struct DestinationOrderQosPolicy {
     /// Kind of destination order QoS associated with this policy.
     pub kind: DestinationOrderQosPolicyKind,
 }
-
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DestinationOrderQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            kind: f.deserialize_field("kind")?,
+        })
+    }
+}
 impl QosPolicy for DestinationOrderQosPolicyKind {
     fn name(&self) -> &str {
         DESTINATIONORDER_QOS_POLICY_NAME
@@ -1293,7 +1522,29 @@ pub struct DataRepresentationQosPolicy {
     /// List of data representation values
     pub value: DataRepresentationIdSeq,
 }
-
+impl xtypes::serialize::XTypesSerialize for DataRepresentationQosPolicy {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(&self.value.as_slice(), serializer)
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DataRepresentationQosPolicy {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        let length = f.deserialize_field::<u32>("length")?;
+        let mut value = Vec::with_capacity(length as usize);
+        while let Some(data_representation_id) =
+            f.deserialize_optional_field("data_representation_id")?
+        {
+            value.push(data_representation_id);
+        }
+        Ok(Self { value })
+    }
+}
 impl QosPolicy for DataRepresentationQosPolicy {
     fn name(&self) -> &str {
         DATA_REPRESENTATION_QOS_POLICY_NAME

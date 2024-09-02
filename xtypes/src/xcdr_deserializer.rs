@@ -1,5 +1,4 @@
 use core::str;
-
 use crate::{
     deserialize::XTypesDeserialize,
     deserializer::{
@@ -8,6 +7,8 @@ use crate::{
     },
     error::XcdrError,
 };
+
+const PID_SENTINEL: u16 = 1;
 
 pub struct Xcdr1BeDeserializer<'a> {
     reader: Reader<'a>,
@@ -104,7 +105,7 @@ fn seek_to_pid_be(reader: &mut Reader, pid: u16) -> Result<(), XcdrError> {
         let length = u16::from_be_bytes(*reader.read()?) as usize;
         if current_pid == pid {
             return Ok(());
-        } else if current_pid == 0 {
+        } else if current_pid == PID_SENTINEL {
             return Err(XcdrError::PidNotFound(pid));
         } else {
             reader.seek(length);
@@ -119,7 +120,7 @@ fn seek_to_pid_le(reader: &mut Reader, pid: u16) -> Result<(), XcdrError> {
         let length = u16::from_le_bytes(*reader.read()?) as usize;
         if current_pid == pid {
             return Ok(());
-        } else if current_pid == 0 {
+        } else if current_pid == PID_SENTINEL {
             return Err(XcdrError::PidNotFound(pid));
         } else {
             reader.seek(length);
@@ -134,7 +135,7 @@ fn seek_to_optional_pid_be(reader: &mut Reader, pid: u16) -> Result<bool, XcdrEr
         let length = u16::from_be_bytes(*reader.read()?) as usize;
         if current_pid == pid {
             return Ok(true);
-        } else if current_pid == 0 {
+        } else if current_pid == PID_SENTINEL {
             return Ok(false);
         } else {
             reader.seek(length);
@@ -149,7 +150,7 @@ fn seek_to_optional_pid_le(reader: &mut Reader, pid: u16) -> Result<bool, XcdrEr
         let length = u16::from_le_bytes(*reader.read()?) as usize;
         if current_pid == pid {
             return Ok(true);
-        } else if current_pid == 0 {
+        } else if current_pid == PID_SENTINEL {
             return Ok(false);
         } else {
             reader.seek(length);

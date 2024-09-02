@@ -1,9 +1,10 @@
-use std::ops::Sub;
-
 use crate::serialized_payload::cdr::{
     deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
     serializer::CdrSerializer,
 };
+use dust_dds_derive::XTypesSerialize;
+use std::ops::Sub;
+use xtypes::{deserializer::DeserializeFinalStruct, serializer::SerializeFinalStruct};
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -12,6 +13,31 @@ pub enum DurationKind {
     Finite(Duration),
     /// Infinite duration
     Infinite,
+}
+impl xtypes::serialize::XTypesSerialize for DurationKind {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(
+            match self {
+                DurationKind::Finite(d) => d,
+                DurationKind::Infinite => &DURATION_INFINITE,
+            },
+            serializer,
+        )
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DurationKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(match f.deserialize_field::<Duration>("duration_kind")? {
+            DURATION_INFINITE => DurationKind::Infinite,
+            duration => DurationKind::Finite(duration),
+        })
+    }
 }
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
@@ -58,10 +84,24 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, CdrDeserialize)]
+#[derive(
+    PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, CdrDeserialize, XTypesSerialize,
+)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,
+}
+
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for Duration {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            sec: f.deserialize_field("sec")?,
+            nanosec: f.deserialize_field("nanosec")?,
+        })
+    }
 }
 
 impl Duration {

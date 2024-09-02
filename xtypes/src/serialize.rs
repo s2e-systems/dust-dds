@@ -1,6 +1,6 @@
 use crate::{error::XcdrError, serializer::SerializeCollection};
 
-use super::serializer::XTypesSerializer;
+pub use super::serializer::XTypesSerializer;
 
 /// A trait representing a structure that can be serialized into a CDR format.
 pub trait XTypesSerialize {

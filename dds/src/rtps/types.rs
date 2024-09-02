@@ -3,11 +3,13 @@ use super::{
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
 use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
+use dust_dds_derive::XTypesSerialize;
 use network_interface::Addr;
 use std::{
     io::{Read, Write},
     net::IpAddr,
 };
+use xtypes::{deserializer::DeserializeFinalStruct, serializer::SerializeFinalStruct};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
@@ -68,10 +70,22 @@ impl WriteIntoBytes for &[u8] {
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
+}
+
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for Guid {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            prefix: f.deserialize_field("prefix")?,
+            entity_id: f.deserialize_field("entity_id")?,
+        })
+    }
 }
 
 impl Guid {
@@ -144,10 +158,22 @@ impl TryReadFromBytes for GuidPrefix {
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
 type OctetArray3 = [Octet; 3];
-#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 pub struct EntityId {
     entity_key: OctetArray3,
     entity_kind: Octet,
+}
+
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for EntityId {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut d = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            entity_key: d.deserialize_field("entity_key")?,
+            entity_kind: d.deserialize_field("entity_key")?,
+        })
+    }
 }
 
 impl EntityId {
@@ -255,6 +281,30 @@ pub struct Locator {
     kind: Long,
     port: UnsignedLong,
     address: [Octet; 16],
+}
+
+impl xtypes::serialize::XTypesSerialize for Locator {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serializer::XTypesSerializer,
+    ) -> Result<(), xtypes::error::XcdrError> {
+        let mut s = serializer.serialize_final_struct()?;
+        s.serialize_field(&self.kind, "kind")?;
+        s.serialize_field(&self.port, "port")?;
+        s.serialize_field(&self.address, "address")
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for Locator {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        Ok(Self {
+            kind: f.deserialize_field("kind")?,
+            port: f.deserialize_field("port")?,
+            address: f.deserialize_field("address")?,
+        })
+    }
 }
 
 impl WriteIntoBytes for Locator {
