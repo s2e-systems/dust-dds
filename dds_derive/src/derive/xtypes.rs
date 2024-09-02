@@ -281,7 +281,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                     impl #generics xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                        fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                             #deserializer_definition
                             Ok(#struct_deserialization)
                         }
@@ -494,7 +494,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                     let mut d = deserializer.deserialize_final_struct()?;
                     Ok(Self {
                         x: d.deserialize_field(\"x\")?,
@@ -537,7 +537,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                     let mut d = deserializer.deserialize_appendable_struct()?;
                     Ok(Self {
                         x: d.deserialize_field(\"x\")?,
@@ -577,7 +577,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de : 'a, 'a> xtypes::deserialize::XTypesDeserialize<'__de> for BorrowedData<'a> {
-                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                     let mut d = deserializer.deserialize_final_struct()?;
                     Ok(Self {
                         data: d.deserialize_field(\"data\")?,
@@ -621,7 +621,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                     let mut d = deserializer.deserialize_mutable_struct()?;
                     Ok(Self {
                         x: d.deserialize_field(1, \"x\")?,
