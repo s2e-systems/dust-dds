@@ -1,13 +1,10 @@
-use super::enum_support::{get_enum_bitbound, read_enum_variant_discriminant_mapping, BitBound};
+use super::{
+    attributes::{get_field_id, get_input_extensibility, Extensibility},
+    enum_support::{get_enum_bitbound, read_enum_variant_discriminant_mapping, BitBound},
+};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Field, Index, Result};
-
-enum Extensibility {
-    Final,
-    Appendable,
-    Mutable,
-}
+use syn::{DeriveInput, Index, Result};
 
 fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
     match get_enum_bitbound(max_discriminant) {
@@ -15,66 +12,6 @@ fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
         BitBound::Bit16 => quote! {u16},
         BitBound::Bit32 => quote! {u32},
     }
-}
-
-fn get_struct_extensibility(input: &DeriveInput) -> Result<Extensibility> {
-    let mut extensibility = Extensibility::Final;
-    if let Some(xtypes_attribute) = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("extensibility") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "Final" => {
-                        extensibility = Extensibility::Final;
-                        Ok(())
-                    }
-                    "Appendable" => {
-                        extensibility = Extensibility::Appendable;
-                        Ok(())
-                    }
-                    "Mutable" => {
-                        extensibility = Extensibility::Mutable;
-                        Ok(())
-                    }
-                    _ => Err(syn::Error::new(
-                        meta.path.span(),
-                        r#"Invalid format specified. Valid options are "Final", "Appendable", "Mutable". "#,
-                    )),
-                }
-            } else {
-                Ok(())
-            }
-        })?;
-    }
-    Ok(extensibility)
-}
-
-fn get_field_id(field: &Field) -> Result<syn::Expr> {
-    let mut result = Err(syn::Error::new(
-        field.span(),
-        r#"Field of mutable struct must define id attribute "#,
-    ));
-
-    if let Some(xtypes_attribute) = field
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("id") {
-                result = Ok(meta.value()?.parse()?);
-                Ok(())
-            } else {
-                Ok(())
-            }
-        })?;
-    }
-
-    result
 }
 
 pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
@@ -85,7 +22,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            let extensibility = get_struct_extensibility(input)?;
+            let extensibility = get_input_extensibility(input)?;
 
             match extensibility {
                 Extensibility::Final => field_serialization
@@ -216,7 +153,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
     match &input.data {
         syn::Data::Struct(data_struct) => {
-            let extensibility = get_struct_extensibility(input)?;
+            let extensibility = get_input_extensibility(input)?;
             let mut struct_deserialization = quote!();
             let deserializer_definition = match extensibility {
                 Extensibility::Final => {

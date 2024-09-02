@@ -83,7 +83,6 @@ pub struct MemberDescriptor {
 pub trait DynamicType {
     fn get_descriptor(&self) -> Result<TypeDescriptor, XcdrError>;
     fn get_name(&self) -> ObjectName;
-
     fn get_kind(&self) -> TypeKind;
 
     // DDS::ReturnCode_t get_member_by_name(inout DynamicTypeMember member, in ObjectName name);
@@ -92,7 +91,7 @@ pub trait DynamicType {
     // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
     fn get_member_count(&self) -> u32;
     fn get_member_by_index(&self, index: u32) -> Result<impl DynamicTypeMember, XcdrError>;
-    // unsigned long get_annotation_count();
+    // fn get_annotation_count(&self) -> u32;
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
     // unsigned long get_verbatim_text_count();
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
@@ -104,8 +103,21 @@ pub trait DynamicTypeMember {
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
     // unsigned long get_verbatim_text_count();
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
-    // boolean equals(in DynamicTypeMember other);
 
     fn get_id(&self) -> MemberId;
     fn get_name(&self) -> ObjectName;
+}
+
+impl DynamicTypeMember for MemberDescriptor {
+    fn get_descriptor(&self) -> Result<MemberDescriptor, XcdrError> {
+        Ok(self.clone())
+    }
+
+    fn get_id(&self) -> MemberId {
+        self.id
+    }
+
+    fn get_name(&self) -> ObjectName {
+        self.name
+    }
 }
