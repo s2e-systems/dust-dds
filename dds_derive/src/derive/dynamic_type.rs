@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput};
 
-use super::extensibility::{get_input_extensibility, Extensibility};
+use super::attributes::{field_has_key_attribute, get_input_extensibility, Extensibility};
 
 pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -27,13 +27,14 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
                     Some(i) => i.to_string(),
                     None => String::new(),
                 };
+                let is_key = field_has_key_attribute(field)?;
                 dynamic_type_member.extend(quote! {#field_index => Ok(
                     xtypes::dynamic_type::MemberDescriptor {
                         name: #name,
                         id: 0,
                         default_value: "",
                         index: #field_index,
-                        is_key: false,
+                        is_key: #is_key,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -136,6 +137,7 @@ mod tests {
             "
             #[xtypes(extensibility = \"Final\")]
             struct MyData {
+                #[xtypes(key)]
                 x: u32,
                 y: u32,
             }
@@ -179,7 +181,7 @@ mod tests {
                                 id: 0,
                                 default_value: \"\",
                                 index: 0u32,
-                                is_key: false,
+                                is_key: true,
                                 is_optional: false,
                                 is_must_understand: true,
                                 is_shared: false,

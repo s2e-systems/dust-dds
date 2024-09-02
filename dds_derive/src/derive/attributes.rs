@@ -1,4 +1,4 @@
-use syn::{spanned::Spanned, DeriveInput, Result};
+use syn::{spanned::Spanned, DeriveInput, Field, Result};
 
 pub enum Extensibility {
     Final,
@@ -40,4 +40,45 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
         })?;
     }
     Ok(extensibility)
+}
+
+pub fn get_field_id(field: &Field) -> Result<syn::Expr> {
+    let mut result = Err(syn::Error::new(
+        field.span(),
+        r#"Field of mutable struct must define id attribute "#,
+    ));
+
+    if let Some(xtypes_attribute) = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("xtypes"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("id") {
+                result = Ok(meta.value()?.parse()?);
+                Ok(())
+            } else {
+                Ok(())
+            }
+        })?;
+    }
+
+    result
+}
+
+pub fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
+    let mut has_key = false;
+    if let Some(xtypes_attribute) = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("xtypes"))
+    {
+        xtypes_attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("key") {
+                has_key = true;
+            }
+            Ok(())
+        })?;
+    }
+    Ok(has_key)
 }

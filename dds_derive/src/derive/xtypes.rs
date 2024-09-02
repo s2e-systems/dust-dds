@@ -1,10 +1,10 @@
 use super::{
+    attributes::{get_field_id, get_input_extensibility, Extensibility},
     enum_support::{get_enum_bitbound, read_enum_variant_discriminant_mapping, BitBound},
-    extensibility::{get_input_extensibility, Extensibility},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Field, Index, Result};
+use syn::{DeriveInput, Index, Result};
 
 fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
     match get_enum_bitbound(max_discriminant) {
@@ -12,30 +12,6 @@ fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
         BitBound::Bit16 => quote! {u16},
         BitBound::Bit32 => quote! {u32},
     }
-}
-
-fn get_field_id(field: &Field) -> Result<syn::Expr> {
-    let mut result = Err(syn::Error::new(
-        field.span(),
-        r#"Field of mutable struct must define id attribute "#,
-    ));
-
-    if let Some(xtypes_attribute) = field
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("id") {
-                result = Ok(meta.value()?.parse()?);
-                Ok(())
-            } else {
-                Ok(())
-            }
-        })?;
-    }
-
-    result
 }
 
 pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
