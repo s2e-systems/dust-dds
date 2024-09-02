@@ -212,7 +212,19 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
     match &input.data {
         syn::Data::Struct(data_struct) => {
+            let extensibility = get_struct_extensibility(input)?;
             let mut struct_deserialization = quote!();
+            let deserializer_definition = match extensibility {
+                Extensibility::Final => {
+                    quote! {let mut d = deserializer.deserialize_final_struct()?;}
+                }
+                Extensibility::Appendable => {
+                    quote! {let mut d = deserializer.deserialize_appendable_struct()?;}
+                }
+                Extensibility::Mutable => {
+                    quote! {let mut d = deserializer.deserialize_mutable_struct()?;}
+                }
+            };
 
             match data_struct.fields.is_empty() {
                 true => struct_deserialization.extend(quote! {Self}),
@@ -226,25 +238,38 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         .ident
                         .is_none();
                     if is_tuple {
-                        for field in data_struct.fields.iter() {
-                            if is_field_byte_array(field) {
-                                field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_byte_array(deserializer)?.clone(),});
-                            } else if is_field_byte_vec(field) {
-                                field_deserialization.extend(quote!{dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_bytes(deserializer)?.into(),});
-                            } else {
-                                field_deserialization.extend(quote!{xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,});
+                        for (index, field) in data_struct.fields.iter().enumerate() {
+                            let index_str = format!("{:?}", index);
+                            match extensibility {
+                                Extensibility::Final => field_deserialization
+                                    .extend(quote! {d.deserialize_field(#index_str),}),
+                                Extensibility::Appendable => field_deserialization
+                                    .extend(quote! {d.deserialize_field(#index_str),}),
+                                Extensibility::Mutable => {
+                                    let id = get_field_id(&field)?;
+                                    field_deserialization
+                                        .extend(quote! {d.deserialize_field(#id, #index_str),});
+                                }
                             }
                         }
                         struct_deserialization.extend(quote! {Self(#field_deserialization)})
                     } else {
                         for field in data_struct.fields.iter() {
                             let field_name = field.ident.as_ref().expect("Is not a tuple");
-                            if is_field_byte_array(field) {
-                                field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_byte_array(deserializer)?.clone(),});
-                            } else if is_field_byte_vec(field) {
-                                field_deserialization.extend(quote!{#field_name: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_bytes(deserializer)?.into(),});
-                            } else {
-                                field_deserialization.extend(quote!{#field_name: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,});
+                            let field_name_str = field_name.to_string();
+                            match extensibility {
+                                Extensibility::Final => field_deserialization.extend(
+                                    quote! {#field_name: d.deserialize_field(#field_name_str)?,},
+                                ),
+                                Extensibility::Appendable => field_deserialization.extend(
+                                    quote! {#field_name: d.deserialize_field(#field_name_str)?,},
+                                ),
+                                Extensibility::Mutable => {
+                                    let id = get_field_id(&field)?;
+                                    field_deserialization.extend(
+                                        quote! {#field_name: d.deserialize_field(#id, #field_name_str)?,},
+                                    );
+                                }
                             }
                         }
                         struct_deserialization.extend(quote! {Self{
@@ -256,7 +281,8 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                     impl #generics xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
-                        fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                        fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                            #deserializer_definition
                             Ok(#struct_deserialization)
                         }
                     }
@@ -311,28 +337,6 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             "Union not supported",
         )),
     }
-}
-
-fn is_field_byte_array(field: &syn::Field) -> bool {
-    if let syn::Type::Array(t) = &field.ty {
-        if let syn::Type::Path(t) = t.elem.as_ref() {
-            return t.path.is_ident("u8");
-        }
-    }
-    false
-}
-
-fn is_field_byte_vec(field: &syn::Field) -> bool {
-    if let syn::Type::Path(t) = &field.ty {
-        if t.path.segments[0].ident == "Vec" {
-            if let syn::PathArguments::AngleBracketed(a) = &t.path.segments[0].arguments {
-                if let syn::GenericArgument::Type(syn::Type::Path(vec_t)) = &a.args[0] {
-                    return vec_t.path.is_ident("u8");
-                }
-            }
-        }
-    }
-    false
 }
 
 #[cfg(test)]
@@ -472,6 +476,175 @@ mod tests {
     }
 
     #[test]
+    fn xtypes_deserialize_final_struct_with_basic_types() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            struct MyData {
+                x: u32,
+                y: u32,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                    let mut d = deserializer.deserialize_final_struct()?;
+                    Ok(Self {
+                        x: d.deserialize_field(\"x\")?,
+                        y: d.deserialize_field(\"y\")?,
+                    })
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn xtypes_deserialize_appendable_struct_with_basic_types() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            #[xtypes(extensibility = \"Appendable\")]
+            struct MyData {
+                x: u32,
+                y: u32,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                    let mut d = deserializer.deserialize_appendable_struct()?;
+                    Ok(Self {
+                        x: d.deserialize_field(\"x\")?,
+                        y: d.deserialize_field(\"y\")?,
+                    })
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn xtypes_deserialize_final_struct_with_lifetime() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            struct BorrowedData<'a> {
+                data: &'a [u8]
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let result = syn::parse2::<ItemImpl>(expand_xtypes_deserialize(&input).unwrap()).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de : 'a, 'a> xtypes::deserialize::XTypesDeserialize<'__de> for BorrowedData<'a> {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                    let mut d = deserializer.deserialize_final_struct()?;
+                    Ok(Self {
+                        data: d.deserialize_field(\"data\")?,
+                    })
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n\n L: {} \n\n R: {}",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn xtypes_deserialize_mutable_struct_with_basic_types() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            #[xtypes(extensibility = \"Mutable\")]
+            struct MyData {
+                #[xtypes(id=1)]
+                x: u32,
+                #[xtypes(id=2)]
+                y: u32,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, xtypes::error::XcdrError> {
+                    let mut d = deserializer.deserialize_mutable_struct()?;
+                    Ok(Self {
+                        x: d.deserialize_field(1, \"x\")?,
+                        y: d.deserialize_field(2, \"y\")?,
+                    })
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
     fn xtypes_serialize_enum() {
         let input = syn::parse2::<DeriveInput>(
             "
@@ -560,163 +733,6 @@ mod tests {
             result,
             expected,
             "\n R: {:?} \n \n L: {:?} \n ",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string()
-        );
-    }
-
-    #[test]
-    fn xtypes_deserialize_struct_with_basic_types() {
-        let input = syn::parse2::<DeriveInput>(
-            "
-            struct MyData {
-                x: u32,
-                y: u32,
-            }
-        "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
-        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
-        let expected = syn::parse2::<ItemImpl>(
-            "
-            impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
-                    Ok(Self {
-                        x: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
-                        y: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
-                    })
-                }
-            }
-            "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            result,
-            expected,
-            "\n R: {:?} \n \n L: {:?} \n ",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string()
-        );
-    }
-
-    #[test]
-    fn xtypes_deserialize_byte_array() {
-        let input = syn::parse2::<DeriveInput>(
-            "
-            pub struct MyByteArray {
-                a: [u8;10],
-            }
-        "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
-        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
-        let expected = syn::parse2::<ItemImpl>(
-            "
-            impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyByteArray {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
-                    Ok(Self {
-                        a: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_byte_array(deserializer)?.clone(),
-                    })
-                }
-            }
-            "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            result,
-            expected,
-            "\n R: {:?} \n \n L: {:?} \n ",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string()
-        );
-    }
-
-    #[test]
-    fn xtypes_deserialize_bytes() {
-        let input = syn::parse2::<DeriveInput>(
-            "
-            pub struct MyBytes {
-                a: Vec<u8>,
-            }
-        "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
-        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
-        let expected = syn::parse2::<ItemImpl>(
-            "
-            impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyBytes {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
-                    Ok(Self {
-                        a: dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer::deserialize_bytes(deserializer)?.into(),
-                    })
-                }
-            }
-            "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            result,
-            expected,
-            "\n R: {:?} \n \n L: {:?} \n ",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string()
-        );
-    }
-
-    #[test]
-    fn xtypes_deserialize_struct_with_lifetime() {
-        let input = syn::parse2::<DeriveInput>(
-            "
-            struct BorrowedData<'a> {
-                data: &'a [u8]
-            }
-        "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        let result = syn::parse2::<ItemImpl>(expand_xtypes_deserialize(&input).unwrap()).unwrap();
-        let expected = syn::parse2::<ItemImpl>(
-            "
-            impl<'__de : 'a, 'a> xtypes::deserialize::XTypesDeserialize<'__de> for BorrowedData<'a> {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
-                    Ok(Self {
-                        data: xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?,
-                    })
-                }
-            }
-            "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            result,
-            expected,
-            "\n\n L: {} \n\n R: {}",
             result.clone().into_token_stream().to_string(),
             expected.clone().into_token_stream().to_string()
         );
