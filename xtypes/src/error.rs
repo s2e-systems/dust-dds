@@ -3,4 +3,5 @@ pub enum XcdrError {
     OutOfMemory,
     InvalidData,
     PidNotFound(u16),
+    InvalidIndex,
 }
