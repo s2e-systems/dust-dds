@@ -168,8 +168,8 @@ impl<'a> SerializeMutableStruct for PlCdrBeEncoder<'a, '_> {
         write_pl_header_be(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
-    fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut *self.serializer)
+    fn end(self) -> Result<(), XcdrError> {
+        SENTINEL.serialize(self.serializer)
     }
 }
 
@@ -189,8 +189,8 @@ impl<'a> SerializeMutableStruct for PlCdrLeEncoder<'a, '_> {
         write_pl_header_le(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
-    fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut *self.serializer)
+    fn end(self) -> Result<(), XcdrError> {
+        SENTINEL.serialize(self.serializer)
     }
 }
 
@@ -210,8 +210,8 @@ impl<'a> SerializeMutableStruct for PlCdr2BeEncoder<'a, '_> {
         write_pl_header_be(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
-    fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut *self.serializer)
+    fn end(self) -> Result<(), XcdrError> {
+        SENTINEL.serialize(self.serializer)
     }
 }
 
@@ -231,8 +231,8 @@ impl<'a> SerializeMutableStruct for PlCdr2LeEncoder<'a, '_> {
         write_pl_header_le(&mut self.serializer.writer, header_pos, pid)?;
         self.serializer.writer.pad(4)
     }
-    fn end(&mut self) -> Result<(), XcdrError> {
-        SENTINEL.serialize(&mut *self.serializer)
+    fn end(self) -> Result<(), XcdrError> {
+        SENTINEL.serialize(self.serializer)
     }
 }
 
@@ -550,7 +550,7 @@ impl XTypesSerializer for &mut Xcdr2BeSerializer<'_> {
     }
     fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XcdrError> {
         Ok(DelimitedCdrBeEncoder {
-            serializer: Xcdr2BeSerializer::new(&mut self.writer.data),
+            serializer: Xcdr2BeSerializer::new(self.writer.data),
         })
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
@@ -620,7 +620,7 @@ impl<'a> XTypesSerializer for &'a mut Xcdr2LeSerializer<'_> {
     }
     fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XcdrError> {
         Ok(DelimitedCdrLeEncoder {
-            serializer: Xcdr2LeSerializer::new(&mut self.writer.data),
+            serializer: Xcdr2LeSerializer::new(self.writer.data),
         })
     }
     fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {

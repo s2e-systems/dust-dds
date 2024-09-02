@@ -108,7 +108,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                                 quote! {xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.#field_name, #field_name_str)?;},
                             ),
                             Extensibility::Mutable => {
-                                let id = get_field_id(&field)?;
+                                let id = get_field_id(field)?;
                                 field_serialization.extend(
                                     quote! {xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.#field_name, #id, #field_name_str)?;},
                                 );
@@ -124,7 +124,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Extensibility::Appendable => field_serialization
                                 .extend(quote! {xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
                             Extensibility::Mutable => {
-                                let id = get_field_id(&field)?;
+                                let id = get_field_id(field)?;
                                 field_serialization.extend(
                                     quote! {xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.#index, #id, #index_str)?;},
                                 );
@@ -250,7 +250,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                                 Extensibility::Appendable => field_deserialization
                                     .extend(quote! {xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #index_str),}),
                                 Extensibility::Mutable => {
-                                    let id = get_field_id(&field)?;
+                                    let id = get_field_id(field)?;
                                     field_deserialization
                                         .extend(quote! {xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #index_str),});
                                 }
@@ -269,7 +269,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                                     quote! {#field_name: xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #field_name_str)?,},
                                 ),
                                 Extensibility::Mutable => {
-                                    let id = get_field_id(&field)?;
+                                    let id = get_field_id(field)?;
                                     field_deserialization.extend(
                                         quote! {#field_name: xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #field_name_str)?,},
                                     );

@@ -85,7 +85,7 @@ impl<'a> Reader<'a> {
 
     fn seek_padding(&mut self, alignment: usize) {
         let mask = alignment - 1;
-        self.seek((self.pos + mask & !mask) - self.pos)
+        self.seek(((self.pos + mask) & !mask) - self.pos)
     }
 }
 
@@ -284,7 +284,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdr2LeDecoder<'de> {
         seek_to_pid_le(&mut reader, pid)?;
         T::deserialize(&mut Xcdr2LeDeserializer { reader })
     }
-    
+
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(&mut self, pid: u16, _name: &str) -> Result<Option<T>, XcdrError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
@@ -481,7 +481,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
     }
     fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
         Ok(PlCdrLeDecoder {
-            buffer: &self.reader.buffer(),
+            buffer: self.reader.buffer(),
         })
     }
     fn deserialize_array(self) -> Result<impl DeserializeCollection<'de>, XcdrError> {
@@ -548,7 +548,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
     }
     fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
         Ok(PlCdr2BeDecoder {
-            buffer: &self.reader.buffer(),
+            buffer: self.reader.buffer(),
         })
     }
     fn deserialize_array(self) -> Result<impl DeserializeCollection<'de>, XcdrError> {
@@ -617,7 +617,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
     }
     fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
         Ok(PlCdr2LeDecoder {
-            buffer: &self.reader.buffer(),
+            buffer: self.reader.buffer(),
         })
     }
     fn deserialize_array(self) -> Result<impl DeserializeCollection<'de>, XcdrError> {

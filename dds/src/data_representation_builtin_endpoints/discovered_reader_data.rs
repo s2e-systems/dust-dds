@@ -50,8 +50,8 @@ impl ReaderProxy {
         expects_inline_qos: bool,
     ) -> Self {
         Self {
-            remote_reader_guid: remote_reader_guid.into(),
-            remote_group_entity_id: remote_group_entity_id.into(),
+            remote_reader_guid,
+            remote_group_entity_id,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
@@ -242,7 +242,7 @@ impl XTypesSerialize for DiscoveredReaderData {
                 "group_data",
             )?;
         }
-        if self.dds_subscription_data.xml_type != "" {
+        if !self.dds_subscription_data.xml_type.is_empty() {
             m.serialize_field(
                 &self.dds_subscription_data.xml_type.as_str(),
                 PID_TYPE_REPRESENTATION as u16,

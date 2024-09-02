@@ -27,7 +27,7 @@ pub trait SerializeMutableStruct {
         pid: u16,
         name: &str,
     ) -> Result<(), XcdrError>;
-    fn end(&mut self) -> Result<(), XcdrError>;
+    fn end(self) -> Result<(), XcdrError>;
 }
 pub trait SerializeCollection {
     fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XcdrError>;
