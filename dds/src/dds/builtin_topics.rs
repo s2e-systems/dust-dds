@@ -29,7 +29,7 @@ use crate::{
     topic_definition::type_support::DdsHasKey,
 };
 use dust_dds_derive::{DdsDeserialize, XTypesSerialize};
-use xtypes::{deserialize::XTypesDeserialize, serializer::SerializeFinalStruct};
+use xtypes::deserialize::XTypesDeserialize;
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, Default, XTypesSerialize)]
@@ -92,7 +92,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(
-    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize
+    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
 )]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct TopicBuiltinTopicData {
