@@ -246,13 +246,13 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                             let index_str = format!("{:?}", index);
                             match extensibility {
                                 Extensibility::Final => field_deserialization
-                                    .extend(quote! {xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #index_str),}),
+                                    .extend(quote! {xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #index_str)?,}),
                                 Extensibility::Appendable => field_deserialization
-                                    .extend(quote! {xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #index_str),}),
+                                    .extend(quote! {xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #index_str)?,}),
                                 Extensibility::Mutable => {
                                     let id = get_field_id(field)?;
                                     field_deserialization
-                                        .extend(quote! {xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #index_str),});
+                                        .extend(quote! {xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #index_str)?,});
                                 }
                             }
                         }
