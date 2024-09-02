@@ -65,7 +65,7 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
                         #member_count
                     }
 
-                    fn get_member_by_index(&self, index: u32) -> Result<impl DynamicTypeMember, xtypes::error::XcdrError> {
+                    fn get_member_by_index(&self, index: u32) -> Result<impl xtypes::dynamic_type::DynamicTypeMember, xtypes::error::XcdrError> {
                         match index {
                             #dynamic_type_member
                             _ => Err(xtypes::error::XcdrError::InvalidIndex),
@@ -109,7 +109,7 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
                         #enum_variant_count
                     }
 
-                    fn get_member_by_index(&self, index: u32) -> Result<impl DynamicTypeMember, xtypes::error::XcdrError> {
+                    fn get_member_by_index(&self, index: u32) -> Result<impl xtypes::dynamic_type::DynamicTypeMember, xtypes::error::XcdrError> {
                         match index {
                             _ => Err(xtypes::error::XcdrError::InvalidIndex),
                         }
@@ -173,7 +173,7 @@ mod tests {
                     2u32
                 }
 
-                fn get_member_by_index(&self, index: u32) -> Result<impl DynamicTypeMember, xtypes::error::XcdrError> {
+                fn get_member_by_index(&self, index: u32) -> Result<impl xtypes::dynamic_type::DynamicTypeMember, xtypes::error::XcdrError> {
                     match index {
                         0u32 => Ok(
                             xtypes::dynamic_type::MemberDescriptor {
