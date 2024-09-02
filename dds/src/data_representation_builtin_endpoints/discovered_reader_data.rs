@@ -92,7 +92,172 @@ impl ReaderProxy {
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredReaderData {
     reader_proxy: ReaderProxy,
-    subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    dds_subscription_data: SubscriptionBuiltinTopicData,
+}
+
+impl XTypesSerialize for DiscoveredReaderData {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+        let mut m = serializer.serialize_mutable_struct()?;
+        if self.reader_proxy.remote_group_entity_id != Default::default() {
+            m.serialize_field(
+                &self.reader_proxy.remote_group_entity_id,
+                PID_GROUP_ENTITYID as u16,
+                "remote_group_entity_id",
+            )?;
+        }
+        for unicast_locator in &self.reader_proxy.unicast_locator_list {
+            m.serialize_field(
+                unicast_locator,
+                PID_UNICAST_LOCATOR as u16,
+                "unicast_locator_list",
+            )?;
+        }
+        for multicast_locator in &self.reader_proxy.multicast_locator_list {
+            m.serialize_field(
+                multicast_locator,
+                PID_MULTICAST_LOCATOR as u16,
+                "multicast_locator_list",
+            )?;
+        }
+        if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
+            m.serialize_field(
+                &self.reader_proxy.expects_inline_qos,
+                DEFAULT_EXPECTS_INLINE_QOS as u16,
+                "remote_group_entity_id",
+            )?;
+        }
+
+        m.serialize_field(
+            &self.dds_subscription_data.key,
+            PID_ENDPOINT_GUID as u16,
+            "key",
+        )?;
+        if self.dds_subscription_data.participant_key != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.participant_key,
+                PID_PARTICIPANT_GUID as u16,
+                "participant_key",
+            )?;
+        }
+        m.serialize_field(
+            &self.dds_subscription_data.topic_name.as_str(),
+            PID_TOPIC_NAME as u16,
+            "topic_name",
+        )?;
+        m.serialize_field(
+            &self.dds_subscription_data.type_name.as_str(),
+            PID_TYPE_NAME as u16,
+            "type_name",
+        )?;
+        if self.dds_subscription_data.durability != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.durability,
+                PID_DURABILITY as u16,
+                "durability",
+            )?;
+        }
+        if self.dds_subscription_data.deadline != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.deadline,
+                PID_DEADLINE as u16,
+                "deadline",
+            )?;
+        }
+        if self.dds_subscription_data.latency_budget != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.latency_budget,
+                PID_LATENCY_BUDGET as u16,
+                "latency_budget",
+            )?;
+        }
+        if self.dds_subscription_data.liveliness != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.liveliness,
+                PID_LIVELINESS as u16,
+                "liveliness",
+            )?;
+        }
+        if self.dds_subscription_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
+        {
+            m.serialize_field(
+                &self.dds_subscription_data.reliability,
+                PID_RELIABILITY as u16,
+                "reliability",
+            )?;
+        }
+        if self.dds_subscription_data.ownership != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.ownership,
+                PID_OWNERSHIP as u16,
+                "ownership",
+            )?;
+        }
+        if self.dds_subscription_data.destination_order != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.destination_order,
+                PID_DESTINATION_ORDER as u16,
+                "destination_order",
+            )?;
+        }
+        if self.dds_subscription_data.user_data != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.user_data,
+                PID_USER_DATA as u16,
+                "user_data",
+            )?;
+        }
+        if self.dds_subscription_data.time_based_filter != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.time_based_filter,
+                PID_TIME_BASED_FILTER as u16,
+                "time_based_filter",
+            )?;
+        }
+        if self.dds_subscription_data.presentation != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.presentation,
+                PID_PRESENTATION as u16,
+                "presentation",
+            )?;
+        }
+        if self.dds_subscription_data.partition != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.partition,
+                PID_PARTITION as u16,
+                "partition",
+            )?;
+        }
+        if self.dds_subscription_data.topic_data != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.topic_data,
+                PID_TOPIC_DATA as u16,
+                "topic_data",
+            )?;
+        }
+        if self.dds_subscription_data.group_data != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.group_data,
+                PID_GROUP_DATA as u16,
+                "group_data",
+            )?;
+        }
+        if self.dds_subscription_data.xml_type != "" {
+            m.serialize_field(
+                &self.dds_subscription_data.xml_type.as_str(),
+                PID_TYPE_REPRESENTATION as u16,
+                "xml_type",
+            )?;
+        }
+        if self.dds_subscription_data.representation != Default::default() {
+            m.serialize_field(
+                &self.dds_subscription_data.representation,
+                PID_DATA_REPRESENTATION as u16,
+                "representation",
+            )?;
+        }
+        m.end()
+    }
 }
 
 impl<'de> XTypesDeserialize<'de> for DiscoveredReaderData {
@@ -106,7 +271,7 @@ impl<'de> XTypesDeserialize<'de> for DiscoveredReaderData {
         }
         let mut multicast_locator_list = Vec::new();
         while let Some(multicast_locator) =
-            m.deserialize_optional_field(PID_UNICAST_LOCATOR as u16, "multicast_locator_list")?
+            m.deserialize_optional_field(PID_MULTICAST_LOCATOR as u16, "multicast_locator_list")?
         {
             multicast_locator_list.push(multicast_locator);
         }
@@ -130,7 +295,7 @@ impl<'de> XTypesDeserialize<'de> for DiscoveredReaderData {
                     )?
                     .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS),
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: m.deserialize_field(PID_ENDPOINT_GUID as u16, "key")?,
                 participant_key: m
                     .deserialize_optional_field(PID_PARTICIPANT_GUID as u16, "participant_key")?
@@ -191,170 +356,6 @@ impl<'de> XTypesDeserialize<'de> for DiscoveredReaderData {
         })
     }
 }
-impl XTypesSerialize for DiscoveredReaderData {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
-        let mut m = serializer.serialize_mutable_struct()?;
-        if self.reader_proxy.remote_group_entity_id != Default::default() {
-            m.serialize_field(
-                &self.reader_proxy.remote_group_entity_id,
-                PID_GROUP_ENTITYID as u16,
-                "remote_group_entity_id",
-            )?;
-        }
-        for unicast_locator in &self.reader_proxy.unicast_locator_list {
-            m.serialize_field(
-                unicast_locator,
-                PID_UNICAST_LOCATOR as u16,
-                "unicast_locator_list",
-            )?;
-        }
-        for multicast_locator in &self.reader_proxy.multicast_locator_list {
-            m.serialize_field(
-                multicast_locator,
-                PID_MULTICAST_LOCATOR as u16,
-                "multicast_locator_list",
-            )?;
-        }
-        if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
-            m.serialize_field(
-                &self.reader_proxy.expects_inline_qos,
-                DEFAULT_EXPECTS_INLINE_QOS as u16,
-                "remote_group_entity_id",
-            )?;
-        }
-
-        m.serialize_field(
-            &self.subscription_builtin_topic_data.key,
-            PID_ENDPOINT_GUID as u16,
-            "key",
-        )?;
-        if self.subscription_builtin_topic_data.participant_key != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.participant_key,
-                PID_PARTICIPANT_GUID as u16,
-                "participant_key",
-            )?;
-        }
-        m.serialize_field(
-            &self.subscription_builtin_topic_data.topic_name.as_str(),
-            PID_TOPIC_NAME as u16,
-            "topic_name",
-        )?;
-        m.serialize_field(
-            &self.subscription_builtin_topic_data.type_name.as_str(),
-            PID_TYPE_NAME as u16,
-            "type_name",
-        )?;
-        if self.subscription_builtin_topic_data.durability != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.durability,
-                PID_DURABILITY as u16,
-                "durability",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.deadline != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.deadline,
-                PID_DEADLINE as u16,
-                "deadline",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.latency_budget != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.latency_budget,
-                PID_LATENCY_BUDGET as u16,
-                "latency_budget",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.liveliness != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.liveliness,
-                PID_LIVELINESS as u16,
-                "liveliness",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.reliability
-            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
-        {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.reliability,
-                PID_RELIABILITY as u16,
-                "reliability",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.ownership != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.ownership,
-                PID_OWNERSHIP as u16,
-                "ownership",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.destination_order != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.destination_order,
-                PID_DESTINATION_ORDER as u16,
-                "destination_order",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.user_data != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.user_data,
-                PID_USER_DATA as u16,
-                "user_data",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.time_based_filter != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.time_based_filter,
-                PID_TIME_BASED_FILTER as u16,
-                "time_based_filter",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.presentation != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.presentation,
-                PID_PRESENTATION as u16,
-                "presentation",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.partition != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.partition,
-                PID_PARTITION as u16,
-                "partition",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.topic_data != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.topic_data,
-                PID_TOPIC_DATA as u16,
-                "topic_data",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.group_data != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.group_data,
-                PID_GROUP_DATA as u16,
-                "group_data",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.xml_type != "" {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.xml_type.as_str(),
-                PID_TYPE_REPRESENTATION as u16,
-                "xml_type",
-            )?;
-        }
-        if self.subscription_builtin_topic_data.representation != Default::default() {
-            m.serialize_field(
-                &self.subscription_builtin_topic_data.representation,
-                PID_DATA_REPRESENTATION as u16,
-                "representation",
-            )?;
-        }
-        m.end()
-    }
-}
 
 impl DiscoveredReaderData {
     pub fn new(
@@ -363,7 +364,7 @@ impl DiscoveredReaderData {
     ) -> Self {
         Self {
             reader_proxy,
-            subscription_builtin_topic_data,
+            dds_subscription_data: subscription_builtin_topic_data,
         }
     }
 
@@ -372,7 +373,7 @@ impl DiscoveredReaderData {
     }
 
     pub fn subscription_builtin_topic_data(&self) -> &SubscriptionBuiltinTopicData {
-        &self.subscription_builtin_topic_data
+        &self.dds_subscription_data
     }
 }
 
@@ -384,12 +385,12 @@ impl DdsKey for DiscoveredReaderData {
     type Key = [u8; 16];
 
     fn get_key(&self) -> DdsResult<Self::Key> {
-        Ok(self.subscription_builtin_topic_data.key().value)
+        Ok(self.dds_subscription_data.key().value)
     }
 
     fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
         Ok(Self::deserialize_data(serialized_foo)?
-            .subscription_builtin_topic_data
+            .dds_subscription_data
             .key()
             .value)
     }
@@ -435,7 +436,7 @@ mod tests {
                 vec![],
                 false,
             ),
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+            dds_subscription_data: SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -490,7 +491,7 @@ mod tests {
                 vec![],
                 false,
             ),
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+            dds_subscription_data: SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -546,7 +547,7 @@ mod tests {
                 vec![],
                 false,
             ),
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+            dds_subscription_data: SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -602,7 +603,7 @@ mod tests {
                 vec![],
                 false,
             ),
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+            dds_subscription_data: SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },

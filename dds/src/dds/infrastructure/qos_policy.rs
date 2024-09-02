@@ -8,7 +8,9 @@ use crate::{
 };
 use core::cmp::Ordering;
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
-use xtypes::{deserializer::DeserializeFinalStruct, serializer::SerializeFinalStruct};
+use xtypes::{
+    deserializer::DeserializeFinalStruct, error::XcdrError, serializer::SerializeFinalStruct,
+};
 
 /// QosPolicyId type alias
 pub type QosPolicyId = i32;
@@ -32,6 +34,17 @@ impl xtypes::serialize::XTypesSerialize for Length {
             Length::Limited(length) => serializer.serialize_uint32(*length)?,
         }
         Ok(())
+    }
+}
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for Length {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        match xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)? {
+            LENGTH_UNLIMITED => Ok(Length::Unlimited),
+            value @ 0..=i32::MAX => Ok(Length::Limited(value as u32)),
+            _ => Err(XcdrError::InvalidData),
+        }
     }
 }
 
@@ -307,7 +320,17 @@ impl QosPolicy for GroupDataQosPolicy {
 /// expected that during transport configuration the application would provide a mapping between the values of the
 /// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport.
 /// This mapping would then be used by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
-#[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    CdrSerialize,
+    CdrDeserialize,
+    XTypesSerialize,
+    XTypesDeserialize,
+)]
 pub struct TransportPriorityQosPolicy {
     /// Transport priority value
     pub value: i32,
@@ -332,7 +355,9 @@ impl QosPolicy for TransportPriorityQosPolicy {
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
 /// and the Service can detect it, the [`DataReader`](crate::subscription::data_reader::DataReader) is allowed to use the reception timestamp instead of the source timestamp in its
 /// computation of the 'expiration time.'
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
+)]
 pub struct LifespanQosPolicy {
     /// Lifespan duration
     pub duration: DurationKind,
@@ -804,7 +829,7 @@ impl Default for OwnershipQosPolicy {
 /// Exclusive ownership is on an instance-by-instance basis. That is, a subscriber can receive values written by a lower
 /// strength DataWriter as long as they affect instances whose values have not been set by the higher-strength
 /// DataWriter.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, Default)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, Default, XTypesSerialize, XTypesDeserialize)]
 pub struct OwnershipStrengthQosPolicy {
     /// Ownership strength value
     pub value: i32,
@@ -1314,6 +1339,19 @@ impl xtypes::serialize::XTypesSerialize for HistoryQosPolicyKind {
     }
 }
 
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for HistoryQosPolicyKind {
+    fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        let mut f = deserializer.deserialize_final_struct()?;
+        let descriminant = f.deserialize_field::<u8>("discriminant")?;
+        let length = f.deserialize_field("length")?;        
+        match descriminant {
+            0 => Ok(Self::KeepLast(length)),
+            1 => Ok(Self::KeepAll),
+            _ => Err(XcdrError::InvalidData)
+        }
+    }
+}
+
 impl CdrSerialize for HistoryQosPolicyKind {
     fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
         match self {
@@ -1358,7 +1396,9 @@ impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
 /// [`ReliabilityQosPolicyKind::Reliable`], then the Service will block the [`DataWriter`](crate::publication::data_writer::DataWriter) until it can deliver the necessary old values to all subscribers.
 /// The setting of [`HistoryQosPolicy`] depth must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`]. For these two
 /// QoS to be consistent, they must verify that *depth <= max_samples_per_instance*.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
+)]
 pub struct HistoryQosPolicy {
     /// Kind of history QoS associated with this policy.
     pub kind: HistoryQosPolicyKind,
@@ -1397,7 +1437,9 @@ impl Default for HistoryQosPolicy {
 /// The setting of [`ResourceLimitsQosPolicy::max_samples_per_instance`] must be consistent with the
 /// [`HistoryQosPolicy`] depth. For these two QoS to be consistent, they must verify
 /// that *HistoryQosPolicy depth <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
+)]
 pub struct ResourceLimitsQosPolicy {
     /// Maximum number of samples limit.
     pub max_samples: Length,

@@ -1,4 +1,4 @@
-use xtypes::serializer::SerializeMutableStruct;
+use xtypes::{deserializer::DeserializeMutableStruct, serializer::SerializeMutableStruct};
 
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
@@ -41,114 +41,175 @@ impl xtypes::serialize::XTypesSerialize for DiscoveredTopicData {
     ) -> Result<(), xtypes::error::XcdrError> {
         let mut p = serializer.serialize_mutable_struct()?;
         p.serialize_field(
-            self.topic_builtin_topic_data.key(),
+            &self.topic_builtin_topic_data.key,
             PID_ENDPOINT_GUID as u16,
             "key",
         )?;
         p.serialize_field(
-            &self.topic_builtin_topic_data.name(),
+            &self.topic_builtin_topic_data.name.as_str(),
             PID_TOPIC_NAME as u16,
             "name",
         )?;
         p.serialize_field(
-            &self.topic_builtin_topic_data.get_type_name(),
+            &self.topic_builtin_topic_data.type_name.as_str(),
             PID_TYPE_NAME as u16,
             "type_name",
         )?;
-        if self.topic_builtin_topic_data.durability() != &Default::default() {
+        if self.topic_builtin_topic_data.durability != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.durability(),
+                &self.topic_builtin_topic_data.durability,
                 PID_DURABILITY as u16,
                 "durability",
             )?;
         }
-        if self.topic_builtin_topic_data.deadline() != &Default::default() {
+        if self.topic_builtin_topic_data.deadline != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.deadline(),
+                &self.topic_builtin_topic_data.deadline,
                 PID_DEADLINE as u16,
                 "deadline",
             )?;
         }
-        if self.topic_builtin_topic_data.latency_budget() != &Default::default() {
+        if self.topic_builtin_topic_data.latency_budget != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.latency_budget(),
+                &self.topic_builtin_topic_data.latency_budget,
                 PID_LATENCY_BUDGET as u16,
                 "latency_budget",
             )?;
         }
-        if self.topic_builtin_topic_data.liveliness() != &Default::default() {
+        if self.topic_builtin_topic_data.liveliness != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.liveliness(),
+                &self.topic_builtin_topic_data.liveliness,
                 PID_LIVELINESS as u16,
                 "liveliness",
             )?;
         }
-        if self.topic_builtin_topic_data.reliability()
-            != &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
+        if self.topic_builtin_topic_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
         {
             p.serialize_field(
-                self.topic_builtin_topic_data.reliability(),
+                &self.topic_builtin_topic_data.reliability,
                 PID_RELIABILITY as u16,
                 "reliability",
             )?;
         }
         if self.topic_builtin_topic_data.transport_priority() != &Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.transport_priority(),
+                &self.topic_builtin_topic_data.transport_priority,
                 PID_TRANSPORT_PRIORITY as u16,
                 "transport_priority",
             )?;
         }
-        if self.topic_builtin_topic_data.lifespan() != &Default::default() {
+        if self.topic_builtin_topic_data.lifespan != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.lifespan(),
+                &self.topic_builtin_topic_data.lifespan,
                 PID_LIFESPAN as u16,
                 "lifespan",
             )?;
         }
-        if self.topic_builtin_topic_data.destination_order() != &Default::default() {
+        if self.topic_builtin_topic_data.destination_order != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.destination_order(),
+                &self.topic_builtin_topic_data.destination_order,
                 PID_DESTINATION_ORDER as u16,
                 "destination_order",
             )?;
         }
-        if self.topic_builtin_topic_data.history() != &Default::default() {
+        if self.topic_builtin_topic_data.history != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.history(),
+                &self.topic_builtin_topic_data.history,
                 PID_HISTORY as u16,
                 "history",
             )?;
         }
-        if self.topic_builtin_topic_data.resource_limits() != &Default::default() {
+        if self.topic_builtin_topic_data.resource_limits != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.resource_limits(),
+                &self.topic_builtin_topic_data.resource_limits,
                 PID_RESOURCE_LIMITS as u16,
                 "resource_limits",
             )?;
         }
-        if self.topic_builtin_topic_data.ownership() != &Default::default() {
+        if self.topic_builtin_topic_data.ownership != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.ownership(),
+                &self.topic_builtin_topic_data.ownership(),
                 PID_OWNERSHIP as u16,
                 "ownership",
             )?;
         }
-        if self.topic_builtin_topic_data.topic_data() != &Default::default() {
+        if self.topic_builtin_topic_data.topic_data != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.topic_data(),
+                &self.topic_builtin_topic_data.topic_data(),
                 PID_TOPIC_DATA as u16,
                 "topic_data",
             )?;
         }
-        if self.topic_builtin_topic_data.representation() != &Default::default() {
+        if self.topic_builtin_topic_data.representation != Default::default() {
             p.serialize_field(
-                self.topic_builtin_topic_data.representation(),
+                &self.topic_builtin_topic_data.representation,
                 PID_DATA_REPRESENTATION as u16,
                 "representation",
             )?;
         }
         p.end()
+    }
+}
+
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DiscoveredTopicData {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let mut m = deserializer.deserialize_mutable_struct()?;
+        Ok(Self {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: m.deserialize_field(PID_ENDPOINT_GUID as u16, "key")?,
+                name: m
+                    .deserialize_field::<&str>(PID_TOPIC_NAME as u16, "name")?
+                    .to_owned(),
+                type_name: m
+                    .deserialize_field::<&str>(PID_TYPE_NAME as u16, "type_name")?
+                    .to_owned(),
+                durability: m
+                    .deserialize_optional_field(PID_DURABILITY as u16, "durability")?
+                    .unwrap_or_default(),
+                deadline: m
+                    .deserialize_optional_field(PID_DEADLINE as u16, "deadline")?
+                    .unwrap_or_default(),
+                latency_budget: m
+                    .deserialize_optional_field(PID_LATENCY_BUDGET as u16, "latency_budget")?
+                    .unwrap_or_default(),
+                liveliness: m
+                    .deserialize_optional_field(PID_LIVELINESS as u16, "liveliness")?
+                    .unwrap_or_default(),
+                reliability: m
+                    .deserialize_optional_field(PID_RELIABILITY as u16, "reliability")?
+                    .unwrap_or(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS),
+                transport_priority: m
+                    .deserialize_optional_field(
+                        PID_TRANSPORT_PRIORITY as u16,
+                        "transport_priority",
+                    )?
+                    .unwrap_or_default(),
+                lifespan: m
+                    .deserialize_optional_field(PID_LIFESPAN as u16, "lifespan")?
+                    .unwrap_or_default(),
+                destination_order: m
+                    .deserialize_optional_field(PID_DESTINATION_ORDER as u16, "destination_order")?
+                    .unwrap_or_default(),
+                history: m
+                    .deserialize_optional_field(PID_HISTORY as u16, "history")?
+                    .unwrap_or_default(),
+                resource_limits: m
+                    .deserialize_optional_field(PID_RESOURCE_LIMITS as u16, "resource_limits")?
+                    .unwrap_or_default(),
+                ownership: m
+                    .deserialize_optional_field(PID_OWNERSHIP as u16, "ownership")?
+                    .unwrap_or_default(),
+                topic_data: m
+                    .deserialize_optional_field(PID_TOPIC_DATA as u16, "topic_data")?
+                    .unwrap_or_default(),
+                representation: m
+                    .deserialize_optional_field(PID_DATA_REPRESENTATION as u16, "representation")?
+                    .unwrap_or_default(),
+            },
+        })
     }
 }
 
@@ -193,7 +254,10 @@ impl DdsTypeXml for DiscoveredTopicData {
 mod tests {
     use super::*;
     use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos};
-    use xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer};
+    use xtypes::{
+        deserialize::XTypesDeserialize, serialize::XTypesSerialize,
+        xcdr_deserializer::Xcdr1LeDeserializer, xcdr_serializer::Xcdr1LeSerializer,
+    };
 
     fn serialize_v1_le<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
         let mut buffer = [0; N];
@@ -230,6 +294,39 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(serialize_v1_le(&data), expected);
+    }
+
+    #[test]
+    fn xtypes_deserialize_all_default() {
+        let expected = Ok(DiscoveredTopicData {
+            topic_builtin_topic_data: TopicBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                "ab".to_string(),
+                "cd".to_string(),
+                TopicQos::default(),
+            ),
+        });
+
+        let data = [
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x05, 0x00, 7, 0, // PID_TOPIC_NAME, length
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x07, 0x00, 7, 0, // PID_TYPE_NAME, length
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        assert_eq!(
+            XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(&data)),
+            expected
+        );
     }
 
     #[test]
