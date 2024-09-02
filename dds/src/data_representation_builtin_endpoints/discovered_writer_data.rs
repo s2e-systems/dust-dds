@@ -246,7 +246,7 @@ impl xtypes::serialize::XTypesSerialize for DiscoveredWriterData {
                 "multicast_locator_list",
             )?;
         }
-        if self.writer_proxy.data_max_size_serialized != Default::default() {
+        if self.writer_proxy.data_max_size_serialized != 0 {
             p.serialize_field(
                 &self.writer_proxy.data_max_size_serialized,
                 PID_DATA_MAX_SIZE_SERIALIZED as u16,
