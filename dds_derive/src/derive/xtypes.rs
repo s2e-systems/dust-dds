@@ -89,11 +89,11 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
             match extensibility {
                 Extensibility::Final => field_serialization
-                    .extend(quote! {let mut s = serializer.serialize_final_struct()?;}),
+                    .extend(quote! {let mut s = xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;}),
                 Extensibility::Appendable => field_serialization
-                    .extend(quote! {let mut s = serializer.serialize_appendable_struct()?;}),
+                    .extend(quote! {let mut s = xtypes::serializer::XTypesSerializer::serialize_appendable_struct(serializer)?;}),
                 Extensibility::Mutable => field_serialization
-                    .extend(quote! {let mut s = serializer.serialize_mutable_struct()?;}),
+                    .extend(quote! {let mut s = xtypes::serializer::XTypesSerializer::serialize_mutable_struct(serializer)?;}),
             };
 
             for (field_index, field) in data_struct.fields.iter().enumerate() {
@@ -101,14 +101,16 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                     Some(field_name) => {
                         let field_name_str = field_name.to_string();
                         match extensibility {
-                            Extensibility::Final |
+                            Extensibility::Final => field_serialization.extend(
+                                quote! {xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.#field_name, #field_name_str)?;},
+                            ),
                             Extensibility::Appendable => field_serialization.extend(
-                                quote! {s.serialize_field(&self.#field_name, #field_name_str)?;},
+                                quote! {xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.#field_name, #field_name_str)?;},
                             ),
                             Extensibility::Mutable => {
                                 let id = get_field_id(&field)?;
                                 field_serialization.extend(
-                                    quote! {s.serialize_field(&self.#field_name, #id, #field_name_str)?;},
+                                    quote! {xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.#field_name, #id, #field_name_str)?;},
                                 );
                             }
                         }
@@ -117,12 +119,14 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                         let index = Index::from(field_index);
                         let index_str = format!("{:?}", field_index);
                         match extensibility {
-                            Extensibility::Final | Extensibility::Appendable => field_serialization
-                                .extend(quote! {s.serialize_field(&self.#index, #index_str)?;}),
+                            Extensibility::Final => field_serialization
+                                .extend(quote! {xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
+                            Extensibility::Appendable => field_serialization
+                                .extend(quote! {xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
                             Extensibility::Mutable => {
                                 let id = get_field_id(&field)?;
                                 field_serialization.extend(
-                                    quote! {s.serialize_field(&self.#index, #id, #index_str)?;},
+                                    quote! {xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.#index, #id, #index_str)?;},
                                 );
                             }
                         }
@@ -132,7 +136,8 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
             match extensibility {
                 Extensibility::Final | Extensibility::Appendable => (),
-                Extensibility::Mutable => field_serialization.extend(quote! {s.end()?;}),
+                Extensibility::Mutable => field_serialization
+                    .extend(quote! {xtypes::serializer::SerializeMutableStruct::end(&mut s)?;}),
             }
 
             Ok(quote! {
@@ -171,7 +176,6 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                     let discriminant : #discriminant_type = match self {
                         #(#clauses)*
                     };
-
                     xtypes::serialize::XTypesSerialize::serialize(&discriminant, serializer)
                 }
             };
@@ -216,13 +220,13 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             let mut struct_deserialization = quote!();
             let deserializer_definition = match extensibility {
                 Extensibility::Final => {
-                    quote! {let mut d = deserializer.deserialize_final_struct()?;}
+                    quote! {let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;}
                 }
                 Extensibility::Appendable => {
-                    quote! {let mut d = deserializer.deserialize_appendable_struct()?;}
+                    quote! {let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_appendable_struct(deserializer)?;}
                 }
                 Extensibility::Mutable => {
-                    quote! {let mut d = deserializer.deserialize_mutable_struct()?;}
+                    quote! {let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_mutable_struct(deserializer)?;}
                 }
             };
 
@@ -242,13 +246,13 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                             let index_str = format!("{:?}", index);
                             match extensibility {
                                 Extensibility::Final => field_deserialization
-                                    .extend(quote! {d.deserialize_field(#index_str),}),
+                                    .extend(quote! {xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #index_str),}),
                                 Extensibility::Appendable => field_deserialization
-                                    .extend(quote! {d.deserialize_field(#index_str),}),
+                                    .extend(quote! {xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #index_str),}),
                                 Extensibility::Mutable => {
                                     let id = get_field_id(&field)?;
                                     field_deserialization
-                                        .extend(quote! {d.deserialize_field(#id, #index_str),});
+                                        .extend(quote! {xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #index_str),});
                                 }
                             }
                         }
@@ -259,15 +263,15 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                             let field_name_str = field_name.to_string();
                             match extensibility {
                                 Extensibility::Final => field_deserialization.extend(
-                                    quote! {#field_name: d.deserialize_field(#field_name_str)?,},
+                                    quote! {#field_name: xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #field_name_str)?,},
                                 ),
                                 Extensibility::Appendable => field_deserialization.extend(
-                                    quote! {#field_name: d.deserialize_field(#field_name_str)?,},
+                                    quote! {#field_name: xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #field_name_str)?,},
                                 ),
                                 Extensibility::Mutable => {
                                     let id = get_field_id(&field)?;
                                     field_deserialization.extend(
-                                        quote! {#field_name: d.deserialize_field(#id, #field_name_str)?,},
+                                        quote! {#field_name: xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #field_name_str)?,},
                                     );
                                 }
                             }
@@ -326,7 +330,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
             Ok(quote! {
                 impl #generics xtypes::deserialize::XTypesDeserialize<'__de> for #ident #type_generics #where_clause {
-                    fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                    fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                         #deserialize_enum
                     }
                 }
@@ -367,9 +371,9 @@ mod tests {
             "
             impl xtypes::serialize::XTypesSerialize for MyData {
                 fn serialize(&self, serializer: impl xtypes::serialize::XTypesSerializer) -> Result<(), xtypes::error::XcdrError> {
-                    let mut s = serializer.serialize_final_struct()?;
-                    s.serialize_field(&self.x, \"x\")?;
-                    s.serialize_field(&self.y, \"y\")?;
+                    let mut s = xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
+                    xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.x, \"x\")?;
+                    xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &self.y, \"y\")?;
                     Ok(())
                 }
             }
@@ -409,9 +413,9 @@ mod tests {
             "
             impl xtypes::serialize::XTypesSerialize for MyData {
                 fn serialize(&self, serializer: impl xtypes::serialize::XTypesSerializer) -> Result<(), xtypes::error::XcdrError> {
-                    let mut s = serializer.serialize_appendable_struct()?;
-                    s.serialize_field(&self.x, \"x\")?;
-                    s.serialize_field(&self.y, \"y\")?;
+                    let mut s = xtypes::serializer::XTypesSerializer::serialize_appendable_struct(serializer)?;
+                    xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.x, \"x\")?;
+                    xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.y, \"y\")?;
                     Ok(())
                 }
             }
@@ -453,10 +457,10 @@ mod tests {
             "
             impl xtypes::serialize::XTypesSerialize for MyData {
                 fn serialize(&self, serializer: impl xtypes::serialize::XTypesSerializer) -> Result<(), xtypes::error::XcdrError> {
-                    let mut s = serializer.serialize_mutable_struct()?;
-                    s.serialize_field(&self.x, 1, \"x\")?;
-                    s.serialize_field(&self.y, 2, \"y\")?;
-                    s.end()?;
+                    let mut s = xtypes::serializer::XTypesSerializer::serialize_mutable_struct(serializer)?;
+                    xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.x, 1, \"x\")?;
+                    xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.y, 2, \"y\")?;
+                    xtypes::serializer::SerializeMutableStruct::end(&mut s)?;
                     Ok(())
                 }
             }
@@ -495,10 +499,10 @@ mod tests {
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
                 fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
-                    let mut d = deserializer.deserialize_final_struct()?;
+                    let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
                     Ok(Self {
-                        x: d.deserialize_field(\"x\")?,
-                        y: d.deserialize_field(\"y\")?,
+                        x: xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"x\")?,
+                        y: xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"y\")?,
                     })
                 }
             }
@@ -538,10 +542,10 @@ mod tests {
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
                 fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
-                    let mut d = deserializer.deserialize_appendable_struct()?;
+                    let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_appendable_struct(deserializer)?;
                     Ok(Self {
-                        x: d.deserialize_field(\"x\")?,
-                        y: d.deserialize_field(\"y\")?,
+                        x: xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, \"x\")?,
+                        y: xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, \"y\")?,
                     })
                 }
             }
@@ -578,9 +582,9 @@ mod tests {
             "
             impl<'__de : 'a, 'a> xtypes::deserialize::XTypesDeserialize<'__de> for BorrowedData<'a> {
                 fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
-                    let mut d = deserializer.deserialize_final_struct()?;
+                    let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
                     Ok(Self {
-                        data: d.deserialize_field(\"data\")?,
+                        data: xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"data\")?,
                     })
                 }
             }
@@ -622,10 +626,10 @@ mod tests {
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for MyData {
                 fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
-                    let mut d = deserializer.deserialize_mutable_struct()?;
+                    let mut d = xtypes::deserializer::XTypesDeserializer::deserialize_mutable_struct(deserializer)?;
                     Ok(Self {
-                        x: d.deserialize_field(1, \"x\")?,
-                        y: d.deserialize_field(2, \"y\")?,
+                        x: xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, 1, \"x\")?,
+                        y: xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, 2, \"y\")?,
                     })
                 }
             }
@@ -670,7 +674,6 @@ mod tests {
                         SimpleEnum::b => 2000,
                         SimpleEnum::c => 2001,
                     };
-
                     xtypes::serialize::XTypesSerialize::serialize(&discriminant, serializer)
                 }
             }
@@ -709,7 +712,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl<'__de> xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
-                fn deserialize(deserializer: &mut impl dust_dds::serialized_payload::cdr::deserializer::CdrDeserializer<'__de>) -> Result<Self, std::io::Error> {
+                fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self, xtypes::error::XcdrError> {
                     let discriminant: u16 = xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?;
 
                     match discriminant {

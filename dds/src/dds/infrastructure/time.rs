@@ -4,7 +4,7 @@ use crate::serialized_payload::cdr::{
 };
 use dust_dds_derive::XTypesSerialize;
 use std::ops::Sub;
-use xtypes::{deserializer::DeserializeFinalStruct, serializer::SerializeFinalStruct};
+use xtypes::deserializer::DeserializeFinalStruct;
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
