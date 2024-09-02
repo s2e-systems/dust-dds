@@ -3,7 +3,7 @@ use super::{
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
 use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize};
-use dust_dds_derive::XTypesSerialize;
+use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
 use network_interface::Addr;
 use std::{
     io::{Read, Write},
@@ -442,7 +442,7 @@ pub enum ReliabilityKind {
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
 /// PROTOCOLVERSION_2_4
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 pub struct ProtocolVersion {
     bytes: [u8; 2],
 }

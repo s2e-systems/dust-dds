@@ -66,9 +66,9 @@ impl From<BuiltInTopicKey> for [u8; 16] {
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct ParticipantBuiltinTopicData {
     #[parameter(id = PID_PARTICIPANT_GUID)]
-    key: BuiltInTopicKey,
+    pub(crate) key: BuiltInTopicKey,
     #[parameter(id = PID_USER_DATA, default = Default::default())]
-    user_data: UserDataQosPolicy,
+    pub(crate) user_data: UserDataQosPolicy,
 }
 
 impl ParticipantBuiltinTopicData {
