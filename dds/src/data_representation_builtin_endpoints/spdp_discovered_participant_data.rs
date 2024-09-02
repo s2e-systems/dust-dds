@@ -1,4 +1,3 @@
-use dust_dds_derive::XTypesSerialize;
 use xtypes::serializer::SerializeMutableStruct;
 
 use crate::{
@@ -210,50 +209,36 @@ impl xtypes::serialize::XTypesSerialize for SpdpDiscoveredParticipantData {
             PID_PARTICIPANT_GUID as u16,
             "key",
         )?;
-        p.serialize_field(
-            &self.dds_participant_data.user_data,
-            PID_USER_DATA as u16,
-            "user_data",
-        )?;
-
-        if let Some(domain_id) = &self.participant_proxy.domain_id.0 {
-            p.serialize_field(domain_id, PID_DOMAIN_ID as u16, "domain_id")?;
+        if self.dds_participant_data.user_data != Default::default() {
+            p.serialize_field(
+                &self.dds_participant_data.user_data,
+                PID_USER_DATA as u16,
+                "user_data",
+            )?;
         }
-
-        //     #[parameter(id=PID_DOMAIN_TAG, default=Default::default())]
-        //     pub(crate) domain_tag: DomainTag,
+        if self.participant_proxy.domain_id != Default::default() {
+            if let Some(domain_id) = &self.participant_proxy.domain_id.0 {
+                p.serialize_field(domain_id, PID_DOMAIN_ID as u16, "domain_id")?;
+            }
+        }
         p.serialize_field(
             &self.participant_proxy.domain_tag.0.as_str(),
             PID_DOMAIN_TAG as u16,
             "domain_tag",
         )?;
-
-        //     #[parameter(id=PID_PROTOCOL_VERSION)]
-        //     pub(crate) protocol_version: ProtocolVersion,
         p.serialize_field(
             &self.participant_proxy.protocol_version,
             PID_PROTOCOL_VERSION as u16,
             "protocol_version",
         )?;
 
-        //     #[parameter(id=PID_PARTICIPANT_GUID, skip_serialize)]
-        //     pub(crate) guid_prefix: GuidPrefix,
-        p.serialize_field(
-            &self.participant_proxy.guid_prefix,
-            PID_PARTICIPANT_GUID as u16,
-            "guid_prefix",
-        )?;
+        // skip_serialize : participant_proxyguid_prefix
 
-        //     #[parameter(id=PID_VENDORID)]
-        //     pub(crate) vendor_id: VendorId,
         p.serialize_field(
             &self.participant_proxy.vendor_id,
             PID_VENDORID as u16,
             "vendor_id",
         )?;
-
-        //     #[parameter(id=PID_EXPECTS_INLINE_QOS, default=DEFAULT_EXPECTS_INLINE_QOS)]
-        //     pub(crate) expects_inline_qos: bool,
         p.serialize_field(
             &self.participant_proxy.expects_inline_qos,
             PID_EXPECTS_INLINE_QOS as u16,
@@ -270,9 +255,6 @@ impl xtypes::serialize::XTypesSerialize for SpdpDiscoveredParticipantData {
                 "metatraffic_unicast_locator_list",
             )?;
         }
-
-        //     #[parameter(id=PID_METATRAFFIC_MULTICAST_LOCATOR, collection)]
-        //     pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
         for metatraffic_multicast_locator in
             &self.participant_proxy.metatraffic_multicast_locator_list
         {
@@ -282,8 +264,6 @@ impl xtypes::serialize::XTypesSerialize for SpdpDiscoveredParticipantData {
                 "metatraffic_multicast_locator_list",
             )?;
         }
-        //     #[parameter(id=PID_DEFAULT_UNICAST_LOCATOR, collection)]
-        //     pub(crate) default_unicast_locator_list: Vec<Locator>,
         for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
             p.serialize_field(
                 default_unicast_locator,
@@ -291,8 +271,6 @@ impl xtypes::serialize::XTypesSerialize for SpdpDiscoveredParticipantData {
                 "default_unicast_locator_list",
             )?;
         }
-        //     #[parameter(id=PID_DEFAULT_MULTICAST_LOCATOR, collection)]
-        //     pub(crate) default_multicast_locator_list: Vec<Locator>,
         for default_multicast_locator_list in &self.participant_proxy.default_multicast_locator_list
         {
             p.serialize_field(
@@ -301,44 +279,36 @@ impl xtypes::serialize::XTypesSerialize for SpdpDiscoveredParticipantData {
                 "default_multicast_locator_list",
             )?;
         }
-
-        //     #[parameter(id=PID_BUILTIN_ENDPOINT_SET)]
-        //     pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
         p.serialize_field(
             &self.participant_proxy.available_builtin_endpoints,
             PID_BUILTIN_ENDPOINT_SET as u16,
             "available_builtin_endpoints",
         )?;
 
-        //     // Default value is a deviation from the standard and is used for interoperability reasons:
-        //     #[parameter(id=PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, default=Default::default())]
-        //     pub(crate) manual_liveliness_count: Count,
-        p.serialize_field(
-            &self.participant_proxy.manual_liveliness_count,
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u16,
-            "manual_liveliness_count",
-        )?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        if self.participant_proxy.manual_liveliness_count != Default::default() {
+            p.serialize_field(
+                &self.participant_proxy.manual_liveliness_count,
+                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT as u16,
+                "manual_liveliness_count",
+            )?;
+        }
 
-        //     // Default value is a deviation from the standard and is used for interoperability reasons:
-        //     #[parameter(id=PID_BUILTIN_ENDPOINT_QOS, default=Default::default())]
-        //     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
-        p.serialize_field(
-            &self.participant_proxy.builtin_endpoint_qos,
-            PID_BUILTIN_ENDPOINT_QOS as u16,
-            "builtin_endpoint_qos",
-        )?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        if self.participant_proxy.builtin_endpoint_qos != Default::default() {
+            p.serialize_field(
+                &self.participant_proxy.builtin_endpoint_qos,
+                PID_BUILTIN_ENDPOINT_QOS as u16,
+                "builtin_endpoint_qos",
+            )?;
+        }
 
-        // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons
-        // #[parameter(id = PID_PARTICIPANT_LEASE_DURATION)]
-        // lease_duration: Duration,
         p.serialize_field(
             &self.lease_duration,
             PID_PARTICIPANT_LEASE_DURATION as u16,
             "lease_duration",
         )?;
-
-        // #[parameter(id = PID_DISCOVERED_PARTICIPANT, collection)]
-        // discovered_participant_list: Vec<InstanceHandle>,
+        
         for discovered_participant in &self.discovered_participant_list {
             p.serialize_field(
                 discovered_participant,
@@ -352,7 +322,7 @@ impl xtypes::serialize::XTypesSerialize for SpdpDiscoveredParticipantData {
 }
 impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(
-        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+        _deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
     ) -> Result<Self, xtypes::error::XcdrError> {
         todo!()
     }
@@ -479,22 +449,21 @@ mod tests {
         );
 
         let expected = Ok([
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             0, 0, 1, 0xc1, // EntityId
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length
             0x01, 0x00, 0x00, 0x00, // DomainId
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            0x14, 0x40, 0x07, 0x00, // PID_DOMAIN_TAG, Length
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            0x15, 0x00, 2, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            0x16, 0x00, 2, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x43, 0x00, 0x01, 0x00, // PID_EXPECTS_INLINE_QOS, Length
             0x01, 0x00, 0x00, 0x00, // True
             0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
             11, 0x00, 0x00, 0x00, // Locator{kind
