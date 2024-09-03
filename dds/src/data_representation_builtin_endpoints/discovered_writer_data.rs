@@ -263,19 +263,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DiscoveredWriterData {
         deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
     ) -> Result<Self, xtypes::error::XcdrError> {
         let mut m = deserializer.deserialize_mutable_struct()?;
-        let mut unicast_locator_list = Vec::new();
-        while let Some(unicast_locator) =
-            m.deserialize_optional_field(PID_UNICAST_LOCATOR as u16, "unicast_locator_list")?
-        {
-            unicast_locator_list.push(unicast_locator);
-        }
-        let mut multicast_locator_list = Vec::new();
-        while let Some(multicast_locator) =
-            m.deserialize_optional_field(PID_MULTICAST_LOCATOR as u16, "multicast_locator_list")?
-        {
-            multicast_locator_list.push(multicast_locator);
-        }
-
         Ok(Self {
             dds_publication_data: PublicationBuiltinTopicData {
                 key: m.deserialize_field(PID_ENDPOINT_GUID as u16, "key")?,
@@ -350,8 +337,12 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DiscoveredWriterData {
                         "remote_group_entity_id",
                     )?
                     .unwrap_or_default(),
-                unicast_locator_list,
-                multicast_locator_list,
+                unicast_locator_list: m
+                    .deserialize_list_field(PID_UNICAST_LOCATOR as u16, "unicast_locator_list")
+                    .collect(),
+                multicast_locator_list: m
+                    .deserialize_list_field(PID_MULTICAST_LOCATOR as u16, "multicast_locator_list")
+                    .collect(),
                 data_max_size_serialized: m
                     .deserialize_optional_field(
                         PID_DATA_MAX_SIZE_SERIALIZED as u16,

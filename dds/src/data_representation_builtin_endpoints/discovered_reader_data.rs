@@ -263,19 +263,6 @@ impl XTypesSerialize for DiscoveredReaderData {
 impl<'de> XTypesDeserialize<'de> for DiscoveredReaderData {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
         let mut m = deserializer.deserialize_mutable_struct()?;
-        let mut unicast_locator_list = Vec::new();
-        while let Some(unicast_locator) =
-            m.deserialize_optional_field(PID_UNICAST_LOCATOR as u16, "unicast_locator_list")?
-        {
-            unicast_locator_list.push(unicast_locator);
-        }
-        let mut multicast_locator_list = Vec::new();
-        while let Some(multicast_locator) =
-            m.deserialize_optional_field(PID_MULTICAST_LOCATOR as u16, "multicast_locator_list")?
-        {
-            multicast_locator_list.push(multicast_locator);
-        }
-
         Ok(Self {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: m
@@ -286,8 +273,12 @@ impl<'de> XTypesDeserialize<'de> for DiscoveredReaderData {
                         "remote_group_entity_id",
                     )?
                     .unwrap_or_default(),
-                unicast_locator_list,
-                multicast_locator_list,
+                unicast_locator_list: m
+                    .deserialize_list_field(PID_UNICAST_LOCATOR as u16, "unicast_locator_list")
+                    .collect(),
+                multicast_locator_list: m
+                    .deserialize_list_field(PID_MULTICAST_LOCATOR as u16, "multicast_locator_list")
+                    .collect(),
                 expects_inline_qos: m
                     .deserialize_optional_field(
                         PID_EXPECTS_INLINE_QOS as u16,

@@ -529,49 +529,33 @@ mod tests {
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(21, 22, [2; 16]);
 
-        let domain_id = Some(1);
-        let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion::new(2, 4);
-        let guid_prefix = [8; 12];
-        let vendor_id = [73, 74];
-        let expects_inline_qos = true;
-        let metatraffic_unicast_locator_list = vec![locator1, locator2];
-        let metatraffic_multicast_locator_list = vec![locator1];
-        let default_unicast_locator_list = vec![locator1];
-        let default_multicast_locator_list = vec![locator1];
-        let available_builtin_endpoints =
-            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = 2;
-        let builtin_endpoint_qos = BuiltinEndpointQos::new(
-            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
-        );
-        let lease_duration = Duration::new(10, 11);
-
-        let data = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
+        let data = SpdpDiscoveredParticipantData{
+            dds_participant_data: ParticipantBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 UserDataQosPolicy { value: vec![] },
             ),
-            ParticipantProxy::new(
-                domain_id,
-                domain_tag,
-                protocol_version,
-                guid_prefix,
-                vendor_id,
-                expects_inline_qos,
-                metatraffic_unicast_locator_list,
-                metatraffic_multicast_locator_list,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                available_builtin_endpoints,
-                manual_liveliness_count,
-                builtin_endpoint_qos,
-            ),
-            lease_duration,
-            vec![],
-        );
+            participant_proxy: ParticipantProxy{
+                domain_id: DomainIdParameter(Some(1)),
+                domain_tag: DomainTag("ab".to_string()),
+                protocol_version: ProtocolVersion::new(2, 4),
+                guid_prefix: [8; 12],
+                vendor_id: [73, 74],
+                expects_inline_qos: true,
+                metatraffic_unicast_locator_list: vec![locator1, locator2],
+                metatraffic_multicast_locator_list: vec![locator1],
+                default_unicast_locator_list: vec![locator1],
+                default_multicast_locator_list: vec![locator1],
+                available_builtin_endpoints:  BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR),
+                manual_liveliness_count: 2,
+                builtin_endpoint_qos: BuiltinEndpointQos::new(
+                    BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
+                ),
+            },
+            lease_duration: Duration::new(10, 11),
+            discovered_participant_list: vec![],
+        };
 
         let expected = Ok([
             0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
