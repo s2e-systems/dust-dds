@@ -15,8 +15,6 @@ pub trait DeserializeAppendableStruct<'a> {
 }
 
 pub trait DeserializeMutableStruct<'a> {
-    type Iter<T: XTypesDeserialize<'a>>: Iterator<Item = T>;
-
     fn deserialize_field<T: XTypesDeserialize<'a>>(
         &mut self,
         pid: u16,
@@ -31,8 +29,8 @@ pub trait DeserializeMutableStruct<'a> {
         &mut self,
         _pid: u16,
         _name: &str,
-    ) -> Self::Iter<T> {
-        todo!()
+    ) -> impl Iterator<Item = T>{
+        None.into_iter()
     }
 }
 
