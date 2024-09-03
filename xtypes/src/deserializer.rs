@@ -25,13 +25,6 @@ pub trait DeserializeMutableStruct<'a> {
         pid: u16,
         name: &str,
     ) -> Result<Option<T>, XcdrError>;
-    fn deserialize_list_field<T: XTypesDeserialize<'a>>(
-        &mut self,
-        _pid: u16,
-        _name: &str,
-    ) -> impl Iterator<Item = T>{
-        None.into_iter()
-    }
 }
 
 pub trait DeserializeCollection<'a> {

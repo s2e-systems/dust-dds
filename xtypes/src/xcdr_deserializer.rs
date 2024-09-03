@@ -6,7 +6,7 @@ use crate::{
     },
     error::XcdrError,
 };
-use core::{marker::PhantomData, str};
+use core::str;
 
 const PID_SENTINEL: u16 = 1;
 
@@ -183,34 +183,6 @@ where
     }
 }
 
-pub struct PlListIter<T, D> {
-    deserializer: D,
-    pid: u16,
-    p: core::marker::PhantomData<T>,
-}
-impl<'a, T: XTypesDeserialize<'a>> Iterator for PlListIter<T, Xcdr1BeDeserializer<'a>> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if seek_to_optional_pid_be(&mut self.deserializer.reader, self.pid).unwrap_or(false) {
-            T::deserialize(&mut self.deserializer).ok()
-        } else {
-            None
-        }
-    }
-}
-impl<'a, T: XTypesDeserialize<'a>> Iterator for PlListIter<T, Xcdr1LeDeserializer<'a>> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if seek_to_optional_pid_le(&mut self.deserializer.reader, self.pid).unwrap_or(false) {
-            T::deserialize(&mut self.deserializer).ok()
-        } else {
-            None
-        }
-    }
-}
-
 struct PlCdrBeDecoder<'a> {
     buffer: &'a [u8],
 }
@@ -238,17 +210,6 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrBeDecoder<'de> {
             None
         })
     }
-    fn deserialize_list_field<T: XTypesDeserialize<'de>>(
-        &mut self,
-        pid: u16,
-        _name: &str,
-    ) -> impl Iterator<Item=T> {
-        PlListIter {
-            deserializer: Xcdr1BeDeserializer::new(&self.buffer),
-            pid,
-            p: PhantomData,
-        }
-    }
 }
 
 struct PlCdrLeDecoder<'a> {
@@ -266,17 +227,6 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
         T::deserialize(&mut Xcdr1LeDeserializer { reader })
     }
 
-    fn deserialize_list_field<T: XTypesDeserialize<'de>>(
-        &mut self,
-        pid: u16,
-        _name: &str,
-    ) -> impl Iterator<Item=T> {
-        PlListIter {
-            deserializer: Xcdr1LeDeserializer::new(&self.buffer),
-            pid,
-            p: PhantomData,
-        }
-    }
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
         pid: u16,
@@ -1301,63 +1251,6 @@ mod tests {
                 7, 0, 0, 0, // key | padding
                 0x050, 0x00, 4, 0, // PID | length
                 8, 0, 0, 0, // participant_key
-                0, 0, 0, 0, // Sentinel
-            ]),
-            expected
-        );
-    }
-
-
-
-    
-    #[derive(Debug, PartialEq)]
-    //@extensibility(MUTABLE)
-    struct MutableListType {
-        // @id(0x005A) @key
-        key: u8,
-        // @id(0x0050)
-        list: [u32; 2],
-    }
-
-    impl<'de> XTypesDeserialize<'de> for MutableListType {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
-            let mut des = deserializer.deserialize_mutable_struct()?;
-            let key = des.deserialize_field(0x005A, "key")?;
-            let mut list_iter = des.deserialize_list_field(0x0050, "list");
-            Ok(Self {
-                key,
-                list: [list_iter.next().unwrap(), list_iter.next().unwrap()],
-            })
-        }
-    }
-
-    #[test]
-    fn deserialize_mutable_list_struct() {
-        let expected = Ok(MutableListType {
-            key: 7,
-            list: [2,3],
-        });
-        // PL_CDR:
-        assert_eq!(
-            deserialize_v1_be(&[
-                0x00, 0x05A, 0, 1, // PID | length
-                7, 0, 0, 0, // key | padding
-                0x00, 0x050, 0, 4, // PID | length
-                0, 0, 0, 2, // participant_key
-                0x00, 0x050, 0, 4, // PID | length
-                0, 0, 0, 3, // participant_key
-                0, 0, 0, 0, // Sentinel
-            ]),
-            expected
-        );
-        assert_eq!(
-            deserialize_v1_le(&[
-                0x05A, 0x00, 1, 0, // PID | length
-                7, 0, 0, 0, // key | padding
-                0x050, 0x00, 4, 0, // PID | length
-                2, 0, 0, 0, // participant_key
-                0x050, 0x00, 4, 0, // PID | length
-                3, 0, 0, 0, // participant_key
                 0, 0, 0, 0, // Sentinel
             ]),
             expected
