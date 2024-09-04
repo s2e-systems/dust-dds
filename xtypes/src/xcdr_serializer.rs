@@ -7,6 +7,158 @@ use crate::{
     },
 };
 
+const PID_SENTINEL: u16 = 1;
+
+pub struct VirtualCdr1Serializer {
+    count: usize,
+}
+
+impl VirtualCdr1Serializer {
+    fn add<T>(&mut self, v: T) -> Result<(), XcdrError> {
+        self.count += core::mem::size_of_val(&v);
+        Ok(())
+    }
+}
+
+impl SerializeFinalStruct for &mut VirtualCdr1Serializer {
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+
+    fn serialize_optional_field<T: XTypesSerialize>(
+        &mut self,
+        value: &Option<T>,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        self.count += 4; // header: pid + length
+        if let Some(value) = value {
+            XTypesSerialize::serialize(value, &mut **self)
+        } else {
+            Ok(())
+        }
+    }
+}
+impl SerializeAppendableStruct for &mut VirtualCdr1Serializer {
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+}
+impl SerializeMutableStruct for &mut VirtualCdr1Serializer {
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _pid: u16,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        self.count += 4; // header: pid + length
+        XTypesSerialize::serialize(value, &mut **self)
+        // todo: padding?
+    }
+
+    fn end(self) -> Result<(), XcdrError> {
+        self.count += 4; // sentinel
+        Ok(())
+    }
+}
+impl SerializeCollection for &mut VirtualCdr1Serializer {
+    fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XcdrError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+}
+
+impl XTypesSerializer for &mut VirtualCdr1Serializer {
+    fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XcdrError> {
+        Ok(self)
+    }
+
+    fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XcdrError> {
+        Ok(self)
+    }
+
+    fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
+        Ok(self)
+    }
+
+    fn serialize_sequence(self, _len: usize) -> Result<impl SerializeCollection, XcdrError> {
+        Ok(self)
+    }
+
+    fn serialize_array(self) -> Result<impl SerializeCollection, XcdrError> {
+        Ok(self)
+    }
+
+    fn serialize_boolean(self, v: bool) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_int8(self, v: i8) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_int16(self, v: i16) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_int32(self, v: i32) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_int64(self, v: i64) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_uint8(self, v: u8) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_uint16(self, v: u16) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_uint32(self, v: u32) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_uint64(self, v: u64) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_float32(self, v: f32) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_float64(self, v: f64) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_char8(self, v: char) -> Result<(), XcdrError> {
+        self.add(v)
+    }
+
+    fn serialize_string(self, v: &str) -> Result<(), XcdrError> {
+        self.count += 4 + v.len() + 1;
+        Ok(())
+    }
+
+    fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XcdrError> {
+        self.count += 4 + v.len();
+        Ok(())
+    }
+
+    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XcdrError> {
+        self.count += v.len();
+        Ok(())
+    }
+}
+
 pub struct Xcdr1BeSerializer<'a> {
     writer: Writer<'a>,
 }
@@ -16,6 +168,377 @@ impl<'a> Xcdr1BeSerializer<'a> {
         Self {
             writer: Writer::new(buffer),
         }
+    }
+}
+
+struct CollectionWriter<'a, C> {
+    collection: &'a mut C,
+    position: usize,
+}
+
+impl<'a, C> CollectionWriter<'a, C>
+where
+    for<'b> C: Extend<&'b u8>,
+{
+    fn new(collection: &'a mut C) -> Self {
+        Self {
+            collection,
+            position: 0,
+        }
+    }
+
+    fn write_slice(&mut self, data: &[u8]) {
+        self.collection.extend(data.iter());
+        self.position += data.len();
+    }
+
+    fn pad(&mut self, alignment: usize) {
+        const ZEROS: [u8; 8] = [0; 8];
+        let over_alignment = self.position & (alignment - 1);
+        if over_alignment > 0 {
+            self.write_slice(&ZEROS[..alignment - over_alignment]);
+        };
+    }
+}
+
+fn extend_with_padding_v1<const N: usize, C>(
+    writer: &mut CollectionWriter<'_, C>,
+    data: &[u8; N],
+) -> Result<(), XcdrError>
+where
+    for<'a> C: Extend<&'a u8>,
+{
+    writer.pad(N);
+    writer.write_slice(data);
+    Ok(())
+}
+
+pub struct NewXcdr1LeSerializer<'a, C> {
+    writer: CollectionWriter<'a, C>,
+}
+
+impl<'a, C> NewXcdr1LeSerializer<'a, C>
+where
+    for<'b> C: Extend<&'b u8>,
+{
+    pub fn new(collection: &'a mut C) -> Self {
+        Self {
+            writer: CollectionWriter::new(collection),
+        }
+    }
+}
+
+impl<C> SerializeFinalStruct for &mut NewXcdr1LeSerializer<'_, C>
+where
+    for<'b> C: Extend<&'b u8>,
+{
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+
+    fn serialize_optional_field<T: XTypesSerialize>(
+        &mut self,
+        value: &Option<T>,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        if let Some(value) = value {
+            let mut virtual_serializer = VirtualCdr1Serializer { count: 0 };
+            XTypesSerialize::serialize(value, &mut virtual_serializer)?;
+            let length = virtual_serializer.count as u16;
+            self.writer.pad(4);
+            self.writer.write_slice(&0_u16.to_le_bytes());
+            self.writer.write_slice(&length.to_le_bytes());
+            XTypesSerialize::serialize(value, &mut **self)
+        } else {
+            self.writer.pad(4);
+            self.writer.write_slice(&0_u16.to_le_bytes());
+            self.writer.write_slice(&0_u16.to_le_bytes());
+            Ok(())
+        }
+    }
+}
+impl<C> SerializeAppendableStruct for &mut NewXcdr1LeSerializer<'_, C>
+where
+    for<'b> C: Extend<&'b u8>,
+{
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+}
+impl<C> SerializeMutableStruct for &mut NewXcdr1LeSerializer<'_, C>
+where
+    for<'a> C: Extend<&'a u8>,
+{
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        pid: u16,
+        _name: &str,
+    ) -> Result<(), XcdrError> {
+        let mut virtual_serializer = VirtualCdr1Serializer { count: 0 };
+        XTypesSerialize::serialize(value, &mut virtual_serializer)?;
+        let length = virtual_serializer.count as u16;
+        self.writer.write_slice(&pid.to_le_bytes());
+        self.writer.write_slice(&length.to_le_bytes());
+        XTypesSerialize::serialize(value, &mut **self)?;
+        self.writer.pad(4);
+        Ok(())
+    }
+
+    fn end(self) -> Result<(), XcdrError> {
+        self.writer.write_slice(&PID_SENTINEL.to_le_bytes());
+        self.writer.write_slice(&0u16.to_le_bytes());
+        Ok(())
+    }
+}
+impl<C> SerializeCollection for &mut NewXcdr1LeSerializer<'_, C>
+where
+    for<'a> C: Extend<&'a u8>,
+{
+    fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XcdrError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+}
+
+impl<C> XTypesSerializer for &mut NewXcdr1LeSerializer<'_, C>
+where
+    for<'a> C: Extend<&'a u8>,
+{
+    fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XcdrError> {
+        Ok(self)
+    }
+    fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XcdrError> {
+        Ok(self)
+    }
+    fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XcdrError> {
+        Ok(self)
+    }
+    fn serialize_sequence(self, len: usize) -> Result<impl SerializeCollection, XcdrError> {
+        self.serialize_uint32(into_u32(len)?)?;
+        Ok(self)
+    }
+    fn serialize_array(self) -> Result<impl SerializeCollection, XcdrError> {
+        Ok(self)
+    }
+
+    fn serialize_boolean(self, v: bool) -> Result<(), XcdrError> {
+        self.serialize_uint8(v as u8)
+    }
+
+    fn serialize_int8(self, v: i8) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &[v as u8])
+    }
+
+    fn serialize_int16(self, v: i16) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_int32(self, v: i32) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_int64(self, v: i64) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_uint8(self, v: u8) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_uint16(self, v: u16) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_uint32(self, v: u32) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_uint64(self, v: u64) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_float32(self, v: f32) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_float64(self, v: f64) -> Result<(), XcdrError> {
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
+    }
+
+    fn serialize_char8(self, v: char) -> Result<(), XcdrError> {
+        self.serialize_uint8(into_u8(v)?)
+    }
+
+    fn serialize_string(self, v: &str) -> Result<(), XcdrError> {
+        self.serialize_uint32(str_len(v)?)?;
+        self.writer.write_slice(v.as_bytes());
+        self.writer.write_slice(&[0]);
+        Ok(())
+    }
+
+    fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XcdrError> {
+        self.serialize_uint32(into_u32(v.len())?)?;
+        self.writer.write_slice(v);
+        Ok(())
+    }
+
+    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XcdrError> {
+        self.writer.write_slice(v);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod pretests {
+    use super::*;
+    extern crate std;
+
+    fn serialize_v1_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
+        let mut buffer = std::vec::Vec::new();
+
+        v.serialize(&mut NewXcdr1LeSerializer {
+            writer: CollectionWriter::new(&mut buffer),
+        })
+        .unwrap();
+        buffer
+    }
+
+    #[test]
+    fn serialize_octet() {
+        let v = 0x20i8;
+        assert_eq!(serialize_v1_le(&v), [0x20]);
+    }
+
+    #[test]
+    fn serialize_byte_slice() {
+        let v = &[1u8, 2, 3, 4, 5][..];
+        assert_eq!(
+            serialize_v1_le(&v),
+            [
+                5, 0, 0, 0, // length
+                1, 2, 3, 4, 5 // data
+            ]
+        );
+    }
+
+    //@extensibility(FINAL)
+    struct FinalType {
+        field_u16: u16,
+        field_u64: u64,
+    }
+
+    impl XTypesSerialize for FinalType {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+            let mut serializer = serializer.serialize_final_struct()?;
+            serializer.serialize_field(&self.field_u16, "field_u16")?;
+            serializer.serialize_field(&self.field_u64, "field_u64")
+        }
+    }
+
+    #[test]
+    fn serialize_final_struct() {
+        let v = FinalType {
+            field_u16: 7,
+            field_u64: 9,
+        };
+        // PLAIN_CDR:
+        assert_eq!(
+            serialize_v1_le(&v),
+            [
+                7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
+                9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+            ]
+        );
+    }
+
+    //@extensibility(MUTABLE)
+    struct MutableType {
+        // @id(0x005A) @key
+        key: u8,
+        // @id(0x0050)
+        participant_key: u32,
+    }
+    impl XTypesSerialize for MutableType {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+            let mut s = serializer.serialize_mutable_struct()?;
+            s.serialize_field(&self.key, 0x005A, "key")?;
+            s.serialize_field(&self.participant_key, 0x0050, "participant_key")?;
+            s.end()
+        }
+    }
+
+    #[test]
+    fn serialize_mutable_struct() {
+        let v = MutableType {
+            key: 7,
+            participant_key: 8,
+        };
+        // PL_CDR:
+        assert_eq!(
+            serialize_v1_le(&v),
+            [
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // key | padding
+                0x050, 0x00, 4, 0, // PID | length
+                8, 0, 0, 0, // participant_key
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    struct Inner {
+        one: u16,
+        two: u8,
+    }
+    impl XTypesSerialize for Inner {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+            let mut s = serializer.serialize_final_struct()?;
+            s.serialize_field(&self.one, "one")?;
+            s.serialize_field(&self.two, "two")
+        }
+    }
+
+    //@extensibility(MUTABLE)
+    struct NestedMutableType {
+        // @id(0x005A)
+        outer: u8,
+        // @id(0x0050)
+        inner: Inner,
+    }
+    impl XTypesSerialize for NestedMutableType {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+            let mut s = serializer.serialize_mutable_struct()?;
+            s.serialize_field(&self.outer, 0x005A, "outer")?;
+            s.serialize_field(&self.inner, 0x0050, "inner")?;
+            s.end()
+        }
+    }
+
+    #[test]
+    fn serialize_nested_mutable_struct() {
+        let v = NestedMutableType {
+            outer: 7,
+            inner: Inner { one: 8, two: 9 },
+        };
+        // PL_CDR:
+        assert_eq!(
+            serialize_v1_le(&v),
+            [
+                0x05A, 0x00, 1, 0, // PID | length
+                7, 0, 0, 0, // outer | padding
+                0x050, 0x00, 3, 0, // PID | length
+                8, 0, 9, 0, // inner: u16| u8 | padding 1 byte
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
     }
 }
 
@@ -687,6 +1210,7 @@ impl<'a> XTypesSerializer for &'a mut Xcdr2LeSerializer<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    extern crate std;
 
     fn serialize_v1_be<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
         let mut buffer = [0; N];
@@ -696,10 +1220,10 @@ mod tests {
     }
 
     fn serialize_v1_le<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
-        let mut buffer = [0; N];
-        v.serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+        let mut buffer = std::vec::Vec::new();
+        v.serialize(&mut NewXcdr1LeSerializer::new(&mut buffer))
             .unwrap();
-        buffer
+        buffer.try_into().unwrap()
     }
 
     fn serialize_v2_be<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
@@ -1005,12 +1529,12 @@ mod tests {
         }
     }
     #[test]
-    fn serialize_final_optional_struct() {
+    fn serialize_final_optional_struct_some() {
         let some = FinalOptionalType {
             field: 6,
             optional_field: Some(7),
         };
-        // PLAIN_CDR:
+        //PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&some),
             [
@@ -1027,7 +1551,7 @@ mod tests {
                 7, 0 // optional_field value
             ]
         );
-        // PLAIN_CDR2:
+        //PLAIN_CDR2:
         assert_eq!(
             serialize_v2_be(&some),
             [
@@ -1042,7 +1566,9 @@ mod tests {
                 7, 0 // optional_field value
             ]
         );
-
+    }
+    #[test]
+    fn serialize_final_optional_struct_none() {
         let none = FinalOptionalType {
             field: 6,
             optional_field: None,
