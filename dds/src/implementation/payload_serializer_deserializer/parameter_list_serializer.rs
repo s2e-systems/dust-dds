@@ -1,4 +1,4 @@
-use xtypes::{
+use dust_dds_xtypes::{
     serialize::XTypesSerialize,
     xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
 };
@@ -81,11 +81,8 @@ where
                     3 => self.writer.write_all(&[0u8; 3])?,
                     _ => self.writer.write_all(&[0u8; 0])?,
                 }
-
             }
         }
-
-
 
         Ok(())
     }

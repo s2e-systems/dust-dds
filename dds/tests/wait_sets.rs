@@ -10,10 +10,11 @@ use dust_dds::{
     },
 };
 use dust_dds_derive::DdsType;
+use dust_dds_xtypes::serialize::XTypesSerialize;
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType)]
+#[derive(Debug, PartialEq, DdsType, XTypesSerialize)]
 struct MyData {
     #[dust_dds(key)]
     id: u8,

@@ -1,6 +1,7 @@
 use crate::{error::XcdrError, serializer::SerializeCollection};
 
 pub use super::serializer::XTypesSerializer;
+pub use dust_dds_xtypes_derive::XTypesSerialize;
 
 /// A trait representing a structure that can be serialized into a CDR format.
 pub trait XTypesSerialize {
@@ -126,7 +127,7 @@ impl<T: XTypesSerialize, const N: usize> XTypesSerialize for [T; N] {
 //     }
 // }
 
-impl<T:XTypesSerialize> XTypesSerialize for &[T] {
+impl<T: XTypesSerialize> XTypesSerialize for &[T] {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
         let mut s = serializer.serialize_sequence(self.len())?;
         for e in self.iter() {
@@ -135,7 +136,6 @@ impl<T:XTypesSerialize> XTypesSerialize for &[T] {
         Ok(())
     }
 }
-
 
 impl XTypesSerialize for Vec<u8> {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {

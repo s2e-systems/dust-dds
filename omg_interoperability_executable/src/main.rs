@@ -247,7 +247,11 @@ impl Options {
     }
 }
 
-#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+#[derive(
+    Debug,
+    dust_dds::topic_definition::type_support::DdsType,
+    dust_dds::dust_dds_xtypes::serialize::XTypesSerialize,
+)]
 pub struct ShapeType {
     #[dust_dds(key)]
     pub color: String,
@@ -722,7 +726,7 @@ fn main() -> Result<(), Return> {
     ctrlc::set_handler(move || tx.send(()).expect("Could not send signal on channel."))
         .expect("Error setting Ctrl-C handler");
 
-    let options = Options::parse();    
+    let options = Options::parse();
     options.validate()?;
     let participant = initialize(&options)?;
     if options.publish {

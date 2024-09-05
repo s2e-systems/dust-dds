@@ -5,36 +5,10 @@ use derive::{
     dds_key::{expand_dds_key, expand_has_key},
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     dds_type_xml::expand_dds_type_xml,
-    dynamic_type::expand_xtypes_dynamic_type,
     parameter_list::{expand_parameter_list_deserialize, expand_parameter_list_serialize},
-    xtypes::{expand_xtypes_deserialize, expand_xtypes_serialize},
 };
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
-
-#[proc_macro_derive(XTypesDynamicType, attributes(xtypes))]
-pub fn derive_xtypes_dynamic_type(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_xtypes_dynamic_type(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(XTypesSerialize, attributes(xtypes))]
-pub fn derive_xtypes_serialize(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_xtypes_serialize(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(XTypesDeserialize, attributes(xtypes))]
-pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_xtypes_deserialize(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
 
 #[proc_macro_derive(CdrSerialize)]
 pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
@@ -118,7 +92,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_dds_key(input.clone()));
     output.extend(derive_dds_has_key(input.clone()));
     output.extend(derive_dds_type_xml(input.clone()));
-    output.extend(derive_xtypes_serialize(input));
 
     output
 }

@@ -84,7 +84,7 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
 
                     let key_holder_struct_definition = quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
+                        #[derive(dust_dds::dust_dds_xtypes::serialize::XTypesSerialize, dust_dds::serialized_payload::cdr::serialize::CdrSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
                         pub struct __key_holder {
                             #key_holder_fields
                         }
@@ -101,7 +101,7 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
                 false => {
                     let key_holder_struct_definition = quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::serialized_payload::cdr::serialize::CdrSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
+                        #[derive(dust_dds::dust_dds_xtypes::serialize::XTypesSerialize, dust_dds::serialized_payload::cdr::serialize::CdrSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
                         pub struct __key_holder;
                     };
 

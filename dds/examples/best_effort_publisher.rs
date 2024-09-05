@@ -8,8 +8,9 @@ use dust_dds::{
     },
     topic_definition::type_support::DdsType,
 };
+use dust_dds_xtypes::serialize::XTypesSerialize;
 
-#[derive(DdsType, Debug)]
+#[derive(DdsType, XTypesSerialize, Debug)]
 struct BestEffortExampleType {
     id: i32,
 }

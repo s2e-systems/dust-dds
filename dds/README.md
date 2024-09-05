@@ -19,9 +19,10 @@ A basic example on how to use Dust DDS. The publisher side can be implemented as
         domain::domain_participant_factory::DomainParticipantFactory,
         infrastructure::{qos::QosKind, status::NO_STATUS},
         topic_definition::type_support::DdsType,
+        dust_dds_xtypes::serialize::XTypesSerialize,
     };
 
-    #[derive(DdsType)]
+    #[derive(DdsType, XTypesSerialize)]
     struct HelloWorldType {
         #[dust_dds(key)]
         id: u8,
@@ -62,9 +63,10 @@ The subscriber side can be implemented as:
         infrastructure::{qos::QosKind, status::NO_STATUS},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         topic_definition::type_support::DdsType,
+        dust_dds_xtypes::serialize::XTypesSerialize,
     };
 
-    #[derive(Debug, DdsType)]
+    #[derive(Debug, DdsType, XTypesSerialize)]
     struct HelloWorldType {
         #[dust_dds(key)]
         id: u8,
@@ -105,8 +107,9 @@ using DustDDS. The key fields can also be defined as part of the macro.
 
 ```rust
 use dust_dds::topic_definition::type_support::DdsType;
+use dust_dds::dust_dds_xtypes::serialize::XTypesSerialize;
 
-#[derive(DdsType)]
+#[derive(DdsType, XTypesSerialize)]
 struct HelloWorldType {
     #[dust_dds(key)]
     id: u8,

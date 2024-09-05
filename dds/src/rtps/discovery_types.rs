@@ -1,7 +1,7 @@
 // This file implements the types that appear in the built-in topic messages
 // using the mapping described in 9.3.2 Mapping of the Types that Appear Within Submessages or Built-in Topic Data
 
-use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
+use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
 
@@ -93,15 +93,7 @@ impl BuiltinEndpointSet {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    CdrDeserialize,
-    XTypesSerialize,
-    XTypesDeserialize,
+    PartialEq, Eq, Debug, Default, Clone, Copy, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
 )]
 pub struct BuiltinEndpointQos(pub u32);
 

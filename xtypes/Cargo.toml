@@ -1,8 +1,11 @@
 [package]
-name = "xtypes"
+name = "dust_dds_xtypes"
 description = "DDS XCDR serialize/deserialize types"
 version = "0.11.0"
 authors = ["S2E Software Systems B.V. <info@s2e-systems.com>"]
 edition = "2021"
 homepage = "https://www.s2e-systems.com"
 license-file = "EULA.md"
+
+[dependencies]
+dust_dds_xtypes_derive = { version = "0.11", path = "../xtypes_derive" }

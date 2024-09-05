@@ -1,6 +1,8 @@
 use super::deserializer::XTypesDeserializer;
 use crate::{deserializer::DeserializeCollection, error::XcdrError};
 
+pub use dust_dds_xtypes_derive::XTypesDeserialize;
+
 /// A trait representing a structure that can be deserialized from a CDR format.
 pub trait XTypesDeserialize<'de>: Sized {
     /// Method to deserialize this value using the given deserializer.

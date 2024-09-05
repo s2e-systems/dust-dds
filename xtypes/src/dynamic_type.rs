@@ -1,5 +1,7 @@
 use crate::error::XcdrError;
 
+pub use dust_dds_xtypes_derive::XTypesDynamicType;
+
 pub type ObjectName = &'static str;
 pub type TypeKind = u8;
 

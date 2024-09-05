@@ -92,7 +92,7 @@ pub trait DdsDeserialize<'de>: Sized {
 ///
 pub trait DdsKey {
     /// Type representing the key for the type in which this trait is implemented
-    type Key: CdrSerialize + for<'de> CdrDeserialize<'de>;
+    type Key: XTypesSerialize + CdrSerialize + for<'de> CdrDeserialize<'de>;
 
     /// Method to get the key from an instance of the type.
     fn get_key(&self) -> DdsResult<Self::Key>;
@@ -124,8 +124,9 @@ pub trait DdsTypeXml {
 ///
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
+///     use dust_dds::dust_dds_xtypes::serialize::XTypesSerialize;
 ///
-///     #[derive(DdsType)]
+///     #[derive(DdsType, XTypesSerialize)]
 ///     struct KeyedData {
 ///         #[dust_dds(key)]
 ///         id: u8,
@@ -137,9 +138,9 @@ pub trait DdsTypeXml {
 ///
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
-///     use std::borrow::Cow;
+///     use dust_dds::dust_dds_xtypes::serialize::XTypesSerialize;
 ///
-///     #[derive(DdsType)]
+///     #[derive(DdsType, XTypesSerialize)]
 ///     struct BorrowedData<'a> {
 ///         #[dust_dds(key)]
 ///         id: u8,
@@ -148,7 +149,7 @@ pub trait DdsTypeXml {
 /// ```
 ///
 pub use dust_dds_derive::DdsType;
-use xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
+use dust_dds_xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];

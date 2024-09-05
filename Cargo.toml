@@ -12,6 +12,14 @@ members = [
     "bindings/python",
     "omg_interoperability_executable",
     "xtypes",
+    "xtypes_derive",
 ]
-default-members = ["dds", "dds_derive", "dds_gen", "bindings/python", "xtypes"]
+default-members = [
+    "dds",
+    "dds_derive",
+    "dds_gen",
+    "bindings/python",
+    "xtypes",
+    "xtypes_derive",
+]
 resolver = "2"

@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use xtypes::error::XcdrError;
+use dust_dds_xtypes::error::XcdrError;
 
 use crate::{implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError};
 

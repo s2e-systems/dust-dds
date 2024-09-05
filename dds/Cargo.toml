@@ -17,7 +17,7 @@ categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 dust_dds_derive = { version = "0.11", path = "../dds_derive" }
-xtypes = { path = "../xtypes" }
+dust_dds_xtypes = { version = "0.11", path = "../xtypes" }
 md5 = "0.7.0"                                                  # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 socket2 = { version = "0.5", features = ["all"] }

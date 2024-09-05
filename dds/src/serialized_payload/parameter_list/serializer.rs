@@ -1,5 +1,4 @@
-pub use dust_dds_derive::ParameterListDeserialize;
-use xtypes::serialize::XTypesSerialize;
+use dust_dds_xtypes::serialize::XTypesSerialize;
 
 /// A trait representing an object with the capability of serializing a value into a CDR parameter list format.
 /// All the parameters of a CDR Parameter List must be themselves [`XTypesSerialize`].
