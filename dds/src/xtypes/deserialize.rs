@@ -130,7 +130,7 @@ where
 }
 
 impl<'de> XTypesDeserialize<'de> for String {
-    fn deserialize(_deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
-        todo!()
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        deserializer.deserialize_string().map(|x| x.to_string())
     }
 }

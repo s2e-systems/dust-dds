@@ -8,13 +8,16 @@ use crate::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     serialized_payload::{
-        cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer},
+        cdr::deserialize::CdrDeserialize,
         parameter_list::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
         },
     },
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
-    xtypes::{serialize::XTypesSerialize, serializer::XTypesSerializer},
+    xtypes::{
+        deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XcdrError,
+        serialize::XTypesSerialize, serializer::XTypesSerializer,
+    },
 };
 
 use super::parameter_id_values::{
@@ -26,7 +29,7 @@ use super::parameter_id_values::{
     PID_VENDORID,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 struct DomainTag(String);
 impl Default for DomainTag {
     fn default() -> Self {
@@ -38,10 +41,7 @@ impl Default for DomainTag {
 struct DomainIdParameter(Option<DomainId>);
 
 impl XTypesSerialize for DomainIdParameter {
-    fn serialize(
-        &self,
-        serializer: impl XTypesSerializer,
-    ) -> Result<(), crate::xtypes::error::XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
         crate::xtypes::serialize::XTypesSerialize::serialize(
             &self
                 .0
@@ -51,11 +51,11 @@ impl XTypesSerialize for DomainIdParameter {
     }
 }
 
-impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
+impl<'de> XTypesDeserialize<'de> for DomainIdParameter {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
-        Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))
+        Ok(Self(Some(XTypesDeserialize::deserialize(deserializer)?)))
     }
 }
 
