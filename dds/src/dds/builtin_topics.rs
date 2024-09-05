@@ -20,11 +20,8 @@ use crate::{
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    serialized_payload::{
-        cdr::deserialize::CdrDeserialize,
-        parameter_list::{
-            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-        },
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
     topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
@@ -32,9 +29,7 @@ use crate::{
 use dust_dds_derive::DdsDeserialize;
 
 /// Structure representing the instance handle (or key) of an entity.
-#[derive(
-    Debug, PartialEq, Eq, Clone, CdrDeserialize, Default, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]

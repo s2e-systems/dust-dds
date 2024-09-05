@@ -1,11 +1,11 @@
+use dust_dds_derive::XTypesDeserialize;
+
 use crate::xtypes::serialize::XTypesSerialize;
 
-use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
-
-#[derive(Clone, Copy, CdrDeserialize, PartialEq, Eq, XTypesSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, XTypesSerialize, XTypesDeserialize)]
 pub struct KeyHash(pub [u8; 16]);
 
-#[derive(Clone, Copy, CdrDeserialize, PartialEq, Eq, XTypesSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, XTypesSerialize, XTypesDeserialize)]
 pub struct StatusInfo([u8; 4]);
 pub const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
 pub const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
