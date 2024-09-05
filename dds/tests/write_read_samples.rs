@@ -21,22 +21,22 @@ use dust_dds::{
     },
     topic_definition::type_support::DdsType,
 };
-use dust_dds_xtypes::serialize::XTypesSerialize;
+use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType, XTypesSerialize)]
+#[derive(Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
 struct UserData(u8);
 
-#[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize)]
+#[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
 struct KeyedData {
     #[dust_dds(key)]
     id: u8,
     value: u32,
 }
 
-#[derive(Debug, PartialEq, DdsType, XTypesSerialize)]
+#[derive(Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
 struct LargeData {
     #[dust_dds(key)]
     id: u8,

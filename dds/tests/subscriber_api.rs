@@ -7,12 +7,12 @@ use dust_dds::{
     },
     topic_definition::type_support::DdsType,
 };
-use dust_dds_xtypes::serialize::XTypesSerialize;
+use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(DdsType, XTypesSerialize)]
+#[derive(DdsType, XTypesSerialize, XTypesDeserialize)]
 struct UserType(i32);
 
 #[test]

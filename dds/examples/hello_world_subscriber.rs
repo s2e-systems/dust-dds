@@ -13,9 +13,9 @@ use dust_dds::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsType,
 };
-use dust_dds_xtypes::serialize::XTypesSerialize;
+use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
-#[derive(Debug, DdsType, XTypesSerialize)]
+#[derive(Debug, DdsType, XTypesSerialize, XTypesDeserialize)]
 struct HelloWorldType {
     #[dust_dds(key)]
     id: u8,

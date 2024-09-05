@@ -150,7 +150,10 @@ pub trait DdsTypeXml {
 ///
 pub use dust_dds_derive::DdsType;
 use dust_dds_xtypes::{
+    deserialize::XTypesDeserialize,
+    error::XcdrError,
     serialize::XTypesSerialize,
+    xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
     xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
 };
 
@@ -221,6 +224,30 @@ pub fn serialize_rtps_cdr_pl_be(value: &impl ParameterListSerialize) -> DdsResul
     ParameterListSerialize::serialize(value, &mut serializer)?;
     serializer.write(PID_SENTINEL, &())?;
     Ok(writer)
+}
+
+/// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
+/// The representation endianness to be used is automatically determined from the representation identifier and options
+pub fn deserialize_rtps_encapsulated_data<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
+where
+    T: XTypesDeserialize<'de>,
+{
+    let mut representation_identifier = [0u8, 0];
+    serialized_data
+        .read_exact(&mut representation_identifier)
+        .map_err(|err| DdsError::Error(err.to_string()))?;
+
+    let mut representation_option = [0u8, 0];
+    serialized_data
+        .read_exact(&mut representation_option)
+        .map_err(|err| DdsError::Error(err.to_string()))?;
+
+    let value = match representation_identifier {
+        CDR_BE => XTypesDeserialize::deserialize(&mut Xcdr1BeDeserializer::new(serialized_data)),
+        CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
+        _ => Err(XcdrError::InvalidData),
+    }?;
+    Ok(value)
 }
 
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.

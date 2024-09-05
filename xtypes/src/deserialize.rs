@@ -117,3 +117,18 @@ impl<'de> XTypesDeserialize<'de> for () {
         Ok(())
     }
 }
+
+impl<'de, T> XTypesDeserialize<'de> for Vec<T>
+where
+    T: XTypesDeserialize<'de>,
+{
+    fn deserialize(_deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        todo!()
+    }
+}
+
+impl<'de> XTypesDeserialize<'de> for String {
+    fn deserialize(_deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        todo!()
+    }
+}

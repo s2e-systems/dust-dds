@@ -111,7 +111,7 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let deserialize_function = match format {
                 Format::CdrLe | Format::CdrBe => {
                     quote! {
-                        dust_dds::topic_definition::type_support::deserialize_rtps_classic_cdr(&mut serialized_data)
+                        dust_dds::topic_definition::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
                     }
                 }
                 Format::PlCdrLe | Format::PlCdrBe => quote! {

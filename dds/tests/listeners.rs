@@ -27,12 +27,12 @@ use dust_dds::{
     },
     topic_definition::{topic_listener::TopicListener, type_support::DdsType},
 };
-use dust_dds_xtypes::serialize::XTypesSerialize;
+use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType, XTypesSerialize)]
+#[derive(Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
 struct MyData {
     #[dust_dds(key)]
     id: u8,

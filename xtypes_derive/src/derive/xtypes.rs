@@ -258,10 +258,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
                     match discriminant {
                         #(#clauses)*
-                        _ =>  Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!(#error_msg, discriminant),
-                        ))
+                        _ =>  Err(dust_dds_xtypes::error::XcdrError::InvalidData)
                     }
                 }
             };
