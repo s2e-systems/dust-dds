@@ -839,7 +839,7 @@ mod tests {
         generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
-            "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
+            "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
             &out
         );
     }
