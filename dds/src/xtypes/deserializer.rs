@@ -27,6 +27,7 @@ pub trait DeserializeMutableStruct<'a> {
 
 pub trait DeserializeSequence<'a> {
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool;
     fn deserialize_element<T: XTypesDeserialize<'a>>(&mut self) -> Result<T, XcdrError>;
 }
 pub trait DeserializeArray<'a> {

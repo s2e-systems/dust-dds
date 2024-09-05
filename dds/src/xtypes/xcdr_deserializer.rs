@@ -331,6 +331,10 @@ where
         self.len
     }
     
+    fn is_empty(&self) -> bool {
+        self.len > 0
+    }
+    
     fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XcdrError> {
         T::deserialize(&mut *self.deserializer)
     }
