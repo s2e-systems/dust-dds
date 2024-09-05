@@ -185,7 +185,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     });
 }
 
-#[derive(Clone, Debug, PartialEq, DdsType)]
+#[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize)]
 struct LargeKeyedData {
     #[dust_dds(key)]
     id: u8,
