@@ -152,6 +152,7 @@ pub trait DdsTypeXml {
 /// ```
 ///
 pub use dust_dds_derive::DdsType;
+use xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
@@ -165,6 +166,17 @@ const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
+
+/// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
+pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
+    let mut writer = Vec::new();
+    writer.write_all(&CDR_LE)?;
+    writer.write_all(&REPRESENTATION_OPTIONS)?;
+    let mut serializer = NewXcdr1LeSerializer::new(&mut writer);
+    XTypesSerialize::serialize(value, &mut serializer)?;
+    pad(&mut writer)?;
+    Ok(writer)
+}
 
 /// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with LittleEndian endianness.
 pub fn serialize_rtps_classic_cdr_le(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {

@@ -1,3 +1,6 @@
+use dust_dds_derive::XTypesSerialize;
+use xtypes::serialize::{XTypesSerialize, XTypesSerializer};
+
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
@@ -10,7 +13,6 @@ use crate::{
     serialized_payload::{
         cdr::{
             deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
-            serializer::CdrSerializer,
         },
         parameter_list::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
@@ -28,7 +30,7 @@ use super::parameter_id_values::{
     PID_VENDORID,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
 struct DomainTag(String);
 impl Default for DomainTag {
     fn default() -> Self {
@@ -38,11 +40,15 @@ impl Default for DomainTag {
 
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 struct DomainIdParameter(Option<DomainId>);
-impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        self.0
-            .expect("Default DomainId not supposed to be serialized")
-            .serialize(serializer)
+
+impl XTypesSerialize for DomainIdParameter {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), xtypes::error::XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(
+            &self
+                .0
+                .expect("Default DomainId not supposed to be serialized"),
+            serializer,
+        )
     }
 }
 

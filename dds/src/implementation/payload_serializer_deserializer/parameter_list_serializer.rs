@@ -1,8 +1,11 @@
-use crate::serialized_payload::{
-    cdr::serialize::CdrSerialize, parameter_list::serializer::ParameterListSerializer,
+use xtypes::{
+    serialize::XTypesSerialize,
+    xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
 };
 
-use super::{cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness};
+use crate::serialized_payload::parameter_list::serializer::ParameterListSerializer;
+
+use super::endianness::CdrEndianness;
 
 pub struct ParameterListCdrSerializer<W> {
     writer: W,
@@ -21,41 +24,70 @@ where
 {
     fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
-        T: CdrSerialize,
+        T: XTypesSerialize,
     {
         let mut data = Vec::new();
-        let mut data_serializer = ClassicCdrSerializer::new(&mut data, self.endianness);
-        value.serialize(&mut data_serializer)?;
 
-        let length_without_padding = data.len();
-        let padding_length = (4 - length_without_padding % 4) & 3;
-        let length = length_without_padding + padding_length;
+        match self.endianness {
+            CdrEndianness::LittleEndian => {
+                let mut data_serializer = NewXcdr1LeSerializer::new(&mut data);
+                value.serialize(&mut data_serializer).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, format!(""))
+                })?;
 
-        if length > u16::MAX as usize {
-            Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)))
-        } else {
-            match self.endianness {
-                CdrEndianness::LittleEndian => {
-                    self.writer.write_all(&id.to_le_bytes())?;
-                    self.writer.write_all(&(length as u16).to_le_bytes())?;
+                let length_without_padding = data.len();
+                let padding_length = (4 - length_without_padding % 4) & 3;
+                let length = length_without_padding + padding_length;
+
+                if length > u16::MAX as usize {
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)));
                 }
 
-                CdrEndianness::BigEndian => {
-                    self.writer.write_all(&id.to_be_bytes())?;
-                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                self.writer.write_all(&id.to_le_bytes())?;
+                self.writer.write_all(&(length as u16).to_le_bytes())?;
+
+                self.writer.write_all(&data)?;
+
+                match padding_length {
+                    1 => self.writer.write_all(&[0u8; 1])?,
+                    2 => self.writer.write_all(&[0u8; 2])?,
+                    3 => self.writer.write_all(&[0u8; 3])?,
+                    _ => self.writer.write_all(&[0u8; 0])?,
                 }
             }
 
-            self.writer.write_all(&data)?;
+            CdrEndianness::BigEndian => {
+                let mut data_serializer = NewXcdr1BeSerializer::new(&mut data);
+                value.serialize(&mut data_serializer).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, format!(""))
+                })?;
 
-            match padding_length {
-                1 => self.writer.write_all(&[0u8; 1])?,
-                2 => self.writer.write_all(&[0u8; 2])?,
-                3 => self.writer.write_all(&[0u8; 3])?,
-                _ => self.writer.write_all(&[0u8; 0])?,
+                let length_without_padding = data.len();
+                let padding_length = (4 - length_without_padding % 4) & 3;
+                let length = length_without_padding + padding_length;
+
+                if length > u16::MAX as usize {
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)));
+                }
+
+                self.writer.write_all(&id.to_be_bytes())?;
+                self.writer.write_all(&(length as u16).to_be_bytes())?;
+
+                self.writer.write_all(&data)?;
+
+                match padding_length {
+                    1 => self.writer.write_all(&[0u8; 1])?,
+                    2 => self.writer.write_all(&[0u8; 2])?,
+                    3 => self.writer.write_all(&[0u8; 3])?,
+                    _ => self.writer.write_all(&[0u8; 0])?,
+                }
+
             }
-            Ok(())
         }
+
+
+
+        Ok(())
     }
 
     fn write_with_default<T>(
@@ -65,7 +97,7 @@ where
         default: &T,
     ) -> Result<(), std::io::Error>
     where
-        T: CdrSerialize + PartialEq,
+        T: XTypesSerialize + PartialEq,
     {
         if value != default {
             self.write(id, value)?;
@@ -75,7 +107,7 @@ where
 
     fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), std::io::Error>
     where
-        T: CdrSerialize,
+        T: XTypesSerialize,
     {
         for value in value_list {
             self.write(id, value)?;

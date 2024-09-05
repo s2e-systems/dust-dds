@@ -1099,24 +1099,14 @@ impl QosPolicy for PartitionQosPolicy {
 }
 
 /// Enumeration representing the different types of reliability QoS policies.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ReliabilityQosPolicyKind {
     /// Best-effort reliability.
     BestEffort,
     /// Reliable reliability.
     Reliable,
 }
-impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(
-        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, xtypes::error::XcdrError> {
-        match deserializer.deserialize_uint8()? {
-            0 => Ok(Self::BestEffort),
-            1 => Ok(Self::Reliable),
-            _ => Err(xtypes::error::XcdrError::InvalidData),
-        }
-    }
-}
+
 const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
 
@@ -1140,6 +1130,34 @@ impl<'de> CdrDeserialize<'de> for ReliabilityQosPolicyKind {
                 std::io::ErrorKind::InvalidData,
                 format!("Invalid value for ReliabilityQosPolicyKind {}", value),
             )),
+        }
+    }
+}
+
+impl xtypes::serialize::XTypesSerialize for ReliabilityQosPolicyKind {
+    fn serialize(
+        &self,
+        serializer: impl xtypes::serialize::XTypesSerializer,
+    ) -> Result<(), XcdrError> {
+        xtypes::serialize::XTypesSerialize::serialize(
+            &match self {
+                ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
+                ReliabilityQosPolicyKind::Reliable => RELIABLE,
+            },
+            serializer,
+        )
+    }
+}
+
+impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for ReliabilityQosPolicyKind {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, xtypes::error::XcdrError> {
+        let value: i32 = xtypes::deserialize::XTypesDeserialize::deserialize(deserializer)?;
+        match value {
+            BEST_EFFORT => Ok(Self::BestEffort),
+            RELIABLE => Ok(Self::Reliable),
+            _ => Err(xtypes::error::XcdrError::InvalidData),
         }
     }
 }

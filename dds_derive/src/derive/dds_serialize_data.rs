@@ -51,7 +51,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let format = get_format(input)?;
             let serialize_function = match format {
                 Format::CdrLe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_le(
+                    dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_le(
                         self,
                 )},
                 Format::CdrBe => quote! {
