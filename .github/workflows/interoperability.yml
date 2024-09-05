@@ -27,7 +27,7 @@ jobs:
     - name: Install tomlq
       run: cargo install tomlq
     - name: Install zip
-      run: apt-get install zip
+      run: sudo apt-get install zip -y
     - name: Rename executable
       run: |
         version=$( tq -f dds/Cargo.toml 'package.version' )
