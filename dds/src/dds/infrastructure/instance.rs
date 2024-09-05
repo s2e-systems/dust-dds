@@ -2,7 +2,6 @@ use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize,
     xcdr_serializer::NewXcdr1BeSerializer,
 };
-use dust_dds_derive::CdrDeserialize;
 
 use super::error::DdsResult;
 
@@ -16,7 +15,6 @@ use super::error::DdsResult;
     Hash,
     PartialOrd,
     Ord,
-    CdrDeserialize,
     XTypesSerialize,
     XTypesDeserialize,
 )]

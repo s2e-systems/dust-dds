@@ -3,8 +3,6 @@
 
 use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
-use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
-
 use super::types::{EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -31,7 +29,7 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
 pub struct BuiltinEndpointSet(pub u32);
 
 impl Default for BuiltinEndpointSet {
@@ -92,9 +90,7 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Default, Clone, Copy, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
 pub struct BuiltinEndpointQos(pub u32);
 
 impl BuiltinEndpointQos {

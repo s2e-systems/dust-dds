@@ -7,11 +7,8 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    serialized_payload::{
-        cdr::deserialize::CdrDeserialize,
-        parameter_list::{
-            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-        },
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
@@ -29,7 +26,7 @@ use super::parameter_id_values::{
     PID_VENDORID,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 struct DomainTag(String);
 impl Default for DomainTag {
     fn default() -> Self {

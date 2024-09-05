@@ -1,7 +1,6 @@
 mod derive;
 
 use derive::{
-    cdr::expand_cdr_deserialize,
     dds_key::{expand_dds_key, expand_has_key},
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     dds_type_xml::expand_dds_type_xml,
@@ -32,14 +31,6 @@ pub fn derive_xtypes_serialize(input: TokenStream) -> TokenStream {
 pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_xtypes_deserialize(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(CdrDeserialize)]
-pub fn derive_cdr_deserialize(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_cdr_deserialize(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -106,7 +97,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
     output.extend(derive_xtypes_serialize(input.clone()));
     output.extend(derive_xtypes_deserialize(input.clone()));
-    output.extend(derive_cdr_deserialize(input.clone()));
     output.extend(derive_dds_serialize(input.clone()));
     output.extend(derive_dds_deserialize(input.clone()));
     output.extend(derive_dds_key(input.clone()));

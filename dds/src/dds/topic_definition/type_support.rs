@@ -1,23 +1,19 @@
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     implementation::payload_serializer_deserializer::{
-        cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
-        parameter_list_deserializer::ParameterListCdrDeserializer,
+        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
     },
-    serialized_payload::{
-        cdr::deserialize::CdrDeserialize,
-        parameter_list::{
-            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-            serializer::ParameterListSerializer,
-        },
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+        serializer::ParameterListSerializer,
     },
 };
-use std::io::{BufRead, Read, Write};
+use std::io::{Read, Write};
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
@@ -83,16 +79,16 @@ pub trait DdsDeserialize<'de>: Sized {
 }
 
 /// This trait defines the key associated with the type. The key is used to identify different instances of the type.
-/// The returned key object must implement [`XTypesSerialize`] and [`CdrDeserialize`] since CDR is the format always
+/// The returned key object must implement [`XTypesSerialize`] and [`XTypesDeserialize`] since CDR is the format always
 /// used to transmit the key information on the wire and this can not be modified by the user.
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`XTypesSerialize`] and [`CdrDeserialize`]
+/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`XTypesSerialize`] and [`XTypesDeserialize`]
 ///
 pub trait DdsKey {
     /// Type representing the key for the type in which this trait is implemented
-    type Key: XTypesSerialize + for<'de> CdrDeserialize<'de>;
+    type Key: XTypesSerialize + for<'de> XTypesDeserialize<'de>;
 
     /// Method to get the key from an instance of the type.
     fn get_key(&self) -> DdsResult<Self::Key>;
@@ -245,69 +241,6 @@ where
         CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
         _ => Err(XcdrError::InvalidData),
     }?;
-    Ok(value)
-}
-
-/// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
-/// The representation endianness to be used is automatically determined from the representation identifier and options
-pub fn deserialize_rtps_classic_cdr<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
-where
-    T: CdrDeserialize<'de>,
-{
-    let mut representation_identifier = [0u8, 0];
-    serialized_data
-        .read_exact(&mut representation_identifier)
-        .map_err(|err| DdsError::Error(err.to_string()))?;
-
-    let mut representation_option = [0u8, 0];
-    serialized_data
-        .read_exact(&mut representation_option)
-        .map_err(|err| DdsError::Error(err.to_string()))?;
-
-    let mut deserializer = match representation_identifier {
-        CDR_BE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::BigEndian,
-            false,
-        )),
-        CDR_LE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::LittleEndian,
-            false,
-        )),
-        CDR2_BE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::BigEndian,
-            true,
-        )),
-        CDR2_LE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::LittleEndian,
-            true,
-        )),
-        D_CDR2_BE => {
-            // Ignore DHEADER
-            serialized_data.consume(4);
-            Ok(ClassicCdrDeserializer::new(
-                serialized_data,
-                CdrEndianness::BigEndian,
-                true,
-            ))
-        }
-        D_CDR2_LE => {
-            // Ignore DHEADER
-            serialized_data.consume(4);
-            Ok(ClassicCdrDeserializer::new(
-                serialized_data,
-                CdrEndianness::LittleEndian,
-                true,
-            ))
-        }
-        _ => Err(DdsError::Error(
-            "Unknownn representation identifier".to_string(),
-        )),
-    }?;
-    let value = CdrDeserialize::deserialize(&mut deserializer)?;
     Ok(value)
 }
 

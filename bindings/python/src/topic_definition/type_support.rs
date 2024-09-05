@@ -1,6 +1,5 @@
 use dust_dds::{
     infrastructure::{error::DdsResult, instance::InstanceHandle},
-    serialized_payload::cdr::deserializer::CdrDeserializer,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
         error::XcdrError, serialize::XTypesSerializer, xcdr_serializer::NewXcdr1LeSerializer,
@@ -12,10 +11,7 @@ use pyo3::{
     types::{PyBytes, PyDict, PyList, PySequence, PyString, PyTuple, PyType},
 };
 
-use crate::xtypes::{
-    cdr_deserializer::ClassicCdrDeserializer,
-    endianness::{self, CDR_LE, REPRESENTATION_OPTIONS},
-};
+use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 
 #[allow(non_camel_case_types)]
 #[pyclass]

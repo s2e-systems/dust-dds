@@ -1,4 +1,3 @@
-use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer};
 use crate::xtypes::{
     deserialize::XTypesDeserialize,
     deserializer::{DeserializeFinalStruct, XTypesDeserializer},
@@ -43,17 +42,6 @@ const DURATION_INFINITE: Duration = Duration {
     nanosec: DURATION_INFINITE_NSEC,
 };
 
-impl<'de> CdrDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
-        let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
-        if duration == DURATION_INFINITE {
-            Ok(DurationKind::Infinite)
-        } else {
-            Ok(DurationKind::Finite(duration))
-        }
-    }
-}
-
 impl PartialOrd<DurationKind> for DurationKind {
     fn partial_cmp(&self, other: &DurationKind) -> Option<std::cmp::Ordering> {
         match self {
@@ -70,7 +58,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrDeserialize, XTypesSerialize)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,
