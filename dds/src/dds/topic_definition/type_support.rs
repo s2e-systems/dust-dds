@@ -145,7 +145,7 @@ use crate::xtypes::{
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
 ///
-///     #[derive(DdsType, XTypesSerialize)]
+///     #[derive(DdsType)]
 ///     struct BorrowedData<'a> {
 ///         #[dust_dds(key)]
 ///         id: u8,
