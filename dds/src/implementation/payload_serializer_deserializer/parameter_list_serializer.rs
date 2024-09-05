@@ -1,4 +1,4 @@
-use dust_dds_xtypes::{
+use crate::xtypes::{
     serialize::XTypesSerialize,
     xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
 };

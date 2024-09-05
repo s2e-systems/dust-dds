@@ -16,7 +16,9 @@ pub mod data_representation_builtin_endpoints;
 
 mod implementation;
 
-pub use dust_dds_xtypes;
+/// Contains the XTypes serializer and deserializer
+#[doc(hidden)]
+pub mod xtypes;
 
 // To enable using our own derive macros to allow the name dust_dds:: to be used
 extern crate self as dust_dds;

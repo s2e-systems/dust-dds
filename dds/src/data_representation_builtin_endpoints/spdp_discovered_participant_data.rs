@@ -1,5 +1,3 @@
-use dust_dds_xtypes::{serialize::XTypesSerialize, serializer::XTypesSerializer};
-
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
@@ -16,6 +14,7 @@ use crate::{
         },
     },
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    xtypes::{serialize::XTypesSerialize, serializer::XTypesSerializer},
 };
 
 use super::parameter_id_values::{
@@ -42,8 +41,8 @@ impl XTypesSerialize for DomainIdParameter {
     fn serialize(
         &self,
         serializer: impl XTypesSerializer,
-    ) -> Result<(), dust_dds_xtypes::error::XcdrError> {
-        dust_dds_xtypes::serialize::XTypesSerialize::serialize(
+    ) -> Result<(), crate::xtypes::error::XcdrError> {
+        crate::xtypes::serialize::XTypesSerialize::serialize(
             &self
                 .0
                 .expect("Default DomainId not supposed to be serialized"),

@@ -1,5 +1,4 @@
-use super::serialize::XTypesSerialize;
-use crate::error::XcdrError;
+use super::{error::XcdrError, serialize::XTypesSerialize};
 
 pub trait SerializeFinalStruct {
     fn serialize_field<T: XTypesSerialize>(

@@ -1,5 +1,3 @@
-//#![no_std]
-
 pub mod deserialize;
 
 pub mod deserializer;

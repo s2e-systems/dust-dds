@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use dust_dds_xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
+use crate::xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,

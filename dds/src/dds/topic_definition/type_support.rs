@@ -113,6 +113,13 @@ pub trait DdsTypeXml {
     fn get_type_xml() -> Option<String>;
 }
 
+use crate::xtypes::{
+    deserialize::XTypesDeserialize,
+    error::XcdrError,
+    serialize::XTypesSerialize,
+    xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
+    xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
+};
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with DustDDS. If the individual traits are manually derived then this derive should not be used.
 ///
@@ -149,13 +156,6 @@ pub trait DdsTypeXml {
 /// ```
 ///
 pub use dust_dds_derive::DdsType;
-use dust_dds_xtypes::{
-    deserialize::XTypesDeserialize,
-    error::XcdrError,
-    serialize::XTypesSerialize,
-    xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-    xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
-};
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];

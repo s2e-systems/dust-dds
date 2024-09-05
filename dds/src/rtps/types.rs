@@ -3,7 +3,7 @@ use super::{
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
 use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
-use dust_dds_xtypes::{
+use crate::xtypes::{
     deserialize::XTypesDeserialize, deserializer::DeserializeFinalStruct,
     serialize::XTypesSerialize,
 };
@@ -78,10 +78,10 @@ pub struct Guid {
     entity_id: EntityId,
 }
 
-impl<'de> dust_dds_xtypes::deserialize::XTypesDeserialize<'de> for Guid {
+impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for Guid {
     fn deserialize(
-        deserializer: impl dust_dds_xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, dust_dds_xtypes::error::XcdrError> {
+        deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, crate::xtypes::error::XcdrError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             prefix: f.deserialize_field("prefix")?,
@@ -166,10 +166,10 @@ pub struct EntityId {
     entity_kind: Octet,
 }
 
-impl<'de> dust_dds_xtypes::deserialize::XTypesDeserialize<'de> for EntityId {
+impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for EntityId {
     fn deserialize(
-        deserializer: impl dust_dds_xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, dust_dds_xtypes::error::XcdrError> {
+        deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, crate::xtypes::error::XcdrError> {
         let mut d = deserializer.deserialize_final_struct()?;
         Ok(Self {
             entity_key: d.deserialize_field("entity_key")?,
@@ -285,10 +285,10 @@ pub struct Locator {
     address: [Octet; 16],
 }
 
-impl<'de> dust_dds_xtypes::deserialize::XTypesDeserialize<'de> for Locator {
+impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for Locator {
     fn deserialize(
-        deserializer: impl dust_dds_xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, dust_dds_xtypes::error::XcdrError> {
+        deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, crate::xtypes::error::XcdrError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             kind: f.deserialize_field("kind")?,

@@ -1,8 +1,8 @@
-use dust_dds_derive::CdrDeserialize;
-use dust_dds_xtypes::{
+use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize,
     xcdr_serializer::NewXcdr1BeSerializer,
 };
+use dust_dds_derive::CdrDeserialize;
 
 use super::error::DdsResult;
 

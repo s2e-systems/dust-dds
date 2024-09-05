@@ -1,8 +1,9 @@
 use std::any::Any;
 
-use dust_dds_xtypes::error::XcdrError;
-
-use crate::{implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError};
+use crate::{
+    implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError,
+    xtypes::error::XcdrError,
+};
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;

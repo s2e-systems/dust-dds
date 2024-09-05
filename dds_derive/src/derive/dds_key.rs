@@ -84,7 +84,7 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
 
                     let key_holder_struct_definition = quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::dust_dds_xtypes::serialize::XTypesSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
+                        #[derive(dust_dds::xtypes::serialize::XTypesSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
                         pub struct __key_holder {
                             #key_holder_fields
                         }
@@ -101,7 +101,7 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
                 false => {
                     let key_holder_struct_definition = quote! {
                         #[allow(non_camel_case_types)]
-                        #[derive(dust_dds::dust_dds_xtypes::serialize::XTypesSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
+                        #[derive(dust_dds::xtypes::serialize::XTypesSerialize, dust_dds::serialized_payload::cdr::deserialize::CdrDeserialize)]
                         pub struct __key_holder;
                     };
 
@@ -114,7 +114,6 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
             };
             Ok(quote! {
                 const _ : () = {
-                    use dust_dds::dust_dds_xtypes as dust_dds_xtypes;
                     #key_holder_struct_definition
 
                     impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
@@ -134,7 +133,6 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
         }
         syn::Data::Enum(_data_enum) => Ok(quote! {
             const _ : () = {
-                use dust_dds::dust_dds_xtypes as dust_dds_xtypes;
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
                     type Key = ();
 

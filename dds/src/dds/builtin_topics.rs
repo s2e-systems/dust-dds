@@ -27,9 +27,9 @@ use crate::{
         },
     },
     topic_definition::type_support::DdsHasKey,
+    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use dust_dds_derive::DdsDeserialize;
-use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(

@@ -1,6 +1,4 @@
-use crate::error::XcdrError;
-
-use super::deserialize::XTypesDeserialize;
+use super::{deserialize::XTypesDeserialize, error::XcdrError};
 
 pub trait DeserializeFinalStruct<'a> {
     fn deserialize_field<T: XTypesDeserialize<'a>>(&mut self, name: &str) -> Result<T, XcdrError>;

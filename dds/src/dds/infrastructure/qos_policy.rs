@@ -2,15 +2,15 @@ use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
     serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer},
+    xtypes::{
+        deserialize::XTypesDeserialize,
+        deserializer::{DeserializeFinalStruct, XTypesDeserializer},
+        error::XcdrError,
+        serialize::{XTypesSerialize, XTypesSerializer},
+        serializer::{SerializeCollection, SerializeFinalStruct},
+    },
 };
 use core::cmp::Ordering;
-use dust_dds_xtypes::{
-    deserialize::XTypesDeserialize,
-    deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-    error::XcdrError,
-    serialize::{XTypesSerialize, XTypesSerializer},
-    serializer::{SerializeCollection, SerializeFinalStruct},
-};
 
 /// QosPolicyId type alias
 pub type QosPolicyId = i32;

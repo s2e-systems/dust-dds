@@ -1,4 +1,4 @@
-use dust_dds_xtypes::serialize::XTypesSerialize;
+use crate::xtypes::serialize::XTypesSerialize;
 
 use crate::serialized_payload::cdr::deserialize::CdrDeserialize;
 

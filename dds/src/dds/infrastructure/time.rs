@@ -1,5 +1,5 @@
 use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer};
-use dust_dds_xtypes::{
+use crate::xtypes::{
     deserialize::XTypesDeserialize,
     deserializer::{DeserializeFinalStruct, XTypesDeserializer},
     error::XcdrError,
