@@ -9,7 +9,9 @@ use crate::{
 use core::cmp::Ordering;
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
 use xtypes::{
-    deserializer::DeserializeFinalStruct, error::XcdrError, serializer::SerializeFinalStruct,
+    deserializer::DeserializeFinalStruct,
+    error::XcdrError,
+    serializer::{SerializeCollection, SerializeFinalStruct},
 };
 
 /// QosPolicyId type alias
@@ -829,7 +831,18 @@ impl Default for OwnershipQosPolicy {
 /// Exclusive ownership is on an instance-by-instance basis. That is, a subscriber can receive values written by a lower
 /// strength DataWriter as long as they affect instances whose values have not been set by the higher-strength
 /// DataWriter.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, Default, XTypesSerialize, XTypesDeserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Clone,
+    CdrSerialize,
+    CdrDeserialize,
+    Default,
+    XTypesSerialize,
+    XTypesDeserialize,
+)]
 pub struct OwnershipStrengthQosPolicy {
     /// Ownership strength value
     pub value: i32,
@@ -1057,8 +1070,12 @@ impl xtypes::serialize::XTypesSerialize for PartitionQosPolicy {
         &self,
         serializer: impl xtypes::serialize::XTypesSerializer,
     ) -> Result<(), xtypes::error::XcdrError> {
-        let vec: Vec<_> = self.name.iter().map(String::as_str).collect();
-        xtypes::serialize::XTypesSerialize::serialize(&vec.as_slice(), serializer)
+        let mut s = serializer.serialize_sequence(self.name.len())?;
+        for e in &self.name {
+            s.serialize_element(&e.as_str())?;
+        }
+
+        Ok(())
     }
 }
 impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for PartitionQosPolicy {
@@ -1340,14 +1357,16 @@ impl xtypes::serialize::XTypesSerialize for HistoryQosPolicyKind {
 }
 
 impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for HistoryQosPolicyKind {
-    fn deserialize(deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(
+        deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
+    ) -> Result<Self, XcdrError> {
         let mut f = deserializer.deserialize_final_struct()?;
         let descriminant = f.deserialize_field::<u8>("discriminant")?;
-        let length = f.deserialize_field("length")?;        
+        let length = f.deserialize_field("length")?;
         match descriminant {
             0 => Ok(Self::KeepLast(length)),
             1 => Ok(Self::KeepAll),
-            _ => Err(XcdrError::InvalidData)
+            _ => Err(XcdrError::InvalidData),
         }
     }
 }
@@ -1599,7 +1618,11 @@ impl xtypes::serialize::XTypesSerialize for DataRepresentationQosPolicy {
         &self,
         serializer: impl xtypes::serialize::XTypesSerializer,
     ) -> Result<(), xtypes::error::XcdrError> {
-        xtypes::serialize::XTypesSerialize::serialize(&self.value.as_slice(), serializer)
+        let mut s = serializer.serialize_sequence(self.value.len())?;
+        for e in &self.value {
+            s.serialize_element(e)?;
+        }
+        Ok(())
     }
 }
 impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DataRepresentationQosPolicy {
