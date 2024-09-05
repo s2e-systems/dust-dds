@@ -653,10 +653,7 @@ mod tests {
                         10 => Ok(SimpleEnum::a),
                         2000 => Ok(SimpleEnum::b),
                         2001 => Ok(SimpleEnum::c),
-                        _ => Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!(\"Invalid value {} for discriminant of SimpleEnum\", discriminant),
-                        ))
+                        _ => Err(dust_dds::xtypes::error::XcdrError::InvalidData)
                     }
                 }
             }
