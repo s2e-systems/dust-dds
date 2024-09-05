@@ -1,7 +1,4 @@
-use crate::serialized_payload::cdr::{
-    deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
-    serializer::CdrSerializer,
-};
+use crate::serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer};
 use dust_dds_derive::XTypesSerialize;
 use std::ops::Sub;
 use xtypes::deserializer::DeserializeFinalStruct;
@@ -47,16 +44,6 @@ const DURATION_INFINITE: Duration = Duration {
     nanosec: DURATION_INFINITE_NSEC,
 };
 
-impl CdrSerialize for DurationKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            DurationKind::Finite(d) => d,
-            DurationKind::Infinite => &DURATION_INFINITE,
-        }
-        .serialize(serializer)
-    }
-}
-
 impl<'de> CdrDeserialize<'de> for DurationKind {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let duration: Duration = CdrDeserialize::deserialize(deserializer)?;
@@ -84,9 +71,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(
-    PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrSerialize, CdrDeserialize, XTypesSerialize,
-)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, CdrDeserialize, XTypesSerialize)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,

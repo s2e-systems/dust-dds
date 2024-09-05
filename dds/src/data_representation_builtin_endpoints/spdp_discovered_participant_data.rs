@@ -11,9 +11,7 @@ use crate::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     serialized_payload::{
-        cdr::{
-            deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
-        },
+        cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer},
         parameter_list::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
         },
@@ -30,7 +28,7 @@ use super::parameter_id_values::{
     PID_VENDORID,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize)]
 struct DomainTag(String);
 impl Default for DomainTag {
     fn default() -> Self {

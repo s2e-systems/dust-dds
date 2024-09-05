@@ -1,10 +1,7 @@
 use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
-    serialized_payload::cdr::{
-        deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
-        serializer::CdrSerializer,
-    },
+    serialized_payload::cdr::{deserialize::CdrDeserialize, deserializer::CdrDeserializer},
 };
 use core::cmp::Ordering;
 use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
@@ -26,14 +23,19 @@ pub enum Length {
     Limited(u32),
 }
 
+const LENGTH_UNLIMITED: i32 = -1;
 impl xtypes::serialize::XTypesSerialize for Length {
     fn serialize(
         &self,
         serializer: impl xtypes::serialize::XTypesSerializer,
     ) -> Result<(), xtypes::error::XcdrError> {
         match self {
-            Length::Unlimited => serializer.serialize_int32(LENGTH_UNLIMITED)?,
-            Length::Limited(length) => serializer.serialize_uint32(*length)?,
+            Length::Unlimited => {
+                xtypes::serialize::XTypesSerialize::serialize(&LENGTH_UNLIMITED, serializer)?
+            }
+            Length::Limited(length) => {
+                xtypes::serialize::XTypesSerialize::serialize(length, serializer)?
+            }
         }
         Ok(())
     }
@@ -46,16 +48,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for Length {
             LENGTH_UNLIMITED => Ok(Length::Unlimited),
             value @ 0..=i32::MAX => Ok(Length::Limited(value as u32)),
             _ => Err(XcdrError::InvalidData),
-        }
-    }
-}
-
-const LENGTH_UNLIMITED: i32 = -1;
-impl CdrSerialize for Length {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            Length::Unlimited => serializer.serialize_i32(LENGTH_UNLIMITED),
-            Length::Limited(l) => serializer.serialize_u32(*l),
         }
     }
 }
@@ -221,7 +213,7 @@ pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
-#[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, CdrDeserialize)]
 pub struct UserDataQosPolicy {
     /// User data value
     pub value: Vec<u8>,
@@ -251,7 +243,7 @@ impl QosPolicy for UserDataQosPolicy {
 
 /// This policy allows the application to attach additional information to the created Topic such that when a
 /// remote application discovers their existence it can examine the information and use it in an application-defined way.
-#[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, CdrDeserialize)]
 pub struct TopicDataQosPolicy {
     /// Topic data value
     pub value: Vec<u8>,
@@ -285,7 +277,7 @@ impl QosPolicy for TopicDataQosPolicy {
 /// The value is available to the application on the
 /// [`DataReader`](crate::subscription::data_reader::DataReader) and [`DataWriter`](crate::publication::data_writer::DataWriter) entities and is propagated by
 /// means of the built-in topics.
-#[derive(Debug, Default, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, CdrDeserialize)]
 pub struct GroupDataQosPolicy {
     /// Group data value
     pub value: Vec<u8>,
@@ -323,15 +315,7 @@ impl QosPolicy for GroupDataQosPolicy {
 /// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport.
 /// This mapping would then be used by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
 #[derive(
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Clone,
-    CdrSerialize,
-    CdrDeserialize,
-    XTypesSerialize,
-    XTypesDeserialize,
+    Debug, Default, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
 )]
 pub struct TransportPriorityQosPolicy {
     /// Transport priority value
@@ -357,9 +341,7 @@ impl QosPolicy for TransportPriorityQosPolicy {
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
 /// and the Service can detect it, the [`DataReader`](crate::subscription::data_reader::DataReader) is allowed to use the reception timestamp instead of the source timestamp in its
 /// computation of the 'expiration time.'
-#[derive(
-    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 pub struct LifespanQosPolicy {
     /// Lifespan duration
     pub duration: DurationKind,
@@ -402,18 +384,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DurabilityQosPolicyKin
             3 => Ok(Self::Persistent),
             _ => Err(xtypes::error::XcdrError::InvalidData),
         }
-    }
-}
-
-impl CdrSerialize for DurabilityQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            DurabilityQosPolicyKind::Volatile => 0u8,
-            DurabilityQosPolicyKind::TransientLocal => 1,
-            DurabilityQosPolicyKind::Transient => 2,
-            DurabilityQosPolicyKind::Persistent => 3,
-        }
-        .serialize(serializer)
     }
 }
 
@@ -478,15 +448,7 @@ impl PartialOrd for DurabilityQosPolicyKind {
 /// kind* is true. For the purposes of this inequality, the values of [`DurabilityQosPolicyKind`] kind are considered ordered such
 /// that *Volatile < TransientLocal*.
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Clone,
-    CdrSerialize,
-    CdrDeserialize,
-    XTypesSerialize,
-    XTypesDeserialize,
+    Debug, PartialEq, Eq, PartialOrd, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
 )]
 pub struct DurabilityQosPolicy {
     /// DurabilityQosPolicy kind to be used for this policy
@@ -524,15 +486,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for PresentationQosPolicyA
             1 => Ok(Self::Topic),
             _ => Err(xtypes::error::XcdrError::InvalidData),
         }
-    }
-}
-impl CdrSerialize for PresentationQosPolicyAccessScopeKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            PresentationQosPolicyAccessScopeKind::Instance => 0u8,
-            PresentationQosPolicyAccessScopeKind::Topic => 1,
-        }
-        .serialize(serializer)
     }
 }
 
@@ -604,7 +557,7 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct PresentationQosPolicy {
     /// Presentation access scope kind to be used for this policy
     pub access_scope: PresentationQosPolicyAccessScopeKind,
@@ -655,9 +608,7 @@ impl Default for PresentationQosPolicy {
 /// requested deadline period* is true.
 /// The setting of the [`DeadlineQosPolicy`] policy must be set consistently with that of the [`TimeBasedFilterQosPolicy`]. For these two policies
 /// to be consistent the settings must be such that *deadline period >= minimum_separation*.
-#[derive(
-    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
-)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct DeadlineQosPolicy {
     /// Deadline period value
     pub period: DurationKind,
@@ -692,9 +643,7 @@ impl Default for DeadlineQosPolicy {
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
 /// The value offered is considered compatible with the value requested if and only if the *offered duration <=
 /// requested duration* is true.
-#[derive(
-    PartialOrd, PartialEq, Eq, Debug, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
-)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct LatencyBudgetQosPolicy {
     /// Latency budget duration value
     pub duration: DurationKind,
@@ -730,6 +679,7 @@ pub enum OwnershipQosPolicyKind {
     /// Exclusive ownership QoS policy
     Exclusive,
 }
+
 impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for OwnershipQosPolicyKind {
     fn deserialize(
         deserializer: impl xtypes::deserializer::XTypesDeserializer<'de>,
@@ -739,15 +689,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for OwnershipQosPolicyKind
             1 => Ok(Self::Exclusive),
             _ => Err(xtypes::error::XcdrError::InvalidData),
         }
-    }
-}
-impl CdrSerialize for OwnershipQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            OwnershipQosPolicyKind::Shared => 0u8,
-            OwnershipQosPolicyKind::Exclusive => 1u8,
-        }
-        .serialize(serializer)
     }
 }
 
@@ -774,7 +715,7 @@ impl<'de> CdrDeserialize<'de> for OwnershipQosPolicyKind {
 /// In any case there is no *filtering* of modifications made based on the identity of the DataWriter that causes the
 /// modification.
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct OwnershipQosPolicy {
     /// Kind of ownership QoS associated with this policy
     pub kind: OwnershipQosPolicyKind,
@@ -837,7 +778,6 @@ impl Default for OwnershipQosPolicy {
     Eq,
     PartialOrd,
     Clone,
-    CdrSerialize,
     CdrDeserialize,
     Default,
     XTypesSerialize,
@@ -874,16 +814,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for LivelinessQosPolicyKin
             2 => Ok(Self::ManualByTopic),
             _ => Err(xtypes::error::XcdrError::InvalidData),
         }
-    }
-}
-impl CdrSerialize for LivelinessQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            LivelinessQosPolicyKind::Automatic => 0u8,
-            LivelinessQosPolicyKind::ManualByParticipant => 1,
-            LivelinessQosPolicyKind::ManualByTopic => 2,
-        }
-        .serialize(serializer)
     }
 }
 
@@ -949,9 +879,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// Changes in liveliness must be detected by the Service with a time-granularity greater or equal to the [`LivelinessQosPolicy::lease_duration`]. This
 /// ensures that the value of the LivelinessChangedStatus is updated at least once during each [`LivelinessQosPolicy::lease_duration`] and the related
 /// Listeners and WaitSets are notified within a [`LivelinessQosPolicy::lease_duration`] from the time the liveliness changed.
-#[derive(
-    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
-)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct LivelinessQosPolicy {
     /// Kind of liveliness QoS associated with this policy
     pub kind: LivelinessQosPolicyKind,
@@ -1006,7 +934,7 @@ impl Default for LivelinessQosPolicy {
 /// the [`TimeBasedFilterQosPolicy::minimum_separation`], the system should guarantee delivery the last sample to the [`DataReader`](crate::subscription::data_reader::DataReader).
 /// The setting of the  [`TimeBasedFilterQosPolicy::minimum_separation`] minimum_separation must be consistent with the [`DeadlineQosPolicy::period`]. For these
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct TimeBasedFilterQosPolicy {
     /// Minimum separation between samples
     pub minimum_separation: DurationKind,
@@ -1059,7 +987,7 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
-#[derive(Debug, PartialEq, Eq, Clone, Default, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, CdrDeserialize)]
 pub struct PartitionQosPolicy {
     /// Name of the partition
     pub name: Vec<String>,
@@ -1109,16 +1037,6 @@ pub enum ReliabilityQosPolicyKind {
 
 const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
-
-impl CdrSerialize for ReliabilityQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
-            ReliabilityQosPolicyKind::Reliable => RELIABLE,
-        }
-        .serialize(serializer)
-    }
-}
 
 impl<'de> CdrDeserialize<'de> for ReliabilityQosPolicyKind {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
@@ -1202,7 +1120,7 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`ReliabilityQosPolicyKind`] are considered ordered such
 /// that *BestEffort < Reliable*.
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct ReliabilityQosPolicy {
     /// Kind of reliability QoS
     pub kind: ReliabilityQosPolicyKind,
@@ -1265,15 +1183,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for DestinationOrderQosPol
         }
     }
 }
-impl CdrSerialize for DestinationOrderQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            DestinationOrderQosPolicyKind::ByReceptionTimestamp => 0u8,
-            DestinationOrderQosPolicyKind::BySourceTimestamp => 1,
-        }
-        .serialize(serializer)
-    }
-}
 
 impl<'de> CdrDeserialize<'de> for DestinationOrderQosPolicyKind {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
@@ -1316,9 +1225,7 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`DestinationOrderQosPolicyKind`] kind are considered
 /// ordered such that *DestinationOrderQosPolicyKind::ByReceptionTimestamp < DestinationOrderQosPolicyKind::BySourceTimestamp*.
-#[derive(
-    Debug, PartialEq, Eq, PartialOrd, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize,
-)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, CdrDeserialize, XTypesSerialize)]
 pub struct DestinationOrderQosPolicy {
     /// Kind of destination order QoS associated with this policy.
     pub kind: DestinationOrderQosPolicyKind,
@@ -1389,21 +1296,6 @@ impl<'de> xtypes::deserialize::XTypesDeserialize<'de> for HistoryQosPolicyKind {
     }
 }
 
-impl CdrSerialize for HistoryQosPolicyKind {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        match self {
-            HistoryQosPolicyKind::KeepLast(depth) => {
-                serializer.serialize_u8(0)?;
-                serializer.serialize_u32(*depth)
-            }
-            HistoryQosPolicyKind::KeepAll => {
-                serializer.serialize_u8(1)?;
-                serializer.serialize_u32(0) // Depth is part of the idl
-            }
-        }
-    }
-}
-
 impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
     fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
         let kind: u8 = CdrDeserialize::deserialize(deserializer)?;
@@ -1433,9 +1325,7 @@ impl<'de> CdrDeserialize<'de> for HistoryQosPolicyKind {
 /// [`ReliabilityQosPolicyKind::Reliable`], then the Service will block the [`DataWriter`](crate::publication::data_writer::DataWriter) until it can deliver the necessary old values to all subscribers.
 /// The setting of [`HistoryQosPolicy`] depth must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`]. For these two
 /// QoS to be consistent, they must verify that *depth <= max_samples_per_instance*.
-#[derive(
-    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 pub struct HistoryQosPolicy {
     /// Kind of history QoS associated with this policy.
     pub kind: HistoryQosPolicyKind,
@@ -1474,9 +1364,7 @@ impl Default for HistoryQosPolicy {
 /// The setting of [`ResourceLimitsQosPolicy::max_samples_per_instance`] must be consistent with the
 /// [`HistoryQosPolicy`] depth. For these two QoS to be consistent, they must verify
 /// that *HistoryQosPolicy depth <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
-#[derive(
-    Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 pub struct ResourceLimitsQosPolicy {
     /// Maximum number of samples limit.
     pub max_samples: Length,
@@ -1626,7 +1514,7 @@ type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
 /// [`DataWriter`](crate::publication::data_writer::DataWriter) and [`DataReader`](crate::subscription::data_reader::DataReader) must be able to negotiate which data representation(s) to use.
-#[derive(Debug, PartialEq, Eq, Clone, Default, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, CdrDeserialize)]
 pub struct DataRepresentationQosPolicy {
     /// List of data representation values
     pub value: DataRepresentationIdSeq,

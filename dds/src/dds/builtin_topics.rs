@@ -21,7 +21,7 @@ use crate::{
         },
     },
     serialized_payload::{
-        cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
+        cdr::deserialize::CdrDeserialize,
         parameter_list::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
         },
@@ -32,15 +32,7 @@ use dust_dds_derive::{DdsDeserialize, XTypesDeserialize, XTypesSerialize};
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    CdrSerialize,
-    CdrDeserialize,
-    Default,
-    XTypesSerialize,
-    XTypesDeserialize,
+    Debug, PartialEq, Eq, Clone, CdrDeserialize, Default, XTypesSerialize, XTypesDeserialize,
 )]
 pub struct BuiltInTopicKey {
     /// InstanceHandle value as an array of 16 octets.
