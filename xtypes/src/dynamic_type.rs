@@ -112,7 +112,7 @@ pub trait DynamicTypeMember {
 
 impl DynamicTypeMember for MemberDescriptor {
     fn get_descriptor(&self) -> Result<MemberDescriptor, XcdrError> {
-        Ok(self.clone())
+        Ok(*self)
     }
 
     fn get_id(&self) -> MemberId {

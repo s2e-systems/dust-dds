@@ -222,7 +222,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
         pid: u16,
         _name: &str,
     ) -> Result<T, XcdrError> {
-        let mut reader = Reader::new(&self.buffer);
+        let mut reader = Reader::new(self.buffer);
         seek_to_pid_le(&mut reader, pid)?;
         T::deserialize(&mut Xcdr1LeDeserializer { reader })
     }
