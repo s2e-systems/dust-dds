@@ -120,8 +120,31 @@ impl<T: XTypesSerialize, const N: usize> XTypesSerialize for [T; N] {
     }
 }
 
-impl XTypesSerialize for &[u8] {
+// impl XTypesSerialize for &[u8] {
+//     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+//         serializer.serialize_byte_sequence(self)
+//     }
+// }
+
+impl<T:XTypesSerialize> XTypesSerialize for &[T] {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+        let mut s = serializer.serialize_sequence(self.len())?;
+        for e in self.iter() {
+            s.serialize_element(e)?;
+        }
+        Ok(())
+    }
+}
+
+
+impl XTypesSerialize for Vec<u8> {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
         serializer.serialize_byte_sequence(self)
+    }
+}
+
+impl XTypesSerialize for String {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+        serializer.serialize_string(self.as_str())
     }
 }
