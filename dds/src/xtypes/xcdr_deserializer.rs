@@ -1097,9 +1097,9 @@ mod tests {
             deserialize_v1_be(&[
                 0, 0, 0, 3, // field_str: length
                 b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-                0, 9, 0, 0, // field_u16 | padding (3 bytes)
+                0, 9, 0, 0, // field_u16 | padding (2 bytes)
                 0, 0, 0, 2, // field_slice: length
-                10, 11, //field_slice: data | padding (1 bytes)
+                10, 11, //field_slice: data
             ]),
             expected
         );
@@ -1107,9 +1107,9 @@ mod tests {
             deserialize_v1_le(&[
                 3, 0, 0, 0, // field_str: length
                 b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-                9, 0, 0, 0, // field_u16 | padding (3 bytes)
+                9, 0, 0, 0, // field_u16 | padding (2 bytes)
                 2, 0, 0, 0, // field_slice: length
-                10, 11, //field_slice: data | padding (1 bytes)
+                10, 11, //field_slice: data 
             ]),
             expected
         );
@@ -1118,9 +1118,9 @@ mod tests {
             deserialize_v2_be(&[
                 0, 0, 0, 3, // field_str: length
                 b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-                0, 9, 0, 0, // field_u16 | padding (3 bytes)
+                0, 9, 0, 0, // field_u16 | padding (2 bytes)
                 0, 0, 0, 2, // field_slice: length
-                10, 11, //field_slice: data | padding (1 bytes)
+                10, 11, //field_slice: data
             ]),
             expected
         );
@@ -1128,9 +1128,9 @@ mod tests {
             deserialize_v2_le(&[
                 3, 0, 0, 0, // field_str: length
                 b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
-                9, 0, 0, 0, // field_u16 | padding (3 bytes)
+                9, 0, 0, 0, // field_u16 | padding (2 bytes)
                 2, 0, 0, 0, // field_slice: length
-                10, 11, //field_slice: data | padding (1 bytes)
+                10, 11, //field_slice: data 
             ]),
             expected
         );
