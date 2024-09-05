@@ -63,9 +63,7 @@ pub trait DdsHasKey {
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if the struct implements either `CdrSerialize` or `ParameterListSerialize`.
-/// The format to be used for serializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
-/// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
+/// This trait can be automatically derived if the struct implements `XTypesSerialize`.
 pub trait DdsSerialize {
     /// Method to serialize the instance of the type into the provided writer.
     fn serialize_data(&self) -> DdsResult<Vec<u8>>;
@@ -78,21 +76,19 @@ pub trait DdsSerialize {
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if the struct implements either `CdrSerialize` or `ParameterListSerialize`.
-/// The format to be used for deserializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
-/// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
+/// This trait can be automatically derived if the struct implements `XTypesDeserialize`.
 pub trait DdsDeserialize<'de>: Sized {
     /// Method to deserialize the bytes into an instance of the type.
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
 /// This trait defines the key associated with the type. The key is used to identify different instances of the type.
-/// The returned key object must implement [`CdrSerialize`] and [`CdrDeserialize`] since CDR is the format always
+/// The returned key object must implement [`XTypesSerialize`] and [`CdrDeserialize`] since CDR is the format always
 /// used to transmit the key information on the wire and this can not be modified by the user.
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`CdrSerialize`] and [`CdrDeserialize`]
+/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`XTypesSerialize`] and [`CdrDeserialize`]
 ///
 pub trait DdsKey {
     /// Type representing the key for the type in which this trait is implemented
