@@ -104,12 +104,14 @@ pub fn derive_dds_type_xml(input: TokenStream) -> TokenStream {
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
 
+    output.extend(derive_xtypes_serialize(input.clone()));
+    output.extend(derive_xtypes_deserialize(input.clone()));
     output.extend(derive_cdr_deserialize(input.clone()));
     output.extend(derive_dds_serialize(input.clone()));
     output.extend(derive_dds_deserialize(input.clone()));
     output.extend(derive_dds_key(input.clone()));
     output.extend(derive_dds_has_key(input.clone()));
-    output.extend(derive_dds_type_xml(input.clone()));
+    output.extend(derive_dds_type_xml(input));
 
     output
 }

@@ -257,7 +257,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
                     match discriminant {
                         #(#clauses)*
-                        _ =>  Err(dust_dds_xtypes::error::XcdrError::InvalidData)
+                        _ =>  Err(dust_dds::sxtypes::error::XcdrError::InvalidData)
                     }
                 }
             };

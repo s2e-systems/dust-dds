@@ -15,9 +15,8 @@ use dust_dds::{
     },
     topic_definition::type_support::DdsType,
 };
-use dust_dds_xtypes::serialize::XTypesSerialize;
 
-#[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
     #[dust_dds(key)]
     id: u8,
@@ -185,7 +184,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     });
 }
 
-#[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct LargeKeyedData {
     #[dust_dds(key)]
     id: u8,

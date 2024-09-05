@@ -1,10 +1,10 @@
 use dust_dds::{
-    dust_dds_xtypes::{
-        error::XcdrError, serialize::XTypesSerializer, xcdr_serializer::NewXcdr1LeSerializer,
-    },
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     serialized_payload::cdr::deserializer::CdrDeserializer,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    xtypes::{
+        error::XcdrError, serialize::XTypesSerializer, xcdr_serializer::NewXcdr1LeSerializer,
+    },
 };
 use pyo3::{
     exceptions::PyTypeError,

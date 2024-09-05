@@ -290,7 +290,7 @@ fn struct_def(pair: IdlPair, writer: &mut String) {
         .find(|p| p.as_rule() == Rule::identifier)
         .expect("Identifier must exist according to the grammar");
 
-    writer.push_str("#[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]\n");
+    writer.push_str("#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n");
     writer.push_str("pub struct ");
     generate_rust_source(identifier, writer);
 
@@ -786,7 +786,7 @@ fn const_dcl(pair: IdlPair, writer: &mut String) {
 
     writer.push_str("pub const ");
     generate_rust_source(identifier, writer);
-    writer.push(':' );
+    writer.push(':');
     generate_rust_source(const_type, writer);
     writer.push('=');
     generate_rust_source(const_expr, writer);
@@ -839,7 +839,7 @@ mod tests {
         generate_rust_source(p, &mut out);
         println!("RESULT: {}", out);
         assert_eq!(
-            "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
+            "#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
             &out
         );
     }

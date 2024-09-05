@@ -35,14 +35,13 @@ use dust_dds::{
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsSerialize,
+    topic_definition::type_support::DdsType,
 };
-use dust_dds_derive::DdsType;
-use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+#[derive(Clone, Debug, PartialEq, DdsType)]
 struct KeyedData {
     #[dust_dds(key)]
     id: u8,

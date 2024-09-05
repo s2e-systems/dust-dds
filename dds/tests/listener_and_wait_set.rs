@@ -10,14 +10,13 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    topic_definition::type_support::DdsType,
 };
-use dust_dds_derive::DdsType;
-use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+#[derive(Debug, PartialEq, DdsType)]
 struct MyData {
     #[dust_dds(key)]
     id: u8,

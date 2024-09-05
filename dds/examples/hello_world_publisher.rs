@@ -12,9 +12,8 @@ use dust_dds::{
     },
     topic_definition::type_support::DdsType,
 };
-use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
-#[derive(DdsType, XTypesSerialize, Debug, XTypesDeserialize)]
+#[derive(DdsType, Debug)]
 struct HelloWorldType {
     #[dust_dds(key)]
     id: u8,

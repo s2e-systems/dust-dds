@@ -131,9 +131,8 @@ use crate::xtypes::{
 ///
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
-///     use dust_dds::dust_dds_xtypes::serialize::XTypesSerialize;
 ///
-///     #[derive(DdsType, XTypesSerialize)]
+///     #[derive(DdsType)]
 ///     struct KeyedData {
 ///         #[dust_dds(key)]
 ///         id: u8,
@@ -145,7 +144,6 @@ use crate::xtypes::{
 ///
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
-///     use dust_dds::dust_dds_xtypes::serialize::XTypesSerialize;
 ///
 ///     #[derive(DdsType, XTypesSerialize)]
 ///     struct BorrowedData<'a> {

@@ -25,13 +25,12 @@ use dust_dds::{
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, DynamicTypeInterface},
 };
-use dust_dds_xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[test]
 fn foo_with_lifetime_should_read_and_write() {
-    #[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     struct BorrowedData<'a> {
         #[dust_dds(key)]
         id: u8,
@@ -108,7 +107,7 @@ fn foo_with_lifetime_should_read_and_write() {
 
 #[test]
 fn foo_with_lifetime_with_listener_should_compile() {
-    #[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     struct BorrowedData<'a> {
         #[dust_dds(key)]
         id: u8,
@@ -156,7 +155,7 @@ fn foo_with_lifetime_with_listener_should_compile() {
 
 #[tokio::test]
 async fn async_foo_with_lifetime_with_listener_should_compile() {
-    #[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     struct BorrowedData<'a> {
         #[dust_dds(key)]
         id: u8,
@@ -217,7 +216,7 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
 
 #[test]
 fn foo_with_non_consecutive_key_should_read_and_write() {
-    #[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     struct NonConsecutiveKey {
         #[dust_dds(key)]
         id: u32,
@@ -450,7 +449,7 @@ fn foo_with_specialized_type_support_should_read_and_write() {
 
 #[test]
 fn foo_enumerator_should_read_and_write() {
-    #[derive(Clone, Debug, PartialEq, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
     enum MyEnum {
         VariantA = 5,
         VariantB = 6,
@@ -523,13 +522,13 @@ fn foo_enumerator_should_read_and_write() {
 
 #[test]
 fn nested_types_should_read_and_write() {
-    #[derive(PartialEq, Eq, Debug, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(PartialEq, Eq, Debug, DdsType)]
     struct InnerType {
         a: i32,
         b: u8,
     }
 
-    #[derive(PartialEq, Eq, Debug, DdsType, XTypesSerialize, XTypesDeserialize)]
+    #[derive(PartialEq, Eq, Debug, DdsType)]
     struct OuterType {
         inner: InnerType,
         flag: bool,
