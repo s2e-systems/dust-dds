@@ -1,5 +1,7 @@
 use std::any::Any;
 
+use xtypes::error::XcdrError;
+
 use crate::{implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError};
 
 /// Result type returned by the different operations of the service
@@ -60,6 +62,12 @@ impl From<Box<dyn Any + Send + 'static>> for DdsError {
 impl From<MpscSenderError> for DdsError {
     fn from(_: MpscSenderError) -> Self {
         DdsError::AlreadyDeleted
+    }
+}
+
+impl From<XcdrError> for DdsError {
+    fn from(value: XcdrError) -> Self {
+        DdsError::Error(format!("XcdrError: {:?}", value))
     }
 }
 
