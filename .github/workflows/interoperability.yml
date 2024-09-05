@@ -24,6 +24,21 @@ jobs:
           requirements.txt
     - uses: dtolnay/rust-toolchain@stable
     - run: cargo build --package dust_dds_shape_main_linux --release
+    - name: Install tomlq
+      run: cargo install tomlq
+    - name: Install zip
+      run: apt-get install zip
+    - name: Rename executable
+      run: |
+        version=$( tq -f dds/Cargo.toml 'package.version' )
+        cp ./target/release/dust_dds_shape_main_linux ./dust_dds-${version}_shape_main_linux
+        mkdir artifacts
+        zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip ./dust_dds-${version}_shape_main_linux
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: interoperability_executable
+        path: ./artifacts/
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
@@ -51,16 +66,4 @@ jobs:
       with:
         name: interoperability_report
         path: ./index.html
-    - name: Install tomlq
-      run: cargo install tomlq
-    - name: Rename executable
-      run: |
-        version=$( tq -f dds/Cargo.toml 'package.version' )
-        mv ./target/release/dust_dds_shape_main_linux ./target/release/dust_dds-${version}_shape_main_linux
-        mkdir artifacts
-        tar --create --file artifacts/dust_dds-${version}_shape_main_linux.tar ./target/release/dust_dds-${version}_shape_main_linux
-    - name: Upload executable
-      uses: actions/upload-artifact@v4
-      with:
-        name: interoperability_executable
-        path: ./artifacts/
+    
