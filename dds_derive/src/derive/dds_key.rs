@@ -114,7 +114,7 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
             };
             Ok(quote! {
                 const _ : () = {
-
+                    use dust_dds::dust_dds_xtypes as dust_dds_xtypes;
                     #key_holder_struct_definition
 
                     impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
@@ -134,6 +134,7 @@ pub fn expand_dds_key(input: &DeriveInput) -> Result<TokenStream> {
         }
         syn::Data::Enum(_data_enum) => Ok(quote! {
             const _ : () = {
+                use dust_dds::dust_dds_xtypes as dust_dds_xtypes;
                 impl #impl_generics dust_dds::topic_definition::type_support::DdsKey for #ident #type_generics #where_clause {
                     type Key = ();
 

@@ -106,72 +106,72 @@ fn i11eperf_generation() {
     let expected = syn::parse2::<File>(
         r#"
         pub mod i11eperf {
-          #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+          #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct ou {
               pub ts: u64,
               pub s: u32,
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a32 {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 32 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a128 {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 128 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a1024 {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a16k {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 16*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a48k {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 48*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a64k {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 64*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a1M {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 1024*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a2M {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 2*1024*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a4M {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 4*1024*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct a8M {
               pub ts: u64,
               pub s: u32,
               pub xary: [u8; 8*1024*1024 - 12],
             }
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct seq {
               pub ts: u64,
               pub s: u32,

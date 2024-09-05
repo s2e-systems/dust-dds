@@ -137,9 +137,17 @@ impl<T: XTypesSerialize> XTypesSerialize for &[T] {
     }
 }
 
-impl XTypesSerialize for Vec<u8> {
+impl<T> XTypesSerialize for Vec<T>
+where
+    T: XTypesSerialize,
+{
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
-        serializer.serialize_byte_sequence(self)
+        let mut s = serializer.serialize_sequence(self.len())?;
+        for e in self.iter() {
+            s.serialize_element(e)?;
+        }
+        Ok(())
+        // serializer.serialize_byte_sequence(self)
     }
 }
 

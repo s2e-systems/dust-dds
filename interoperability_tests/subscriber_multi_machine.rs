@@ -1,6 +1,5 @@
 use dust_dds::{
-    domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{
+    domain::domain_participant_factory::DomainParticipantFactory, dust_dds_xtypes::serialize::XTypesSerialize, infrastructure::{
         qos::{DataReaderQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
@@ -9,12 +8,10 @@ use dust_dds::{
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
-    },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    }, subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE}, topic_definition::type_support::DdsType
 };
 
-#[derive(Debug, DdsType)]
+#[derive(Debug, DdsType, XTypesSerialize)]
 struct HelloWorldType {
     #[dust_dds(key)]
     id: u8,

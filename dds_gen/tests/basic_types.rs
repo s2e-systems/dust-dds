@@ -24,7 +24,7 @@ fn basic_types() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct BasicTypes {
                 pub a: bool,
                 pub b: char,
@@ -66,7 +66,7 @@ fn template_types() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]
+            #[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]
             pub struct TemplateTypes {
                 pub a: Vec<Vec<u8>>,
                 pub b: String,

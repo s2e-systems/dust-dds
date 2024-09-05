@@ -290,7 +290,7 @@ fn struct_def(pair: IdlPair, writer: &mut String) {
         .find(|p| p.as_rule() == Rule::identifier)
         .expect("Identifier must exist according to the grammar");
 
-    writer.push_str("#[derive(Debug, dust_dds::topic_definition::type_support::DdsType)]\n");
+    writer.push_str("#[derive(Debug, dust_dds::topic_definition::type_support::DdsType, dust_dds::dust_dds_xtypes::serialize::XTypesSerialize)]\n");
     writer.push_str("pub struct ");
     generate_rust_source(identifier, writer);
 

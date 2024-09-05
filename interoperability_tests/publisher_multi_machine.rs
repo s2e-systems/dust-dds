@@ -1,5 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
+    dust_dds_xtypes::serialize::XTypesSerialize,
     infrastructure::{
         qos::{DataWriterQos, QosKind},
         qos_policy::{
@@ -13,7 +14,7 @@ use dust_dds::{
     topic_definition::type_support::DdsType,
 };
 
-#[derive(DdsType)]
+#[derive(DdsType, XTypesSerialize)]
 struct HelloWorldType {
     #[dust_dds(key)]
     id: u8,
