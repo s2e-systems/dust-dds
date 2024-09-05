@@ -1,8 +1,8 @@
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     implementation::payload_serializer_deserializer::{
-        cdr_deserializer::ClassicCdrDeserializer, cdr_serializer::ClassicCdrSerializer,
-        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
+        cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
+        parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{
@@ -10,7 +10,7 @@ use crate::{
         instance::InstanceHandle,
     },
     serialized_payload::{
-        cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
+        cdr::deserialize::CdrDeserialize,
         parameter_list::{
             deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
             serializer::ParameterListSerializer,
@@ -92,7 +92,7 @@ pub trait DdsDeserialize<'de>: Sized {
 ///
 pub trait DdsKey {
     /// Type representing the key for the type in which this trait is implemented
-    type Key: XTypesSerialize + CdrSerialize + for<'de> CdrDeserialize<'de>;
+    type Key: XTypesSerialize + for<'de> CdrDeserialize<'de>;
 
     /// Method to get the key from an instance of the type.
     fn get_key(&self) -> DdsResult<Self::Key>;
@@ -149,7 +149,10 @@ pub trait DdsTypeXml {
 /// ```
 ///
 pub use dust_dds_derive::DdsType;
-use dust_dds_xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
+use dust_dds_xtypes::{
+    serialize::XTypesSerialize,
+    xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
+};
 
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
@@ -175,13 +178,13 @@ pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult
     Ok(writer)
 }
 
-/// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with LittleEndian endianness.
-pub fn serialize_rtps_classic_cdr_le(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {
+/// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with BigEndian endianness.
+pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
     let mut writer = Vec::new();
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-    CdrSerialize::serialize(value, &mut serializer)?;
+    let mut serializer = NewXcdr1BeSerializer::new(&mut writer);
+    XTypesSerialize::serialize(value, &mut serializer)?;
     pad(&mut writer)?;
     Ok(writer)
 }
@@ -196,17 +199,6 @@ fn pad(writer: &mut Vec<u8>) -> std::io::Result<()> {
     writer.write_all(padding)?;
     writer[3] = padding.len() as u8;
     Ok(())
-}
-
-/// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with BigEndian endianness.
-pub fn serialize_rtps_classic_cdr_be(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {
-    let mut writer = Vec::new();
-    writer.write_all(&CDR_BE)?;
-    writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-    CdrSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer)?;
-    Ok(writer)
 }
 
 /// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation with Little Endian endianness
@@ -325,18 +317,4 @@ where
     }?;
     let value = ParameterListDeserialize::deserialize(&mut deserializer)?;
     Ok(value)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn serialize_rtps_classic_cdr_le_padding() {
-        let result = serialize_rtps_classic_cdr_le(&2).unwrap();
-        assert_eq!(result, vec![0, 1, 0, 0b_0000_0000, 2, 0, 0, 0]);
-
-        let result = serialize_rtps_classic_cdr_le(&vec![3_u8, 4]).unwrap();
-        assert_eq!(result, vec![0, 1, 0, 0b_0000_0010, 2, 0, 0, 0, 3, 4, 0, 0])
-    }
 }

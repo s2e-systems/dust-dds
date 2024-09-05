@@ -5,7 +5,6 @@ use dust_dds_xtypes::{
 };
 
 use super::error::DdsResult;
-use crate::serialized_payload::cdr::serialize::CdrSerialize;
 
 /// Type for the instance handle representing an Entity
 #[derive(
@@ -17,7 +16,6 @@ use crate::serialized_payload::cdr::serialize::CdrSerialize;
     Hash,
     PartialOrd,
     Ord,
-    CdrSerialize,
     CdrDeserialize,
     XTypesSerialize,
     XTypesDeserialize,

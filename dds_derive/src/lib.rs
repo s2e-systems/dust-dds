@@ -1,7 +1,7 @@
 mod derive;
 
 use derive::{
-    cdr::{expand_cdr_deserialize, expand_cdr_serialize},
+    cdr::expand_cdr_deserialize,
     dds_key::{expand_dds_key, expand_has_key},
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     dds_type_xml::expand_dds_type_xml,
@@ -9,14 +9,6 @@ use derive::{
 };
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
-
-#[proc_macro_derive(CdrSerialize)]
-pub fn derive_cdr_serialize(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_cdr_serialize(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
 
 #[proc_macro_derive(CdrDeserialize)]
 pub fn derive_cdr_deserialize(input: TokenStream) -> TokenStream {

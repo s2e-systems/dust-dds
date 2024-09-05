@@ -1,5 +1,7 @@
 use std::{marker::PhantomData, sync::Arc};
 
+use dust_dds_xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
+
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     data_representation_builtin_endpoints::discovered_writer_data::{
@@ -21,9 +23,6 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
-        payload_serializer_deserializer::{
-            cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
-        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -40,7 +39,6 @@ use crate::{
         messages::submessage_elements::{Data, Parameter, ParameterList},
         types::ChangeKind,
     },
-    serialized_payload::cdr::serialize::CdrSerialize,
     topic_definition::type_support::DdsSerialize,
 };
 
@@ -291,17 +289,14 @@ where
             .await;
 
         let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
+        let mut serializer = NewXcdr1LeSerializer::new(&mut serialized_status_info);
         if writer_qos
             .writer_data_lifecycle
             .autodispose_unregistered_instances
         {
-            STATUS_INFO_DISPOSED_UNREGISTERED
-                .serialize(&mut serializer)
-                .unwrap();
+            XTypesSerialize::serialize(&STATUS_INFO_DISPOSED_UNREGISTERED, &mut serializer)?;
         } else {
-            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
+            XTypesSerialize::serialize(&STATUS_INFO_UNREGISTERED, &mut serializer)?;
         }
         let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
         let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
@@ -595,9 +590,8 @@ where
             .receive_reply()
             .await;
         let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_status_info, CdrEndianness::LittleEndian);
-        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
+        let mut serializer = NewXcdr1LeSerializer::new(&mut serialized_status_info);
+        XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
 
         let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
         let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));

@@ -76,8 +76,8 @@ use crate::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{
-        deserialize_rtps_classic_cdr, serialize_rtps_classic_cdr_le, DdsHasKey, DdsKey, DdsTypeXml,
-        DynamicTypeInterface,
+        deserialize_rtps_classic_cdr, serialize_rtps_xtypes_xcdr1_le, DdsHasKey, DdsKey,
+        DdsTypeXml, DynamicTypeInterface,
     },
 };
 
@@ -130,7 +130,7 @@ impl FooTypeSupport {
         let get_serialized_key_from_serialized_foo =
             define_function_with_correct_lifetime(|serialized_foo| {
                 let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                serialize_rtps_classic_cdr_le(&foo_key)
+                serialize_rtps_xtypes_xcdr1_le(&foo_key)
             });
 
         let instance_handle_from_serialized_foo =

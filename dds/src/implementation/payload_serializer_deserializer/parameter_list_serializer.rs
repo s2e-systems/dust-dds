@@ -32,7 +32,10 @@ where
             CdrEndianness::LittleEndian => {
                 let mut data_serializer = NewXcdr1LeSerializer::new(&mut data);
                 value.serialize(&mut data_serializer).map_err(|e| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidInput, format!(""))
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!("XTypes error: {:?}", e),
+                    )
                 })?;
 
                 let length_without_padding = data.len();
@@ -59,7 +62,10 @@ where
             CdrEndianness::BigEndian => {
                 let mut data_serializer = NewXcdr1BeSerializer::new(&mut data);
                 value.serialize(&mut data_serializer).map_err(|e| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidInput, format!(""))
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!("XTypes error: {:?}", e),
+                    )
                 })?;
 
                 let length_without_padding = data.len();

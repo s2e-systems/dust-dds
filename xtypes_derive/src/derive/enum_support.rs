@@ -15,7 +15,7 @@ pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Iden
     for variant in data_enum.variants.iter() {
         match variant.fields {
             Fields::Unit => (),
-            _ => panic!("Only unit enums can be used when deriving CdrSerialize and CdrDeserialize"),
+            _ => panic!("Only unit enums can be used when deriving CdrDeserialize"),
         }
         if let Some((_,discriminant_expr)) = &variant.discriminant {
             match discriminant_expr {
