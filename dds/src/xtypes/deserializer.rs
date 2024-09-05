@@ -25,10 +25,13 @@ pub trait DeserializeMutableStruct<'a> {
     ) -> Result<Option<T>, XcdrError>;
 }
 
-pub trait DeserializeCollection<'a> {
+pub trait DeserializeSequence<'a> {
+    fn len(&self) -> usize;
     fn deserialize_element<T: XTypesDeserialize<'a>>(&mut self) -> Result<T, XcdrError>;
 }
-
+pub trait DeserializeArray<'a> {
+    fn deserialize_element<T: XTypesDeserialize<'a>>(&mut self) -> Result<T, XcdrError>;
+}
 /// A trait representing an object with the capability of deserializing a value from a CDR format.
 pub trait XTypesDeserializer<'de>: Sized {
     fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XcdrError>;
@@ -36,7 +39,8 @@ pub trait XTypesDeserializer<'de>: Sized {
         self,
     ) -> Result<impl DeserializeAppendableStruct<'de>, XcdrError>;
     fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError>;
-    fn deserialize_array(self) -> Result<impl DeserializeCollection<'de>, XcdrError>;
+    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XcdrError>;
+    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XcdrError>;
 
     /// Deserialize a [`bool`] value.
     fn deserialize_boolean(self) -> Result<bool, XcdrError>;

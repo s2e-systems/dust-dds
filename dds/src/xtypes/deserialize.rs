@@ -1,5 +1,5 @@
 use super::{
-    deserializer::{DeserializeCollection, XTypesDeserializer},
+    deserializer::{DeserializeArray, DeserializeSequence, XTypesDeserializer},
     error::XcdrError,
 };
 
@@ -124,13 +124,18 @@ impl<'de, T> XTypesDeserialize<'de> for Vec<T>
 where
     T: XTypesDeserialize<'de>,
 {
-    fn deserialize(_deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
-        todo!()
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        let mut vec = Vec::new();
+        let mut seq = deserializer.deserialize_sequence()?;
+        for _ in 0..seq.len() {
+            vec.push(seq.deserialize_element()?);
+        }
+        Ok(vec)
     }
 }
 
 impl<'de> XTypesDeserialize<'de> for String {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
-        deserializer.deserialize_string().map(|x| x.to_string())
+        Ok(deserializer.deserialize_string()?.to_string())
     }
 }
