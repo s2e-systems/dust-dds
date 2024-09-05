@@ -477,7 +477,6 @@ fn publisher_and_subscriber_different_partition_not_matched() {
     assert!(wait_set.wait(Duration::new(5, 0)).is_err());
 }
 
-#[ignore = "temporary"]
 #[test]
 fn publisher_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -535,7 +534,6 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
     assert!(wait_set_data_writer.wait(Duration::new(10, 0)).is_ok());
 }
 
-#[ignore = "temporary"]
 #[test]
 fn publisher_regex_and_subscriber_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -593,7 +591,6 @@ fn publisher_regex_and_subscriber_partition_is_matched() {
     assert!(wait_set_data_writer.wait(Duration::new(10, 0)).is_ok());
 }
 
-#[ignore = "temporary"]
 #[test]
 fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -781,7 +778,6 @@ fn discovered_participant_removed_after_deletion() {
     }
 }
 
-#[ignore = "temporary"]
 #[test]
 fn writer_offering_xcdr1_should_not_match_reader_requesting_xcdr2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

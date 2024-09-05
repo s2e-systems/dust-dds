@@ -944,32 +944,10 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
-#[derive(Debug, PartialEq, Eq, Clone, Default, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
 pub struct PartitionQosPolicy {
     /// Name of the partition
     pub name: Vec<String>,
-}
-
-impl XTypesSerialize for PartitionQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
-        let mut s = serializer.serialize_sequence(self.name.len())?;
-        for e in &self.name {
-            s.serialize_element(&e.as_str())?;
-        }
-
-        Ok(())
-    }
-}
-impl<'de> XTypesDeserialize<'de> for PartitionQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        let length = f.deserialize_field::<u32>("length")?;
-        let mut name = Vec::with_capacity(length as usize);
-        while let Some(partition_name) = f.deserialize_optional_field::<&str>("partition_name")? {
-            name.push(partition_name.to_owned());
-        }
-        Ok(Self { name })
-    }
 }
 
 impl QosPolicy for PartitionQosPolicy {
