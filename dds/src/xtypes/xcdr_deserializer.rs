@@ -72,13 +72,22 @@ impl<'a> Reader<'a> {
     }
     fn read<const N: usize>(&mut self) -> Result<&'a [u8; N], XcdrError> {
         if self.pos + N > self.buffer.len() {
-            return Err(XcdrError::OutOfMemory);
+            return Err(XcdrError::InvalidData);
         }
-        let r = core::convert::TryFrom::try_from(&self.buffer[self.pos..self.pos + N])
-            .map_err(|_| XcdrError::InvalidData);
+        let ret = core::convert::TryFrom::try_from(&self.buffer[self.pos..self.pos + N])
+            .expect("length guaranteed");
         self.pos += N;
-        r
+        Ok(ret)
     }
+    fn read_all(&mut self, length: usize) -> Result<&'a [u8], XcdrError> {
+        if self.pos + length > self.buffer.len() {
+            return Err(XcdrError::InvalidData);
+        }
+        let ret = &self.buffer[self.pos..self.pos + length];
+        self.pos += length;
+        Ok(ret)
+    }
+
     fn seek(&mut self, v: usize) {
         self.pos += v
     }
@@ -462,12 +471,17 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1BeDeserializer<'de> {
         Ok(self.deserialize_uint8()? as char)
     }
     fn deserialize_string(self) -> Result<&'de str, XcdrError> {
-        let length = u32::deserialize(&mut *self)? as usize;
-        str::from_utf8(&self.reader.buffer()[..length - 1]).map_err(|_| XcdrError::InvalidData)
+        str::from_utf8(
+            self.deserialize_byte_sequence()?
+                .split_last()
+                .ok_or(XcdrError::InvalidData)?
+                .1,
+        )
+        .map_err(|_| XcdrError::InvalidData)
     }
     fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
         let length = self.deserialize_uint32()? as usize;
-        Ok(&self.reader.buffer()[..length])
+        self.reader.read_all(length)
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
         self.reader.read()
@@ -529,12 +543,17 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
         Ok(self.deserialize_uint8()? as char)
     }
     fn deserialize_string(self) -> Result<&'de str, XcdrError> {
-        let length = u32::deserialize(&mut *self)? as usize;
-        str::from_utf8(&self.reader.buffer()[..length - 1]).map_err(|_| XcdrError::InvalidData)
+        str::from_utf8(
+            self.deserialize_byte_sequence()?
+                .split_last()
+                .ok_or(XcdrError::InvalidData)?
+                .1,
+        )
+        .map_err(|_| XcdrError::InvalidData)
     }
     fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
         let length = self.deserialize_uint32()? as usize;
-        Ok(&self.reader.buffer()[..length])
+        self.reader.read_all(length)
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
         self.reader.read()
@@ -596,12 +615,17 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
         Ok(self.deserialize_uint8()? as char)
     }
     fn deserialize_string(self) -> Result<&'de str, XcdrError> {
-        let length = u32::deserialize(&mut *self)? as usize;
-        str::from_utf8(&self.reader.buffer()[..length - 1]).map_err(|_| XcdrError::InvalidData)
+        str::from_utf8(
+            self.deserialize_byte_sequence()?
+                .split_last()
+                .ok_or(XcdrError::InvalidData)?
+                .1,
+        )
+        .map_err(|_| XcdrError::InvalidData)
     }
     fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
         let length = self.deserialize_uint32()? as usize;
-        Ok(&self.reader.buffer()[..length])
+        self.reader.read_all(length)
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
         self.reader.read()
@@ -665,12 +689,17 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
         Ok(self.deserialize_uint8()? as char)
     }
     fn deserialize_string(self) -> Result<&'de str, XcdrError> {
-        let length = u32::deserialize(&mut *self)? as usize;
-        str::from_utf8(&self.reader.buffer()[..length - 1]).map_err(|_| XcdrError::InvalidData)
+        str::from_utf8(
+            self.deserialize_byte_sequence()?
+                .split_last()
+                .ok_or(XcdrError::InvalidData)?
+                .1,
+        )
+        .map_err(|_| XcdrError::InvalidData)
     }
     fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
         let length = self.deserialize_uint32()? as usize;
-        Ok(&self.reader.buffer()[..length])
+        self.reader.read_all(length)
     }
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
         self.reader.read()
@@ -999,6 +1028,75 @@ mod tests {
             ]),
             expected
         );
+    }
+
+    #[derive(Debug, PartialEq)]
+    //@extensibility(FINAL)
+    struct TypeWithStr<'a> {
+        field_str: &'a str,
+        field_u16: u16,
+        field_slice: &'a [u8],
+    }
+    impl<'de> XTypesDeserialize<'de> for TypeWithStr<'de> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+            let mut deserializer = deserializer.deserialize_final_struct()?;
+            Ok(Self {
+                field_str: deserializer.deserialize_field("field_str")?,
+                field_u16: deserializer.deserialize_field("field_u16")?,
+                field_slice: deserializer.deserialize_field("field_slice")?,
+            })
+        }
+    }
+
+    #[test]
+    fn deserialize_struct_with_str() {
+        let expected = Ok(TypeWithStr {
+            field_str: "xt",
+            field_u16: 9,
+            field_slice: &[10, 11],
+        });
+        // PLAIN_CDR:
+        assert_eq!(
+            deserialize_v1_be(&[
+                0, 0, 0, 3, // field_str: length
+                b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+                0, 9, 0, 0, // field_u16 | padding (3 bytes)
+                0, 0, 0, 2, // field_slice: length
+                10, 11, //field_slice: data | padding (1 bytes)
+            ]),
+            expected
+        );
+        assert_eq!(
+            deserialize_v1_le(&[
+                3, 0, 0, 0, // field_str: length
+                b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+                9, 0, 0, 0, // field_u16 | padding (3 bytes)
+                2, 0, 0, 0, // field_slice: length
+                10, 11, //field_slice: data | padding (1 bytes)
+            ]),
+            expected
+        );
+        // // PLAIN_CDR2:
+        // assert_eq!(
+        //     deserialize_v2_be(&[
+        //         0, 0, 0, 3, // field_str: length
+        //         b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+        //         0, 9, 0, 0, // field_u16 | padding (3 bytes)
+        //         0, 0, 0, 2, // field_slice: length
+        //         10, 11, //field_slice: data | padding (1 bytes)
+        //     ]),
+        //     expected
+        // );
+        // assert_eq!(
+        //     deserialize_v2_le(&[
+        //         3, 0, 0, 0, // field_str: length
+        //         b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
+        //         9, 0, 0, 0, // field_u16 | padding (3 bytes)
+        //         2, 0, 0, 0, // field_slice: length
+        //         10, 11, //field_slice: data | padding (1 bytes)
+        //     ]),
+        //     expected
+        // );
     }
 
     #[derive(Debug, PartialEq)]
