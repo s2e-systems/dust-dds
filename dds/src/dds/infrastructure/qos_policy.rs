@@ -7,7 +7,7 @@ use crate::{
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
         error::XcdrError,
         serialize::{XTypesSerialize, XTypesSerializer},
-        serializer::{SerializeCollection, SerializeFinalStruct},
+        serializer::SerializeFinalStruct,
     },
 };
 use core::cmp::Ordering;
@@ -944,7 +944,9 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
-#[derive(Debug, PartialEq, Eq, Clone, Default, CdrDeserialize, XTypesSerialize, XTypesDeserialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, Default, CdrDeserialize, XTypesSerialize, XTypesDeserialize,
+)]
 pub struct PartitionQosPolicy {
     /// Name of the partition
     pub name: Vec<String>,
@@ -1428,33 +1430,12 @@ type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
 /// [`DataWriter`](crate::publication::data_writer::DataWriter) and [`DataReader`](crate::subscription::data_reader::DataReader) must be able to negotiate which data representation(s) to use.
-#[derive(Debug, PartialEq, Eq, Clone, Default, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
 pub struct DataRepresentationQosPolicy {
     /// List of data representation values
     pub value: DataRepresentationIdSeq,
 }
-impl XTypesSerialize for DataRepresentationQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
-        let mut s = serializer.serialize_sequence(self.value.len())?;
-        for e in &self.value {
-            s.serialize_element(e)?;
-        }
-        Ok(())
-    }
-}
-impl<'de> XTypesDeserialize<'de> for DataRepresentationQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        let length = f.deserialize_field::<u32>("length")?;
-        let mut value = Vec::with_capacity(length as usize);
-        while let Some(data_representation_id) =
-            f.deserialize_optional_field("data_representation_id")?
-        {
-            value.push(data_representation_id);
-        }
-        Ok(Self { value })
-    }
-}
+
 impl QosPolicy for DataRepresentationQosPolicy {
     fn name(&self) -> &str {
         DATA_REPRESENTATION_QOS_POLICY_NAME
