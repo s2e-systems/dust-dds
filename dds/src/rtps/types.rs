@@ -71,22 +71,10 @@ impl WriteIntoBytes for &[u8] {
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
-}
-
-impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for Guid {
-    fn deserialize(
-        deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, crate::xtypes::error::XTypesError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            prefix: f.deserialize_field("prefix")?,
-            entity_id: f.deserialize_field("entity_id")?,
-        })
-    }
 }
 
 impl Guid {
@@ -159,22 +147,10 @@ impl TryReadFromBytes for GuidPrefix {
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
 type OctetArray3 = [Octet; 3];
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
 pub struct EntityId {
     entity_key: OctetArray3,
     entity_kind: Octet,
-}
-
-impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for EntityId {
-    fn deserialize(
-        deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, crate::xtypes::error::XTypesError> {
-        let mut d = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            entity_key: d.deserialize_field("entity_key")?,
-            entity_kind: d.deserialize_field("entity_key")?,
-        })
-    }
 }
 
 impl EntityId {
@@ -277,24 +253,11 @@ impl WriteIntoBytes for SequenceNumber {
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
 pub struct Locator {
     kind: Long,
     port: UnsignedLong,
     address: [Octet; 16],
-}
-
-impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for Locator {
-    fn deserialize(
-        deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, crate::xtypes::error::XTypesError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            kind: f.deserialize_field("kind")?,
-            port: f.deserialize_field("port")?,
-            address: f.deserialize_field("address")?,
-        })
-    }
 }
 
 impl WriteIntoBytes for Locator {

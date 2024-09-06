@@ -58,20 +58,10 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, XTypesSerialize, XTypesDeserialize)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,
-}
-
-impl<'de> XTypesDeserialize<'de> for Duration {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        let mut f = deserializer.deserialize_final_struct()?;
-        Ok(Self {
-            sec: f.deserialize_field("sec")?,
-            nanosec: f.deserialize_field("nanosec")?,
-        })
-    }
 }
 
 impl Duration {
