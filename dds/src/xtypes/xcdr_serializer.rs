@@ -9,7 +9,7 @@ use super::{
 
 const PID_SENTINEL: u16 = 1;
 
-pub struct VirtualCdr1Serializer {
+struct VirtualCdr1Serializer {
     count: usize,
 }
 

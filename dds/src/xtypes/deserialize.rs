@@ -1,4 +1,5 @@
 use super::{
+    bytes::{ByteBuf, Bytes},
     deserializer::{DeserializeArray, DeserializeSequence, XTypesDeserializer},
     error::XTypesError,
 };
@@ -134,6 +135,16 @@ where
     }
 }
 
+impl<'de> XTypesDeserialize<'de> for ByteBuf {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        Ok(Self(deserializer.deserialize_byte_sequence()?.to_owned()))
+    }
+}
+impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        Ok(Self(deserializer.deserialize_byte_sequence()?))
+    }
+}
 impl<'de> XTypesDeserialize<'de> for String {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(deserializer.deserialize_string()?.to_string())

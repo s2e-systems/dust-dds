@@ -1,4 +1,7 @@
-pub use super::{error::XTypesError, serializer::SerializeCollection, serializer::XTypesSerializer};
+use super::bytes::{ByteBuf, Bytes};
+pub use super::{
+    error::XTypesError, serializer::SerializeCollection, serializer::XTypesSerializer,
+};
 pub use dust_dds_derive::XTypesSerialize;
 
 /// A trait representing a structure that can be serialized into a CDR format.
@@ -119,11 +122,16 @@ impl<T: XTypesSerialize, const N: usize> XTypesSerialize for [T; N] {
     }
 }
 
-// impl XTypesSerialize for &[u8] {
-//     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-//         serializer.serialize_byte_sequence(self)
-//     }
-// }
+impl XTypesSerialize for Bytes<'_> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+        serializer.serialize_byte_sequence(&self.0)
+    }
+}
+impl XTypesSerialize for ByteBuf {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+        serializer.serialize_byte_sequence(&self.0.as_slice())
+    }
+}
 
 impl<T: XTypesSerialize> XTypesSerialize for &[T] {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
@@ -145,7 +153,6 @@ where
             s.serialize_element(e)?;
         }
         Ok(())
-        // serializer.serialize_byte_sequence(self)
     }
 }
 

@@ -1,7 +1,8 @@
 use super::{
     deserialize::XTypesDeserialize,
     deserializer::{
-        DeserializeAppendableStruct, DeserializeArray, DeserializeFinalStruct, DeserializeMutableStruct, DeserializeSequence, XTypesDeserializer
+        DeserializeAppendableStruct, DeserializeArray, DeserializeFinalStruct,
+        DeserializeMutableStruct, DeserializeSequence, XTypesDeserializer,
     },
     error::XTypesError,
 };
@@ -330,11 +331,11 @@ where
     fn len(&self) -> usize {
         self.len
     }
-    
+
     fn is_empty(&self) -> bool {
         self.len > 0
     }
-    
+
     fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
@@ -455,7 +456,10 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1BeDeserializer<'de> {
     }
     fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
-        Ok(SequenceDecoder { deserializer: self, len })
+        Ok(SequenceDecoder {
+            deserializer: self,
+            len,
+        })
     }
 
     fn deserialize_boolean(self) -> Result<bool, XTypesError> {
@@ -507,7 +511,7 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1BeDeserializer<'de> {
         let length = self.deserialize_uint32()? as usize;
         self.reader.read_all(length)
     }
-    
+
     fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
@@ -532,7 +536,10 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
     }
     fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
-        Ok(SequenceDecoder { deserializer: self, len })
+        Ok(SequenceDecoder {
+            deserializer: self,
+            len,
+        })
     }
 
     fn deserialize_boolean(self) -> Result<bool, XTypesError> {
@@ -608,7 +615,10 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
     }
     fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
-        Ok(SequenceDecoder { deserializer: self, len })
+        Ok(SequenceDecoder {
+            deserializer: self,
+            len,
+        })
     }
 
     fn deserialize_boolean(self) -> Result<bool, XTypesError> {
@@ -686,7 +696,10 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
     }
     fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
-        Ok(SequenceDecoder { deserializer: self, len })
+        Ok(SequenceDecoder {
+            deserializer: self,
+            len,
+        })
     }
 
     fn deserialize_boolean(self) -> Result<bool, XTypesError> {
@@ -745,6 +758,8 @@ impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
+    use crate::xtypes::bytes::Bytes;
+
     use super::*;
 
     #[test]
@@ -793,22 +808,30 @@ mod tests {
         assert_eq!(reader.pos, 16);
     }
 
-    fn deserialize_v1_be<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
+    fn deserialize_v1_be<'de, T: XTypesDeserialize<'de>>(
+        data: &'de [u8],
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr1BeDeserializer {
             reader: Reader::new(data),
         })
     }
-    fn deserialize_v1_le<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
+    fn deserialize_v1_le<'de, T: XTypesDeserialize<'de>>(
+        data: &'de [u8],
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr1LeDeserializer {
             reader: Reader::new(data),
         })
     }
-    fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
+    fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(
+        data: &'de [u8],
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr2BeDeserializer {
             reader: Reader::new(data),
         })
     }
-    fn deserialize_v2_le<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
+    fn deserialize_v2_le<'de, T: XTypesDeserialize<'de>>(
+        data: &'de [u8],
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr2LeDeserializer {
             reader: Reader::new(data),
         })
@@ -1004,7 +1027,9 @@ mod tests {
         #[derive(Debug, PartialEq)]
         struct Atype(u8);
         impl<'de> XTypesDeserialize<'de> for Atype {
-            fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+            fn deserialize(
+                deserializer: impl XTypesDeserializer<'de>,
+            ) -> Result<Self, XTypesError> {
                 Ok(Atype(deserializer.deserialize_uint8()?))
             }
         }
@@ -1072,7 +1097,7 @@ mod tests {
     struct TypeWithStr<'a> {
         field_str: &'a str,
         field_u16: u16,
-        field_slice: &'a [u8],
+        field_slice: Bytes<'a>,
     }
     impl<'de> XTypesDeserialize<'de> for TypeWithStr<'de> {
         fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
@@ -1090,7 +1115,7 @@ mod tests {
         let expected = Ok(TypeWithStr {
             field_str: "xt",
             field_u16: 9,
-            field_slice: &[10, 11],
+            field_slice: Bytes(&[10, 11]),
         });
         // PLAIN_CDR:
         assert_eq!(
@@ -1109,7 +1134,7 @@ mod tests {
                 b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
                 9, 0, 0, 0, // field_u16 | padding (2 bytes)
                 2, 0, 0, 0, // field_slice: length
-                10, 11, //field_slice: data 
+                10, 11, //field_slice: data
             ]),
             expected
         );
@@ -1130,7 +1155,7 @@ mod tests {
                 b'x', b't', 0, 0, //field_str: data | padding (1 bytes)
                 9, 0, 0, 0, // field_u16 | padding (2 bytes)
                 2, 0, 0, 0, // field_slice: length
-                10, 11, //field_slice: data 
+                10, 11, //field_slice: data
             ]),
             expected
         );
