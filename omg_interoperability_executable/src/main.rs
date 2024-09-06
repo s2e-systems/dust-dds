@@ -250,7 +250,6 @@ impl Options {
 #[derive(
     Debug,
     dust_dds::topic_definition::type_support::DdsType,
-    dust_dds::dust_dds_xtypes::serialize::XTypesSerialize,
 )]
 pub struct ShapeType {
     #[dust_dds(key)]
