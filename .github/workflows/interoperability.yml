@@ -23,7 +23,22 @@ jobs:
           rtps_test_utilities.py
           requirements.txt
     - uses: dtolnay/rust-toolchain@stable
-    - run: cargo build --package dust_dds_shape_main_linux 
+    - run: cargo build --package dust_dds_shape_main_linux --release
+    - name: Install tomlq
+      run: cargo install tomlq
+    - name: Install zip
+      run: sudo apt-get install zip -y
+    - name: Rename executable
+      run: |
+        version=$( tq -f dds/Cargo.toml 'package.version' )
+        cp ./target/release/dust_dds_shape_main_linux ./dust_dds-${version}_shape_main_linux
+        mkdir artifacts
+        zip --junk-paths artifacts/dust_dds-${version}_shape_main_linux.zip ./dust_dds-${version}_shape_main_linux
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: interoperability_executable
+        path: ./artifacts/
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11.4'
@@ -38,9 +53,9 @@ jobs:
     - name: Setting up environment
       run: pip install -r omg-dds-rtps/requirements.txt
     - name: Publisher Dust - Subscriber Connext
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/debug/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./target/release/dust_dds_shape_main_linux -S ./executables/connext_dds-*_shape_main_linux -o=report.xml
     - name: Publisher Connext - Subscriber Dust
-      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/debug/dust_dds_shape_main_linux -o=report.xml
+      run: python3 ./omg-dds-rtps/interoperability_report.py -P ./executables/connext_dds-*_shape_main_linux -S ./target/release/dust_dds_shape_main_linux -o=report.xml
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
@@ -51,3 +66,4 @@ jobs:
       with:
         name: interoperability_report
         path: ./index.html
+    

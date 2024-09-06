@@ -33,6 +33,8 @@ use std::{
     sync::mpsc::Receiver,
 };
 
+include!(concat!(env!("OUT_DIR"), "/idl/shape.rs"));
+
 fn qos_policy_name(id: i32) -> String {
     match id {
         qos_policy::DATA_REPRESENTATION_QOS_POLICY_ID => "DATAREPRESENTATION",
@@ -245,18 +247,6 @@ impl Options {
             value: self.ownership_strength,
         }
     }
-}
-
-#[derive(
-    Debug,
-    dust_dds::topic_definition::type_support::DdsType,
-)]
-pub struct ShapeType {
-    #[dust_dds(key)]
-    pub color: String,
-    pub x: i32,
-    pub y: i32,
-    pub shapesize: i32,
 }
 
 struct Listener;
