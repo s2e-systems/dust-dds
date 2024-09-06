@@ -15,7 +15,7 @@ pub struct VirtualCdr1Serializer {
 
 impl VirtualCdr1Serializer {
     fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
-        let mut virtual_serializer = VirtualCdr1Serializer { count: 0 };
+        let mut virtual_serializer = Self { count: 0 };
         XTypesSerialize::serialize(value, &mut virtual_serializer)?;
         Ok(virtual_serializer.count)
     }
@@ -164,6 +164,169 @@ impl XTypesSerializer for &mut VirtualCdr1Serializer {
     }
 }
 
+
+
+
+pub struct VirtualCdr2Serializer {
+    count: usize,
+}
+
+impl VirtualCdr2Serializer {
+    fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
+        let mut virtual_serializer = Self { count: 0 };
+        XTypesSerialize::serialize(value, &mut virtual_serializer)?;
+        Ok(virtual_serializer.count)
+    }
+    fn add<T>(&mut self, v: T) -> Result<(), XTypesError> {
+        self.count += core::mem::size_of_val(&v);
+        Ok(())
+    }
+}
+
+impl SerializeFinalStruct for &mut VirtualCdr2Serializer {
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _name: &str,
+    ) -> Result<(), XTypesError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+
+    fn serialize_optional_field<T: XTypesSerialize>(
+        &mut self,
+        value: &Option<T>,
+        _name: &str,
+    ) -> Result<(), XTypesError> {
+        self.count += 4; // header: pid + length
+        if let Some(value) = value {
+            XTypesSerialize::serialize(value, &mut **self)
+        } else {
+            Ok(())
+        }
+    }
+}
+impl SerializeAppendableStruct for &mut VirtualCdr2Serializer {
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _name: &str,
+    ) -> Result<(), XTypesError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+}
+impl SerializeMutableStruct for &mut VirtualCdr2Serializer {
+    fn serialize_field<T: XTypesSerialize>(
+        &mut self,
+        value: &T,
+        _pid: u16,
+        _name: &str,
+    ) -> Result<(), XTypesError> {
+        self.count += 4; // header: pid + length
+        XTypesSerialize::serialize(value, &mut **self)
+        // todo: padding?
+    }
+
+    fn end(self) -> Result<(), XTypesError> {
+        self.count += 4; // sentinel
+        Ok(())
+    }
+}
+impl SerializeCollection for &mut VirtualCdr2Serializer {
+    fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XTypesError> {
+        XTypesSerialize::serialize(value, &mut **self)
+    }
+}
+
+impl XTypesSerializer for &mut VirtualCdr2Serializer {
+    fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
+        Ok(self)
+    }
+
+    fn serialize_appendable_struct(self) -> Result<impl SerializeAppendableStruct, XTypesError> {
+        Ok(self)
+    }
+
+    fn serialize_mutable_struct(self) -> Result<impl SerializeMutableStruct, XTypesError> {
+        Ok(self)
+    }
+
+    fn serialize_sequence(self, _len: usize) -> Result<impl SerializeCollection, XTypesError> {
+        Ok(self)
+    }
+
+    fn serialize_array(self) -> Result<impl SerializeCollection, XTypesError> {
+        Ok(self)
+    }
+
+    fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_int16(self, v: i16) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_int32(self, v: i32) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_int64(self, v: i64) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_uint8(self, v: u8) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_uint16(self, v: u16) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_uint32(self, v: u32) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_uint64(self, v: u64) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_float32(self, v: f32) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_float64(self, v: f64) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
+        self.add(v)
+    }
+
+    fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
+        self.count += 4 + v.len() + 1;
+        Ok(())
+    }
+
+    fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XTypesError> {
+        self.count += 4 + v.len();
+        Ok(())
+    }
+
+    fn serialize_byte_array<const N: usize>(self, v: &[u8; N]) -> Result<(), XTypesError> {
+        self.count += v.len();
+        Ok(())
+    }
+}
+
+
+
+
+
+
 struct CollectionWriter<'a, C> {
     collection: &'a mut C,
     position: usize,
@@ -285,9 +448,7 @@ where
         pid: u16,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let mut virtual_serializer = VirtualCdr1Serializer { count: 0 };
-        XTypesSerialize::serialize(value, &mut virtual_serializer)?;
-        let length = virtual_serializer.count as u16;
+        let length = VirtualCdr1Serializer::bytes_len(value)? as u16;
         self.writer.write_slice(&pid.to_be_bytes());
         self.writer.write_slice(&length.to_be_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
@@ -431,9 +592,7 @@ where
         _name: &str,
     ) -> Result<(), XTypesError> {
         if let Some(value) = value {
-            let mut virtual_serializer = VirtualCdr1Serializer { count: 0 };
-            XTypesSerialize::serialize(value, &mut virtual_serializer)?;
-            let length = virtual_serializer.count as u16;
+            let length = VirtualCdr1Serializer::bytes_len(value)? as u16;
             self.writer.pad(4);
             self.writer.write_slice(&0_u16.to_le_bytes());
             self.writer.write_slice(&length.to_le_bytes());
@@ -468,9 +627,7 @@ where
         pid: u16,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let mut virtual_serializer = VirtualCdr1Serializer { count: 0 };
-        XTypesSerialize::serialize(value, &mut virtual_serializer)?;
-        let length = virtual_serializer.count as u16;
+        let length = VirtualCdr1Serializer::bytes_len(value)? as u16;
         self.writer.write_slice(&pid.to_le_bytes());
         self.writer.write_slice(&length.to_le_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
@@ -611,53 +768,6 @@ where
     }
 }
 
-struct Writer<'a> {
-    data: &'a mut [u8],
-    pos: usize,
-}
-
-impl<'a> Writer<'a> {
-    fn new(data: &'a mut [u8]) -> Self {
-        Self { data, pos: 0 }
-    }
-
-    fn write_slice(&mut self, data: &[u8]) -> Result<(), XTypesError> {
-        let end = self.pos + data.len();
-        if end > self.data.len() {
-            Err(XTypesError::OutOfMemory)
-        } else {
-            self.data[self.pos..self.pos + data.len()].copy_from_slice(data);
-            self.pos += data.len();
-            Ok(())
-        }
-    }
-
-    fn set_position(&mut self, pos: usize) {
-        self.pos = pos;
-    }
-
-    fn position(&self) -> usize {
-        self.pos
-    }
-
-    fn pad(&mut self, alignment: usize) -> Result<(), XTypesError> {
-        const ZEROS: [u8; 8] = [0; 8];
-        let over_alignment = self.pos & (alignment - 1);
-        if over_alignment > 0 {
-            self.write_slice(&ZEROS[..alignment - over_alignment])?;
-        };
-        Ok(())
-    }
-}
-
-fn write_with_padding_v2<const N: usize>(
-    writer: &mut Writer,
-    data: &[u8; N],
-) -> Result<(), XTypesError> {
-    writer.pad(core::cmp::min(N, 4))?;
-    writer.write_slice(data)
-}
-
 fn into_u8(v: char) -> Result<u8, XTypesError> {
     if !v.is_ascii() {
         Err(XTypesError::InvalidData)
@@ -679,26 +789,6 @@ fn str_len(v: &str) -> Result<u32, XTypesError> {
         into_u32(v.len() + 1)
     }
 }
-const SENTINEL: [u8; 4] = [1u8, 0, 0, 0];
-
-fn write_pl_header_be(writer: &mut Writer, header_pos: usize, pid: u16) -> Result<(), XTypesError> {
-    let pos = writer.position();
-    let length = (pos - header_pos - 4) as u16;
-    writer.set_position(header_pos);
-    writer.write_slice(&pid.to_be_bytes())?;
-    writer.write_slice(&length.to_be_bytes())?;
-    writer.set_position(pos);
-    Ok(())
-}
-fn write_pl_header_le(writer: &mut Writer, header_pos: usize, pid: u16) -> Result<(), XTypesError> {
-    let pos = writer.position();
-    let length = (pos - header_pos - 4) as u16;
-    writer.set_position(header_pos);
-    writer.write_slice(&pid.to_le_bytes())?;
-    writer.write_slice(&length.to_le_bytes())?;
-    writer.set_position(pos);
-    Ok(())
-}
 
 impl<'a, C> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C>
 where
@@ -710,7 +800,7 @@ where
         pid: u16,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let length = VirtualCdr1Serializer::bytes_len(value)? as u16;
+        let length = VirtualCdr2Serializer::bytes_len(value)? as u16;
         self.writer.write_slice(&pid.to_be_bytes());
         self.writer.write_slice(&length.to_be_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
@@ -735,7 +825,7 @@ where
         pid: u16,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let length = VirtualCdr1Serializer::bytes_len(value)? as u16;
+        let length = VirtualCdr2Serializer::bytes_len(value)? as u16;
         self.writer.write_slice(&pid.to_le_bytes());
         self.writer.write_slice(&length.to_le_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
@@ -788,7 +878,7 @@ where
         value: &T,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let length = VirtualCdr1Serializer::bytes_len(value)? as u32;
+        let length = VirtualCdr2Serializer::bytes_len(value)? as u32;
         // DHEADER
         XTypesSerialize::serialize(&length, &mut**self)?;
         XTypesSerialize::serialize(value, &mut **self)?;
@@ -805,7 +895,7 @@ where
         value: &T,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        let length = VirtualCdr1Serializer::bytes_len(value)? as u32;
+        let length = VirtualCdr2Serializer::bytes_len(value)? as u32;
         // DHEADER
         XTypesSerialize::serialize(&length, &mut**self)?;
         XTypesSerialize::serialize(value, &mut **self)?;
