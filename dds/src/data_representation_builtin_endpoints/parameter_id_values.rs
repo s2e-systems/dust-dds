@@ -70,5 +70,5 @@ pub const PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
 // PID_DOMAIN_ID is omitted since the default is dynamic
 pub const DEFAULT_DOMAIN_TAG: &str = "";
 pub const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
-pub const _DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration::new(100, 0);
+pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration::new(100, 0);
 pub const _DEFAULT_GROUP_ENTITYID: EntityId = ENTITYID_UNKNOWN;

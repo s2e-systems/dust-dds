@@ -1,16 +1,22 @@
-use dust_dds_derive::CdrDeserialize;
+use crate::xtypes::{
+    deserialize::XTypesDeserialize, serialize::XTypesSerialize,
+    xcdr_serializer::Xcdr1BeSerializer,
+};
 
 use super::error::DdsResult;
-use crate::{
-    implementation::payload_serializer_deserializer::{
-        cdr_serializer::ClassicCdrSerializer, endianness::CdrEndianness,
-    },
-    serialized_payload::cdr::serialize::CdrSerialize,
-};
 
 /// Type for the instance handle representing an Entity
 #[derive(
-    Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, CdrSerialize, CdrDeserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    PartialOrd,
+    Ord,
+    XTypesSerialize,
+    XTypesDeserialize,
 )]
 pub struct InstanceHandle([u8; 16]);
 
@@ -21,11 +27,10 @@ impl InstanceHandle {
     }
 
     /// Construct InstanceHandle from key
-    pub fn try_from_key(foo_key: &impl CdrSerialize) -> DdsResult<Self> {
+    pub fn try_from_key(foo_key: &impl XTypesSerialize) -> DdsResult<Self> {
         let mut serialized_key = Vec::new();
-        let mut serializer =
-            ClassicCdrSerializer::new(&mut serialized_key, CdrEndianness::BigEndian);
-        CdrSerialize::serialize(foo_key, &mut serializer)?;
+        let mut serializer = Xcdr1BeSerializer::new(&mut serialized_key);
+        XTypesSerialize::serialize(foo_key, &mut serializer)?;
         let handle = if serialized_key.len() <= 16 {
             let mut h = [0; 16];
             h[..serialized_key.len()].clone_from_slice(serialized_key.as_slice());

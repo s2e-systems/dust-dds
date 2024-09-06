@@ -24,9 +24,6 @@ use crate::{
                 STATUS_INFO_UNREGISTERED,
             },
         },
-        payload_serializer_deserializer::{
-            cdr_deserializer::ClassicCdrDeserializer, endianness::CdrEndianness,
-        },
         runtime::{
             executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -67,9 +64,9 @@ use crate::{
         types::{ChangeKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         writer_proxy::RtpsWriterProxy,
     },
-    serialized_payload::cdr::deserialize::CdrDeserialize,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{DdsKey, DynamicTypeInterface},
+    xtypes::{deserialize::XTypesDeserialize, xcdr_deserializer::Xcdr1LeDeserializer},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -1268,9 +1265,9 @@ impl DataReaderActor {
             .iter()
             .find(|&x| x.parameter_id() == PID_STATUS_INFO)
         {
-            let mut deserializer =
-                ClassicCdrDeserializer::new(p.value(), CdrEndianness::LittleEndian, false);
-            let status_info: StatusInfo = CdrDeserialize::deserialize(&mut deserializer).unwrap();
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
             match status_info {
                 STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
                 STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),

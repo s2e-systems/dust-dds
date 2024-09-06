@@ -10,8 +10,8 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    topic_definition::type_support::DdsType,
 };
-use dust_dds_derive::DdsType;
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;

@@ -14,6 +14,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
     topic_definition::type_support::DdsType,
+    xtypes::bytes::ByteBuf,
 };
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
@@ -188,7 +189,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
 struct LargeKeyedData {
     #[dust_dds(key)]
     id: u8,
-    value: Vec<u8>,
+    value: ByteBuf,
 }
 
 fn best_effort_write_and_receive_frag(c: &mut Criterion) {
@@ -263,7 +264,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
 
     let large_data_sample = LargeKeyedData {
         id: 1,
-        value: vec![7; 32000],
+        value: ByteBuf(vec![7; 32000]),
     };
 
     c.bench_function("best_effort_write_and_receive_frag", |b| {

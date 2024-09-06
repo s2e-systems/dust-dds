@@ -1,7 +1,6 @@
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     implementation::payload_serializer_deserializer::{
-        cdr_deserializer::ClassicCdrDeserializer, cdr_serializer::ClassicCdrSerializer,
         endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serializer::ParameterListCdrSerializer,
     },
@@ -9,15 +8,12 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
     },
-    serialized_payload::{
-        cdr::{deserialize::CdrDeserialize, serialize::CdrSerialize},
-        parameter_list::{
-            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-            serializer::ParameterListSerializer,
-        },
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+        serializer::ParameterListSerializer,
     },
 };
-use std::io::{BufRead, Read, Write};
+use std::io::{Read, Write};
 
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 
@@ -63,9 +59,7 @@ pub trait DdsHasKey {
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if the struct implements either `CdrSerialize` or `ParameterListSerialize`.
-/// The format to be used for serializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
-/// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
+/// This trait can be automatically derived if the struct implements `XTypesSerialize`.
 pub trait DdsSerialize {
     /// Method to serialize the instance of the type into the provided writer.
     fn serialize_data(&self) -> DdsResult<Vec<u8>>;
@@ -78,25 +72,23 @@ pub trait DdsSerialize {
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if the struct implements either `CdrSerialize` or `ParameterListSerialize`.
-/// The format to be used for deserializing can be selected by applying the '#[dust_dds(format = ...)]' attribute to the container.
-/// Available format options are "CDR_LE", "CDR_BE", "PL_CDR_LE" and "PL_CDR_BE".
+/// This trait can be automatically derived if the struct implements `XTypesDeserialize`.
 pub trait DdsDeserialize<'de>: Sized {
     /// Method to deserialize the bytes into an instance of the type.
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self>;
 }
 
 /// This trait defines the key associated with the type. The key is used to identify different instances of the type.
-/// The returned key object must implement [`CdrSerialize`] and [`CdrDeserialize`] since CDR is the format always
+/// The returned key object must implement [`XTypesSerialize`] and [`XTypesDeserialize`] since CDR is the format always
 /// used to transmit the key information on the wire and this can not be modified by the user.
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`CdrSerialize`] and [`CdrDeserialize`]
+/// This trait can be automatically derived if all the field marked `#[dust_dds(key)]` implement [`XTypesSerialize`] and [`XTypesDeserialize`]
 ///
 pub trait DdsKey {
     /// Type representing the key for the type in which this trait is implemented
-    type Key: CdrSerialize + for<'de> CdrDeserialize<'de>;
+    type Key: XTypesSerialize + for<'de> XTypesDeserialize<'de>;
 
     /// Method to get the key from an instance of the type.
     fn get_key(&self) -> DdsResult<Self::Key>;
@@ -117,6 +109,13 @@ pub trait DdsTypeXml {
     fn get_type_xml() -> Option<String>;
 }
 
+use crate::xtypes::{
+    deserialize::XTypesDeserialize,
+    error::XTypesError,
+    serialize::XTypesSerialize,
+    xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
+    xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
+};
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with DustDDS. If the individual traits are manually derived then this derive should not be used.
 ///
@@ -141,7 +140,6 @@ pub trait DdsTypeXml {
 ///
 /// ```rust
 ///     use dust_dds::topic_definition::type_support::DdsType;
-///     use std::borrow::Cow;
 ///
 ///     #[derive(DdsType)]
 ///     struct BorrowedData<'a> {
@@ -158,21 +156,32 @@ type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
-const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
-const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
-const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
-const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+const _CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const _CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
-/// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with LittleEndian endianness.
-pub fn serialize_rtps_classic_cdr_le(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {
+/// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
+pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
     let mut writer = Vec::new();
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-    CdrSerialize::serialize(value, &mut serializer)?;
+    let mut serializer = Xcdr1LeSerializer::new(&mut writer);
+    XTypesSerialize::serialize(value, &mut serializer)?;
+    pad(&mut writer)?;
+    Ok(writer)
+}
+
+/// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with BigEndian endianness.
+pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
+    let mut writer = Vec::new();
+    writer.write_all(&CDR_LE)?;
+    writer.write_all(&REPRESENTATION_OPTIONS)?;
+    let mut serializer = Xcdr1BeSerializer::new(&mut writer);
+    XTypesSerialize::serialize(value, &mut serializer)?;
     pad(&mut writer)?;
     Ok(writer)
 }
@@ -187,17 +196,6 @@ fn pad(writer: &mut Vec<u8>) -> std::io::Result<()> {
     writer.write_all(padding)?;
     writer[3] = padding.len() as u8;
     Ok(())
-}
-
-/// This is a helper function to serialize a type implementing [`CdrSerialize`] using the RTPS defined classic CDR representation with BigEndian endianness.
-pub fn serialize_rtps_classic_cdr_be(value: &impl CdrSerialize) -> DdsResult<Vec<u8>> {
-    let mut writer = Vec::new();
-    writer.write_all(&CDR_BE)?;
-    writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = ClassicCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-    CdrSerialize::serialize(value, &mut serializer)?;
-    pad(&mut writer)?;
-    Ok(writer)
 }
 
 /// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation with Little Endian endianness
@@ -224,9 +222,9 @@ pub fn serialize_rtps_cdr_pl_be(value: &impl ParameterListSerialize) -> DdsResul
 
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.
 /// The representation endianness to be used is automatically determined from the representation identifier and options
-pub fn deserialize_rtps_classic_cdr<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
+pub fn deserialize_rtps_encapsulated_data<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
 where
-    T: CdrDeserialize<'de>,
+    T: XTypesDeserialize<'de>,
 {
     let mut representation_identifier = [0u8, 0];
     serialized_data
@@ -238,50 +236,11 @@ where
         .read_exact(&mut representation_option)
         .map_err(|err| DdsError::Error(err.to_string()))?;
 
-    let mut deserializer = match representation_identifier {
-        CDR_BE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::BigEndian,
-            false,
-        )),
-        CDR_LE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::LittleEndian,
-            false,
-        )),
-        CDR2_BE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::BigEndian,
-            true,
-        )),
-        CDR2_LE => Ok(ClassicCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::LittleEndian,
-            true,
-        )),
-        D_CDR2_BE => {
-            // Ignore DHEADER
-            serialized_data.consume(4);
-            Ok(ClassicCdrDeserializer::new(
-                serialized_data,
-                CdrEndianness::BigEndian,
-                true,
-            ))
-        }
-        D_CDR2_LE => {
-            // Ignore DHEADER
-            serialized_data.consume(4);
-            Ok(ClassicCdrDeserializer::new(
-                serialized_data,
-                CdrEndianness::LittleEndian,
-                true,
-            ))
-        }
-        _ => Err(DdsError::Error(
-            "Unknownn representation identifier".to_string(),
-        )),
+    let value = match representation_identifier {
+        CDR_BE => XTypesDeserialize::deserialize(&mut Xcdr1BeDeserializer::new(serialized_data)),
+        CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
+        _ => Err(XTypesError::InvalidData),
     }?;
-    let value = CdrDeserialize::deserialize(&mut deserializer)?;
     Ok(value)
 }
 
@@ -316,18 +275,4 @@ where
     }?;
     let value = ParameterListDeserialize::deserialize(&mut deserializer)?;
     Ok(value)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn serialize_rtps_classic_cdr_le_padding() {
-        let result = serialize_rtps_classic_cdr_le(&2).unwrap();
-        assert_eq!(result, vec![0, 1, 0, 0b_0000_0000, 2, 0, 0, 0]);
-
-        let result = serialize_rtps_classic_cdr_le(&vec![3_u8, 4]).unwrap();
-        assert_eq!(result, vec![0, 1, 0, 0b_0000_0010, 2, 0, 0, 0, 3, 4, 0, 0])
-    }
 }

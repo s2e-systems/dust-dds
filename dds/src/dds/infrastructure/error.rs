@@ -1,6 +1,9 @@
 use std::any::Any;
 
-use crate::{implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError};
+use crate::{
+    implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError,
+    xtypes::error::XTypesError,
+};
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;
@@ -60,6 +63,12 @@ impl From<Box<dyn Any + Send + 'static>> for DdsError {
 impl From<MpscSenderError> for DdsError {
     fn from(_: MpscSenderError) -> Self {
         DdsError::AlreadyDeleted
+    }
+}
+
+impl From<XTypesError> for DdsError {
+    fn from(value: XTypesError) -> Self {
+        DdsError::Error(format!("XTypesError: {:?}", value))
     }
 }
 

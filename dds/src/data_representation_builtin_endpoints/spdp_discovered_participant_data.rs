@@ -7,16 +7,14 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    serialized_payload::{
-        cdr::{
-            deserialize::CdrDeserialize, deserializer::CdrDeserializer, serialize::CdrSerialize,
-            serializer::CdrSerializer,
-        },
-        parameter_list::{
-            deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-        },
+    serialized_payload::parameter_list::{
+        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
     },
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    xtypes::{
+        deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XTypesError,
+        serialize::XTypesSerialize, serializer::XTypesSerializer,
+    },
 };
 
 use super::parameter_id_values::{
@@ -28,7 +26,7 @@ use super::parameter_id_values::{
     PID_VENDORID,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, CdrSerialize, CdrDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
 struct DomainTag(String);
 impl Default for DomainTag {
     fn default() -> Self {
@@ -38,19 +36,23 @@ impl Default for DomainTag {
 
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 struct DomainIdParameter(Option<DomainId>);
-impl CdrSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: &mut impl CdrSerializer) -> Result<(), std::io::Error> {
-        self.0
-            .expect("Default DomainId not supposed to be serialized")
-            .serialize(serializer)
+
+impl XTypesSerialize for DomainIdParameter {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+        crate::xtypes::serialize::XTypesSerialize::serialize(
+            &self
+                .0
+                .expect("Default DomainId not supposed to be serialized"),
+            serializer,
+        )
     }
 }
 
-impl<'de> CdrDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: &mut impl CdrDeserializer<'de>) -> Result<Self, std::io::Error> {
+impl<'de> XTypesDeserialize<'de> for DomainIdParameter {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
-        Ok(Self(Some(CdrDeserialize::deserialize(deserializer)?)))
+        Ok(Self(Some(XTypesDeserialize::deserialize(deserializer)?)))
     }
 }
 

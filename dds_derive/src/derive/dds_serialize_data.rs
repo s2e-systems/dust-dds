@@ -51,11 +51,11 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let format = get_format(input)?;
             let serialize_function = match format {
                 Format::CdrLe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_le(
+                    dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_le(
                         self,
                 )},
                 Format::CdrBe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_classic_cdr_be(
+                    dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_be(
                         self,
                 )},
                 Format::PlCdrLe => quote! {
@@ -78,7 +78,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             })
-        },
+        }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
@@ -88,7 +88,7 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
 
 pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
-        syn::Data::Struct(_) | syn::Data::Enum(_)=> {
+        syn::Data::Struct(_) | syn::Data::Enum(_) => {
             let format = get_format(input)?;
             let (_, type_generics, where_clause) = input.generics.split_for_impl();
 
@@ -111,7 +111,7 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
             let deserialize_function = match format {
                 Format::CdrLe | Format::CdrBe => {
                     quote! {
-                        dust_dds::topic_definition::type_support::deserialize_rtps_classic_cdr(&mut serialized_data)
+                        dust_dds::topic_definition::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
                     }
                 }
                 Format::PlCdrLe | Format::PlCdrBe => quote! {
@@ -126,7 +126,7 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 }
             })
-        },
+        }
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",

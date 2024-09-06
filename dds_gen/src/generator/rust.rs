@@ -786,7 +786,7 @@ fn const_dcl(pair: IdlPair, writer: &mut String) {
 
     writer.push_str("pub const ");
     generate_rust_source(identifier, writer);
-    writer.push(':' );
+    writer.push(':');
     generate_rust_source(const_type, writer);
     writer.push('=');
     generate_rust_source(const_expr, writer);

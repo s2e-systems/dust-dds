@@ -1,4 +1,4 @@
-use syn::{Fields, DataEnum, Ident, Expr, ExprLit, Lit};
+use syn::{DataEnum, Expr, ExprLit, Fields, Ident, Lit};
 
 pub enum BitBound {
     Bit8,
@@ -15,13 +15,17 @@ pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Iden
     for variant in data_enum.variants.iter() {
         match variant.fields {
             Fields::Unit => (),
-            _ => panic!("Only unit enums can be used when deriving CdrSerialize and CdrDeserialize"),
+            _ => panic!("Only unit enums can be used when deriving XTypesDeserialize"),
         }
-        if let Some((_,discriminant_expr)) = &variant.discriminant {
+        if let Some((_, discriminant_expr)) = &variant.discriminant {
             match discriminant_expr {
-                Expr::Lit(ExprLit{lit,..}) => match lit {
-                    Lit::Int(lit_int) => discriminant = lit_int.base10_parse().expect("Integer should be verified by compiler"),
-                    _ => panic!("Only literal integer discrimimants are expected")
+                Expr::Lit(ExprLit { lit, .. }) => match lit {
+                    Lit::Int(lit_int) => {
+                        discriminant = lit_int
+                            .base10_parse()
+                            .expect("Integer should be verified by compiler")
+                    }
+                    _ => panic!("Only literal integer discrimimants are expected"),
                 },
                 _ => panic!("Only literal discrimimants are expected"),
             }
@@ -34,7 +38,7 @@ pub fn read_enum_variant_discriminant_mapping(data_enum: &DataEnum) -> Vec<(Iden
 }
 
 pub fn get_enum_bitbound(max_discriminant: &usize) -> BitBound {
-    if max_discriminant >= &0 && max_discriminant <= &(u8::MAX as usize)  {
+    if max_discriminant >= &0 && max_discriminant <= &(u8::MAX as usize) {
         BitBound::Bit8
     } else if max_discriminant > &(u8::MAX as usize) && max_discriminant <= &(u16::MAX as usize) {
         BitBound::Bit16
