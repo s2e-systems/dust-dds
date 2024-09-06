@@ -115,6 +115,12 @@ impl<'de, T: XTypesDeserialize<'de>, const N: usize> XTypesDeserialize<'de> for 
     }
 }
 
+impl<'de> XTypesDeserialize<'de> for () {
+    fn deserialize(_deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        Ok(())
+    }
+}
+
 impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self(deserializer.deserialize_byte_sequence()?))
