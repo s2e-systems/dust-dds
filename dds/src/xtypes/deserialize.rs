@@ -1,6 +1,6 @@
 use super::{
-    bytes::{ByteBuf, Bytes},
-    deserializer::{DeserializeArray, DeserializeSequence, XTypesDeserializer},
+    bytes::Bytes,
+    deserializer::{DeserializeArray, XTypesDeserializer},
     error::XTypesError,
 };
 
@@ -115,12 +115,20 @@ impl<'de, T: XTypesDeserialize<'de>, const N: usize> XTypesDeserialize<'de> for 
     }
 }
 
-impl<'de> XTypesDeserialize<'de> for () {
-    fn deserialize(_deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(())
+impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        Ok(Self(deserializer.deserialize_byte_sequence()?))
     }
 }
 
+#[cfg(feature = "std")]
+impl<'de> XTypesDeserialize<'de> for super::bytes::ByteBuf {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+        Ok(Self(deserializer.deserialize_byte_sequence()?.to_owned()))
+    }
+}
+
+#[cfg(feature = "std")]
 impl<'de, T> XTypesDeserialize<'de> for Vec<T>
 where
     T: XTypesDeserialize<'de>,
@@ -128,23 +136,14 @@ where
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut vec = Vec::new();
         let mut seq = deserializer.deserialize_sequence()?;
-        for _ in 0..seq.len() {
-            vec.push(seq.deserialize_element()?);
+        for _ in 0..super::deserializer::DeserializeSequence::len(&seq) {
+            vec.push(super::deserializer::DeserializeSequence::deserialize_element(&mut seq)?);
         }
         Ok(vec)
     }
 }
 
-impl<'de> XTypesDeserialize<'de> for ByteBuf {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(Self(deserializer.deserialize_byte_sequence()?.to_owned()))
-    }
-}
-impl<'de: 'a, 'a> XTypesDeserialize<'de> for Bytes<'a> {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        Ok(Self(deserializer.deserialize_byte_sequence()?))
-    }
-}
+#[cfg(feature = "std")]
 impl<'de> XTypesDeserialize<'de> for String {
     fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(deserializer.deserialize_string()?.to_string())

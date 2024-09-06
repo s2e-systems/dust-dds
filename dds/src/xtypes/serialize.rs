@@ -1,4 +1,4 @@
-use super::bytes::{ByteBuf, Bytes};
+use super::bytes::Bytes;
 pub use super::{
     error::XTypesError, serializer::SerializeCollection, serializer::XTypesSerializer,
 };
@@ -122,17 +122,6 @@ impl<T: XTypesSerialize, const N: usize> XTypesSerialize for [T; N] {
     }
 }
 
-impl XTypesSerialize for Bytes<'_> {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        serializer.serialize_byte_sequence(&self.0)
-    }
-}
-impl XTypesSerialize for ByteBuf {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        serializer.serialize_byte_sequence(&self.0.as_slice())
-    }
-}
-
 impl<T: XTypesSerialize> XTypesSerialize for &[T] {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         let mut s = serializer.serialize_sequence(self.len())?;
@@ -143,6 +132,20 @@ impl<T: XTypesSerialize> XTypesSerialize for &[T] {
     }
 }
 
+impl XTypesSerialize for Bytes<'_> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+        serializer.serialize_byte_sequence(self.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl XTypesSerialize for super::bytes::ByteBuf {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+        serializer.serialize_byte_sequence(self.0.as_slice())
+    }
+}
+
+#[cfg(feature = "std")]
 impl<T> XTypesSerialize for Vec<T>
 where
     T: XTypesSerialize,
@@ -156,6 +159,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 impl XTypesSerialize for String {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         serializer.serialize_string(self.as_str())
