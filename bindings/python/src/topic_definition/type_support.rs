@@ -2,7 +2,9 @@ use dust_dds::{
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
-        error::XTypesError, serialize::XTypesSerializer, xcdr_serializer::NewXcdr1LeSerializer,
+        deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
+        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        xcdr_serializer::NewXcdr1LeSerializer,
     },
 };
 use pyo3::{
@@ -32,6 +34,30 @@ pub enum TypeKind {
     float32,
     float64,
     float128,
+}
+
+fn deserialize_into_py_object(
+    py: Python<'_>,
+    type_kind: TypeKind,
+    deserializer: &mut Xcdr1LeDeserializer<'_>,
+) -> Result<PyObject, XTypesError> {
+    match type_kind {
+        TypeKind::boolean => Ok(deserializer.deserialize_boolean()?.into_py(py)),
+        TypeKind::byte => Ok(deserializer.deserialize_uint8()?.into_py(py)),
+        TypeKind::char8 => Ok(deserializer.deserialize_char8()?.into_py(py)),
+        TypeKind::char16 => Ok(deserializer.deserialize_char8()?.into_py(py)),
+        TypeKind::int8 => Ok(deserializer.deserialize_int8()?.into_py(py)),
+        TypeKind::uint8 => Ok(deserializer.deserialize_uint8()?.into_py(py)),
+        TypeKind::int16 => Ok(deserializer.deserialize_int16()?.into_py(py)),
+        TypeKind::uint16 => Ok(deserializer.deserialize_uint16()?.into_py(py)),
+        TypeKind::int32 => Ok(deserializer.deserialize_int32()?.into_py(py)),
+        TypeKind::uint32 => Ok(deserializer.deserialize_uint32()?.into_py(py)),
+        TypeKind::int64 => Ok(deserializer.deserialize_int64()?.into_py(py)),
+        TypeKind::uint64 => Ok(deserializer.deserialize_uint64()?.into_py(py)),
+        TypeKind::float32 => Ok(deserializer.deserialize_float32()?.into_py(py)),
+        TypeKind::float64 => Ok(deserializer.deserialize_float64()?.into_py(py)),
+        TypeKind::float128 => Err(XTypesError::InvalidData),
+    }
 }
 
 pub struct PythonTypeRepresentation(Py<PyAny>);
@@ -185,36 +211,21 @@ impl PythonDdsData {
     pub fn into_py_object(self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
         fn deserialize_data_member(
             member_type: &Bound<PyAny>,
-            deserializer: &mut ClassicCdrDeserializer,
+            deserializer: &mut Xcdr1LeDeserializer<'_>,
         ) -> PyResult<Py<PyAny>> {
             let py = member_type.py();
             if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
-                Ok(match member_type_kind {
-                    TypeKind::boolean => Ok(deserializer.deserialize_bool()?.into_py(py)),
-                    TypeKind::byte => Ok(deserializer.deserialize_u8()?.into_py(py)),
-                    TypeKind::char8 => Ok(deserializer.deserialize_char()?.into_py(py)),
-                    TypeKind::char16 => Ok(deserializer.deserialize_char()?.into_py(py)),
-                    TypeKind::int8 => Ok(deserializer.deserialize_i8()?.into_py(py)),
-                    TypeKind::uint8 => Ok(deserializer.deserialize_u8()?.into_py(py)),
-                    TypeKind::int16 => Ok(deserializer.deserialize_i16()?.into_py(py)),
-                    TypeKind::uint16 => Ok(deserializer.deserialize_u16()?.into_py(py)),
-                    TypeKind::int32 => Ok(deserializer.deserialize_i32()?.into_py(py)),
-                    TypeKind::uint32 => Ok(deserializer.deserialize_u32()?.into_py(py)),
-                    TypeKind::int64 => Ok(deserializer.deserialize_i64()?.into_py(py)),
-                    TypeKind::uint64 => Ok(deserializer.deserialize_u64()?.into_py(py)),
-                    TypeKind::float32 => Ok(deserializer.deserialize_f32()?.into_py(py)),
-                    TypeKind::float64 => Ok(deserializer.deserialize_f64()?.into_py(py)),
-                    TypeKind::float128 => {
-                        Err(PyTypeError::new_err("float128 type not yet supported"))
-                    }
-                }?)
+                deserialize_into_py_object(py, member_type_kind, deserializer)
+                    .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))
             } else if is_list(member_type)? {
                 let typing_module = PyModule::import_bound(member_type.py(), "typing")?;
                 let get_args_attr = typing_module.getattr("get_args")?;
                 let type_args = get_args_attr.call1((member_type,))?;
                 let type_args = type_args.downcast::<PyTuple>()?;
                 let sequence_type = type_args.get_item(0)?;
-                let sequence_len = deserializer.deserialize_u32()?;
+                let sequence_len = deserializer
+                    .deserialize_uint32()
+                    .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?;
                 let mut list: Vec<Py<PyAny>> = Vec::with_capacity(sequence_len as usize);
                 for _ in 0..sequence_len {
                     list.push(deserialize_data_member(&sequence_type, deserializer)?);
@@ -222,9 +233,15 @@ impl PythonDdsData {
                 Ok(PyList::new_bound(py, list).into_py(py))
             } else if let Ok(py_type) = member_type.downcast::<PyType>() {
                 if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
-                    Ok(deserializer.deserialize_bytes()?.into_py(py))
+                    Ok(deserializer
+                        .deserialize_byte_sequence()
+                        .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?
+                        .into_py(py))
                 } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
-                    Ok(deserializer.deserialize_string()?.into_py(py))
+                    Ok(deserializer
+                        .deserialize_string()
+                        .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?
+                        .into_py(py))
                 } else {
                     deserialize_data(py, member_type.extract()?, deserializer)
                 }
@@ -238,7 +255,7 @@ impl PythonDdsData {
         fn deserialize_data(
             py: Python<'_>,
             type_: Py<PyType>,
-            deserializer: &mut ClassicCdrDeserializer,
+            deserializer: &mut Xcdr1LeDeserializer<'_>,
         ) -> PyResult<Py<PyAny>> {
             let py_type = type_.bind(py);
             let object = type_
@@ -259,16 +276,17 @@ impl PythonDdsData {
         }
 
         let (header, body) = self.data.split_at(4);
-        let endianness = match [header[0], header[1]] {
-            endianness::CDR_LE => endianness::CdrEndianness::LittleEndian,
-            endianness::CDR_BE => endianness::CdrEndianness::BigEndian,
+        match [header[0], header[1]] {
+            endianness::CDR_LE => Python::with_gil(|py| {
+                let type_ = type_.extract(py)?;
+                deserialize_data(py, type_, &mut Xcdr1LeDeserializer::new(body))
+            }),
+            endianness::CDR_BE => Python::with_gil(|py| {
+                let type_ = type_.extract(py)?;
+                deserialize_data(py, type_, &mut Xcdr1LeDeserializer::new(body))
+            }),
             _ => panic!("Unknown endianness"),
-        };
-        let mut deserializer = ClassicCdrDeserializer::new(body, endianness);
-        Python::with_gil(|py| {
-            let type_ = type_.extract(py)?;
-            deserialize_data(py, type_, &mut deserializer)
-        })
+        }
     }
 }
 
