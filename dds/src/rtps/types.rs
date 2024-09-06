@@ -2,10 +2,7 @@ use super::{
     error::RtpsResult,
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use crate::xtypes::{
-    deserialize::XTypesDeserialize, deserializer::DeserializeFinalStruct,
-    serialize::XTypesSerialize,
-};
+use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 use network_interface::Addr;
 use std::{
     io::{Read, Write},
