@@ -3,8 +3,7 @@ use dust_dds::{
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1LeDeserializer,
-        xcdr_serializer::NewXcdr1LeSerializer,
+        xcdr_deserializer::Xcdr1LeDeserializer, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::NewXcdr1LeSerializer,
     },
 };
 use pyo3::{
@@ -36,10 +35,10 @@ pub enum TypeKind {
     float128,
 }
 
-fn deserialize_into_py_object(
+fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
     py: Python<'_>,
     type_kind: TypeKind,
-    deserializer: &mut Xcdr1LeDeserializer<'_>,
+    deserializer: D,
 ) -> Result<PyObject, XTypesError> {
     match type_kind {
         TypeKind::boolean => Ok(deserializer.deserialize_boolean()?.into_py(py)),
@@ -209,10 +208,13 @@ impl PythonDdsData {
     }
 
     pub fn into_py_object(self, type_: &Py<PyAny>) -> PyResult<Py<PyAny>> {
-        fn deserialize_data_member(
+        fn deserialize_data_member<'de, D>(
             member_type: &Bound<PyAny>,
-            deserializer: &mut Xcdr1LeDeserializer<'_>,
-        ) -> PyResult<Py<PyAny>> {
+            deserializer: &mut D,
+        ) -> PyResult<Py<PyAny>>
+        where
+            for<'a> &'a mut D: XTypesDeserializer<'de>,
+        {
             let py = member_type.py();
             if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
                 deserialize_into_py_object(py, member_type_kind, deserializer)
@@ -243,7 +245,7 @@ impl PythonDdsData {
                         .map_err(|e| PyTypeError::new_err(format!("XTypesError {:?}", e)))?
                         .into_py(py))
                 } else {
-                    deserialize_data(py, member_type.extract()?, deserializer)
+                    deserialize_data(py, member_type.extract()?, &mut *deserializer)
                 }
             } else {
                 Err(PyTypeError::new_err(format!(
@@ -252,11 +254,14 @@ impl PythonDdsData {
                 )))
             }
         }
-        fn deserialize_data(
+        fn deserialize_data<'de, D>(
             py: Python<'_>,
             type_: Py<PyType>,
-            deserializer: &mut Xcdr1LeDeserializer<'_>,
-        ) -> PyResult<Py<PyAny>> {
+            deserializer: &mut D,
+        ) -> PyResult<Py<PyAny>>
+        where
+            for<'a> &'a mut D: XTypesDeserializer<'de>,
+        {
             let py_type = type_.bind(py);
             let object = type_
                 .bind(py)
@@ -269,7 +274,7 @@ impl PythonDdsData {
                 object.setattr(
                     py,
                     member_name_str,
-                    deserialize_data_member(&member_type, deserializer)?,
+                    deserialize_data_member(&member_type, &mut *deserializer)?,
                 )?;
             }
             Ok(object)
@@ -283,7 +288,7 @@ impl PythonDdsData {
             }),
             endianness::CDR_BE => Python::with_gil(|py| {
                 let type_ = type_.extract(py)?;
-                deserialize_data(py, type_, &mut Xcdr1LeDeserializer::new(body))
+                deserialize_data(py, type_, &mut Xcdr1BeDeserializer::new(body))
             }),
             _ => panic!("Unknown endianness"),
         }
