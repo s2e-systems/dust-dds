@@ -14,7 +14,7 @@ pub struct VirtualCdr1Serializer {
 }
 
 impl VirtualCdr1Serializer {
-    fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
+    pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
         let mut virtual_serializer = Self { count: 0 };
         XTypesSerialize::serialize(value, &mut virtual_serializer)?;
         Ok(virtual_serializer.count)
@@ -172,7 +172,7 @@ pub struct VirtualCdr2Serializer {
 }
 
 impl VirtualCdr2Serializer {
-    fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
+    pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
         let mut virtual_serializer = Self { count: 0 };
         XTypesSerialize::serialize(value, &mut virtual_serializer)?;
         Ok(virtual_serializer.count)
