@@ -68,7 +68,7 @@ impl From<MpscSenderError> for DdsError {
 
 impl From<XTypesError> for DdsError {
     fn from(value: XTypesError) -> Self {
-        DdsError::Error(format!("XcdrError: {:?}", value))
+        DdsError::Error(format!("XTypesError: {:?}", value))
     }
 }
 

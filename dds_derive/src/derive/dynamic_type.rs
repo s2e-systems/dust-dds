@@ -44,7 +44,7 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
             }
             Ok(quote! {
                 impl #impl_generics  dust_dds::xtypes::dynamic_type::DynamicType for #ident #type_generics #where_clause {
-                    fn get_descriptor(&self) -> Result< dust_dds::xtypes::dynamic_type::TypeDescriptor,  dust_dds::xtypes::error::XcdrError> {
+                    fn get_descriptor(&self) -> Result< dust_dds::xtypes::dynamic_type::TypeDescriptor,  dust_dds::xtypes::error::XTypesError> {
                         Ok( dust_dds::xtypes::dynamic_type::TypeDescriptor {
                             kind:  dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
                             name: #ident_str,
@@ -65,10 +65,10 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
                         #member_count
                     }
 
-                    fn get_member_by_index(&self, index: u32) -> Result<impl  dust_dds::xtypes::dynamic_type::DynamicTypeMember,  dust_dds::xtypes::error::XcdrError> {
+                    fn get_member_by_index(&self, index: u32) -> Result<impl  dust_dds::xtypes::dynamic_type::DynamicTypeMember,  dust_dds::xtypes::error::XTypesError> {
                         match index {
                             #dynamic_type_member
-                            _ => Err( dust_dds::xtypes::error::XcdrError::InvalidIndex),
+                            _ => Err( dust_dds::xtypes::error::XTypesError::InvalidIndex),
                         }
                     }
                 }
@@ -88,7 +88,7 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
             };
             Ok(quote! {
                 impl #impl_generics  dust_dds::xtypes::dynamic_type::DynamicType for #ident #type_generics #where_clause {
-                    fn get_descriptor(&self) -> Result< dust_dds::xtypes::dynamic_type::TypeDescriptor,  dust_dds::xtypes::error::XcdrError> {
+                    fn get_descriptor(&self) -> Result< dust_dds::xtypes::dynamic_type::TypeDescriptor,  dust_dds::xtypes::error::XTypesError> {
                         Ok( dust_dds::xtypes::dynamic_type::TypeDescriptor {
                             kind:  dust_dds::xtypes::dynamic_type::TK_ENUM,
                             name: #ident_str,
@@ -109,9 +109,9 @@ pub fn expand_xtypes_dynamic_type(input: &DeriveInput) -> syn::Result<TokenStrea
                         #enum_variant_count
                     }
 
-                    fn get_member_by_index(&self, index: u32) -> Result<impl  dust_dds::xtypes::dynamic_type::DynamicTypeMember,  dust_dds::xtypes::error::XcdrError> {
+                    fn get_member_by_index(&self, index: u32) -> Result<impl  dust_dds::xtypes::dynamic_type::DynamicTypeMember,  dust_dds::xtypes::error::XTypesError> {
                         match index {
-                            _ => Err( dust_dds::xtypes::error::XcdrError::InvalidIndex),
+                            _ => Err( dust_dds::xtypes::error::XTypesError::InvalidIndex),
                         }
                     }
                 }
@@ -152,7 +152,7 @@ mod tests {
         let expected = syn::parse2::<ItemImpl>(
             "
             impl  dust_dds::xtypes::dynamic_type::DynamicType for MyData {
-                fn get_descriptor(&self) -> Result< dust_dds::xtypes::dynamic_type::TypeDescriptor,  dust_dds::xtypes::error::XcdrError> {
+                fn get_descriptor(&self) -> Result< dust_dds::xtypes::dynamic_type::TypeDescriptor,  dust_dds::xtypes::error::XTypesError> {
                     Ok( dust_dds::xtypes::dynamic_type::TypeDescriptor {
                         kind:  dust_dds::xtypes::dynamic_type::TK_STRUCTURE,
                         name: \"MyData\",
@@ -173,7 +173,7 @@ mod tests {
                     2u32
                 }
 
-                fn get_member_by_index(&self, index: u32) -> Result<impl  dust_dds::xtypes::dynamic_type::DynamicTypeMember,  dust_dds::xtypes::error::XcdrError> {
+                fn get_member_by_index(&self, index: u32) -> Result<impl  dust_dds::xtypes::dynamic_type::DynamicTypeMember,  dust_dds::xtypes::error::XTypesError> {
                     match index {
                         0u32 => Ok(
                              dust_dds::xtypes::dynamic_type::MemberDescriptor {
@@ -201,7 +201,7 @@ mod tests {
                                 is_default_label: false,
                             }
                         ),
-                        _ => Err( dust_dds::xtypes::error::XcdrError::InvalidIndex),
+                        _ => Err( dust_dds::xtypes::error::XTypesError::InvalidIndex),
                     }
                 }
             }

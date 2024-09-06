@@ -120,7 +120,7 @@ impl<T: XTypesSerialize, const N: usize> XTypesSerialize for [T; N] {
 }
 
 // impl XTypesSerialize for &[u8] {
-//     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+//     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
 //         serializer.serialize_byte_sequence(self)
 //     }
 // }
