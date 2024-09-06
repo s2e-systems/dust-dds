@@ -114,7 +114,7 @@ use crate::xtypes::{
     error::XTypesError,
     serialize::XTypesSerialize,
     xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
-    xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
+    xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
 };
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with DustDDS. If the individual traits are manually derived then this derive should not be used.
@@ -169,7 +169,7 @@ pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult
     let mut writer = Vec::new();
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = NewXcdr1LeSerializer::new(&mut writer);
+    let mut serializer = Xcdr1LeSerializer::new(&mut writer);
     XTypesSerialize::serialize(value, &mut serializer)?;
     pad(&mut writer)?;
     Ok(writer)
@@ -180,7 +180,7 @@ pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult
     let mut writer = Vec::new();
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
-    let mut serializer = NewXcdr1BeSerializer::new(&mut writer);
+    let mut serializer = Xcdr1BeSerializer::new(&mut writer);
     XTypesSerialize::serialize(value, &mut serializer)?;
     pad(&mut writer)?;
     Ok(writer)

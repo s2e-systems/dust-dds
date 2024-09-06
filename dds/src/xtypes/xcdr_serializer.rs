@@ -202,11 +202,11 @@ where
     Ok(())
 }
 
-pub struct NewXcdr1BeSerializer<'a, C> {
+pub struct Xcdr1BeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
 
-impl<'a, C> NewXcdr1BeSerializer<'a, C>
+impl<'a, C> Xcdr1BeSerializer<'a, C>
 where
     for<'b> C: Extend<&'b u8>,
 {
@@ -217,7 +217,7 @@ where
     }
 }
 
-impl<C> SerializeFinalStruct for &mut NewXcdr1BeSerializer<'_, C>
+impl<C> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C>
 where
     for<'b> C: Extend<&'b u8>,
 {
@@ -250,7 +250,7 @@ where
         }
     }
 }
-impl<C> SerializeAppendableStruct for &mut NewXcdr1BeSerializer<'_, C>
+impl<C> SerializeAppendableStruct for &mut Xcdr1BeSerializer<'_, C>
 where
     for<'b> C: Extend<&'b u8>,
 {
@@ -262,7 +262,7 @@ where
         XTypesSerialize::serialize(value, &mut **self)
     }
 }
-impl<C> SerializeMutableStruct for &mut NewXcdr1BeSerializer<'_, C>
+impl<C> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C>
 where
     for<'a> C: Extend<&'a u8>,
 {
@@ -288,7 +288,7 @@ where
         Ok(())
     }
 }
-impl<C> SerializeCollection for &mut NewXcdr1BeSerializer<'_, C>
+impl<C> SerializeCollection for &mut Xcdr1BeSerializer<'_, C>
 where
     for<'a> C: Extend<&'a u8>,
 {
@@ -297,7 +297,7 @@ where
     }
 }
 
-impl<C> XTypesSerializer for &mut NewXcdr1BeSerializer<'_, C>
+impl<C> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C>
 where
     for<'a> C: Extend<&'a u8>,
 {
@@ -385,11 +385,11 @@ where
     }
 }
 
-pub struct NewXcdr1LeSerializer<'a, C> {
+pub struct Xcdr1LeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
 
-impl<'a, C> NewXcdr1LeSerializer<'a, C>
+impl<'a, C> Xcdr1LeSerializer<'a, C>
 where
     for<'b> C: Extend<&'b u8>,
 {
@@ -400,7 +400,7 @@ where
     }
 }
 
-impl<C> SerializeFinalStruct for &mut NewXcdr1LeSerializer<'_, C>
+impl<C> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C>
 where
     for<'b> C: Extend<&'b u8>,
 {
@@ -433,7 +433,7 @@ where
         }
     }
 }
-impl<C> SerializeAppendableStruct for &mut NewXcdr1LeSerializer<'_, C>
+impl<C> SerializeAppendableStruct for &mut Xcdr1LeSerializer<'_, C>
 where
     for<'b> C: Extend<&'b u8>,
 {
@@ -445,7 +445,7 @@ where
         XTypesSerialize::serialize(value, &mut **self)
     }
 }
-impl<C> SerializeMutableStruct for &mut NewXcdr1LeSerializer<'_, C>
+impl<C> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C>
 where
     for<'a> C: Extend<&'a u8>,
 {
@@ -471,7 +471,7 @@ where
         Ok(())
     }
 }
-impl<C> SerializeCollection for &mut NewXcdr1LeSerializer<'_, C>
+impl<C> SerializeCollection for &mut Xcdr1LeSerializer<'_, C>
 where
     for<'a> C: Extend<&'a u8>,
 {
@@ -480,7 +480,7 @@ where
     }
 }
 
-impl<C> XTypesSerializer for &mut NewXcdr1LeSerializer<'_, C>
+impl<C> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C>
 where
     for<'a> C: Extend<&'a u8>,
 {
@@ -966,14 +966,14 @@ mod tests {
 
     fn serialize_v1_be<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
         let mut buffer = std::vec::Vec::new();
-        v.serialize(&mut NewXcdr1BeSerializer::new(&mut buffer))
+        v.serialize(&mut Xcdr1BeSerializer::new(&mut buffer))
             .unwrap();
         buffer.try_into().unwrap()
     }
 
     fn serialize_v1_le<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
         let mut buffer = std::vec::Vec::new();
-        v.serialize(&mut NewXcdr1LeSerializer::new(&mut buffer))
+        v.serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
             .unwrap();
         buffer.try_into().unwrap()
     }

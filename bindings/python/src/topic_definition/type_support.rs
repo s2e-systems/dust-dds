@@ -3,7 +3,7 @@ use dust_dds::{
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1LeDeserializer, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::NewXcdr1LeSerializer,
+        xcdr_deserializer::Xcdr1LeDeserializer, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::Xcdr1LeSerializer,
     },
 };
 use pyo3::{
@@ -115,7 +115,7 @@ impl PythonDdsData {
         fn serialize_data_member(
             member_data: &Bound<PyAny>,
             member_type: &Bound<PyAny>,
-            serializer: &mut NewXcdr1LeSerializer<'_, Vec<u8>>,
+            serializer: &mut Xcdr1LeSerializer<'_, Vec<u8>>,
         ) -> PyResult<()> {
             if let Ok(member_type_kind) = member_type.extract::<TypeKind>() {
                 match member_type_kind {
@@ -180,7 +180,7 @@ impl PythonDdsData {
         fn serialize_data(
             py: Python<'_>,
             data: Py<PyAny>,
-            serializer: &mut NewXcdr1LeSerializer<'_, Vec<u8>>,
+            serializer: &mut Xcdr1LeSerializer<'_, Vec<u8>>,
         ) -> PyResult<()> {
             let annotations = data
                 .getattr(py, "__class__")
@@ -198,7 +198,7 @@ impl PythonDdsData {
         let mut buffer = Vec::new();
         buffer.extend(&CDR_LE);
         buffer.extend(&REPRESENTATION_OPTIONS);
-        let mut serializer = NewXcdr1LeSerializer::new(&mut buffer);
+        let mut serializer = Xcdr1LeSerializer::new(&mut buffer);
         Python::with_gil(|py| serialize_data(py, py_object, &mut serializer))?;
 
         Ok(PythonDdsData {

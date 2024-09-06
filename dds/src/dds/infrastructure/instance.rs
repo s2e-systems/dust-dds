@@ -1,6 +1,6 @@
 use crate::xtypes::{
     deserialize::XTypesDeserialize, serialize::XTypesSerialize,
-    xcdr_serializer::NewXcdr1BeSerializer,
+    xcdr_serializer::Xcdr1BeSerializer,
 };
 
 use super::error::DdsResult;
@@ -29,7 +29,7 @@ impl InstanceHandle {
     /// Construct InstanceHandle from key
     pub fn try_from_key(foo_key: &impl XTypesSerialize) -> DdsResult<Self> {
         let mut serialized_key = Vec::new();
-        let mut serializer = NewXcdr1BeSerializer::new(&mut serialized_key);
+        let mut serializer = Xcdr1BeSerializer::new(&mut serialized_key);
         XTypesSerialize::serialize(foo_key, &mut serializer)?;
         let handle = if serialized_key.len() <= 16 {
             let mut h = [0; 16];

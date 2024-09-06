@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use crate::xtypes::{serialize::XTypesSerialize, xcdr_serializer::NewXcdr1LeSerializer};
+use crate::xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -289,7 +289,7 @@ where
             .await;
 
         let mut serialized_status_info = Vec::new();
-        let mut serializer = NewXcdr1LeSerializer::new(&mut serialized_status_info);
+        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
         if writer_qos
             .writer_data_lifecycle
             .autodispose_unregistered_instances
@@ -590,7 +590,7 @@ where
             .receive_reply()
             .await;
         let mut serialized_status_info = Vec::new();
-        let mut serializer = NewXcdr1LeSerializer::new(&mut serialized_status_info);
+        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
         XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
 
         let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));

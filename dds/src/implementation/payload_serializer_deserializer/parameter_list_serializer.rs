@@ -1,6 +1,6 @@
 use crate::xtypes::{
     serialize::XTypesSerialize,
-    xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
+    xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
 };
 
 use crate::serialized_payload::parameter_list::serializer::ParameterListSerializer;
@@ -30,7 +30,7 @@ where
 
         match self.endianness {
             CdrEndianness::LittleEndian => {
-                let mut data_serializer = NewXcdr1LeSerializer::new(&mut data);
+                let mut data_serializer = Xcdr1LeSerializer::new(&mut data);
                 value.serialize(&mut data_serializer).map_err(|e| {
                     std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
@@ -60,7 +60,7 @@ where
             }
 
             CdrEndianness::BigEndian => {
-                let mut data_serializer = NewXcdr1BeSerializer::new(&mut data);
+                let mut data_serializer = Xcdr1BeSerializer::new(&mut data);
                 value.serialize(&mut data_serializer).map_err(|e| {
                     std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
