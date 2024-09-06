@@ -12,7 +12,7 @@ use crate::{
     },
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
-        deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XcdrError,
+        deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XTypesError,
         serialize::XTypesSerialize, serializer::XTypesSerializer,
     },
 };
@@ -38,7 +38,7 @@ impl Default for DomainTag {
 struct DomainIdParameter(Option<DomainId>);
 
 impl XTypesSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         crate::xtypes::serialize::XTypesSerialize::serialize(
             &self
                 .0
@@ -49,7 +49,7 @@ impl XTypesSerialize for DomainIdParameter {
 }
 
 impl<'de> XTypesDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         // None should not happen since this is only deserialized if the
         // corresponding PID is found
         Ok(Self(Some(XTypesDeserialize::deserialize(deserializer)?)))

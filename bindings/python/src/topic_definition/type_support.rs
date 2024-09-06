@@ -2,7 +2,7 @@ use dust_dds::{
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
-        error::XcdrError, serialize::XTypesSerializer, xcdr_serializer::NewXcdr1LeSerializer,
+        error::XTypesError, serialize::XTypesSerializer, xcdr_serializer::NewXcdr1LeSerializer,
     },
 };
 use pyo3::{
@@ -108,7 +108,7 @@ impl PythonDdsData {
                     TypeKind::uint64 => serializer.serialize_uint64(member_data.extract()?),
                     TypeKind::float32 => serializer.serialize_float32(member_data.extract()?),
                     TypeKind::float64 => serializer.serialize_float64(member_data.extract()?),
-                    TypeKind::float128 => Err(XcdrError::InvalidData),
+                    TypeKind::float128 => Err(XTypesError::InvalidData),
                 }
                 .map_err(|e| PyTypeError::new_err(format!("XTypes error: {:?}", e)))
             } else if is_list(member_type)? {

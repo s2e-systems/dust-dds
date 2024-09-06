@@ -1,7 +1,7 @@
 use crate::xtypes::{
     deserialize::XTypesDeserialize,
     deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-    error::XcdrError,
+    error::XTypesError,
     serialize::{XTypesSerialize, XTypesSerializer},
 };
 use std::ops::Sub;
@@ -15,7 +15,7 @@ pub enum DurationKind {
     Infinite,
 }
 impl XTypesSerialize for DurationKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(
             match self {
                 DurationKind::Finite(d) => d,
@@ -26,7 +26,7 @@ impl XTypesSerialize for DurationKind {
     }
 }
 impl<'de> XTypesDeserialize<'de> for DurationKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(match f.deserialize_field::<Duration>("duration_kind")? {
             DURATION_INFINITE => DurationKind::Infinite,
@@ -65,7 +65,7 @@ pub struct Duration {
 }
 
 impl<'de> XTypesDeserialize<'de> for Duration {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             sec: f.deserialize_field("sec")?,

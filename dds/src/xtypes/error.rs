@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq)]
-pub enum XcdrError {
+pub enum XTypesError {
     OutOfMemory,
     InvalidData,
     PidNotFound(u16),

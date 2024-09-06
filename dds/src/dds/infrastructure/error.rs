@@ -2,7 +2,7 @@ use std::any::Any;
 
 use crate::{
     implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError,
-    xtypes::error::XcdrError,
+    xtypes::error::XTypesError,
 };
 
 /// Result type returned by the different operations of the service
@@ -66,8 +66,8 @@ impl From<MpscSenderError> for DdsError {
     }
 }
 
-impl From<XcdrError> for DdsError {
-    fn from(value: XcdrError) -> Self {
+impl From<XTypesError> for DdsError {
+    fn from(value: XTypesError) -> Self {
         DdsError::Error(format!("XcdrError: {:?}", value))
     }
 }

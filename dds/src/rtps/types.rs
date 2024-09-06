@@ -80,7 +80,7 @@ pub struct Guid {
 impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for Guid {
     fn deserialize(
         deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, crate::xtypes::error::XcdrError> {
+    ) -> Result<Self, crate::xtypes::error::XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             prefix: f.deserialize_field("prefix")?,
@@ -168,7 +168,7 @@ pub struct EntityId {
 impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for EntityId {
     fn deserialize(
         deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, crate::xtypes::error::XcdrError> {
+    ) -> Result<Self, crate::xtypes::error::XTypesError> {
         let mut d = deserializer.deserialize_final_struct()?;
         Ok(Self {
             entity_key: d.deserialize_field("entity_key")?,
@@ -287,7 +287,7 @@ pub struct Locator {
 impl<'de> crate::xtypes::deserialize::XTypesDeserialize<'de> for Locator {
     fn deserialize(
         deserializer: impl crate::xtypes::deserializer::XTypesDeserializer<'de>,
-    ) -> Result<Self, crate::xtypes::error::XcdrError> {
+    ) -> Result<Self, crate::xtypes::error::XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             kind: f.deserialize_field("kind")?,

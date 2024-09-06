@@ -111,7 +111,7 @@ pub trait DdsTypeXml {
 
 use crate::xtypes::{
     deserialize::XTypesDeserialize,
-    error::XcdrError,
+    error::XTypesError,
     serialize::XTypesSerialize,
     xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
     xcdr_serializer::{NewXcdr1BeSerializer, NewXcdr1LeSerializer},
@@ -239,7 +239,7 @@ where
     let value = match representation_identifier {
         CDR_BE => XTypesDeserialize::deserialize(&mut Xcdr1BeDeserializer::new(serialized_data)),
         CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
-        _ => Err(XcdrError::InvalidData),
+        _ => Err(XTypesError::InvalidData),
     }?;
     Ok(value)
 }

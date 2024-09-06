@@ -3,7 +3,7 @@ use super::{
     deserializer::{
         DeserializeAppendableStruct, DeserializeArray, DeserializeFinalStruct, DeserializeMutableStruct, DeserializeSequence, XTypesDeserializer
     },
-    error::XcdrError,
+    error::XTypesError,
 };
 use core::str;
 
@@ -69,18 +69,18 @@ impl<'a> Reader<'a> {
     fn buffer(&self) -> &'a [u8] {
         &self.buffer[self.pos..]
     }
-    fn read<const N: usize>(&mut self) -> Result<&'a [u8; N], XcdrError> {
+    fn read<const N: usize>(&mut self) -> Result<&'a [u8; N], XTypesError> {
         if self.pos + N > self.buffer.len() {
-            return Err(XcdrError::InvalidData);
+            return Err(XTypesError::InvalidData);
         }
         let ret = core::convert::TryFrom::try_from(&self.buffer[self.pos..self.pos + N])
             .expect("length guaranteed");
         self.pos += N;
         Ok(ret)
     }
-    fn read_all(&mut self, length: usize) -> Result<&'a [u8], XcdrError> {
+    fn read_all(&mut self, length: usize) -> Result<&'a [u8], XTypesError> {
         if self.pos + length > self.buffer.len() {
-            return Err(XcdrError::InvalidData);
+            return Err(XTypesError::InvalidData);
         }
         let ret = &self.buffer[self.pos..self.pos + length];
         self.pos += length;
@@ -97,24 +97,24 @@ impl<'a> Reader<'a> {
     }
 }
 
-fn read_with_padding_v1<const N: usize>(reader: &mut Reader) -> Result<[u8; N], XcdrError> {
+fn read_with_padding_v1<const N: usize>(reader: &mut Reader) -> Result<[u8; N], XTypesError> {
     reader.seek_padding(N);
     reader.read().cloned()
 }
 
-fn read_with_padding_v2<const N: usize>(reader: &mut Reader) -> Result<[u8; N], XcdrError> {
+fn read_with_padding_v2<const N: usize>(reader: &mut Reader) -> Result<[u8; N], XTypesError> {
     reader.seek_padding(core::cmp::min(N, 4));
     reader.read().cloned()
 }
 
-fn seek_to_pid_be(reader: &mut Reader, pid: u16) -> Result<(), XcdrError> {
+fn seek_to_pid_be(reader: &mut Reader, pid: u16) -> Result<(), XTypesError> {
     loop {
         let current_pid = u16::from_be_bytes(*reader.read()?);
         let length = u16::from_be_bytes(*reader.read()?) as usize;
         if current_pid == pid {
             return Ok(());
         } else if current_pid == PID_SENTINEL {
-            return Err(XcdrError::PidNotFound(pid));
+            return Err(XTypesError::PidNotFound(pid));
         } else {
             reader.seek(length);
             reader.seek_padding(4);
@@ -122,14 +122,14 @@ fn seek_to_pid_be(reader: &mut Reader, pid: u16) -> Result<(), XcdrError> {
     }
 }
 
-fn seek_to_pid_le(reader: &mut Reader, pid: u16) -> Result<(), XcdrError> {
+fn seek_to_pid_le(reader: &mut Reader, pid: u16) -> Result<(), XTypesError> {
     loop {
         let current_pid = u16::from_le_bytes(*reader.read()?);
         let length = u16::from_le_bytes(*reader.read()?) as usize;
         if current_pid == pid {
             return Ok(());
         } else if current_pid == PID_SENTINEL {
-            return Err(XcdrError::PidNotFound(pid));
+            return Err(XTypesError::PidNotFound(pid));
         } else {
             reader.seek(length);
             reader.seek_padding(4);
@@ -137,7 +137,7 @@ fn seek_to_pid_le(reader: &mut Reader, pid: u16) -> Result<(), XcdrError> {
     }
 }
 
-fn seek_to_optional_pid_be(reader: &mut Reader, pid: u16) -> Result<bool, XcdrError> {
+fn seek_to_optional_pid_be(reader: &mut Reader, pid: u16) -> Result<bool, XTypesError> {
     loop {
         let current_pid = u16::from_be_bytes(*reader.read()?);
         let length = u16::from_be_bytes(*reader.read()?) as usize;
@@ -152,7 +152,7 @@ fn seek_to_optional_pid_be(reader: &mut Reader, pid: u16) -> Result<bool, XcdrEr
     }
 }
 
-fn seek_to_optional_pid_le(reader: &mut Reader, pid: u16) -> Result<bool, XcdrError> {
+fn seek_to_optional_pid_le(reader: &mut Reader, pid: u16) -> Result<bool, XTypesError> {
     loop {
         let current_pid = u16::from_le_bytes(*reader.read()?);
         let length = u16::from_le_bytes(*reader.read()?) as usize;
@@ -167,11 +167,11 @@ fn seek_to_optional_pid_le(reader: &mut Reader, pid: u16) -> Result<bool, XcdrEr
     }
 }
 
-fn into_bool(v: u8) -> Result<bool, XcdrError> {
+fn into_bool(v: u8) -> Result<bool, XTypesError> {
     match v {
         0 => Ok(false),
         1 => Ok(true),
-        _ => Err(XcdrError::InvalidData),
+        _ => Err(XTypesError::InvalidData),
     }
 }
 
@@ -185,7 +185,7 @@ where
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         u32::deserialize(&mut *self.deserializer)?;
         T::deserialize(&mut *self.deserializer)
     }
@@ -200,7 +200,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrBeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         seek_to_pid_be(&mut reader, pid)?;
         T::deserialize(&mut Xcdr1BeDeserializer { reader })
@@ -210,7 +210,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrBeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_be(&mut reader, pid)? {
             Some(T::deserialize(&mut Xcdr1BeDeserializer { reader })?)
@@ -229,7 +229,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         seek_to_pid_le(&mut reader, pid)?;
         T::deserialize(&mut Xcdr1LeDeserializer { reader })
@@ -239,7 +239,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
             Some(T::deserialize(&mut Xcdr1LeDeserializer { reader })?)
@@ -258,7 +258,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdr2BeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         seek_to_pid_be(&mut reader, pid)?;
         T::deserialize(&mut Xcdr2BeDeserializer { reader })
@@ -268,7 +268,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdr2BeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_be(&mut reader, pid)? {
             Some(T::deserialize(&mut Xcdr2BeDeserializer { reader })?)
@@ -287,7 +287,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdr2LeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         seek_to_pid_le(&mut reader, pid)?;
         T::deserialize(&mut Xcdr2LeDeserializer { reader })
@@ -297,7 +297,7 @@ impl<'de> DeserializeMutableStruct<'de> for PlCdr2LeDecoder<'de> {
         &mut self,
         pid: u16,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
         Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
             Some(T::deserialize(&mut Xcdr2LeDeserializer { reader })?)
@@ -314,7 +314,7 @@ impl<'de, D> DeserializeArray<'de> for ArrayDecoder<'_, D>
 where
     for<'a> &'a mut D: XTypesDeserializer<'de>,
 {
-    fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XcdrError> {
+    fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 }
@@ -335,7 +335,7 @@ where
         self.len > 0
     }
     
-    fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XcdrError> {
+    fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 }
@@ -347,7 +347,7 @@ impl<'de> DeserializeAppendableStruct<'de> for PlainCdrBeDecoder<'_, 'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 }
@@ -356,14 +356,14 @@ impl<'de> DeserializeFinalStruct<'de> for PlainCdrBeDecoder<'_, 'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         self.deserializer.reader.seek_padding(4);
         let _pid = u16::deserialize(&mut *self.deserializer)?;
         let length = u16::deserialize(&mut *self.deserializer)?;
@@ -382,7 +382,7 @@ impl<'de> DeserializeAppendableStruct<'de> for PlainCdrLeDecoder<'_, 'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 }
@@ -391,14 +391,14 @@ impl<'de> DeserializeFinalStruct<'de> for PlainCdrLeDecoder<'_, 'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         self.deserializer.reader.seek_padding(4);
         let _pid = u16::deserialize(&mut *self.deserializer)?;
         let length = u16::deserialize(&mut *self.deserializer)?;
@@ -420,14 +420,14 @@ where
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<T, XcdrError> {
+    ) -> Result<T, XTypesError> {
         T::deserialize(&mut *self.deserializer)
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
         _name: &str,
-    ) -> Result<Option<T>, XcdrError> {
+    ) -> Result<Option<T>, XTypesError> {
         if bool::deserialize(&mut *self.deserializer)? {
             Ok(Some(T::deserialize(&mut *self.deserializer)?))
         } else {
@@ -437,308 +437,308 @@ where
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr1BeDeserializer<'de> {
-    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XcdrError> {
+    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XTypesError> {
         Ok(PlainCdrBeDecoder { deserializer: self })
     }
     fn deserialize_appendable_struct(
         self,
-    ) -> Result<impl DeserializeAppendableStruct<'de>, XcdrError> {
+    ) -> Result<impl DeserializeAppendableStruct<'de>, XTypesError> {
         Ok(PlainCdrBeDecoder { deserializer: self })
     }
-    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
+    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XTypesError> {
         Ok(PlCdrBeDecoder {
             buffer: self.reader.buffer(),
         })
     }
-    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XcdrError> {
+    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XTypesError> {
         Ok(ArrayDecoder { deserializer: self })
     }
-    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XcdrError> {
+    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
         Ok(SequenceDecoder { deserializer: self, len })
     }
 
-    fn deserialize_boolean(self) -> Result<bool, XcdrError> {
+    fn deserialize_boolean(self) -> Result<bool, XTypesError> {
         into_bool(self.deserialize_uint8()?)
     }
-    fn deserialize_int8(self) -> Result<i8, XcdrError> {
+    fn deserialize_int8(self) -> Result<i8, XTypesError> {
         Ok(i8::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int16(self) -> Result<i16, XcdrError> {
+    fn deserialize_int16(self) -> Result<i16, XTypesError> {
         Ok(i16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int32(self) -> Result<i32, XcdrError> {
+    fn deserialize_int32(self) -> Result<i32, XTypesError> {
         Ok(i32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int64(self) -> Result<i64, XcdrError> {
+    fn deserialize_int64(self) -> Result<i64, XTypesError> {
         Ok(i64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint8(self) -> Result<u8, XcdrError> {
+    fn deserialize_uint8(self) -> Result<u8, XTypesError> {
         Ok(u8::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint16(self) -> Result<u16, XcdrError> {
+    fn deserialize_uint16(self) -> Result<u16, XTypesError> {
         Ok(u16::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint32(self) -> Result<u32, XcdrError> {
+    fn deserialize_uint32(self) -> Result<u32, XTypesError> {
         Ok(u32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint64(self) -> Result<u64, XcdrError> {
+    fn deserialize_uint64(self) -> Result<u64, XTypesError> {
         Ok(u64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_float32(self) -> Result<f32, XcdrError> {
+    fn deserialize_float32(self) -> Result<f32, XTypesError> {
         Ok(f32::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_float64(self) -> Result<f64, XcdrError> {
+    fn deserialize_float64(self) -> Result<f64, XTypesError> {
         Ok(f64::from_be_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_char8(self) -> Result<char, XcdrError> {
+    fn deserialize_char8(self) -> Result<char, XTypesError> {
         Ok(self.deserialize_uint8()? as char)
     }
-    fn deserialize_string(self) -> Result<&'de str, XcdrError> {
+    fn deserialize_string(self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
             self.deserialize_byte_sequence()?
                 .split_last()
-                .ok_or(XcdrError::InvalidData)?
+                .ok_or(XTypesError::InvalidData)?
                 .1,
         )
-        .map_err(|_| XcdrError::InvalidData)
+        .map_err(|_| XTypesError::InvalidData)
     }
-    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
+    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XTypesError> {
         let length = self.deserialize_uint32()? as usize;
         self.reader.read_all(length)
     }
     
-    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
+    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr1LeDeserializer<'de> {
-    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XcdrError> {
+    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XTypesError> {
         Ok(PlainCdrLeDecoder { deserializer: self })
     }
     fn deserialize_appendable_struct(
         self,
-    ) -> Result<impl DeserializeAppendableStruct<'de>, XcdrError> {
+    ) -> Result<impl DeserializeAppendableStruct<'de>, XTypesError> {
         Ok(PlainCdrLeDecoder { deserializer: self })
     }
-    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
+    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XTypesError> {
         Ok(PlCdrLeDecoder {
             buffer: self.reader.buffer(),
         })
     }
-    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XcdrError> {
+    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XTypesError> {
         Ok(ArrayDecoder { deserializer: self })
     }
-    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XcdrError> {
+    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
         Ok(SequenceDecoder { deserializer: self, len })
     }
 
-    fn deserialize_boolean(self) -> Result<bool, XcdrError> {
+    fn deserialize_boolean(self) -> Result<bool, XTypesError> {
         into_bool(self.deserialize_uint8()?)
     }
-    fn deserialize_uint8(self) -> Result<u8, XcdrError> {
+    fn deserialize_uint8(self) -> Result<u8, XTypesError> {
         Ok(u8::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint16(self) -> Result<u16, XcdrError> {
+    fn deserialize_uint16(self) -> Result<u16, XTypesError> {
         Ok(u16::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint32(self) -> Result<u32, XcdrError> {
+    fn deserialize_uint32(self) -> Result<u32, XTypesError> {
         Ok(u32::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_uint64(self) -> Result<u64, XcdrError> {
+    fn deserialize_uint64(self) -> Result<u64, XTypesError> {
         Ok(u64::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int8(self) -> Result<i8, XcdrError> {
+    fn deserialize_int8(self) -> Result<i8, XTypesError> {
         Ok(i8::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int16(self) -> Result<i16, XcdrError> {
+    fn deserialize_int16(self) -> Result<i16, XTypesError> {
         Ok(i16::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int32(self) -> Result<i32, XcdrError> {
+    fn deserialize_int32(self) -> Result<i32, XTypesError> {
         Ok(i32::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_int64(self) -> Result<i64, XcdrError> {
+    fn deserialize_int64(self) -> Result<i64, XTypesError> {
         Ok(i64::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_float32(self) -> Result<f32, XcdrError> {
+    fn deserialize_float32(self) -> Result<f32, XTypesError> {
         Ok(f32::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_float64(self) -> Result<f64, XcdrError> {
+    fn deserialize_float64(self) -> Result<f64, XTypesError> {
         Ok(f64::from_le_bytes(read_with_padding_v1(&mut self.reader)?))
     }
-    fn deserialize_char8(self) -> Result<char, XcdrError> {
+    fn deserialize_char8(self) -> Result<char, XTypesError> {
         Ok(self.deserialize_uint8()? as char)
     }
-    fn deserialize_string(self) -> Result<&'de str, XcdrError> {
+    fn deserialize_string(self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
             self.deserialize_byte_sequence()?
                 .split_last()
-                .ok_or(XcdrError::InvalidData)?
+                .ok_or(XTypesError::InvalidData)?
                 .1,
         )
-        .map_err(|_| XcdrError::InvalidData)
+        .map_err(|_| XTypesError::InvalidData)
     }
-    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
+    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XTypesError> {
         let length = self.deserialize_uint32()? as usize;
         self.reader.read_all(length)
     }
-    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
+    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr2BeDeserializer<'de> {
-    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XcdrError> {
+    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XTypesError> {
         Ok(PlainCdr2Decoder { deserializer: self })
     }
     fn deserialize_appendable_struct(
         self,
-    ) -> Result<impl DeserializeAppendableStruct<'de>, XcdrError> {
+    ) -> Result<impl DeserializeAppendableStruct<'de>, XTypesError> {
         Ok(DelimitedCdrDecoder { deserializer: self })
     }
-    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
+    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XTypesError> {
         Ok(PlCdr2BeDecoder {
             buffer: self.reader.buffer(),
         })
     }
-    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XcdrError> {
+    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XTypesError> {
         Ok(ArrayDecoder { deserializer: self })
     }
-    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XcdrError> {
+    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
         Ok(SequenceDecoder { deserializer: self, len })
     }
 
-    fn deserialize_boolean(self) -> Result<bool, XcdrError> {
+    fn deserialize_boolean(self) -> Result<bool, XTypesError> {
         into_bool(self.deserialize_uint8()?)
     }
-    fn deserialize_int8(self) -> Result<i8, XcdrError> {
+    fn deserialize_int8(self) -> Result<i8, XTypesError> {
         Ok(i8::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int16(self) -> Result<i16, XcdrError> {
+    fn deserialize_int16(self) -> Result<i16, XTypesError> {
         Ok(i16::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int32(self) -> Result<i32, XcdrError> {
+    fn deserialize_int32(self) -> Result<i32, XTypesError> {
         Ok(i32::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int64(self) -> Result<i64, XcdrError> {
+    fn deserialize_int64(self) -> Result<i64, XTypesError> {
         Ok(i64::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint8(self) -> Result<u8, XcdrError> {
+    fn deserialize_uint8(self) -> Result<u8, XTypesError> {
         Ok(u8::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint16(self) -> Result<u16, XcdrError> {
+    fn deserialize_uint16(self) -> Result<u16, XTypesError> {
         Ok(u16::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint32(self) -> Result<u32, XcdrError> {
+    fn deserialize_uint32(self) -> Result<u32, XTypesError> {
         Ok(u32::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint64(self) -> Result<u64, XcdrError> {
+    fn deserialize_uint64(self) -> Result<u64, XTypesError> {
         Ok(u64::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_float32(self) -> Result<f32, XcdrError> {
+    fn deserialize_float32(self) -> Result<f32, XTypesError> {
         Ok(f32::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_float64(self) -> Result<f64, XcdrError> {
+    fn deserialize_float64(self) -> Result<f64, XTypesError> {
         Ok(f64::from_be_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_char8(self) -> Result<char, XcdrError> {
+    fn deserialize_char8(self) -> Result<char, XTypesError> {
         Ok(self.deserialize_uint8()? as char)
     }
-    fn deserialize_string(self) -> Result<&'de str, XcdrError> {
+    fn deserialize_string(self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
             self.deserialize_byte_sequence()?
                 .split_last()
-                .ok_or(XcdrError::InvalidData)?
+                .ok_or(XTypesError::InvalidData)?
                 .1,
         )
-        .map_err(|_| XcdrError::InvalidData)
+        .map_err(|_| XTypesError::InvalidData)
     }
-    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
+    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XTypesError> {
         let length = self.deserialize_uint32()? as usize;
         self.reader.read_all(length)
     }
-    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
+    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
 }
 
 impl<'de> XTypesDeserializer<'de> for &mut Xcdr2LeDeserializer<'de> {
-    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XcdrError> {
+    fn deserialize_final_struct(self) -> Result<impl DeserializeFinalStruct<'de>, XTypesError> {
         Ok(PlainCdr2Decoder { deserializer: self })
     }
     fn deserialize_appendable_struct(
         self,
-    ) -> Result<impl DeserializeAppendableStruct<'de>, XcdrError> {
+    ) -> Result<impl DeserializeAppendableStruct<'de>, XTypesError> {
         Ok(DelimitedCdrDecoder {
             deserializer: &mut *self,
         })
     }
-    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XcdrError> {
+    fn deserialize_mutable_struct(self) -> Result<impl DeserializeMutableStruct<'de>, XTypesError> {
         Ok(PlCdr2LeDecoder {
             buffer: self.reader.buffer(),
         })
     }
-    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XcdrError> {
+    fn deserialize_array(self) -> Result<impl DeserializeArray<'de>, XTypesError> {
         Ok(ArrayDecoder { deserializer: self })
     }
-    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XcdrError> {
+    fn deserialize_sequence(self) -> Result<impl DeserializeSequence<'de>, XTypesError> {
         let len = self.deserialize_uint32()? as usize;
         Ok(SequenceDecoder { deserializer: self, len })
     }
 
-    fn deserialize_boolean(self) -> Result<bool, XcdrError> {
+    fn deserialize_boolean(self) -> Result<bool, XTypesError> {
         into_bool(self.deserialize_uint8()?)
     }
-    fn deserialize_uint8(self) -> Result<u8, XcdrError> {
+    fn deserialize_uint8(self) -> Result<u8, XTypesError> {
         Ok(u8::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint16(self) -> Result<u16, XcdrError> {
+    fn deserialize_uint16(self) -> Result<u16, XTypesError> {
         Ok(u16::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint32(self) -> Result<u32, XcdrError> {
+    fn deserialize_uint32(self) -> Result<u32, XTypesError> {
         Ok(u32::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_uint64(self) -> Result<u64, XcdrError> {
+    fn deserialize_uint64(self) -> Result<u64, XTypesError> {
         Ok(u64::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int8(self) -> Result<i8, XcdrError> {
+    fn deserialize_int8(self) -> Result<i8, XTypesError> {
         Ok(i8::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int16(self) -> Result<i16, XcdrError> {
+    fn deserialize_int16(self) -> Result<i16, XTypesError> {
         Ok(i16::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int32(self) -> Result<i32, XcdrError> {
+    fn deserialize_int32(self) -> Result<i32, XTypesError> {
         Ok(i32::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_int64(self) -> Result<i64, XcdrError> {
+    fn deserialize_int64(self) -> Result<i64, XTypesError> {
         Ok(i64::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_float32(self) -> Result<f32, XcdrError> {
+    fn deserialize_float32(self) -> Result<f32, XTypesError> {
         Ok(f32::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_float64(self) -> Result<f64, XcdrError> {
+    fn deserialize_float64(self) -> Result<f64, XTypesError> {
         Ok(f64::from_le_bytes(read_with_padding_v2(&mut self.reader)?))
     }
-    fn deserialize_char8(self) -> Result<char, XcdrError> {
+    fn deserialize_char8(self) -> Result<char, XTypesError> {
         Ok(self.deserialize_uint8()? as char)
     }
-    fn deserialize_string(self) -> Result<&'de str, XcdrError> {
+    fn deserialize_string(self) -> Result<&'de str, XTypesError> {
         str::from_utf8(
             self.deserialize_byte_sequence()?
                 .split_last()
-                .ok_or(XcdrError::InvalidData)?
+                .ok_or(XTypesError::InvalidData)?
                 .1,
         )
-        .map_err(|_| XcdrError::InvalidData)
+        .map_err(|_| XTypesError::InvalidData)
     }
-    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XcdrError> {
+    fn deserialize_byte_sequence(self) -> Result<&'de [u8], XTypesError> {
         let length = self.deserialize_uint32()? as usize;
         self.reader.read_all(length)
     }
-    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XcdrError> {
+    fn deserialize_byte_array<const N: usize>(self) -> Result<&'de [u8; N], XTypesError> {
         self.reader.read()
     }
 }
@@ -793,22 +793,22 @@ mod tests {
         assert_eq!(reader.pos, 16);
     }
 
-    fn deserialize_v1_be<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XcdrError> {
+    fn deserialize_v1_be<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr1BeDeserializer {
             reader: Reader::new(data),
         })
     }
-    fn deserialize_v1_le<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XcdrError> {
+    fn deserialize_v1_le<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr1LeDeserializer {
             reader: Reader::new(data),
         })
     }
-    fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XcdrError> {
+    fn deserialize_v2_be<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr2BeDeserializer {
             reader: Reader::new(data),
         })
     }
-    fn deserialize_v2_le<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XcdrError> {
+    fn deserialize_v2_le<'de, T: XTypesDeserialize<'de>>(data: &'de [u8]) -> Result<T, XTypesError> {
         T::deserialize(&mut Xcdr2LeDeserializer {
             reader: Reader::new(data),
         })
@@ -825,7 +825,7 @@ mod tests {
         assert_eq!(deserialize_v1_le(&[0]), expected);
         assert_eq!(deserialize_v2_be(&[0]), expected);
         assert_eq!(deserialize_v2_le(&[0]), expected);
-        let expected = Err(XcdrError::InvalidData);
+        let expected = Err(XTypesError::InvalidData);
         assert_eq!(deserialize_v1_be::<bool>(&[2]), expected);
         assert_eq!(deserialize_v1_le::<bool>(&[2]), expected);
         assert_eq!(deserialize_v2_be::<bool>(&[2]), expected);
@@ -1004,7 +1004,7 @@ mod tests {
         #[derive(Debug, PartialEq)]
         struct Atype(u8);
         impl<'de> XTypesDeserialize<'de> for Atype {
-            fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+            fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
                 Ok(Atype(deserializer.deserialize_uint8()?))
             }
         }
@@ -1020,7 +1020,7 @@ mod tests {
         field_u64: u64,
     }
     impl<'de> XTypesDeserialize<'de> for FinalType {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut deserializer = deserializer.deserialize_final_struct()?;
             Ok(FinalType {
                 field_u16: deserializer.deserialize_field("field_u16")?,
@@ -1075,7 +1075,7 @@ mod tests {
         field_slice: &'a [u8],
     }
     impl<'de> XTypesDeserialize<'de> for TypeWithStr<'de> {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut deserializer = deserializer.deserialize_final_struct()?;
             Ok(Self {
                 field_str: deserializer.deserialize_field("field_str")?,
@@ -1143,7 +1143,7 @@ mod tests {
         field_u8: u8,
     }
     impl<'de> XTypesDeserialize<'de> for NestedFinalType {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut deserializer = deserializer.deserialize_final_struct()?;
             Ok(Self {
                 field_nested: deserializer.deserialize_field("field_nested")?,
@@ -1160,7 +1160,7 @@ mod tests {
     }
 
     impl<'de> XTypesDeserialize<'de> for FinalOptionalType {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut d = deserializer.deserialize_final_struct()?;
             Ok(Self {
                 field: d.deserialize_field("field")?,
@@ -1292,7 +1292,7 @@ mod tests {
         value: u16,
     }
     impl<'de> XTypesDeserialize<'de> for AppendableType {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut deserializer = deserializer.deserialize_appendable_struct()?;
             Ok(Self {
                 value: deserializer.deserialize_field("value")?,
@@ -1333,7 +1333,7 @@ mod tests {
     }
 
     impl<'de> XTypesDeserialize<'de> for MutableType {
-        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
             let mut des = deserializer.deserialize_mutable_struct()?;
             Ok(Self {
                 key: des.deserialize_field(0x005A, "key")?,

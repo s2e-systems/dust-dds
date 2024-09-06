@@ -4,7 +4,7 @@ use crate::{
     xtypes::{
         deserialize::XTypesDeserialize,
         deserializer::{DeserializeFinalStruct, XTypesDeserializer},
-        error::XcdrError,
+        error::XTypesError,
         serialize::{XTypesSerialize, XTypesSerializer},
         serializer::SerializeFinalStruct,
     },
@@ -25,7 +25,7 @@ pub enum Length {
 
 const LENGTH_UNLIMITED: i32 = -1;
 impl XTypesSerialize for Length {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         match self {
             Length::Unlimited => XTypesSerialize::serialize(&LENGTH_UNLIMITED, serializer)?,
             Length::Limited(length) => XTypesSerialize::serialize(length, serializer)?,
@@ -34,11 +34,11 @@ impl XTypesSerialize for Length {
     }
 }
 impl<'de> XTypesDeserialize<'de> for Length {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         match XTypesDeserialize::deserialize(deserializer)? {
             LENGTH_UNLIMITED => Ok(Length::Unlimited),
             value @ 0..=i32::MAX => Ok(Length::Limited(value as u32)),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -196,12 +196,12 @@ pub struct UserDataQosPolicy {
     pub value: Vec<u8>,
 }
 impl XTypesSerialize for UserDataQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(&self.value.as_slice(), serializer)
     }
 }
 impl<'de> XTypesDeserialize<'de> for UserDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self {
             value: deserializer.deserialize_byte_sequence()?.to_owned(),
         })
@@ -221,12 +221,12 @@ pub struct TopicDataQosPolicy {
     pub value: Vec<u8>,
 }
 impl XTypesSerialize for TopicDataQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(&self.value.as_slice(), serializer)
     }
 }
 impl<'de> XTypesDeserialize<'de> for TopicDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self {
             value: deserializer.deserialize_byte_sequence()?.to_owned(),
         })
@@ -250,12 +250,12 @@ pub struct GroupDataQosPolicy {
     pub value: Vec<u8>,
 }
 impl XTypesSerialize for GroupDataQosPolicy {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(&self.value.as_slice(), serializer)
     }
 }
 impl<'de> XTypesDeserialize<'de> for GroupDataQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self {
             value: deserializer.deserialize_byte_sequence()?.to_owned(),
         })
@@ -334,13 +334,13 @@ pub enum DurabilityQosPolicyKind {
     Persistent,
 }
 impl<'de> XTypesDeserialize<'de> for DurabilityQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         match deserializer.deserialize_uint8()? {
             0 => Ok(Self::Volatile),
             1 => Ok(Self::TransientLocal),
             2 => Ok(Self::Transient),
             3 => Ok(Self::Persistent),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -418,11 +418,11 @@ pub enum PresentationQosPolicyAccessScopeKind {
     Topic,
 }
 impl<'de> XTypesDeserialize<'de> for PresentationQosPolicyAccessScopeKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         match deserializer.deserialize_uint8()? {
             0 => Ok(Self::Instance),
             1 => Ok(Self::Topic),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -488,7 +488,7 @@ pub struct PresentationQosPolicy {
     pub ordered_access: bool,
 }
 impl<'de> XTypesDeserialize<'de> for PresentationQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             access_scope: f.deserialize_field("access_scope")?,
@@ -533,7 +533,7 @@ pub struct DeadlineQosPolicy {
     pub period: DurationKind,
 }
 impl<'de> XTypesDeserialize<'de> for DeadlineQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self {
             period: XTypesDeserialize::deserialize(deserializer)?,
         })
@@ -566,7 +566,7 @@ pub struct LatencyBudgetQosPolicy {
     pub duration: DurationKind,
 }
 impl<'de> XTypesDeserialize<'de> for LatencyBudgetQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self {
             duration: XTypesDeserialize::deserialize(deserializer)?,
         })
@@ -596,11 +596,11 @@ pub enum OwnershipQosPolicyKind {
 }
 
 impl<'de> XTypesDeserialize<'de> for OwnershipQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         match deserializer.deserialize_uint8()? {
             0 => Ok(Self::Shared),
             1 => Ok(Self::Exclusive),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -620,7 +620,7 @@ pub struct OwnershipQosPolicy {
     pub kind: OwnershipQosPolicyKind,
 }
 impl<'de> XTypesDeserialize<'de> for OwnershipQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         Ok(Self {
             kind: XTypesDeserialize::deserialize(deserializer)?,
         })
@@ -692,12 +692,12 @@ pub enum LivelinessQosPolicyKind {
     ManualByTopic,
 }
 impl<'de> XTypesDeserialize<'de> for LivelinessQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         match deserializer.deserialize_uint8()? {
             0 => Ok(Self::Automatic),
             1 => Ok(Self::ManualByParticipant),
             2 => Ok(Self::ManualByTopic),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -757,7 +757,7 @@ pub struct LivelinessQosPolicy {
     pub lease_duration: DurationKind,
 }
 impl<'de> XTypesDeserialize<'de> for LivelinessQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             kind: f.deserialize_field("kind")?,
@@ -808,7 +808,7 @@ pub struct TimeBasedFilterQosPolicy {
     pub minimum_separation: DurationKind,
 }
 impl<'de> XTypesDeserialize<'de> for TimeBasedFilterQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             minimum_separation: f.deserialize_field("minimum_separation")?,
@@ -878,7 +878,7 @@ const BEST_EFFORT: i32 = 1;
 const RELIABLE: i32 = 2;
 
 impl XTypesSerialize for ReliabilityQosPolicyKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(
             &match self {
                 ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
@@ -890,12 +890,12 @@ impl XTypesSerialize for ReliabilityQosPolicyKind {
 }
 
 impl<'de> XTypesDeserialize<'de> for ReliabilityQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let value: i32 = XTypesDeserialize::deserialize(deserializer)?;
         match value {
             BEST_EFFORT => Ok(Self::BestEffort),
             RELIABLE => Ok(Self::Reliable),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -948,7 +948,7 @@ pub struct ReliabilityQosPolicy {
     pub max_blocking_time: DurationKind,
 }
 impl<'de> XTypesDeserialize<'de> for ReliabilityQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             kind: f.deserialize_field("kind")?,
@@ -991,11 +991,11 @@ pub enum DestinationOrderQosPolicyKind {
     BySourceTimestamp,
 }
 impl<'de> XTypesDeserialize<'de> for DestinationOrderQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         match deserializer.deserialize_uint8()? {
             0 => Ok(Self::ByReceptionTimestamp),
             1 => Ok(Self::BySourceTimestamp),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
@@ -1033,7 +1033,7 @@ pub struct DestinationOrderQosPolicy {
     pub kind: DestinationOrderQosPolicyKind,
 }
 impl<'de> XTypesDeserialize<'de> for DestinationOrderQosPolicy {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         Ok(Self {
             kind: f.deserialize_field("kind")?,
@@ -1063,7 +1063,7 @@ pub enum HistoryQosPolicyKind {
     KeepAll,
 }
 impl XTypesSerialize for HistoryQosPolicyKind {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XcdrError> {
+    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         let mut f = serializer.serialize_final_struct()?;
         match self {
             HistoryQosPolicyKind::KeepLast(depth) => {
@@ -1079,14 +1079,14 @@ impl XTypesSerialize for HistoryQosPolicyKind {
 }
 
 impl<'de> XTypesDeserialize<'de> for HistoryQosPolicyKind {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XcdrError> {
+    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
         let mut f = deserializer.deserialize_final_struct()?;
         let descriminant = f.deserialize_field::<u8>("discriminant")?;
         let length = f.deserialize_field("length")?;
         match descriminant {
             0 => Ok(Self::KeepLast(length)),
             1 => Ok(Self::KeepAll),
-            _ => Err(XcdrError::InvalidData),
+            _ => Err(XTypesError::InvalidData),
         }
     }
 }
