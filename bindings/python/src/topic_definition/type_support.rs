@@ -3,7 +3,7 @@ use dust_dds::{
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        xcdr_deserializer::Xcdr1LeDeserializer,
         xcdr_serializer::NewXcdr1LeSerializer,
     },
 };

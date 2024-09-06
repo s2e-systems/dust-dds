@@ -632,14 +632,6 @@ impl<'a> Writer<'a> {
     }
 }
 
-fn write_with_padding_v1<const N: usize>(
-    writer: &mut Writer,
-    data: &[u8; N],
-) -> Result<(), XTypesError> {
-    writer.pad(N)?;
-    writer.write_slice(data)
-}
-
 fn write_with_padding_v2<const N: usize>(
     writer: &mut Writer,
     data: &[u8; N],
@@ -730,22 +722,6 @@ impl<'a> SerializeMutableStruct for PlCdr2LeEncoder<'a, '_> {
     }
     fn end(self) -> Result<(), XTypesError> {
         SENTINEL.serialize(self.serializer)
-    }
-}
-
-struct PlainCdrEncoder<'a, S> {
-    serializer: &'a mut S,
-}
-impl<S> SerializeAppendableStruct for PlainCdrEncoder<'_, S>
-where
-    for<'a> &'a mut S: XTypesSerializer,
-{
-    fn serialize_field<T: XTypesSerialize>(
-        &mut self,
-        value: &T,
-        _name: &str,
-    ) -> Result<(), XTypesError> {
-        XTypesSerialize::serialize(value, &mut *self.serializer)
     }
 }
 
