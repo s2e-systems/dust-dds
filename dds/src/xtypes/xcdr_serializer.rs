@@ -12,6 +12,51 @@ const PID_SENTINEL: u16 = 1;
 pub struct VirtualCdr1Serializer {
     count: usize,
 }
+fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
+    (position + alignment - 1) / alignment * alignment
+}
+
+#[test]
+fn round_up_to_multiples_2() {
+    assert_eq!(round_up_to_multiples(0, 2), 0);
+    assert_eq!(round_up_to_multiples(1, 2), 2);
+    assert_eq!(round_up_to_multiples(2, 2), 2);
+    assert_eq!(round_up_to_multiples(3, 2), 4);
+    assert_eq!(round_up_to_multiples(4, 2), 4);
+}
+
+fn padding_length(position: usize, alignment: usize) -> usize {
+    round_up_to_multiples(position, alignment) - position
+}
+#[test]
+fn padding_length_2() {
+    assert_eq!(padding_length(0, 2), 0);
+    assert_eq!(padding_length(1, 2), 1);
+    assert_eq!(padding_length(2, 2), 0);
+    assert_eq!(padding_length(3, 2), 1);
+}
+#[test]
+fn padding_length_4() {
+    assert_eq!(padding_length(0, 4), 0);
+    assert_eq!(padding_length(1, 4), 3);
+    assert_eq!(padding_length(2, 4), 2);
+    assert_eq!(padding_length(3, 4), 1);
+    assert_eq!(padding_length(4, 4), 0);
+    assert_eq!(padding_length(5, 4), 3);
+}
+#[test]
+fn padding_length_8() {
+    assert_eq!(padding_length(0, 8), 0);
+    assert_eq!(padding_length(1, 8), 7);
+    assert_eq!(padding_length(2, 8), 6);
+    assert_eq!(padding_length(3, 8), 5);
+    assert_eq!(padding_length(4, 8), 4);
+    assert_eq!(padding_length(5, 8), 3);
+    assert_eq!(padding_length(6, 8), 2);
+    assert_eq!(padding_length(7, 8), 1);
+    assert_eq!(padding_length(8, 8), 0);
+    assert_eq!(padding_length(9, 8), 7);
+}
 
 impl VirtualCdr1Serializer {
     pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
@@ -20,7 +65,8 @@ impl VirtualCdr1Serializer {
         Ok(virtual_serializer.count)
     }
     fn add<T>(&mut self, v: T) -> Result<(), XTypesError> {
-        self.count += core::mem::size_of_val(&v);
+        let len = core::mem::size_of_val(&v);
+        self.count = round_up_to_multiples(self.count + len, len);
         Ok(())
     }
 }
@@ -39,7 +85,7 @@ impl SerializeFinalStruct for &mut VirtualCdr1Serializer {
         value: &Option<T>,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        self.count += 4; // header: pid + length
+        self.count += 4; // header: FLAGS/ID + length
         if let Some(value) = value {
             XTypesSerialize::serialize(value, &mut **self)
         } else {
@@ -64,8 +110,9 @@ impl SerializeMutableStruct for &mut VirtualCdr1Serializer {
         _name: &str,
     ) -> Result<(), XTypesError> {
         self.count += 4; // header: pid + length
-        XTypesSerialize::serialize(value, &mut **self)
-        // todo: padding?
+        XTypesSerialize::serialize(value, &mut **self)?;
+        self.count = round_up_to_multiples(self.count, 4);
+        Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
@@ -164,9 +211,6 @@ impl XTypesSerializer for &mut VirtualCdr1Serializer {
     }
 }
 
-
-
-
 pub struct VirtualCdr2Serializer {
     count: usize,
 }
@@ -222,8 +266,9 @@ impl SerializeMutableStruct for &mut VirtualCdr2Serializer {
         _name: &str,
     ) -> Result<(), XTypesError> {
         self.count += 4; // header: pid + length
-        XTypesSerialize::serialize(value, &mut **self)
-        // todo: padding?
+        XTypesSerialize::serialize(value, &mut **self)?;
+        self.count = round_up_to_multiples(self.count, 4);
+        Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
@@ -322,11 +367,6 @@ impl XTypesSerializer for &mut VirtualCdr2Serializer {
     }
 }
 
-
-
-
-
-
 struct CollectionWriter<'a, C> {
     collection: &'a mut C,
     position: usize,
@@ -380,6 +420,28 @@ where
     Ok(())
 }
 
+fn into_u8(v: char) -> Result<u8, XTypesError> {
+    if !v.is_ascii() {
+        Err(XTypesError::InvalidData)
+    } else {
+        Ok(v as u8)
+    }
+}
+fn into_u32(v: usize) -> Result<u32, XTypesError> {
+    if v > u32::MAX as usize {
+        Err(XTypesError::InvalidData)
+    } else {
+        Ok(v as u32)
+    }
+}
+fn str_len(v: &str) -> Result<u32, XTypesError> {
+    if !v.is_ascii() {
+        Err(XTypesError::InvalidData)
+    } else {
+        into_u32(v.len() + 1)
+    }
+}
+
 pub struct Xcdr1BeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
@@ -412,14 +474,13 @@ where
         value: &Option<T>,
         _name: &str,
     ) -> Result<(), XTypesError> {
+        self.writer.pad(4);
         if let Some(value) = value {
             let length = VirtualCdr1Serializer::bytes_len(value)? as u16;
-            self.writer.pad(4);
             self.writer.write_slice(&0_u16.to_be_bytes());
             self.writer.write_slice(&length.to_be_bytes());
             XTypesSerialize::serialize(value, &mut **self)
         } else {
-            self.writer.pad(4);
             self.writer.write_slice(&0_u16.to_be_bytes());
             self.writer.write_slice(&0_u16.to_be_bytes());
             Ok(())
@@ -768,28 +829,6 @@ where
     }
 }
 
-fn into_u8(v: char) -> Result<u8, XTypesError> {
-    if !v.is_ascii() {
-        Err(XTypesError::InvalidData)
-    } else {
-        Ok(v as u8)
-    }
-}
-fn into_u32(v: usize) -> Result<u32, XTypesError> {
-    if v > u32::MAX as usize {
-        Err(XTypesError::InvalidData)
-    } else {
-        Ok(v as u32)
-    }
-}
-fn str_len(v: &str) -> Result<u32, XTypesError> {
-    if !v.is_ascii() {
-        Err(XTypesError::InvalidData)
-    } else {
-        into_u32(v.len() + 1)
-    }
-}
-
 impl<'a, C> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C>
 where
     for<'b> C: Extend<&'b u8>,
@@ -813,7 +852,6 @@ where
         Ok(())
     }
 }
-
 
 impl<'a, C> SerializeMutableStruct for &mut Xcdr2LeSerializer<'a, C>
 where
@@ -880,7 +918,7 @@ where
     ) -> Result<(), XTypesError> {
         let length = VirtualCdr2Serializer::bytes_len(value)? as u32;
         // DHEADER
-        XTypesSerialize::serialize(&length, &mut**self)?;
+        XTypesSerialize::serialize(&length, &mut **self)?;
         XTypesSerialize::serialize(value, &mut **self)?;
         Ok(())
     }
@@ -897,12 +935,11 @@ where
     ) -> Result<(), XTypesError> {
         let length = VirtualCdr2Serializer::bytes_len(value)? as u32;
         // DHEADER
-        XTypesSerialize::serialize(&length, &mut**self)?;
+        XTypesSerialize::serialize(&length, &mut **self)?;
         XTypesSerialize::serialize(value, &mut **self)?;
         Ok(())
     }
 }
-
 
 struct CollectionSerializer<'a, S> {
     serializer: &'a mut S,
@@ -989,7 +1026,6 @@ where
         Ok(())
     }
 }
-
 
 impl<C> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C>
 where
@@ -1557,7 +1593,7 @@ mod tests {
         // @id(0x005A) @key
         key: u8,
         // @id(0x0050)
-        participant_key: u32,
+        participant_key: u16,
     }
     impl XTypesSerialize for MutableType {
         fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
@@ -1580,8 +1616,8 @@ mod tests {
             [
                 0x00, 0x05A, 0, 1, // PID | length
                 7, 0, 0, 0, // key | padding
-                0x00, 0x050, 0, 4, // PID | length
-                0, 0, 0, 8, // participant_key
+                0x00, 0x050, 0, 2, // PID | length
+                0, 8, 0, 0, // participant_key | padding (2 bytes)
                 0, 1, 0, 0, // Sentinel
             ]
         );
@@ -1590,8 +1626,8 @@ mod tests {
             [
                 0x05A, 0x00, 1, 0, // PID | length
                 7, 0, 0, 0, // key | padding
-                0x050, 0x00, 4, 0, // PID | length
-                8, 0, 0, 0, // participant_key
+                0x050, 0x00, 2, 0, // PID | length
+                8, 0, 0, 0, // participant_key | padding (2 bytes)
                 1, 0, 0, 0, // Sentinel
             ]
         );
@@ -1601,8 +1637,8 @@ mod tests {
             [
                 0x00, 0x05A, 0, 1, // PID | length
                 7, 0, 0, 0, // key | padding
-                0x00, 0x050, 0, 4, // PID | length
-                0, 0, 0, 8, // participant_key
+                0x00, 0x050, 0, 2, // PID | length
+                0, 8, 0, 0, // participant_key | padding (2 bytes)
                 0, 1, 0, 0, // Sentinel
             ]
         );
@@ -1611,8 +1647,117 @@ mod tests {
             [
                 0x05A, 0x00, 1, 0, // PID | length
                 7, 0, 0, 0, // key | padding
-                0x050, 0x00, 4, 0, // PID | length
-                8, 0, 0, 0, // participant_key
+                0x050, 0x00, 2, 0, // PID | length
+                8, 0, 0, 0, // participant_key | padding (2 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+     //@extensibility(FINAL)
+    struct TinyFinalType {
+        primitive: u16
+    }
+    impl XTypesSerialize for TinyFinalType {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+            let mut s = serializer.serialize_final_struct()?;
+            s.serialize_field(&self.primitive, "primitive")
+        }
+    }
+    //@extensibility(MUTABLE)
+    struct NestedMutableType {
+        // @id(0x0060) @key
+        field_primitive: u8,
+        // @id(0x0061)
+        field_mutable: MutableType,
+        // @id(0x0062)
+        field_final: TinyFinalType,
+    }
+    impl XTypesSerialize for NestedMutableType {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+            let mut s = serializer.serialize_mutable_struct()?;
+            s.serialize_field(&self.field_primitive, 0x0060, "field_primitive")?;
+            s.serialize_field(&self.field_mutable, 0x0061, "field_mutable")?;
+            s.serialize_field(&self.field_final, 0x0062, "field_final")?;
+            s.end()
+        }
+    }
+
+    #[test]
+    fn serialize_nested_mutable_struct() {
+        let v = NestedMutableType {
+            field_primitive: 5,
+            field_mutable: MutableType {
+                key: 7,
+                participant_key: 8,
+            },
+            field_final: TinyFinalType {
+                primitive: 9
+            },
+        };
+        // PL_CDR:
+        assert_eq!(
+            serialize_v1_be(&v),
+            [
+                0x00, 0x060, 0, 1, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x00, 0x061, 0, 20, // PID | length
+                0x00, 0x05A, 0, 1, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0x00, 0x050, 0, 2, // field_mutable: PID | length
+                0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0, 1, 0, 0, // field_mutable: Sentinel
+                0x00, 0x062, 0, 2, // field_mutable: PID | length
+                0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(&v),
+            [
+                0x060, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x061, 0x00, 20, 0, // PID | length
+                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                1, 0, 0, 0, // field_mutable: Sentinel
+                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        // PL_CDR2:
+        assert_eq!(
+            serialize_v2_be(&v),
+            [
+                0x00, 0x060, 0, 1, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x00, 0x061, 0, 20, // PID | length
+                0x00, 0x05A, 0, 1, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0x00, 0x050, 0, 2, // field_mutable: PID | length
+                0, 8, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                0, 1, 0, 0, // field_mutable: Sentinel
+                0x00, 0x062, 0, 2, // field_mutable: PID | length
+                0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(&v),
+            [
+                0x060, 0x00, 1, 0, // PID | length
+                5, 0, 0, 0, // field_primitive | padding (3 bytes)
+                0x061, 0x00, 20, 0, // PID | length
+                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                7, 0, 0, 0, // field_mutable: key | padding (3 bytes)
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: participant_key | padding (2 bytes)
+                1, 0, 0, 0, // field_mutable: Sentinel
+                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
                 1, 0, 0, 0, // Sentinel
             ]
         );
