@@ -1098,87 +1098,87 @@ mod tests {
         assert_eq!(round_up_to_multiples(8, 8), 8);
         assert_eq!(round_up_to_multiples(9, 8), 16);
     }
-
-    fn serialize_v1_be<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
+    
+    fn serialize_v1_be<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.serialize(&mut Xcdr1BeSerializer::new(&mut buffer))
             .unwrap();
-        buffer.try_into().unwrap()
+        buffer
     }
 
-    fn serialize_v1_le<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
+    fn serialize_v1_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
             .unwrap();
-        buffer.try_into().unwrap()
+        buffer
     }
 
-    fn serialize_v2_be<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
+    fn serialize_v2_be<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.serialize(&mut Xcdr2BeSerializer::new(&mut buffer))
             .unwrap();
-        buffer.try_into().unwrap()
+        buffer
     }
 
-    fn serialize_v2_le<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
+    fn serialize_v2_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
         let mut buffer = std::vec::Vec::new();
         v.serialize(&mut Xcdr2LeSerializer::new(&mut buffer))
             .unwrap();
-        buffer.try_into().unwrap()
+        buffer
     }
 
     #[test]
     fn serialize_octet() {
         let v = 0x20u8;
-        assert_eq!(serialize_v1_be(&v), [0x20]);
-        assert_eq!(serialize_v1_le(&v), [0x20]);
-        assert_eq!(serialize_v2_be(&v), [0x20]);
-        assert_eq!(serialize_v2_le(&v), [0x20]);
+        assert_eq!(serialize_v1_be(&v), vec![0x20]);
+        assert_eq!(serialize_v1_le(&v), vec![0x20]);
+        assert_eq!(serialize_v2_be(&v), vec![0x20]);
+        assert_eq!(serialize_v2_le(&v), vec![0x20]);
     }
 
     #[test]
     fn serialize_char() {
         let v = 'Z';
-        assert_eq!(serialize_v1_be(&v), [0x5a]);
-        assert_eq!(serialize_v1_le(&v), [0x5a]);
-        assert_eq!(serialize_v2_be(&v), [0x5a]);
-        assert_eq!(serialize_v2_le(&v), [0x5a]);
+        assert_eq!(serialize_v1_be(&v), vec![0x5a]);
+        assert_eq!(serialize_v1_le(&v), vec![0x5a]);
+        assert_eq!(serialize_v2_be(&v), vec![0x5a]);
+        assert_eq!(serialize_v2_le(&v), vec![0x5a]);
     }
 
     #[test]
     fn serialize_ushort() {
         let v = 65500u16;
-        assert_eq!(serialize_v1_be(&v), [0xff, 0xdc]);
-        assert_eq!(serialize_v1_le(&v), [0xdc, 0xff]);
-        assert_eq!(serialize_v2_be(&v), [0xff, 0xdc]);
-        assert_eq!(serialize_v2_le(&v), [0xdc, 0xff]);
+        assert_eq!(serialize_v1_be(&v), vec![0xff, 0xdc]);
+        assert_eq!(serialize_v1_le(&v), vec![0xdc, 0xff]);
+        assert_eq!(serialize_v2_be(&v), vec![0xff, 0xdc]);
+        assert_eq!(serialize_v2_le(&v), vec![0xdc, 0xff]);
     }
 
     #[test]
     fn serialize_short() {
         let v = -32700i16;
-        assert_eq!(serialize_v1_be(&v), [0x80, 0x44]);
-        assert_eq!(serialize_v1_le(&v), [0x44, 0x80]);
-        assert_eq!(serialize_v2_be(&v), [0x80, 0x44]);
-        assert_eq!(serialize_v2_le(&v), [0x44, 0x80]);
+        assert_eq!(serialize_v1_be(&v), vec![0x80, 0x44]);
+        assert_eq!(serialize_v1_le(&v), vec![0x44, 0x80]);
+        assert_eq!(serialize_v2_be(&v), vec![0x80, 0x44]);
+        assert_eq!(serialize_v2_le(&v), vec![0x44, 0x80]);
     }
 
     #[test]
     fn serialize_ulong() {
         let v = 4294967200u32;
-        assert_eq!(serialize_v1_be(&v), [0xff, 0xff, 0xff, 0xa0]);
-        assert_eq!(serialize_v1_le(&v), [0xa0, 0xff, 0xff, 0xff]);
-        assert_eq!(serialize_v2_be(&v), [0xff, 0xff, 0xff, 0xa0]);
-        assert_eq!(serialize_v2_le(&v), [0xa0, 0xff, 0xff, 0xff]);
+        assert_eq!(serialize_v1_be(&v), vec![0xff, 0xff, 0xff, 0xa0]);
+        assert_eq!(serialize_v1_le(&v), vec![0xa0, 0xff, 0xff, 0xff]);
+        assert_eq!(serialize_v2_be(&v), vec![0xff, 0xff, 0xff, 0xa0]);
+        assert_eq!(serialize_v2_le(&v), vec![0xa0, 0xff, 0xff, 0xff]);
     }
 
     #[test]
     fn serialize_long() {
         let v = -2147483600i32;
-        assert_eq!(serialize_v1_be(&v), [0x80, 0x00, 0x00, 0x30]);
-        assert_eq!(serialize_v1_le(&v), [0x30, 0x00, 0x00, 0x80]);
-        assert_eq!(serialize_v2_be(&v), [0x80, 0x00, 0x00, 0x30]);
-        assert_eq!(serialize_v2_le(&v), [0x30, 0x00, 0x00, 0x80]);
+        assert_eq!(serialize_v1_be(&v), vec![0x80, 0x00, 0x00, 0x30]);
+        assert_eq!(serialize_v1_le(&v), vec![0x30, 0x00, 0x00, 0x80]);
+        assert_eq!(serialize_v2_be(&v), vec![0x80, 0x00, 0x00, 0x30]);
+        assert_eq!(serialize_v2_le(&v), vec![0x30, 0x00, 0x00, 0x80]);
     }
 
     #[test]
@@ -1186,19 +1186,19 @@ mod tests {
         let v = 18446744073709551600u64;
         assert_eq!(
             serialize_v1_be(&v),
-            [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]
+            vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+            vec![0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
         );
         assert_eq!(
             serialize_v2_be(&v),
-            [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]
+            vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0]
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+            vec![0xf0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
         );
     }
 
@@ -1207,29 +1207,29 @@ mod tests {
         let v = -9223372036800i64;
         assert_eq!(
             serialize_v1_be(&v),
-            [0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]
+            vec![0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]
+            vec![0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]
         );
         assert_eq!(
             serialize_v2_be(&v),
-            [0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]
+            vec![0xff, 0xff, 0xf7, 0x9c, 0x84, 0x2f, 0xa5, 0x40]
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]
+            vec![0x40, 0xa5, 0x2f, 0x84, 0x9c, 0xf7, 0xff, 0xff]
         );
     }
 
     #[test]
     fn serialize_float() {
         let v = core::f32::MIN_POSITIVE;
-        assert_eq!(serialize_v1_be(&v), [0x00, 0x80, 0x00, 0x00]);
-        assert_eq!(serialize_v1_le(&v), [0x00, 0x00, 0x80, 0x00]);
-        assert_eq!(serialize_v2_be(&v), [0x00, 0x80, 0x00, 0x00]);
-        assert_eq!(serialize_v2_le(&v), [0x00, 0x00, 0x80, 0x00]);
+        assert_eq!(serialize_v1_be(&v), vec![0x00, 0x80, 0x00, 0x00]);
+        assert_eq!(serialize_v1_le(&v), vec![0x00, 0x00, 0x80, 0x00]);
+        assert_eq!(serialize_v2_be(&v), vec![0x00, 0x80, 0x00, 0x00]);
+        assert_eq!(serialize_v2_le(&v), vec![0x00, 0x00, 0x80, 0x00]);
     }
 
     #[test]
@@ -1237,29 +1237,29 @@ mod tests {
         let v = core::f64::MIN_POSITIVE;
         assert_eq!(
             serialize_v1_be(&v),
-            [0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            vec![0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]
+            vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]
         );
         assert_eq!(
             serialize_v2_be(&v),
-            [0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            vec![0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]
+            vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00]
         );
     }
 
     #[test]
     fn serialize_bool() {
         let v = true;
-        assert_eq!(serialize_v1_be(&v), [0x01]);
-        assert_eq!(serialize_v1_le(&v), [0x01]);
-        assert_eq!(serialize_v2_be(&v), [0x01]);
-        assert_eq!(serialize_v2_le(&v), [0x01]);
+        assert_eq!(serialize_v1_be(&v), vec![0x01]);
+        assert_eq!(serialize_v1_le(&v), vec![0x01]);
+        assert_eq!(serialize_v2_be(&v), vec![0x01]);
+        assert_eq!(serialize_v2_le(&v), vec![0x01]);
     }
 
     #[test]
@@ -1267,7 +1267,7 @@ mod tests {
         let v = "Hola";
         assert_eq!(
             serialize_v1_be(&v),
-            [
+            vec![
                 0, 0, 0, 5, //length
                 b'H', b'o', b'l', b'a', // str
                 0x00, // terminating 0
@@ -1275,7 +1275,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [
+            vec![
                 5, 0, 0, 0, //length
                 b'H', b'o', b'l', b'a', // str
                 0x00, // terminating 0
@@ -1283,7 +1283,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0, 0, 0, 5, //length
                 b'H', b'o', b'l', b'a', // str
                 0x00, // terminating 0
@@ -1291,7 +1291,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 5, 0, 0, 0, //length
                 b'H', b'o', b'l', b'a', // str
                 0x00, // terminating 0
@@ -1302,10 +1302,10 @@ mod tests {
     #[test]
     fn serialize_empty_string() {
         let v = "";
-        assert_eq!(serialize_v1_be(&v), [0x00, 0x00, 0x00, 0x01, 0x00]);
-        assert_eq!(serialize_v1_le(&v), [0x01, 0x00, 0x00, 0x00, 0x00]);
-        assert_eq!(serialize_v2_be(&v), [0x00, 0x00, 0x00, 0x01, 0x00]);
-        assert_eq!(serialize_v2_le(&v), [0x01, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(serialize_v1_be(&v), vec![0x00, 0x00, 0x00, 0x01, 0x00]);
+        assert_eq!(serialize_v1_le(&v), vec![0x01, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(serialize_v2_be(&v), vec![0x00, 0x00, 0x00, 0x01, 0x00]);
+        assert_eq!(serialize_v2_le(&v), vec![0x01, 0x00, 0x00, 0x00, 0x00]);
     }
 
     #[test]
@@ -1313,28 +1313,28 @@ mod tests {
         let v = &[1u8, 2, 3, 4, 5][..];
         assert_eq!(
             serialize_v1_be(&v),
-            [
+            vec![
                 0, 0, 0, 5, // length
                 1, 2, 3, 4, 5 // data
             ]
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [
+            vec![
                 5, 0, 0, 0, // length
                 1, 2, 3, 4, 5 // data
             ]
         );
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0, 0, 0, 5, // length
                 1, 2, 3, 4, 5 // data
             ]
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 5, 0, 0, 0, // length
                 1, 2, 3, 4, 5 // data
             ]
@@ -1344,10 +1344,10 @@ mod tests {
     #[test]
     fn serialize_byte_array() {
         let v = [1u8, 2, 3, 4, 5];
-        assert_eq!(serialize_v1_be(&v), [1, 2, 3, 4, 5]);
-        assert_eq!(serialize_v1_le(&v), [1, 2, 3, 4, 5]);
-        assert_eq!(serialize_v2_be(&v), [1, 2, 3, 4, 5]);
-        assert_eq!(serialize_v2_le(&v), [1, 2, 3, 4, 5]);
+        assert_eq!(serialize_v1_be(&v), vec![1, 2, 3, 4, 5]);
+        assert_eq!(serialize_v1_le(&v), vec![1, 2, 3, 4, 5]);
+        assert_eq!(serialize_v2_be(&v), vec![1, 2, 3, 4, 5]);
+        assert_eq!(serialize_v2_le(&v), vec![1, 2, 3, 4, 5]);
     }
 
     //@extensibility(FINAL)
@@ -1373,14 +1373,14 @@ mod tests {
         // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&v),
-            [
+            vec![
                 0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
                 0, 0, 0, 0, 0, 0, 0, 9, // field_u64
             ]
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [
+            vec![
                 7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
                 9, 0, 0, 0, 0, 0, 0, 0, // field_u64
             ]
@@ -1388,14 +1388,14 @@ mod tests {
         // PLAIN_CDR2:
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0, 7, 0, 0, // field_u16 | padding (2 bytes)
                 0, 0, 0, 0, 0, 0, 0, 9, // field_u64
             ]
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 7, 0, 0, 0, // field_u16 | padding (2 bytes)
                 9, 0, 0, 0, 0, 0, 0, 0, // field_u64
             ]
@@ -1424,7 +1424,7 @@ mod tests {
         //PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&some),
-            [
+            vec![
                 6, 0, 0, 0, // u8 | padding
                 0, 0, 0, 2, // HEADER (FLAGS+ID | length)
                 0, 7, // optional_field value
@@ -1432,7 +1432,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v1_le(&some),
-            [
+            vec![
                 6, 0, 0, 0, // u8 | padding
                 0, 0, 2, 0, // HEADER (FLAGS+ID | length)
                 7, 0 // optional_field value
@@ -1441,14 +1441,14 @@ mod tests {
         //PLAIN_CDR2:
         assert_eq!(
             serialize_v2_be(&some),
-            [
+            vec![
                 6, 1, // u8 | boolean for option
                 0, 7 // optional_field value
             ]
         );
         assert_eq!(
             serialize_v2_le(&some),
-            [
+            vec![
                 6, 1, // u8 | boolean for option
                 7, 0 // optional_field value
             ]
@@ -1463,14 +1463,14 @@ mod tests {
         // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&none),
-            [
+            vec![
                 6, 0, 0, 0, // u8 | padding
                 0, 0, 0, 0, // HEADER (FLAGS+ID | length)
             ]
         );
         assert_eq!(
             serialize_v1_le(&none),
-            [
+            vec![
                 6, 0, 0, 0, // u8 | padding
                 0, 0, 0, 0, // HEADER (FLAGS+ID | length)
             ]
@@ -1478,13 +1478,13 @@ mod tests {
         // PLAIN_CDR2:
         assert_eq!(
             serialize_v2_be(&none),
-            [
+            vec![
             6, 0, // u8 | boolean for option
         ]
         );
         assert_eq!(
             serialize_v2_le(&none),
-            [
+            vec![
             6, 0, // u8 | boolean for option
         ]
         );
@@ -1514,7 +1514,7 @@ mod tests {
         // PLAIN_CDR:
         assert_eq!(
             serialize_v1_be(&v),
-            [
+            vec![
                 0, 7, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
                 0, 0, 0, 0, 0, 0, 0, 9,  // u64
                 10, //u8
@@ -1522,7 +1522,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [
+            vec![
                 7, 0, 0, 0, 0, 0, 0, 0, // nested FinalType (u16) | padding (6 bytes)
                 9, 0, 0, 0, 0, 0, 0, 0,  // u64
                 10, //u8
@@ -1531,7 +1531,7 @@ mod tests {
         // PLAIN_CDR2:
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 7, 0, 0, 0, // nested FinalType (u16) | padding (2 bytes)
                 9, 0, 0, 0, 0, 0, 0, 0,  // u64
                 10, //u8
@@ -1539,7 +1539,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0, 7, 0, 0, // nested FinalType (u16) | padding
                 0, 0, 0, 0, 0, 0, 0, 9,  // u64
                 10, //u8
@@ -1562,19 +1562,19 @@ mod tests {
     fn serialize_appendable_struct() {
         let v = AppendableType { value: 7 };
         // PLAIN_CDR:
-        assert_eq!(serialize_v1_be(&v), [0, 7]);
-        assert_eq!(serialize_v1_le(&v), [7, 0]);
+        assert_eq!(serialize_v1_be(&v), vec![0, 7]);
+        assert_eq!(serialize_v1_le(&v), vec![7, 0]);
         // DELIMITED_CDR:
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0, 0, 0, 2, // DHEADER
                 0, 7 // value
             ]
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 2, 0, 0, 0, // DHEADER
                 7, 0 // value
             ]
@@ -1606,7 +1606,7 @@ mod tests {
         // PL_CDR:
         assert_eq!(
             serialize_v1_be(&v),
-            [
+            vec![
                 0x00, 0x05A, 0, 1, // PID | length
                 7, 0, 0, 0, // key | padding
                 0x00, 0x050, 0, 2, // PID | length
@@ -1616,7 +1616,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [
+            vec![
                 0x05A, 0x00, 1, 0, // PID | length
                 7, 0, 0, 0, // key | padding
                 0x050, 0x00, 2, 0, // PID | length
@@ -1627,7 +1627,7 @@ mod tests {
         // PL_CDR2:
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0x00, 0x05A, 0, 1, // PID | length
                 7, 0, 0, 0, // key | padding
                 0x00, 0x050, 0, 2, // PID | length
@@ -1637,7 +1637,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 0x05A, 0x00, 1, 0, // PID | length
                 7, 0, 0, 0, // key | padding
                 0x050, 0x00, 2, 0, // PID | length
@@ -1689,7 +1689,7 @@ mod tests {
         // PL_CDR:
         assert_eq!(
             serialize_v1_be(&v),
-            [
+            vec![
                 0x00, 0x060, 0, 1, // PID | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 0x00, 0x061, 0, 20, // PID | length
@@ -1705,7 +1705,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v1_le(&v),
-            [
+            vec![
                 0x060, 0x00, 1, 0, // PID | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 0x061, 0x00, 20, 0, // PID | length
@@ -1722,7 +1722,7 @@ mod tests {
         // PL_CDR2:
         assert_eq!(
             serialize_v2_be(&v),
-            [
+            vec![
                 0x00, 0x060, 0, 1, // PID | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 0x00, 0x061, 0, 20, // PID | length
@@ -1738,7 +1738,7 @@ mod tests {
         );
         assert_eq!(
             serialize_v2_le(&v),
-            [
+            vec![
                 0x060, 0x00, 1, 0, // PID | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 0x061, 0x00, 20, 0, // PID | length
