@@ -1,3 +1,6 @@
+use core::mem::size_of_val;
+use std::mem::size_of;
+
 use super::{
     error::XTypesError,
     serialize::XTypesSerialize,
@@ -12,50 +15,9 @@ const PID_SENTINEL: u16 = 1;
 pub struct VirtualCdr1Serializer {
     count: usize,
 }
+
 fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
     (position + alignment - 1) / alignment * alignment
-}
-
-#[test]
-fn round_up_to_multiples_2() {
-    assert_eq!(round_up_to_multiples(0, 2), 0);
-    assert_eq!(round_up_to_multiples(1, 2), 2);
-    assert_eq!(round_up_to_multiples(2, 2), 2);
-    assert_eq!(round_up_to_multiples(3, 2), 4);
-    assert_eq!(round_up_to_multiples(4, 2), 4);
-}
-
-fn padding_length(position: usize, alignment: usize) -> usize {
-    round_up_to_multiples(position, alignment) - position
-}
-#[test]
-fn padding_length_2() {
-    assert_eq!(padding_length(0, 2), 0);
-    assert_eq!(padding_length(1, 2), 1);
-    assert_eq!(padding_length(2, 2), 0);
-    assert_eq!(padding_length(3, 2), 1);
-}
-#[test]
-fn padding_length_4() {
-    assert_eq!(padding_length(0, 4), 0);
-    assert_eq!(padding_length(1, 4), 3);
-    assert_eq!(padding_length(2, 4), 2);
-    assert_eq!(padding_length(3, 4), 1);
-    assert_eq!(padding_length(4, 4), 0);
-    assert_eq!(padding_length(5, 4), 3);
-}
-#[test]
-fn padding_length_8() {
-    assert_eq!(padding_length(0, 8), 0);
-    assert_eq!(padding_length(1, 8), 7);
-    assert_eq!(padding_length(2, 8), 6);
-    assert_eq!(padding_length(3, 8), 5);
-    assert_eq!(padding_length(4, 8), 4);
-    assert_eq!(padding_length(5, 8), 3);
-    assert_eq!(padding_length(6, 8), 2);
-    assert_eq!(padding_length(7, 8), 1);
-    assert_eq!(padding_length(8, 8), 0);
-    assert_eq!(padding_length(9, 8), 7);
 }
 
 impl VirtualCdr1Serializer {
@@ -65,7 +27,7 @@ impl VirtualCdr1Serializer {
         Ok(virtual_serializer.count)
     }
     fn add<T>(&mut self, v: T) -> Result<(), XTypesError> {
-        let len = core::mem::size_of_val(&v);
+        let len = size_of_val(&v);
         self.count = round_up_to_multiples(self.count + len, len);
         Ok(())
     }
@@ -85,7 +47,7 @@ impl SerializeFinalStruct for &mut VirtualCdr1Serializer {
         value: &Option<T>,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        self.count += 4; // header: FLAGS/ID + length
+        self.count += size_of::<u16>() + size_of::<u16>(); // header: FLAGS/ID + length
         if let Some(value) = value {
             XTypesSerialize::serialize(value, &mut **self)
         } else {
@@ -109,14 +71,14 @@ impl SerializeMutableStruct for &mut VirtualCdr1Serializer {
         _pid: u16,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        self.count += 4; // header: pid + length
+        self.count += size_of::<u16>() + size_of::<u16>(); // header: pid + length
         XTypesSerialize::serialize(value, &mut **self)?;
         self.count = round_up_to_multiples(self.count, 4);
         Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
-        self.count += 4; // sentinel
+        self.count += size_of::<u16>() + size_of::<u16>(); // sentinel
         Ok(())
     }
 }
@@ -148,7 +110,7 @@ impl XTypesSerializer for &mut VirtualCdr1Serializer {
     }
 
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
-        self.add(v)
+        self.add(v as u8)
     }
 
     fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
@@ -192,16 +154,16 @@ impl XTypesSerializer for &mut VirtualCdr1Serializer {
     }
 
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        self.add(v)
+        self.add(into_u8(v)?)
     }
 
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
-        self.count += 4 + v.len() + 1;
+        self.count += size_of::<u32>() + v.len() + 1;
         Ok(())
     }
 
     fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XTypesError> {
-        self.count += 4 + v.len();
+        self.count += size_of::<u32>() + v.len();
         Ok(())
     }
 
@@ -222,7 +184,7 @@ impl VirtualCdr2Serializer {
         Ok(virtual_serializer.count)
     }
     fn add<T>(&mut self, v: T) -> Result<(), XTypesError> {
-        self.count += core::mem::size_of_val(&v);
+        self.count += size_of_val(&v);
         Ok(())
     }
 }
@@ -241,7 +203,7 @@ impl SerializeFinalStruct for &mut VirtualCdr2Serializer {
         value: &Option<T>,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        self.count += 4; // header: pid + length
+        self.count += size_of::<u16>() + size_of::<u16>(); // header: pid + length
         if let Some(value) = value {
             XTypesSerialize::serialize(value, &mut **self)
         } else {
@@ -265,14 +227,14 @@ impl SerializeMutableStruct for &mut VirtualCdr2Serializer {
         _pid: u16,
         _name: &str,
     ) -> Result<(), XTypesError> {
-        self.count += 4; // header: pid + length
+        self.count += size_of::<u16>() + size_of::<u16>(); // header: pid + length
         XTypesSerialize::serialize(value, &mut **self)?;
         self.count = round_up_to_multiples(self.count, 4);
         Ok(())
     }
 
     fn end(self) -> Result<(), XTypesError> {
-        self.count += 4; // sentinel
+        self.count += size_of::<u16>() + size_of::<u16>(); // sentinel
         Ok(())
     }
 }
@@ -304,7 +266,7 @@ impl XTypesSerializer for &mut VirtualCdr2Serializer {
     }
 
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
-        self.add(v)
+        self.add(v as u8)
     }
 
     fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
@@ -348,16 +310,16 @@ impl XTypesSerializer for &mut VirtualCdr2Serializer {
     }
 
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        self.add(v)
+        self.add(into_u8(v)?)
     }
 
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
-        self.count += 4 + v.len() + 1;
+        self.count += size_of::<u32>() + v.len() + 1;
         Ok(())
     }
 
     fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), XTypesError> {
-        self.count += 4 + v.len();
+        self.count += size_of::<u32>() + v.len();
         Ok(())
     }
 
@@ -390,10 +352,8 @@ where
 
     fn pad(&mut self, alignment: usize) {
         const ZEROS: [u8; 8] = [0; 8];
-        let over_alignment = self.position & (alignment - 1);
-        if over_alignment > 0 {
-            self.write_slice(&ZEROS[..alignment - over_alignment]);
-        };
+        let alignment = round_up_to_multiples(self.position, alignment) - self.position;
+        self.write_slice(&ZEROS[..alignment]);
     }
 }
 
@@ -408,6 +368,7 @@ where
     writer.write_slice(data);
     Ok(())
 }
+
 fn extend_with_padding_v2<const N: usize, C>(
     writer: &mut CollectionWriter<'_, C>,
     data: &[u8; N],
@@ -554,11 +515,11 @@ where
     }
 
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
-        self.serialize_uint8(v as u8)
+        extend_with_padding_v1(&mut self.writer, &[v as u8])
     }
 
     fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &[v as u8])
+        extend_with_padding_v1(&mut self.writer, &v.to_be_bytes())
     }
 
     fn serialize_int16(self, v: i16) -> Result<(), XTypesError> {
@@ -598,7 +559,7 @@ where
     }
 
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        self.serialize_uint8(into_u8(v)?)
+        extend_with_padding_v1(&mut self.writer, &into_u8(v)?.to_be_bytes())
     }
 
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
@@ -733,11 +694,11 @@ where
     }
 
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
-        self.serialize_uint8(v as u8)
+        extend_with_padding_v1(&mut self.writer, &[v as u8])
     }
 
     fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
-        extend_with_padding_v1(&mut self.writer, &[v as u8])
+        extend_with_padding_v1(&mut self.writer, &v.to_le_bytes())
     }
 
     fn serialize_int16(self, v: i16) -> Result<(), XTypesError> {
@@ -777,7 +738,7 @@ where
     }
 
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        self.serialize_uint8(into_u8(v)?)
+        extend_with_padding_v1(&mut self.writer, &into_u8(v)?.to_le_bytes())
     }
 
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
@@ -975,7 +936,7 @@ where
     }
 
     fn serialize_boolean(self, v: bool) -> Result<(), XTypesError> {
-        self.serialize_uint8(v as u8)
+        extend_with_padding_v2(&mut self.writer, &(v as u8).to_be_bytes())
     }
     fn serialize_int8(self, v: i8) -> Result<(), XTypesError> {
         extend_with_padding_v2(&mut self.writer, &v.to_be_bytes())
@@ -1008,7 +969,7 @@ where
         extend_with_padding_v2(&mut self.writer, &v.to_be_bytes())
     }
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        extend_with_padding_v2(&mut self.writer, &[into_u8(v)?])
+        extend_with_padding_v1(&mut self.writer, &into_u8(v)?.to_be_bytes())
     }
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
         self.serialize_uint32(str_len(v)?)?;
@@ -1082,7 +1043,7 @@ where
         extend_with_padding_v2(&mut self.writer, &v.to_le_bytes())
     }
     fn serialize_char8(self, v: char) -> Result<(), XTypesError> {
-        extend_with_padding_v2(&mut self.writer, &[into_u8(v)?])
+        extend_with_padding_v1(&mut self.writer, &into_u8(v)?.to_le_bytes())
     }
     fn serialize_string(self, v: &str) -> Result<(), XTypesError> {
         self.serialize_uint32(str_len(v)?)?;
@@ -1105,6 +1066,38 @@ where
 mod tests {
     use super::*;
     extern crate std;
+
+    #[test]
+    fn round_up_to_multiples_2() {
+        assert_eq!(round_up_to_multiples(0, 2), 0);
+        assert_eq!(round_up_to_multiples(1, 2), 2);
+        assert_eq!(round_up_to_multiples(2, 2), 2);
+        assert_eq!(round_up_to_multiples(3, 2), 4);
+        assert_eq!(round_up_to_multiples(4, 2), 4);
+    }
+
+    #[test]
+    fn round_up_to_multiples_4() {
+        assert_eq!(round_up_to_multiples(0, 4), 0);
+        assert_eq!(round_up_to_multiples(1, 4), 4);
+        assert_eq!(round_up_to_multiples(2, 4), 4);
+        assert_eq!(round_up_to_multiples(3, 4), 4);
+        assert_eq!(round_up_to_multiples(4, 4), 4);
+        assert_eq!(round_up_to_multiples(5, 4), 8);
+    }
+    #[test]
+    fn round_up_to_multiples_8() {
+        assert_eq!(round_up_to_multiples(0, 8), 0);
+        assert_eq!(round_up_to_multiples(1, 8), 8);
+        assert_eq!(round_up_to_multiples(2, 8), 8);
+        assert_eq!(round_up_to_multiples(3, 8), 8);
+        assert_eq!(round_up_to_multiples(4, 8), 8);
+        assert_eq!(round_up_to_multiples(5, 8), 8);
+        assert_eq!(round_up_to_multiples(6, 8), 8);
+        assert_eq!(round_up_to_multiples(7, 8), 8);
+        assert_eq!(round_up_to_multiples(8, 8), 8);
+        assert_eq!(round_up_to_multiples(9, 8), 16);
+    }
 
     fn serialize_v1_be<T: XTypesSerialize, const N: usize>(v: &T) -> [u8; N] {
         let mut buffer = std::vec::Vec::new();
@@ -1654,9 +1647,9 @@ mod tests {
         );
     }
 
-     //@extensibility(FINAL)
+    //@extensibility(FINAL)
     struct TinyFinalType {
-        primitive: u16
+        primitive: u16,
     }
     impl XTypesSerialize for TinyFinalType {
         fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
@@ -1691,9 +1684,7 @@ mod tests {
                 key: 7,
                 participant_key: 8,
             },
-            field_final: TinyFinalType {
-                primitive: 9
-            },
+            field_final: TinyFinalType { primitive: 9 },
         };
         // PL_CDR:
         assert_eq!(
