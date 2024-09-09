@@ -203,42 +203,9 @@ impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
             ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
 
         Ok(Self {
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-                // Default value is a deviation from the standard and is used for interoperability reasons:
-                participant_key: pl_deserializer
-                    .read_with_default(PID_PARTICIPANT_GUID, Default::default())?,
-                topic_name: pl_deserializer.read(PID_TOPIC_NAME)?,
-                type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-                durability: pl_deserializer
-                    .read_with_default(PID_DURABILITY, Default::default())?,
-                deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-                latency_budget: pl_deserializer
-                    .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-                liveliness: pl_deserializer
-                    .read_with_default(PID_LIVELINESS, Default::default())?,
-                reliability: pl_deserializer.read_with_default(
-                    PID_RELIABILITY,
-                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                )?,
-                ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-                destination_order: pl_deserializer
-                    .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-                user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-                time_based_filter: pl_deserializer
-                    .read_with_default(PID_TIME_BASED_FILTER, Default::default())?,
-                presentation: pl_deserializer
-                    .read_with_default(PID_PRESENTATION, Default::default())?,
-                partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
-                topic_data: pl_deserializer
-                    .read_with_default(PID_TOPIC_DATA, Default::default())?,
-                group_data: pl_deserializer
-                    .read_with_default(PID_GROUP_DATA, Default::default())?,
-                xml_type: pl_deserializer
-                    .read_with_default(PID_TYPE_REPRESENTATION, Default::default())?,
-                representation: pl_deserializer
-                    .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-            },
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::deserialize_data(
+                serialized_data,
+            )?,
             reader_proxy: ReaderProxy {
                 remote_reader_guid: pl_deserializer.read(PID_ENDPOINT_GUID)?,
                 remote_group_entity_id: pl_deserializer

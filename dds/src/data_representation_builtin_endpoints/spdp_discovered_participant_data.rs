@@ -255,10 +255,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let pl_deserializer =
             ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
         Ok(Self {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
-                user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-            },
+            dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
             participant_proxy: ParticipantProxy {
                 domain_id: pl_deserializer.read_with_default(PID_DOMAIN_ID, Default::default())?,
                 domain_tag: pl_deserializer
@@ -357,123 +354,6 @@ impl DdsTypeXml for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
-
-    #[test]
-    fn deserialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(11, 12, [1; 16]);
-        let locator2 = Locator::new(21, 22, [2; 16]);
-
-        let domain_id = 1;
-        let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion::new(2, 4);
-        let guid_prefix = [8; 12];
-        let vendor_id = [73, 74];
-        let expects_inline_qos = true;
-        let metatraffic_unicast_locator_list = vec![locator1, locator2];
-        let metatraffic_multicast_locator_list = vec![locator1];
-        let default_unicast_locator_list = vec![locator1];
-        let default_multicast_locator_list = vec![locator1];
-        let available_builtin_endpoints =
-            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = 2;
-        let builtin_endpoint_qos = BuiltinEndpointQos::new(
-            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
-        );
-        let lease_duration = Duration::new(10, 11);
-
-        let expected = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
-                BuiltInTopicKey {
-                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
-                },
-                UserDataQosPolicy { value: vec![] },
-            ),
-            ParticipantProxy::new(
-                Some(domain_id),
-                domain_tag,
-                protocol_version,
-                guid_prefix,
-                vendor_id,
-                expects_inline_qos,
-                metatraffic_unicast_locator_list,
-                metatraffic_multicast_locator_list,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                available_builtin_endpoints,
-                manual_liveliness_count,
-                builtin_endpoint_qos,
-            ),
-            lease_duration,
-            vec![],
-        );
-
-        let mut data = &[
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            0x01, 0x00, 0x00, 0x00, // DomainId
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
-            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            0, 0, 1, 0xc1, // EntityId,
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
-            73, 74, 0x00, 0x00, // VendorId
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
-            0x01, 0x00, 0x00, 0x00, // True
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
-            21, 0x00, 0x00, 0x00, // Locator{kind
-            22, 0x00, 0x00, 0x00, // port,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x33, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
-            0x02, 0x00, 0x00, 0x00, //
-            0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
-            0x02, 0x00, 0x00, 0x00, // Count
-            0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
-            0x00, 0x00, 0x00, 0x20, //
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            10, 0x00, 0x00, 0x00, // Duration: seconds
-            11, 0x00, 0x00, 0x00, // Duration: fraction
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-        ][..];
-        let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
-        assert_eq!(result, expected);
-    }
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
@@ -591,4 +471,123 @@ mod tests {
         let result = data.serialize_data().unwrap();
         assert_eq!(result, expected);
     }
+
+    
+    #[test]
+    fn deserialize_spdp_discovered_participant_data() {
+        let locator1 = Locator::new(11, 12, [1; 16]);
+        let locator2 = Locator::new(21, 22, [2; 16]);
+
+        let domain_id = 1;
+        let domain_tag = "ab".to_string();
+        let protocol_version = ProtocolVersion::new(2, 4);
+        let guid_prefix = [8; 12];
+        let vendor_id = [73, 74];
+        let expects_inline_qos = true;
+        let metatraffic_unicast_locator_list = vec![locator1, locator2];
+        let metatraffic_multicast_locator_list = vec![locator1];
+        let default_unicast_locator_list = vec![locator1];
+        let default_multicast_locator_list = vec![locator1];
+        let available_builtin_endpoints =
+            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
+        let manual_liveliness_count = 2;
+        let builtin_endpoint_qos = BuiltinEndpointQos::new(
+            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
+        );
+        let lease_duration = Duration::new(10, 11);
+
+        let expected = SpdpDiscoveredParticipantData::new(
+            ParticipantBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+                },
+                UserDataQosPolicy { value: vec![] },
+            ),
+            ParticipantProxy::new(
+                Some(domain_id),
+                domain_tag,
+                protocol_version,
+                guid_prefix,
+                vendor_id,
+                expects_inline_qos,
+                metatraffic_unicast_locator_list,
+                metatraffic_multicast_locator_list,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+                available_builtin_endpoints,
+                manual_liveliness_count,
+                builtin_endpoint_qos,
+            ),
+            lease_duration,
+            vec![],
+        );
+
+        let mut data = &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId,
+            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
+            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR
+            21, 0x00, 0x00, 0x00, // Locator{kind
+            22, 0x00, 0x00, 0x00, // port,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            0x33, 0x00, 24, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x31, 0x00, 24, 0x00, // PID_DEFAULT_UNICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x48, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            0x02, 0x00, 0x00, 0x00, //
+            0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+            0x02, 0x00, 0x00, 0x00, // Count
+            0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS
+            0x00, 0x00, 0x00, 0x20, //
+            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            10, 0x00, 0x00, 0x00, // Duration: seconds
+            11, 0x00, 0x00, 0x00, // Duration: fraction
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ][..];
+        let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
+        assert_eq!(result, expected);
+    }
+
 }
