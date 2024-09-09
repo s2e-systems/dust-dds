@@ -116,7 +116,7 @@ where
     }
 }
 
-impl<'a> Xcdr1BeSerializer<'a, ByteCounter> {
+impl Xcdr1BeSerializer<'_, ()> {
     pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
         let mut byte_counter = ByteCounter::new();
         let mut serializer = Xcdr1BeSerializer::new(&mut byte_counter);
@@ -303,7 +303,7 @@ where
     }
 }
 
-impl<'a> Xcdr1LeSerializer<'a, ByteCounter> {
+impl Xcdr1LeSerializer<'_, ()> {
     pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
         let mut byte_counter = ByteCounter::new();
         let mut serializer = Xcdr1LeSerializer::new(&mut byte_counter);
@@ -491,7 +491,7 @@ where
     }
 }
 
-impl<'a> Xcdr2BeSerializer<'a, ByteCounter> {
+impl Xcdr2BeSerializer<'_, ()> {
     pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
         let mut byte_counter = ByteCounter::new();
         let mut serializer = Xcdr2BeSerializer::new(&mut byte_counter);
@@ -515,7 +515,7 @@ where
     }
 }
 
-impl<'a> Xcdr2LeSerializer<'a, ByteCounter> {
+impl Xcdr2LeSerializer<'_, ()> {
     pub fn bytes_len<T: XTypesSerialize>(value: &T) -> Result<usize, XTypesError> {
         let mut byte_counter = ByteCounter::new();
         let mut serializer = Xcdr2LeSerializer::new(&mut byte_counter);
