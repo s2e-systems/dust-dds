@@ -1962,18 +1962,29 @@ impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
                 multicast_locator_list,
                 false,
             ),
-            SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey { value: guid.into() },
-                BuiltInTopicKey {
+            SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
                 topic_name,
                 type_name,
-                self.qos.clone(),
-                message.subscriber_qos.clone(),
-                message.topic_data,
-                message.xml_type,
-            ),
+                durability: self.qos.durability.clone(),
+                deadline: self.qos.deadline.clone(),
+                latency_budget: self.qos.latency_budget.clone(),
+                liveliness: self.qos.liveliness.clone(),
+                reliability: self.qos.reliability.clone(),
+                ownership: self.qos.ownership.clone(),
+                destination_order: self.qos.destination_order.clone(),
+                user_data: self.qos.user_data.clone(),
+                time_based_filter: self.qos.time_based_filter.clone(),
+                presentation: message.subscriber_qos.presentation,
+                partition: message.subscriber_qos.partition,
+                topic_data: message.topic_data,
+                group_data: message.subscriber_qos.group_data,
+                xml_type: message.xml_type,
+                representation: self.qos.representation.clone(),
+            },
         ))
     }
 }

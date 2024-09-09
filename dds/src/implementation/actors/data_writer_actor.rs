@@ -934,20 +934,32 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
         };
 
         Ok(DiscoveredWriterData {
-            dds_publication_data: PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: self.rtps_writer.guid().into(),
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
                 topic_name,
                 type_name,
-                writer_qos.clone(),
-                message.publisher_qos.clone(),
-                message.topic_data,
-                message.xml_type,
-            ),
+                durability: writer_qos.durability.clone(),
+                deadline: writer_qos.deadline.clone(),
+                latency_budget: writer_qos.latency_budget.clone(),
+                liveliness: writer_qos.liveliness.clone(),
+                reliability: writer_qos.reliability.clone(),
+                lifespan: writer_qos.lifespan.clone(),
+                user_data: writer_qos.user_data.clone(),
+                ownership: writer_qos.ownership.clone(),
+                ownership_strength: writer_qos.ownership_strength.clone(),
+                destination_order: writer_qos.destination_order.clone(),
+                presentation: message.publisher_qos.presentation,
+                partition: message.publisher_qos.partition,
+                topic_data: message.topic_data,
+                group_data: message.publisher_qos.group_data,
+                xml_type: message.xml_type,
+                representation: writer_qos.representation.clone(),
+            },
             writer_proxy: WriterProxy {
                 remote_writer_guid: self.rtps_writer.guid(),
                 remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),

@@ -269,10 +269,6 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        infrastructure::{
-            qos::{DataReaderQos, SubscriberQos},
-            qos_policy::TopicDataQosPolicy,
-        },
         rtps::types::{
             BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
         },
@@ -281,20 +277,31 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredReaderData {
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                DataReaderQos::default(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::default(),
-            ),
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                ownership: Default::default(),
+                destination_order: Default::default(),
+                user_data: Default::default(),
+                time_based_filter: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: Default::default(),
+            },
             reader_proxy: ReaderProxy::new(
                 Guid::new(
                     [5; 12],
@@ -349,20 +356,31 @@ mod tests {
                 vec![],
                 false,
             ),
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                DataReaderQos::default(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::default(),
-            ),
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                ownership: Default::default(),
+                destination_order: Default::default(),
+                user_data: Default::default(),
+                time_based_filter: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: Default::default(),
+            },
         };
 
         let mut data = &[

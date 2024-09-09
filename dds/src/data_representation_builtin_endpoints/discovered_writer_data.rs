@@ -208,10 +208,6 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        infrastructure::{
-            qos::{DataWriterQos, PublisherQos},
-            qos_policy::TopicDataQosPolicy,
-        },
         rtps::types::{
             BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
@@ -221,20 +217,32 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredWriterData {
-            dds_publication_data: PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                DataWriterQos::default(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::default(),
-            ),
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: Default::default(),
+            },
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     [5; 12],
@@ -277,20 +285,32 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredWriterData {
-            dds_publication_data: PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                DataWriterQos::default(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::default(),
-            ),
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: Default::default(),
+            },
             writer_proxy: WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(

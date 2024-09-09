@@ -11,18 +11,14 @@ use crate::{
         },
         payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
     },
-    infrastructure::{
-        qos::{DataReaderQos, DataWriterQos, PublisherQos, SubscriberQos},
-        qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        },
+    infrastructure::qos_policy::{
+        DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+        DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
+        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+        PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
+        TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+        UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
     topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
@@ -65,10 +61,6 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
 }
 
 impl ParticipantBuiltinTopicData {
-    pub(crate) fn new(key: BuiltInTopicKey, user_data: UserDataQosPolicy) -> Self {
-        Self { key, user_data }
-    }
-
     /// Get the key value of the discovered participant.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
@@ -286,41 +278,6 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
 }
 
 impl PublicationBuiltinTopicData {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
-        key: BuiltInTopicKey,
-        participant_key: BuiltInTopicKey,
-        topic_name: String,
-        type_name: String,
-        data_writer_qos: DataWriterQos,
-        publisher_qos: PublisherQos,
-        topic_data: TopicDataQosPolicy,
-        xml_type: String,
-    ) -> Self {
-        Self {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability: data_writer_qos.durability,
-            deadline: data_writer_qos.deadline,
-            latency_budget: data_writer_qos.latency_budget,
-            liveliness: data_writer_qos.liveliness,
-            reliability: data_writer_qos.reliability,
-            lifespan: data_writer_qos.lifespan,
-            user_data: data_writer_qos.user_data,
-            ownership: data_writer_qos.ownership,
-            ownership_strength: data_writer_qos.ownership_strength,
-            destination_order: data_writer_qos.destination_order,
-            presentation: publisher_qos.presentation,
-            partition: publisher_qos.partition,
-            group_data: publisher_qos.group_data,
-            topic_data,
-            xml_type,
-            representation: data_writer_qos.representation,
-        }
-    }
-
     /// Get the key value of the discovered writer.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
@@ -491,41 +448,6 @@ impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
 }
 
 impl SubscriptionBuiltinTopicData {
-    #[allow(clippy::too_many_arguments)]
-    /// Construct a new SubscriptionBuiltinTopicData
-    pub fn new(
-        key: BuiltInTopicKey,
-        participant_key: BuiltInTopicKey,
-        topic_name: String,
-        type_name: String,
-        data_reader_qos: DataReaderQos,
-        subscriber_qos: SubscriberQos,
-        topic_data: TopicDataQosPolicy,
-        xml_type: String,
-    ) -> Self {
-        Self {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability: data_reader_qos.durability,
-            deadline: data_reader_qos.deadline,
-            latency_budget: data_reader_qos.latency_budget,
-            liveliness: data_reader_qos.liveliness,
-            reliability: data_reader_qos.reliability,
-            ownership: data_reader_qos.ownership,
-            destination_order: data_reader_qos.destination_order,
-            user_data: data_reader_qos.user_data,
-            time_based_filter: data_reader_qos.time_based_filter,
-            presentation: subscriber_qos.presentation,
-            partition: subscriber_qos.partition,
-            group_data: subscriber_qos.group_data,
-            topic_data,
-            xml_type,
-            representation: data_reader_qos.representation,
-        }
-    }
-
     /// Get the key value of the discovered reader.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key

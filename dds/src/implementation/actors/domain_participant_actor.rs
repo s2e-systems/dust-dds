@@ -40,7 +40,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         qos_policy::{
-            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy,
         },
         status::{
@@ -1368,12 +1368,12 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
         _: AsSpdpDiscoveredParticipantData,
     ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
         SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
-                BuiltInTopicKey {
+            ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: self.rtps_participant.guid().into(),
                 },
-                self.qos.user_data.clone(),
-            ),
+                user_data: self.qos.user_data.clone(),
+            },
             ParticipantProxy::new(
                 Some(self.domain_id),
                 self.domain_tag.clone(),
@@ -2349,18 +2349,29 @@ impl DomainParticipantActor {
                     .to_vec(),
                 expects_inline_qos,
             );
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_PUBLICATION.to_owned(),
-                "DiscoveredWriterData".to_owned(),
-                sedp_data_reader_qos(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_PUBLICATION.to_owned(),
+                type_name: "DiscoveredWriterData".to_owned(),
+                durability: sedp_data_reader_qos().durability,
+                deadline: sedp_data_reader_qos().deadline,
+                latency_budget: sedp_data_reader_qos().latency_budget,
+                liveliness: sedp_data_reader_qos().liveliness,
+                reliability: sedp_data_reader_qos().reliability,
+                ownership: sedp_data_reader_qos().ownership,
+                destination_order: sedp_data_reader_qos().destination_order,
+                user_data: sedp_data_reader_qos().user_data,
+                time_based_filter: sedp_data_reader_qos().time_based_filter,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_reader_qos().representation,
+            };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
@@ -2402,18 +2413,30 @@ impl DomainParticipantActor {
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let data_max_size_serialized = Default::default();
 
-            let dds_publication_data = PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let dds_publication_data = PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_writer_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_PUBLICATION.to_owned(),
-                "DiscoveredWriterData".to_owned(),
-                sedp_data_writer_qos(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_PUBLICATION.to_owned(),
+                type_name: "DiscoveredWriterData".to_owned(),
+                durability: sedp_data_writer_qos().durability,
+                deadline: sedp_data_writer_qos().deadline,
+                latency_budget: sedp_data_writer_qos().latency_budget,
+                liveliness: sedp_data_writer_qos().liveliness,
+                reliability: sedp_data_writer_qos().reliability,
+                lifespan: sedp_data_writer_qos().lifespan,
+                user_data: sedp_data_writer_qos().user_data,
+                ownership: sedp_data_writer_qos().ownership,
+                ownership_strength: sedp_data_writer_qos().ownership_strength,
+                destination_order: sedp_data_writer_qos().destination_order,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_writer_qos().representation,
+            };
             let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
@@ -2480,18 +2503,29 @@ impl DomainParticipantActor {
                     .to_vec(),
                 expects_inline_qos,
             );
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_SUBSCRIPTION.to_owned(),
-                "DiscoveredReaderData".to_owned(),
-                sedp_data_reader_qos(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_SUBSCRIPTION.to_owned(),
+                type_name: "DiscoveredReaderData".to_owned(),
+                durability: sedp_data_reader_qos().durability,
+                deadline: sedp_data_reader_qos().deadline,
+                latency_budget: sedp_data_reader_qos().latency_budget,
+                liveliness: sedp_data_reader_qos().liveliness,
+                reliability: sedp_data_reader_qos().reliability,
+                ownership: sedp_data_reader_qos().ownership,
+                destination_order: sedp_data_reader_qos().destination_order,
+                user_data: sedp_data_reader_qos().user_data,
+                time_based_filter: sedp_data_reader_qos().time_based_filter,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_reader_qos().representation,
+            };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
@@ -2545,18 +2579,30 @@ impl DomainParticipantActor {
                     .to_vec(),
                 data_max_size_serialized,
             };
-            let dds_publication_data = PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let dds_publication_data = PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_writer_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_SUBSCRIPTION.to_owned(),
-                "DiscoveredReaderData".to_owned(),
-                sedp_data_writer_qos(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_SUBSCRIPTION.to_owned(),
+                type_name: "DiscoveredReaderData".to_owned(),
+                durability: sedp_data_writer_qos().durability,
+                deadline: sedp_data_writer_qos().deadline,
+                latency_budget: sedp_data_writer_qos().latency_budget,
+                liveliness: sedp_data_writer_qos().liveliness,
+                reliability: sedp_data_writer_qos().reliability,
+                lifespan: sedp_data_writer_qos().lifespan,
+                user_data: sedp_data_writer_qos().user_data,
+                ownership: sedp_data_writer_qos().ownership,
+                ownership_strength: sedp_data_writer_qos().ownership_strength,
+                destination_order: sedp_data_writer_qos().destination_order,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_writer_qos().representation,
+            };
             let discovered_writer_data = DiscoveredWriterData {
                 dds_publication_data,
                 writer_proxy,
@@ -2611,18 +2657,29 @@ impl DomainParticipantActor {
                     .to_vec(),
                 expects_inline_qos,
             );
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_TOPIC.to_owned(),
-                "DiscoveredTopicData".to_owned(),
-                sedp_data_reader_qos(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_TOPIC.to_owned(),
+                type_name: "DiscoveredTopicData".to_owned(),
+                durability: sedp_data_reader_qos().durability,
+                deadline: sedp_data_reader_qos().deadline,
+                latency_budget: sedp_data_reader_qos().latency_budget,
+                liveliness: sedp_data_reader_qos().liveliness,
+                reliability: sedp_data_reader_qos().reliability,
+                ownership: sedp_data_reader_qos().ownership,
+                destination_order: sedp_data_reader_qos().destination_order,
+                user_data: sedp_data_reader_qos().user_data,
+                time_based_filter: sedp_data_reader_qos().time_based_filter,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_reader_qos().representation,
+            };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
@@ -2676,18 +2733,30 @@ impl DomainParticipantActor {
                     .to_vec(),
                 data_max_size_serialized,
             };
-            let dds_publication_data = PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let dds_publication_data = PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_writer_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_TOPIC.to_owned(),
-                "DiscoveredTopicData".to_owned(),
-                sedp_data_writer_qos(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_TOPIC.to_owned(),
+                type_name: "DiscoveredTopicData".to_owned(),
+                durability: sedp_data_writer_qos().durability,
+                deadline: sedp_data_writer_qos().deadline,
+                latency_budget: sedp_data_writer_qos().latency_budget,
+                liveliness: sedp_data_writer_qos().liveliness,
+                reliability: sedp_data_writer_qos().reliability,
+                lifespan: sedp_data_writer_qos().lifespan,
+                user_data: sedp_data_writer_qos().user_data,
+                ownership: sedp_data_writer_qos().ownership,
+                ownership_strength: sedp_data_writer_qos().ownership_strength,
+                destination_order: sedp_data_writer_qos().destination_order,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_writer_qos().representation,
+            };
             let discovered_writer_data = DiscoveredWriterData {
                 dds_publication_data,
                 writer_proxy,

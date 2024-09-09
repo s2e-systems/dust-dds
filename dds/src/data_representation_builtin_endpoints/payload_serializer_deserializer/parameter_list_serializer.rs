@@ -9,6 +9,7 @@ const PL_CDR_LE: [u8; 2] = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
 const PID_SENTINEL: i16 = 1;
 
+#[derive(Default)]
 pub struct ParameterListCdrSerializer {
     pub writer: Vec<u8>,
 }

@@ -378,12 +378,12 @@ mod tests {
         let lease_duration = Duration::new(10, 11);
 
         let data = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
-                BuiltInTopicKey {
+            ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
-                UserDataQosPolicy { value: vec![] },
-            ),
+                user_data: UserDataQosPolicy { value: vec![] },
+            },
             ParticipantProxy::new(
                 domain_id,
                 domain_tag,
@@ -495,12 +495,12 @@ mod tests {
         let lease_duration = Duration::new(10, 11);
 
         let expected = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
-                BuiltInTopicKey {
+            ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
-                UserDataQosPolicy { value: vec![] },
-            ),
+                user_data: UserDataQosPolicy { value: vec![] },
+            },
             ParticipantProxy::new(
                 Some(domain_id),
                 domain_tag,
