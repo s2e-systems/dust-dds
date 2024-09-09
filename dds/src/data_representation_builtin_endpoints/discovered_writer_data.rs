@@ -20,49 +20,11 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
-    remote_writer_guid: Guid,
-    remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    data_max_size_serialized: i32,
-}
-
-impl WriterProxy {
-    pub fn new(
-        remote_writer_guid: Guid,
-        remote_group_entity_id: EntityId,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self {
-        Self {
-            remote_writer_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            data_max_size_serialized: data_max_size_serialized.unwrap_or_default(),
-        }
-    }
-
-    pub fn remote_writer_guid(&self) -> Guid {
-        self.remote_writer_guid
-    }
-
-    pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.as_ref()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_ref()
-    }
-
-    pub fn data_max_size_serialized(&self) -> Option<i32> {
-        Some(self.data_max_size_serialized)
-    }
+    pub(crate) remote_writer_guid: Guid,
+    pub(crate) remote_group_entity_id: EntityId,
+    pub(crate) unicast_locator_list: Vec<Locator>,
+    pub(crate) multicast_locator_list: Vec<Locator>,
+    pub(crate) data_max_size_serialized: i32,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -293,16 +255,16 @@ mod tests {
                 TopicDataQosPolicy::default(),
                 String::default(),
             ),
-            WriterProxy::new(
-                Guid::new(
+            WriterProxy {
+                remote_writer_guid: Guid::new(
                     [5; 12],
                     EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
                 ),
-                EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
-                vec![],
-                vec![],
-                None,
-            ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: Default::default(),
+            },
         );
 
         let expected = vec![
@@ -349,17 +311,17 @@ mod tests {
                 TopicDataQosPolicy::default(),
                 String::default(),
             ),
-            WriterProxy::new(
+            WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
-                Guid::new(
+                remote_writer_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
-                EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
-                vec![],
-                vec![],
-                None,
-            ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: Default::default(),
+            },
         );
 
         let mut data = &[

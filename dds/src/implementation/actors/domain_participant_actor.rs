@@ -1899,7 +1899,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                 message
                     .discovered_writer_data
                     .writer_proxy()
-                    .remote_writer_guid()
+                    .remote_writer_guid
                     .prefix(),
                 ENTITYID_PARTICIPANT,
             )
@@ -1919,7 +1919,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                         message
                             .discovered_writer_data
                             .writer_proxy()
-                            .remote_writer_guid()
+                            .remote_writer_guid
                             .prefix(),
                         ENTITYID_PARTICIPANT,
                     )
@@ -2400,7 +2400,7 @@ impl DomainParticipantActor {
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = None;
+            let data_max_size_serialized = Default::default();
 
             let dds_publication_data = PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
@@ -2414,19 +2414,19 @@ impl DomainParticipantActor {
                 TopicDataQosPolicy::default(),
                 String::new(),
             );
-            let writer_proxy = WriterProxy::new(
+            let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
-                discovered_participant_data
+                unicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                discovered_participant_data
+                multicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
                 data_max_size_serialized,
-            );
+            };
             let discovered_writer_data =
                 DiscoveredWriterData::new(dds_publication_data, writer_proxy);
             self.builtin_subscriber
@@ -2528,21 +2528,21 @@ impl DomainParticipantActor {
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = None;
+            let data_max_size_serialized = Default::default();
 
-            let writer_proxy = WriterProxy::new(
+            let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
-                discovered_participant_data
+                unicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                discovered_participant_data
+                multicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
                 data_max_size_serialized,
-            );
+            };
             let dds_publication_data = PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: remote_writer_guid.into(),
@@ -2657,21 +2657,21 @@ impl DomainParticipantActor {
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = None;
+            let data_max_size_serialized = Default::default();
 
-            let writer_proxy = WriterProxy::new(
+            let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
-                discovered_participant_data
+                unicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                discovered_participant_data
+                multicast_locator_list: discovered_participant_data
                     .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                    .metatraffic_unicast_locator_list()
                     .to_vec(),
                 data_max_size_serialized,
-            );
+            };
             let dds_publication_data = PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: remote_writer_guid.into(),

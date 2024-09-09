@@ -948,13 +948,13 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
                 message.topic_data,
                 message.xml_type,
             ),
-            WriterProxy::new(
-                self.rtps_writer.guid(),
-                EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
+            WriterProxy {
+                remote_writer_guid: self.rtps_writer.guid(),
+                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
                 unicast_locator_list,
                 multicast_locator_list,
-                None,
-            ),
+                data_max_size_serialized: Default::default(),
+            },
         ))
     }
 }

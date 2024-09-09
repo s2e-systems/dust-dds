@@ -2201,7 +2201,7 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 let unicast_locator_list = if message
                     .discovered_writer_data
                     .writer_proxy()
-                    .unicast_locator_list()
+                    .unicast_locator_list
                     .is_empty()
                 {
                     message.default_unicast_locator_list
@@ -2209,14 +2209,14 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                     message
                         .discovered_writer_data
                         .writer_proxy()
-                        .unicast_locator_list()
+                        .unicast_locator_list
                         .to_vec()
                 };
 
                 let multicast_locator_list = if message
                     .discovered_writer_data
                     .writer_proxy()
-                    .multicast_locator_list()
+                    .multicast_locator_list
                     .is_empty()
                 {
                     message.default_multicast_locator_list
@@ -2224,7 +2224,7 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                     message
                         .discovered_writer_data
                         .writer_proxy()
-                        .multicast_locator_list()
+                        .multicast_locator_list
                         .to_vec()
                 };
 
@@ -2232,17 +2232,19 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                     message
                         .discovered_writer_data
                         .writer_proxy()
-                        .remote_writer_guid(),
+                        .remote_writer_guid,
                     &unicast_locator_list,
                     &multicast_locator_list,
+                    Some(
+                        message
+                            .discovered_writer_data
+                            .writer_proxy()
+                            .data_max_size_serialized,
+                    ),
                     message
                         .discovered_writer_data
                         .writer_proxy()
-                        .data_max_size_serialized(),
-                    message
-                        .discovered_writer_data
-                        .writer_proxy()
-                        .remote_group_entity_id(),
+                        .remote_group_entity_id,
                 );
 
                 match &mut self.rtps_reader {
