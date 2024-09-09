@@ -27,26 +27,6 @@ pub struct WriterProxy {
     data_max_size_serialized: i32,
 }
 
-impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize
-    for WriterProxy
-{
-    fn serialize(&self, serializer: &mut ParameterListCdrSerializer) -> Result<(), std::io::Error> {
-        serializer.write_with_default(
-            PID_GROUP_ENTITYID,
-            &self.remote_group_entity_id,
-            &Default::default(),
-        )?;
-        serializer.write_collection(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
-        serializer.write_collection(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
-        serializer.write_with_default(
-            PID_DATA_MAX_SIZE_SERIALIZED,
-            &self.data_max_size_serialized,
-            &Default::default(),
-        )?;
-        Ok(())
-    }
-}
-
 impl WriterProxy {
     pub fn new(
         remote_writer_guid: Guid,
@@ -213,22 +193,6 @@ impl DdsSerialize for DiscoveredWriterData {
 
         serializer.write_sentinel()?;
         Ok(serializer.writer)
-    }
-}
-
-impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize
-    for DiscoveredWriterData
-{
-    fn serialize(&self, serializer: &mut ParameterListCdrSerializer) -> Result<(), std::io::Error> {
-        dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(
-            &self.dds_publication_data,
-            serializer,
-        )?;
-        dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(
-            &self.writer_proxy,
-            serializer,
-        )?;
-        Ok(())
     }
 }
 

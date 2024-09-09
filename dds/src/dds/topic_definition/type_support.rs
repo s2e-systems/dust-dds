@@ -1,15 +1,12 @@
 use crate::{
     implementation::payload_serializer_deserializer::{
         endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
-        parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
     },
-    serialized_payload::parameter_list::{
-        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-    },
+    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
 };
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
 use std::io::{Read, Write};
@@ -193,20 +190,6 @@ fn pad(writer: &mut Vec<u8>) -> std::io::Result<()> {
     writer.write_all(padding)?;
     writer[3] = padding.len() as u8;
     Ok(())
-}
-
-/// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation with Little Endian endianness
-pub fn serialize_rtps_cdr_pl_le(value: &impl ParameterListSerialize) -> DdsResult<Vec<u8>> {
-    let mut serializer = ParameterListCdrSerializer::new();
-    serializer.write_header()?;
-    ParameterListSerialize::serialize(value, &mut serializer)?;
-    serializer.write_sentinel()?;
-    Ok(serializer.writer)
-}
-
-/// This is a helper function to serialize a type implementing [`ParameterListSerialize`] using the RTPS defined CDR Parameter List representation with Big Endian endianness
-pub fn serialize_rtps_cdr_pl_be(_value: &impl ParameterListSerialize) -> DdsResult<Vec<u8>> {
-    unimplemented!()
 }
 
 /// This is a helper function to deserialize a type implementing [`CdrDeserialize`] using the RTPS classic CDR representation.

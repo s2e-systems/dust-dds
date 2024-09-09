@@ -1,16 +1,3 @@
-use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
-    infrastructure::{
-        error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    },
-    rtps::types::{EntityId, Guid, Locator},
-    serialized_payload::parameter_list::{
-        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-    },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
-};
-
 use super::parameter_id_values::{
     DEFAULT_EXPECTS_INLINE_QOS, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
     PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
@@ -18,10 +5,20 @@ use super::parameter_id_values::{
     PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
     PID_TOPIC_NAME, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
+use crate::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+    infrastructure::{
+        error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    },
+    rtps::types::{EntityId, Guid, Locator},
+    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+};
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize)]
 pub struct ReaderProxy {
     #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
     remote_reader_guid: Guid,

@@ -8,9 +8,7 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    serialized_payload::parameter_list::{
-        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-    },
+    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
         deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XTypesError,
@@ -59,7 +57,7 @@ impl<'de> XTypesDeserialize<'de> for DomainIdParameter {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize)]
 pub struct ParticipantProxy {
     #[parameter(id=PID_DOMAIN_ID, default=Default::default())]
     domain_id: DomainIdParameter,
@@ -257,7 +255,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 
         // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
         serializer.write(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
-        
+
         serializer.write_collection(
             PID_DISCOVERED_PARTICIPANT,
             &self.discovered_participant_list,

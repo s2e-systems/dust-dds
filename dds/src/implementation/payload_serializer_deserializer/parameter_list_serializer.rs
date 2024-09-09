@@ -95,69 +95,69 @@ impl ParameterListCdrSerializer {
 
 //     use super::*;
 
-    // fn serialize_le<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
-    // where
-    //     T: ParameterListSerialize,
-    // {
-    //     let mut writer = Vec::new();
-    //     let mut serializer = ParameterListCdrSerializer::new(&mut writer);
-    //     v.serialize(&mut serializer)?;
-    //     Ok(writer)
-    // }
+// fn serialize_le<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
+// where
+//     T: ParameterListSerialize,
+// {
+//     let mut writer = Vec::new();
+//     let mut serializer = ParameterListCdrSerializer::new(&mut writer);
+//     v.serialize(&mut serializer)?;
+//     Ok(writer)
+// }
 
-    // #[test]
-    // fn write_parameter_list_without_defaults() {
-    //     struct ParameterListWithoutDefaults {
-    //         a: i32,
-    //         b: String,
-    //         c: [u16; 4],
-    //     }
+// #[test]
+// fn write_parameter_list_without_defaults() {
+//     struct ParameterListWithoutDefaults {
+//         a: i32,
+//         b: String,
+//         c: [u16; 4],
+//     }
 
-    //     impl ParameterListSerialize for ParameterListWithoutDefaults {
-    //         fn serialize(
-    //             &self,
-    //             serializer: &mut impl ParameterListSerializer,
-    //         ) -> Result<(), std::io::Error> {
-    //             serializer.write(1, &self.a)?;
-    //             serializer.write(2, &self.b)?;
-    //             serializer.write(3, &self.c)?;
-    //             Ok(())
-    //         }
-    //     }
+//     impl ParameterListSerialize for ParameterListWithoutDefaults {
+//         fn serialize(
+//             &self,
+//             serializer: &mut impl ParameterListSerializer,
+//         ) -> Result<(), std::io::Error> {
+//             serializer.write(1, &self.a)?;
+//             serializer.write(2, &self.b)?;
+//             serializer.write(3, &self.c)?;
+//             Ok(())
+//         }
+//     }
 
-    //     let value = ParameterListWithoutDefaults {
-    //         a: 100,
-    //         b: "Hello".to_string(),
-    //         c: [1, 2, 3, 4],
-    //     };
+//     let value = ParameterListWithoutDefaults {
+//         a: 100,
+//         b: "Hello".to_string(),
+//         c: [1, 2, 3, 4],
+//     };
 
-    //     assert_eq!(
-    //         serialize_be(&value).unwrap(),
-    //         vec![
-    //             0, 1, 0, 4, // PID, length
-    //             0, 0, 0, 100, // u32
-    //             0, 2, 0, 12, // PID, length
-    //             0, 0, 0, 6, // String length
-    //             b'H', b'e', b'l', b'l', //
-    //             b'o', 0, 0, 0, // 2 bytes padding
-    //             0, 3, 0, 8, // PID, length
-    //             0, 1, 0, 2, //
-    //             0, 3, 0, 4, //
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         serialize_le(&value).unwrap(),
-    //         vec![
-    //             1, 0, 4, 0, // PID, length
-    //             100, 0, 0, 0, // u32
-    //             2, 0, 12, 0, // PID, length
-    //             6, 0, 0, 0, // String length
-    //             b'H', b'e', b'l', b'l', //
-    //             b'o', 0, 0, 0, // 2 bytes padding
-    //             3, 0, 8, 0, // PID, length
-    //             1, 0, 2, 0, //
-    //             3, 0, 4, 0, //
-    //         ]
-    //     );
-    // }
+//     assert_eq!(
+//         serialize_be(&value).unwrap(),
+//         vec![
+//             0, 1, 0, 4, // PID, length
+//             0, 0, 0, 100, // u32
+//             0, 2, 0, 12, // PID, length
+//             0, 0, 0, 6, // String length
+//             b'H', b'e', b'l', b'l', //
+//             b'o', 0, 0, 0, // 2 bytes padding
+//             0, 3, 0, 8, // PID, length
+//             0, 1, 0, 2, //
+//             0, 3, 0, 4, //
+//         ]
+//     );
+//     assert_eq!(
+//         serialize_le(&value).unwrap(),
+//         vec![
+//             1, 0, 4, 0, // PID, length
+//             100, 0, 0, 0, // u32
+//             2, 0, 12, 0, // PID, length
+//             6, 0, 0, 0, // String length
+//             b'H', b'e', b'l', b'l', //
+//             b'o', 0, 0, 0, // 2 bytes padding
+//             3, 0, 8, 0, // PID, length
+//             1, 0, 2, 0, //
+//             3, 0, 4, 0, //
+//         ]
+//     );
+// }
 // }

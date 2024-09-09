@@ -20,9 +20,7 @@ use crate::{
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    serialized_payload::parameter_list::{
-        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-    },
+    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
@@ -48,9 +46,7 @@ impl From<BuiltInTopicKey> for [u8; 16] {
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(
-    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct ParticipantBuiltinTopicData {
     #[parameter(id = PID_PARTICIPANT_GUID)]
@@ -80,9 +76,7 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(
-    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct TopicBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
@@ -232,9 +226,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`DataWriter`](crate::publication::data_writer::DataWriter).
-#[derive(
-    Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListSerialize, ParameterListDeserialize
-)]
+#[derive(Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct PublicationBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
@@ -423,9 +415,7 @@ impl DdsHasKey for PublicationBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`DataReader`](crate::subscription::data_reader::DataReader).
-#[derive(
-    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct SubscriptionBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
