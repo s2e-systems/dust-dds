@@ -1,3 +1,4 @@
+use super::topic_definition::type_support::DdsDeserialize;
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
         PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
@@ -23,12 +24,9 @@ use crate::{
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-
-use super::topic_definition::type_support::DdsDeserialize;
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]

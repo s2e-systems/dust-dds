@@ -6,14 +6,10 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    implementation::payload_serializer_deserializer::{
-        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
-        parameter_list_serializer::ParameterListCdrSerializer,
-    },
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
     infrastructure::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
-    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
@@ -107,8 +103,6 @@ impl DdsSerialize for DiscoveredTopicData {
 
 impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer =
-            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
         Ok(Self {
             topic_builtin_topic_data: TopicBuiltinTopicData::deserialize_data(serialized_data)?,
         })

@@ -1,3 +1,11 @@
+use super::parameter_id_values::{
+    DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG,
+    PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
+    PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+};
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
@@ -11,21 +19,11 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
     xtypes::{
         deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XTypesError,
         serialize::XTypesSerialize, serializer::XTypesSerializer,
     },
-};
-
-use super::parameter_id_values::{
-    DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-    PID_DEFAULT_UNICAST_LOCATOR, PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG,
-    PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
-    PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
@@ -472,7 +470,6 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
         let locator1 = Locator::new(11, 12, [1; 16]);
@@ -589,5 +586,4 @@ mod tests {
         let result = SpdpDiscoveredParticipantData::deserialize_data(&mut data).unwrap();
         assert_eq!(result, expected);
     }
-
 }

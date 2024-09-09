@@ -15,7 +15,6 @@ use crate::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     rtps::types::{EntityId, Guid, Locator},
-    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
