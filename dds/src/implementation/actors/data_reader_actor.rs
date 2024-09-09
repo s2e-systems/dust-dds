@@ -861,7 +861,7 @@ impl DataReaderActor {
         discovered_writer_data: &DiscoveredWriterData,
         subscriber_qos: &SubscriberQos,
     ) -> Vec<QosPolicyId> {
-        let writer_info = discovered_writer_data.dds_publication_data();
+        let writer_info = &discovered_writer_data.dds_publication_data;
 
         let mut incompatible_qos_policy_list = Vec::new();
 
@@ -2180,7 +2180,7 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
     fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
-        let publication_builtin_topic_data = message.discovered_writer_data.dds_publication_data();
+        let publication_builtin_topic_data = &message.discovered_writer_data.dds_publication_data;
         if publication_builtin_topic_data.topic_name() == topic_name
             && publication_builtin_topic_data.get_type_name() == type_name
         {
@@ -2200,7 +2200,7 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if message
                     .discovered_writer_data
-                    .writer_proxy()
+                    .writer_proxy
                     .unicast_locator_list
                     .is_empty()
                 {
@@ -2208,14 +2208,14 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 } else {
                     message
                         .discovered_writer_data
-                        .writer_proxy()
+                        .writer_proxy
                         .unicast_locator_list
                         .to_vec()
                 };
 
                 let multicast_locator_list = if message
                     .discovered_writer_data
-                    .writer_proxy()
+                    .writer_proxy
                     .multicast_locator_list
                     .is_empty()
                 {
@@ -2223,7 +2223,7 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 } else {
                     message
                         .discovered_writer_data
-                        .writer_proxy()
+                        .writer_proxy
                         .multicast_locator_list
                         .to_vec()
                 };
@@ -2231,19 +2231,19 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 let writer_proxy = RtpsWriterProxy::new(
                     message
                         .discovered_writer_data
-                        .writer_proxy()
+                        .writer_proxy
                         .remote_writer_guid,
                     &unicast_locator_list,
                     &multicast_locator_list,
                     Some(
                         message
                             .discovered_writer_data
-                            .writer_proxy()
+                            .writer_proxy
                             .data_max_size_serialized,
                     ),
                     message
                         .discovered_writer_data
-                        .writer_proxy()
+                        .writer_proxy
                         .remote_group_entity_id,
                 );
 

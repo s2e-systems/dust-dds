@@ -674,7 +674,7 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
         if self.is_partition_matched(
             message
                 .discovered_writer_data
-                .dds_publication_data()
+                .dds_publication_data
                 .partition(),
         ) {
             for data_reader in self.data_reader_list.values() {

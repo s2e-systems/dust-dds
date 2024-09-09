@@ -29,8 +29,8 @@ pub struct WriterProxy {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredWriterData {
-    dds_publication_data: PublicationBuiltinTopicData,
-    writer_proxy: WriterProxy,
+    pub(crate) dds_publication_data: PublicationBuiltinTopicData,
+    pub(crate) writer_proxy: WriterProxy,
 }
 
 impl DdsSerialize for DiscoveredWriterData {
@@ -176,26 +176,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
     }
 }
 
-impl DiscoveredWriterData {
-    pub fn new(
-        dds_publication_data: PublicationBuiltinTopicData,
-        writer_proxy: WriterProxy,
-    ) -> Self {
-        Self {
-            dds_publication_data,
-            writer_proxy,
-        }
-    }
-
-    pub fn dds_publication_data(&self) -> &PublicationBuiltinTopicData {
-        &self.dds_publication_data
-    }
-
-    pub fn writer_proxy(&self) -> &WriterProxy {
-        &self.writer_proxy
-    }
-}
-
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsHasKey for DiscoveredWriterData {
@@ -240,8 +220,8 @@ mod tests {
 
     #[test]
     fn serialize_all_default() {
-        let data = DiscoveredWriterData::new(
-            PublicationBuiltinTopicData::new(
+        let data = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -255,7 +235,7 @@ mod tests {
                 TopicDataQosPolicy::default(),
                 String::default(),
             ),
-            WriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     [5; 12],
                     EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
@@ -265,7 +245,7 @@ mod tests {
                 multicast_locator_list: vec![],
                 data_max_size_serialized: Default::default(),
             },
-        );
+        };
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -296,8 +276,8 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = DiscoveredWriterData::new(
-            PublicationBuiltinTopicData::new(
+        let expected = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -311,7 +291,7 @@ mod tests {
                 TopicDataQosPolicy::default(),
                 String::default(),
             ),
-            WriterProxy {
+            writer_proxy: WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
@@ -322,7 +302,7 @@ mod tests {
                 multicast_locator_list: vec![],
                 data_max_size_serialized: Default::default(),
             },
-        );
+        };
 
         let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE

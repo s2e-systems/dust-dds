@@ -933,8 +933,8 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
             self.rtps_writer.multicast_locator_list().to_vec()
         };
 
-        Ok(DiscoveredWriterData::new(
-            PublicationBuiltinTopicData::new(
+        Ok(DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: self.rtps_writer.guid().into(),
                 },
@@ -948,14 +948,14 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
                 message.topic_data,
                 message.xml_type,
             ),
-            WriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid: self.rtps_writer.guid(),
                 remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
                 unicast_locator_list,
                 multicast_locator_list,
                 data_max_size_serialized: Default::default(),
             },
-        ))
+        })
     }
 }
 

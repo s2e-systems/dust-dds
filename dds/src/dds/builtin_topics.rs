@@ -12,7 +12,7 @@ use crate::{
         payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
     },
     infrastructure::{
-        qos::{DataReaderQos, DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, DataWriterQos, PublisherQos, SubscriberQos},
         qos_policy::{
             DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
             DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,

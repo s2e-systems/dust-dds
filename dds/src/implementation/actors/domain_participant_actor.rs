@@ -1898,7 +1898,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
             Guid::new(
                 message
                     .discovered_writer_data
-                    .writer_proxy()
+                    .writer_proxy
                     .remote_writer_guid
                     .prefix(),
                 ENTITYID_PARTICIPANT,
@@ -1908,7 +1908,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
         let is_publication_ignored = self.ignored_publications.contains(&InstanceHandle::new(
             message
                 .discovered_writer_data
-                .dds_publication_data()
+                .dds_publication_data
                 .key()
                 .value,
         ));
@@ -1918,7 +1918,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     Guid::new(
                         message
                             .discovered_writer_data
-                            .writer_proxy()
+                            .writer_proxy
                             .remote_writer_guid
                             .prefix(),
                         ENTITYID_PARTICIPANT,
@@ -1956,7 +1956,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                 let topic_instance_handle = InstanceHandle::new(
                     message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .key()
                         .value,
                 );
@@ -1964,65 +1964,65 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     key: BuiltInTopicKey::default(),
                     name: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .topic_name()
                         .to_owned(),
                     type_name: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .get_type_name()
                         .to_owned(),
                     durability: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .durability()
                         .clone(),
                     deadline: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .deadline()
                         .clone(),
                     latency_budget: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .latency_budget()
                         .clone(),
                     liveliness: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .liveliness()
                         .clone(),
                     reliability: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .reliability()
                         .clone(),
                     transport_priority: TransportPriorityQosPolicy::default(),
                     lifespan: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .lifespan()
                         .clone(),
                     destination_order: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .destination_order()
                         .clone(),
                     history: HistoryQosPolicy::default(),
                     resource_limits: ResourceLimitsQosPolicy::default(),
                     ownership: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .ownership()
                         .clone(),
                     topic_data: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .topic_data()
                         .clone(),
                     representation: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .representation()
                         .clone(),
                 };
@@ -2427,8 +2427,10 @@ impl DomainParticipantActor {
                     .to_vec(),
                 data_max_size_serialized,
             };
-            let discovered_writer_data =
-                DiscoveredWriterData::new(dds_publication_data, writer_proxy);
+            let discovered_writer_data = DiscoveredWriterData {
+                dds_publication_data,
+                writer_proxy,
+            };
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
@@ -2555,8 +2557,10 @@ impl DomainParticipantActor {
                 TopicDataQosPolicy::default(),
                 String::new(),
             );
-            let discovered_writer_data =
-                DiscoveredWriterData::new(dds_publication_data, writer_proxy);
+            let discovered_writer_data = DiscoveredWriterData {
+                dds_publication_data,
+                writer_proxy,
+            };
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
@@ -2684,8 +2688,10 @@ impl DomainParticipantActor {
                 TopicDataQosPolicy::default(),
                 String::new(),
             );
-            let discovered_writer_data =
-                DiscoveredWriterData::new(dds_publication_data, writer_proxy);
+            let discovered_writer_data = DiscoveredWriterData {
+                dds_publication_data,
+                writer_proxy,
+            };
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
