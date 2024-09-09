@@ -19,7 +19,7 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {
-    topic_builtin_topic_data: TopicBuiltinTopicData,
+    pub(crate) topic_builtin_topic_data: TopicBuiltinTopicData,
 }
 
 impl DdsSerialize for DiscoveredTopicData {
@@ -111,18 +111,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
     }
 }
 
-impl DiscoveredTopicData {
-    pub fn new(topic_builtin_topic_data: TopicBuiltinTopicData) -> Self {
-        Self {
-            topic_builtin_topic_data,
-        }
-    }
-
-    pub fn topic_builtin_topic_data(&self) -> &TopicBuiltinTopicData {
-        &self.topic_builtin_topic_data
-    }
-}
-
 impl DdsHasKey for DiscoveredTopicData {
     const HAS_KEY: bool = true;
 }
@@ -155,15 +143,28 @@ mod tests {
 
     #[test]
     fn serialize_all_default() {
+        let topic_qos = TopicQos::default();
         let data = DiscoveredTopicData {
-            topic_builtin_topic_data: TopicBuiltinTopicData::new(
-                BuiltInTopicKey {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                TopicQos::default(),
-            ),
+                name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: topic_qos.durability,
+                deadline: topic_qos.deadline,
+                latency_budget: topic_qos.latency_budget,
+                liveliness: topic_qos.liveliness,
+                reliability: topic_qos.reliability,
+                transport_priority: topic_qos.transport_priority,
+                lifespan: topic_qos.lifespan,
+                destination_order: topic_qos.destination_order,
+                history: topic_qos.history,
+                resource_limits: topic_qos.resource_limits,
+                ownership: topic_qos.ownership,
+                topic_data: topic_qos.topic_data,
+                representation: topic_qos.representation,
+            },
         };
 
         let expected = vec![
@@ -187,15 +188,28 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
+        let topic_qos = TopicQos::default();
         let expected = DiscoveredTopicData {
-            topic_builtin_topic_data: TopicBuiltinTopicData::new(
-                BuiltInTopicKey {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                TopicQos::default(),
-            ),
+                name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: topic_qos.durability,
+                deadline: topic_qos.deadline,
+                latency_budget: topic_qos.latency_budget,
+                liveliness: topic_qos.liveliness,
+                reliability: topic_qos.reliability,
+                transport_priority: topic_qos.transport_priority,
+                lifespan: topic_qos.lifespan,
+                destination_order: topic_qos.destination_order,
+                history: topic_qos.history,
+                resource_limits: topic_qos.resource_limits,
+                ownership: topic_qos.ownership,
+                topic_data: topic_qos.topic_data,
+                representation: topic_qos.representation,
+            },
         };
 
         let mut data = &[

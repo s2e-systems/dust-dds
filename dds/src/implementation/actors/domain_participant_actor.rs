@@ -1960,74 +1960,73 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                         .key()
                         .value,
                 );
-                let writer_topic = TopicBuiltinTopicData::new(
-                    BuiltInTopicKey::default(),
-                    message
+                let writer_topic = TopicBuiltinTopicData {
+                    key: BuiltInTopicKey::default(),
+                    name: message
                         .discovered_writer_data
                         .dds_publication_data()
                         .topic_name()
                         .to_owned(),
-                    message
+                    type_name: message
                         .discovered_writer_data
                         .dds_publication_data()
                         .get_type_name()
                         .to_owned(),
-                    TopicQos {
-                        topic_data: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .topic_data()
-                            .clone(),
-                        durability: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .durability()
-                            .clone(),
-                        deadline: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .deadline()
-                            .clone(),
-                        latency_budget: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .latency_budget()
-                            .clone(),
-                        liveliness: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .liveliness()
-                            .clone(),
-                        reliability: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .reliability()
-                            .clone(),
-                        destination_order: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .destination_order()
-                            .clone(),
-                        history: HistoryQosPolicy::default(),
-                        resource_limits: ResourceLimitsQosPolicy::default(),
-                        transport_priority: TransportPriorityQosPolicy::default(),
-                        lifespan: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .lifespan()
-                            .clone(),
-                        ownership: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .ownership()
-                            .clone(),
-                        representation: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .representation()
-                            .clone(),
-                    },
-                );
+                    durability: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .durability()
+                        .clone(),
+                    deadline: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .deadline()
+                        .clone(),
+                    latency_budget: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .latency_budget()
+                        .clone(),
+                    liveliness: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .liveliness()
+                        .clone(),
+                    reliability: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .reliability()
+                        .clone(),
+                    transport_priority: TransportPriorityQosPolicy::default(),
+                    lifespan: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .lifespan()
+                        .clone(),
+                    destination_order: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .destination_order()
+                        .clone(),
+                    history: HistoryQosPolicy::default(),
+                    resource_limits: ResourceLimitsQosPolicy::default(),
+                    ownership: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .ownership()
+                        .clone(),
+                    topic_data: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .topic_data()
+                        .clone(),
+                    representation: message
+                        .discovered_writer_data
+                        .dds_publication_data()
+                        .representation()
+                        .clone(),
+                };
+
                 self.discovered_topic_list
                     .insert(topic_instance_handle, writer_topic);
             }
@@ -2142,70 +2141,69 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         .key()
                         .value,
                 );
-                let reader_topic = TopicBuiltinTopicData::new(
-                    BuiltInTopicKey::default(),
-                    message
+                let reader_topic = TopicBuiltinTopicData {
+                    key: BuiltInTopicKey::default(),
+                    name: message
                         .discovered_reader_data
                         .subscription_builtin_topic_data()
                         .topic_name()
                         .to_string(),
-                    message
+                    type_name: message
                         .discovered_reader_data
                         .subscription_builtin_topic_data()
                         .get_type_name()
                         .to_string(),
-                    TopicQos {
-                        topic_data: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .topic_data()
-                            .clone(),
-                        durability: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .durability()
-                            .clone(),
-                        deadline: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .deadline()
-                            .clone(),
-                        latency_budget: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .latency_budget()
-                            .clone(),
-                        liveliness: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .liveliness()
-                            .clone(),
-                        reliability: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .reliability()
-                            .clone(),
-                        destination_order: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .destination_order()
-                            .clone(),
-                        history: HistoryQosPolicy::default(),
-                        resource_limits: ResourceLimitsQosPolicy::default(),
-                        transport_priority: TransportPriorityQosPolicy::default(),
-                        lifespan: LifespanQosPolicy::default(),
-                        ownership: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .ownership()
-                            .clone(),
-                        representation: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .representation()
-                            .clone(),
-                    },
-                );
+
+                    topic_data: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .topic_data()
+                        .clone(),
+                    durability: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .durability()
+                        .clone(),
+                    deadline: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .deadline()
+                        .clone(),
+                    latency_budget: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .latency_budget()
+                        .clone(),
+                    liveliness: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .liveliness()
+                        .clone(),
+                    reliability: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .reliability()
+                        .clone(),
+                    destination_order: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .destination_order()
+                        .clone(),
+                    history: HistoryQosPolicy::default(),
+                    resource_limits: ResourceLimitsQosPolicy::default(),
+                    transport_priority: TransportPriorityQosPolicy::default(),
+                    lifespan: LifespanQosPolicy::default(),
+                    ownership: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .ownership()
+                        .clone(),
+                    representation: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .representation()
+                        .clone(),
+                };
                 self.discovered_topic_list
                     .insert(topic_instance_handle, reader_topic);
             }
@@ -2253,7 +2251,7 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
         let handle = InstanceHandle::new(
             message
                 .discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .key()
                 .value,
         );
@@ -2268,7 +2266,7 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
                 handle,
                 message
                     .discovered_topic_data
-                    .topic_builtin_topic_data()
+                    .topic_builtin_topic_data
                     .clone(),
             );
         }

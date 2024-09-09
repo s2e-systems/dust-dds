@@ -138,32 +138,6 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
 }
 
 impl TopicBuiltinTopicData {
-    pub(crate) fn new(
-        key: BuiltInTopicKey,
-        name: String,
-        type_name: String,
-        topic_qos: TopicQos,
-    ) -> Self {
-        Self {
-            key,
-            name,
-            type_name,
-            durability: topic_qos.durability,
-            deadline: topic_qos.deadline,
-            latency_budget: topic_qos.latency_budget,
-            liveliness: topic_qos.liveliness,
-            reliability: topic_qos.reliability,
-            transport_priority: topic_qos.transport_priority,
-            lifespan: topic_qos.lifespan,
-            destination_order: topic_qos.destination_order,
-            history: topic_qos.history,
-            resource_limits: topic_qos.resource_limits,
-            ownership: topic_qos.ownership,
-            topic_data: topic_qos.topic_data,
-            representation: topic_qos.representation,
-        }
-    }
-
     /// Get the key value of the discovered topic.
     pub fn key(&self) -> &BuiltInTopicKey {
         &self.key
