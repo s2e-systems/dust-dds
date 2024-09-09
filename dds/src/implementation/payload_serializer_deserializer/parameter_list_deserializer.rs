@@ -1,4 +1,3 @@
-use super::endianness::CdrEndianness;
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::error::RtpsError,
@@ -9,6 +8,12 @@ use crate::{
 };
 use std::io::{BufRead, Read};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CdrEndianness {
+    LittleEndian,
+    BigEndian,
+}
+
 type RepresentationIdentifier = [u8; 2];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
@@ -16,16 +21,6 @@ const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 struct Parameter<'de> {
     id: i16,
     data: &'de [u8],
-}
-
-impl<'de> Parameter<'de> {
-    fn id(&self) -> i16 {
-        self.id
-    }
-
-    fn data(&self) -> &'de [u8] {
-        self.data
-    }
 }
 
 struct ParameterIterator<'a, 'de> {
@@ -84,87 +79,62 @@ impl<'de> ParameterListCdrDeserializer<'de> {
             ))?,
         };
 
-        Ok(Self { bytes, endianness })
+        Ok(Self {
+            bytes: &bytes[4..],
+            endianness,
+        })
     }
 }
 
 impl<'de> ParameterListCdrDeserializer<'de> {
-    pub fn read<T>(&self, id: i16) -> Result<T, std::io::Error>
+    pub fn read<T>(&self, id: i16) -> Result<T, RtpsError>
     where
         T: XTypesDeserialize<'de>,
     {
         let mut bytes = self.bytes;
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
-            if p.id() == id {
-                match self.endianness {
+            if p.id == id {
+                return Ok(match self.endianness {
                     CdrEndianness::LittleEndian => {
-                        return T::deserialize(&mut Xcdr1LeDeserializer::new(p.data())).map_err(
-                            |e| {
-                                std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("Deserialization error {:?}", e),
-                                )
-                            },
-                        )
+                        T::deserialize(&mut Xcdr1LeDeserializer::new(p.data))?
                     }
                     CdrEndianness::BigEndian => {
-                        return T::deserialize(&mut Xcdr1BeDeserializer::new(p.data())).map_err(
-                            |e| {
-                                std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("Deserialization error {:?}", e),
-                                )
-                            },
-                        )
+                        T::deserialize(&mut Xcdr1BeDeserializer::new(p.data))?
                     }
-                }
+                });
             }
         }
 
-        Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
+        Err(RtpsError::new(
+            crate::rtps::error::RtpsErrorKind::InvalidData,
             format!("Parameter with id {} not found", id),
         ))
     }
 
-    pub fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, std::io::Error>
+    pub fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, RtpsError>
     where
         T: XTypesDeserialize<'de>,
     {
         let mut bytes = self.bytes;
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
-            if p.id() == id {
-                match self.endianness {
+            if p.id == id {
+                return Ok(match self.endianness {
                     CdrEndianness::LittleEndian => {
-                        return T::deserialize(&mut Xcdr1LeDeserializer::new(p.data())).map_err(
-                            |e| {
-                                std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("Deserialization error {:?}", e),
-                                )
-                            },
-                        )
+                        T::deserialize(&mut Xcdr1LeDeserializer::new(p.data))?
                     }
                     CdrEndianness::BigEndian => {
-                        return T::deserialize(&mut Xcdr1BeDeserializer::new(p.data())).map_err(
-                            |e| {
-                                std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    format!("Deserialization error {:?}", e),
-                                )
-                            },
-                        )
+                        T::deserialize(&mut Xcdr1BeDeserializer::new(p.data))?
                     }
-                }
+                });
             }
         }
 
         Ok(default)
     }
 
-    pub fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, std::io::Error>
+    pub fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, RtpsError>
     where
         T: XTypesDeserialize<'de>,
     {
@@ -172,90 +142,16 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         let mut bytes = self.bytes;
         let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
         while let Some(p) = parameter_iterator.next()? {
-            if p.id() == id {
+            if p.id == id {
                 match self.endianness {
-                    CdrEndianness::LittleEndian => parameter_values.push(
-                        T::deserialize(&mut Xcdr1LeDeserializer::new(p.data())).map_err(|e| {
-                            std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("Deserialization error {:?}", e),
-                            )
-                        })?,
-                    ),
-                    CdrEndianness::BigEndian => parameter_values.push(
-                        T::deserialize(&mut Xcdr1BeDeserializer::new(p.data())).map_err(|e| {
-                            std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("Deserialization error {:?}", e),
-                            )
-                        })?,
-                    ),
-                }
+                    CdrEndianness::LittleEndian => parameter_values
+                        .push(T::deserialize(&mut Xcdr1LeDeserializer::new(p.data))?),
+                    CdrEndianness::BigEndian => parameter_values
+                        .push(T::deserialize(&mut Xcdr1BeDeserializer::new(p.data))?),
+                };
             }
         }
 
         Ok(parameter_values)
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use crate::serialized_payload::parameter_list::deserialize::ParameterListDeserialize;
-
-//     use super::*;
-
-//     fn deserialize_pl_be<'de, T>(data: &'de [u8]) -> Result<T, std::io::Error>
-//     where
-//         T: ParameterListDeserialize<'de>,
-//     {
-//         let mut pl_deserializer = ParameterListCdrDeserializer::new(data, CdrEndianness::BigEndian);
-//         ParameterListDeserialize::deserialize(&mut pl_deserializer)
-//     }
-
-//     fn deserialize_pl_le<'de, T>(data: &'de [u8]) -> Result<T, std::io::Error>
-//     where
-//         T: ParameterListDeserialize<'de>,
-//     {
-//         let mut pl_deserializer =
-//             ParameterListCdrDeserializer::new(data, CdrEndianness::LittleEndian);
-//         ParameterListDeserialize::deserialize(&mut pl_deserializer)
-//     }
-
-//     #[test]
-//     fn deserialize_one_parameter_le() {
-//         #[derive(PartialEq, Debug)]
-//         struct OneParamData {
-//             value: u32,
-//         }
-
-//         impl<'de> ParameterListDeserialize<'de> for OneParamData {
-//             fn deserialize(
-//                 pl_deserializer: &mut impl ParameterListDeserializer<'de>,
-//             ) -> Result<Self, std::io::Error> {
-//                 let value = pl_deserializer.read(71)?;
-//                 Ok(Self { value })
-//             }
-//         }
-
-//         let expected = OneParamData { value: 21 };
-
-//         assert_eq!(
-//             deserialize_pl_be::<OneParamData>(&[
-//                 0, 71, 0, 4, // pid | Length (incl padding)
-//                 0, 0, 0, 21, // CdrParameterType
-//                 0, 1, 0, 0 // PID_SENTINEL
-//             ])
-//             .unwrap(),
-//             expected
-//         );
-//         assert_eq!(
-//             deserialize_pl_le::<OneParamData>(&[
-//                 71, 0x00, 4, 0, // pid | Length (incl padding)
-//                 21, 0, 0, 0, // CdrParameterType
-//                 1, 0, 0, 0 // PID_SENTINEL
-//             ])
-//             .unwrap(),
-//             expected
-//         )
-//     }
-// }

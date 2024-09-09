@@ -148,9 +148,8 @@ impl DdsTypeXml for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
-    use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos};
-
     use super::*;
+    use crate::{builtin_topics::BuiltInTopicKey, infrastructure::qos::TopicQos};
 
     #[test]
     fn serialize_all_default() {

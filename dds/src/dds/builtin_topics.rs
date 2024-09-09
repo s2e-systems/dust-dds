@@ -1,4 +1,4 @@
-use super::topic_definition::type_support::DdsDeserialize;
+use super::{infrastructure::error::DdsResult, topic_definition::type_support::DdsDeserialize};
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
         PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
@@ -53,9 +53,7 @@ pub struct ParticipantBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn deserialize_data(
-        serialized_data: &'de [u8],
-    ) -> super::infrastructure::error::DdsResult<Self> {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
         Ok(Self {
             key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
@@ -106,9 +104,7 @@ pub struct TopicBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
-    fn deserialize_data(
-        serialized_data: &'de [u8],
-    ) -> super::infrastructure::error::DdsResult<Self> {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
         Ok(Self {
             key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
@@ -277,9 +273,7 @@ pub struct PublicationBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
-    fn deserialize_data(
-        serialized_data: &'de [u8],
-    ) -> super::infrastructure::error::DdsResult<Self> {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
         Ok(Self {
             key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
@@ -482,9 +476,7 @@ pub struct SubscriptionBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn deserialize_data(
-        serialized_data: &'de [u8],
-    ) -> super::infrastructure::error::DdsResult<Self> {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
 
         Ok(Self {
