@@ -33,7 +33,7 @@ impl<'a, 'de> ParameterIterator<'a, 'de> {
         Self { reader, endianness }
     }
 
-    fn next(&mut self) -> Result<Option<Parameter<'de>>, std::io::Error> {
+    fn next(&mut self) -> Result<Option<Parameter<'de>>, RtpsError> {
         let mut buf = [0; 2];
         self.reader.read_exact(&mut buf)?;
         let id = match self.endianness {
@@ -49,8 +49,8 @@ impl<'a, 'de> ParameterIterator<'a, 'de> {
         } as usize;
 
         if self.reader.len() < length {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
+            Err(RtpsError::new(
+                crate::rtps::error::RtpsErrorKind::NotEnoughData,
                 "Not enough data to get parameter length".to_string(),
             ))
         } else if id == PID_SENTINEL {
