@@ -154,8 +154,8 @@ const _CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const _CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
-const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
-const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
+const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const _PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 /// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
@@ -213,38 +213,5 @@ where
         CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
         _ => Err(XTypesError::InvalidData),
     }?;
-    Ok(value)
-}
-
-/// This is a helper function to deserialize a type implementing [`ParameterListDeserialize`] using the RTPS Parameter List representation.
-/// The representation endianness to be used is automatically determined from the representation identifier and options
-pub fn deserialize_rtps_cdr_pl<'de, T>(serialized_data: &mut &'de [u8]) -> DdsResult<T>
-where
-    T: ParameterListDeserialize<'de>,
-{
-    let mut representation_identifier = [0u8, 0];
-    serialized_data
-        .read_exact(&mut representation_identifier)
-        .map_err(|err| DdsError::Error(err.to_string()))?;
-
-    let mut representation_option = [0u8, 0];
-    serialized_data
-        .read_exact(&mut representation_option)
-        .map_err(|err| DdsError::Error(err.to_string()))?;
-
-    let mut deserializer = match representation_identifier {
-        PL_CDR_BE => Ok(ParameterListCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::BigEndian,
-        )),
-        PL_CDR_LE => Ok(ParameterListCdrDeserializer::new(
-            serialized_data,
-            CdrEndianness::LittleEndian,
-        )),
-        _ => Err(DdsError::Error(
-            "Unknownn representation identifier".to_string(),
-        )),
-    }?;
-    let value = ParameterListDeserialize::deserialize(&mut deserializer)?;
     Ok(value)
 }

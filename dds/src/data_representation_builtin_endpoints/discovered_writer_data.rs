@@ -195,8 +195,7 @@ impl DdsSerialize for DiscoveredWriterData {
 
 impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer =
-            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
 
         Ok(Self {
             dds_publication_data: PublicationBuiltinTopicData::deserialize_data(serialized_data)?,

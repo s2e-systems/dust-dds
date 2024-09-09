@@ -58,8 +58,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize_data(
         serialized_data: &'de [u8],
     ) -> super::infrastructure::error::DdsResult<Self> {
-        let pl_deserializer =
-            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
         Ok(Self {
             key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
             user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
@@ -112,8 +111,7 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     fn deserialize_data(
         serialized_data: &'de [u8],
     ) -> super::infrastructure::error::DdsResult<Self> {
-        let pl_deserializer =
-            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
         Ok(Self {
             key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
             name: pl_deserializer.read(PID_TOPIC_NAME)?,
@@ -284,8 +282,7 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     fn deserialize_data(
         serialized_data: &'de [u8],
     ) -> super::infrastructure::error::DdsResult<Self> {
-        let pl_deserializer =
-            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
         Ok(Self {
             key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
             // Default value is a deviation from the standard and is used for interoperability reasons:
@@ -490,8 +487,7 @@ impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
     fn deserialize_data(
         serialized_data: &'de [u8],
     ) -> super::infrastructure::error::DdsResult<Self> {
-        let pl_deserializer =
-            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
 
         Ok(Self {
             key: pl_deserializer.read(PID_ENDPOINT_GUID)?,

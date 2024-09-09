@@ -1,12 +1,17 @@
 use super::endianness::CdrEndianness;
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    rtps::error::RtpsError,
     xtypes::{
         deserialize::XTypesDeserialize,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
     },
 };
 use std::io::{BufRead, Read};
+
+type RepresentationIdentifier = [u8; 2];
+const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
 struct Parameter<'de> {
     id: i16,
@@ -69,8 +74,17 @@ pub struct ParameterListCdrDeserializer<'de> {
 }
 
 impl<'de> ParameterListCdrDeserializer<'de> {
-    pub fn new(bytes: &'de [u8], endianness: CdrEndianness) -> Self {
-        Self { bytes, endianness }
+    pub fn new(bytes: &'de [u8]) -> Result<Self, RtpsError> {
+        let endianness = match [bytes[0], bytes[1]] {
+            PL_CDR_BE => CdrEndianness::BigEndian,
+            PL_CDR_LE => CdrEndianness::LittleEndian,
+            _ => Err(RtpsError::new(
+                crate::rtps::error::RtpsErrorKind::InvalidData,
+                "Unknownn representation identifier".to_string(),
+            ))?,
+        };
+
+        Ok(Self { bytes, endianness })
     }
 }
 
