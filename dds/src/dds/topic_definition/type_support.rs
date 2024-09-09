@@ -10,12 +10,10 @@ use crate::{
     },
     serialized_payload::parameter_list::{
         deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
-        serializer::ParameterListSerializer,
     },
 };
-use std::io::{Read, Write};
-
 pub use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsSerialize, DdsTypeXml};
+use std::io::{Read, Write};
 
 #[doc(hidden)]
 pub trait DynamicTypeInterface {

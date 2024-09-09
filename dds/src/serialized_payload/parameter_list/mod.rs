@@ -4,5 +4,3 @@ pub mod deserialize;
 pub mod deserializer;
 /// Contains the trait for the CDR ParameterList Serialize
 pub mod serialize;
-/// Contains the trait for the CDR ParameterList Serializer
-pub mod serializer;

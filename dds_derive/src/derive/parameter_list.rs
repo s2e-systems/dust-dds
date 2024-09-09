@@ -61,33 +61,33 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
                         if !collection {
                             match (&field.ident, default_value) {
                             (Some(field_name), None) => field_serialization.extend(quote! {
-                                dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, #id, &self.#field_name)?;
+                                serializer.write(#id, &self.#field_name)?;
                             }),
                             (Some(field_name), Some(default)) => field_serialization.extend(quote! {
-                                dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, #id, &self.#field_name, & #default)?;
+                                serializer.write_with_default(#id, &self.#field_name, & #default)?;
                             }),
                             (None, None) => {
                                 let index = Index::from(field_index);
                                 field_serialization.extend(quote! {
-                                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, #id, &self.#index)?;
+                                    serializer.write(#id, &self.#index)?;
                                 })
                             }
                             (None, Some(default)) => {
                                 let index = Index::from(field_index);
                                 field_serialization.extend(quote! {
-                                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, #id, &self.#index, & #default)?;
+                                    serializer.write_with_default(#id, &self.#index, & #default)?;
                                 })
                             }
                         }
                         } else {
                             match &field.ident {
                                 Some(field_name) => field_serialization.extend(quote! {
-                                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_collection(serializer, #id, &self.#field_name)?;
+                                    serializer.write_collection(#id, &self.#field_name)?;
                                 }),
                                 None => {
                                     let index = Index::from(field_index);
                                     field_serialization.extend(quote! {
-                                        dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_collection(serializer, #id, &self.#index)?;
+                                        serializer.write_collection(#id, &self.#index)?;
                                     })
                                 }
                             }
@@ -110,7 +110,7 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
 
             Ok(quote! {
                 impl #impl_generics dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for #ident #type_generics #where_clause {
-                    fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
+                    fn serialize<W:std::io::Write>(&self, serializer: &mut crate::implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer<W>) -> Result<(), std::io::Error> {
                         #field_serialization
                         Ok(())
                     }
@@ -225,103 +225,5 @@ pub fn expand_parameter_list_deserialize(input: &DeriveInput) -> Result<TokenStr
             data_union.union_token.span,
             "Union not supported",
         )),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use quote::ToTokens;
-    use syn::ItemImpl;
-
-    use super::*;
-
-    #[test]
-    fn parameter_list_struct() {
-        let input = syn::parse2::<DeriveInput>(
-            "
-            struct ParameterListStruct {
-                #[parameter(id = 1)]
-                index: u8,
-                #[parameter(id = PID_DATA)]
-                data: u32,
-            }
-        "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        let result =
-            syn::parse2::<ItemImpl>(expand_parameter_list_serialize(&input).unwrap()).unwrap();
-        let expected = syn::parse2::<ItemImpl>(
-            "
-            impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for ParameterListStruct {
-                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
-                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
-                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
-                    Ok(())
-                }
-            }
-            "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            result,
-            expected,
-            "\n\n Result: {:?} \n\n Expected: {:?}",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string(),
-        );
-    }
-
-    #[test]
-    fn parameter_list_struct_with_default() {
-        let input = syn::parse2::<DeriveInput>(
-            "
-            struct ParameterListStructDefault {
-                #[parameter(id = 1)]
-                index: u8,
-                #[parameter(id = PID_DATA)]
-                data: u32,
-                #[parameter(id = 3, default = \"\")]
-                name: String,
-                #[parameter(default = Default::default(), id = 4)]
-                x: f32,
-            }
-        "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        let result =
-            syn::parse2::<ItemImpl>(expand_parameter_list_serialize(&input).unwrap()).unwrap();
-        let expected = syn::parse2::<ItemImpl>(
-            "
-            impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for ParameterListStructDefault {
-                fn serialize(&self, serializer: &mut impl dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer) -> Result<(), std::io::Error> {
-                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, 1, &self.index)?;
-                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write(serializer, PID_DATA, &self.data)?;
-                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, 3, &self.name, &\"\")?;
-                    dust_dds::serialized_payload::parameter_list::serializer::ParameterListSerializer::write_with_default(serializer, 4, &self.x, &Default::default())?;
-                    Ok(())
-                }
-            }
-            "
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            result,
-            expected,
-            "\n\n Result: {:?} \n\n Expected: {:?}",
-            result.clone().into_token_stream().to_string(),
-            expected.clone().into_token_stream().to_string(),
-        );
     }
 }

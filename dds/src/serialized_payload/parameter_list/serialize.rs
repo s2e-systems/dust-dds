@@ -1,12 +1,11 @@
-use super::serializer::ParameterListSerializer;
-
+use crate::implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer;
 pub use dust_dds_derive::ParameterListSerialize;
 
 /// A trait representing a structure that can be serialized into a CDR parameter list format.
 pub trait ParameterListSerialize {
     /// Method to serialize this value using the given serializer.
-    fn serialize(
+    fn serialize<W: std::io::Write>(
         &self,
-        serializer: &mut impl ParameterListSerializer,
+        serializer: &mut ParameterListCdrSerializer<W>,
     ) -> Result<(), std::io::Error>;
 }

@@ -2,16 +2,21 @@ use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::error::DdsResult,
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+    infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    xtypes::{self, serializer::SerializeMutableStruct},
 };
 
 use super::parameter_id_values::{
-    PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
-    PID_UNICAST_LOCATOR,
+    PID_DATA_MAX_SIZE_SERIALIZED, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
+    PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
+    PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
+    PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
+    PID_TOPIC_NAME, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize)]
 pub struct WriterProxy {
     #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
     remote_writer_guid: Guid,
@@ -23,6 +28,29 @@ pub struct WriterProxy {
     multicast_locator_list: Vec<Locator>,
     #[parameter(id = PID_DATA_MAX_SIZE_SERIALIZED, default=Default::default())]
     data_max_size_serialized: i32,
+}
+
+impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize
+    for WriterProxy
+{
+    fn serialize<W: std::io::Write>(
+        &self,
+        serializer: &mut ParameterListCdrSerializer<W>,
+    ) -> Result<(), std::io::Error> {
+        serializer.write_with_default(
+            PID_GROUP_ENTITYID,
+            &self.remote_group_entity_id,
+            &Default::default(),
+        )?;
+        serializer.write_collection(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
+        serializer.write_collection(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
+        serializer.write_with_default(
+            PID_DATA_MAX_SIZE_SERIALIZED,
+            &self.data_max_size_serialized,
+            &Default::default(),
+        )?;
+        Ok(())
+    }
 }
 
 impl WriterProxy {
@@ -63,20 +91,30 @@ impl WriterProxy {
     }
 }
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-    DdsSerialize,
-    DdsDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsSerialize, DdsDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
+}
+
+impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize
+    for DiscoveredWriterData
+{
+    fn serialize<W: std::io::Write>(
+        &self,
+        serializer: &mut ParameterListCdrSerializer<W>,
+    ) -> Result<(), std::io::Error> {
+        dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(
+            &self.dds_publication_data,
+            serializer,
+        )?;
+        dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(
+            &self.writer_proxy,
+            serializer,
+        )?;
+        Ok(())
+    }
 }
 
 impl DiscoveredWriterData {
@@ -128,6 +166,9 @@ impl DdsTypeXml for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
+    use xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer};
+
+    use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::{
@@ -140,7 +181,12 @@ mod tests {
         },
     };
 
-    use super::*;
+    fn serialize_v1_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
+        let mut buffer = std::vec::Vec::new();
+        v.serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
+            .unwrap();
+        buffer
+    }
 
     #[test]
     fn serialize_all_default() {
@@ -195,6 +241,7 @@ mod tests {
         ];
         let result = data.serialize_data().unwrap();
         assert_eq!(result, expected);
+        // assert_eq!(serialize_v1_le(&data), expected);
     }
 
     #[test]
