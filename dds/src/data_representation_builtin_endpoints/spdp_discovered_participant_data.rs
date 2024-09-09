@@ -1,18 +1,20 @@
-use super::parameter_id_values::{
-    DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-    PID_DEFAULT_UNICAST_LOCATOR, PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG,
-    PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
-    PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+use super::{
+    parameter_id_values::{
+        DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
+        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+        PID_DEFAULT_UNICAST_LOCATOR, PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG,
+        PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
+        PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
+        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+    },
+    payload_serializer_deserializer::{
+        parameter_list_deserializer::ParameterListCdrDeserializer,
+        parameter_list_serializer::ParameterListCdrSerializer,
+    },
 };
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
-    implementation::payload_serializer_deserializer::{
-        parameter_list_deserializer::ParameterListCdrDeserializer,
-        parameter_list_serializer::ParameterListCdrSerializer,
-    },
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
     rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},

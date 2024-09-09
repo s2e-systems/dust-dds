@@ -1,12 +1,14 @@
-use super::parameter_id_values::{
-    PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-    PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
-    PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-    PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+use super::{
+    parameter_id_values::{
+        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+        PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
+        PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
+        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+    },
+    payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
 };
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
     infrastructure::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
