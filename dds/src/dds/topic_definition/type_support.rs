@@ -1,5 +1,4 @@
 use crate::{
-    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     implementation::payload_serializer_deserializer::{
         endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serializer::ParameterListCdrSerializer,

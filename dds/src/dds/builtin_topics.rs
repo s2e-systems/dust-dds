@@ -54,9 +54,9 @@ impl From<BuiltInTopicKey> for [u8; 16] {
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct ParticipantBuiltinTopicData {
     #[parameter(id = PID_PARTICIPANT_GUID)]
-    key: BuiltInTopicKey,
+    pub(crate) key: BuiltInTopicKey,
     #[parameter(id = PID_USER_DATA, default = Default::default())]
-    user_data: UserDataQosPolicy,
+    pub(crate) user_data: UserDataQosPolicy,
 }
 
 impl ParticipantBuiltinTopicData {
@@ -86,37 +86,37 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct TopicBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
-    key: BuiltInTopicKey,
+    pub(crate) key: BuiltInTopicKey,
     #[parameter(id = PID_TOPIC_NAME)]
-    name: String,
+    pub(crate) name: String,
     #[parameter(id = PID_TYPE_NAME)]
-    type_name: String,
+    pub(crate) type_name: String,
     #[parameter(id = PID_DURABILITY, default=Default::default())]
-    durability: DurabilityQosPolicy,
+    pub(crate) durability: DurabilityQosPolicy,
     #[parameter(id = PID_DEADLINE, default=Default::default())]
-    deadline: DeadlineQosPolicy,
+    pub(crate) deadline: DeadlineQosPolicy,
     #[parameter(id = PID_LATENCY_BUDGET, default=Default::default())]
-    latency_budget: LatencyBudgetQosPolicy,
+    pub(crate) latency_budget: LatencyBudgetQosPolicy,
     #[parameter(id = PID_LIVELINESS, default=Default::default())]
-    liveliness: LivelinessQosPolicy,
+    pub(crate) liveliness: LivelinessQosPolicy,
     #[parameter(id = PID_RELIABILITY, default=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
-    reliability: ReliabilityQosPolicy,
+    pub(crate) reliability: ReliabilityQosPolicy,
     #[parameter(id = PID_TRANSPORT_PRIORITY, default=Default::default())]
-    transport_priority: TransportPriorityQosPolicy,
+    pub(crate) transport_priority: TransportPriorityQosPolicy,
     #[parameter(id = PID_LIFESPAN, default=Default::default())]
-    lifespan: LifespanQosPolicy,
+    pub(crate) lifespan: LifespanQosPolicy,
     #[parameter(id = PID_DESTINATION_ORDER, default=Default::default())]
-    destination_order: DestinationOrderQosPolicy,
+    pub(crate) destination_order: DestinationOrderQosPolicy,
     #[parameter(id = PID_HISTORY, default=Default::default())]
-    history: HistoryQosPolicy,
+    pub(crate) history: HistoryQosPolicy,
     #[parameter(id = PID_RESOURCE_LIMITS, default=Default::default())]
-    resource_limits: ResourceLimitsQosPolicy,
+    pub(crate) resource_limits: ResourceLimitsQosPolicy,
     #[parameter(id = PID_OWNERSHIP, default=Default::default())]
-    ownership: OwnershipQosPolicy,
+    pub(crate) ownership: OwnershipQosPolicy,
     #[parameter(id = PID_TOPIC_DATA, default=Default::default())]
-    topic_data: TopicDataQosPolicy,
+    pub(crate) topic_data: TopicDataQosPolicy,
     #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
-    representation: DataRepresentationQosPolicy,
+    pub(crate) representation: DataRepresentationQosPolicy,
 }
 
 impl TopicBuiltinTopicData {
@@ -429,44 +429,44 @@ impl DdsHasKey for PublicationBuiltinTopicData {
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct SubscriptionBuiltinTopicData {
     #[parameter(id = PID_ENDPOINT_GUID)]
-    key: BuiltInTopicKey,
+    pub(crate) key: BuiltInTopicKey,
     // Default value is a deviation from the standard and is used for interoperability reasons:
     #[parameter(id = PID_PARTICIPANT_GUID, default = BuiltInTopicKey::default())]
-    participant_key: BuiltInTopicKey, //ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
+    pub(crate) participant_key: BuiltInTopicKey, //ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
     #[parameter(id = PID_TOPIC_NAME)]
-    topic_name: String,
+    pub(crate) topic_name: String,
     #[parameter(id = PID_TYPE_NAME)]
-    type_name: String,
+    pub(crate) type_name: String,
     #[parameter(id = PID_DURABILITY, default = Default::default())]
-    durability: DurabilityQosPolicy,
+    pub(crate) durability: DurabilityQosPolicy,
     #[parameter(id = PID_DEADLINE, default = Default::default())]
-    deadline: DeadlineQosPolicy,
+    pub(crate) deadline: DeadlineQosPolicy,
     #[parameter(id = PID_LATENCY_BUDGET, default = Default::default())]
-    latency_budget: LatencyBudgetQosPolicy,
+    pub(crate) latency_budget: LatencyBudgetQosPolicy,
     #[parameter(id = PID_LIVELINESS, default = Default::default())]
-    liveliness: LivelinessQosPolicy,
+    pub(crate) liveliness: LivelinessQosPolicy,
     #[parameter(id = PID_RELIABILITY, default = DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
-    reliability: ReliabilityQosPolicy,
+    pub(crate) reliability: ReliabilityQosPolicy,
     #[parameter(id = PID_OWNERSHIP, default = Default::default())]
-    ownership: OwnershipQosPolicy,
+    pub(crate) ownership: OwnershipQosPolicy,
     #[parameter(id = PID_DESTINATION_ORDER, default = Default::default())]
-    destination_order: DestinationOrderQosPolicy,
+    pub(crate) destination_order: DestinationOrderQosPolicy,
     #[parameter(id = PID_USER_DATA, default = Default::default())]
-    user_data: UserDataQosPolicy,
+    pub(crate) user_data: UserDataQosPolicy,
     #[parameter(id = PID_TIME_BASED_FILTER, default = Default::default())]
-    time_based_filter: TimeBasedFilterQosPolicy,
+    pub(crate) time_based_filter: TimeBasedFilterQosPolicy,
     #[parameter(id = PID_PRESENTATION, default = Default::default())]
-    presentation: PresentationQosPolicy,
+    pub(crate) presentation: PresentationQosPolicy,
     #[parameter(id = PID_PARTITION, default = Default::default())]
-    partition: PartitionQosPolicy,
+    pub(crate) partition: PartitionQosPolicy,
     #[parameter(id = PID_TOPIC_DATA, default = Default::default())]
-    topic_data: TopicDataQosPolicy,
+    pub(crate) topic_data: TopicDataQosPolicy,
     #[parameter(id = PID_GROUP_DATA, default = Default::default())]
-    group_data: GroupDataQosPolicy,
+    pub(crate) group_data: GroupDataQosPolicy,
     #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
-    xml_type: String,
+    pub(crate) xml_type: String,
     #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
-    representation: DataRepresentationQosPolicy,
+    pub(crate) representation: DataRepresentationQosPolicy,
 }
 
 impl SubscriptionBuiltinTopicData {

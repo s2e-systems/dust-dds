@@ -1,27 +1,106 @@
+use super::parameter_id_values::{
+    PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
+    PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
+    PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
+    PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+};
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    infrastructure::error::DdsResult,
-    serialized_payload::parameter_list::{
-        deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+    infrastructure::{
+        error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
+    serialized_payload::parameter_list::deserialize::ParameterListDeserialize,
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    DdsSerialize,
-    DdsDeserialize,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
+}
+
+impl DdsSerialize for DiscoveredTopicData {
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        let mut serializer = ParameterListCdrSerializer::new();
+        serializer.write_header()?;
+
+        // topic_builtin_topic_data: TopicBuiltinTopicData:
+
+        serializer.write(PID_ENDPOINT_GUID, &self.topic_builtin_topic_data.key)?;
+        serializer.write(PID_TOPIC_NAME, &self.topic_builtin_topic_data.name)?;
+        serializer.write(PID_TYPE_NAME, &self.topic_builtin_topic_data.type_name)?;
+        serializer.write_with_default(
+            PID_DURABILITY,
+            &self.topic_builtin_topic_data.durability,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DEADLINE,
+            &self.topic_builtin_topic_data.deadline,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LATENCY_BUDGET,
+            &self.topic_builtin_topic_data.latency_budget,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LIVELINESS,
+            &self.topic_builtin_topic_data.liveliness,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_RELIABILITY,
+            &self.topic_builtin_topic_data.reliability,
+            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        )?;
+        serializer.write_with_default(
+            PID_TRANSPORT_PRIORITY,
+            &self.topic_builtin_topic_data.transport_priority,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LIFESPAN,
+            &self.topic_builtin_topic_data.lifespan,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DESTINATION_ORDER,
+            &self.topic_builtin_topic_data.destination_order,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_HISTORY,
+            &self.topic_builtin_topic_data.history,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_RESOURCE_LIMITS,
+            &self.topic_builtin_topic_data.resource_limits,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_OWNERSHIP,
+            &self.topic_builtin_topic_data.ownership,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TOPIC_DATA,
+            &self.topic_builtin_topic_data.topic_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DATA_REPRESENTATION,
+            &self.topic_builtin_topic_data.representation,
+            &Default::default(),
+        )?;
+
+        serializer.write_sentinel()?;
+        Ok(serializer.writer)
+    }
 }
 
 impl DiscoveredTopicData {

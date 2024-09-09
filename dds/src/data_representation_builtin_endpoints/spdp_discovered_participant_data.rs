@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
     rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -23,7 +24,7 @@ use super::parameter_id_values::{
     PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
     PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
     PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
-    PID_VENDORID,
+    PID_USER_DATA, PID_VENDORID,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
@@ -177,16 +178,7 @@ impl ParticipantProxy {
     }
 }
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    DdsSerialize,
-    DdsDeserialize,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
@@ -196,6 +188,84 @@ pub struct SpdpDiscoveredParticipantData {
     lease_duration: Duration,
     #[parameter(id = PID_DISCOVERED_PARTICIPANT, collection)]
     discovered_participant_list: Vec<InstanceHandle>,
+}
+
+impl DdsSerialize for SpdpDiscoveredParticipantData {
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        let mut serializer = ParameterListCdrSerializer::new();
+        serializer.write_header()?;
+
+        // dds_participant_data: ParticipantBuiltinTopicData :
+        serializer.write(PID_PARTICIPANT_GUID, &self.dds_participant_data.key)?;
+        serializer.write_with_default(
+            PID_USER_DATA,
+            &self.dds_participant_data.user_data,
+            &Default::default(),
+        )?;
+
+        // participant_proxy: ParticipantProxy :
+        serializer.write_with_default(
+            PID_DOMAIN_ID,
+            &self.participant_proxy.domain_id,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DOMAIN_TAG,
+            &self.participant_proxy.domain_tag,
+            &Default::default(),
+        )?;
+        serializer.write(
+            PID_PROTOCOL_VERSION,
+            &self.participant_proxy.protocol_version,
+        )?;
+        serializer.write(PID_VENDORID, &self.participant_proxy.vendor_id)?;
+        serializer.write_with_default(
+            PID_EXPECTS_INLINE_QOS,
+            &self.participant_proxy.expects_inline_qos,
+            &DEFAULT_EXPECTS_INLINE_QOS,
+        )?;
+        serializer.write_collection(
+            PID_METATRAFFIC_UNICAST_LOCATOR,
+            &self.participant_proxy.metatraffic_unicast_locator_list,
+        )?;
+        serializer.write_collection(
+            PID_METATRAFFIC_MULTICAST_LOCATOR,
+            &self.participant_proxy.metatraffic_multicast_locator_list,
+        )?;
+        serializer.write_collection(
+            PID_DEFAULT_UNICAST_LOCATOR,
+            &self.participant_proxy.default_unicast_locator_list,
+        )?;
+        serializer.write_collection(
+            PID_DEFAULT_MULTICAST_LOCATOR,
+            &self.participant_proxy.default_multicast_locator_list,
+        )?;
+        serializer.write(
+            PID_BUILTIN_ENDPOINT_SET,
+            &self.participant_proxy.available_builtin_endpoints,
+        )?;
+        serializer.write_with_default(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            &self.participant_proxy.manual_liveliness_count,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_BUILTIN_ENDPOINT_QOS,
+            &self.participant_proxy.builtin_endpoint_qos,
+            &Default::default(),
+        )?;
+
+        // Default (DEFAULT_PARTICIPANT_LEASE_DURATION) is ommited compared to the standard due to interoperability reasons :
+        serializer.write(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
+        
+        serializer.write_collection(
+            PID_DISCOVERED_PARTICIPANT,
+            &self.discovered_participant_list,
+        )?;
+
+        serializer.write_sentinel()?;
+        Ok(serializer.writer)
+    }
 }
 
 impl SpdpDiscoveredParticipantData {

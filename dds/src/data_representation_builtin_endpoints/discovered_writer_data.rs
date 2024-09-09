@@ -1,14 +1,3 @@
-use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
-
-use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
-    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
-    infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
-    rtps::types::{EntityId, Guid, Locator},
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
-    xtypes::{self, serialize::XTypesSerialize, serializer::SerializeMutableStruct},
-};
-
 use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
     PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
@@ -16,6 +5,14 @@ use super::parameter_id_values::{
     PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
     PID_TOPIC_NAME, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
+use crate::{
+    builtin_topics::PublicationBuiltinTopicData,
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+    infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
+    rtps::types::{EntityId, Guid, Locator},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+};
+use dust_dds_derive::ParameterListDeserialize;
 #[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize)]
 pub struct WriterProxy {
     #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
@@ -99,8 +96,11 @@ impl DdsSerialize for DiscoveredWriterData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
         let mut serializer = ParameterListCdrSerializer::new();
         serializer.write_header()?;
-        
+
+        // dds_publication_data: PublicationBuiltinTopicData:
+
         serializer.write(PID_ENDPOINT_GUID, &self.dds_publication_data.key)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
         serializer.write_with_default(
             PID_PARTICIPANT_GUID,
             &self.dds_publication_data.participant_key,
@@ -189,6 +189,11 @@ impl DdsSerialize for DiscoveredWriterData {
             &Default::default(),
         )?;
 
+        // writer_proxy: WriterProxy:
+
+        // skip serilize:
+        // writer_proxy.remote_writer_guid: Guid,
+
         serializer.write_with_default(
             PID_GROUP_ENTITYID,
             &self.writer_proxy.remote_group_entity_id,
@@ -276,8 +281,6 @@ impl DdsTypeXml for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer};
-
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,

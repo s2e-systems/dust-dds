@@ -89,11 +89,11 @@ impl ParameterListCdrSerializer {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::serialized_payload::parameter_list::serialize::ParameterListSerialize;
+// #[cfg(test)]
+// mod tests {
+//     use crate::serialized_payload::parameter_list::serialize::ParameterListSerialize;
 
-    use super::*;
+//     use super::*;
 
     // fn serialize_le<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
     // where
@@ -160,4 +160,4 @@ mod tests {
     //         ]
     //     );
     // }
-}
+// }

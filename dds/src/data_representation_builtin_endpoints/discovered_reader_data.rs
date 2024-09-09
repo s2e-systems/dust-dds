@@ -1,6 +1,9 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    infrastructure::error::DdsResult,
+    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+    infrastructure::{
+        error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    },
     rtps::types::{EntityId, Guid, Locator},
     serialized_payload::parameter_list::{
         deserialize::ParameterListDeserialize, serialize::ParameterListSerialize,
@@ -9,8 +12,11 @@ use crate::{
 };
 
 use super::parameter_id_values::{
-    DEFAULT_EXPECTS_INLINE_QOS, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID,
-    PID_MULTICAST_LOCATOR, PID_UNICAST_LOCATOR,
+    DEFAULT_EXPECTS_INLINE_QOS, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
+    PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
+    PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID,
+    PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
+    PID_TOPIC_NAME, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
@@ -67,20 +73,134 @@ impl ReaderProxy {
     }
 }
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    DdsSerialize,
-    DdsDeserialize,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredReaderData {
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     reader_proxy: ReaderProxy,
+}
+
+impl DdsSerialize for DiscoveredReaderData {
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        let mut serializer = ParameterListCdrSerializer::new();
+        serializer.write_header()?;
+
+        // subscription_builtin_topic_data: SubscriptionBuiltinTopicData:
+        serializer.write(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        serializer.write_with_default(
+            PID_PARTICIPANT_GUID,
+            &self.subscription_builtin_topic_data.participant_key,
+            &Default::default(),
+        )?;
+        serializer.write(
+            PID_TOPIC_NAME,
+            &self.subscription_builtin_topic_data.topic_name,
+        )?;
+        serializer.write(
+            PID_TYPE_NAME,
+            &self.subscription_builtin_topic_data.type_name,
+        )?;
+        serializer.write_with_default(
+            PID_DURABILITY,
+            &self.subscription_builtin_topic_data.durability,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DEADLINE,
+            &self.subscription_builtin_topic_data.deadline,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LATENCY_BUDGET,
+            &self.subscription_builtin_topic_data.latency_budget,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LIVELINESS,
+            &self.subscription_builtin_topic_data.liveliness,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_RELIABILITY,
+            &self.subscription_builtin_topic_data.reliability,
+            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        )?;
+        serializer.write_with_default(
+            PID_OWNERSHIP,
+            &self.subscription_builtin_topic_data.ownership,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DESTINATION_ORDER,
+            &self.subscription_builtin_topic_data.destination_order,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_USER_DATA,
+            &self.subscription_builtin_topic_data.user_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TIME_BASED_FILTER,
+            &self.subscription_builtin_topic_data.time_based_filter,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_PRESENTATION,
+            &self.subscription_builtin_topic_data.presentation,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_PARTITION,
+            &self.subscription_builtin_topic_data.partition,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TOPIC_DATA,
+            &self.subscription_builtin_topic_data.topic_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_GROUP_DATA,
+            &self.subscription_builtin_topic_data.group_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TYPE_REPRESENTATION,
+            &self.subscription_builtin_topic_data.xml_type,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DATA_REPRESENTATION,
+            &self.subscription_builtin_topic_data.representation,
+            &Default::default(),
+        )?;
+
+        // reader_proxy: ReaderProxy
+
+        // skip serilize:
+        // reader_proxy.remote_writer_guid: Guid,
+        serializer.write_with_default(
+            PID_GROUP_ENTITYID,
+            &self.reader_proxy.remote_group_entity_id,
+            &Default::default(),
+        )?;
+        serializer
+            .write_collection(PID_UNICAST_LOCATOR, &self.reader_proxy.unicast_locator_list)?;
+        serializer.write_collection(
+            PID_MULTICAST_LOCATOR,
+            &self.reader_proxy.multicast_locator_list,
+        )?;
+        serializer.write_with_default(
+            PID_EXPECTS_INLINE_QOS,
+            &self.reader_proxy.expects_inline_qos,
+            &DEFAULT_EXPECTS_INLINE_QOS,
+        )?;
+
+        serializer.write_sentinel()?;
+        Ok(serializer.writer)
+    }
 }
 
 impl DiscoveredReaderData {
@@ -191,7 +311,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             // ReaderProxy:
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 0xc2, //            
+            21, 22, 23, 0xc2, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         let result = data.serialize_data().unwrap();
