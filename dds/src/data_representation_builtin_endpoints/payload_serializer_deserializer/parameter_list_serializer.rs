@@ -15,12 +15,6 @@ pub struct ParameterListCdrSerializer {
 }
 
 impl ParameterListCdrSerializer {
-    pub fn new() -> Self {
-        Self { writer: Vec::new() }
-    }
-}
-
-impl ParameterListCdrSerializer {
     pub fn write_header(&mut self) -> Result<(), RtpsError> {
         self.writer.write_all(&PL_CDR_LE)?;
         self.writer.write_all(&REPRESENTATION_OPTIONS)?;

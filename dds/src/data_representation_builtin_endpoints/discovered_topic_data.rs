@@ -24,7 +24,7 @@ pub struct DiscoveredTopicData {
 
 impl DdsSerialize for DiscoveredTopicData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::new();
+        let mut serializer = ParameterListCdrSerializer::default();
         serializer.write_header()?;
 
         // topic_builtin_topic_data: TopicBuiltinTopicData:

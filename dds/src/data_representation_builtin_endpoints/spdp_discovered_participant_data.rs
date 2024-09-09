@@ -174,7 +174,7 @@ pub struct SpdpDiscoveredParticipantData {
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
-        let mut serializer = ParameterListCdrSerializer::new();
+        let mut serializer = ParameterListCdrSerializer::default();
         serializer.write_header()?;
 
         // dds_participant_data: ParticipantBuiltinTopicData :
