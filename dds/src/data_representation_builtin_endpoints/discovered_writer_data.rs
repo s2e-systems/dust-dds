@@ -8,7 +8,7 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::payload_serializer_deserializer::{
-        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
+        parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},

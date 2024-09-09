@@ -10,7 +10,7 @@ use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
     implementation::payload_serializer_deserializer::{
-        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
+        parameter_list_deserializer::ParameterListCdrDeserializer,
         parameter_list_serializer::ParameterListCdrSerializer,
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},

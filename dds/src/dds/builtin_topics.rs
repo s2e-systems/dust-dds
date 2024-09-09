@@ -8,9 +8,7 @@ use crate::{
         PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
         PID_TYPE_REPRESENTATION, PID_USER_DATA,
     },
-    implementation::payload_serializer_deserializer::{
-        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
-    },
+    implementation::payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
