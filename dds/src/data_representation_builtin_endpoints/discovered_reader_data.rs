@@ -79,8 +79,8 @@ impl ReaderProxy {
 )]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredReaderData {
-    reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    reader_proxy: ReaderProxy,
 }
 
 impl DiscoveredReaderData {
@@ -144,16 +144,6 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredReaderData {
-            reader_proxy: ReaderProxy::new(
-                Guid::new(
-                    [5; 12],
-                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
-                ),
-                EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-                vec![],
-                vec![],
-                false,
-            ),
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -168,12 +158,21 @@ mod tests {
                 TopicDataQosPolicy::default(),
                 String::default(),
             ),
+            reader_proxy: ReaderProxy::new(
+                Guid::new(
+                    [5; 12],
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
+                ),
+                EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                vec![],
+                vec![],
+                false,
+            ),
         };
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 0xc2, //
+            // SubscriptionBuiltinTopicData:
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
@@ -190,6 +189,9 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc2, //            
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         let result = data.serialize_data().unwrap();

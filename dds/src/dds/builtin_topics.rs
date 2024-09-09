@@ -233,7 +233,7 @@ impl DdsHasKey for TopicBuiltinTopicData {
 
 /// Structure representing a discovered [`DataWriter`](crate::publication::data_writer::DataWriter).
 #[derive(
-    Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize, DdsDeserialize,
+    Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListSerialize, ParameterListDeserialize
 )]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct PublicationBuiltinTopicData {

@@ -1,90 +1,63 @@
-use super::endianness::CdrEndianness;
-use crate::xtypes::{
-    serialize::XTypesSerialize,
-    xcdr_serializer::{Xcdr1BeSerializer, Xcdr1LeSerializer},
-};
+use std::io::Write;
 
-pub struct ParameterListCdrSerializer<W> {
-    writer: W,
-    endianness: CdrEndianness,
+use crate::xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer};
+
+const PL_CDR_LE: [u8; 2] = [0x00, 0x03];
+const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
+const PID_SENTINEL: i16 = 1;
+
+pub struct ParameterListCdrSerializer {
+    pub writer: Vec<u8>,
 }
 
-impl<W> ParameterListCdrSerializer<W> {
-    pub fn new(writer: W, endianness: CdrEndianness) -> Self {
-        Self { writer, endianness }
+impl ParameterListCdrSerializer {
+    pub fn new() -> Self {
+        Self { writer: Vec::new() }
     }
 }
 
-impl<W> ParameterListCdrSerializer<W>
-where
-    W: std::io::Write,
-{
+impl ParameterListCdrSerializer {
+    pub fn write_header(&mut self) -> Result<(), std::io::Error> {
+        self.writer.write_all(&PL_CDR_LE)?;
+        self.writer.write_all(&REPRESENTATION_OPTIONS)
+    }
+    pub fn write_sentinel(&mut self) -> Result<(), std::io::Error> {
+        self.writer.write_all(&PID_SENTINEL.to_le_bytes())?;
+        self.writer.write_all(&0_u16.to_le_bytes())
+    }
+
     pub fn write<T>(&mut self, id: i16, value: &T) -> Result<(), std::io::Error>
     where
         T: XTypesSerialize,
     {
         let mut data = Vec::new();
 
-        match self.endianness {
-            CdrEndianness::LittleEndian => {
-                let mut data_serializer = Xcdr1LeSerializer::new(&mut data);
-                value.serialize(&mut data_serializer).map_err(|e| {
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!("XTypes error: {:?}", e),
-                    )
-                })?;
+        let mut data_serializer = Xcdr1LeSerializer::new(&mut data);
+        value.serialize(&mut data_serializer).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("XTypes error: {:?}", e),
+            )
+        })?;
 
-                let length_without_padding = data.len();
-                let padding_length = (4 - length_without_padding % 4) & 3;
-                let length = length_without_padding + padding_length;
+        let length_without_padding = data.len();
+        let padding_length = (4 - length_without_padding % 4) & 3;
+        let length = length_without_padding + padding_length;
 
-                if length > u16::MAX as usize {
-                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)));
-                }
+        if length > u16::MAX as usize {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)));
+        }
 
-                self.writer.write_all(&id.to_le_bytes())?;
-                self.writer.write_all(&(length as u16).to_le_bytes())?;
+        self.writer.write_all(&id.to_le_bytes())?;
+        self.writer.write_all(&(length as u16).to_le_bytes())?;
 
-                self.writer.write_all(&data)?;
+        self.writer.write_all(&data)?;
 
-                match padding_length {
-                    1 => self.writer.write_all(&[0u8; 1])?,
-                    2 => self.writer.write_all(&[0u8; 2])?,
-                    3 => self.writer.write_all(&[0u8; 3])?,
-                    _ => self.writer.write_all(&[0u8; 0])?,
-                }
-            }
-
-            CdrEndianness::BigEndian => {
-                let mut data_serializer = Xcdr1BeSerializer::new(&mut data);
-                value.serialize(&mut data_serializer).map_err(|e| {
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!("XTypes error: {:?}", e),
-                    )
-                })?;
-
-                let length_without_padding = data.len();
-                let padding_length = (4 - length_without_padding % 4) & 3;
-                let length = length_without_padding + padding_length;
-
-                if length > u16::MAX as usize {
-                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)));
-                }
-
-                self.writer.write_all(&id.to_be_bytes())?;
-                self.writer.write_all(&(length as u16).to_be_bytes())?;
-
-                self.writer.write_all(&data)?;
-
-                match padding_length {
-                    1 => self.writer.write_all(&[0u8; 1])?,
-                    2 => self.writer.write_all(&[0u8; 2])?,
-                    3 => self.writer.write_all(&[0u8; 3])?,
-                    _ => self.writer.write_all(&[0u8; 0])?,
-                }
-            }
+        match padding_length {
+            1 => self.writer.write_all(&[0u8; 1])?,
+            2 => self.writer.write_all(&[0u8; 2])?,
+            3 => self.writer.write_all(&[0u8; 3])?,
+            _ => self.writer.write_all(&[0u8; 0])?,
         }
 
         Ok(())
@@ -122,26 +95,15 @@ mod tests {
 
     use super::*;
 
-    fn serialize_le<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
-    where
-        T: ParameterListSerialize,
-    {
-        let mut writer = Vec::new();
-        let mut serializer =
-            ParameterListCdrSerializer::new(&mut writer, CdrEndianness::LittleEndian);
-        v.serialize(&mut serializer)?;
-        Ok(writer)
-    }
-
-    fn serialize_be<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
-    where
-        T: ParameterListSerialize,
-    {
-        let mut writer = Vec::new();
-        let mut serializer = ParameterListCdrSerializer::new(&mut writer, CdrEndianness::BigEndian);
-        v.serialize(&mut serializer)?;
-        Ok(writer)
-    }
+    // fn serialize_le<T>(v: &T) -> Result<Vec<u8>, std::io::Error>
+    // where
+    //     T: ParameterListSerialize,
+    // {
+    //     let mut writer = Vec::new();
+    //     let mut serializer = ParameterListCdrSerializer::new(&mut writer);
+    //     v.serialize(&mut serializer)?;
+    //     Ok(writer)
+    // }
 
     // #[test]
     // fn write_parameter_list_without_defaults() {

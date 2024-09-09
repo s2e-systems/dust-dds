@@ -6,7 +6,7 @@ use crate::{
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
-    xtypes::{self, serializer::SerializeMutableStruct},
+    xtypes::{self, serialize::XTypesSerialize, serializer::SerializeMutableStruct},
 };
 
 use super::parameter_id_values::{
@@ -33,10 +33,7 @@ pub struct WriterProxy {
 impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize
     for WriterProxy
 {
-    fn serialize<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListCdrSerializer<W>,
-    ) -> Result<(), std::io::Error> {
+    fn serialize(&self, serializer: &mut ParameterListCdrSerializer) -> Result<(), std::io::Error> {
         serializer.write_with_default(
             PID_GROUP_ENTITYID,
             &self.remote_group_entity_id,
@@ -91,20 +88,133 @@ impl WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsSerialize, DdsDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
 #[dust_dds(format = "PL_CDR_LE")]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
 }
 
+impl DdsSerialize for DiscoveredWriterData {
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        let mut serializer = ParameterListCdrSerializer::new();
+        serializer.write_header()?;
+        
+        serializer.write(PID_ENDPOINT_GUID, &self.dds_publication_data.key)?;
+        serializer.write_with_default(
+            PID_PARTICIPANT_GUID,
+            &self.dds_publication_data.participant_key,
+            &Default::default(),
+        )?;
+        serializer.write(PID_TOPIC_NAME, &self.dds_publication_data.topic_name)?;
+        serializer.write(PID_TYPE_NAME, &self.dds_publication_data.type_name)?;
+        serializer.write_with_default(
+            PID_DURABILITY,
+            &self.dds_publication_data.durability,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DEADLINE,
+            &self.dds_publication_data.deadline,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LATENCY_BUDGET,
+            &self.dds_publication_data.latency_budget,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LIVELINESS,
+            &self.dds_publication_data.liveliness,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_RELIABILITY,
+            &self.dds_publication_data.reliability,
+            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        )?;
+        serializer.write_with_default(
+            PID_LIFESPAN,
+            &self.dds_publication_data.lifespan,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_USER_DATA,
+            &self.dds_publication_data.user_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_OWNERSHIP,
+            &self.dds_publication_data.ownership,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_OWNERSHIP_STRENGTH,
+            &self.dds_publication_data.ownership_strength,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DESTINATION_ORDER,
+            &self.dds_publication_data.destination_order,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_PRESENTATION,
+            &self.dds_publication_data.presentation,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_PARTITION,
+            &self.dds_publication_data.partition,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TOPIC_DATA,
+            &self.dds_publication_data.topic_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_GROUP_DATA,
+            &self.dds_publication_data.group_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TYPE_REPRESENTATION,
+            &self.dds_publication_data.xml_type,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DATA_REPRESENTATION,
+            &self.dds_publication_data.representation,
+            &Default::default(),
+        )?;
+
+        serializer.write_with_default(
+            PID_GROUP_ENTITYID,
+            &self.writer_proxy.remote_group_entity_id,
+            &Default::default(),
+        )?;
+        serializer
+            .write_collection(PID_UNICAST_LOCATOR, &self.writer_proxy.unicast_locator_list)?;
+        serializer.write_collection(
+            PID_MULTICAST_LOCATOR,
+            &self.writer_proxy.multicast_locator_list,
+        )?;
+        serializer.write_with_default(
+            PID_DATA_MAX_SIZE_SERIALIZED,
+            &self.writer_proxy.data_max_size_serialized,
+            &Default::default(),
+        )?;
+
+        serializer.write_sentinel()?;
+        Ok(serializer.writer)
+    }
+}
+
 impl dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize
     for DiscoveredWriterData
 {
-    fn serialize<W: std::io::Write>(
-        &self,
-        serializer: &mut ParameterListCdrSerializer<W>,
-    ) -> Result<(), std::io::Error> {
+    fn serialize(&self, serializer: &mut ParameterListCdrSerializer) -> Result<(), std::io::Error> {
         dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize::serialize(
             &self.dds_publication_data,
             serializer,
@@ -180,13 +290,6 @@ mod tests {
             USER_DEFINED_UNKNOWN,
         },
     };
-
-    fn serialize_v1_le<T: XTypesSerialize>(v: &T) -> std::vec::Vec<u8> {
-        let mut buffer = std::vec::Vec::new();
-        v.serialize(&mut Xcdr1LeSerializer::new(&mut buffer))
-            .unwrap();
-        buffer
-    }
 
     #[test]
     fn serialize_all_default() {

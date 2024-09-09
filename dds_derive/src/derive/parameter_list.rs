@@ -110,7 +110,7 @@ pub fn expand_parameter_list_serialize(input: &DeriveInput) -> Result<TokenStrea
 
             Ok(quote! {
                 impl #impl_generics dust_dds::serialized_payload::parameter_list::serialize::ParameterListSerialize for #ident #type_generics #where_clause {
-                    fn serialize<W:std::io::Write>(&self, serializer: &mut crate::implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer<W>) -> Result<(), std::io::Error> {
+                    fn serialize(&self, serializer: &mut crate::implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer) -> Result<(), std::io::Error> {
                         #field_serialization
                         Ok(())
                     }
