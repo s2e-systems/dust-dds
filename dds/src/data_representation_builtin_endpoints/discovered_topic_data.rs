@@ -6,7 +6,10 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
-    implementation::payload_serializer_deserializer::parameter_list_serializer::ParameterListCdrSerializer,
+    implementation::payload_serializer_deserializer::{
+        endianness::CdrEndianness, parameter_list_deserializer::ParameterListCdrDeserializer,
+        parameter_list_serializer::ParameterListCdrSerializer,
+    },
     infrastructure::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
@@ -16,8 +19,7 @@ use crate::{
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListDeserialize)]
-#[dust_dds(format = "PL_CDR_LE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {
     topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -100,6 +102,44 @@ impl DdsSerialize for DiscoveredTopicData {
 
         serializer.write_sentinel()?;
         Ok(serializer.writer)
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+        let pl_deserializer =
+            ParameterListCdrDeserializer::new(serialized_data, CdrEndianness::LittleEndian);
+        Ok(Self {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
+                name: pl_deserializer.read(PID_TOPIC_NAME)?,
+                type_name: pl_deserializer.read(PID_TYPE_NAME)?,
+                durability: pl_deserializer
+                    .read_with_default(PID_DURABILITY, Default::default())?,
+                deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
+                latency_budget: pl_deserializer
+                    .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
+                liveliness: pl_deserializer
+                    .read_with_default(PID_LIVELINESS, Default::default())?,
+                reliability: pl_deserializer.read_with_default(
+                    PID_RELIABILITY,
+                    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                )?,
+                transport_priority: pl_deserializer
+                    .read_with_default(PID_TRANSPORT_PRIORITY, Default::default())?,
+                lifespan: pl_deserializer.read_with_default(PID_LIFESPAN, Default::default())?,
+                destination_order: pl_deserializer
+                    .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
+                history: pl_deserializer.read_with_default(PID_HISTORY, Default::default())?,
+                resource_limits: pl_deserializer
+                    .read_with_default(PID_RESOURCE_LIMITS, Default::default())?,
+                ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
+                topic_data: pl_deserializer
+                    .read_with_default(PID_TOPIC_DATA, Default::default())?,
+                representation: pl_deserializer
+                    .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
+            },
+        })
     }
 }
 

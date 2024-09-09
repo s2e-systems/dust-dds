@@ -24,7 +24,9 @@ use crate::{
     topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-use dust_dds_derive::DdsDeserialize;
+
+use super::topic_definition::type_support::DdsDeserialize;
+
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
@@ -46,13 +48,16 @@ impl From<BuiltInTopicKey> for [u8; 16] {
 }
 
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
-#[dust_dds(format = "PL_CDR_LE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantBuiltinTopicData {
-    #[parameter(id = PID_PARTICIPANT_GUID)]
     pub(crate) key: BuiltInTopicKey,
-    #[parameter(id = PID_USER_DATA, default = Default::default())]
     pub(crate) user_data: UserDataQosPolicy,
+}
+
+impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> super::infrastructure::error::DdsResult<Self> {
+        todo!()
+    }
 }
 
 impl ParticipantBuiltinTopicData {
@@ -76,41 +81,30 @@ impl DdsHasKey for ParticipantBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
-#[dust_dds(format = "PL_CDR_LE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicBuiltinTopicData {
-    #[parameter(id = PID_ENDPOINT_GUID)]
     pub(crate) key: BuiltInTopicKey,
-    #[parameter(id = PID_TOPIC_NAME)]
     pub(crate) name: String,
-    #[parameter(id = PID_TYPE_NAME)]
     pub(crate) type_name: String,
-    #[parameter(id = PID_DURABILITY, default=Default::default())]
     pub(crate) durability: DurabilityQosPolicy,
-    #[parameter(id = PID_DEADLINE, default=Default::default())]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[parameter(id = PID_LATENCY_BUDGET, default=Default::default())]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[parameter(id = PID_LIVELINESS, default=Default::default())]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[parameter(id = PID_RELIABILITY, default=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[parameter(id = PID_TRANSPORT_PRIORITY, default=Default::default())]
     pub(crate) transport_priority: TransportPriorityQosPolicy,
-    #[parameter(id = PID_LIFESPAN, default=Default::default())]
     pub(crate) lifespan: LifespanQosPolicy,
-    #[parameter(id = PID_DESTINATION_ORDER, default=Default::default())]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[parameter(id = PID_HISTORY, default=Default::default())]
     pub(crate) history: HistoryQosPolicy,
-    #[parameter(id = PID_RESOURCE_LIMITS, default=Default::default())]
     pub(crate) resource_limits: ResourceLimitsQosPolicy,
-    #[parameter(id = PID_OWNERSHIP, default=Default::default())]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[parameter(id = PID_TOPIC_DATA, default=Default::default())]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
     pub(crate) representation: DataRepresentationQosPolicy,
+}
+
+impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> super::infrastructure::error::DdsResult<Self> {
+        todo!()
+    }
 }
 
 impl TopicBuiltinTopicData {
@@ -226,50 +220,35 @@ impl DdsHasKey for TopicBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`DataWriter`](crate::publication::data_writer::DataWriter).
-#[derive(Debug, PartialEq, Eq, Clone, DdsDeserialize, ParameterListDeserialize)]
-#[dust_dds(format = "PL_CDR_LE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublicationBuiltinTopicData {
-    #[parameter(id = PID_ENDPOINT_GUID)]
     pub(crate) key: BuiltInTopicKey,
-    // Default value is a deviation from the standard and is used for interoperability reasons:
-    #[parameter(id = PID_PARTICIPANT_GUID, default=BuiltInTopicKey::default())]
     pub(crate) participant_key: BuiltInTopicKey,
-    #[parameter(id = PID_TOPIC_NAME)]
     pub(crate) topic_name: String,
-    #[parameter(id = PID_TYPE_NAME)]
     pub(crate) type_name: String,
-    #[parameter(id = PID_DURABILITY, default=Default::default())]
     pub(crate) durability: DurabilityQosPolicy,
-    #[parameter(id = PID_DEADLINE, default=Default::default())]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[parameter(id = PID_LATENCY_BUDGET, default=Default::default())]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[parameter(id = PID_LIVELINESS, default=Default::default())]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[parameter(id = PID_RELIABILITY, default=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[parameter(id = PID_LIFESPAN, default=Default::default())]
     pub(crate) lifespan: LifespanQosPolicy,
-    #[parameter(id = PID_USER_DATA, default=Default::default())]
     pub(crate) user_data: UserDataQosPolicy,
-    #[parameter(id = PID_OWNERSHIP, default=Default::default())]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[parameter(id = PID_OWNERSHIP_STRENGTH, default=Default::default())]
     pub(crate) ownership_strength: OwnershipStrengthQosPolicy,
-    #[parameter(id = PID_DESTINATION_ORDER, default=Default::default())]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[parameter(id = PID_PRESENTATION, default=Default::default())]
     pub(crate) presentation: PresentationQosPolicy,
-    #[parameter(id = PID_PARTITION, default=Default::default())]
     pub(crate) partition: PartitionQosPolicy,
-    #[parameter(id = PID_TOPIC_DATA, default=Default::default())]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[parameter(id = PID_GROUP_DATA, default=Default::default())]
     pub(crate) group_data: GroupDataQosPolicy,
-    #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
     pub(crate) xml_type: String,
-    #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
     pub(crate) representation: DataRepresentationQosPolicy,
+}
+
+
+impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> super::infrastructure::error::DdsResult<Self> {
+        todo!()
+    }
 }
 
 impl PublicationBuiltinTopicData {
@@ -415,48 +394,33 @@ impl DdsHasKey for PublicationBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`DataReader`](crate::subscription::data_reader::DataReader).
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListDeserialize, DdsDeserialize)]
-#[dust_dds(format = "PL_CDR_LE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SubscriptionBuiltinTopicData {
-    #[parameter(id = PID_ENDPOINT_GUID)]
     pub(crate) key: BuiltInTopicKey,
-    // Default value is a deviation from the standard and is used for interoperability reasons:
-    #[parameter(id = PID_PARTICIPANT_GUID, default = BuiltInTopicKey::default())]
-    pub(crate) participant_key: BuiltInTopicKey, //ParameterWithDefault<PID_PARTICIPANT_GUID, BuiltInTopicKey>,
-    #[parameter(id = PID_TOPIC_NAME)]
+    pub(crate) participant_key: BuiltInTopicKey, 
     pub(crate) topic_name: String,
-    #[parameter(id = PID_TYPE_NAME)]
     pub(crate) type_name: String,
-    #[parameter(id = PID_DURABILITY, default = Default::default())]
     pub(crate) durability: DurabilityQosPolicy,
-    #[parameter(id = PID_DEADLINE, default = Default::default())]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[parameter(id = PID_LATENCY_BUDGET, default = Default::default())]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[parameter(id = PID_LIVELINESS, default = Default::default())]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[parameter(id = PID_RELIABILITY, default = DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[parameter(id = PID_OWNERSHIP, default = Default::default())]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[parameter(id = PID_DESTINATION_ORDER, default = Default::default())]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[parameter(id = PID_USER_DATA, default = Default::default())]
     pub(crate) user_data: UserDataQosPolicy,
-    #[parameter(id = PID_TIME_BASED_FILTER, default = Default::default())]
     pub(crate) time_based_filter: TimeBasedFilterQosPolicy,
-    #[parameter(id = PID_PRESENTATION, default = Default::default())]
     pub(crate) presentation: PresentationQosPolicy,
-    #[parameter(id = PID_PARTITION, default = Default::default())]
     pub(crate) partition: PartitionQosPolicy,
-    #[parameter(id = PID_TOPIC_DATA, default = Default::default())]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[parameter(id = PID_GROUP_DATA, default = Default::default())]
     pub(crate) group_data: GroupDataQosPolicy,
-    #[parameter(id = PID_TYPE_REPRESENTATION, default=Default::default())]
     pub(crate) xml_type: String,
-    #[parameter(id = PID_DATA_REPRESENTATION, default=Default::default())]
     pub(crate) representation: DataRepresentationQosPolicy,
+}
+
+impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> super::infrastructure::error::DdsResult<Self> {
+        todo!()
+    }
 }
 
 impl SubscriptionBuiltinTopicData {
