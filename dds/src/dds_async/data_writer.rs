@@ -1,12 +1,9 @@
-use std::{marker::PhantomData, sync::Arc};
-
-use crate::xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer};
-
+use super::{
+    condition::StatusConditionAsync, data_writer_listener::DataWriterListenerAsync,
+    publisher::PublisherAsync, topic::TopicAsync,
+};
 use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    data_representation_builtin_endpoints::discovered_writer_data::{
-        DiscoveredWriterData, DCPS_PUBLICATION,
-    },
+    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PUBLICATION},
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -17,6 +14,7 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor,
         },
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -40,12 +38,9 @@ use crate::{
         types::ChangeKind,
     },
     topic_definition::type_support::DdsSerialize,
+    xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
 };
-
-use super::{
-    condition::StatusConditionAsync, data_writer_listener::DataWriterListenerAsync,
-    publisher::PublisherAsync, topic::TopicAsync,
-};
+use std::{marker::PhantomData, sync::Arc};
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {

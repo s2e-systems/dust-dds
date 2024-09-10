@@ -1,10 +1,10 @@
 use super::status_condition_actor::{self, AddCommunicationState, StatusConditionActor};
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
-    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     dds_async::topic_listener::TopicListenerAsync,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         runtime::{
             executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},

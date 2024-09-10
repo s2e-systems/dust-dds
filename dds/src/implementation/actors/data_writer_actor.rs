@@ -1,12 +1,22 @@
+use super::{
+    any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
+    domain_participant_actor::{
+        ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
+    },
+    message_sender_actor::{self, MessageSenderActor},
+    publisher_actor::{PublisherListenerMessage, PublisherListenerOperation},
+    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
+    topic_actor::TopicActor,
+};
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData,
-        discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-    },
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+        },
         runtime::{
             executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -54,17 +64,6 @@ use crate::{
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     thread::JoinHandle,
-};
-
-use super::{
-    any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    domain_participant_actor::{
-        ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
-    },
-    message_sender_actor::{self, MessageSenderActor},
-    publisher_actor::{PublisherListenerMessage, PublisherListenerOperation},
-    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    topic_actor::TopicActor,
 };
 
 struct MatchedSubscriptions {

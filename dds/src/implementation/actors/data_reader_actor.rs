@@ -10,13 +10,13 @@ use super::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-        discovered_writer_data::DiscoveredWriterData,
-    },
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_writer_data::DiscoveredWriterData,
+        },
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{

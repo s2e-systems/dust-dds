@@ -1,11 +1,15 @@
 use super::{
     parameter_id_values::{
         DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
-        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-        PID_DEFAULT_UNICAST_LOCATOR, PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG,
-        PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
-        PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DATA_REPRESENTATION, PID_DEADLINE,
+        PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DESTINATION_ORDER,
+        PID_DISCOVERED_PARTICIPANT, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_DURABILITY,
+        PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
+        PID_LIVELINESS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
+        PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
+        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_RELIABILITY,
+        PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+        PID_USER_DATA, PID_VENDORID,
     },
     payload_serializer_deserializer::{
         parameter_list_deserializer::ParameterListCdrDeserializer,
@@ -13,9 +17,12 @@ use super::{
     },
 };
 use crate::{
-    builtin_topics::ParticipantBuiltinTopicData,
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
-    infrastructure::{error::DdsResult, instance::InstanceHandle, time::Duration},
+    infrastructure::{
+        error::DdsResult, instance::InstanceHandle,
+        qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, time::Duration,
+    },
     rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
@@ -24,7 +31,6 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
-pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
@@ -49,6 +55,48 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) participant_proxy: ParticipantProxy,
     pub(crate) lease_duration: Duration,
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
+}
+
+impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
+        Ok(Self {
+            key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
+            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
+        })
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
+        Ok(Self {
+            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
+            name: pl_deserializer.read(PID_TOPIC_NAME)?,
+            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
+            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
+            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
+            latency_budget: pl_deserializer
+                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
+            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
+            reliability: pl_deserializer.read_with_default(
+                PID_RELIABILITY,
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            )?,
+            transport_priority: pl_deserializer
+                .read_with_default(PID_TRANSPORT_PRIORITY, Default::default())?,
+            lifespan: pl_deserializer.read_with_default(PID_LIFESPAN, Default::default())?,
+            destination_order: pl_deserializer
+                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
+            history: pl_deserializer.read_with_default(PID_HISTORY, Default::default())?,
+            resource_limits: pl_deserializer
+                .read_with_default(PID_RESOURCE_LIMITS, Default::default())?,
+            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
+            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
+            representation: pl_deserializer
+                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
+        })
+    }
 }
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
@@ -170,72 +218,6 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             discovered_participant_list: pl_deserializer
                 .read_collection(PID_DISCOVERED_PARTICIPANT)?,
         })
-    }
-}
-
-impl SpdpDiscoveredParticipantData {
-    pub fn dds_participant_data(&self) -> &ParticipantBuiltinTopicData {
-        &self.dds_participant_data
-    }
-
-    pub fn domain_id(&self) -> Option<DomainId> {
-        self.participant_proxy.domain_id
-    }
-
-    pub fn domain_tag(&self) -> &str {
-        self.participant_proxy.domain_tag.as_ref()
-    }
-
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.participant_proxy.protocol_version
-    }
-
-    pub fn guid_prefix(&self) -> GuidPrefix {
-        self.participant_proxy.guid_prefix
-    }
-
-    pub fn vendor_id(&self) -> VendorId {
-        self.participant_proxy.vendor_id
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.participant_proxy.expects_inline_qos
-    }
-
-    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        self.participant_proxy.metatraffic_unicast_locator_list.as_ref()
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        self.participant_proxy.metatraffic_multicast_locator_list.as_ref()
-    }
-
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.participant_proxy.default_unicast_locator_list.as_ref()
-    }
-
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.participant_proxy.default_multicast_locator_list.as_ref()
-    }
-
-    pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.participant_proxy.available_builtin_endpoints
-    }
-
-    pub fn manual_liveliness_count(&self) -> Count {
-        self.participant_proxy.manual_liveliness_count
-    }
-
-    pub fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.participant_proxy.builtin_endpoint_qos
-    }
-
-    pub fn lease_duration(&self) -> &Duration {
-        &self.lease_duration
-    }
-
-    pub fn discovered_participant_list(&self) -> &[InstanceHandle] {
-        &self.discovered_participant_list
     }
 }
 

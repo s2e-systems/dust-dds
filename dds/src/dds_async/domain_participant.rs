@@ -1,10 +1,12 @@
-use std::sync::Arc;
-
+use super::{
+    condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
+    publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
+    subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+    topic_listener::TopicListenerAsync,
+};
 use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    data_representation_builtin_endpoints::{
-        discovered_topic_data::DCPS_TOPIC,
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+    builtin_topics::{
+        ParticipantBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_TOPIC,
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
@@ -19,6 +21,7 @@ use crate::{
             subscriber_actor::{self, SubscriberActor},
             topic_actor::{self, TopicActor},
         },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         runtime::{executor::ExecutorHandle, timer::TimerHandle},
     },
     infrastructure::{
@@ -30,13 +33,7 @@ use crate::{
     },
     topic_definition::type_support::{DdsHasKey, DdsKey, DdsTypeXml, DynamicTypeInterface},
 };
-
-use super::{
-    condition::StatusConditionAsync, domain_participant_listener::DomainParticipantListenerAsync,
-    publisher::PublisherAsync, publisher_listener::PublisherListenerAsync,
-    subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
-    topic_listener::TopicListenerAsync,
-};
+use std::sync::Arc;
 
 /// Async version of [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(Clone)]

@@ -1,28 +1,28 @@
-use super::{infrastructure::error::DdsResult, topic_definition::type_support::DdsDeserialize};
 use crate::{
-    data_representation_builtin_endpoints::{
-        parameter_id_values::{
-            PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-            PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
-            PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
-            PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS,
-            PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY,
-            PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_USER_DATA,
-        },
-        payload_serializer_deserializer::parameter_list_deserializer::ParameterListCdrDeserializer,
-    },
     infrastructure::qos_policy::{
         DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
         DurabilityQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
         LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
         PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
         TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-        UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        UserDataQosPolicy,
     },
     topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
+
+/// Topic name of the built-in publication discovery topic
+pub const DCPS_PUBLICATION: &str = "DCPSPublication";
+
+/// Topic name of the built-in subscription discovery topic
+pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
+
+/// Topic name of the built-in topic discovery topic
+pub const DCPS_TOPIC: &str = "DCPSTopic";
+
+/// Topic name of the built-in participant discovery topic
+pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
+
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
@@ -36,16 +36,6 @@ pub struct BuiltInTopicKey {
 pub struct ParticipantBuiltinTopicData {
     pub(crate) key: BuiltInTopicKey,
     pub(crate) user_data: UserDataQosPolicy,
-}
-
-impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        Ok(Self {
-            key: pl_deserializer.read(PID_PARTICIPANT_GUID)?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-        })
-    }
 }
 
 impl ParticipantBuiltinTopicData {
@@ -83,38 +73,6 @@ pub struct TopicBuiltinTopicData {
     pub(crate) ownership: OwnershipQosPolicy,
     pub(crate) topic_data: TopicDataQosPolicy,
     pub(crate) representation: DataRepresentationQosPolicy,
-}
-
-impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        Ok(Self {
-            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-            name: pl_deserializer.read(PID_TOPIC_NAME)?,
-            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
-            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-            latency_budget: pl_deserializer
-                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
-            reliability: pl_deserializer.read_with_default(
-                PID_RELIABILITY,
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            )?,
-            transport_priority: pl_deserializer
-                .read_with_default(PID_TRANSPORT_PRIORITY, Default::default())?,
-            lifespan: pl_deserializer.read_with_default(PID_LIFESPAN, Default::default())?,
-            destination_order: pl_deserializer
-                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-            history: pl_deserializer.read_with_default(PID_HISTORY, Default::default())?,
-            resource_limits: pl_deserializer
-                .read_with_default(PID_RESOURCE_LIMITS, Default::default())?,
-            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
-            representation: pl_deserializer
-                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-        })
-    }
 }
 
 impl TopicBuiltinTopicData {
@@ -226,43 +184,6 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) group_data: GroupDataQosPolicy,
     pub(crate) xml_type: String,
     pub(crate) representation: DataRepresentationQosPolicy,
-}
-
-impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-        Ok(Self {
-            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons:
-            participant_key: pl_deserializer
-                .read_with_default(PID_PARTICIPANT_GUID, Default::default())?,
-            topic_name: pl_deserializer.read(PID_TOPIC_NAME)?,
-            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
-            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-            latency_budget: pl_deserializer
-                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
-            reliability: pl_deserializer
-                .read_with_default(PID_RELIABILITY, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)?,
-            lifespan: pl_deserializer.read_with_default(PID_LIFESPAN, Default::default())?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-            ownership_strength: pl_deserializer
-                .read_with_default(PID_OWNERSHIP_STRENGTH, Default::default())?,
-            destination_order: pl_deserializer
-                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-            presentation: pl_deserializer
-                .read_with_default(PID_PRESENTATION, Default::default())?,
-            partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
-            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
-            group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-            xml_type: pl_deserializer
-                .read_with_default(PID_TYPE_REPRESENTATION, Default::default())?,
-            representation: pl_deserializer
-                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-        })
-    }
 }
 
 impl PublicationBuiltinTopicData {
@@ -394,45 +315,6 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) group_data: GroupDataQosPolicy,
     pub(crate) xml_type: String,
     pub(crate) representation: DataRepresentationQosPolicy,
-}
-
-impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
-        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
-
-        Ok(Self {
-            key: pl_deserializer.read(PID_ENDPOINT_GUID)?,
-            // Default value is a deviation from the standard and is used for interoperability reasons:
-            participant_key: pl_deserializer
-                .read_with_default(PID_PARTICIPANT_GUID, Default::default())?,
-            topic_name: pl_deserializer.read(PID_TOPIC_NAME)?,
-            type_name: pl_deserializer.read(PID_TYPE_NAME)?,
-            durability: pl_deserializer.read_with_default(PID_DURABILITY, Default::default())?,
-            deadline: pl_deserializer.read_with_default(PID_DEADLINE, Default::default())?,
-            latency_budget: pl_deserializer
-                .read_with_default(PID_LATENCY_BUDGET, Default::default())?,
-            liveliness: pl_deserializer.read_with_default(PID_LIVELINESS, Default::default())?,
-            reliability: pl_deserializer.read_with_default(
-                PID_RELIABILITY,
-                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            )?,
-            ownership: pl_deserializer.read_with_default(PID_OWNERSHIP, Default::default())?,
-            destination_order: pl_deserializer
-                .read_with_default(PID_DESTINATION_ORDER, Default::default())?,
-            user_data: pl_deserializer.read_with_default(PID_USER_DATA, Default::default())?,
-            time_based_filter: pl_deserializer
-                .read_with_default(PID_TIME_BASED_FILTER, Default::default())?,
-            presentation: pl_deserializer
-                .read_with_default(PID_PRESENTATION, Default::default())?,
-            partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
-            topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
-            group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-            xml_type: pl_deserializer
-                .read_with_default(PID_TYPE_REPRESENTATION, Default::default())?,
-            representation: pl_deserializer
-                .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
-        })
-    }
 }
 
 impl SubscriptionBuiltinTopicData {

@@ -1,8 +1,5 @@
 use dust_dds::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
-    },
+    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_SUBSCRIPTION},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
@@ -30,8 +27,9 @@ use dust_dds::{
         types::{EntityId, PROTOCOLVERSION, USER_DEFINED_READER_WITH_KEY, VENDOR_ID_S2E},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
+use std::io::{BufRead, Read};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
@@ -41,6 +39,49 @@ struct KeyedData {
     #[dust_dds(key)]
     id: u8,
     value: u32,
+}
+
+struct DynamicType<'a>(&'a [u8]);
+impl<'de> DdsDeserialize<'de> for DynamicType<'de> {
+    fn deserialize_data(
+        serialized_data: &'de [u8],
+    ) -> dust_dds::infrastructure::error::DdsResult<Self> {
+        Ok(Self(serialized_data))
+    }
+}
+
+impl<'a> DynamicType<'a> {
+    fn metatraffic_unicast_locator_port(&self) -> u32 {
+        const PID_METATRAFFIC_UNICAST_LOCATOR: i16 = 0x0032;
+        let reader = &mut &self.0[4..];
+        let mut pid = [0, 0];
+        let mut length = [0, 0];
+        loop {
+            reader.read(&mut pid).unwrap();
+            reader.read(&mut length).unwrap();
+            if i16::from_le_bytes(pid) == PID_METATRAFFIC_UNICAST_LOCATOR {
+                return u32::from_le_bytes([reader[4], reader[5], reader[6], reader[7]]);
+            } else {
+                reader.consume(u16::from_le_bytes(length) as usize);
+            }
+        }
+    }
+
+    fn default_unicast_locator_port(&self) -> u32 {
+        const PID_DEFAULT_UNICAST_LOCATOR: i16 = 0x0031;
+        let reader = &mut &self.0[4..];
+        let mut pid = [0, 0];
+        let mut length = [0, 0];
+        loop {
+            reader.read(&mut pid).unwrap();
+            reader.read(&mut length).unwrap();
+            if i16::from_le_bytes(pid) == PID_DEFAULT_UNICAST_LOCATOR {
+                return u32::from_le_bytes([reader[4], reader[5], reader[6], reader[7]]);
+            } else {
+                reader.consume(u16::from_le_bytes(length) as usize);
+            }
+        }
+    }
 }
 
 #[test]
@@ -57,7 +98,7 @@ fn writer_should_send_heartbeat_periodically() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
         .unwrap()
         .unwrap();
     let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
@@ -166,7 +207,7 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -175,8 +216,7 @@ fn writer_should_send_heartbeat_periodically() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .metatraffic_unicast_locator_list()[0]
-        .port();
+        .metatraffic_unicast_locator_port();
     mock_reader_socket
         .send_to(
             discovered_reader_rtps_message.buffer(),
@@ -243,7 +283,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
         .unwrap()
         .unwrap();
     let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
@@ -353,7 +393,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -362,8 +402,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .metatraffic_unicast_locator_list()[0]
-        .port();
+        .metatraffic_unicast_locator_port();
     mock_reader_socket
         .send_to(
             discovered_reader_rtps_message.buffer(),
@@ -392,7 +431,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     mock_reader_socket.recv(&mut buffer).unwrap();
 
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_subscription_reader
@@ -401,8 +440,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     let unicast_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .default_unicast_locator_list()[0]
-        .port();
+        .default_unicast_locator_port();
 
     let received_data_heartbeat = RtpsMessageRead::try_from(buffer.as_slice())
         .unwrap()
@@ -451,7 +489,7 @@ fn writer_should_resend_data_after_acknack_request() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
         .unwrap()
         .unwrap();
     let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
@@ -561,7 +599,7 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -570,13 +608,11 @@ fn writer_should_resend_data_after_acknack_request() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .metatraffic_unicast_locator_list()[0]
-        .port();
+        .metatraffic_unicast_locator_port();
     let user_defined_traffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .default_unicast_locator_list()[0]
-        .port();
+        .default_unicast_locator_port();
     mock_reader_socket
         .send_to(
             discovered_reader_rtps_message.buffer(),
@@ -666,7 +702,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
         .unwrap()
         .unwrap();
     let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
@@ -778,7 +814,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -787,8 +823,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .metatraffic_unicast_locator_list()[0]
-        .port();
+        .metatraffic_unicast_locator_port();
     mock_reader_socket
         .send_to(
             discovered_reader_rtps_message.buffer(),
@@ -849,7 +884,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
         .unwrap()
         .unwrap();
     let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
@@ -966,7 +1001,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -975,8 +1010,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .metatraffic_unicast_locator_list()[0]
-        .port();
+        .metatraffic_unicast_locator_port();
     mock_reader_socket
         .send_to(
             discovered_reader_rtps_message.buffer(),
@@ -1041,7 +1075,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
 
     let builtin_subscriber = participant.get_builtin_subscriber();
     let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
         .unwrap()
         .unwrap();
     let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
@@ -1128,37 +1162,6 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     .concat()
     .to_vec();
 
-    // let participant_handle = participant.get_instance_handle().unwrap();
-    // let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    // let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
-    // let remote_reader_guid = Guid::new(guid_prefix, reader_id);
-    // let reader_proxy = ReaderProxy::new(
-    //     remote_reader_guid,
-    //     ENTITYID_UNKNOWN,
-    //     vec![reader_unicast_locator],
-    //     vec![],
-    //     false,
-    // );
-    // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-    //     BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-    //     BuiltInTopicKey::from(*participant_handle.as_ref()),
-    //     topic_name.to_string(),
-    //     type_name.to_string(),
-    //     DataReaderQos {
-    //         reliability: ReliabilityQosPolicy {
-    //             kind: ReliabilityQosPolicyKind::Reliable,
-    //             max_blocking_time: DurationKind::Infinite,
-    //         },
-    //         ..Default::default()
-    //     },
-    //     SubscriberQos::default(),
-    //     TopicDataQosPolicy::default(),
-    //     String::new(),
-    // );
-    // let dummy_reader_discovery =
-    //     DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    // let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
-
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
         true,
@@ -1185,7 +1188,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         .unwrap();
 
     let dcps_participant_reader = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
         .unwrap()
         .unwrap();
     let dcps_sample_list = dcps_participant_reader
@@ -1194,8 +1197,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .metatraffic_unicast_locator_list()[0]
-        .port();
+        .metatraffic_unicast_locator_port();
     mock_reader_socket
         .send_to(
             discovered_reader_rtps_message.buffer(),

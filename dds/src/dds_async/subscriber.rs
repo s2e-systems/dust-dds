@@ -1,5 +1,10 @@
+use super::{
+    condition::StatusConditionAsync, data_reader::DataReaderAsync,
+    data_reader_listener::DataReaderListenerAsync, domain_participant::DomainParticipantAsync,
+    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
+};
 use crate::{
-    data_representation_builtin_endpoints::discovered_reader_data::DCPS_SUBSCRIPTION,
+    builtin_topics::DCPS_SUBSCRIPTION,
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
@@ -17,12 +22,6 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-};
-
-use super::{
-    condition::StatusConditionAsync, data_reader::DataReaderAsync,
-    data_reader_listener::DataReaderListenerAsync, domain_participant::DomainParticipantAsync,
-    subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).

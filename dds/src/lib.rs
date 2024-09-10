@@ -17,10 +17,6 @@ pub mod dds_async;
 #[cfg(feature = "std")]
 pub mod rtps;
 
-#[doc(hidden)]
-#[cfg(feature = "std")]
-pub mod data_representation_builtin_endpoints;
-
 #[cfg(feature = "std")]
 mod implementation;
 

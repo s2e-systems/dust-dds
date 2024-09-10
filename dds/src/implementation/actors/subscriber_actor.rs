@@ -1,8 +1,3 @@
-use std::{collections::HashMap, sync::Arc, thread::JoinHandle};
-
-use fnmatch_regex::glob_to_regex;
-use tracing::warn;
-
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     data_reader_actor::{self, DataReaderActor},
@@ -11,7 +6,6 @@ use super::{
     topic_actor::TopicActor,
 };
 use crate::{
-    data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_async::{
         data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
@@ -20,6 +14,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::status_condition_actor::StatusConditionActor,
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         runtime::{
             executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -53,6 +48,9 @@ use crate::{
     },
     topic_definition::type_support::DynamicTypeInterface,
 };
+use fnmatch_regex::glob_to_regex;
+use std::{collections::HashMap, sync::Arc, thread::JoinHandle};
+use tracing::warn;
 
 pub enum SubscriberListenerOperation {
     DataOnReaders(SubscriberAsync),

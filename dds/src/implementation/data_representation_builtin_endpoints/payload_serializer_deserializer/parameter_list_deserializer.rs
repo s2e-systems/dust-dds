@@ -1,5 +1,5 @@
 use crate::{
-    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     rtps::error::RtpsError,
     xtypes::{
         deserialize::XTypesDeserialize,
