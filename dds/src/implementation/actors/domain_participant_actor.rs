@@ -40,7 +40,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         qos_policy::{
-            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy,
         },
         status::{
@@ -1367,39 +1367,43 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
         &mut self,
         _: AsSpdpDiscoveredParticipantData,
     ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
-        SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData::new(
-                BuiltInTopicKey {
+        SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: self.rtps_participant.guid().into(),
                 },
-                self.qos.user_data.clone(),
-            ),
-            ParticipantProxy::new(
-                Some(self.domain_id),
-                self.domain_tag.clone(),
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.guid().prefix(),
-                self.rtps_participant.vendor_id(),
-                false,
-                self.rtps_participant
+                user_data: self.qos.user_data.clone(),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: Some(self.domain_id),
+                domain_tag: self.domain_tag.clone(),
+                protocol_version: self.rtps_participant.protocol_version(),
+                guid_prefix: self.rtps_participant.guid().prefix(),
+                vendor_id: self.rtps_participant.vendor_id(),
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: self
+                    .rtps_participant
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                self.rtps_participant
+                metatraffic_multicast_locator_list: self
+                    .rtps_participant
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
-                self.rtps_participant
+                default_unicast_locator_list: self
+                    .rtps_participant
                     .default_unicast_locator_list()
                     .to_vec(),
-                self.rtps_participant
+                default_multicast_locator_list: self
+                    .rtps_participant
                     .default_multicast_locator_list()
                     .to_vec(),
-                BuiltinEndpointSet::default(),
-                self.manual_liveliness_count,
-                BuiltinEndpointQos::default(),
-            ),
-            self.lease_duration,
-            self.discovered_participant_list.keys().cloned().collect(),
-        )
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: self.manual_liveliness_count,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            },
+            lease_duration: self.lease_duration,
+            discovered_participant_list: self.discovered_participant_list.keys().cloned().collect(),
+        }
     }
 }
 
@@ -1803,14 +1807,14 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
         // (as specified in Table 9.19 - ParameterId mapping and default values)
         let is_domain_id_matching = message
             .discovered_participant_data
-            .participant_proxy()
-            .domain_id()
+            .participant_proxy
+            .domain_id
             .unwrap_or(self.domain_id)
             == self.domain_id;
         let is_domain_tag_matching = message
             .discovered_participant_data
-            .participant_proxy()
-            .domain_tag()
+            .participant_proxy
+            .domain_tag
             == self.domain_tag;
         let discovered_participant_handle = InstanceHandle::new(
             message
@@ -1898,8 +1902,8 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
             Guid::new(
                 message
                     .discovered_writer_data
-                    .writer_proxy()
-                    .remote_writer_guid()
+                    .writer_proxy
+                    .remote_writer_guid
                     .prefix(),
                 ENTITYID_PARTICIPANT,
             )
@@ -1908,7 +1912,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
         let is_publication_ignored = self.ignored_publications.contains(&InstanceHandle::new(
             message
                 .discovered_writer_data
-                .dds_publication_data()
+                .dds_publication_data
                 .key()
                 .value,
         ));
@@ -1918,8 +1922,8 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     Guid::new(
                         message
                             .discovered_writer_data
-                            .writer_proxy()
-                            .remote_writer_guid()
+                            .writer_proxy
+                            .remote_writer_guid
                             .prefix(),
                         ENTITYID_PARTICIPANT,
                     )
@@ -1927,12 +1931,12 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                 ))
             {
                 let default_unicast_locator_list = discovered_participant_data
-                    .participant_proxy()
-                    .default_unicast_locator_list()
+                    .participant_proxy
+                    .default_unicast_locator_list
                     .to_vec();
                 let default_multicast_locator_list = discovered_participant_data
-                    .participant_proxy()
-                    .default_multicast_locator_list()
+                    .participant_proxy
+                    .default_multicast_locator_list
                     .to_vec();
                 for subscriber in self.user_defined_subscriber_list.values() {
                     let subscriber_address = subscriber.address();
@@ -1956,78 +1960,77 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                 let topic_instance_handle = InstanceHandle::new(
                     message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .key()
                         .value,
                 );
-                let writer_topic = TopicBuiltinTopicData::new(
-                    BuiltInTopicKey::default(),
-                    message
+                let writer_topic = TopicBuiltinTopicData {
+                    key: BuiltInTopicKey::default(),
+                    name: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .topic_name()
                         .to_owned(),
-                    message
+                    type_name: message
                         .discovered_writer_data
-                        .dds_publication_data()
+                        .dds_publication_data
                         .get_type_name()
                         .to_owned(),
-                    TopicQos {
-                        topic_data: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .topic_data()
-                            .clone(),
-                        durability: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .durability()
-                            .clone(),
-                        deadline: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .deadline()
-                            .clone(),
-                        latency_budget: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .latency_budget()
-                            .clone(),
-                        liveliness: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .liveliness()
-                            .clone(),
-                        reliability: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .reliability()
-                            .clone(),
-                        destination_order: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .destination_order()
-                            .clone(),
-                        history: HistoryQosPolicy::default(),
-                        resource_limits: ResourceLimitsQosPolicy::default(),
-                        transport_priority: TransportPriorityQosPolicy::default(),
-                        lifespan: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .lifespan()
-                            .clone(),
-                        ownership: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .ownership()
-                            .clone(),
-                        representation: message
-                            .discovered_writer_data
-                            .dds_publication_data()
-                            .representation()
-                            .clone(),
-                    },
-                );
+                    durability: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .durability()
+                        .clone(),
+                    deadline: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .deadline()
+                        .clone(),
+                    latency_budget: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .latency_budget()
+                        .clone(),
+                    liveliness: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .liveliness()
+                        .clone(),
+                    reliability: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .reliability()
+                        .clone(),
+                    transport_priority: TransportPriorityQosPolicy::default(),
+                    lifespan: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .lifespan()
+                        .clone(),
+                    destination_order: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .destination_order()
+                        .clone(),
+                    history: HistoryQosPolicy::default(),
+                    resource_limits: ResourceLimitsQosPolicy::default(),
+                    ownership: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .ownership()
+                        .clone(),
+                    topic_data: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .topic_data()
+                        .clone(),
+                    representation: message
+                        .discovered_writer_data
+                        .dds_publication_data
+                        .representation()
+                        .clone(),
+                };
+
                 self.discovered_topic_list
                     .insert(topic_instance_handle, writer_topic);
             }
@@ -2078,7 +2081,7 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                 message
                     .discovered_reader_data
                     .reader_proxy()
-                    .remote_reader_guid()
+                    .remote_reader_guid
                     .prefix(),
                 ENTITYID_PARTICIPANT,
             )
@@ -2098,7 +2101,7 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         message
                             .discovered_reader_data
                             .reader_proxy()
-                            .remote_reader_guid()
+                            .remote_reader_guid
                             .prefix(),
                         ENTITYID_PARTICIPANT,
                     )
@@ -2106,12 +2109,12 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                 ))
             {
                 let default_unicast_locator_list = discovered_participant_data
-                    .participant_proxy()
-                    .default_unicast_locator_list()
+                    .participant_proxy
+                    .default_unicast_locator_list
                     .to_vec();
                 let default_multicast_locator_list = discovered_participant_data
-                    .participant_proxy()
-                    .default_multicast_locator_list()
+                    .participant_proxy
+                    .default_multicast_locator_list
                     .to_vec();
 
                 for publisher in self.user_defined_publisher_list.values() {
@@ -2142,70 +2145,69 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         .key()
                         .value,
                 );
-                let reader_topic = TopicBuiltinTopicData::new(
-                    BuiltInTopicKey::default(),
-                    message
+                let reader_topic = TopicBuiltinTopicData {
+                    key: BuiltInTopicKey::default(),
+                    name: message
                         .discovered_reader_data
                         .subscription_builtin_topic_data()
                         .topic_name()
                         .to_string(),
-                    message
+                    type_name: message
                         .discovered_reader_data
                         .subscription_builtin_topic_data()
                         .get_type_name()
                         .to_string(),
-                    TopicQos {
-                        topic_data: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .topic_data()
-                            .clone(),
-                        durability: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .durability()
-                            .clone(),
-                        deadline: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .deadline()
-                            .clone(),
-                        latency_budget: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .latency_budget()
-                            .clone(),
-                        liveliness: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .liveliness()
-                            .clone(),
-                        reliability: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .reliability()
-                            .clone(),
-                        destination_order: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .destination_order()
-                            .clone(),
-                        history: HistoryQosPolicy::default(),
-                        resource_limits: ResourceLimitsQosPolicy::default(),
-                        transport_priority: TransportPriorityQosPolicy::default(),
-                        lifespan: LifespanQosPolicy::default(),
-                        ownership: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .ownership()
-                            .clone(),
-                        representation: message
-                            .discovered_reader_data
-                            .subscription_builtin_topic_data()
-                            .representation()
-                            .clone(),
-                    },
-                );
+
+                    topic_data: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .topic_data()
+                        .clone(),
+                    durability: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .durability()
+                        .clone(),
+                    deadline: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .deadline()
+                        .clone(),
+                    latency_budget: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .latency_budget()
+                        .clone(),
+                    liveliness: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .liveliness()
+                        .clone(),
+                    reliability: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .reliability()
+                        .clone(),
+                    destination_order: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .destination_order()
+                        .clone(),
+                    history: HistoryQosPolicy::default(),
+                    resource_limits: ResourceLimitsQosPolicy::default(),
+                    transport_priority: TransportPriorityQosPolicy::default(),
+                    lifespan: LifespanQosPolicy::default(),
+                    ownership: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .ownership()
+                        .clone(),
+                    representation: message
+                        .discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .representation()
+                        .clone(),
+                };
                 self.discovered_topic_list
                     .insert(topic_instance_handle, reader_topic);
             }
@@ -2253,7 +2255,7 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
         let handle = InstanceHandle::new(
             message
                 .discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .key()
                 .value,
         );
@@ -2268,7 +2270,7 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
                 handle,
                 message
                     .discovered_topic_data
-                    .topic_builtin_topic_data()
+                    .topic_builtin_topic_data
                     .clone(),
             );
         }
@@ -2320,8 +2322,8 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
-            .available_builtin_endpoints()
+            .participant_proxy
+            .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
         {
             let participant_mask_listener = (
@@ -2331,38 +2333,47 @@ impl DomainParticipantActor {
                 self.status_kind.clone(),
             );
             let remote_reader_guid = Guid::new(
-                discovered_participant_data
-                    .participant_proxy()
-                    .guid_prefix(),
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy::new(
+            let reader_proxy = ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_unicast_locator_list()
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
-            );
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            };
+            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_PUBLICATION.to_owned(),
-                "DiscoveredWriterData".to_owned(),
-                sedp_data_reader_qos(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_PUBLICATION.to_owned(),
+                type_name: "DiscoveredWriterData".to_owned(),
+                durability: sedp_data_reader_qos().durability,
+                deadline: sedp_data_reader_qos().deadline,
+                latency_budget: sedp_data_reader_qos().latency_budget,
+                liveliness: sedp_data_reader_qos().liveliness,
+                reliability: sedp_data_reader_qos().reliability,
+                ownership: sedp_data_reader_qos().ownership,
+                destination_order: sedp_data_reader_qos().destination_order,
+                user_data: sedp_data_reader_qos().user_data,
+                time_based_filter: sedp_data_reader_qos().time_based_filter,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_reader_qos().representation,
+            };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
@@ -2391,46 +2402,58 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
-            .available_builtin_endpoints()
+            .participant_proxy
+            .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                discovered_participant_data
-                    .participant_proxy()
-                    .guid_prefix(),
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = None;
+            let data_max_size_serialized = Default::default();
 
-            let dds_publication_data = PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            let dds_publication_data = PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_writer_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_PUBLICATION.to_owned(),
-                "DiscoveredWriterData".to_owned(),
-                sedp_data_writer_qos(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
-            let writer_proxy = WriterProxy::new(
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_PUBLICATION.to_owned(),
+                type_name: "DiscoveredWriterData".to_owned(),
+                durability: sedp_data_writer_qos().durability,
+                deadline: sedp_data_writer_qos().deadline,
+                latency_budget: sedp_data_writer_qos().latency_budget,
+                liveliness: sedp_data_writer_qos().liveliness,
+                reliability: sedp_data_writer_qos().reliability,
+                lifespan: sedp_data_writer_qos().lifespan,
+                user_data: sedp_data_writer_qos().user_data,
+                ownership: sedp_data_writer_qos().ownership,
+                ownership_strength: sedp_data_writer_qos().ownership_strength,
+                destination_order: sedp_data_writer_qos().destination_order,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_writer_qos().representation,
+            };
+            let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_unicast_locator_list()
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
                     .to_vec(),
                 data_max_size_serialized,
-            );
-            let discovered_writer_data =
-                DiscoveredWriterData::new(dds_publication_data, writer_proxy);
+            };
+            let discovered_writer_data = DiscoveredWriterData {
+                dds_publication_data,
+                writer_proxy,
+            };
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
@@ -2455,43 +2478,52 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
-            .available_builtin_endpoints()
+            .participant_proxy
+            .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                discovered_participant_data
-                    .participant_proxy()
-                    .guid_prefix(),
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy::new(
+            let reader_proxy = ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_unicast_locator_list()
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
-            );
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            };
+            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_SUBSCRIPTION.to_owned(),
-                "DiscoveredReaderData".to_owned(),
-                sedp_data_reader_qos(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_SUBSCRIPTION.to_owned(),
+                type_name: "DiscoveredReaderData".to_owned(),
+                durability: sedp_data_reader_qos().durability,
+                deadline: sedp_data_reader_qos().deadline,
+                latency_budget: sedp_data_reader_qos().latency_budget,
+                liveliness: sedp_data_reader_qos().liveliness,
+                reliability: sedp_data_reader_qos().reliability,
+                ownership: sedp_data_reader_qos().ownership,
+                destination_order: sedp_data_reader_qos().destination_order,
+                user_data: sedp_data_reader_qos().user_data,
+                time_based_filter: sedp_data_reader_qos().time_based_filter,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_reader_qos().representation,
+            };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
@@ -2519,46 +2551,58 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
-            .available_builtin_endpoints()
+            .participant_proxy
+            .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                discovered_participant_data
-                    .participant_proxy()
-                    .guid_prefix(),
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = None;
+            let data_max_size_serialized = Default::default();
 
-            let writer_proxy = WriterProxy::new(
+            let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_unicast_locator_list()
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
                     .to_vec(),
                 data_max_size_serialized,
-            );
-            let dds_publication_data = PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            };
+            let dds_publication_data = PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_writer_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_SUBSCRIPTION.to_owned(),
-                "DiscoveredReaderData".to_owned(),
-                sedp_data_writer_qos(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
-            let discovered_writer_data =
-                DiscoveredWriterData::new(dds_publication_data, writer_proxy);
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_SUBSCRIPTION.to_owned(),
+                type_name: "DiscoveredReaderData".to_owned(),
+                durability: sedp_data_writer_qos().durability,
+                deadline: sedp_data_writer_qos().deadline,
+                latency_budget: sedp_data_writer_qos().latency_budget,
+                liveliness: sedp_data_writer_qos().liveliness,
+                reliability: sedp_data_writer_qos().reliability,
+                lifespan: sedp_data_writer_qos().lifespan,
+                user_data: sedp_data_writer_qos().user_data,
+                ownership: sedp_data_writer_qos().ownership,
+                ownership_strength: sedp_data_writer_qos().ownership_strength,
+                destination_order: sedp_data_writer_qos().destination_order,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_writer_qos().representation,
+            };
+            let discovered_writer_data = DiscoveredWriterData {
+                dds_publication_data,
+                writer_proxy,
+            };
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
@@ -2584,43 +2628,52 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
-            .available_builtin_endpoints()
+            .participant_proxy
+            .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                discovered_participant_data
-                    .participant_proxy()
-                    .guid_prefix(),
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy::new(
+            let reader_proxy = ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_unicast_locator_list()
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
-            );
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey {
+            };
+            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_TOPIC.to_owned(),
-                "DiscoveredTopicData".to_owned(),
-                sedp_data_reader_qos(),
-                SubscriberQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_TOPIC.to_owned(),
+                type_name: "DiscoveredTopicData".to_owned(),
+                durability: sedp_data_reader_qos().durability,
+                deadline: sedp_data_reader_qos().deadline,
+                latency_budget: sedp_data_reader_qos().latency_budget,
+                liveliness: sedp_data_reader_qos().liveliness,
+                reliability: sedp_data_reader_qos().reliability,
+                ownership: sedp_data_reader_qos().ownership,
+                destination_order: sedp_data_reader_qos().destination_order,
+                user_data: sedp_data_reader_qos().user_data,
+                time_based_filter: sedp_data_reader_qos().time_based_filter,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_reader_qos().representation,
+            };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
@@ -2648,46 +2701,58 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
-            .available_builtin_endpoints()
+            .participant_proxy
+            .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                discovered_participant_data
-                    .participant_proxy()
-                    .guid_prefix(),
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = None;
+            let data_max_size_serialized = Default::default();
 
-            let writer_proxy = WriterProxy::new(
+            let writer_proxy = WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_unicast_locator_list()
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
-                discovered_participant_data
-                    .participant_proxy()
-                    .metatraffic_multicast_locator_list()
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
                     .to_vec(),
                 data_max_size_serialized,
-            );
-            let dds_publication_data = PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+            };
+            let dds_publication_data = PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: remote_writer_guid.into(),
                 },
-                BuiltInTopicKey::default(),
-                DCPS_TOPIC.to_owned(),
-                "DiscoveredTopicData".to_owned(),
-                sedp_data_writer_qos(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::new(),
-            );
-            let discovered_writer_data =
-                DiscoveredWriterData::new(dds_publication_data, writer_proxy);
+                participant_key: BuiltInTopicKey::default(),
+                topic_name: DCPS_TOPIC.to_owned(),
+                type_name: "DiscoveredTopicData".to_owned(),
+                durability: sedp_data_writer_qos().durability,
+                deadline: sedp_data_writer_qos().deadline,
+                latency_budget: sedp_data_writer_qos().latency_budget,
+                liveliness: sedp_data_writer_qos().liveliness,
+                reliability: sedp_data_writer_qos().reliability,
+                lifespan: sedp_data_writer_qos().lifespan,
+                user_data: sedp_data_writer_qos().user_data,
+                ownership: sedp_data_writer_qos().ownership,
+                ownership_strength: sedp_data_writer_qos().ownership_strength,
+                destination_order: sedp_data_writer_qos().destination_order,
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: sedp_data_writer_qos().representation,
+            };
+            let discovered_writer_data = DiscoveredWriterData {
+                dds_publication_data,
+                writer_proxy,
+            };
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,

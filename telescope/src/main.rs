@@ -59,37 +59,33 @@ fn main() {
                         )
                     {
                         match participant_list
-                            .entry(discovered_participant.participant_proxy().guid_prefix())
+                            .entry(discovered_participant.guid_prefix())
                         {
                             Entry::Vacant(e) => {
                                 println!(
                                     "Discovered participant GUID {:?} on domain {:?} with tag {:?}",
-                                    discovered_participant.participant_proxy().guid_prefix(),
-                                    discovered_participant.participant_proxy().domain_id(),
-                                    discovered_participant.participant_proxy().domain_tag(),
+                                    discovered_participant.guid_prefix(),
+                                    discovered_participant.domain_id(),
+                                    discovered_participant.domain_tag(),
                                 );
                                 println!(
                                     "Participant metattrafic unicast locator list {:?}",
                                     discovered_participant
-                                        .participant_proxy()
                                         .metatraffic_unicast_locator_list()
                                 );
                                 println!(
                                     "Participant metattrafic multicast locator list {:?}",
                                     discovered_participant
-                                        .participant_proxy()
                                         .metatraffic_multicast_locator_list()
                                 );
                                 println!(
                                     "Participant default unicast locator list {:?}",
                                     discovered_participant
-                                        .participant_proxy()
                                         .default_unicast_locator_list()
                                 );
                                 println!(
                                     "Participant default multicast locator list {:?}",
                                     discovered_participant
-                                        .participant_proxy()
                                         .default_multicast_locator_list()
                                 );
                                 println!(
@@ -105,9 +101,9 @@ fn main() {
                                 {
                                     println!(
                                         "Updated participant GUID {:?} on domain {:?} with tag {:?}",
-                                        discovered_participant.participant_proxy().guid_prefix(),
-                                        discovered_participant.participant_proxy().domain_id(),
-                                        discovered_participant.participant_proxy().domain_tag(),
+                                        discovered_participant.guid_prefix(),
+                                        discovered_participant.domain_id(),
+                                        discovered_participant.domain_tag(),
                                     );
                                     println!(
                                         "Discovered participant list {:?}",

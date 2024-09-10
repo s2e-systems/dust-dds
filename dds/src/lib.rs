@@ -6,9 +6,7 @@
 #![doc = include_str!("../README.md")]
 #[cfg(feature = "std")]
 mod dds;
-/// Contains the traits and classes needed to represent types in the formats defined in the RTPS standard
-#[cfg(feature = "std")]
-pub mod serialized_payload;
+
 #[cfg(feature = "std")]
 pub use dds::*;
 /// Contains the async version of the DDS API.

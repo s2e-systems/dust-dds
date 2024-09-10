@@ -1,3 +1,5 @@
+use crate::xtypes::error::XTypesError;
+
 pub type RtpsResult<T> = Result<T, RtpsError>;
 
 #[derive(Debug)]
@@ -40,5 +42,11 @@ impl std::fmt::Display for RtpsError {
 impl From<std::io::Error> for RtpsError {
     fn from(e: std::io::Error) -> Self {
         RtpsError::new(RtpsErrorKind::Io, e)
+    }
+}
+
+impl From<XTypesError> for RtpsError {
+    fn from(value: XTypesError) -> Self {
+        RtpsError::new(RtpsErrorKind::InvalidData, format!("XTypesError: {:?}", value))
     }
 }

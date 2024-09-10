@@ -1,101 +1,178 @@
-use dust_dds_derive::{ParameterListDeserialize, ParameterListSerialize};
-
+use super::{
+    parameter_id_values::{
+        PID_DATA_MAX_SIZE_SERIALIZED, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
+        PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
+        PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
+        PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
+        PID_TOPIC_NAME, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    },
+    payload_serializer_deserializer::{
+        parameter_list_deserializer::ParameterListCdrDeserializer,
+        parameter_list_serializer::ParameterListCdrSerializer,
+    },
+};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::error::DdsResult,
+    infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
-use super::parameter_id_values::{
-    PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
-    PID_UNICAST_LOCATOR,
-};
-#[derive(Debug, PartialEq, Eq, Clone, ParameterListSerialize, ParameterListDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
-    #[parameter(id = PID_ENDPOINT_GUID, skip_serialize)]
-    remote_writer_guid: Guid,
-    #[parameter(id = PID_GROUP_ENTITYID, default=Default::default())]
-    remote_group_entity_id: EntityId,
-    #[parameter(id = PID_UNICAST_LOCATOR, collection)]
-    unicast_locator_list: Vec<Locator>,
-    #[parameter(id = PID_MULTICAST_LOCATOR, collection)]
-    multicast_locator_list: Vec<Locator>,
-    #[parameter(id = PID_DATA_MAX_SIZE_SERIALIZED, default=Default::default())]
-    data_max_size_serialized: i32,
+    pub(crate) remote_writer_guid: Guid,
+    pub(crate) remote_group_entity_id: EntityId,
+    pub(crate) unicast_locator_list: Vec<Locator>,
+    pub(crate) multicast_locator_list: Vec<Locator>,
+    pub(crate) data_max_size_serialized: i32,
 }
 
-impl WriterProxy {
-    pub fn new(
-        remote_writer_guid: Guid,
-        remote_group_entity_id: EntityId,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self {
-        Self {
-            remote_writer_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            data_max_size_serialized: data_max_size_serialized.unwrap_or_default(),
-        }
-    }
-
-    pub fn remote_writer_guid(&self) -> Guid {
-        self.remote_writer_guid
-    }
-
-    pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.as_ref()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_ref()
-    }
-
-    pub fn data_max_size_serialized(&self) -> Option<i32> {
-        Some(self.data_max_size_serialized)
-    }
-}
-
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    ParameterListSerialize,
-    ParameterListDeserialize,
-    DdsSerialize,
-    DdsDeserialize,
-)]
-#[dust_dds(format = "PL_CDR_LE")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredWriterData {
-    dds_publication_data: PublicationBuiltinTopicData,
-    writer_proxy: WriterProxy,
+    pub(crate) dds_publication_data: PublicationBuiltinTopicData,
+    pub(crate) writer_proxy: WriterProxy,
 }
 
-impl DiscoveredWriterData {
-    pub fn new(
-        dds_publication_data: PublicationBuiltinTopicData,
-        writer_proxy: WriterProxy,
-    ) -> Self {
-        Self {
-            dds_publication_data,
-            writer_proxy,
-        }
-    }
+impl DdsSerialize for DiscoveredWriterData {
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        let mut serializer = ParameterListCdrSerializer::default();
+        serializer.write_header()?;
 
-    pub fn dds_publication_data(&self) -> &PublicationBuiltinTopicData {
-        &self.dds_publication_data
-    }
+        // dds_publication_data: PublicationBuiltinTopicData:
 
-    pub fn writer_proxy(&self) -> &WriterProxy {
-        &self.writer_proxy
+        serializer.write(PID_ENDPOINT_GUID, &self.dds_publication_data.key)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        serializer.write_with_default(
+            PID_PARTICIPANT_GUID,
+            &self.dds_publication_data.participant_key,
+            &Default::default(),
+        )?;
+        serializer.write(PID_TOPIC_NAME, &self.dds_publication_data.topic_name)?;
+        serializer.write(PID_TYPE_NAME, &self.dds_publication_data.type_name)?;
+        serializer.write_with_default(
+            PID_DURABILITY,
+            &self.dds_publication_data.durability,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DEADLINE,
+            &self.dds_publication_data.deadline,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LATENCY_BUDGET,
+            &self.dds_publication_data.latency_budget,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_LIVELINESS,
+            &self.dds_publication_data.liveliness,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_RELIABILITY,
+            &self.dds_publication_data.reliability,
+            &DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        )?;
+        serializer.write_with_default(
+            PID_LIFESPAN,
+            &self.dds_publication_data.lifespan,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_USER_DATA,
+            &self.dds_publication_data.user_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_OWNERSHIP,
+            &self.dds_publication_data.ownership,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_OWNERSHIP_STRENGTH,
+            &self.dds_publication_data.ownership_strength,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DESTINATION_ORDER,
+            &self.dds_publication_data.destination_order,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_PRESENTATION,
+            &self.dds_publication_data.presentation,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_PARTITION,
+            &self.dds_publication_data.partition,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TOPIC_DATA,
+            &self.dds_publication_data.topic_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_GROUP_DATA,
+            &self.dds_publication_data.group_data,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_TYPE_REPRESENTATION,
+            &self.dds_publication_data.xml_type,
+            &Default::default(),
+        )?;
+        serializer.write_with_default(
+            PID_DATA_REPRESENTATION,
+            &self.dds_publication_data.representation,
+            &Default::default(),
+        )?;
+
+        // writer_proxy: WriterProxy:
+
+        // skip serilize:
+        // writer_proxy.remote_writer_guid: Guid,
+
+        serializer.write_with_default(
+            PID_GROUP_ENTITYID,
+            &self.writer_proxy.remote_group_entity_id,
+            &Default::default(),
+        )?;
+        serializer
+            .write_collection(PID_UNICAST_LOCATOR, &self.writer_proxy.unicast_locator_list)?;
+        serializer.write_collection(
+            PID_MULTICAST_LOCATOR,
+            &self.writer_proxy.multicast_locator_list,
+        )?;
+        serializer.write_with_default(
+            PID_DATA_MAX_SIZE_SERIALIZED,
+            &self.writer_proxy.data_max_size_serialized,
+            &Default::default(),
+        )?;
+
+        serializer.write_sentinel()?;
+        Ok(serializer.writer)
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
+    fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
+        let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
+
+        Ok(Self {
+            dds_publication_data: PublicationBuiltinTopicData::deserialize_data(serialized_data)?,
+            writer_proxy: WriterProxy {
+                remote_writer_guid: pl_deserializer.read(PID_ENDPOINT_GUID)?,
+                remote_group_entity_id: pl_deserializer
+                    .read_with_default(PID_GROUP_ENTITYID, Default::default())?,
+                unicast_locator_list: pl_deserializer.read_collection(PID_UNICAST_LOCATOR)?,
+                multicast_locator_list: pl_deserializer.read_collection(PID_MULTICAST_LOCATOR)?,
+                data_max_size_serialized: pl_deserializer
+                    .read_with_default(PID_DATA_MAX_SIZE_SERIALIZED, Default::default())?,
+            },
+        })
     }
 }
 
@@ -128,48 +205,55 @@ impl DdsTypeXml for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        infrastructure::{
-            qos::{DataWriterQos, PublisherQos},
-            qos_policy::TopicDataQosPolicy,
-        },
         rtps::types::{
             BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
     };
 
-    use super::*;
-
     #[test]
     fn serialize_all_default() {
-        let data = DiscoveredWriterData::new(
-            PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+        let data = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                DataWriterQos::default(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::default(),
-            ),
-            WriterProxy::new(
-                Guid::new(
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: Default::default(),
+            },
+            writer_proxy: WriterProxy {
+                remote_writer_guid: Guid::new(
                     [5; 12],
                     EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
                 ),
-                EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
-                vec![],
-                vec![],
-                None,
-            ),
-        );
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: Default::default(),
+            },
+        };
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -195,37 +279,50 @@ mod tests {
         ];
         let result = data.serialize_data().unwrap();
         assert_eq!(result, expected);
+        // assert_eq!(serialize_v1_le(&data), expected);
     }
 
     #[test]
     fn deserialize_all_default() {
-        let expected = DiscoveredWriterData::new(
-            PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+        let expected = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                "ab".to_string(),
-                "cd".to_string(),
-                DataWriterQos::default(),
-                PublisherQos::default(),
-                TopicDataQosPolicy::default(),
-                String::default(),
-            ),
-            WriterProxy::new(
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                xml_type: Default::default(),
+                representation: Default::default(),
+            },
+            writer_proxy: WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
-                Guid::new(
+                remote_writer_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
-                EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
-                vec![],
-                vec![],
-                None,
-            ),
-        );
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: Default::default(),
+            },
+        };
 
         let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
