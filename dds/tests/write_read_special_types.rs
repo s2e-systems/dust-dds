@@ -611,7 +611,7 @@ fn foo_xtypes_union_should_read_and_write() {
     enum MyEnum {
         VariantA(MyInnerType) = 5,
         VariantB { a: u32, b: i16 } = 6,
-        VariantC,
+        VariantC = 7,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

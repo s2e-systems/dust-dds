@@ -90,28 +90,21 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
             })
         }
         syn::Data::Enum(data_enum) => {
-            // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
-            // be consuming it.
-            let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
-            let serialize_enum = if discriminant_mapping.is_empty() {
+            let serialize_enum = if data_enum.variants.is_empty() {
                 // Empty enum is the same as empty type. Do nothing
                 quote! {}
             } else {
-                let max_discriminant = discriminant_mapping
-                    .iter()
-                    .map(|(_, v)| v)
-                    .max()
-                    .expect("Map contains at least a value");
-                let discriminant_type = get_discriminant_type(max_discriminant);
-
                 // Separate between Unions and Enumeration which are both
                 // mapped as Rust enum types
                 if is_enum_xtypes_union(data_enum) {
                     let mut variant_serialization = quote!();
-                    for (variant_index, variant) in data_enum.variants.iter().enumerate() {
-                        let variant_discriminant =
-                            Index::from(discriminant_mapping[variant_index].1);
-                        let variant_ident = &discriminant_mapping[variant_index].0;
+                    for variant in data_enum.variants.iter() {
+                        let variant_discriminant = &variant
+                            .discriminant
+                            .as_ref()
+                            .expect("Union variant must have explicit discriminant")
+                            .1;
+                        let variant_ident = &variant.ident;
                         match &variant.fields {
                             Fields::Named(f) => {
                                 let mut field_names = quote!();
@@ -127,7 +120,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
                                 variant_serialization.extend(quote! {
                                     #ident::#variant_ident{#field_names} => {
-                                        let discriminator : #discriminant_type = #variant_discriminant;
+                                        let discriminator : u32 = #variant_discriminant;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, "discriminator")?;
                                         #field_serialization
                                     },
@@ -136,7 +129,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Fields::Unnamed(_) => {
                                 variant_serialization.extend(quote! {
                                     #ident::#variant_ident(f) => {
-                                        let discriminator : #discriminant_type = #variant_discriminant;
+                                        let discriminator : u32 = #variant_discriminant;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, "discriminator")?;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, "0")?;
                                     },
@@ -145,7 +138,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Fields::Unit => {
                                 variant_serialization.extend(quote! {
                                     #ident::#variant_ident => {
-                                        let discriminator : #discriminant_type = #variant_discriminant;
+                                        let discriminator : u32 = #variant_discriminant;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, "discriminator")?;
                                     },
                                 })
@@ -163,6 +156,16 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
                     }
                 } else {
+                    // Note: Mapping has to be done with a match self strategy because the enum might not be copy so casting it using e.g. "self as i64" would
+                    // be consuming it.
+                    let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
+                    let max_discriminant = discriminant_mapping
+                        .iter()
+                        .map(|(_, v)| v)
+                        .max()
+                        .expect("Map contains at least a value");
+                    let discriminant_type = get_discriminant_type(max_discriminant);
+
                     let clauses: Vec<_> = discriminant_mapping
                         .iter()
                         .map(|(v, d)| {
@@ -293,27 +296,22 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
             })
         }
         syn::Data::Enum(data_enum) => {
-            let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
-
-            let deserialize_enum = if discriminant_mapping.is_empty() {
+            let deserialize_enum = if data_enum.variants.is_empty() {
                 // Empty enum is the same as empty type. Do nothing
                 quote! {}
             } else {
-                let max_discriminant = discriminant_mapping
-                    .iter()
-                    .map(|(_, v)| v)
-                    .max()
-                    .expect("Map contains at least a value");
-                let discriminant_type = get_discriminant_type(max_discriminant);
-
                 // Separate between Unions and Enumeration which are both
                 // mapped as Rust enum types
                 if is_enum_xtypes_union(data_enum) {
                     let mut variant_deserialization = quote!();
-                    for (variant_index, variant) in data_enum.variants.iter().enumerate() {
-                        let variant_discriminant =
-                            Index::from(discriminant_mapping[variant_index].1);
-                        let variant_ident = &discriminant_mapping[variant_index].0;
+                    for variant in data_enum.variants.iter() {
+                        let variant_discriminant = &variant
+                            .discriminant
+                            .as_ref()
+                            .expect("Union variant must have explicit discriminant")
+                            .1;
+
+                        let variant_ident = &variant.ident;
                         match &variant.fields {
                             Fields::Named(f) => {
                                 let mut field_names = quote!();
@@ -348,7 +346,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
                     quote! {
                         let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
-                        let discriminator : #discriminant_type = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, "discriminator")?;
+                        let discriminator : u32 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, "discriminator")?;
 
                         match discriminator {
                             #variant_deserialization
@@ -356,6 +354,13 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         }
                     }
                 } else {
+                    let discriminant_mapping = read_enum_variant_discriminant_mapping(data_enum);
+                    let max_discriminant = discriminant_mapping
+                        .iter()
+                        .map(|(_, v)| v)
+                        .max()
+                        .expect("Map contains at least a value");
+                    let discriminant_type = get_discriminant_type(max_discriminant);
                     let clauses: Vec<_> = discriminant_mapping
                         .iter()
                         .map(|(v, d)| {
@@ -809,19 +814,19 @@ mod tests {
                     let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
                     match self {
                         SimpleEnum::a(f) => {
-                            let discriminator : u16 = 10;
+                            let discriminator : u32 = 10;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, \"0\")?;
                         },
                         SimpleEnum::b{a, b, c,} => {
-                            let discriminator : u16 = 2000;
+                            let discriminator : u32 = 2000;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &a, \"a\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &b, \"b\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &c, \"c\")?;
                         },
                         SimpleEnum::c => {
-                            let discriminator : u16 = 2001;
+                            let discriminator : u32 = 2001;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                         },
                     }
@@ -865,7 +870,7 @@ mod tests {
             impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
                 fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
                     let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
-                    let discriminator : u16 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"discriminator\")?;
+                    let discriminator : u32 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"discriminator\")?;
 
                     match discriminator {
                         10 => {
