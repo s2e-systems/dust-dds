@@ -3,7 +3,7 @@ use super::{
     publisher::PublisherAsync, topic::TopicAsync,
 };
 use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
+    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PUBLICATION},
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -14,9 +14,7 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor,
         },
-        data_representation_builtin_endpoints::discovered_writer_data::{
-            DiscoveredWriterData, DCPS_PUBLICATION,
-        },
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{

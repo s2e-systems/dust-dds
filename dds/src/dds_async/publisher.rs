@@ -4,6 +4,7 @@ use super::{
     publisher_listener::PublisherListenerAsync, topic::TopicAsync,
 };
 use crate::{
+    builtin_topics::DCPS_PUBLICATION,
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
@@ -14,7 +15,6 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
-        data_representation_builtin_endpoints::discovered_writer_data::DCPS_PUBLICATION,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

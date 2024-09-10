@@ -7,6 +7,7 @@ use super::{
     topic_actor::TopicActor,
 };
 use crate::{
+    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
     dds_async::{
         domain_participant::DomainParticipantAsync,
@@ -17,10 +18,10 @@ use crate::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         runtime::{
             executor::{Executor, ExecutorHandle},

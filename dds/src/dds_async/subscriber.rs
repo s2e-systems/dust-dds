@@ -4,6 +4,7 @@ use super::{
     subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
 };
 use crate::{
+    builtin_topics::DCPS_SUBSCRIPTION,
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
@@ -14,7 +15,6 @@ use crate::{
             subscriber_actor::{self, SubscriberActor},
             topic_actor::{self, TopicActor},
         },
-        data_representation_builtin_endpoints::discovered_reader_data::DCPS_SUBSCRIPTION,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

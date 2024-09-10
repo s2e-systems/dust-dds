@@ -9,7 +9,8 @@ use super::{
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dds::infrastructure,
     dds_async::{
@@ -28,12 +29,10 @@ use crate::{
             topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
-            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{
-                ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-            },
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
         },
         runtime::{
             executor::{block_on, Executor, ExecutorHandle},

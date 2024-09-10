@@ -3,6 +3,7 @@ use super::{
     topic_listener::TopicListenerAsync,
 };
 use crate::{
+    builtin_topics::DCPS_TOPIC,
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -10,9 +11,7 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
-        data_representation_builtin_endpoints::discovered_topic_data::{
-            DiscoveredTopicData, DCPS_TOPIC,
-        },
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
     },
     infrastructure::{
         error::DdsResult,

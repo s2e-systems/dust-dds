@@ -3,7 +3,7 @@ use super::{
     subscriber::SubscriberAsync, topic::TopicAsync,
 };
 use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
+    builtin_topics::{PublicationBuiltinTopicData, DCPS_SUBSCRIPTION},
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -14,9 +14,7 @@ use crate::{
             subscriber_actor::{self, SubscriberActor},
             topic_actor,
         },
-        data_representation_builtin_endpoints::discovered_reader_data::{
-            DiscoveredReaderData, DCPS_SUBSCRIPTION,
-        },
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     },
     infrastructure::{
         error::{DdsError, DdsResult},

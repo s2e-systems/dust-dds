@@ -11,6 +11,19 @@ use crate::{
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 
+/// Topic name of the built-in publication discovery topic
+pub const DCPS_PUBLICATION: &str = "DCPSPublication";
+
+/// Topic name of the built-in subscription discovery topic
+pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
+
+/// Topic name of the built-in topic discovery topic
+pub const DCPS_TOPIC: &str = "DCPSTopic";
+
+/// Topic name of the built-in participant discovery topic
+pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
+
+
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
 pub struct BuiltInTopicKey {

@@ -15,7 +15,6 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
-pub const DCPS_TOPIC: &str = "DCPSTopic";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {

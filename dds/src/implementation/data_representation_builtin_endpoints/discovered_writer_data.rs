@@ -213,7 +213,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
     }
 }
 
-pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;

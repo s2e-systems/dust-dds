@@ -21,8 +21,6 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
 };
 
-pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
     pub(crate) remote_reader_guid: Guid,

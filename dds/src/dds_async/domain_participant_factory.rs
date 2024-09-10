@@ -3,6 +3,7 @@ use super::{
     domain_participant_listener::DomainParticipantListenerAsync,
 };
 use crate::{
+    builtin_topics::DCPS_PARTICIPANT,
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
@@ -12,9 +13,7 @@ use crate::{
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
             subscriber_actor,
         },
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::{
-            SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-        },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         runtime::executor::Executor,
     },
     infrastructure::{
