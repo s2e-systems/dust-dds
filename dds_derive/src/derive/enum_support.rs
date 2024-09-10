@@ -46,8 +46,8 @@ pub fn get_enum_bitbound(max_discriminant: &usize) -> BitBound {
 }
 
 pub fn is_enum_xtypes_union(data_enum: &DataEnum) -> bool {
-    data_enum.variants.iter().any(|v| match &v.fields {
-        Fields::Unit => false,
-        _ => true,
-    })
+    data_enum
+        .variants
+        .iter()
+        .any(|v| !matches!(&v.fields, Fields::Unit))
 }

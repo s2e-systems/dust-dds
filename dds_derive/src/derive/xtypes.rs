@@ -819,14 +819,14 @@ mod tests {
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, \"0\")?;
                         },
                         SimpleEnum::b{a, b, c,} => {
-                            let discriminator : u8 = 2000;
+                            let discriminator : u8 = 200;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &a, \"a\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &b, \"b\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &c, \"c\")?;
                         },
                         SimpleEnum::c => {
-                            let discriminator : u8 = 2001;
+                            let discriminator : u8 = 201;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                         },
                     }
@@ -877,13 +877,13 @@ mod tests {
                            let f = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"0\")?;
                            Ok(SimpleEnum::a(f))
                         },
-                        2000 => {
+                        200 => {
                             let a = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"a\")?;
                             let b = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"b\")?;
                             let c = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"c\")?;
                             Ok(SimpleEnum::b{a,b,c,})
                         },
-                        2001 => Ok(SimpleEnum::c),
+                        201 => Ok(SimpleEnum::c),
                         _ => Err(dust_dds::xtypes::error::XTypesError::InvalidData),
                     }
                 }
