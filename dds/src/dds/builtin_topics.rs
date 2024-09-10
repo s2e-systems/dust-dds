@@ -31,18 +31,6 @@ pub struct BuiltInTopicKey {
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
-impl From<[u8; 16]> for BuiltInTopicKey {
-    fn from(value: [u8; 16]) -> Self {
-        BuiltInTopicKey { value }
-    }
-}
-
-impl From<BuiltInTopicKey> for [u8; 16] {
-    fn from(value: BuiltInTopicKey) -> Self {
-        value.value
-    }
-}
-
 /// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantBuiltinTopicData {
