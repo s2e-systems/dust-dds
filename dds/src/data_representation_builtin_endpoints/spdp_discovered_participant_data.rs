@@ -22,146 +22,25 @@ use crate::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
-    xtypes::{
-        deserialize::XTypesDeserialize, deserializer::XTypesDeserializer, error::XTypesError,
-        serialize::XTypesSerialize, serializer::XTypesSerializer,
-    },
 };
-
-#[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]
-struct DomainTag(String);
-impl Default for DomainTag {
-    fn default() -> Self {
-        Self(DEFAULT_DOMAIN_TAG.to_string())
-    }
-}
-
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
-struct DomainIdParameter(Option<DomainId>);
-
-impl XTypesSerialize for DomainIdParameter {
-    fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
-        crate::xtypes::serialize::XTypesSerialize::serialize(
-            &self
-                .0
-                .expect("Default DomainId not supposed to be serialized"),
-            serializer,
-        )
-    }
-}
-
-impl<'de> XTypesDeserialize<'de> for DomainIdParameter {
-    fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
-        // None should not happen since this is only deserialized if the
-        // corresponding PID is found
-        Ok(Self(Some(XTypesDeserialize::deserialize(deserializer)?)))
-    }
-}
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
-    domain_id: DomainIdParameter,
-    domain_tag: DomainTag,
-    protocol_version: ProtocolVersion,
-    guid_prefix: GuidPrefix,
-    vendor_id: VendorId,
-    expects_inline_qos: bool,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    available_builtin_endpoints: BuiltinEndpointSet,
-    manual_liveliness_count: Count,
-    builtin_endpoint_qos: BuiltinEndpointQos,
-}
-
-impl ParticipantProxy {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        domain_id: Option<DomainId>,
-        domain_tag: String,
-        protocol_version: ProtocolVersion,
-        guid_prefix: GuidPrefix,
-        vendor_id: VendorId,
-        expects_inline_qos: bool,
-        metatraffic_unicast_locator_list: Vec<Locator>,
-        metatraffic_multicast_locator_list: Vec<Locator>,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        available_builtin_endpoints: BuiltinEndpointSet,
-        manual_liveliness_count: Count,
-        builtin_endpoint_qos: BuiltinEndpointQos,
-    ) -> Self {
-        Self {
-            domain_id: DomainIdParameter(domain_id),
-            domain_tag: DomainTag(domain_tag),
-            protocol_version,
-            guid_prefix,
-            vendor_id,
-            expects_inline_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
-        }
-    }
-
-    pub fn domain_id(&self) -> Option<DomainId> {
-        self.domain_id.0
-    }
-
-    pub fn domain_tag(&self) -> &str {
-        self.domain_tag.0.as_ref()
-    }
-
-    pub fn _protocol_version(&self) -> ProtocolVersion {
-        self.protocol_version
-    }
-
-    pub fn guid_prefix(&self) -> GuidPrefix {
-        self.guid_prefix
-    }
-
-    pub fn _vendor_id(&self) -> VendorId {
-        self.vendor_id
-    }
-
-    pub fn _expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
-
-    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        self.metatraffic_unicast_locator_list.as_ref()
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        self.metatraffic_multicast_locator_list.as_ref()
-    }
-
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.default_unicast_locator_list.as_ref()
-    }
-
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.default_multicast_locator_list.as_ref()
-    }
-
-    pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.available_builtin_endpoints
-    }
-
-    pub fn _manual_liveliness_count(&self) -> Count {
-        self.manual_liveliness_count
-    }
-
-    pub fn _builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.builtin_endpoint_qos
-    }
+    pub(crate) domain_id: Option<DomainId>,
+    pub(crate) domain_tag: String,
+    pub(crate) protocol_version: ProtocolVersion,
+    pub(crate) guid_prefix: GuidPrefix,
+    pub(crate) vendor_id: VendorId,
+    pub(crate) expects_inline_qos: bool,
+    pub(crate) metatraffic_unicast_locator_list: Vec<Locator>,
+    pub(crate) metatraffic_multicast_locator_list: Vec<Locator>,
+    pub(crate) default_unicast_locator_list: Vec<Locator>,
+    pub(crate) default_multicast_locator_list: Vec<Locator>,
+    pub(crate) available_builtin_endpoints: BuiltinEndpointSet,
+    pub(crate) manual_liveliness_count: Count,
+    pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -186,15 +65,13 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         )?;
 
         // participant_proxy: ParticipantProxy :
-        serializer.write_with_default(
-            PID_DOMAIN_ID,
-            &self.participant_proxy.domain_id,
-            &Default::default(),
-        )?;
+        if let Some(domain_id) = &self.participant_proxy.domain_id {
+            serializer.write(PID_DOMAIN_ID, domain_id)?;
+        }
         serializer.write_with_default(
             PID_DOMAIN_TAG,
             &self.participant_proxy.domain_tag,
-            &Default::default(),
+            &String::from(DEFAULT_DOMAIN_TAG),
         )?;
         serializer.write(
             PID_PROTOCOL_VERSION,
@@ -253,10 +130,14 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
+        let domain_id = match pl_deserializer.read(PID_DOMAIN_ID) {
+            Ok(domain_id) => Some(domain_id),
+            Err(_) => None,
+        };
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData::deserialize_data(serialized_data)?,
             participant_proxy: ParticipantProxy {
-                domain_id: pl_deserializer.read_with_default(PID_DOMAIN_ID, Default::default())?,
+                domain_id,
                 domain_tag: pl_deserializer
                     .read_with_default(PID_DOMAIN_TAG, Default::default())?,
                 protocol_version: pl_deserializer.read(PID_PROTOCOL_VERSION)?,
@@ -370,7 +251,7 @@ mod tests {
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
             },
-            participant_proxy: ParticipantProxy::new(
+            participant_proxy: ParticipantProxy {
                 domain_id,
                 domain_tag,
                 protocol_version,
@@ -384,7 +265,7 @@ mod tests {
                 available_builtin_endpoints,
                 manual_liveliness_count,
                 builtin_endpoint_qos,
-            ),
+            },
             lease_duration,
             discovered_participant_list: vec![],
         };
@@ -487,8 +368,8 @@ mod tests {
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
             },
-            participant_proxy: ParticipantProxy::new(
-                Some(domain_id),
+            participant_proxy: ParticipantProxy {
+                domain_id: Some(domain_id),
                 domain_tag,
                 protocol_version,
                 guid_prefix,
@@ -501,7 +382,7 @@ mod tests {
                 available_builtin_endpoints,
                 manual_liveliness_count,
                 builtin_endpoint_qos,
-            ),
+            },
             lease_duration,
             discovered_participant_list: vec![],
         };
