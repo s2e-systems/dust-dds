@@ -1367,14 +1367,14 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
         &mut self,
         _: AsSpdpDiscoveredParticipantData,
     ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
-        SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData {
+        SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: self.rtps_participant.guid().into(),
                 },
                 user_data: self.qos.user_data.clone(),
             },
-            ParticipantProxy::new(
+            participant_proxy: ParticipantProxy::new(
                 Some(self.domain_id),
                 self.domain_tag.clone(),
                 self.rtps_participant.protocol_version(),
@@ -1397,9 +1397,9 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
                 self.manual_liveliness_count,
                 BuiltinEndpointQos::default(),
             ),
-            self.lease_duration,
-            self.discovered_participant_list.keys().cloned().collect(),
-        )
+            lease_duration: self.lease_duration,
+            discovered_participant_list: self.discovered_participant_list.keys().cloned().collect(),
+        }
     }
 }
 

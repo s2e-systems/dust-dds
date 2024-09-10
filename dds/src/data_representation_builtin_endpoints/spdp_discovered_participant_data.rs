@@ -166,10 +166,10 @@ impl ParticipantProxy {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SpdpDiscoveredParticipantData {
-    dds_participant_data: ParticipantBuiltinTopicData,
-    participant_proxy: ParticipantProxy,
-    lease_duration: Duration,
-    discovered_participant_list: Vec<InstanceHandle>,
+    pub(crate) dds_participant_data: ParticipantBuiltinTopicData,
+    pub(crate) participant_proxy: ParticipantProxy,
+    pub(crate) lease_duration: Duration,
+    pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
@@ -293,20 +293,6 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 }
 
 impl SpdpDiscoveredParticipantData {
-    pub fn new(
-        dds_participant_data: ParticipantBuiltinTopicData,
-        participant_proxy: ParticipantProxy,
-        lease_duration: Duration,
-        discovered_participant_list: Vec<InstanceHandle>,
-    ) -> Self {
-        Self {
-            dds_participant_data,
-            participant_proxy,
-            lease_duration,
-            discovered_participant_list,
-        }
-    }
-
     pub fn dds_participant_data(&self) -> &ParticipantBuiltinTopicData {
         &self.dds_participant_data
     }
@@ -377,14 +363,14 @@ mod tests {
         );
         let lease_duration = Duration::new(10, 11);
 
-        let data = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData {
+        let data = SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
             },
-            ParticipantProxy::new(
+            participant_proxy: ParticipantProxy::new(
                 domain_id,
                 domain_tag,
                 protocol_version,
@@ -400,8 +386,8 @@ mod tests {
                 builtin_endpoint_qos,
             ),
             lease_duration,
-            vec![],
-        );
+            discovered_participant_list: vec![],
+        };
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -494,14 +480,14 @@ mod tests {
         );
         let lease_duration = Duration::new(10, 11);
 
-        let expected = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData {
+        let expected = SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
             },
-            ParticipantProxy::new(
+            participant_proxy: ParticipantProxy::new(
                 Some(domain_id),
                 domain_tag,
                 protocol_version,
@@ -517,8 +503,8 @@ mod tests {
                 builtin_endpoint_qos,
             ),
             lease_duration,
-            vec![],
-        );
+            discovered_participant_list: vec![],
+        };
 
         let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
