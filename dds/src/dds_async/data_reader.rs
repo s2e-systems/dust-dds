@@ -1,8 +1,9 @@
+use super::{
+    condition::StatusConditionAsync, data_reader_listener::DataReaderListenerAsync,
+    subscriber::SubscriberAsync, topic::TopicAsync,
+};
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    data_representation_builtin_endpoints::discovered_reader_data::{
-        DiscoveredReaderData, DCPS_SUBSCRIPTION,
-    },
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -12,6 +13,9 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
             topic_actor,
+        },
+        data_representation_builtin_endpoints::discovered_reader_data::{
+            DiscoveredReaderData, DCPS_SUBSCRIPTION,
         },
     },
     infrastructure::{
@@ -31,13 +35,7 @@ use crate::{
         },
     },
 };
-
 use std::marker::PhantomData;
-
-use super::{
-    condition::StatusConditionAsync, data_reader_listener::DataReaderListenerAsync,
-    subscriber::SubscriberAsync, topic::TopicAsync,
-};
 
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<Foo> {

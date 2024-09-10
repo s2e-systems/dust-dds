@@ -1,5 +1,9 @@
+use super::{
+    condition::StatusConditionAsync, data_writer::DataWriterAsync,
+    data_writer_listener::DataWriterListenerAsync, domain_participant::DomainParticipantAsync,
+    publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+};
 use crate::{
-    data_representation_builtin_endpoints::discovered_writer_data::DCPS_PUBLICATION,
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
@@ -10,6 +14,7 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
+        data_representation_builtin_endpoints::discovered_writer_data::DCPS_PUBLICATION,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -18,12 +23,6 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-};
-
-use super::{
-    condition::StatusConditionAsync, data_writer::DataWriterAsync,
-    data_writer_listener::DataWriterListenerAsync, domain_participant::DomainParticipantAsync,
-    publisher_listener::PublisherListenerAsync, topic::TopicAsync,
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).

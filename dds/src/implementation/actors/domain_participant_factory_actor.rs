@@ -8,12 +8,6 @@ use super::{
 };
 use crate::{
     configuration::DustDdsConfiguration,
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-        discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
-    },
     dds_async::{
         domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync,
@@ -22,6 +16,12 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+        },
         runtime::{
             executor::{Executor, ExecutorHandle},
             timer::TimerDriver,

@@ -1,17 +1,15 @@
-use tracing::warn;
-
+use super::{
+    data_writer_actor::DataWriterActor,
+    domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
+    message_sender_actor::MessageSenderActor,
+    publisher_actor::{self, PublisherActor},
+    status_condition_actor::StatusConditionActor,
+    subscriber_actor, topic_actor,
+};
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
-    },
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
-        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-        discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
-        spdp_discovered_participant_data::{
-            ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-        },
     },
     dds::infrastructure,
     dds_async::{
@@ -28,6 +26,14 @@ use crate::{
         actors::{
             data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
+        },
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
+            spdp_discovered_participant_data::{
+                ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+            },
         },
         runtime::{
             executor::{block_on, Executor, ExecutorHandle},
@@ -80,22 +86,13 @@ use crate::{
         DdsTypeXml, DynamicTypeInterface,
     },
 };
-
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
     thread::JoinHandle,
     time::{SystemTime, UNIX_EPOCH},
 };
-
-use super::{
-    data_writer_actor::DataWriterActor,
-    domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
-    message_sender_actor::MessageSenderActor,
-    publisher_actor::{self, PublisherActor},
-    status_condition_actor::StatusConditionActor,
-    subscriber_actor, topic_actor,
-};
+use tracing::warn;
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,

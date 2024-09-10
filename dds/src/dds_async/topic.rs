@@ -1,15 +1,17 @@
-use std::sync::Arc;
-
+use super::{
+    condition::StatusConditionAsync, domain_participant::DomainParticipantAsync,
+    topic_listener::TopicListenerAsync,
+};
 use crate::{
-    data_representation_builtin_endpoints::discovered_topic_data::{
-        DiscoveredTopicData, DCPS_TOPIC,
-    },
     implementation::{
         actor::ActorAddress,
         actors::{
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
+        },
+        data_representation_builtin_endpoints::discovered_topic_data::{
+            DiscoveredTopicData, DCPS_TOPIC,
         },
     },
     infrastructure::{
@@ -20,11 +22,7 @@ use crate::{
     },
     topic_definition::type_support::DynamicTypeInterface,
 };
-
-use super::{
-    condition::StatusConditionAsync, domain_participant::DomainParticipantAsync,
-    topic_listener::TopicListenerAsync,
-};
+use std::sync::Arc;
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]

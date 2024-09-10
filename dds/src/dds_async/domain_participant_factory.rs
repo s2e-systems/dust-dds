@@ -1,8 +1,9 @@
+use super::{
+    domain_participant::DomainParticipantAsync,
+    domain_participant_listener::DomainParticipantListenerAsync,
+};
 use crate::{
     configuration::DustDdsConfiguration,
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::{
-        SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-    },
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::Actor,
@@ -11,6 +12,9 @@ use crate::{
             domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
             subscriber_actor,
         },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::{
+            SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+        },
         runtime::executor::Executor,
     },
     infrastructure::{
@@ -18,11 +22,6 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-};
-
-use super::{
-    domain_participant::DomainParticipantAsync,
-    domain_participant_listener::DomainParticipantListenerAsync,
 };
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).

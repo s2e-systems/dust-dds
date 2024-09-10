@@ -1,16 +1,19 @@
-use std::{collections::HashMap, thread::JoinHandle};
-
-use fnmatch_regex::glob_to_regex;
-use tracing::warn;
-
+use super::{
+    any_data_writer_listener::AnyDataWriterListener,
+    data_writer_actor::{self, DataWriterActor},
+    domain_participant_actor::ParticipantListenerMessage,
+    message_sender_actor::MessageSenderActor,
+    status_condition_actor::StatusConditionActor,
+    topic_actor::TopicActor,
+};
 use crate::{
-    data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     dds_async::{
         data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         runtime::{
             executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -39,15 +42,9 @@ use crate::{
         writer::RtpsWriter,
     },
 };
-
-use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::{self, DataWriterActor},
-    domain_participant_actor::ParticipantListenerMessage,
-    message_sender_actor::MessageSenderActor,
-    status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
-};
+use fnmatch_regex::glob_to_regex;
+use std::{collections::HashMap, thread::JoinHandle};
+use tracing::warn;
 
 pub enum PublisherListenerOperation {
     _LivelinessLost(LivelinessLostStatus),
