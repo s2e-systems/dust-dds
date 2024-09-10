@@ -797,7 +797,7 @@ mod tests {
             enum SimpleEnum {
                 a(u32)=10,
                 b{a:u32, b:i32, c:f32}=2000,
-                c,
+                c=2001,
             }
         "
             .parse()
@@ -855,7 +855,7 @@ mod tests {
             enum SimpleEnum {
                 a(u32)=10,
                 b{a:u32, b:i32, c:f32}=2000,
-                c,
+                c=2001,
             }
         "
             .parse()
