@@ -120,7 +120,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
 
                                 variant_serialization.extend(quote! {
                                     #ident::#variant_ident{#field_names} => {
-                                        let discriminator : u32 = #variant_discriminant;
+                                        let discriminator : u8 = #variant_discriminant;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, "discriminator")?;
                                         #field_serialization
                                     },
@@ -129,7 +129,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Fields::Unnamed(_) => {
                                 variant_serialization.extend(quote! {
                                     #ident::#variant_ident(f) => {
-                                        let discriminator : u32 = #variant_discriminant;
+                                        let discriminator : u8 = #variant_discriminant;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, "discriminator")?;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, "0")?;
                                     },
@@ -138,7 +138,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Fields::Unit => {
                                 variant_serialization.extend(quote! {
                                     #ident::#variant_ident => {
-                                        let discriminator : u32 = #variant_discriminant;
+                                        let discriminator : u8 = #variant_discriminant;
                                         dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, "discriminator")?;
                                     },
                                 })
@@ -346,7 +346,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
 
                     quote! {
                         let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
-                        let discriminator : u32 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, "discriminator")?;
+                        let discriminator : u8 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, "discriminator")?;
 
                         match discriminator {
                             #variant_deserialization
@@ -796,8 +796,8 @@ mod tests {
             "
             enum SimpleEnum {
                 a(u32)=10,
-                b{a:u32, b:i32, c:f32}=2000,
-                c=2001,
+                b{a:u32, b:i32, c:f32}=200,
+                c=201,
             }
         "
             .parse()
@@ -814,19 +814,19 @@ mod tests {
                     let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_final_struct(serializer)?;
                     match self {
                         SimpleEnum::a(f) => {
-                            let discriminator : u32 = 10;
+                            let discriminator : u8 = 10;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &f, \"0\")?;
                         },
                         SimpleEnum::b{a, b, c,} => {
-                            let discriminator : u32 = 2000;
+                            let discriminator : u8 = 2000;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &a, \"a\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &b, \"b\")?;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &c, \"c\")?;
                         },
                         SimpleEnum::c => {
-                            let discriminator : u32 = 2001;
+                            let discriminator : u8 = 2001;
                             dust_dds::xtypes::serializer::SerializeFinalStruct::serialize_field(&mut s, &discriminator, \"discriminator\")?;
                         },
                     }
@@ -854,8 +854,8 @@ mod tests {
             "
             enum SimpleEnum {
                 a(u32)=10,
-                b{a:u32, b:i32, c:f32}=2000,
-                c=2001,
+                b{a:u32, b:i32, c:f32}=200,
+                c=201,
             }
         "
             .parse()
@@ -870,7 +870,7 @@ mod tests {
             impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
                 fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
                     let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
-                    let discriminator : u32 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"discriminator\")?;
+                    let discriminator : u8 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"discriminator\")?;
 
                     match discriminator {
                         10 => {
