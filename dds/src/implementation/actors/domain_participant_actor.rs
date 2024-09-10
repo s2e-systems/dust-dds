@@ -1807,13 +1807,13 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
         // (as specified in Table 9.19 - ParameterId mapping and default values)
         let is_domain_id_matching = message
             .discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .domain_id
             .unwrap_or(self.domain_id)
             == self.domain_id;
         let is_domain_tag_matching = message
             .discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .domain_tag
             == self.domain_tag;
         let discovered_participant_handle = InstanceHandle::new(
@@ -1931,11 +1931,11 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                 ))
             {
                 let default_unicast_locator_list = discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .default_unicast_locator_list
                     .to_vec();
                 let default_multicast_locator_list = discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .default_multicast_locator_list
                     .to_vec();
                 for subscriber in self.user_defined_subscriber_list.values() {
@@ -2109,11 +2109,11 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                 ))
             {
                 let default_unicast_locator_list = discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .default_unicast_locator_list
                     .to_vec();
                 let default_multicast_locator_list = discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .default_multicast_locator_list
                     .to_vec();
 
@@ -2322,7 +2322,7 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
         {
@@ -2333,7 +2333,7 @@ impl DomainParticipantActor {
                 self.status_kind.clone(),
             );
             let remote_reader_guid = Guid::new(
-                discovered_participant_data.participant_proxy().guid_prefix,
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -2342,11 +2342,11 @@ impl DomainParticipantActor {
                 remote_reader_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 multicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
@@ -2402,12 +2402,12 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                discovered_participant_data.participant_proxy().guid_prefix,
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -2441,11 +2441,11 @@ impl DomainParticipantActor {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 multicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 data_max_size_serialized,
@@ -2478,12 +2478,12 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                discovered_participant_data.participant_proxy().guid_prefix,
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -2492,11 +2492,11 @@ impl DomainParticipantActor {
                 remote_reader_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 multicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
@@ -2551,12 +2551,12 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                discovered_participant_data.participant_proxy().guid_prefix,
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -2566,11 +2566,11 @@ impl DomainParticipantActor {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 multicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 data_max_size_serialized,
@@ -2628,12 +2628,12 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                discovered_participant_data.participant_proxy().guid_prefix,
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -2642,11 +2642,11 @@ impl DomainParticipantActor {
                 remote_reader_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 multicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
@@ -2701,12 +2701,12 @@ impl DomainParticipantActor {
         participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
-            .participant_proxy()
+            .participant_proxy
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                discovered_participant_data.participant_proxy().guid_prefix,
+                discovered_participant_data.participant_proxy.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -2716,11 +2716,11 @@ impl DomainParticipantActor {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 multicast_locator_list: discovered_participant_data
-                    .participant_proxy()
+                    .participant_proxy
                     .metatraffic_unicast_locator_list
                     .to_vec(),
                 data_max_size_serialized,
