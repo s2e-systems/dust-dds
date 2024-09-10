@@ -1955,13 +1955,13 @@ impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
         };
 
         Ok(DiscoveredReaderData::new(
-            ReaderProxy::new(
-                guid,
-                guid.entity_id(),
+            ReaderProxy {
+                remote_reader_guid: guid,
+                remote_group_entity_id: guid.entity_id(),
                 unicast_locator_list,
                 multicast_locator_list,
-                false,
-            ),
+                expects_inline_qos: false,
+            },
             SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey {

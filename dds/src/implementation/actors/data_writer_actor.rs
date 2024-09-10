@@ -1065,7 +1065,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                 let unicast_locator_list = if message
                     .discovered_reader_data
                     .reader_proxy()
-                    .unicast_locator_list()
+                    .unicast_locator_list
                     .is_empty()
                 {
                     message.default_unicast_locator_list
@@ -1073,14 +1073,14 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .unicast_locator_list()
+                        .unicast_locator_list
                         .to_vec()
                 };
 
                 let multicast_locator_list = if message
                     .discovered_reader_data
                     .reader_proxy()
-                    .multicast_locator_list()
+                    .multicast_locator_list
                     .is_empty()
                 {
                     message.default_multicast_locator_list
@@ -1088,7 +1088,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .multicast_locator_list()
+                        .multicast_locator_list
                         .to_vec()
                 };
 
@@ -1118,17 +1118,17 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .remote_reader_guid(),
+                        .remote_reader_guid,
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .remote_group_entity_id(),
+                        .remote_group_entity_id,
                     &unicast_locator_list,
                     &multicast_locator_list,
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .expects_inline_qos(),
+                        .expects_inline_qos,
                     true,
                     proxy_reliability,
                     first_relevant_sample_seq_num,

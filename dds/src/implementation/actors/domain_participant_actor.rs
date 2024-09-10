@@ -2077,7 +2077,7 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                 message
                     .discovered_reader_data
                     .reader_proxy()
-                    .remote_reader_guid()
+                    .remote_reader_guid
                     .prefix(),
                 ENTITYID_PARTICIPANT,
             )
@@ -2097,7 +2097,7 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         message
                             .discovered_reader_data
                             .reader_proxy()
-                            .remote_reader_guid()
+                            .remote_reader_guid
                             .prefix(),
                         ENTITYID_PARTICIPANT,
                     )
@@ -2336,19 +2336,19 @@ impl DomainParticipantActor {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy::new(
+            let reader_proxy = ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
-                discovered_participant_data
+                unicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                discovered_participant_data
+                multicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
                 expects_inline_qos,
-            );
+            };
             let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
@@ -2490,19 +2490,19 @@ impl DomainParticipantActor {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy::new(
+            let reader_proxy = ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
-                discovered_participant_data
+                unicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                discovered_participant_data
+                multicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
                 expects_inline_qos,
-            );
+            };
             let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),
@@ -2644,19 +2644,19 @@ impl DomainParticipantActor {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy::new(
+            let reader_proxy = ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
-                discovered_participant_data
+                unicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                discovered_participant_data
+                multicast_locator_list: discovered_participant_data
                     .participant_proxy()
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
                 expects_inline_qos,
-            );
+            };
             let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: remote_reader_guid.into(),

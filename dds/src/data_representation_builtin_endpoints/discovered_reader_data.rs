@@ -25,49 +25,11 @@ pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
-    remote_reader_guid: Guid,
-    remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    expects_inline_qos: bool,
-}
-
-impl ReaderProxy {
-    pub fn new(
-        remote_reader_guid: Guid,
-        remote_group_entity_id: EntityId,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        expects_inline_qos: bool,
-    ) -> Self {
-        Self {
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        }
-    }
-
-    pub fn remote_reader_guid(&self) -> Guid {
-        self.remote_reader_guid
-    }
-
-    pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.as_ref()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_ref()
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
+    pub(crate) remote_reader_guid: Guid,
+    pub(crate) remote_group_entity_id: EntityId,
+    pub(crate) unicast_locator_list: Vec<Locator>,
+    pub(crate) multicast_locator_list: Vec<Locator>,
+    pub(crate) expects_inline_qos: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -302,16 +264,16 @@ mod tests {
                 xml_type: Default::default(),
                 representation: Default::default(),
             },
-            reader_proxy: ReaderProxy::new(
-                Guid::new(
+            reader_proxy: ReaderProxy {
+                remote_reader_guid: Guid::new(
                     [5; 12],
                     EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
                 ),
-                EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-                vec![],
-                vec![],
-                false,
-            ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
         };
 
         let expected = vec![
@@ -345,17 +307,16 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredReaderData {
-            reader_proxy: ReaderProxy::new(
-                // must correspond to subscription_builtin_topic_data.key
-                Guid::new(
+            reader_proxy: ReaderProxy{
+                remote_reader_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
-                EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
-                vec![],
-                vec![],
-                false,
-            ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
