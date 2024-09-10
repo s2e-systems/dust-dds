@@ -861,7 +861,7 @@ impl DataReaderActor {
         discovered_writer_data: &DiscoveredWriterData,
         subscriber_qos: &SubscriberQos,
     ) -> Vec<QosPolicyId> {
-        let writer_info = discovered_writer_data.dds_publication_data();
+        let writer_info = &discovered_writer_data.dds_publication_data;
 
         let mut incompatible_qos_policy_list = Vec::new();
 
@@ -1955,25 +1955,36 @@ impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
         };
 
         Ok(DiscoveredReaderData::new(
-            ReaderProxy::new(
-                guid,
-                guid.entity_id(),
+            ReaderProxy {
+                remote_reader_guid: guid,
+                remote_group_entity_id: guid.entity_id(),
                 unicast_locator_list,
                 multicast_locator_list,
-                false,
-            ),
-            SubscriptionBuiltinTopicData::new(
-                BuiltInTopicKey { value: guid.into() },
-                BuiltInTopicKey {
+                expects_inline_qos: false,
+            },
+            SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
                 topic_name,
                 type_name,
-                self.qos.clone(),
-                message.subscriber_qos.clone(),
-                message.topic_data,
-                message.xml_type,
-            ),
+                durability: self.qos.durability.clone(),
+                deadline: self.qos.deadline.clone(),
+                latency_budget: self.qos.latency_budget.clone(),
+                liveliness: self.qos.liveliness.clone(),
+                reliability: self.qos.reliability.clone(),
+                ownership: self.qos.ownership.clone(),
+                destination_order: self.qos.destination_order.clone(),
+                user_data: self.qos.user_data.clone(),
+                time_based_filter: self.qos.time_based_filter.clone(),
+                presentation: message.subscriber_qos.presentation,
+                partition: message.subscriber_qos.partition,
+                topic_data: message.topic_data,
+                group_data: message.subscriber_qos.group_data,
+                xml_type: message.xml_type,
+                representation: self.qos.representation.clone(),
+            },
         ))
     }
 }
@@ -2180,7 +2191,7 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
     fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
-        let publication_builtin_topic_data = message.discovered_writer_data.dds_publication_data();
+        let publication_builtin_topic_data = &message.discovered_writer_data.dds_publication_data;
         if publication_builtin_topic_data.topic_name() == topic_name
             && publication_builtin_topic_data.get_type_name() == type_name
         {
@@ -2200,49 +2211,51 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if message
                     .discovered_writer_data
-                    .writer_proxy()
-                    .unicast_locator_list()
+                    .writer_proxy
+                    .unicast_locator_list
                     .is_empty()
                 {
                     message.default_unicast_locator_list
                 } else {
                     message
                         .discovered_writer_data
-                        .writer_proxy()
-                        .unicast_locator_list()
+                        .writer_proxy
+                        .unicast_locator_list
                         .to_vec()
                 };
 
                 let multicast_locator_list = if message
                     .discovered_writer_data
-                    .writer_proxy()
-                    .multicast_locator_list()
+                    .writer_proxy
+                    .multicast_locator_list
                     .is_empty()
                 {
                     message.default_multicast_locator_list
                 } else {
                     message
                         .discovered_writer_data
-                        .writer_proxy()
-                        .multicast_locator_list()
+                        .writer_proxy
+                        .multicast_locator_list
                         .to_vec()
                 };
 
                 let writer_proxy = RtpsWriterProxy::new(
                     message
                         .discovered_writer_data
-                        .writer_proxy()
-                        .remote_writer_guid(),
+                        .writer_proxy
+                        .remote_writer_guid,
                     &unicast_locator_list,
                     &multicast_locator_list,
+                    Some(
+                        message
+                            .discovered_writer_data
+                            .writer_proxy
+                            .data_max_size_serialized,
+                    ),
                     message
                         .discovered_writer_data
-                        .writer_proxy()
-                        .data_max_size_serialized(),
-                    message
-                        .discovered_writer_data
-                        .writer_proxy()
-                        .remote_group_entity_id(),
+                        .writer_proxy
+                        .remote_group_entity_id,
                 );
 
                 match &mut self.rtps_reader {

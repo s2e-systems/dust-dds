@@ -1,16 +1,15 @@
 use dust_dds::{
-    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
+        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
         spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
     },
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        qos::{DataReaderQos, DataWriterQos, QosKind, SubscriberQos},
+        qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::{StatusKind, NO_STATUS},
         time::{Duration, DurationKind},
@@ -28,13 +27,9 @@ use dust_dds::{
             submessage_elements::{Data, ParameterList, SequenceNumberSet},
             submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
         },
-        types::{
-            EntityId, Guid, Locator, ENTITYID_UNKNOWN, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION,
-            USER_DEFINED_READER_WITH_KEY, VENDOR_ID_S2E,
-        },
+        types::{EntityId, PROTOCOLVERSION, USER_DEFINED_READER_WITH_KEY, VENDOR_ID_S2E},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsSerialize,
     topic_definition::type_support::DdsType,
 };
 
@@ -55,12 +50,6 @@ fn writer_should_send_heartbeat_periodically() {
     let mock_reader_socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
 
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
-    println!("Socket open on port {}", reader_socket_port);
-    let reader_unicast_locator = Locator::new(
-        LOCATOR_KIND_UDP_V4,
-        reader_socket_port as u32,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    );
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -103,38 +92,54 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
 
     // Add discovered dummy reader
-    let participant_handle = participant.get_instance_handle().unwrap();
-    let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    let remote_reader_guid = Guid::new(
+    let instance_handle = participant.get_instance_handle().unwrap();
+    let participant_key = instance_handle.as_ref().as_slice();
+    let guid_prefix = &participant_key[..12];
+    let port = (reader_socket_port as u32).to_le_bytes();
+
+    let serialized_dummy_reader_discovery_bytes = [
+        &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            // SubscriptionBuiltinTopicData:
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+        ],
         guid_prefix,
-        EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY),
-    );
-    let reader_proxy = ReaderProxy::new(
-        remote_reader_guid,
-        ENTITYID_UNKNOWN,
-        vec![reader_unicast_locator],
-        vec![],
-        false,
-    );
-    let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-        BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-        BuiltInTopicKey::from(*participant_handle.as_ref()),
-        topic_name.to_string(),
-        type_name.to_string(),
-        DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Infinite,
-            },
-            ..Default::default()
-        },
-        SubscriberQos::default(),
-        TopicDataQosPolicy::default(),
-        String::new(),
-    );
-    let dummy_reader_discovery =
-        DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
+        &[
+            0, 0, 0, 7, // Entity ID
+            0x50, 0x00, 16, 0, // PID_PARTICIPANT_GUID, length
+        ],
+        participant_key,
+        &[
+            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME, Length
+            8, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'M', b'y', b'T', b'o', //
+            b'p', b'i', b'c', 0, //
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME, Length
+            10, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'K', b'e', b'y', b'e', //
+            b'd', b'D', b'a', b't', //
+            b'a', 0, 0, 0, //
+            0x1A, 0x00, 12, 0x00, // PID_RELIABILITY, Length
+            2, 0, 0, 0, // kind
+            0xff, 0xff, 0xff, 0x7f, // max_blocking_time: sec
+            0xff, 0xff, 0xff, 0xff, // max_blocking_time: nanosec
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            0, 0, 0, 0, //
+            0x2F, 0x00, 24, 0, // PID_UNICAST_LOCATOR, Length
+            1, 0, 0, 0, // locator kind
+        ],
+        &port, //locator port
+        &[
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            127, 0, 0, 1, // locator address
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ],
+    ]
+    .concat()
+    .to_vec();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -148,7 +153,11 @@ fn writer_should_send_heartbeat_periodically() {
         Data::new(serialized_dummy_reader_discovery_bytes.into()),
     );
     let discovered_reader_rtps_message = RtpsMessageWrite::new(
-        &RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix),
+        &RtpsMessageHeader::new(
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+            guid_prefix.try_into().unwrap(),
+        ),
         &[Box::new(discovered_reader_data_submessage)],
     );
 
@@ -166,7 +175,6 @@ fn writer_should_send_heartbeat_periodically() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .metatraffic_unicast_locator_list()[0]
         .port();
     mock_reader_socket
@@ -229,12 +237,6 @@ fn writer_should_not_send_heartbeat_after_acknack() {
 
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
     println!("Socket open on port {}", reader_socket_port);
-    let reader_unicast_locator = Locator::new(
-        LOCATOR_KIND_UDP_V4,
-        reader_socket_port as u32,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    );
-
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -276,36 +278,54 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .unwrap();
 
     // Add discovered dummy reader
-    let participant_handle = participant.get_instance_handle().unwrap();
-    let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
-    let remote_reader_guid = Guid::new(guid_prefix, reader_id);
-    let reader_proxy = ReaderProxy::new(
-        remote_reader_guid,
-        ENTITYID_UNKNOWN,
-        vec![reader_unicast_locator],
-        vec![],
-        false,
-    );
-    let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-        BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-        BuiltInTopicKey::from(*participant_handle.as_ref()),
-        topic_name.to_string(),
-        type_name.to_string(),
-        DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Infinite,
-            },
-            ..Default::default()
-        },
-        SubscriberQos::default(),
-        TopicDataQosPolicy::default(),
-        String::new(),
-    );
-    let dummy_reader_discovery =
-        DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
+    let instance_handle = participant.get_instance_handle().unwrap();
+    let participant_key = instance_handle.as_ref().as_slice();
+    let guid_prefix = &participant_key[..12];
+    let port = (reader_socket_port as u32).to_le_bytes();
+
+    let serialized_dummy_reader_discovery_bytes = [
+        &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            // SubscriptionBuiltinTopicData:
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+        ],
+        guid_prefix,
+        &[
+            0, 0, 0, 7, // Entity ID
+            0x50, 0x00, 16, 0, // PID_PARTICIPANT_GUID, length
+        ],
+        participant_key,
+        &[
+            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME, Length
+            8, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'M', b'y', b'T', b'o', //
+            b'p', b'i', b'c', 0, //
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME, Length
+            10, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'K', b'e', b'y', b'e', //
+            b'd', b'D', b'a', b't', //
+            b'a', 0, 0, 0, //
+            0x1A, 0x00, 12, 0x00, // PID_RELIABILITY, Length
+            2, 0, 0, 0, // kind
+            0xff, 0xff, 0xff, 0x7f, // max_blocking_time: sec
+            0xff, 0xff, 0xff, 0xff, // max_blocking_time: nanosec
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            0, 0, 0, 0, //
+            0x2F, 0x00, 24, 0, // PID_UNICAST_LOCATOR, Length
+            1, 0, 0, 0, // locator kind
+        ],
+        &port, //locator port
+        &[
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            127, 0, 0, 1, // locator address
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ],
+    ]
+    .concat()
+    .to_vec();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -318,7 +338,11 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         ParameterList::empty(),
         Data::new(serialized_dummy_reader_discovery_bytes.into()),
     );
-    let rtps_message_header = RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
+    let rtps_message_header = RtpsMessageHeader::new(
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+        guid_prefix.try_into().unwrap(),
+    );
     let discovered_reader_rtps_message = RtpsMessageWrite::new(
         &rtps_message_header,
         &[Box::new(discovered_reader_data_submessage)],
@@ -338,7 +362,6 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .metatraffic_unicast_locator_list()[0]
         .port();
     mock_reader_socket
@@ -378,7 +401,6 @@ fn writer_should_not_send_heartbeat_after_acknack() {
     let unicast_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .default_unicast_locator_list()[0]
         .port();
 
@@ -395,6 +417,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         _ => panic!("Wrong message type"),
     };
     let reader_sn_state = SequenceNumberSet::new(2, []);
+    let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
     let reader_acknack_submessage =
         AckNackSubmessage::new(true, reader_id, writer_id, reader_sn_state, 1);
 
@@ -421,11 +444,6 @@ fn writer_should_resend_data_after_acknack_request() {
 
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
     println!("Socket open on port {}", reader_socket_port);
-    let reader_unicast_locator = Locator::new(
-        LOCATOR_KIND_UDP_V4,
-        reader_socket_port as u32,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    );
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -468,36 +486,54 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
 
     // Add discovered dummy reader
-    let participant_handle = participant.get_instance_handle().unwrap();
-    let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
-    let remote_reader_guid = Guid::new(guid_prefix, reader_id);
-    let reader_proxy = ReaderProxy::new(
-        remote_reader_guid,
-        ENTITYID_UNKNOWN,
-        vec![reader_unicast_locator],
-        vec![],
-        false,
-    );
-    let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-        BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-        BuiltInTopicKey::from(*participant_handle.as_ref()),
-        topic_name.to_string(),
-        type_name.to_string(),
-        DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Infinite,
-            },
-            ..Default::default()
-        },
-        SubscriberQos::default(),
-        TopicDataQosPolicy::default(),
-        String::new(),
-    );
-    let dummy_reader_discovery =
-        DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
+    let instance_handle = participant.get_instance_handle().unwrap();
+    let participant_key = instance_handle.as_ref().as_slice();
+    let guid_prefix = &participant_key[..12];
+    let port = (reader_socket_port as u32).to_le_bytes();
+
+    let serialized_dummy_reader_discovery_bytes = [
+        &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            // SubscriptionBuiltinTopicData:
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+        ],
+        guid_prefix,
+        &[
+            0, 0, 0, 7, // Entity ID
+            0x50, 0x00, 16, 0, // PID_PARTICIPANT_GUID, length
+        ],
+        participant_key,
+        &[
+            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME, Length
+            8, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'M', b'y', b'T', b'o', //
+            b'p', b'i', b'c', 0, //
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME, Length
+            10, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'K', b'e', b'y', b'e', //
+            b'd', b'D', b'a', b't', //
+            b'a', 0, 0, 0, //
+            0x1A, 0x00, 12, 0x00, // PID_RELIABILITY, Length
+            2, 0, 0, 0, // kind
+            0xff, 0xff, 0xff, 0x7f, // max_blocking_time: sec
+            0xff, 0xff, 0xff, 0xff, // max_blocking_time: nanosec
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            0, 0, 0, 0, //
+            0x2F, 0x00, 24, 0, // PID_UNICAST_LOCATOR, Length
+            1, 0, 0, 0, // locator kind
+        ],
+        &port, //locator port
+        &[
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            127, 0, 0, 1, // locator address
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ],
+    ]
+    .concat()
+    .to_vec();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -510,7 +546,11 @@ fn writer_should_resend_data_after_acknack_request() {
         ParameterList::empty(),
         Data::new(serialized_dummy_reader_discovery_bytes.into()),
     );
-    let rtps_message_header = RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
+    let rtps_message_header = RtpsMessageHeader::new(
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+        guid_prefix.try_into().unwrap(),
+    );
     let discovered_reader_rtps_message = RtpsMessageWrite::new(
         &rtps_message_header,
         &[Box::new(discovered_reader_data_submessage)],
@@ -530,13 +570,11 @@ fn writer_should_resend_data_after_acknack_request() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .metatraffic_unicast_locator_list()[0]
         .port();
     let user_defined_traffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .default_unicast_locator_list()[0]
         .port();
     mock_reader_socket
@@ -582,6 +620,7 @@ fn writer_should_resend_data_after_acknack_request() {
     // Everything is acknowledge up to the number prior to the base. By sending 1 this should
     // result in the Data submessage with sample 1 being resent
     let reader_sn_state = SequenceNumberSet::new(1, [1]);
+    let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
     let reader_acknack_submessage =
         AckNackSubmessage::new(true, reader_id, writer_id, reader_sn_state, 1);
 
@@ -620,11 +659,6 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
 
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
     println!("Socket open on port {}", reader_socket_port);
-    let reader_unicast_locator = Locator::new(
-        LOCATOR_KIND_UDP_V4,
-        reader_socket_port as u32,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    );
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -667,38 +701,54 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .unwrap();
 
     // Add discovered dummy reader
-    let participant_handle = participant.get_instance_handle().unwrap();
-    let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    let remote_reader_guid = Guid::new(
+    let instance_handle = participant.get_instance_handle().unwrap();
+    let participant_key = instance_handle.as_ref().as_slice();
+    let guid_prefix = &participant_key[..12];
+    let port = (reader_socket_port as u32).to_le_bytes();
+
+    let serialized_dummy_reader_discovery_bytes = [
+        &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            // SubscriptionBuiltinTopicData:
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+        ],
         guid_prefix,
-        EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY),
-    );
-    let reader_proxy = ReaderProxy::new(
-        remote_reader_guid,
-        ENTITYID_UNKNOWN,
-        vec![reader_unicast_locator],
-        vec![],
-        false,
-    );
-    let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-        BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-        BuiltInTopicKey::from(*participant_handle.as_ref()),
-        topic_name.to_string(),
-        type_name.to_string(),
-        DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Infinite,
-            },
-            ..Default::default()
-        },
-        SubscriberQos::default(),
-        TopicDataQosPolicy::default(),
-        String::new(),
-    );
-    let dummy_reader_discovery =
-        DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
+        &[
+            0, 0, 0, 7, // Entity ID
+            0x50, 0x00, 16, 0, // PID_PARTICIPANT_GUID, length
+        ],
+        participant_key,
+        &[
+            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME, Length
+            8, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'M', b'y', b'T', b'o', //
+            b'p', b'i', b'c', 0, //
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME, Length
+            10, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'K', b'e', b'y', b'e', //
+            b'd', b'D', b'a', b't', //
+            b'a', 0, 0, 0, //
+            0x1A, 0x00, 12, 0x00, // PID_RELIABILITY, Length
+            2, 0, 0, 0, // kind
+            0xff, 0xff, 0xff, 0x7f, // max_blocking_time: sec
+            0xff, 0xff, 0xff, 0xff, // max_blocking_time: nanosec
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            0, 0, 0, 0, //
+            0x2F, 0x00, 24, 0, // PID_UNICAST_LOCATOR, Length
+            1, 0, 0, 0, // locator kind
+        ],
+        &port, //locator port
+        &[
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            127, 0, 0, 1, // locator address
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ],
+    ]
+    .concat()
+    .to_vec();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -712,7 +762,11 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         Data::new(serialized_dummy_reader_discovery_bytes.into()),
     );
     let discovered_reader_rtps_message = RtpsMessageWrite::new(
-        &RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix),
+        &RtpsMessageHeader::new(
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+            guid_prefix.try_into().unwrap(),
+        ),
         &[Box::new(discovered_reader_data_submessage)],
     );
 
@@ -733,7 +787,6 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .metatraffic_unicast_locator_list()[0]
         .port();
     mock_reader_socket
@@ -789,11 +842,6 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
 
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
     println!("Socket open on port {}", reader_socket_port);
-    let reader_unicast_locator = Locator::new(
-        LOCATOR_KIND_UDP_V4,
-        reader_socket_port as u32,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    );
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -839,41 +887,56 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .unwrap();
 
     // Add discovered dummy reader
-    let participant_handle = participant.get_instance_handle().unwrap();
-    let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    let remote_reader_guid = Guid::new(
+    let instance_handle = participant.get_instance_handle().unwrap();
+    let participant_key = instance_handle.as_ref().as_slice();
+    let guid_prefix = &participant_key[..12];
+    let port = (reader_socket_port as u32).to_le_bytes();
+
+    let serialized_dummy_reader_discovery_bytes = [
+        &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            // SubscriptionBuiltinTopicData:
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+        ],
         guid_prefix,
-        EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY),
-    );
-    let reader_proxy = ReaderProxy::new(
-        remote_reader_guid,
-        ENTITYID_UNKNOWN,
-        vec![reader_unicast_locator],
-        vec![],
-        false,
-    );
-    let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-        BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-        BuiltInTopicKey::from(*participant_handle.as_ref()),
-        topic_name.to_string(),
-        type_name.to_string(),
-        DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Infinite,
-            },
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            ..Default::default()
-        },
-        SubscriberQos::default(),
-        TopicDataQosPolicy::default(),
-        String::new(),
-    );
-    let dummy_reader_discovery =
-        DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
+        &[
+            0, 0, 0, 7, // Entity ID
+            0x50, 0x00, 16, 0, // PID_PARTICIPANT_GUID, length
+        ],
+        participant_key,
+        &[
+            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME, Length
+            8, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'M', b'y', b'T', b'o', //
+            b'p', b'i', b'c', 0, //
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME, Length
+            10, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'K', b'e', b'y', b'e', //
+            b'd', b'D', b'a', b't', //
+            b'a', 0, 0, 0, //
+            0x1A, 0x00, 12, 0x00, // PID_RELIABILITY, Length
+            2, 0, 0, 0, // kind
+            0xff, 0xff, 0xff, 0x7f, // max_blocking_time: sec
+            0xff, 0xff, 0xff, 0xff, // max_blocking_time: nanosec
+            0x1D, 0x00, 4, 0x00, // PID_DURABILITY, Length
+            1, 0, 0, 0, // kind (transient local)
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            0, 0, 0, 0, //
+            0x2F, 0x00, 24, 0, // PID_UNICAST_LOCATOR, Length
+            1, 0, 0, 0, // locator kind
+        ],
+        &port, //locator port
+        &[
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            127, 0, 0, 1, // locator address
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ],
+    ]
+    .concat()
+    .to_vec();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -887,7 +950,11 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         Data::new(serialized_dummy_reader_discovery_bytes.into()),
     );
     let discovered_reader_rtps_message = RtpsMessageWrite::new(
-        &RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix),
+        &RtpsMessageHeader::new(
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+            guid_prefix.try_into().unwrap(),
+        ),
         &[Box::new(discovered_reader_data_submessage)],
     );
 
@@ -908,7 +975,6 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .metatraffic_unicast_locator_list()[0]
         .port();
     mock_reader_socket
@@ -968,11 +1034,6 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
 
     let reader_socket_port = mock_reader_socket.local_addr().unwrap().port();
     println!("Socket open on port {}", reader_socket_port);
-    let reader_unicast_locator = Locator::new(
-        LOCATOR_KIND_UDP_V4,
-        reader_socket_port as u32,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    );
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -1018,36 +1079,85 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         .unwrap();
 
     // Add discovered dummy reader
-    let participant_handle = participant.get_instance_handle().unwrap();
-    let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
-    let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
-    let remote_reader_guid = Guid::new(guid_prefix, reader_id);
-    let reader_proxy = ReaderProxy::new(
-        remote_reader_guid,
-        ENTITYID_UNKNOWN,
-        vec![reader_unicast_locator],
-        vec![],
-        false,
-    );
-    let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
-        BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
-        BuiltInTopicKey::from(*participant_handle.as_ref()),
-        topic_name.to_string(),
-        type_name.to_string(),
-        DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Infinite,
-            },
-            ..Default::default()
-        },
-        SubscriberQos::default(),
-        TopicDataQosPolicy::default(),
-        String::new(),
-    );
-    let dummy_reader_discovery =
-        DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-    let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
+    let instance_handle = participant.get_instance_handle().unwrap();
+    let participant_key = instance_handle.as_ref().as_slice();
+    let guid_prefix = &participant_key[..12];
+    let port = (reader_socket_port as u32).to_le_bytes();
+
+    let serialized_dummy_reader_discovery_bytes = [
+        &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            // SubscriptionBuiltinTopicData:
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+        ],
+        guid_prefix,
+        &[
+            0, 0, 0, 7, // Entity ID
+            0x50, 0x00, 16, 0, // PID_PARTICIPANT_GUID, length
+        ],
+        participant_key,
+        &[
+            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME, Length
+            8, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'M', b'y', b'T', b'o', //
+            b'p', b'i', b'c', 0, //
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME, Length
+            10, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'K', b'e', b'y', b'e', //
+            b'd', b'D', b'a', b't', //
+            b'a', 0, 0, 0, //
+            0x1A, 0x00, 12, 0x00, // PID_RELIABILITY, Length
+            2, 0, 0, 0, // kind
+            0xff, 0xff, 0xff, 0x7f, // max_blocking_time: sec
+            0xff, 0xff, 0xff, 0xff, // max_blocking_time: nanosec
+            // ReaderProxy:
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            0, 0, 0, 0, //
+            0x2F, 0x00, 24, 0, // PID_UNICAST_LOCATOR, Length
+            1, 0, 0, 0, // locator kind
+        ],
+        &port, //locator port
+        &[
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            0, 0, 0, 0, // locator address
+            127, 0, 0, 1, // locator address
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ],
+    ]
+    .concat()
+    .to_vec();
+
+    // let participant_handle = participant.get_instance_handle().unwrap();
+    // let guid_prefix = participant_handle.as_ref()[0..12].try_into().unwrap();
+    // let reader_id = EntityId::new([0, 0, 0], USER_DEFINED_READER_WITH_KEY);
+    // let remote_reader_guid = Guid::new(guid_prefix, reader_id);
+    // let reader_proxy = ReaderProxy::new(
+    //     remote_reader_guid,
+    //     ENTITYID_UNKNOWN,
+    //     vec![reader_unicast_locator],
+    //     vec![],
+    //     false,
+    // );
+    // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData::new(
+    //     BuiltInTopicKey::from(<[u8; 16]>::from(remote_reader_guid)),
+    //     BuiltInTopicKey::from(*participant_handle.as_ref()),
+    //     topic_name.to_string(),
+    //     type_name.to_string(),
+    //     DataReaderQos {
+    //         reliability: ReliabilityQosPolicy {
+    //             kind: ReliabilityQosPolicyKind::Reliable,
+    //             max_blocking_time: DurationKind::Infinite,
+    //         },
+    //         ..Default::default()
+    //     },
+    //     SubscriberQos::default(),
+    //     TopicDataQosPolicy::default(),
+    //     String::new(),
+    // );
+    // let dummy_reader_discovery =
+    //     DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
+    // let serialized_dummy_reader_discovery_bytes = dummy_reader_discovery.serialize_data().unwrap();
 
     let discovered_reader_data_submessage = DataSubmessage::new(
         false,
@@ -1060,7 +1170,11 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         ParameterList::empty(),
         Data::new(serialized_dummy_reader_discovery_bytes.into()),
     );
-    let rtps_message_header = RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
+    let rtps_message_header = RtpsMessageHeader::new(
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+        guid_prefix.try_into().unwrap(),
+    );
     let discovered_reader_rtps_message = RtpsMessageWrite::new(
         &rtps_message_header,
         &[Box::new(discovered_reader_data_submessage)],
@@ -1080,7 +1194,6 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
     let metatraffic_port = dcps_sample_list[0]
         .data()
         .unwrap()
-        .participant_proxy()
         .metatraffic_unicast_locator_list()[0]
         .port();
     mock_reader_socket

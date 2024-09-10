@@ -1,5 +1,4 @@
-use std::{sync::Arc, thread::JoinHandle};
-
+use super::status_condition_actor::{self, AddCommunicationState, StatusConditionActor};
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -20,8 +19,7 @@ use crate::{
     rtps::types::Guid,
     topic_definition::type_support::DynamicTypeInterface,
 };
-
-use super::status_condition_actor::{self, AddCommunicationState, StatusConditionActor};
+use std::{sync::Arc, thread::JoinHandle};
 
 impl InconsistentTopicStatus {
     fn increment(&mut self) {
@@ -223,14 +221,29 @@ impl Mail for AsDiscoveredTopicData {
 }
 impl MailHandler<AsDiscoveredTopicData> for TopicActor {
     fn handle(&mut self, _: AsDiscoveredTopicData) -> <AsDiscoveredTopicData as Mail>::Result {
-        DiscoveredTopicData::new(TopicBuiltinTopicData::new(
-            BuiltInTopicKey {
-                value: self.guid.into(),
+        let topic_qos = self.qos.clone();
+        DiscoveredTopicData {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.guid.into(),
+                },
+                name: self.topic_name.to_string(),
+                type_name: self.type_name.to_string(),
+                durability: topic_qos.durability,
+                deadline: topic_qos.deadline,
+                latency_budget: topic_qos.latency_budget,
+                liveliness: topic_qos.liveliness,
+                reliability: topic_qos.reliability,
+                transport_priority: topic_qos.transport_priority,
+                lifespan: topic_qos.lifespan,
+                destination_order: topic_qos.destination_order,
+                history: topic_qos.history,
+                resource_limits: topic_qos.resource_limits,
+                ownership: topic_qos.ownership,
+                topic_data: topic_qos.topic_data,
+                representation: topic_qos.representation,
             },
-            self.topic_name.to_string(),
-            self.type_name.to_string(),
-            self.qos.clone(),
-        ))
+        }
     }
 }
 
@@ -265,12 +278,12 @@ impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
     ) -> <ProcessDiscoveredTopic as Mail>::Result {
         if message
             .discovered_topic_data
-            .topic_builtin_topic_data()
+            .topic_builtin_topic_data
             .get_type_name()
             == self.type_name
             && message
                 .discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .name()
                 == self.topic_name
             && !is_discovered_topic_consistent(&self.qos, &message.discovered_topic_data)
@@ -298,40 +311,28 @@ fn is_discovered_topic_consistent(
     topic_qos: &TopicQos,
     discovered_topic_data: &DiscoveredTopicData,
 ) -> bool {
-    &topic_qos.topic_data
-        == discovered_topic_data
-            .topic_builtin_topic_data()
-            .topic_data()
-        && &topic_qos.durability
-            == discovered_topic_data
-                .topic_builtin_topic_data()
-                .durability()
-        && &topic_qos.deadline == discovered_topic_data.topic_builtin_topic_data().deadline()
+    &topic_qos.topic_data == discovered_topic_data.topic_builtin_topic_data.topic_data()
+        && &topic_qos.durability == discovered_topic_data.topic_builtin_topic_data.durability()
+        && &topic_qos.deadline == discovered_topic_data.topic_builtin_topic_data.deadline()
         && &topic_qos.latency_budget
             == discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .latency_budget()
-        && &topic_qos.liveliness
-            == discovered_topic_data
-                .topic_builtin_topic_data()
-                .liveliness()
-        && &topic_qos.reliability
-            == discovered_topic_data
-                .topic_builtin_topic_data()
-                .reliability()
+        && &topic_qos.liveliness == discovered_topic_data.topic_builtin_topic_data.liveliness()
+        && &topic_qos.reliability == discovered_topic_data.topic_builtin_topic_data.reliability()
         && &topic_qos.destination_order
             == discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .destination_order()
-        && &topic_qos.history == discovered_topic_data.topic_builtin_topic_data().history()
+        && &topic_qos.history == discovered_topic_data.topic_builtin_topic_data.history()
         && &topic_qos.resource_limits
             == discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .resource_limits()
         && &topic_qos.transport_priority
             == discovered_topic_data
-                .topic_builtin_topic_data()
+                .topic_builtin_topic_data
                 .transport_priority()
-        && &topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data().lifespan()
-        && &topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data().ownership()
+        && &topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data.lifespan()
+        && &topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data.ownership()
 }

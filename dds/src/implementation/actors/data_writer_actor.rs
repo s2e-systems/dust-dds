@@ -933,29 +933,41 @@ impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
             self.rtps_writer.multicast_locator_list().to_vec()
         };
 
-        Ok(DiscoveredWriterData::new(
-            PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
+        Ok(DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
                     value: self.rtps_writer.guid().into(),
                 },
-                BuiltInTopicKey {
+                participant_key: BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
                 topic_name,
                 type_name,
-                writer_qos.clone(),
-                message.publisher_qos.clone(),
-                message.topic_data,
-                message.xml_type,
-            ),
-            WriterProxy::new(
-                self.rtps_writer.guid(),
-                EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
+                durability: writer_qos.durability.clone(),
+                deadline: writer_qos.deadline.clone(),
+                latency_budget: writer_qos.latency_budget.clone(),
+                liveliness: writer_qos.liveliness.clone(),
+                reliability: writer_qos.reliability.clone(),
+                lifespan: writer_qos.lifespan.clone(),
+                user_data: writer_qos.user_data.clone(),
+                ownership: writer_qos.ownership.clone(),
+                ownership_strength: writer_qos.ownership_strength.clone(),
+                destination_order: writer_qos.destination_order.clone(),
+                presentation: message.publisher_qos.presentation,
+                partition: message.publisher_qos.partition,
+                topic_data: message.topic_data,
+                group_data: message.publisher_qos.group_data,
+                xml_type: message.xml_type,
+                representation: writer_qos.representation.clone(),
+            },
+            writer_proxy: WriterProxy {
+                remote_writer_guid: self.rtps_writer.guid(),
+                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
                 unicast_locator_list,
                 multicast_locator_list,
-                None,
-            ),
-        ))
+                data_max_size_serialized: Default::default(),
+            },
+        })
     }
 }
 
@@ -1053,7 +1065,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                 let unicast_locator_list = if message
                     .discovered_reader_data
                     .reader_proxy()
-                    .unicast_locator_list()
+                    .unicast_locator_list
                     .is_empty()
                 {
                     message.default_unicast_locator_list
@@ -1061,14 +1073,14 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .unicast_locator_list()
+                        .unicast_locator_list
                         .to_vec()
                 };
 
                 let multicast_locator_list = if message
                     .discovered_reader_data
                     .reader_proxy()
-                    .multicast_locator_list()
+                    .multicast_locator_list
                     .is_empty()
                 {
                     message.default_multicast_locator_list
@@ -1076,7 +1088,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .multicast_locator_list()
+                        .multicast_locator_list
                         .to_vec()
                 };
 
@@ -1106,17 +1118,17 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .remote_reader_guid(),
+                        .remote_reader_guid,
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .remote_group_entity_id(),
+                        .remote_group_entity_id,
                     &unicast_locator_list,
                     &multicast_locator_list,
                     message
                         .discovered_reader_data
                         .reader_proxy()
-                        .expects_inline_qos(),
+                        .expects_inline_qos,
                     true,
                     proxy_reliability,
                     first_relevant_sample_seq_num,
