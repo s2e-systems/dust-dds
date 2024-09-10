@@ -309,7 +309,52 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                 // Separate between Unions and Enumeration which are both
                 // mapped as Rust enum types
                 if is_enum_xtypes_union(data_enum) {
-                    todo!("Union types not yet implemented")
+                    let mut variant_deserialization = quote!();
+                    for (variant_index, variant) in data_enum.variants.iter().enumerate() {
+                        let variant_discriminant =
+                            Index::from(discriminant_mapping[variant_index].1);
+                        let variant_ident = &discriminant_mapping[variant_index].0;
+                        match &variant.fields {
+                            Fields::Named(f) => {
+                                let mut field_names = quote!();
+                                let mut field_deserialization = quote!();
+                                for field in &f.named {
+                                    let field_ident = field.ident.as_ref().expect("Must be named");
+                                    let field_ident_str = field_ident.to_string();
+                                    field_names.extend(quote!{#field_ident,});
+                                    field_deserialization.extend(quote!{
+                                        let #field_ident = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, #field_ident_str)?;
+                                    })
+                                }
+                                variant_deserialization.extend(quote! {
+
+                                    #variant_discriminant => {
+                                        #field_deserialization
+                                        Ok(#ident::#variant_ident{#field_names})
+                                    },
+                                })
+                            },
+                            Fields::Unnamed(_) => variant_deserialization.extend(quote! {
+                                #variant_discriminant => {
+                                    let f = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, "0")?;
+                                    Ok(#ident::#variant_ident(f))
+                                },
+                            }),
+                            Fields::Unit => variant_deserialization.extend(quote! {
+                                #variant_discriminant => Ok(#ident::#variant_ident),
+                            }),
+                        }
+                    }
+
+                    quote! {
+                        let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
+                        let discriminator : #discriminant_type = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, "discriminator")?;
+
+                        match discriminator {
+                            #variant_deserialization
+                            _ =>  Err(dust_dds::xtypes::error::XTypesError::InvalidData),
+                        }
+                    }
                 } else {
                     let clauses: Vec<_> = discriminant_mapping
                         .iter()
@@ -741,7 +786,7 @@ mod tests {
     }
 
     #[test]
-    fn xtypes_serialize_enum_with_variants() {
+    fn xtypes_serialize_enum_with_field_variants() {
         let input = syn::parse2::<DeriveInput>(
             "
             enum SimpleEnum {
@@ -781,6 +826,61 @@ mod tests {
                         },
                     }
                     Ok(())
+                }
+            }
+            "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            expected,
+            "\n R: {:?} \n \n L: {:?} \n ",
+            result.clone().into_token_stream().to_string(),
+            expected.clone().into_token_stream().to_string()
+        );
+    }
+
+    #[test]
+    fn xtypes_deserialize_enum_with_field_variants() {
+        let input = syn::parse2::<DeriveInput>(
+            "
+            enum SimpleEnum {
+                a(u32)=10,
+                b{a:u32, b:i32, c:f32}=2000,
+                c,
+            }
+        "
+            .parse()
+            .unwrap(),
+        )
+        .unwrap();
+
+        let output_token_stream = expand_xtypes_deserialize(&input).unwrap();
+        let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
+        let expected = syn::parse2::<ItemImpl>(
+            "
+            impl<'__de>  dust_dds::xtypes::deserialize::XTypesDeserialize<'__de> for SimpleEnum {
+                fn deserialize(deserializer: impl  dust_dds::xtypes::deserializer::XTypesDeserializer<'__de>) -> Result<Self,  dust_dds::xtypes::error::XTypesError> {
+                    let mut d =  dust_dds::xtypes::deserializer::XTypesDeserializer::deserialize_final_struct(deserializer)?;
+                    let discriminator : u16 = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"discriminator\")?;
+
+                    match discriminator {
+                        10 => {
+                           let f = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"0\")?;
+                           Ok(SimpleEnum::a(f))
+                        },
+                        2000 => {
+                            let a = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"a\")?;
+                            let b = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"b\")?;
+                            let c = dust_dds::xtypes::deserializer::DeserializeFinalStruct::deserialize_field(&mut d, \"c\")?;
+                            Ok(SimpleEnum::b{a,b,c,})
+                        },
+                        2001 => Ok(SimpleEnum::c),
+                        _ => Err(dust_dds::xtypes::error::XTypesError::InvalidData),
+                    }
                 }
             }
             "
