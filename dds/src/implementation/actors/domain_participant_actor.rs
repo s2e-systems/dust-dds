@@ -1286,7 +1286,7 @@ impl MailHandler<GetDiscoveredParticipantData> for DomainParticipantActor {
             .ok_or(DdsError::PreconditionNotMet(
                 "Participant with this instance handle not discovered".to_owned(),
             ))?
-            .dds_participant_data()
+            .dds_participant_data
             .clone())
     }
 }
@@ -1815,7 +1815,7 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
         let discovered_participant_handle = InstanceHandle::new(
             message
                 .discovered_participant_data
-                .dds_participant_data()
+                .dds_participant_data
                 .key()
                 .value,
         );
@@ -1859,7 +1859,7 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
                 InstanceHandle::new(
                     message
                         .discovered_participant_data
-                        .dds_participant_data()
+                        .dds_participant_data
                         .key()
                         .value,
                 ),
