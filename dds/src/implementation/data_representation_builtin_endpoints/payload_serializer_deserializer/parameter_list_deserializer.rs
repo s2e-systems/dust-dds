@@ -1,6 +1,9 @@
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::error::{RtpsError, RtpsErrorKind},
+    rtps::{
+        error::{RtpsError, RtpsErrorKind},
+        messages::types::ParameterId,
+    },
     xtypes::{
         deserialize::XTypesDeserialize,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
@@ -8,13 +11,12 @@ use crate::{
 };
 use std::io::{BufRead, Read};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CdrEndianness {
+#[derive(Clone, Copy)]
+enum CdrEndianness {
     BigEndian,
     LittleEndian,
 }
 
-type ParameterId = i16;
 type RepresentationIdentifier = [u8; 2];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
