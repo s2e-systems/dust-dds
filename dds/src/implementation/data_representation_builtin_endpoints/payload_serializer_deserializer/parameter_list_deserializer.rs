@@ -112,7 +112,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         let mut iterator = self.iter();
         while let Some(parameter) = iterator.next()? {
             if parameter.pid == pid {
-                return Ok(parameter.deserialize(self.endianness)?);
+                return parameter.deserialize(self.endianness);
             }
         }
         Err(RtpsError::new(
@@ -142,7 +142,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
         let mut iterator = self.iter();
         while let Some(parameter) = iterator.next()? {
             if parameter.pid == pid {
-                return Ok(parameter.deserialize(self.endianness)?);
+                return parameter.deserialize(self.endianness);
             }
         }
         Ok(default)
