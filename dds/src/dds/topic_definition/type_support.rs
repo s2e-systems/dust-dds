@@ -154,7 +154,8 @@ const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 /// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with LittleEndian endianness.
 pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
-    let mut writer = Vec::new();
+    let padded_length = Xcdr1LeSerializer::bytes_len(value)? + 3 & !3;
+    let mut writer = Vec::with_capacity(padded_length + 4);
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
     let mut serializer = Xcdr1LeSerializer::new(&mut writer);
