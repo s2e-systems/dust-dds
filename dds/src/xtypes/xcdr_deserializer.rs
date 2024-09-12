@@ -333,7 +333,7 @@ where
     }
 
     fn is_empty(&self) -> bool {
-        self.len > 0
+        self.len == 0
     }
 
     fn deserialize_element<T: XTypesDeserialize<'de>>(&mut self) -> Result<T, XTypesError> {

@@ -166,7 +166,8 @@ pub fn serialize_rtps_xtypes_xcdr1_le(value: &impl XTypesSerialize) -> DdsResult
 
 /// This is a helper function to serialize a type implementing [`XTypesSerialize`] using the XTypes defined XCDR1 representation with BigEndian endianness.
 pub fn serialize_rtps_xtypes_xcdr1_be(value: &impl XTypesSerialize) -> DdsResult<Vec<u8>> {
-    let mut writer = Vec::new();
+    let padded_length = (Xcdr1BeSerializer::bytes_len(value)? + 3) & !3;
+    let mut writer = Vec::with_capacity(padded_length + 4);
     writer.write_all(&CDR_LE)?;
     writer.write_all(&REPRESENTATION_OPTIONS)?;
     let mut serializer = Xcdr1BeSerializer::new(&mut writer);
