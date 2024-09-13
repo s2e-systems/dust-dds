@@ -1,7 +1,5 @@
 /* Manually created from dds-xtypes_typeobject.idl */
 
-pub type ObjectName = &'static str;
-
 // ---------- Equivalence Kinds -------------------
 pub type EquivalenceKind = u8;
 pub const EK_MINIMAL: EquivalenceKind = 0xF1; // 0x1111 0001

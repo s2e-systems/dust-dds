@@ -1,9 +1,8 @@
-use super::{
-    error::XTypesError,
-    type_object::{ObjectName, TypeKind},
-};
+use super::{error::XTypesError, type_object::TypeKind};
 
 pub use dust_dds_derive::XTypesDynamicType;
+
+pub type ObjectName = &'static str;
 
 pub enum ExtensibilityKind {
     Final,
