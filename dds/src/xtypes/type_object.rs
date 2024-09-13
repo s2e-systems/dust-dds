@@ -1,3 +1,5 @@
+/* Manually created from dds-xtypes_typeobject.idl */
+
 pub type ObjectName = &'static str;
 
 // ---------- Equivalence Kinds -------------------
