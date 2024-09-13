@@ -10,6 +10,7 @@ pub mod dynamic_type;
 
 pub mod error;
 
+pub mod bytes;
+pub mod type_object;
 pub mod xcdr_deserializer;
 pub mod xcdr_serializer;
-pub mod bytes;
