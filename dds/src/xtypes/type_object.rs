@@ -118,8 +118,20 @@ pub struct MemberFlag(pub u16);
 // @position(5) IS_KEY, // K StructMember, UnionDiscriminator
 // @position(6) IS_DEFAULT // D UnionMember, EnumerationLiteral
 
+pub enum TryConstruct {
+    Discard,
+    UseDefault,
+    Trim,
+}
+
 pub type CollectionElementFlag = MemberFlag; // T1, T2, X
-pub type StructMemberFlag = MemberFlag; // T1, T2, O, M, K, X
+pub struct StructMemberFlag {
+    pub try_construct: TryConstruct,
+    pub is_optional: bool,
+    pub is_must_undestand: bool,
+    pub is_key: bool,
+    pub is_default: bool,
+} // T1, T2, O, M, K, X
 pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
 pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
 pub type EnumeratedLiteralFlag = MemberFlag; // D
@@ -142,7 +154,15 @@ pub struct TypeFlag(pub u16);
 // @position(3) IS_NESTED, // N Struct, Union
 // @position(4) IS_AUTOID_HASH // H Struct
 
-pub type StructTypeFlag = TypeFlag; // All flags apply
+//@bit_bound(16)
+pub struct StructTypeFlag {
+    pub is_final: bool,
+    pub is_appendable: bool,
+    pub is_mutable: bool,
+    pub is_nested: bool,
+    pub is_autoid_hash: bool,
+}
+
 pub type UnionTypeFlag = TypeFlag; // All flags apply
 pub type CollectionTypeFlag = TypeFlag; // Unused. No flags apply
 pub type AnnotationTypeFlag = TypeFlag; // Unused. No flags apply

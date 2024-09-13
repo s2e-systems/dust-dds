@@ -20,6 +20,11 @@ use dust_dds::{
         ANY_VIEW_STATE,
     },
     topic_definition::type_support::DdsType,
+    xtypes::type_object::{
+        CommonStructMember, CompleteMemberDetail, CompleteStructHeader, CompleteStructMember,
+        CompleteStructType, CompleteTypeDetail, CompleteTypeObject, StructMemberFlag,
+        StructTypeFlag, TryConstruct, TypeIdentifier, TypeObject, XTypesTypeObject,
+    },
 };
 
 mod utils;
@@ -33,6 +38,70 @@ struct KeyedData {
     #[dust_dds(key)]
     id: u8,
     value: u32,
+}
+
+impl XTypesTypeObject for KeyedData {
+    fn get_type_object() -> TypeObject {
+        TypeObject::EkComplete {
+            complete: CompleteTypeObject::TkStructure {
+                struct_type: CompleteStructType {
+                    struct_flags: StructTypeFlag {
+                        is_final: true,
+                        is_appendable: false,
+                        is_mutable: false,
+                        is_nested: false,
+                        is_autoid_hash: false,
+                    },
+                    header: CompleteStructHeader {
+                        base_type: TypeIdentifier::TkNone,
+                        detail: CompleteTypeDetail {
+                            ann_builtin: None,
+                            ann_custom: None,
+                            type_name: "KeyedData".to_string(),
+                        },
+                    },
+                    member_seq: vec![
+                        CompleteStructMember {
+                            common: CommonStructMember {
+                                member_id: 0,
+                                member_flags: StructMemberFlag {
+                                    try_construct: TryConstruct::Discard,
+                                    is_optional: false,
+                                    is_must_undestand: true,
+                                    is_key: true,
+                                    is_default: false,
+                                },
+                                member_type_id: TypeIdentifier::TkUint8Type,
+                            },
+                            detail: CompleteMemberDetail {
+                                name: "id".to_string(),
+                                ann_builtin: None,
+                                ann_custom: None,
+                            },
+                        },
+                        CompleteStructMember {
+                            common: CommonStructMember {
+                                member_id: 1,
+                                member_flags: StructMemberFlag {
+                                    try_construct: TryConstruct::Discard,
+                                    is_optional: false,
+                                    is_must_undestand: true,
+                                    is_key: false,
+                                    is_default: false,
+                                },
+                                member_type_id: TypeIdentifier::TkUint32Type,
+                            },
+                            detail: CompleteMemberDetail {
+                                name: "value".to_string(),
+                                ann_builtin: None,
+                                ann_custom: None,
+                            },
+                        },
+                    ],
+                },
+            },
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, DdsType)]
