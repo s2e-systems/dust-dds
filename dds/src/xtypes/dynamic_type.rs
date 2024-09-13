@@ -1,45 +1,9 @@
-use super::error::XTypesError;
+use super::{
+    error::XTypesError,
+    type_object::{ObjectName, TypeKind},
+};
 
 pub use dust_dds_derive::XTypesDynamicType;
-
-pub type ObjectName = &'static str;
-pub type TypeKind = u8;
-
-// Primitive TKs
-pub const TK_NONE: TypeKind = 0x00;
-pub const TK_BOOLEAN: TypeKind = 0x01;
-pub const TK_BYTE: TypeKind = 0x02;
-pub const TK_INT16: TypeKind = 0x03;
-pub const TK_INT32: TypeKind = 0x04;
-pub const TK_INT64: TypeKind = 0x05;
-pub const TK_UINT16: TypeKind = 0x06;
-pub const TK_UINT32: TypeKind = 0x07;
-pub const TK_UINT64: TypeKind = 0x08;
-pub const TK_FLOAT32: TypeKind = 0x09;
-pub const TK_FLOAT64: TypeKind = 0x0A;
-pub const TK_FLOAT128: TypeKind = 0x0B;
-pub const TK_INT8: TypeKind = 0x0C;
-pub const TK_UINT8: TypeKind = 0x0D;
-pub const TK_CHAR8: TypeKind = 0x10;
-pub const TK_CHAR16: TypeKind = 0x11;
-// String TKs
-pub const TK_STRING8: TypeKind = 0x20;
-pub const TK_STRING16: TypeKind = 0x21;
-// Constructed/Named types
-pub const TK_ALIAS: TypeKind = 0x30;
-// Enumerated TKs
-pub const TK_ENUM: TypeKind = 0x40;
-pub const TK_BITMASK: TypeKind = 0x41;
-// Structured TKs
-pub const TK_ANNOTATION: TypeKind = 0x50;
-pub const TK_STRUCTURE: TypeKind = 0x51;
-pub const TK_UNION: TypeKind = 0x52;
-pub const TK_BITSET: TypeKind = 0x53;
-// Collection TKs
-pub const TK_SEQUENCE: TypeKind = 0x60;
-pub const TK_ARRAY: TypeKind = 0x61;
-pub const TK_MAP: TypeKind = 0x62;
-// ---------- TypeKinds (end) -------------------
 
 pub enum ExtensibilityKind {
     Final,
