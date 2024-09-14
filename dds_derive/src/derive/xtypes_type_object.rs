@@ -1,6 +1,65 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Result};
+use syn::{spanned::Spanned, DeriveInput, Field, Result, Type};
+
+fn is_field_optional(field: &Field) -> bool {
+    match &field.ty {
+        syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option" => {
+            true
+        }
+        _ => false,
+    }
+}
+
+fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
+    match _type {
+        syn::Type::Array(_) => todo!(),
+        syn::Type::Path(field_type_path) => match field_type_path.path.get_ident() {
+            Some(i) => match i.to_string().as_str() {
+                "bool" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkBoolean)),
+                "i8" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt8Type)),
+                "i16" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt16Type)),
+                "i32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type)),
+                "i64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt64Type)),
+                "u8" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type)),
+                "u16" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type)),
+                "u32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type)),
+                "u64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint64Type)),
+                "f32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat32Type)),
+                "f64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type)),
+                "f128" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type)),
+                "char" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type)),
+                _ => todo!(),
+            }
+            None => {
+                if field_type_path.path.segments[0].ident == "Vec" {
+                    todo!()
+                } else if field_type_path.path.segments[0].ident == "Option" {
+                    if let syn::PathArguments::AngleBracketed(a) = &field_type_path.path.segments[0].arguments {
+                        if let syn::GenericArgument::Type(ty) = &a.args[0] {
+                            get_type_identifier(ty)
+                        } else {
+                            Err(syn::Error::new(
+                                _type.span(),
+                                "Expected type argument inside angle brackets",))
+                        }
+                    } else {
+                        todo!()
+                    }
+
+                } else {
+                    todo!()
+                }
+            }
+        },
+        syn::Type::Slice(_) => todo!(),
+        syn::Type::Tuple(_) => todo!(),
+        _ => Err(syn::Error::new(
+            _type.span(),
+            "Field type not supported for automatic XTypesTypeObject derive. Use a custom implementation instead",
+        )),
+    }
+}
 
 pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -41,34 +100,8 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                     .as_ref()
                     .map(|i| i.to_string())
                     .unwrap_or(field_index.to_string());
-                let member_type_id = match &field.ty {
-                    syn::Type::Array(_) => todo!(),
-                    syn::Type::Path(field_type_path) => match field_type_path.path.get_ident() {
-                        Some(i) => match i.to_string().as_str() {
-                            "bool" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkBoolean)),
-                            "i8" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt8Type)),
-                            "i16" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt16Type)),
-                            "i32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type)),
-                            "i64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt64Type)),
-                            "u8" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type)),
-                            "u16" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type)),
-                            "u32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type)),
-                            "u64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint64Type)),
-                            "f32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat32Type)),
-                            "f64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type)),
-                            "f128" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type)),
-                            "char" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type)),
-                            _ => todo!(),
-                        }
-                        None => todo!(),
-                    },
-                    syn::Type::Slice(_) => todo!(),
-                    syn::Type::Tuple(_) => todo!(),
-                    _ => Err(syn::Error::new(
-                        field.ty.span(),
-                        "Field type not supported for automatic XTypesTypeObject derive. Use a custom implementation instead",
-                    )),
-                }?;
+                let is_optional = is_field_optional(field);
+                let member_type_id = get_type_identifier(&field.ty)?;
                 member_seq.extend(
                     quote! {dust_dds::xtypes::type_object::CompleteStructMember {
                         common: dust_dds::xtypes::type_object::CommonStructMember {
@@ -76,7 +109,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                 try_construct:
                                     dust_dds::xtypes::type_object::TryConstruct::Discard,
-                                is_optional: false,
+                                is_optional: #is_optional,
                                 is_must_undestand: true,
                                 is_key: false,
                                 is_default: false,
@@ -110,7 +143,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
     }?;
 
     Ok(quote! {
-        impl #impl_generics  dust_dds::xtypes::type_object::XTypesTypeObject for #ident #type_generics #where_clause {
+        impl #impl_generics dust_dds::xtypes::type_object::XTypesTypeObject for #ident #type_generics #where_clause {
             fn type_object() -> dust_dds::xtypes::type_object::TypeObject
             {
                 dust_dds::xtypes::type_object::TypeObject::EkComplete {
@@ -136,7 +169,7 @@ mod tests {
             struct MyData {
                 id: u8,
                 x: u32,
-                y: i32,
+                y: Option<i32>,
             }
         "
             .parse()
@@ -215,7 +248,7 @@ mod tests {
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
                                                     dust_dds::xtypes::type_object::TryConstruct::Discard,
-                                                is_optional: false,
+                                                is_optional: true,
                                                 is_must_undestand: true,
                                                 is_key: false,
                                                 is_default: false,
