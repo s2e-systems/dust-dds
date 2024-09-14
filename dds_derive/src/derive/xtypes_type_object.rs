@@ -29,7 +29,7 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
                 "f64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type)),
                 "f128" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type)),
                 "char" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type)),
-                "String" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small{
+                "String" | "str" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small{
                     string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
                         bound: 0u8,
                     }
@@ -114,10 +114,10 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                 try_construct:
                                     dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                is_external: false,
                                 is_optional: #is_optional,
                                 is_must_undestand: true,
                                 is_key: false,
-                                is_default: false,
                             },
                             member_type_id:
                                 #member_type_id,
@@ -213,10 +213,10 @@ mod tests {
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
                                                     dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                is_external: false,
                                                 is_optional: false,
                                                 is_must_undestand: true,
                                                 is_key: false,
-                                                is_default: false,
                                             },
                                             member_type_id:
                                                 dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
@@ -233,10 +233,10 @@ mod tests {
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
                                                     dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                is_external: false,
                                                 is_optional: false,
                                                 is_must_undestand: true,
                                                 is_key: false,
-                                                is_default: false,
                                             },
                                             member_type_id:
                                                 dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
@@ -257,10 +257,10 @@ mod tests {
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
                                                     dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                is_external: false,
                                                 is_optional: true,
                                                 is_must_undestand: true,
                                                 is_key: false,
-                                                is_default: false,
                                             },
                                             member_type_id:
                                                 dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type,

@@ -126,13 +126,17 @@ pub enum TryConstruct {
     Trim,
 }
 
-pub type CollectionElementFlag = MemberFlag; // T1, T2, X
+pub struct CollectionElementFlag {
+    pub try_construct: TryConstruct,
+    pub is_external: bool,
+} // T1, T2, X
+
 pub struct StructMemberFlag {
     pub try_construct: TryConstruct,
+    pub is_external: bool,
     pub is_optional: bool,
     pub is_must_undestand: bool,
     pub is_key: bool,
-    pub is_default: bool,
 } // T1, T2, O, M, K, X
 pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
 pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
