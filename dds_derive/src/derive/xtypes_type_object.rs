@@ -29,6 +29,11 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
                 "f64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type)),
                 "f128" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type)),
                 "char" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type)),
+                "String" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small{
+                    string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
+                        bound: 0u8,
+                    }
+                })),
                 _ => todo!(),
             }
             None => {
@@ -168,7 +173,7 @@ mod tests {
             #[xtypes(extensibility = \"Final\")]
             struct MyData {
                 id: u8,
-                x: u32,
+                name: String,
                 y: Option<i32>,
             }
         "
@@ -234,10 +239,14 @@ mod tests {
                                                 is_default: false,
                                             },
                                             member_type_id:
-                                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                                                dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
+                                                    string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
+                                                        bound: 0u8,
+                                                    }
+                                                },
                                         },
                                         detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                                            name: "x".to_string(),
+                                            name: "name".to_string(),
                                             ann_builtin: None,
                                             ann_custom: None,
                                         },
