@@ -97,7 +97,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                     struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                         struct_flags: #struct_flags,
                         header: #struct_header,
-                        member_seq: vec![#member_seq]
+                        member_seq: vec![#member_seq],
                     },
                 },
             })
