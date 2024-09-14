@@ -2,6 +2,8 @@ pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
+pub use dust_dds_derive::XTypesTypeObject;
+
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------

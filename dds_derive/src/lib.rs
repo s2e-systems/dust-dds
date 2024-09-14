@@ -5,6 +5,7 @@ use derive::{
     dds_type_xml::expand_dds_type_xml,
     dynamic_type::expand_xtypes_dynamic_type,
     xtypes::{expand_xtypes_deserialize, expand_xtypes_serialize},
+    xtypes_type_object::expand_xtypes_type_object,
 };
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
@@ -29,6 +30,14 @@ pub fn derive_xtypes_serialize(input: TokenStream) -> TokenStream {
 pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_xtypes_deserialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(XTypesTypeObject, attributes(xtypes))]
+pub fn derive_xtypes_type_object(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_xtypes_type_object(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

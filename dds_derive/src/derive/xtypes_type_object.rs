@@ -12,8 +12,73 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let ident = &input.ident;
 
-    let type_object_quote = match &input.data {
-        syn::Data::Struct(data_struct) => Ok(quote! {}),
+    let complete_type_object_quote = match &input.data {
+        syn::Data::Struct(data_struct) => {
+            let is_final = true;
+            let is_appendable = false;
+            let is_mutable = false;
+            let is_nested = false;
+            let is_autoid_hash = false;
+            let struct_flags = quote! {
+                dust_dds::xtypes::type_object::StructTypeFlag {
+                    is_final: #is_final,
+                    is_appendable: #is_appendable,
+                    is_mutable: #is_mutable,
+                    is_nested: #is_nested,
+                    is_autoid_hash: #is_autoid_hash,
+                }
+            };
+            let struct_header = quote! {
+                dust_dds::xtypes::type_object::CompleteStructHeader {
+                    base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
+                    detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: "#ident".to_string(),
+                    },
+                }
+            };
+            let mut member_seq = quote! {};
+            for (field_index, field) in data_struct.fields.iter().enumerate() {
+                let member_id = field_index as u32;
+                let field_name = field
+                    .ident
+                    .as_ref()
+                    .map(|i| i.to_string())
+                    .unwrap_or(field_index.to_string());
+                member_seq.extend(
+                    quote! {dust_dds::xtypes::type_object::CompleteStructMember {
+                        common: dust_dds::xtypes::type_object::CommonStructMember {
+                            member_id: #member_id,
+                            member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                try_construct:
+                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                is_optional: false,
+                                is_must_undestand: true,
+                                is_key: false,
+                                is_default: false,
+                            },
+                            member_type_id:
+                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                        },
+                        detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                            name: #field_name.to_string(),
+                            ann_builtin: None,
+                            ann_custom: None,
+                        },
+                    },},
+                );
+            }
+            Ok(quote! {
+                dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
+                    struct_type: dust_dds::xtypes::type_object::CompleteStructType {
+                        struct_flags: #struct_flags,
+                        header: #struct_header,
+                        member_seq: vec![#member_seq]
+                    },
+                },
+            })
+        }
         syn::Data::Enum(data_enum) => Ok(quote! {}),
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
@@ -25,7 +90,9 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
         impl #impl_generics  dust_dds::xtypes::type_object::XTypesTypeObject for #ident #type_generics #where_clause {
             fn type_object() -> dust_dds::xtypes::type_object::TypeObject
             {
-                #type_object_quote
+                dust_dds::xtypes::type_object::TypeObject::EkComplete {
+                    complete: #complete_type_object_quote
+                }
             }
         }
     })
@@ -44,8 +111,9 @@ mod tests {
             "
             #[xtypes(extensibility = \"Final\")]
             struct MyData {
+                id: u8,
                 x: u32,
-                y: u32,
+                y: i32,
             }
         "
             .parse()
@@ -56,13 +124,95 @@ mod tests {
         let output_token_stream = expand_xtypes_type_object(&input).unwrap();
         let result = syn::parse2::<ItemImpl>(output_token_stream).unwrap();
         let expected = syn::parse2::<ItemImpl>(
-            "
-            impl  dust_dds::xtypes::type_object::XTypesTypeObject for MyData {
+            r#"
+            impl dust_dds::xtypes::type_object::XTypesTypeObject for MyData {
                 fn type_object() -> dust_dds::xtypes::type_object::TypeObject {
-
+                    dust_dds::xtypes::type_object::TypeObject::EkComplete {
+                        complete: dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
+                            struct_type: dust_dds::xtypes::type_object::CompleteStructType {
+                                struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
+                                    is_final: true,
+                                    is_appendable: false,
+                                    is_mutable: false,
+                                    is_nested: false,
+                                    is_autoid_hash: false,
+                                },
+                                header: dust_dds::xtypes::type_object::CompleteStructHeader {
+                                    base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
+                                    detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
+                                        ann_builtin: None,
+                                        ann_custom: None,
+                                        type_name: "MyData".to_string(),
+                                    },
+                                },
+                                member_seq: vec![
+                                    dust_dds::xtypes::type_object::CompleteStructMember {
+                                        common: dust_dds::xtypes::type_object::CommonStructMember {
+                                            member_id: 0u32,
+                                            member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                                try_construct:
+                                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                is_optional: false,
+                                                is_must_undestand: true,
+                                                is_key: false,
+                                                is_default: false,
+                                            },
+                                            member_type_id:
+                                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+                                        },
+                                        detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                                            name: "id".to_string(),
+                                            ann_builtin: None,
+                                            ann_custom: None,
+                                        },
+                                    },
+                                    dust_dds::xtypes::type_object::CompleteStructMember {
+                                        common: dust_dds::xtypes::type_object::CommonStructMember {
+                                            member_id: 1u32,
+                                            member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                                try_construct:
+                                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                is_optional: false,
+                                                is_must_undestand: true,
+                                                is_key: false,
+                                                is_default: false,
+                                            },
+                                            member_type_id:
+                                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                                        },
+                                        detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                                            name: "x".to_string(),
+                                            ann_builtin: None,
+                                            ann_custom: None,
+                                        },
+                                    },
+                                    dust_dds::xtypes::type_object::CompleteStructMember {
+                                        common: dust_dds::xtypes::type_object::CommonStructMember {
+                                            member_id: 2u32,
+                                            member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                                try_construct:
+                                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                is_optional: false,
+                                                is_must_undestand: true,
+                                                is_key: false,
+                                                is_default: false,
+                                            },
+                                            member_type_id:
+                                                dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type,
+                                        },
+                                        detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                                            name: "y".to_string(),
+                                            ann_builtin: None,
+                                            ann_custom: None,
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    }
                 }
             }
-            "
+            "#
             .parse()
             .unwrap(),
         )
