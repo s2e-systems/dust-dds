@@ -1,12 +1,6 @@
-use super::{
-    attributes::{get_field_id, get_input_extensibility, Extensibility},
-    enum_support::{
-        get_enum_bitbound, is_enum_xtypes_union, read_enum_variant_discriminant_mapping, BitBound,
-    },
-};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Fields, Index, Result};
+use syn::{spanned::Spanned, DeriveInput, Result};
 
 pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -14,6 +8,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
 
     let complete_type_object_quote = match &input.data {
         syn::Data::Struct(data_struct) => {
+            let type_name = ident.to_string();
             let is_final = true;
             let is_appendable = false;
             let is_mutable = false;
@@ -34,7 +29,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                     detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
                         ann_builtin: None,
                         ann_custom: None,
-                        type_name: "#ident".to_string(),
+                        type_name: #type_name.to_string(),
                     },
                 }
             };
@@ -46,6 +41,34 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                     .as_ref()
                     .map(|i| i.to_string())
                     .unwrap_or(field_index.to_string());
+                let member_type_id = match &field.ty {
+                    syn::Type::Array(_) => todo!(),
+                    syn::Type::Path(field_type_path) => match field_type_path.path.get_ident() {
+                        Some(i) => match i.to_string().as_str() {
+                            "bool" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkBoolean)),
+                            "i8" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt8Type)),
+                            "i16" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt16Type)),
+                            "i32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type)),
+                            "i64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkInt64Type)),
+                            "u8" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type)),
+                            "u16" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type)),
+                            "u32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type)),
+                            "u64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkUint64Type)),
+                            "f32" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat32Type)),
+                            "f64" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type)),
+                            "f128" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type)),
+                            "char" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type)),
+                            _ => todo!(),
+                        }
+                        None => todo!(),
+                    },
+                    syn::Type::Slice(_) => todo!(),
+                    syn::Type::Tuple(_) => todo!(),
+                    _ => Err(syn::Error::new(
+                        field.ty.span(),
+                        "Field type not supported for automatic XTypesTypeObject derive. Use a custom implementation instead",
+                    )),
+                }?;
                 member_seq.extend(
                     quote! {dust_dds::xtypes::type_object::CompleteStructMember {
                         common: dust_dds::xtypes::type_object::CommonStructMember {
@@ -59,7 +82,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                                 is_default: false,
                             },
                             member_type_id:
-                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                                #member_type_id,
                         },
                         detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
                             name: #field_name.to_string(),
@@ -79,7 +102,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                 },
             })
         }
-        syn::Data::Enum(data_enum) => Ok(quote! {}),
+        syn::Data::Enum(_data_enum) => Ok(quote! {}),
         syn::Data::Union(data_union) => Err(syn::Error::new(
             data_union.union_token.span,
             "Union not supported",
