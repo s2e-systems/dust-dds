@@ -5,3 +5,4 @@ pub mod dds_type_xml;
 pub mod dynamic_type;
 pub mod enum_support;
 pub mod xtypes;
+pub mod xtypes_type_object;

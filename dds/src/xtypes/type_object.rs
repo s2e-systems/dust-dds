@@ -1,5 +1,5 @@
 pub trait XTypesTypeObject {
-    fn get_type_object() -> TypeObject;
+    fn type_object() -> TypeObject;
 }
 
 /* Manually created from dds-xtypes_typeobject.idl */
