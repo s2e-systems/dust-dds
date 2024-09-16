@@ -211,32 +211,37 @@ impl<'a> Extend<&'a u8> for Md5 {
     }
 }
 fn push_to_key(
-    type_object: &TypeObejct,
+    dynamic_type: &dyn DynamicType,
     serializer: &mut Xcdr2BeSerializer<'_, Md5>,
     de: &mut Xcdr1LeDeserializer<'_>,
 ) {
-    for id in 0..type_object.get_member_count() {
-        match type_object.get_member_by_index(id).field_type().get_kind() {
-            TypeKind::LongLong => de
-                .deserialize_int64()
-                .unwrap()
-                .serialize(&mut *serializer)
-                .unwrap(),
-            TypeKind::Ushort => de
-                .deserialize_uint16()
-                .unwrap()
-                .serialize(&mut *serializer)
-                .unwrap(),
-            TypeKind::Ulong => de
-                .deserialize_uint32()
-                .unwrap()
-                .serialize(&mut *serializer)
-                .unwrap(),
-            TypeKind::Byte => de
-                .deserialize_uint8()
-                .unwrap()
-                .serialize(&mut *serializer)
-                .unwrap(),
+    for id in 0..dynamic_type.get_member_count() {
+        let is_key_field = dynamic_type.get_member_by_index(id).is_key_field();
+        match dynamic_type.get_member_by_index(id).field_type().get_kind() {
+            TypeKind::LongLong => {
+                let v = de.deserialize_int64().unwrap();
+                if is_key_field {
+                    v.serialize(&mut *serializer).unwrap()
+                }
+            }
+            TypeKind::Ushort => {
+                let v = de.deserialize_uint16().unwrap();
+                if is_key_field {
+                    v.serialize(&mut *serializer).unwrap()
+                }
+            }
+            TypeKind::Ulong => {
+                let v = de.deserialize_uint32().unwrap();
+                if is_key_field {
+                    v.serialize(&mut *serializer).unwrap()
+                }
+            }
+            TypeKind::Byte => {
+                let v = de.deserialize_uint8().unwrap();
+                if is_key_field {
+                    v.serialize(&mut *serializer).unwrap()
+                }
+            }
             TypeKind::NonBasic(type_object) => {
                 push_to_key(&type_object, serializer, de);
             }
@@ -245,7 +250,7 @@ fn push_to_key(
 }
 
 impl Complex {
-    fn get_key_from_serialized_type(&self, mut data: &[u8]) -> [u8; 16] {
+    fn get_key_from_serialized_type(&self, data: &[u8]) -> [u8; 16] {
         let dynamic_type = Complex::get_type();
 
         let mut md5_collection = Md5 {
@@ -256,38 +261,7 @@ impl Complex {
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut de: Xcdr1LeDeserializer<'_> = Xcdr1LeDeserializer::new(data);
 
-        for id in 0..dynamic_type.get_member_count() {
-            let is_key_field = dynamic_type.get_member_by_index(id).is_key_field();
-            match dynamic_type.get_member_by_index(id).field_type().get_kind() {
-                TypeKind::LongLong => {
-                    let v = de.deserialize_int64().unwrap();
-                    if is_key_field {
-                        v.serialize(&mut serializer).unwrap()
-                    }
-                }
-                TypeKind::Ushort => {
-                    let v = de.deserialize_uint16().unwrap();
-                    if is_key_field {
-                        v.serialize(&mut serializer).unwrap()
-                    }
-                },
-                TypeKind::Ulong => {
-                    let v = de.deserialize_uint32().unwrap();
-                    if is_key_field {
-                        v.serialize(&mut serializer).unwrap()
-                    }
-                },
-                TypeKind::Byte => {
-                    let v = de.deserialize_uint8().unwrap();
-                    if is_key_field {
-                        v.serialize(&mut serializer).unwrap()
-                    }
-                },
-                TypeKind::NonBasic(type_object) => {
-                    push_to_key(&type_object, &mut serializer, &mut de);
-                }
-            }
-        }
+        push_to_key(&dynamic_type, &mut serializer, &mut de);
 
         const ZEROS: [u8; 16] = [0; 16];
         if md5_collection.length < ZEROS.len() {
