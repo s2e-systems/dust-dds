@@ -4,6 +4,11 @@ pub use super::{
 };
 pub use dust_dds_derive::XTypesSerialize;
 
+/// A trait to Write bytes into a potentially growing buffer
+pub trait Write {
+    fn write(&mut self, buf: &[u8]);
+}
+
 /// A trait representing a structure that can be serialized into a CDR format.
 pub trait XTypesSerialize {
     /// Method to serialize this value using the given serializer.
@@ -163,5 +168,12 @@ where
 impl XTypesSerialize for String {
     fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
         serializer.serialize_string(self.as_str())
+    }
+}
+
+#[cfg(feature = "std")]
+impl Write for std::vec::Vec<u8> {
+    fn write(&mut self, buf: &[u8]) {
+        self.extend_from_slice(buf)
     }
 }

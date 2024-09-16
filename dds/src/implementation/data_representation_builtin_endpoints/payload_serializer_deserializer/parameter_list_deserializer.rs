@@ -1,6 +1,9 @@
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    rtps::error::RtpsError,
+    rtps::{
+        error::{RtpsError, RtpsErrorKind},
+        messages::types::ParameterId,
+    },
     xtypes::{
         deserialize::XTypesDeserialize,
         xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
@@ -8,10 +11,10 @@ use crate::{
 };
 use std::io::{BufRead, Read};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CdrEndianness {
-    LittleEndian,
+#[derive(Clone, Copy)]
+enum CdrEndianness {
     BigEndian,
+    LittleEndian,
 }
 
 type RepresentationIdentifier = [u8; 2];
@@ -19,46 +22,54 @@ const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 
 struct Parameter<'de> {
-    id: i16,
+    pid: ParameterId,
     data: &'de [u8],
 }
 
-struct ParameterIterator<'a, 'de> {
-    reader: &'a mut &'de [u8],
+impl<'de> Parameter<'de> {
+    fn deserialize<T: XTypesDeserialize<'de>>(
+        &self,
+        endianness: CdrEndianness,
+    ) -> Result<T, RtpsError> {
+        Ok(match endianness {
+            CdrEndianness::BigEndian => T::deserialize(&mut Xcdr1BeDeserializer::new(self.data))?,
+            CdrEndianness::LittleEndian => {
+                T::deserialize(&mut Xcdr1LeDeserializer::new(self.data))?
+            }
+        })
+    }
+}
+
+struct ParameterIterator<'a> {
+    reader: &'a [u8],
     endianness: CdrEndianness,
 }
 
-impl<'a, 'de> ParameterIterator<'a, 'de> {
-    fn new(reader: &'a mut &'de [u8], endianness: CdrEndianness) -> Self {
-        Self { reader, endianness }
-    }
-
-    fn next(&mut self) -> Result<Option<Parameter<'de>>, RtpsError> {
-        let mut buf = [0; 2];
-        self.reader.read_exact(&mut buf)?;
-        let id = match self.endianness {
-            CdrEndianness::LittleEndian => i16::from_le_bytes(buf),
-            CdrEndianness::BigEndian => i16::from_be_bytes(buf),
+impl<'a> ParameterIterator<'a> {
+    fn next(&mut self) -> Result<Option<Parameter<'a>>, RtpsError> {
+        let mut pid = [0; 2];
+        let mut length = [0; 2];
+        self.reader.read_exact(&mut pid)?;
+        self.reader.read_exact(&mut length)?;
+        let pid = match self.endianness {
+            CdrEndianness::BigEndian => ParameterId::from_be_bytes(pid),
+            CdrEndianness::LittleEndian => ParameterId::from_le_bytes(pid),
         };
-
-        let mut buf = [0; 2];
-        self.reader.read_exact(&mut buf)?;
         let length = match self.endianness {
-            CdrEndianness::LittleEndian => u16::from_le_bytes(buf),
-            CdrEndianness::BigEndian => u16::from_be_bytes(buf),
+            CdrEndianness::BigEndian => ParameterId::from_be_bytes(length),
+            CdrEndianness::LittleEndian => ParameterId::from_le_bytes(length),
         } as usize;
-
         if self.reader.len() < length {
             Err(RtpsError::new(
-                crate::rtps::error::RtpsErrorKind::NotEnoughData,
+                RtpsErrorKind::NotEnoughData,
                 "Not enough data to get parameter length".to_string(),
             ))
-        } else if id == PID_SENTINEL {
+        } else if pid == PID_SENTINEL {
             Ok(None)
         } else {
             let data = &self.reader[..length];
             self.reader.consume(length);
-            Ok(Some(Parameter { id, data }))
+            Ok(Some(Parameter { pid, data }))
         }
     }
 }
@@ -74,7 +85,7 @@ impl<'de> ParameterListCdrDeserializer<'de> {
             PL_CDR_BE => CdrEndianness::BigEndian,
             PL_CDR_LE => CdrEndianness::LittleEndian,
             _ => Err(RtpsError::new(
-                crate::rtps::error::RtpsErrorKind::InvalidData,
+                RtpsErrorKind::InvalidData,
                 "Unknownn representation identifier".to_string(),
             ))?,
         };
@@ -87,71 +98,53 @@ impl<'de> ParameterListCdrDeserializer<'de> {
 }
 
 impl<'de> ParameterListCdrDeserializer<'de> {
-    pub fn read<T>(&self, id: i16) -> Result<T, RtpsError>
+    fn iter(&self) -> ParameterIterator<'de> {
+        ParameterIterator {
+            reader: self.bytes,
+            endianness: self.endianness,
+        }
+    }
+
+    pub fn read<T>(&self, pid: ParameterId) -> Result<T, RtpsError>
     where
         T: XTypesDeserialize<'de>,
     {
-        let mut bytes = self.bytes;
-        let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
-        while let Some(p) = parameter_iterator.next()? {
-            if p.id == id {
-                return Ok(match self.endianness {
-                    CdrEndianness::LittleEndian => {
-                        T::deserialize(&mut Xcdr1LeDeserializer::new(p.data))?
-                    }
-                    CdrEndianness::BigEndian => {
-                        T::deserialize(&mut Xcdr1BeDeserializer::new(p.data))?
-                    }
-                });
+        let mut iterator = self.iter();
+        while let Some(parameter) = iterator.next()? {
+            if parameter.pid == pid {
+                return parameter.deserialize(self.endianness);
             }
         }
-
         Err(RtpsError::new(
             crate::rtps::error::RtpsErrorKind::InvalidData,
-            format!("Parameter with id {} not found", id),
+            format!("Parameter with id {} not found", pid),
         ))
     }
 
-    pub fn read_with_default<T>(&self, id: i16, default: T) -> Result<T, RtpsError>
+    pub fn read_collection<T>(&self, pid: ParameterId) -> Result<Vec<T>, RtpsError>
     where
         T: XTypesDeserialize<'de>,
     {
-        let mut bytes = self.bytes;
-        let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
-        while let Some(p) = parameter_iterator.next()? {
-            if p.id == id {
-                return Ok(match self.endianness {
-                    CdrEndianness::LittleEndian => {
-                        T::deserialize(&mut Xcdr1LeDeserializer::new(p.data))?
-                    }
-                    CdrEndianness::BigEndian => {
-                        T::deserialize(&mut Xcdr1BeDeserializer::new(p.data))?
-                    }
-                });
+        let mut collection = Vec::new();
+        let mut iterator = self.iter();
+        while let Some(parameter) = iterator.next()? {
+            if parameter.pid == pid {
+                collection.push(parameter.deserialize(self.endianness)?);
             }
         }
-
-        Ok(default)
+        Ok(collection)
     }
 
-    pub fn read_collection<T>(&self, id: i16) -> Result<Vec<T>, RtpsError>
+    pub fn read_with_default<T>(&self, pid: ParameterId, default: T) -> Result<T, RtpsError>
     where
         T: XTypesDeserialize<'de>,
     {
-        let mut parameter_values = Vec::new();
-        let mut bytes = self.bytes;
-        let mut parameter_iterator = ParameterIterator::new(&mut bytes, self.endianness);
-        while let Some(p) = parameter_iterator.next()? {
-            if p.id == id {
-                match self.endianness {
-                    CdrEndianness::LittleEndian => parameter_values
-                        .push(T::deserialize(&mut Xcdr1LeDeserializer::new(p.data))?),
-                    CdrEndianness::BigEndian => parameter_values
-                        .push(T::deserialize(&mut Xcdr1BeDeserializer::new(p.data))?),
-                };
+        let mut iterator = self.iter();
+        while let Some(parameter) = iterator.next()? {
+            if parameter.pid == pid {
+                return parameter.deserialize(self.endianness);
             }
         }
-
-        Ok(parameter_values)
+        Ok(default)
     }
 }

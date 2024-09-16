@@ -1,13 +1,15 @@
-use std::io::Write;
-
 use crate::{
-    rtps::error::{RtpsError, RtpsErrorKind},
+    rtps::{
+        error::{RtpsError, RtpsErrorKind},
+        messages::types::ParameterId,
+    },
     xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
 };
+use std::io::Write;
 
 const PL_CDR_LE: [u8; 2] = [0x00, 0x03];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
-const PID_SENTINEL: i16 = 1;
+const PID_SENTINEL: ParameterId = 1;
 
 #[derive(Default)]
 pub struct ParameterListCdrSerializer {
@@ -26,41 +28,27 @@ impl ParameterListCdrSerializer {
         Ok(())
     }
 
-    pub fn write<T>(&mut self, id: i16, value: &T) -> Result<(), RtpsError>
+    pub fn write<T>(&mut self, id: ParameterId, value: &T) -> Result<(), RtpsError>
     where
         T: XTypesSerialize,
     {
-        let mut data = Vec::new();
-
-        let mut data_serializer = Xcdr1LeSerializer::new(&mut data);
-        value.serialize(&mut data_serializer)?;
-
-        let length_without_padding = data.len();
-        let padding_length = (4 - length_without_padding % 4) & 3;
-        let length = length_without_padding + padding_length;
-
-        if length > u16::MAX as usize {
-            return Err(RtpsError::new(RtpsErrorKind::InvalidData, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, length, u16::MAX)));
+        let data_len = Xcdr1LeSerializer::bytes_len(value)?;
+        let padded_length = (data_len + 3) & !3;
+        if padded_length > u16::MAX as usize {
+            return Err(RtpsError::new(RtpsErrorKind::InvalidData, format!("Serialized parameter ID {} with serialized size {} exceeds maximum parameter size of {}", id, padded_length, u16::MAX)));
         }
-
         self.writer.write_all(&id.to_le_bytes())?;
-        self.writer.write_all(&(length as u16).to_le_bytes())?;
-
-        self.writer.write_all(&data)?;
-
-        match padding_length {
-            1 => self.writer.write_all(&[0u8; 1])?,
-            2 => self.writer.write_all(&[0u8; 2])?,
-            3 => self.writer.write_all(&[0u8; 3])?,
-            _ => self.writer.write_all(&[0u8; 0])?,
-        }
-
+        self.writer
+            .write_all(&(padded_length as u16).to_le_bytes())?;
+        value.serialize(&mut Xcdr1LeSerializer::new(&mut self.writer))?;
+        const ZEROS: [u8; 4] = [0; 4];
+        self.writer.write_all(&ZEROS[..padded_length - data_len])?;
         Ok(())
     }
 
     pub fn write_with_default<T>(
         &mut self,
-        id: i16,
+        id: ParameterId,
         value: &T,
         default: &T,
     ) -> Result<(), RtpsError>
@@ -73,7 +61,11 @@ impl ParameterListCdrSerializer {
         Ok(())
     }
 
-    pub fn write_collection<T>(&mut self, id: i16, value_list: &[T]) -> Result<(), RtpsError>
+    pub fn write_collection<T>(
+        &mut self,
+        id: ParameterId,
+        value_list: &[T],
+    ) -> Result<(), RtpsError>
     where
         T: XTypesSerialize,
     {
