@@ -29,11 +29,10 @@ pub struct TypeDescriptor {
 
 pub type MemberId = u32;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct MemberDescriptor {
+pub struct MemberDescriptor<'a> {
     pub name: ObjectName,
     pub id: MemberId,
-    // pub _type: &dyn DynamicType,
+    pub _type: &'a dyn DynamicType,
     pub default_value: &'static str,
     pub index: u32,
     // pub label :UnionCaseLabelSeq,
@@ -55,7 +54,7 @@ pub trait DynamicType {
     // DDS::ReturnCode_t get_member(inout DynamicTypeMember member, in MemberId id);
     // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
     fn get_member_count(&self) -> u32;
-    fn get_member_by_index(&self, index: u32) -> Result<impl DynamicTypeMember, XTypesError>;
+    fn get_member_by_index(&self, index: u32) -> Result<&dyn DynamicTypeMember, XTypesError>;
     // fn get_annotation_count(&self) -> u32;
     // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
     // unsigned long get_verbatim_text_count();
@@ -71,18 +70,4 @@ pub trait DynamicTypeMember {
 
     fn get_id(&self) -> MemberId;
     fn get_name(&self) -> ObjectName;
-}
-
-impl DynamicTypeMember for MemberDescriptor {
-    fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
-        Ok(*self)
-    }
-
-    fn get_id(&self) -> MemberId {
-        self.id
-    }
-
-    fn get_name(&self) -> ObjectName {
-        self.name
-    }
 }

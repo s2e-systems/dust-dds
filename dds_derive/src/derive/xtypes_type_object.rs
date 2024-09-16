@@ -2,6 +2,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, DeriveInput, Field, Result, Type};
 
+use super::attributes::{get_input_extensibility, Extensibility};
+
 fn is_field_optional(field: &Field) -> bool {
     match &field.ty {
         syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option" => {
@@ -13,7 +15,41 @@ fn is_field_optional(field: &Field) -> bool {
 
 fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
     match _type {
-        syn::Type::Array(_) => todo!(),
+        syn::Type::Array(field_type_array) => {
+            let element_identifier = get_type_identifier(&field_type_array.elem)?;
+            let len = &field_type_array.len;
+            Ok(quote!{
+                { if #len < 256 {
+                    dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
+                        array_sdefn: Box::new(dust_dds::xtypes::type_object::PlainArraySElemDefn {
+                            header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                    is_external: false,
+                                }
+                            },
+                            array_bound_seq: vec![#len],
+                            element_identifier: #element_identifier,
+                        })
+                    }
+                } else {
+                    dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArrayLarge {
+                        array_sdefn: Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
+                            header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                    is_external: false,
+                                }
+                            },
+                            array_bound_seq: vec![#len],
+                            element_identifier: #element_identifier,
+                        })
+                    }
+                }}
+        })
+        },
         syn::Type::Path(field_type_path) => match field_type_path.path.get_ident() {
             Some(i) => match i.to_string().as_str() {
                 "bool" => Ok(quote!(dust_dds::xtypes::type_object::TypeIdentifier::TkBoolean)),
@@ -38,7 +74,32 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
             }
             None => {
                 if field_type_path.path.segments[0].ident == "Vec" {
-                    todo!()
+                    let element_identifier = if let syn::PathArguments::AngleBracketed(a) = &field_type_path.path.segments[0].arguments {
+                        if let syn::GenericArgument::Type(ty) = &a.args[0] {
+                            get_type_identifier(ty)
+                        } else {
+                            Err(syn::Error::new(
+                                _type.span(),
+                                "Expected type argument inside angle brackets",))
+                        }
+                    } else {
+                        todo!()
+                    }?;
+                    Ok(quote!{
+                        dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
+                            seq_sdefn: Box::new(dust_dds::xtypes::type_object::StringSTypeDefn {
+                                header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                    equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                    element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                        try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                        is_external: false,
+                                    }
+                                },
+                                bound: 0u8,
+                                element_identifier: #element_identifier,
+                            })
+                        }
+                    })
                 } else if field_type_path.path.segments[0].ident == "Option" {
                     if let syn::PathArguments::AngleBracketed(a) = &field_type_path.path.segments[0].arguments {
                         if let syn::GenericArgument::Type(ty) = &a.args[0] {
@@ -58,7 +119,6 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
             }
         },
         syn::Type::Slice(_) => todo!(),
-        syn::Type::Tuple(_) => todo!(),
         _ => Err(syn::Error::new(
             _type.span(),
             "Field type not supported for automatic XTypesTypeObject derive. Use a custom implementation instead",
@@ -73,9 +133,12 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
     let complete_type_object_quote = match &input.data {
         syn::Data::Struct(data_struct) => {
             let type_name = ident.to_string();
-            let is_final = true;
-            let is_appendable = false;
-            let is_mutable = false;
+            let (is_final, is_appendable, is_mutable) = match get_input_extensibility(input)? {
+                Extensibility::Final => (true, false, false),
+                Extensibility::Appendable => (false, true, false),
+                Extensibility::Mutable => (false, false, true),
+            };
+
             let is_nested = false;
             let is_autoid_hash = false;
             let struct_flags = quote! {
@@ -170,10 +233,10 @@ mod tests {
     fn xtypes_serialize_final_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Final\")]
+            #[xtypes(extensibility = \"Mutable\")]
             struct MyData {
                 id: u8,
-                name: String,
+                values: [u16;5],
                 y: Option<i32>,
             }
         "
@@ -192,9 +255,9 @@ mod tests {
                         complete: dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
                             struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                                 struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
-                                    is_final: true,
+                                    is_final: false,
                                     is_appendable: false,
-                                    is_mutable: false,
+                                    is_mutable: true,
                                     is_nested: false,
                                     is_autoid_hash: false,
                                 },
@@ -238,15 +301,40 @@ mod tests {
                                                 is_must_undestand: true,
                                                 is_key: false,
                                             },
-                                            member_type_id:
-                                                dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
-                                                    string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
-                                                        bound: 0u8,
+                                            member_type_id: {
+                                                if 5 < 256 {
+                                                    dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
+                                                        array_sdefn: Box::new(dust_dds::xtypes::type_object::PlainArraySElemDefn {
+                                                            header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                                                equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                                                element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                                    is_external: false,
+                                                                }
+                                                            },
+                                                            array_bound_seq: vec![5],
+                                                            element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type,
+                                                        })
                                                     }
-                                                },
+                                                } else {
+                                                    dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArrayLarge {
+                                                        array_sdefn: Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
+                                                            header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                                                equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                                                element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                                    is_external: false,
+                                                                }
+                                                            },
+                                                            array_bound_seq: vec![5],
+                                                            element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type,
+                                                        })
+                                                    }
+                                                }
+                                            },
                                         },
                                         detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                                            name: "name".to_string(),
+                                            name: "values".to_string(),
                                             ann_builtin: None,
                                             ann_custom: None,
                                         },

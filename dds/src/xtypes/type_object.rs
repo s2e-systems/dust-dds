@@ -329,7 +329,7 @@ pub enum TypeIdentifier {
     },
     // ============ Types that are mutually dependent on each other ===
     TiStronglyConnectedComponent {
-        sc_component_id: Box<StronglyConnectedComponentId>,
+        sc_component_id: StronglyConnectedComponentId,
     },
     // ============ The remaining cases - use EquivalenceKind =========
     EkComplete {
