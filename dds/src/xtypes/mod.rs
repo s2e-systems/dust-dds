@@ -13,3 +13,4 @@ pub mod error;
 pub mod xcdr_deserializer;
 pub mod xcdr_serializer;
 pub mod bytes;
+mod instance_handle;
