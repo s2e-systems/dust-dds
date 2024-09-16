@@ -44,7 +44,7 @@ struct Complex {
     field1: i64,
     //@key
     key_field1: u16,
-    field2: u16,
+    field2: u32,
     //@key
     key_field2: Nested,
 }
@@ -83,6 +83,7 @@ struct TypeObejct {
 enum TypeKind {
     LongLong,
     Ushort,
+    Ulong,
     Byte,
     NonBasic(TypeObejct),
 }
@@ -100,7 +101,7 @@ impl Complex {
         match id {
             0 => TypeKind::LongLong,
             1 => TypeKind::Ushort,
-            2 => TypeKind::Ushort,
+            2 => TypeKind::Ulong,
             3 => TypeKind::NonBasic(TypeObejct {
                 member_list: vec![TypeKind::Byte, TypeKind::Byte],
             }),
@@ -142,43 +143,8 @@ impl super::serializer::SerializeFinalStruct for VirtualCdr1Serializer {
         todo!()
     }
 }
-
-impl super::serializer::SerializeAppendableStruct for VirtualCdr1Serializer {
-    fn serialize_field<T: XTypesSerialize>(
-        &mut self,
-        value: &T,
-        name: &str,
-    ) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-}
-
-impl super::serializer::SerializeMutableStruct for VirtualCdr1Serializer {
-    fn serialize_field<T: XTypesSerialize>(
-        &mut self,
-        value: &T,
-        pid: u16,
-        name: &str,
-    ) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn end(self) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-}
-
-impl super::serialize::SerializeCollection for VirtualCdr1Serializer {
-    fn serialize_element<T: XTypesSerialize>(
-        &mut self,
-        value: &T,
-    ) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-}
-
 fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
-    (position + alignment) / alignment * alignment
+    (position + alignment - 1) / alignment * alignment
 }
 struct VirtualCdr1Serializer {
     //buffer: Md5,
@@ -190,97 +156,17 @@ impl VirtualCdr1Serializer {
     ) -> Result<impl super::serializer::SerializeFinalStruct, super::error::XTypesError> {
         Ok(self)
     }
-
-    fn serialize_appendable_struct(
-        self,
-    ) -> Result<impl super::serializer::SerializeAppendableStruct, super::error::XTypesError> {
-        Ok(self)
-    }
-
-    fn serialize_mutable_struct(
-        self,
-    ) -> Result<impl super::serializer::SerializeMutableStruct, super::error::XTypesError> {
-        Ok(self)
-    }
-
-    fn serialize_sequence(
-        self,
-        len: usize,
-    ) -> Result<impl super::serialize::SerializeCollection, super::error::XTypesError> {
-        Ok(self)
-    }
-
-    fn serialize_array(
-        self,
-    ) -> Result<impl super::serialize::SerializeCollection, super::error::XTypesError> {
-        Ok(self)
-    }
-
-    fn serialize_boolean(self, v: bool) -> Result<(), super::error::XTypesError> {
+    fn serialize_int64(self) -> Result<(), super::error::XTypesError> {
         todo!()
     }
-
-    fn serialize_int8(self, v: i8) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_int16(self, v: i16) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_int32(self, v: i32) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_int64(self, v: i64) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
     fn serialize_uint8(self, v: u8) -> Result<(), super::error::XTypesError> {
         todo!()
     }
-
     fn serialize_uint16(self, v: u16) -> Result<(), super::error::XTypesError> {
         todo!()
     }
-
-    fn serialize_uint32(self, v: u32) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_uint64(self, v: u64) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_float32(self, v: f32) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_float64(self, v: f64) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_char8(self, v: char) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_string(self, v: &str) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_byte_sequence(self, v: &[u8]) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_byte_array<const N: usize>(
-        self,
-        v: &[u8; N],
-    ) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
     fn consume(&mut self, alignment: usize) -> usize {
-        let padded = round_up_to_multiples(self.position, alignment) - self.position;
+        let padded = round_up_to_multiples(self.position, alignment) - self.position + alignment;
         self.position += padded;
         padded
     }
@@ -299,6 +185,7 @@ impl Complex {
         for id in Complex::field_ids() {
             let field_len = match Complex::field_type(id) {
                 TypeKind::LongLong => 8,
+                TypeKind::Ulong => 4,
                 TypeKind::Ushort => 2,
                 TypeKind::Byte => 1,
                 TypeKind::NonBasic(type_object) => {
@@ -306,6 +193,7 @@ impl Complex {
                     for member in &type_object.member_list {
                         match member {
                             TypeKind::LongLong => field_len += 8,
+                            TypeKind::Ulong => field_len += 4,
                             TypeKind::Ushort => field_len += 2,
                             TypeKind::Byte => field_len += 1,
                             TypeKind::NonBasic(_) => todo!(),
@@ -339,8 +227,8 @@ fn key() {
     };
     let data = [
         2, 0, 0, 0, 0, 0, 0, 0, //field1
-        3, 0, //key_field1
-        4, 0, //field2
+        3, 0, 0, 0, //key_field1 | padding (2B)
+        4, 0, 0, 0, //field2
         5, 6, //key_field2
     ];
     let mut collection = Vec::new();
