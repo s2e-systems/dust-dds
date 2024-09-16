@@ -25,7 +25,7 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
                             header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                 equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                 element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                    try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                     is_external: false,
                                 }
                             },
@@ -39,7 +39,7 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
                             header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                 equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                 element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                    try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                     is_external: false,
                                 }
                             },
@@ -91,7 +91,7 @@ fn get_type_identifier(_type: &Type) -> Result<TokenStream> {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                     equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                        try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                        try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                         is_external: false,
                                     }
                                 },
@@ -176,7 +176,7 @@ pub fn expand_xtypes_type_object(input: &DeriveInput) -> Result<TokenStream> {
                             member_id: #member_id,
                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                 try_construct:
-                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                    dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 is_external: false,
                                 is_optional: #is_optional,
                                 is_must_undestand: true,
@@ -275,7 +275,7 @@ mod tests {
                                             member_id: 0u32,
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
-                                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                    dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                                 is_external: false,
                                                 is_optional: false,
                                                 is_must_undestand: true,
@@ -295,7 +295,7 @@ mod tests {
                                             member_id: 1u32,
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
-                                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                    dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                                 is_external: false,
                                                 is_optional: false,
                                                 is_must_undestand: true,
@@ -308,7 +308,7 @@ mod tests {
                                                             header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                                                 equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                                                 element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                                    try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                                                     is_external: false,
                                                                 }
                                                             },
@@ -322,7 +322,7 @@ mod tests {
                                                             header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                                                 equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                                                 element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
-                                                                    try_construct: dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                                    try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                                                     is_external: false,
                                                                 }
                                                             },
@@ -344,7 +344,7 @@ mod tests {
                                             member_id: 2u32,
                                             member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
                                                 try_construct:
-                                                    dust_dds::xtypes::type_object::TryConstruct::Discard,
+                                                    dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                                 is_external: false,
                                                 is_optional: true,
                                                 is_must_undestand: true,

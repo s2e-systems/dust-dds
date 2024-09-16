@@ -2,7 +2,7 @@ use super::{error::XTypesError, type_object::TypeKind};
 
 pub use dust_dds_derive::XTypesDynamicType;
 
-pub type ObjectName = &'static str;
+pub type ObjectName = String;
 
 pub enum ExtensibilityKind {
     Final,
@@ -36,7 +36,7 @@ pub struct MemberDescriptor<'a> {
     pub default_value: &'static str,
     pub index: u32,
     // pub label :UnionCaseLabelSeq,
-    // pub try_construct_kind: TryConstructKind,
+    pub try_construct_kind: TryConstructKind,
     pub is_key: bool,
     pub is_optional: bool,
     pub is_must_understand: bool,

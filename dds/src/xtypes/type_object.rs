@@ -4,6 +4,8 @@ pub trait XTypesTypeObject {
 
 pub use dust_dds_derive::XTypesTypeObject;
 
+use super::dynamic_type::TryConstructKind;
+
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
@@ -120,19 +122,13 @@ pub struct MemberFlag(pub u16);
 // @position(5) IS_KEY, // K StructMember, UnionDiscriminator
 // @position(6) IS_DEFAULT // D UnionMember, EnumerationLiteral
 
-pub enum TryConstruct {
-    Discard,
-    UseDefault,
-    Trim,
-}
-
 pub struct CollectionElementFlag {
-    pub try_construct: TryConstruct,
+    pub try_construct: TryConstructKind,
     pub is_external: bool,
 } // T1, T2, X
 
 pub struct StructMemberFlag {
-    pub try_construct: TryConstruct,
+    pub try_construct: TryConstructKind,
     pub is_external: bool,
     pub is_optional: bool,
     pub is_must_undestand: bool,
@@ -333,10 +329,12 @@ pub enum TypeIdentifier {
     },
     // ============ The remaining cases - use EquivalenceKind =========
     EkComplete {
-        equivalence_hash: EquivalenceHash,
+        // equivalence_hash: EquivalenceHash, // Original in IDL
+        complete: Box<CompleteTypeObject>,
     },
     EkMinimal {
-        equivalence_hash: EquivalenceHash,
+        minimal: Box<MinimalTypeObject>,
+        // equivalence_hash: EquivalenceHash, // Original in IDL
     },
     // =================== Future extensibility ============
     // default:
