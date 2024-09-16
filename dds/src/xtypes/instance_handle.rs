@@ -1,6 +1,15 @@
 use std::io::{BufRead, Write};
 
-use crate::xtypes::{serialize::XTypesSerializer, xcdr_serializer::Xcdr1LeSerializer};
+use crate::{
+    topic_definition::type_support,
+    xtypes::{
+        deserializer::XTypesDeserializer,
+        dynamic_type,
+        serialize::XTypesSerializer,
+        xcdr_deserializer::Xcdr1LeDeserializer,
+        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+    },
+};
 
 use super::{serialize::XTypesSerialize, xcdr_serializer::Xcdr2LeSerializer};
 
@@ -76,10 +85,17 @@ impl<T: XTypesSerialize> BytesLen for T {
     }
 }
 
+#[derive(Clone)]
 struct TypeObejct {
-    member_list: Vec<TypeKind>,
+    member_list: Vec<MemberInfo>,
 }
 
+#[derive(Clone)]
+struct MemberInfo {
+    type_kind: TypeKind,
+    is_key: bool,
+}
+#[derive(Clone)]
 enum TypeKind {
     LongLong,
     Ushort,
@@ -87,133 +103,203 @@ enum TypeKind {
     Byte,
     NonBasic(TypeObejct),
 }
+
+impl DynamicType for TypeKind {
+    fn get_member_by_index(&self, id: usize) -> &dyn DynamicTypeMember {
+        match self {
+            TypeKind::NonBasic(type_object) => type_object.get_member_by_index(id),
+            _ => panic!(),
+        }
+    }
+
+    fn get_kind(&self) -> TypeKind {
+        self.clone()
+    }
+
+    fn get_member_count(&self) -> usize {
+        match self {
+            TypeKind::NonBasic(type_object) => type_object.get_member_count(),
+            _ => 0,
+        }
+    }
+}
+
+impl DynamicTypeMember for MemberInfo {
+    fn is_key_field(&self) -> bool {
+        self.is_key
+    }
+
+    fn field_type(&self) -> &dyn DynamicType {
+        &self.type_kind
+    }
+}
+
+trait DynamicTypeMember {
+    fn is_key_field(&self) -> bool;
+    fn field_type(&self) -> &dyn DynamicType;
+}
+trait DynamicType {
+    fn get_member_by_index(&self, id: usize) -> &dyn DynamicTypeMember;
+    fn get_kind(&self) -> TypeKind;
+    fn get_member_count(&self) -> usize;
+}
+
+impl DynamicType for TypeObejct {
+    fn get_member_by_index(&self, id: usize) -> &dyn DynamicTypeMember {
+        &self.member_list[id]
+    }
+
+    fn get_kind(&self) -> TypeKind {
+        TypeKind::NonBasic(self.clone())
+    }
+
+    fn get_member_count(&self) -> usize {
+        self.member_list.len()
+    }
+}
+
 impl Complex {
-    fn is_key_field(id: usize) -> bool {
-        match id {
-            0 => false,
-            1 => true,
-            2 => false,
-            3 => true,
-            _ => panic!(),
+    fn get_type() -> impl DynamicType {
+        TypeObejct {
+            member_list: vec![
+                MemberInfo {
+                    type_kind: TypeKind::LongLong,
+                    is_key: false,
+                },
+                MemberInfo {
+                    type_kind: TypeKind::Ushort,
+                    is_key: true,
+                },
+                MemberInfo {
+                    type_kind: TypeKind::Ulong,
+                    is_key: false,
+                },
+                MemberInfo {
+                    type_kind: TypeKind::NonBasic(TypeObejct {
+                        member_list: vec![
+                            MemberInfo {
+                                type_kind: TypeKind::Byte,
+                                is_key: true,
+                            },
+                            MemberInfo {
+                                type_kind: TypeKind::Byte,
+                                is_key: true,
+                            },
+                        ],
+                    }),
+                    is_key: true,
+                },
+            ],
         }
-    }
-    fn field_type(id: usize) -> TypeKind {
-        match id {
-            0 => TypeKind::LongLong,
-            1 => TypeKind::Ushort,
-            2 => TypeKind::Ulong,
-            3 => TypeKind::NonBasic(TypeObejct {
-                member_list: vec![TypeKind::Byte, TypeKind::Byte],
-            }),
-            _ => panic!(),
-        }
-    }
-    fn field_ids() -> Vec<usize> {
-        vec![0, 1, 2, 3]
     }
 }
 
-trait GetKeyFromSerializedKey {
-    fn get_key_from_serialized_type(&self, data: &[u8]) -> [u8; 16];
+struct Md5 {
+    key: [u8; 16],
+    context: md5::Context,
+    length: usize,
 }
-
-struct Md5(md5::Context);
 impl<'a> Extend<&'a u8> for Md5 {
     fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
         for i in iter {
-            self.0.consume(&[*i]);
+            if self.length < self.key.len() {
+                self.key[self.length] = *i;
+            }
+            self.context.consume(&[*i]);
+            self.length += 1;
         }
     }
 }
-
-impl super::serializer::SerializeFinalStruct for VirtualCdr1Serializer {
-    fn serialize_field<T: XTypesSerialize>(
-        &mut self,
-        value: &T,
-        name: &str,
-    ) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-
-    fn serialize_optional_field<T: XTypesSerialize>(
-        &mut self,
-        value: &Option<T>,
-        name: &str,
-    ) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-}
-fn round_up_to_multiples(position: usize, alignment: usize) -> usize {
-    (position + alignment - 1) / alignment * alignment
-}
-struct VirtualCdr1Serializer {
-    //buffer: Md5,
-    position: usize,
-}
-impl VirtualCdr1Serializer {
-    fn serialize_final_struct(
-        self,
-    ) -> Result<impl super::serializer::SerializeFinalStruct, super::error::XTypesError> {
-        Ok(self)
-    }
-    fn serialize_int64(self) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-    fn serialize_uint8(self, v: u8) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-    fn serialize_uint16(self, v: u16) -> Result<(), super::error::XTypesError> {
-        todo!()
-    }
-    fn consume(&mut self, alignment: usize) -> usize {
-        let padded = round_up_to_multiples(self.position, alignment) - self.position + alignment;
-        self.position += padded;
-        padded
+fn push_to_key(
+    type_object: &TypeObejct,
+    serializer: &mut Xcdr2BeSerializer<'_, Md5>,
+    de: &mut Xcdr1LeDeserializer<'_>,
+) {
+    for id in 0..type_object.get_member_count() {
+        match type_object.get_member_by_index(id).field_type().get_kind() {
+            TypeKind::LongLong => de
+                .deserialize_int64()
+                .unwrap()
+                .serialize(&mut *serializer)
+                .unwrap(),
+            TypeKind::Ushort => de
+                .deserialize_uint16()
+                .unwrap()
+                .serialize(&mut *serializer)
+                .unwrap(),
+            TypeKind::Ulong => de
+                .deserialize_uint32()
+                .unwrap()
+                .serialize(&mut *serializer)
+                .unwrap(),
+            TypeKind::Byte => de
+                .deserialize_uint8()
+                .unwrap()
+                .serialize(&mut *serializer)
+                .unwrap(),
+            TypeKind::NonBasic(type_object) => {
+                push_to_key(&type_object, serializer, de);
+            }
+        }
     }
 }
 
 impl Complex {
     fn get_key_from_serialized_type(&self, mut data: &[u8]) -> [u8; 16] {
-        let total = data.len();
-        let mut buffer = md5::Context::new();
-        let mut collection = Vec::new();
-        // let mut serializer = Xcdr1LeSerializer::new(&mut collection);
-        let mut serializer = VirtualCdr1Serializer {
-            //buffer: collection,
-            position: 0,
+        let dynamic_type = Complex::get_type();
+
+        let mut md5_collection = Md5 {
+            key: [0; 16],
+            context: md5::Context::new(),
+            length: 0,
         };
-        for id in Complex::field_ids() {
-            let field_len = match Complex::field_type(id) {
-                TypeKind::LongLong => 8,
-                TypeKind::Ulong => 4,
-                TypeKind::Ushort => 2,
-                TypeKind::Byte => 1,
-                TypeKind::NonBasic(type_object) => {
-                    let mut field_len = 0;
-                    for member in &type_object.member_list {
-                        match member {
-                            TypeKind::LongLong => field_len += 8,
-                            TypeKind::Ulong => field_len += 4,
-                            TypeKind::Ushort => field_len += 2,
-                            TypeKind::Byte => field_len += 1,
-                            TypeKind::NonBasic(_) => todo!(),
-                        }
+        let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+        let mut de: Xcdr1LeDeserializer<'_> = Xcdr1LeDeserializer::new(data);
+
+        for id in 0..dynamic_type.get_member_count() {
+            let is_key_field = dynamic_type.get_member_by_index(id).is_key_field();
+            match dynamic_type.get_member_by_index(id).field_type().get_kind() {
+                TypeKind::LongLong => {
+                    let v = de.deserialize_int64().unwrap();
+                    if is_key_field {
+                        v.serialize(&mut serializer).unwrap()
                     }
-                    field_len
                 }
-            };
-            let padded_field_length = serializer.consume(field_len);
-            if Complex::is_key_field(id) {
-                buffer.consume(&data[..padded_field_length]);
-                collection.append(&mut data[..padded_field_length].to_vec());
+                TypeKind::Ushort => {
+                    let v = de.deserialize_uint16().unwrap();
+                    if is_key_field {
+                        v.serialize(&mut serializer).unwrap()
+                    }
+                },
+                TypeKind::Ulong => {
+                    let v = de.deserialize_uint32().unwrap();
+                    if is_key_field {
+                        v.serialize(&mut serializer).unwrap()
+                    }
+                },
+                TypeKind::Byte => {
+                    let v = de.deserialize_uint8().unwrap();
+                    if is_key_field {
+                        v.serialize(&mut serializer).unwrap()
+                    }
+                },
+                TypeKind::NonBasic(type_object) => {
+                    push_to_key(&type_object, &mut serializer, &mut de);
+                }
             }
-            data.consume(padded_field_length);
         }
+
         const ZEROS: [u8; 16] = [0; 16];
-        buffer.consume(&ZEROS[collection.len()..]);
-        // buffer.compute().into()        
-        collection.append(&mut ZEROS[collection.len()..].to_vec());
-        collection.as_slice().try_into().unwrap()
+        if md5_collection.length < ZEROS.len() {
+            md5_collection
+                .context
+                .consume(&ZEROS[md5_collection.length..]);
+        }
+        if md5_collection.length <= 16 {
+            md5_collection.key
+        } else {
+            md5_collection.context.compute().into()
+        }
     }
 }
 
@@ -226,22 +312,19 @@ fn key() {
         key_field2: Nested { x: 5, y: 6 },
     };
     let data = [
-        2, 0, 0, 0, 0, 0, 0, 0, //field1
-        3, 0, 0, 0, //key_field1 | padding (2B)
-        4, 0, 0, 0, //field2
-        5, 6, //key_field2
+        2, 0, 0, 0, 0, 0, 0, 0, //field1 (i64)
+        3, 0, 0, 0, //key_field1 (u16) | padding (2B)
+        4, 0, 0, 0, //field2 (u32)
+        5, 6, //key_field2 (u8, u8)
     ];
     let mut collection = Vec::new();
     v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
         .unwrap();
     assert_eq!(&data, collection.as_slice());
-    let key_data = [3, 0, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let key_data = [0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     // assert_eq!(
     //     v.get_key_from_serialized_type(&data),
     //     md5::compute(key_data).as_slice()
     // );
-    assert_eq!(
-        v.get_key_from_serialized_type(&data),
-        key_data.as_slice()
-    );
+    assert_eq!(v.get_key_from_serialized_type(&data), key_data.as_slice());
 }

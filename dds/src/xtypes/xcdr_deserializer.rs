@@ -23,7 +23,7 @@ impl<'a> Xcdr1BeDeserializer<'a> {
 }
 
 pub struct Xcdr1LeDeserializer<'a> {
-    reader: Reader<'a>,
+    pub reader: Reader<'a>,
 }
 
 impl<'a> Xcdr1LeDeserializer<'a> {
