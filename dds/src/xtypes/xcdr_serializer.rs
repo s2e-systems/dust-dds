@@ -1,6 +1,6 @@
 use super::{
     error::XTypesError,
-    serialize::XTypesSerialize,
+    serialize::{Write, XTypesSerialize},
     serializer::{
         SerializeAppendableStruct, SerializeCollection, SerializeFinalStruct,
         SerializeMutableStruct, XTypesSerializer,
@@ -17,9 +17,9 @@ impl ByteCounter {
     }
 }
 
-impl<'a> Extend<&'a u8> for ByteCounter {
-    fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
-        self.0 += iter.into_iter().count();
+impl Write for ByteCounter {
+    fn write(&mut self, buf: &[u8]) {
+        self.0 += buf.len();
     }
 }
 
@@ -32,10 +32,7 @@ struct CollectionWriter<'a, C> {
     position: usize,
 }
 
-impl<'a, C> CollectionWriter<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> CollectionWriter<'a, C> {
     fn new(collection: &'a mut C) -> Self {
         Self {
             collection,
@@ -44,7 +41,7 @@ where
     }
 
     fn write_slice(&mut self, data: &[u8]) {
-        self.collection.extend(data.iter());
+        self.collection.write(data);
         self.position += data.len();
     }
 
@@ -55,25 +52,19 @@ where
     }
 }
 
-fn extend_with_padding_v1<const N: usize, C>(
+fn extend_with_padding_v1<const N: usize, C: Write>(
     writer: &mut CollectionWriter<'_, C>,
     data: &[u8; N],
-) -> Result<(), XTypesError>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+) -> Result<(), XTypesError> {
     writer.pad(N);
     writer.write_slice(data);
     Ok(())
 }
 
-fn extend_with_padding_v2<const N: usize, C>(
+fn extend_with_padding_v2<const N: usize, C: Write>(
     writer: &mut CollectionWriter<'_, C>,
     data: &[u8; N],
-) -> Result<(), XTypesError>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+) -> Result<(), XTypesError> {
     writer.pad(core::cmp::min(N, 4));
     writer.write_slice(data);
     Ok(())
@@ -105,10 +96,7 @@ pub struct Xcdr1BeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
 
-impl<'a, C> Xcdr1BeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> Xcdr1BeSerializer<'a, C> {
     pub fn new(collection: &'a mut C) -> Self {
         Self {
             writer: CollectionWriter::new(collection),
@@ -125,10 +113,7 @@ impl Xcdr1BeSerializer<'_, ()> {
     }
 }
 
-impl<C> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<C: Write> SerializeFinalStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -155,10 +140,7 @@ where
         }
     }
 }
-impl<C> SerializeAppendableStruct for &mut Xcdr1BeSerializer<'_, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<C: Write> SerializeAppendableStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -167,10 +149,7 @@ where
         XTypesSerialize::serialize(value, &mut **self)
     }
 }
-impl<C> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -191,19 +170,13 @@ where
         Ok(())
     }
 }
-impl<C> SerializeCollection for &mut Xcdr1BeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> SerializeCollection for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(value, &mut **self)
     }
 }
 
-impl<C> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> XTypesSerializer for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
         Ok(self)
     }
@@ -292,10 +265,7 @@ pub struct Xcdr1LeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
 
-impl<'a, C> Xcdr1LeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> Xcdr1LeSerializer<'a, C> {
     pub fn new(collection: &'a mut C) -> Self {
         Self {
             writer: CollectionWriter::new(collection),
@@ -312,10 +282,7 @@ impl Xcdr1LeSerializer<'_, ()> {
     }
 }
 
-impl<C> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<C: Write> SerializeFinalStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -343,10 +310,7 @@ where
         }
     }
 }
-impl<C> SerializeAppendableStruct for &mut Xcdr1LeSerializer<'_, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<C: Write> SerializeAppendableStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -355,10 +319,7 @@ where
         XTypesSerialize::serialize(value, &mut **self)
     }
 }
-impl<C> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -379,19 +340,13 @@ where
         Ok(())
     }
 }
-impl<C> SerializeCollection for &mut Xcdr1LeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> SerializeCollection for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_element<T: XTypesSerialize>(&mut self, value: &T) -> Result<(), XTypesError> {
         XTypesSerialize::serialize(value, &mut **self)
     }
 }
 
-impl<C> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> XTypesSerializer for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
         Ok(self)
     }
@@ -480,10 +435,7 @@ pub struct Xcdr2BeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
 
-impl<'a, C> Xcdr2BeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> Xcdr2BeSerializer<'a, C> {
     pub fn new(collection: &'a mut C) -> Self {
         Self {
             writer: CollectionWriter::new(collection),
@@ -504,10 +456,7 @@ pub struct Xcdr2LeSerializer<'a, C> {
     writer: CollectionWriter<'a, C>,
 }
 
-impl<'a, C> Xcdr2LeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> Xcdr2LeSerializer<'a, C> {
     pub fn new(collection: &'a mut C) -> Self {
         Self {
             writer: CollectionWriter::new(collection),
@@ -524,10 +473,7 @@ impl Xcdr2LeSerializer<'_, ()> {
     }
 }
 
-impl<'a, C> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -548,10 +494,7 @@ where
     }
 }
 
-impl<'a, C> SerializeMutableStruct for &mut Xcdr2LeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2LeSerializer<'a, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -602,10 +545,7 @@ where
     }
 }
 
-impl<'a, C> SerializeAppendableStruct for &mut Xcdr2BeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> SerializeAppendableStruct for &mut Xcdr2BeSerializer<'a, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -619,10 +559,7 @@ where
     }
 }
 
-impl<'a, C> SerializeAppendableStruct for &mut Xcdr2LeSerializer<'a, C>
-where
-    for<'b> C: Extend<&'b u8>,
-{
+impl<'a, C: Write> SerializeAppendableStruct for &mut Xcdr2LeSerializer<'a, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
@@ -648,10 +585,7 @@ where
     }
 }
 
-impl<C> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> XTypesSerializer for &mut Xcdr2BeSerializer<'_, C> {
     fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
         Ok(PlainCdr2Encoder { serializer: self })
     }
@@ -722,10 +656,7 @@ where
     }
 }
 
-impl<C> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C>
-where
-    for<'a> C: Extend<&'a u8>,
-{
+impl<C: Write> XTypesSerializer for &mut Xcdr2LeSerializer<'_, C> {
     fn serialize_final_struct(self) -> Result<impl SerializeFinalStruct, XTypesError> {
         Ok(PlainCdr2Encoder { serializer: self })
     }
