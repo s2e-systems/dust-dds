@@ -2,9 +2,7 @@ pub trait XTypesTypeObject {
     fn type_object() -> TypeObject;
 }
 
-pub use dust_dds_derive::XTypesTypeObject;
-
-use super::dynamic_type::TryConstructKind;
+use super::dynamic_type::{DynamicType, TryConstructKind};
 
 /* Manually created from dds-xtypes_typeobject.idl */
 
@@ -330,7 +328,7 @@ pub enum TypeIdentifier {
     // ============ The remaining cases - use EquivalenceKind =========
     EkComplete {
         // equivalence_hash: EquivalenceHash, // Original in IDL
-        complete: Box<CompleteTypeObject>,
+        complete: Box<dyn DynamicType>,
     },
     EkMinimal {
         minimal: Box<MinimalTypeObject>,

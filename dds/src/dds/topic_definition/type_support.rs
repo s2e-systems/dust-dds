@@ -9,7 +9,7 @@ use crate::{
             ObjectName, TryConstructKind, TypeDescriptor,
         },
         type_object::{
-            CompleteAnnotationParameter, CompleteBitfield, CompleteBitflag, CompleteBitmaskType,
+            CompleteAnnotationParameter, CompleteBitfield, CompleteBitflag,
             CompleteEnumeratedLiteral, CompleteStructMember, CompleteTypeObject,
             CompleteUnionMember, MinimalTypeObject, TypeIdentifier, TK_ALIAS, TK_ANNOTATION,
             TK_ARRAY, TK_BITMASK, TK_BITSET, TK_BOOLEAN, TK_BYTE, TK_CHAR16, TK_CHAR8, TK_ENUM,
@@ -263,18 +263,20 @@ impl DynamicType for CompleteTypeObject {
 
     fn get_member_count(&self) -> u32 {
         match self {
-            CompleteTypeObject::TkAlias { alias_type } => todo!(),
-            CompleteTypeObject::TkAnnotation { annotation_type } => todo!(),
+            CompleteTypeObject::TkAlias { .. } => 0,
+            CompleteTypeObject::TkAnnotation { annotation_type } => {
+                annotation_type.member_seq.len() as u32
+            }
             CompleteTypeObject::TkStructure { struct_type } => struct_type.member_seq.len() as u32,
             CompleteTypeObject::TkUnion { union_type } => union_type.member_seq.len() as u32,
-            CompleteTypeObject::TkBitset { bitset_type } => todo!(),
+            CompleteTypeObject::TkBitset { bitset_type } => bitset_type.field_seq.len() as u32,
             CompleteTypeObject::TkSequence { .. }
             | CompleteTypeObject::TkArray { .. }
             | CompleteTypeObject::TkMap { .. } => 0,
             CompleteTypeObject::TkEnum { enumerated_type } => {
                 enumerated_type.literal_seq.len() as u32
             }
-            CompleteTypeObject::TkBitmask { bitmask_type } => todo!(),
+            CompleteTypeObject::TkBitmask { bitmask_type } => bitmask_type.flag_seq.len() as u32,
         }
     }
 
@@ -332,7 +334,13 @@ impl DynamicType for MinimalTypeObject {
         todo!()
     }
 
-    fn get_member_by_index(&self, index: u32) -> Result<&dyn DynamicTypeMember, XTypesError> {
+    fn get_member_by_index(&self, _index: u32) -> Result<&dyn DynamicTypeMember, XTypesError> {
+        todo!()
+    }
+}
+
+impl From<&dyn DynamicType> for CompleteTypeObject {
+    fn from(_value: &dyn DynamicType) -> Self {
         todo!()
     }
 }
