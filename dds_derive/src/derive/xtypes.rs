@@ -6,7 +6,7 @@ use super::{
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Fields, Index, Result};
+use syn::{spanned::Spanned, DeriveInput, Fields, Index, Result};
 
 fn get_discriminant_type(max_discriminant: &usize) -> TokenStream {
     match get_enum_bitbound(max_discriminant) {
@@ -102,7 +102,10 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                         let variant_discriminant = &variant
                             .discriminant
                             .as_ref()
-                            .expect("Union variant must have explicit discriminant")
+                            .ok_or(syn::Error::new(
+                                variant.span(),
+                                "Union variant must have explicit discriminant",
+                            ))?
                             .1;
                         let variant_ident = &variant.ident;
                         match &variant.fields {
@@ -308,7 +311,10 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                         let variant_discriminant = &variant
                             .discriminant
                             .as_ref()
-                            .expect("Union variant must have explicit discriminant")
+                            .ok_or(syn::Error::new(
+                                variant.span(),
+                                "Union variant must have explicit discriminant",
+                            ))?
                             .1;
 
                         let variant_ident = &variant.ident;

@@ -1,3 +1,9 @@
+pub trait XTypesTypeObject {
+    fn type_object() -> TypeObject;
+}
+
+use super::dynamic_type::{DynamicType, TryConstructKind};
+
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
@@ -114,15 +120,34 @@ pub struct MemberFlag(pub u16);
 // @position(5) IS_KEY, // K StructMember, UnionDiscriminator
 // @position(6) IS_DEFAULT // D UnionMember, EnumerationLiteral
 
-pub type CollectionElementFlag = MemberFlag; // T1, T2, X
-pub type StructMemberFlag = MemberFlag; // T1, T2, O, M, K, X
-pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
-pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
-pub type EnumeratedLiteralFlag = MemberFlag; // D
-pub type AnnotationParameterFlag = MemberFlag; // Unused. No flags apply
-pub type AliasMemberFlag = MemberFlag; // Unused. No flags apply
-pub type BitflagFlag = MemberFlag; // Unused. No flags apply
-pub type BitsetMemberFlag = MemberFlag; // Unused. No flags apply
+pub struct CollectionElementFlag {
+    pub try_construct: TryConstructKind,
+    pub is_external: bool,
+} // T1, T2, X
+
+pub struct StructMemberFlag {
+    pub try_construct: TryConstructKind,
+    pub is_external: bool,
+    pub is_optional: bool,
+    pub is_must_undestand: bool,
+    pub is_key: bool,
+} // T1, T2, O, M, K, X
+pub struct UnionMemberFlag {
+    pub try_construct: TryConstructKind,
+    pub is_default: bool,
+    pub is_external: bool,
+} // T1, T2, D, X
+pub struct UnionDiscriminatorFlag {
+    pub try_construct: TryConstructKind,
+    pub is_key: bool,
+} // T1, T2, K
+pub struct EnumeratedLiteralFlag {
+    pub is_default: bool,
+} // D
+pub struct AnnotationParameterFlag; // Unused. No flags apply
+pub struct AliasMemberFlag; // Unused. No flags apply
+pub struct BitflagFlag; // Unused. No flags apply
+pub struct BitsetMemberFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
 // Selects T1, T2, O, M, K, D
@@ -138,14 +163,28 @@ pub struct TypeFlag(pub u16);
 // @position(3) IS_NESTED, // N Struct, Union
 // @position(4) IS_AUTOID_HASH // H Struct
 
-pub type StructTypeFlag = TypeFlag; // All flags apply
-pub type UnionTypeFlag = TypeFlag; // All flags apply
-pub type CollectionTypeFlag = TypeFlag; // Unused. No flags apply
-pub type AnnotationTypeFlag = TypeFlag; // Unused. No flags apply
-pub type AliasTypeFlag = TypeFlag; // Unused. No flags apply
-pub type EnumTypeFlag = TypeFlag; // Unused. No flags apply
-pub type BitmaskTypeFlag = TypeFlag; // Unused. No flags apply
-pub type BitsetTypeFlag = TypeFlag; // Unused. No flags apply
+//@bit_bound(16)
+pub struct StructTypeFlag {
+    pub is_final: bool,
+    pub is_appendable: bool,
+    pub is_mutable: bool,
+    pub is_nested: bool,
+    pub is_autoid_hash: bool,
+}
+
+pub struct UnionTypeFlag {
+    pub is_final: bool,
+    pub is_appendable: bool,
+    pub is_mutable: bool,
+    pub is_nested: bool,
+    pub is_autoid_hash: bool,
+} // All flags apply
+pub struct CollectionTypeFlag; // Unused. No flags apply
+pub struct AnnotationTypeFlag; // Unused. No flags apply
+pub struct AliasTypeFlag; // Unused. No flags apply
+pub struct EnumTypeFlag; // Unused. No flags apply
+pub struct BitmaskTypeFlag; // Unused. No flags apply
+pub struct BitsetTypeFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
 pub const TYPE_FLAG_MINIMAL_MASK: u16 = 0x0007; // Selects M, A, F
@@ -299,14 +338,16 @@ pub enum TypeIdentifier {
     },
     // ============ Types that are mutually dependent on each other ===
     TiStronglyConnectedComponent {
-        sc_component_id: Box<StronglyConnectedComponentId>,
+        sc_component_id: StronglyConnectedComponentId,
     },
     // ============ The remaining cases - use EquivalenceKind =========
     EkComplete {
-        equivalence_hash: EquivalenceHash,
+        // equivalence_hash: EquivalenceHash, // Original in IDL
+        complete: Box<dyn DynamicType>,
     },
     EkMinimal {
-        equivalence_hash: EquivalenceHash,
+        minimal: Box<MinimalTypeObject>,
+        // equivalence_hash: EquivalenceHash, // Original in IDL
     },
     // =================== Future extensibility ============
     // default:
