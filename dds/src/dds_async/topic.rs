@@ -19,7 +19,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    topic_definition::type_support::DynamicTypeInterface,
+    xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
 
@@ -208,7 +208,7 @@ impl TopicAsync {
 impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicTypeInterface>> {
+    pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType>> {
         Ok(self
             .topic_address
             .send_actor_mail(topic_actor::GetTypeSupport)?

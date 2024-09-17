@@ -18,7 +18,9 @@ use crate::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     rtps::types::{EntityId, Guid, Locator},
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport,
+    }, xtypes::type_object::TypeIdentifier,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -35,7 +37,15 @@ pub struct DiscoveredReaderData {
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     reader_proxy: ReaderProxy,
 }
+impl TypeSupport for DiscoveredReaderData {
+    fn get_type_name() -> &'static str {
+        todo!()
+    }
 
+    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+        TypeIdentifier::TkNone
+    }
+}
 impl DdsSerialize for DiscoveredReaderData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
         let mut serializer = ParameterListCdrSerializer::default();
@@ -344,7 +354,7 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredReaderData {
-            reader_proxy: ReaderProxy{
+            reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),

@@ -62,7 +62,7 @@ use crate::{
             PROTOCOLVERSION, VENDOR_ID_S2E,
         },
         writer::RtpsWriter,
-    },
+    }, topic_definition::type_support::TypeSupport,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
@@ -158,7 +158,7 @@ impl DomainParticipantFactoryActor {
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT,
             None,
-            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
             handle,
         );
         topic_list.insert(
@@ -177,7 +177,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC,
             None,
-            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
+            Arc::new(DiscoveredTopicData::get_type()),
             handle,
         );
         topic_list.insert(
@@ -196,7 +196,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION,
             None,
-            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
+            Arc::new(DiscoveredWriterData::get_type()),
             handle,
         );
 
@@ -216,7 +216,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION,
             None,
-            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
+            Arc::new(DiscoveredReaderData::get_type()),
             handle,
         );
         topic_list.insert(
@@ -260,7 +260,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PARTICIPANT.to_string(),
             "SpdpDiscoveredParticipantData".to_string(),
             topic_list[DCPS_PARTICIPANT].1.clone(),
-            Arc::new(FooTypeSupport::new::<SpdpDiscoveredParticipantData>()),
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
             spdp_reader_qos,
             None,
             vec![],
@@ -275,7 +275,7 @@ impl DomainParticipantFactoryActor {
             DCPS_TOPIC.to_string(),
             "DiscoveredTopicData".to_string(),
             topic_list[DCPS_TOPIC].1.clone(),
-            Arc::new(FooTypeSupport::new::<DiscoveredTopicData>()),
+            Arc::new(DiscoveredTopicData::get_type()),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -290,7 +290,7 @@ impl DomainParticipantFactoryActor {
             DCPS_PUBLICATION.to_string(),
             "DiscoveredWriterData".to_string(),
             topic_list[DCPS_PUBLICATION].1.clone(),
-            Arc::new(FooTypeSupport::new::<DiscoveredWriterData>()),
+            Arc::new(DiscoveredWriterData::get_type()),
             sedp_data_reader_qos(),
             None,
             vec![],
@@ -305,7 +305,7 @@ impl DomainParticipantFactoryActor {
             DCPS_SUBSCRIPTION.to_string(),
             "DiscoveredReaderData".to_string(),
             topic_list[DCPS_SUBSCRIPTION].1.clone(),
-            Arc::new(FooTypeSupport::new::<DiscoveredReaderData>()),
+            Arc::new(DiscoveredReaderData::get_type()),
             sedp_data_reader_qos(),
             None,
             vec![],

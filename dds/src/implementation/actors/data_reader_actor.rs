@@ -65,8 +65,11 @@ use crate::{
         writer_proxy::RtpsWriterProxy,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsKey, DynamicTypeInterface},
-    xtypes::{deserialize::XTypesDeserialize, xcdr_deserializer::Xcdr1LeDeserializer},
+    topic_definition::type_support::DdsKey,
+    xtypes::{
+        deserialize::XTypesDeserialize, dynamic_type::DynamicType,
+        xcdr_deserializer::Xcdr1LeDeserializer,
+    },
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -151,14 +154,15 @@ impl ReaderCacheChange {
 }
 
 fn build_instance_handle(
-    type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
+    type_support: &Arc<dyn DynamicType + Send + Sync>,
     change_kind: ChangeKind,
     data: &[u8],
     inline_qos: &[Parameter],
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            type_support.instance_handle_from_serialized_foo(data)?
+            //type_support.instance_handle_from_serialized_foo(data)?
+            todo!()
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
@@ -170,10 +174,11 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    type_support.instance_handle_from_serialized_key(data)?
+                    //type_support.instance_handle_from_serialized_key(data)?
+                    todo!()
                 }
             }
-            None => type_support.instance_handle_from_serialized_key(data)?,
+            None => todo!(), //type_support.instance_handle_from_serialized_key(data)?,
         },
     })
 }
@@ -367,7 +372,7 @@ pub struct DataReaderActor {
     topic_name: String,
     type_name: String,
     topic_status_condition: ActorAddress<StatusConditionActor>,
-    type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+    type_support: Arc<dyn DynamicType + Send + Sync>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -394,7 +399,7 @@ impl DataReaderActor {
         topic_name: String,
         type_name: String,
         topic_status_condition: ActorAddress<StatusConditionActor>,
-        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,

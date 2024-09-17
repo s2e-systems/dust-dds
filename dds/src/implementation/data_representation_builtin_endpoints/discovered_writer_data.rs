@@ -15,7 +15,9 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     rtps::types::{EntityId, Guid, Locator},
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport,
+    }, xtypes::type_object::TypeIdentifier,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -32,7 +34,15 @@ pub struct DiscoveredWriterData {
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
 }
+impl TypeSupport for DiscoveredWriterData {
+    fn get_type_name() -> &'static str {
+        todo!()
+    }
 
+    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+        TypeIdentifier::TkNone
+    }
+}
 impl DdsSerialize for DiscoveredWriterData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
         let mut serializer = ParameterListCdrSerializer::default();
@@ -212,7 +222,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
         })
     }
 }
-
 
 impl DdsHasKey for DiscoveredWriterData {
     const HAS_KEY: bool = true;

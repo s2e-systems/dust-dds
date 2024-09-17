@@ -17,7 +17,7 @@ use crate::{
         status::{InconsistentTopicStatus, StatusKind},
     },
     rtps::types::Guid,
-    topic_definition::type_support::DynamicTypeInterface,
+    xtypes::dynamic_type::DynamicType,
 };
 use std::{sync::Arc, thread::JoinHandle};
 
@@ -82,7 +82,7 @@ pub struct TopicActor {
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
     _topic_listener_thread: Option<TopicListenerThread>,
-    type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+    type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
 impl TopicActor {
@@ -92,7 +92,7 @@ impl TopicActor {
         type_name: String,
         topic_name: &str,
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
-        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
         handle: &ExecutorHandle,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
@@ -299,7 +299,7 @@ impl MailHandler<ProcessDiscoveredTopic> for TopicActor {
 
 pub struct GetTypeSupport;
 impl Mail for GetTypeSupport {
-    type Result = Arc<dyn DynamicTypeInterface + Send + Sync>;
+    type Result = Arc<dyn DynamicType + Send + Sync>;
 }
 impl MailHandler<GetTypeSupport> for TopicActor {
     fn handle(&mut self, _: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {

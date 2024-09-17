@@ -104,13 +104,13 @@ impl<Foo> DataReaderAsync<Foo> {
                 .receive_reply()
                 .await
                 .topic_data;
-            let xml_type = self
-                .topic
-                .topic_address()
-                .send_actor_mail(topic_actor::GetTypeSupport)?
-                .receive_reply()
-                .await
-                .xml_type();
+            let xml_type = "".to_string();//self
+                // .topic
+                // .topic_address()
+                // .send_actor_mail(topic_actor::GetTypeSupport)?
+                // .receive_reply()
+                // .await
+                // .xml_type();
             let discovered_reader_data = self
                 .reader_address
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {

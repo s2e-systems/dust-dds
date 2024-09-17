@@ -20,8 +20,9 @@ use crate::{
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
-        type_support::{DdsHasKey, DdsKey, DdsTypeXml, DynamicTypeInterface},
+        type_support::{DdsHasKey, DdsKey, DdsTypeXml, TypeSupport},
     },
+    xtypes::dynamic_type::DynamicType,
 };
 
 use super::{
@@ -153,7 +154,7 @@ impl DomainParticipant {
         mask: &[StatusKind],
     ) -> DdsResult<Topic>
     where
-        Foo: DdsKey + DdsHasKey + DdsTypeXml,
+        Foo: DdsKey + DdsHasKey + DdsTypeXml + TypeSupport,
     {
         block_on(self.participant_async.create_topic::<Foo>(
             topic_name,
@@ -174,7 +175,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
+        dynamic_type_representation: Box<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<Topic> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,
@@ -212,7 +213,7 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
     where
-        Foo: DdsKey + DdsHasKey + DdsTypeXml,
+        Foo: DdsKey + DdsHasKey + DdsTypeXml + TypeSupport,
     {
         block_on(
             self.participant_async

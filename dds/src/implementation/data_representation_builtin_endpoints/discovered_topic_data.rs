@@ -12,13 +12,23 @@ use crate::{
     infrastructure::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport,
+    }, xtypes::type_object::TypeIdentifier,
 };
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredTopicData {
     pub(crate) topic_builtin_topic_data: TopicBuiltinTopicData,
+}
+impl TypeSupport for DiscoveredTopicData {
+    fn get_type_name() -> &'static str {
+        todo!()
+    }
+
+    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+        TypeIdentifier::TkNone
+    }
 }
 
 impl DdsSerialize for DiscoveredTopicData {

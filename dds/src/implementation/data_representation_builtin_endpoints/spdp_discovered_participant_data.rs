@@ -28,7 +28,7 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport}, xtypes::type_object::TypeIdentifier,
 };
 
 
@@ -55,6 +55,15 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) participant_proxy: ParticipantProxy,
     pub(crate) lease_duration: Duration,
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
+}
+impl TypeSupport for SpdpDiscoveredParticipantData {
+    fn get_type_name() -> &'static str {
+        todo!()
+    }
+
+    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+        TypeIdentifier::TkNone
+    }
 }
 
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {

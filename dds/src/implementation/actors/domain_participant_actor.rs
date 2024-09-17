@@ -82,8 +82,9 @@ use crate::{
     },
     topic_definition::type_support::{
         deserialize_rtps_encapsulated_data, serialize_rtps_xtypes_xcdr1_le, DdsHasKey, DdsKey,
-        DdsTypeXml, DynamicTypeInterface,
+        DdsTypeXml,
     },
+    xtypes::dynamic_type::DynamicType,
 };
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
@@ -150,34 +151,6 @@ impl FooTypeSupport {
             instance_handle_from_serialized_key,
             type_xml,
         }
-    }
-}
-
-impl DynamicTypeInterface for FooTypeSupport {
-    fn has_key(&self) -> bool {
-        self.has_key
-    }
-
-    fn get_serialized_key_from_serialized_foo(&self, serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-        (self.get_serialized_key_from_serialized_foo)(serialized_foo)
-    }
-
-    fn instance_handle_from_serialized_foo(
-        &self,
-        serialized_foo: &[u8],
-    ) -> DdsResult<InstanceHandle> {
-        (self.instance_handle_from_serialized_foo)(serialized_foo)
-    }
-
-    fn instance_handle_from_serialized_key(
-        &self,
-        serialized_key: &[u8],
-    ) -> DdsResult<InstanceHandle> {
-        (self.instance_handle_from_serialized_key)(serialized_key)
-    }
-
-    fn xml_type(&self) -> String {
-        self.type_xml.clone()
     }
 }
 
@@ -597,7 +570,7 @@ impl DomainParticipantActor {
     fn lookup_discovered_topic(
         &mut self,
         topic_name: String,
-        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
         executor_handle: ExecutorHandle,
     ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
         for discovered_topic_data in self.discovered_topic_list.values() {
@@ -641,7 +614,7 @@ impl DomainParticipantActor {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         _mask: Vec<StatusKind>,
-        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
         executor_handle: ExecutorHandle,
     ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
         if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
@@ -852,7 +825,7 @@ pub struct CreateUserDefinedTopic {
     pub qos: QosKind<TopicQos>,
     pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-    pub type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+    pub type_support: Arc<dyn DynamicType + Send + Sync>,
     pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedTopic {
@@ -892,7 +865,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
 
 pub struct FindTopic {
     pub topic_name: String,
-    pub type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+    pub type_support: Arc<dyn DynamicType + Send + Sync>,
     pub executor_handle: ExecutorHandle,
 }
 impl Mail for FindTopic {
