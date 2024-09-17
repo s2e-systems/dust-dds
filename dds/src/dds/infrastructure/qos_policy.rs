@@ -341,7 +341,6 @@ pub enum DurabilityQosPolicyKind {
     Persistent,
 }
 
-
 impl PartialOrd for DurabilityQosPolicyKind {
     fn partial_cmp(&self, other: &DurabilityQosPolicyKind) -> Option<Ordering> {
         match self {
@@ -440,30 +439,31 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// If [`PresentationQosPolicy::coherent_access`] is set, then the [`PresentationQosPolicy::access_scope`] controls the maximum extent of coherent changes.
 /// The behavior is as follows:
 /// - If access_scope is set to INSTANCE, the use of begin_coherent_change and end_coherent_change has no effect on
-/// how the subscriber can access the data because with the scope limited to each instance, changes to separate instances
-/// are considered independent and thus cannot be grouped by a coherent change.
+///   how the subscriber can access the data because with the scope limited to each instance, changes to separate instances
+///   are considered independent and thus cannot be grouped by a coherent change.
 /// - If access_scope is set to TOPIC, then coherent changes (indicated by their enclosure within calls to
-/// begin_coherent_change and end_coherent_change) will be made available as such to each remote DataReader
-/// independently. That is, changes made to instances within each individual DataWriter will be available as coherent with
-/// respect to other changes to instances in that same DataWriter, but will not be grouped with changes made to instances
-/// belonging to a different DataWriter.
-/// If ordered_access is set, then the access_scope controls the maximum extent for which order will be preserved by the Service.
+///   begin_coherent_change and end_coherent_change) will be made available as such to each remote DataReader
+///   independently. That is, changes made to instances within each individual DataWriter will be available as coherent with
+///   respect to other changes to instances in that same DataWriter, but will not be grouped with changes made to instances
+///   belonging to a different DataWriter.
+///   If ordered_access is set, then the access_scope controls the maximum extent for which order will be preserved by the Service.
 /// - If access_scope is set to INSTANCE (the lowest level), then changes to each instance are considered unordered relative
-/// to changes to any other instance. That means that changes (creations, deletions, modifications) made to two instances
-/// are not necessarily seen in the order they occur. This is the case even if it is the same application thread making the
-/// changes using the same DataWriter.
+///   to changes to any other instance. That means that changes (creations, deletions, modifications) made to two instances
+///   are not necessarily seen in the order they occur. This is the case even if it is the same application thread making the
+///   changes using the same DataWriter.
 /// - If access_scope is set to TOPIC, changes (creations, deletions, modifications) made by a single DataWriter are made
-/// available to subscribers in the same order they occur. Changes made to instances through different DataWriter entities
-/// are not necessarily seen in the order they occur. This is the case, even if the changes are made by a single application
-/// thread using DataWriter objects attached to the same Publisher.
+///   available to subscribers in the same order they occur. Changes made to instances through different DataWriter entities
+///   are not necessarily seen in the order they occur. This is the case, even if the changes are made by a single application
+///   thread using DataWriter objects attached to the same Publisher.
+///
 /// Note that this QoS policy controls the scope at which related changes are made available to the subscriber. This means the
 /// subscriber can access the changes in a coherent manner and in the proper order; however, it does not necessarily imply that the
 /// Subscriber will indeed access the changes in the correct order. For that to occur, the application at the subscriber end must use
 /// the proper logic in reading the DataReader objects.
 /// The value offered is considered compatible with the value requested if and only if the following conditions are met:
 /// 1. The inequality *offered access_scope >= requested access_scope* is true. For the purposes of this
-/// inequality, the values of PRESENTATION access_scope are considered ordered such that INSTANCE < TOPIC <
-/// GROUP.
+///    inequality, the values of PRESENTATION access_scope are considered ordered such that INSTANCE < TOPIC <
+///    GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
 #[derive(Debug, PartialEq, Eq, Clone, XTypesSerialize, XTypesDeserialize)]

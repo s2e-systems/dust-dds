@@ -5,12 +5,7 @@ use syn::{spanned::Spanned, DeriveInput, Field, Result, Type};
 use super::attributes::{get_input_extensibility, Extensibility};
 
 fn is_field_optional(field: &Field) -> bool {
-    match &field.ty {
-        syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option" => {
-            true
-        }
-        _ => false,
-    }
+    matches!(&field.ty, syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option")
 }
 
 fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
