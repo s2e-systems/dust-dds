@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, DeriveInput, Field, Result, Type};
 
-use super::attributes::{get_input_extensibility, Extensibility};
+use super::attributes::{field_has_key_attribute, get_input_extensibility, Extensibility};
 
 fn is_field_optional(field: &Field) -> bool {
     matches!(&field.ty, syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option")
@@ -219,6 +219,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .unwrap_or(field_index.to_string());
                 let is_optional = is_field_optional(field);
                 let member_type_id = get_type_identifier(&field.ty)?;
+                let is_key = field_has_key_attribute(field)?;
                 member_seq.extend(
                     quote! {dust_dds::xtypes::type_object::CompleteStructMember {
                         common: dust_dds::xtypes::type_object::CommonStructMember {
@@ -229,7 +230,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 is_external: false,
                                 is_optional: #is_optional,
                                 is_must_undestand: true,
-                                is_key: false,
+                                is_key: #is_key,
                             },
                             member_type_id:
                                 #member_type_id,
