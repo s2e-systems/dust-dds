@@ -1,4 +1,4 @@
-use super::serialize::{Write, XTypesSerialize};
+use super::{error::XTypesError, serialize::{Write, XTypesSerialize}};
 use crate::xtypes::{
     deserializer::XTypesDeserializer,
     xcdr_deserializer::Xcdr1LeDeserializer,
@@ -177,44 +177,45 @@ fn push_to_key(
     dynamic_type: &dyn DynamicType,
     serializer: &mut Xcdr2BeSerializer<'_, Md5>,
     de: &mut Xcdr1LeDeserializer<'_>,
-) {
+) -> Result<(), XTypesError> {
     for id in 0..dynamic_type.get_member_count() {
         let is_key_field = dynamic_type.get_member_by_index(id).is_key_field();
         match dynamic_type.get_member_by_index(id).field_type().get_kind() {
             TypeKind::LongLong => {
-                let v = de.deserialize_int64().unwrap();
+                let v = de.deserialize_int64()?;
                 if is_key_field {
-                    v.serialize(&mut *serializer).unwrap()
+                    v.serialize(&mut *serializer)?;
                 }
             }
             TypeKind::Ushort => {
-                let v = de.deserialize_uint16().unwrap();
+                let v = de.deserialize_uint16()?;
                 if is_key_field {
-                    v.serialize(&mut *serializer).unwrap()
+                    v.serialize(&mut *serializer)?;
                 }
             }
             TypeKind::Ulong => {
-                let v = de.deserialize_uint32().unwrap();
+                let v = de.deserialize_uint32()?;
                 if is_key_field {
-                    v.serialize(&mut *serializer).unwrap()
+                    v.serialize(&mut *serializer)?;
                 }
             }
             TypeKind::Byte => {
-                let v = de.deserialize_uint8().unwrap();
+                let v = de.deserialize_uint8()?;
                 if is_key_field {
-                    v.serialize(&mut *serializer).unwrap()
+                    v.serialize(&mut *serializer)?;
                 }
             }
             TypeKind::NonBasic(type_object) => {
-                push_to_key(&type_object, serializer, de);
+                push_to_key(&type_object, serializer, de)?;
             }
         }
     }
+    Ok(())
 }
 
 
 
-fn get_key_from_serialized_type<T: TypeSupport>(data: &[u8]) -> [u8; 16] {
+fn get_key_from_serialized_type<T: TypeSupport>(data: &[u8]) -> Result<[u8; 16], XTypesError> {
     let dynamic_type = T::get_type();
 
     let mut md5_collection = Md5 {
@@ -225,8 +226,8 @@ fn get_key_from_serialized_type<T: TypeSupport>(data: &[u8]) -> [u8; 16] {
     let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
     let mut de: Xcdr1LeDeserializer<'_> = Xcdr1LeDeserializer::new(data);
 
-    push_to_key(&dynamic_type, &mut serializer, &mut de);
-    md5_collection.into_key()
+    push_to_key(&dynamic_type, &mut serializer, &mut de)?;
+    Ok(md5_collection.into_key())
 }
 
 
@@ -250,7 +251,7 @@ fn key() {
         .unwrap();
     assert_eq!(&data, collection.as_slice());
     let key_data = [0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    assert_eq!(get_key_from_serialized_type::<Complex>(&data), key_data.as_slice());
+    assert_eq!(get_key_from_serialized_type::<Complex>(&data).unwrap(), key_data.as_slice());
 }
 
 #[derive(XTypesSerialize)]
@@ -304,7 +305,7 @@ fn large_key() {
         0, 0, 0, 0, 0, 0, 0, 3, 
     ];
     assert_eq!(
-        get_key_from_serialized_type::<Large>(&data),
+        get_key_from_serialized_type::<Large>(&data).unwrap(),
         md5::compute(key_data).as_slice()
     );
 }
