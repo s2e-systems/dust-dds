@@ -4,6 +4,7 @@ use derive::{
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
     dds_type_xml::expand_dds_type_xml,
     dynamic_type::expand_xtypes_dynamic_type,
+    type_support::expand_type_support,
     xtypes::{expand_xtypes_deserialize, expand_xtypes_serialize},
 };
 use proc_macro::TokenStream;
@@ -29,6 +30,14 @@ pub fn derive_xtypes_serialize(input: TokenStream) -> TokenStream {
 pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_xtypes_deserialize(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(TypeSupport, attributes(xtypes))]
+pub fn derive_type_support(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    expand_type_support(&input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -83,7 +92,8 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_dds_deserialize(input.clone()));
     output.extend(derive_dds_key(input.clone()));
     output.extend(derive_dds_has_key(input.clone()));
-    output.extend(derive_dds_type_xml(input));
+    output.extend(derive_dds_type_xml(input.clone()));
+    output.extend(derive_type_support(input));
 
     output
 }
