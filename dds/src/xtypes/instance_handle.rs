@@ -1,17 +1,9 @@
-use std::io::{BufRead, Write};
-
-use crate::{
-    topic_definition::type_support,
-    xtypes::{
-        deserializer::XTypesDeserializer,
-        dynamic_type,
-        serialize::XTypesSerializer,
-        xcdr_deserializer::Xcdr1LeDeserializer,
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
-    },
+use super::serialize::{Write, XTypesSerialize};
+use crate::xtypes::{
+    deserializer::XTypesDeserializer,
+    xcdr_deserializer::Xcdr1LeDeserializer,
+    xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
 };
-
-use super::{serialize::XTypesSerialize, xcdr_serializer::Xcdr2LeSerializer};
 
 //@extensibility(FINAL)
 struct Simple {
@@ -33,20 +25,6 @@ struct Nested {
     x: u8,
     y: u8,
 }
-
-impl Nested {
-    fn field_type(id: usize) -> TypeKind {
-        match id {
-            0 => TypeKind::Byte,
-            1 => TypeKind::Byte,
-            _ => panic!(),
-        }
-    }
-    fn field_ids() -> Vec<usize> {
-        vec![0, 1]
-    }
-}
-
 #[derive(XTypesSerialize)]
 //@extensibility(FINAL)
 struct Complex {
@@ -56,33 +34,6 @@ struct Complex {
     field2: u32,
     //@key
     key_field2: Nested,
-}
-
-trait BytesLen {
-    fn bytes_len_cdr1(&self) -> usize;
-    fn bytes_len_cdr2(&self) -> usize;
-}
-struct ByteCounter(usize);
-
-impl<'a> Extend<&'a u8> for ByteCounter {
-    fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
-        self.0 += iter.into_iter().count();
-    }
-}
-
-impl<T: XTypesSerialize> BytesLen for T {
-    fn bytes_len_cdr1(&self) -> usize {
-        let mut byte_counter = ByteCounter(0);
-        let mut serializer = Xcdr1LeSerializer::new(&mut byte_counter);
-        XTypesSerialize::serialize(self, &mut serializer).unwrap();
-        byte_counter.0
-    }
-    fn bytes_len_cdr2(&self) -> usize {
-        let mut byte_counter = ByteCounter(0);
-        let mut serializer = Xcdr2LeSerializer::new(&mut byte_counter);
-        XTypesSerialize::serialize(self, &mut serializer).unwrap();
-        byte_counter.0
-    }
 }
 
 #[derive(Clone)]
@@ -199,17 +150,18 @@ struct Md5 {
     context: md5::Context,
     length: usize,
 }
-impl<'a> Extend<&'a u8> for Md5 {
-    fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
-        for i in iter {
-            if self.length < self.key.len() {
-                self.key[self.length] = *i;
-            }
-            self.context.consume(&[*i]);
-            self.length += 1;
+
+impl Write for Md5 {
+    fn write(&mut self, buf: &[u8]) {
+        let total_new_length = self.length + buf.len();
+        if total_new_length < self.key.len() {
+            self.key[self.length..total_new_length].copy_from_slice(buf);
         }
+        self.context.consume(buf);
+        self.length += buf.len();
     }
 }
+
 fn push_to_key(
     dynamic_type: &dyn DynamicType,
     serializer: &mut Xcdr2BeSerializer<'_, Md5>,
