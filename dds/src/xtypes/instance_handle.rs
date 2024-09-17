@@ -12,13 +12,6 @@ struct Simple {
     field: u64,
 }
 
-impl Simple {
-    fn get_key_from_serialized_type(&self, data: &[u8]) -> [u8; 16] {
-        let a = Xcdr1LeSerializer::bytes_len(&self.field).unwrap();
-        [0; 16]
-    }
-}
-
 #[derive(XTypesSerialize)]
 //@extensibility(FINAL) @nested
 struct Nested {
@@ -109,7 +102,11 @@ impl DynamicType for TypeObejct {
     }
 }
 
-impl Complex {
+trait TypeSupport {
+    fn get_type() -> impl DynamicType;
+}
+
+impl TypeSupport for Complex {
     fn get_type() -> impl DynamicType {
         TypeObejct {
             member_list: vec![
@@ -149,6 +146,20 @@ struct Md5 {
     key: [u8; 16],
     context: md5::Context,
     length: usize,
+}
+
+impl Md5 {
+    fn into_key(mut self) -> [u8; 16] {
+        const ZEROS: [u8; 16] = [0; 16];
+        if self.length < ZEROS.len() {
+            self.context.consume(&ZEROS[self.length..]);
+        }
+        if self.length <= 16 {
+            self.key
+        } else {
+            self.context.compute().into()
+        }
+    }
 }
 
 impl Write for Md5 {
@@ -201,33 +212,24 @@ fn push_to_key(
     }
 }
 
-impl Complex {
-    fn get_key_from_serialized_type(&self, data: &[u8]) -> [u8; 16] {
-        let dynamic_type = Complex::get_type();
 
-        let mut md5_collection = Md5 {
-            key: [0; 16],
-            context: md5::Context::new(),
-            length: 0,
-        };
-        let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
-        let mut de: Xcdr1LeDeserializer<'_> = Xcdr1LeDeserializer::new(data);
 
-        push_to_key(&dynamic_type, &mut serializer, &mut de);
+fn get_key_from_serialized_type<T: TypeSupport>(data: &[u8]) -> [u8; 16] {
+    let dynamic_type = T::get_type();
 
-        const ZEROS: [u8; 16] = [0; 16];
-        if md5_collection.length < ZEROS.len() {
-            md5_collection
-                .context
-                .consume(&ZEROS[md5_collection.length..]);
-        }
-        if md5_collection.length <= 16 {
-            md5_collection.key
-        } else {
-            md5_collection.context.compute().into()
-        }
-    }
+    let mut md5_collection = Md5 {
+        key: [0; 16],
+        context: md5::Context::new(),
+        length: 0,
+    };
+    let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+    let mut de: Xcdr1LeDeserializer<'_> = Xcdr1LeDeserializer::new(data);
+
+    push_to_key(&dynamic_type, &mut serializer, &mut de);
+    md5_collection.into_key()
 }
+
+
 
 #[test]
 fn key() {
@@ -248,9 +250,61 @@ fn key() {
         .unwrap();
     assert_eq!(&data, collection.as_slice());
     let key_data = [0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    // assert_eq!(
-    //     v.get_key_from_serialized_type(&data),
-    //     md5::compute(key_data).as_slice()
-    // );
-    assert_eq!(v.get_key_from_serialized_type(&data), key_data.as_slice());
+    assert_eq!(get_key_from_serialized_type::<Complex>(&data), key_data.as_slice());
+}
+
+#[derive(XTypesSerialize)]
+//@extensibility(FINAL)
+struct Large {
+    key_field1: i64,
+    key_field2: i64,
+    key_field3: i64,
+}
+
+impl TypeSupport for Large {
+    fn get_type() -> impl DynamicType {
+        TypeObejct {
+            member_list: vec![
+                MemberInfo {
+                    type_kind: TypeKind::LongLong,
+                    is_key: true,
+                },
+                MemberInfo {
+                    type_kind: TypeKind::LongLong,
+                    is_key: true,
+                },
+                MemberInfo {
+                    type_kind: TypeKind::LongLong,
+                    is_key: true,
+                },
+            ],
+        }
+    }
+}
+
+#[test]
+fn large_key() {
+    let v = Large {
+        key_field1: 1,
+        key_field2: 2,
+        key_field3: 3,
+    };
+    let data = [
+        1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+        2, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+        3, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+    ];
+    let mut collection = Vec::new();
+    v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
+        .unwrap();
+    assert_eq!(&data, collection.as_slice());
+    let key_data = [
+        0, 0, 0, 0, 0, 0, 0, 1, 
+        0, 0, 0, 0, 0, 0, 0, 2, 
+        0, 0, 0, 0, 0, 0, 0, 3, 
+    ];
+    assert_eq!(
+        get_key_from_serialized_type::<Large>(&data),
+        md5::compute(key_data).as_slice()
+    );
 }
