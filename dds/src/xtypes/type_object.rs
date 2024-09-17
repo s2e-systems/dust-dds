@@ -132,13 +132,22 @@ pub struct StructMemberFlag {
     pub is_must_undestand: bool,
     pub is_key: bool,
 } // T1, T2, O, M, K, X
-pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
-pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
-pub type EnumeratedLiteralFlag = MemberFlag; // D
-pub type AnnotationParameterFlag = MemberFlag; // Unused. No flags apply
-pub type AliasMemberFlag = MemberFlag; // Unused. No flags apply
-pub type BitflagFlag = MemberFlag; // Unused. No flags apply
-pub type BitsetMemberFlag = MemberFlag; // Unused. No flags apply
+pub struct UnionMemberFlag {
+    pub try_construct: TryConstructKind,
+    pub is_default: bool,
+    pub is_external: bool,
+} // T1, T2, D, X
+pub struct UnionDiscriminatorFlag {
+    pub try_construct: TryConstructKind,
+    pub is_key: bool,
+} // T1, T2, K
+pub struct EnumeratedLiteralFlag {
+    pub is_default: bool,
+} // D
+pub struct AnnotationParameterFlag; // Unused. No flags apply
+pub struct AliasMemberFlag; // Unused. No flags apply
+pub struct BitflagFlag; // Unused. No flags apply
+pub struct BitsetMemberFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
 // Selects T1, T2, O, M, K, D
@@ -163,13 +172,19 @@ pub struct StructTypeFlag {
     pub is_autoid_hash: bool,
 }
 
-pub type UnionTypeFlag = TypeFlag; // All flags apply
-pub type CollectionTypeFlag = TypeFlag; // Unused. No flags apply
-pub type AnnotationTypeFlag = TypeFlag; // Unused. No flags apply
-pub type AliasTypeFlag = TypeFlag; // Unused. No flags apply
-pub type EnumTypeFlag = TypeFlag; // Unused. No flags apply
-pub type BitmaskTypeFlag = TypeFlag; // Unused. No flags apply
-pub type BitsetTypeFlag = TypeFlag; // Unused. No flags apply
+pub struct UnionTypeFlag {
+    pub is_final: bool,
+    pub is_appendable: bool,
+    pub is_mutable: bool,
+    pub is_nested: bool,
+    pub is_autoid_hash: bool,
+} // All flags apply
+pub struct CollectionTypeFlag; // Unused. No flags apply
+pub struct AnnotationTypeFlag; // Unused. No flags apply
+pub struct AliasTypeFlag; // Unused. No flags apply
+pub struct EnumTypeFlag; // Unused. No flags apply
+pub struct BitmaskTypeFlag; // Unused. No flags apply
+pub struct BitsetTypeFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
 pub const TYPE_FLAG_MINIMAL_MASK: u16 = 0x0007; // Selects M, A, F

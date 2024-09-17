@@ -4,11 +4,13 @@ pub use dust_dds_derive::XTypesDynamicType;
 
 pub type ObjectName = String;
 
+#[derive(Clone, Copy)]
 pub enum ExtensibilityKind {
     Final,
     Appendable,
     Mutable,
 }
+#[derive(Clone, Copy)]
 pub enum TryConstructKind {
     UseDefault,
     Discard,
@@ -32,7 +34,7 @@ pub type MemberId = u32;
 pub struct MemberDescriptor<'a> {
     pub name: ObjectName,
     pub id: MemberId,
-    pub _type: &'a dyn DynamicType,
+    pub type_: &'a dyn DynamicType,
     pub default_value: &'static str,
     pub index: u32,
     // pub label :UnionCaseLabelSeq,

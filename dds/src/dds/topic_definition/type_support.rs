@@ -11,11 +11,11 @@ use crate::{
         type_object::{
             CompleteAnnotationParameter, CompleteBitfield, CompleteBitflag,
             CompleteEnumeratedLiteral, CompleteStructMember, CompleteTypeObject,
-            CompleteUnionMember, MinimalTypeObject, TypeIdentifier, TK_ALIAS, TK_ANNOTATION,
-            TK_ARRAY, TK_BITMASK, TK_BITSET, TK_BOOLEAN, TK_BYTE, TK_CHAR16, TK_CHAR8, TK_ENUM,
-            TK_FLOAT128, TK_FLOAT32, TK_FLOAT64, TK_INT16, TK_INT32, TK_INT64, TK_INT8, TK_MAP,
-            TK_NONE, TK_SEQUENCE, TK_STRING16, TK_STRING8, TK_STRUCTURE, TK_UINT16, TK_UINT32,
-            TK_UINT64, TK_UINT8, TK_UNION,
+            CompleteUnionMember, TypeIdentifier, TypeKind, TK_ALIAS, TK_ANNOTATION, TK_ARRAY,
+            TK_BITMASK, TK_BITSET, TK_BOOLEAN, TK_BYTE, TK_CHAR16, TK_CHAR8, TK_ENUM, TK_FLOAT128,
+            TK_FLOAT32, TK_FLOAT64, TK_INT16, TK_INT32, TK_INT64, TK_INT8, TK_MAP, TK_NONE,
+            TK_SEQUENCE, TK_STRING16, TK_STRING8, TK_STRUCTURE, TK_UINT16, TK_UINT32, TK_UINT64,
+            TK_UINT8, TK_UNION,
         },
     },
 };
@@ -65,9 +65,9 @@ impl DynamicType for TypeIdentifier {
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
             }),
-            TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+            TypeIdentifier::TiStronglyConnectedComponent { .. } => unimplemented!(),
             TypeIdentifier::EkComplete { complete } => complete.get_descriptor(),
-            TypeIdentifier::EkMinimal { minimal } => minimal.get_descriptor(),
+            TypeIdentifier::EkMinimal { .. } => unimplemented!(),
         }
     }
 
@@ -99,13 +99,13 @@ impl DynamicType for TypeIdentifier {
             | TypeIdentifier::TiPlainArrayLarge { .. }
             | TypeIdentifier::TiPlainMapSmall { .. }
             | TypeIdentifier::TiPlainMapLarge { .. } => String::new(),
-            TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+            TypeIdentifier::TiStronglyConnectedComponent { .. } => unimplemented!(),
             TypeIdentifier::EkComplete { complete } => complete.get_name(),
-            TypeIdentifier::EkMinimal { minimal } => minimal.get_name(),
+            TypeIdentifier::EkMinimal { .. } => unimplemented!(),
         }
     }
 
-    fn get_kind(&self) -> crate::xtypes::type_object::TypeKind {
+    fn get_kind(&self) -> TypeKind {
         match self {
             TypeIdentifier::TkNone => TK_NONE,
             TypeIdentifier::TkBoolean => TK_BOOLEAN,
@@ -137,9 +137,9 @@ impl DynamicType for TypeIdentifier {
             TypeIdentifier::TiPlainMapSmall { .. } | TypeIdentifier::TiPlainMapLarge { .. } => {
                 TK_MAP
             }
-            TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+            TypeIdentifier::TiStronglyConnectedComponent { .. } => unimplemented!(),
             TypeIdentifier::EkComplete { complete } => complete.get_kind(),
-            TypeIdentifier::EkMinimal { minimal } => minimal.get_kind(),
+            TypeIdentifier::EkMinimal { .. } => unimplemented!(),
         }
     }
 
@@ -171,9 +171,9 @@ impl DynamicType for TypeIdentifier {
             | TypeIdentifier::TiPlainArrayLarge { .. }
             | TypeIdentifier::TiPlainMapSmall { .. }
             | TypeIdentifier::TiPlainMapLarge { .. } => 0,
-            TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+            TypeIdentifier::TiStronglyConnectedComponent { .. } => unimplemented!(),
             TypeIdentifier::EkComplete { complete } => complete.get_member_count(),
-            TypeIdentifier::EkMinimal { minimal } => minimal.get_member_count(),
+            TypeIdentifier::EkMinimal { .. } => unimplemented!(),
         }
     }
 
@@ -205,16 +205,50 @@ impl DynamicType for TypeIdentifier {
             | TypeIdentifier::TiPlainArrayLarge { .. }
             | TypeIdentifier::TiPlainMapSmall { .. }
             | TypeIdentifier::TiPlainMapLarge { .. } => Err(XTypesError::InvalidIndex),
-            TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+            TypeIdentifier::TiStronglyConnectedComponent { .. } => unimplemented!(),
             TypeIdentifier::EkComplete { complete } => complete.get_member_by_index(index),
-            TypeIdentifier::EkMinimal { minimal } => minimal.get_member_by_index(index),
+            TypeIdentifier::EkMinimal { .. } => unimplemented!(),
         }
     }
 }
 
 impl DynamicType for CompleteTypeObject {
     fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError> {
-        todo!()
+        Ok(TypeDescriptor {
+            kind: self.get_kind(),
+            name: self.get_name(),
+            extensibility_kind: {
+                match self {
+                    CompleteTypeObject::TkAlias { .. }
+                    | CompleteTypeObject::TkAnnotation { .. }
+                    | CompleteTypeObject::TkBitset { .. }
+                    | CompleteTypeObject::TkBitmask { .. }
+                    | CompleteTypeObject::TkSequence { .. }
+                    | CompleteTypeObject::TkArray { .. }
+                    | CompleteTypeObject::TkMap { .. }
+                    | CompleteTypeObject::TkEnum { .. } => ExtensibilityKind::Final,
+                    CompleteTypeObject::TkStructure { struct_type } => {
+                        if struct_type.struct_flags.is_final {
+                            ExtensibilityKind::Final
+                        } else if struct_type.struct_flags.is_appendable {
+                            ExtensibilityKind::Appendable
+                        } else {
+                            ExtensibilityKind::Mutable
+                        }
+                    }
+                    CompleteTypeObject::TkUnion { union_type } => {
+                        if union_type.union_flags.is_final {
+                            ExtensibilityKind::Final
+                        } else if union_type.union_flags.is_appendable {
+                            ExtensibilityKind::Appendable
+                        } else {
+                            ExtensibilityKind::Mutable
+                        }
+                    }
+                }
+            },
+            is_nested: false,
+        })
     }
 
     fn get_name(&self) -> ObjectName {
@@ -246,7 +280,7 @@ impl DynamicType for CompleteTypeObject {
         }
     }
 
-    fn get_kind(&self) -> crate::xtypes::type_object::TypeKind {
+    fn get_kind(&self) -> TypeKind {
         match self {
             CompleteTypeObject::TkAlias { .. } => TK_ALIAS,
             CompleteTypeObject::TkAnnotation { .. } => TK_ANNOTATION,
@@ -317,40 +351,12 @@ impl DynamicType for CompleteTypeObject {
     }
 }
 
-impl DynamicType for MinimalTypeObject {
-    fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError> {
-        todo!()
-    }
-
-    fn get_name(&self) -> ObjectName {
-        todo!()
-    }
-
-    fn get_kind(&self) -> crate::xtypes::type_object::TypeKind {
-        todo!()
-    }
-
-    fn get_member_count(&self) -> u32 {
-        todo!()
-    }
-
-    fn get_member_by_index(&self, _index: u32) -> Result<&dyn DynamicTypeMember, XTypesError> {
-        todo!()
-    }
-}
-
-impl From<&dyn DynamicType> for CompleteTypeObject {
-    fn from(_value: &dyn DynamicType) -> Self {
-        todo!()
-    }
-}
-
 impl DynamicTypeMember for CompleteStructMember {
     fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),
-            _type: &self.common.member_type_id,
+            type_: &self.common.member_type_id,
             default_value: "",
             index: 0,
             try_construct_kind: TryConstructKind::Discard,
@@ -376,7 +382,7 @@ impl DynamicTypeMember for CompleteEnumeratedLiteral {
         Ok(MemberDescriptor {
             name: self.get_name(),
             id: self.get_id(),
-            _type: &TypeIdentifier::TkNone,
+            type_: &TypeIdentifier::TkNone,
             default_value: "",
             index: 0,
             try_construct_kind: TryConstructKind::Discard,
@@ -389,67 +395,115 @@ impl DynamicTypeMember for CompleteEnumeratedLiteral {
     }
 
     fn get_id(&self) -> MemberId {
-        todo!()
+        0
     }
 
     fn get_name(&self) -> ObjectName {
-        todo!()
+        String::new()
     }
 }
 
 impl DynamicTypeMember for CompleteUnionMember {
     fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
-        todo!()
+        Ok(MemberDescriptor {
+            name: self.get_name(),
+            id: self.get_id(),
+            type_: &self.common.type_id,
+            default_value: "",
+            index: 0,
+            try_construct_kind: self.common.member_flags.try_construct,
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+        })
     }
 
     fn get_id(&self) -> MemberId {
-        todo!()
+        self.common.member_id
     }
 
     fn get_name(&self) -> ObjectName {
-        todo!()
+        self.detail.name.clone()
     }
 }
 
 impl DynamicTypeMember for CompleteAnnotationParameter {
     fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
-        todo!()
+        Ok(MemberDescriptor {
+            name: self.get_name(),
+            id: 0,
+            type_: &self.common.member_type_id,
+            default_value: "",
+            index: 0,
+            try_construct_kind: TryConstructKind::Discard,
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+        })
     }
 
     fn get_id(&self) -> MemberId {
-        todo!()
+        0
     }
 
     fn get_name(&self) -> ObjectName {
-        todo!()
+        self.name.clone()
     }
 }
 
 impl DynamicTypeMember for CompleteBitfield {
     fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
-        todo!()
+        Ok(MemberDescriptor {
+            name: self.get_name(),
+            id: self.get_id(),
+            type_: &TypeIdentifier::TkNone,
+            default_value: "",
+            index: self.common.position as u32,
+            try_construct_kind: TryConstructKind::Discard,
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+        })
     }
 
     fn get_id(&self) -> MemberId {
-        todo!()
+        self.common.position as u32
     }
 
     fn get_name(&self) -> ObjectName {
-        todo!()
+        self.detail.name.clone()
     }
 }
 
 impl DynamicTypeMember for CompleteBitflag {
     fn get_descriptor(&self) -> Result<MemberDescriptor, XTypesError> {
-        todo!()
+        Ok(MemberDescriptor {
+            name: self.get_name(),
+            id: self.get_id(),
+            type_: &TypeIdentifier::TkNone,
+            default_value: "",
+            index: self.common.position as u32,
+            try_construct_kind: TryConstructKind::Discard,
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+        })
     }
 
     fn get_id(&self) -> MemberId {
-        todo!()
+        self.common.position as u32
     }
 
     fn get_name(&self) -> ObjectName {
-        todo!()
+        self.detail.name.clone()
     }
 }
 
