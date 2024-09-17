@@ -48,14 +48,15 @@ impl DataReader {
             .get_topicdescription()
             .get_type_support()
             .map_err(into_pyerr)?;
-        type_support
-            .user_data()
-            .ok_or(PyRuntimeError::new_err("Type missing user data"))?
-            .downcast_ref::<Py<PyAny>>()
-            .ok_or(PyTypeError::new_err(
-                "Type support user data should be of PyAny type",
-            ))
-            .cloned()
+        // type_support
+        //     .user_data()
+        //     .ok_or(PyRuntimeError::new_err("Type missing user data"))?
+        //     .downcast_ref::<Py<PyAny>>()
+        //     .ok_or(PyTypeError::new_err(
+        //         "Type support user data should be of PyAny type",
+        //     ))
+        //     .cloned()
+        todo!()
     }
 }
 
