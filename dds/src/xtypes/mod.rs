@@ -11,7 +11,7 @@ pub mod dynamic_type;
 pub mod error;
 
 pub mod bytes;
-mod instance_handle;
+pub mod instance_handle;
 pub mod type_object;
 pub mod xcdr_deserializer;
 pub mod xcdr_serializer;

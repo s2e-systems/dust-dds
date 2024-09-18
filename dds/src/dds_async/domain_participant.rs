@@ -279,7 +279,7 @@ impl DomainParticipantAsync {
     where
         Foo: DdsKey + DdsHasKey + DdsTypeXml + TypeSupport,
     {
-        let type_support = Box::new(FooTypeSupport::new::<Foo>());
+        let type_support = Box::new(Foo::get_type());
 
         self.create_dynamic_topic(
             topic_name,
@@ -287,7 +287,7 @@ impl DomainParticipantAsync {
             qos,
             a_listener,
             mask,
-            Box::new(Foo::get_type()),
+            type_support,
         )
         .await
     }

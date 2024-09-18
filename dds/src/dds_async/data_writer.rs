@@ -38,7 +38,14 @@ use crate::{
         types::ChangeKind,
     },
     topic_definition::type_support::DdsSerialize,
-    xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
+    xtypes::{
+        self,
+        instance_handle::{
+            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+        },
+        serialize::XTypesSerialize,
+        xcdr_serializer::Xcdr1LeSerializer,
+    },
 };
 use std::{marker::PhantomData, sync::Arc};
 
@@ -185,7 +192,8 @@ where
             .await;
 
         let serialized_data = instance.serialize_data()?;
-        let instance_handle = todo!(); //type_support.instance_handle_from_serialized_foo(&serialized_data)?;
+        let instance_handle =
+            get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
 
         self.writer_address
             .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp { instance_handle })?
@@ -281,9 +289,11 @@ where
         }?;
 
         let serialized_foo = instance.serialize_data()?;
-        let instance_serialized_key = todo!(); // type_support
-                                               // .get_serialized_key_from_serialized_foo(&serialized_foo)?
-                                               // .into();
+        let instance_serialized_key =
+            xtypes::instance_handle::get_serialized_key_from_serialized_foo(
+                &serialized_foo,
+                type_support.as_ref(),
+            )?;
 
         let message_sender_actor = self
             .participant_address()
@@ -314,7 +324,7 @@ where
             .writer_address
             .send_actor_mail(data_writer_actor::NewChange {
                 kind: ChangeKind::NotAliveUnregistered,
-                data: instance_serialized_key,
+                data: instance_serialized_key.into(),
                 inline_qos,
                 handle: instance_handle,
                 timestamp,
@@ -371,7 +381,8 @@ where
             .await;
 
         let serialized_foo = instance.serialize_data()?;
-        let instance_handle = todo!(); //type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
+        let instance_handle =
+            get_instance_handle_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
 
         self.writer_address
             .send_actor_mail(data_writer_actor::LookupInstance { instance_handle })?
@@ -420,8 +431,10 @@ where
             .await;
 
         let serialized_data = data.serialize_data()?;
-        let key = todo!(); //type_support.instance_handle_from_serialized_foo(&serialized_data)?;
-
+        let key = xtypes::instance_handle::get_instance_handle_from_serialized_foo(
+            &serialized_data,
+            type_support.as_ref(),
+        )?;
         let message_sender_actor = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetMessageSender)?
@@ -600,7 +613,7 @@ where
         }
 
         let serialized_foo = data.serialize_data()?;
-        let key: Vec<u8> = todo!();//type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
+        let key = get_serialized_key_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
         let message_sender_actor = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetMessageSender)?

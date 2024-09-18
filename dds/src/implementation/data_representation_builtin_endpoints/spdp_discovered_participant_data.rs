@@ -58,7 +58,7 @@ pub struct SpdpDiscoveredParticipantData {
 }
 impl TypeSupport for SpdpDiscoveredParticipantData {
     fn get_type_name() -> &'static str {
-        todo!()
+        "SpdpDiscoveredParticipantData"
     }
 
     fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
