@@ -135,9 +135,9 @@ mod tests {
     fn xtypes_dynamic_type_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Final\")]
+            #[dust_dds(extensibility = \"Final\")]
             struct MyData {
-                #[xtypes(key)]
+                #[dust_dds(key)]
                 x: u32,
                 y: u32,
             }

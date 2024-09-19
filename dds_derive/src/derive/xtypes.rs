@@ -412,7 +412,7 @@ mod tests {
     fn xtypes_serialize_final_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Final\")]
+            #[dust_dds(extensibility = \"Final\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -454,7 +454,7 @@ mod tests {
     fn xtypes_serialize_appendable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Appendable\")]
+            #[dust_dds(extensibility = \"Appendable\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -496,11 +496,11 @@ mod tests {
     fn xtypes_serialize_mutable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Mutable\")]
+            #[dust_dds(extensibility = \"Mutable\")]
             struct MyData {
-                #[xtypes(id = 1)]
+                #[dust_dds(id = 1)]
                 x: u32,
-                #[xtypes(id = 2)]
+                #[dust_dds(id = 2)]
                 y: u32,
             }
         "
@@ -583,7 +583,7 @@ mod tests {
     fn xtypes_deserialize_appendable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Appendable\")]
+            #[dust_dds(extensibility = \"Appendable\")]
             struct MyData {
                 x: u32,
                 y: u32,
@@ -665,11 +665,11 @@ mod tests {
     fn xtypes_deserialize_mutable_struct_with_basic_types() {
         let input = syn::parse2::<DeriveInput>(
             "
-            #[xtypes(extensibility = \"Mutable\")]
+            #[dust_dds(extensibility = \"Mutable\")]
             struct MyData {
-                #[xtypes(id=1)]
+                #[dust_dds(id=1)]
                 x: u32,
-                #[xtypes(id=2)]
+                #[dust_dds(id=2)]
                 y: u32,
             }
         "

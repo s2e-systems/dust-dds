@@ -117,6 +117,12 @@ fn push_to_key(
             type_object::TK_STRUCTURE => {
                 push_to_key(member.get_descriptor()?.type_, serializer, de)?;
             }
+            type_object::TK_STRING8 => {
+                let v = de.deserialize_string()?;
+                if is_key_field {
+                    serializer.serialize_field(&v, "")?;
+                }
+            }
             _ => panic!(),
         }
     }
