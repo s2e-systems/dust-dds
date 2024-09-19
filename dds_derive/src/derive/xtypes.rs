@@ -518,7 +518,7 @@ mod tests {
                     let mut s =  dust_dds::xtypes::serializer::XTypesSerializer::serialize_mutable_struct(serializer)?;
                      dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.x, 1, \"x\")?;
                      dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.y, 2, \"y\")?;
-                     dust_dds::xtypes::serializer::SerializeMutableStruct::end(&mut s)?;
+                     dust_dds::xtypes::serializer::SerializeMutableStruct::end(s)?;
                     Ok(())
                 }
             }
