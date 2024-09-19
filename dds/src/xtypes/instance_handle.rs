@@ -96,6 +96,38 @@ fn push_to_key(
     Ok(())
 }
 
+fn push_to_key_for_key(
+    dynamic_type: &dyn DynamicType,
+    serializer: &mut impl SerializeFinalStruct,
+    de: &mut Xcdr1LeDeserializer<'_>,
+) -> Result<(), XTypesError> {
+    for id in 0..dynamic_type.get_member_count() {
+        let member = dynamic_type.get_member_by_index(id)?;
+        let is_key_field = member.get_descriptor()?.is_key;
+        if is_key_field {
+            match member.get_descriptor()?.type_.get_kind() {
+                type_object::TK_INT64 => {
+                    serializer.serialize_field(&de.deserialize_int64()?, "")?;
+                }
+                type_object::TK_UINT16 => {
+                    serializer.serialize_field(&de.deserialize_uint16()?, "")?
+                }
+                type_object::TK_UINT32 => {
+                    serializer.serialize_field(&de.deserialize_uint32()?, "")?
+                }
+                type_object::TK_UINT8 => {
+                    serializer.serialize_field(&de.deserialize_uint8()?, "")?
+                }
+                type_object::TK_STRUCTURE => {
+                    push_to_key(member.get_descriptor()?.type_, serializer, de)?;
+                }
+                _ => panic!(),
+            }
+        }
+    }
+    Ok(())
+}
+
 fn push_to_key_built_in<'a>(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
@@ -121,6 +153,29 @@ const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const _REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
+pub fn get_instance_handle_from_serialized_key(
+    mut data: &[u8],
+    dynamic_type: &dyn DynamicType,
+) -> Result<InstanceHandle, XTypesError> {
+    let mut md5_collection = Md5 {
+        key: [0; 16],
+        context: md5::Context::new(),
+        length: 0,
+    };
+    {
+        let representation_identifier = [data[0], data[1]];
+        data.consume(4);
+        let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
+        let mut s = serializer.serialize_final_struct()?;
+        match representation_identifier {
+            CDR_BE => push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR_LE => push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            _ => panic!("representation_identifier not supported"),
+        }
+    }
+    Ok(InstanceHandle::new(md5_collection.into_key()))
+}
+
 pub fn get_instance_handle_from_serialized_foo(
     mut data: &[u8],
     dynamic_type: &dyn DynamicType,
@@ -135,7 +190,6 @@ pub fn get_instance_handle_from_serialized_foo(
         data.consume(4);
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut s = serializer.serialize_final_struct()?;
-        println!("get_instance_handle_from_serialized_foo {:?}", representation_identifier);
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
@@ -162,7 +216,6 @@ pub fn get_serialized_key_from_serialized_foo(
         data.consume(4);
         let mut serializer = Xcdr2BeSerializer::new(&mut collection);
         let mut s = serializer.serialize_final_struct()?;
-        println!("get_serialized_key_from_serialized_foo {:?}", representation_identifier);
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,

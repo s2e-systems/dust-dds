@@ -67,7 +67,12 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsKey,
     xtypes::{
-        deserialize::XTypesDeserialize, dynamic_type::DynamicType, instance_handle::get_instance_handle_from_serialized_foo, xcdr_deserializer::Xcdr1LeDeserializer
+        deserialize::XTypesDeserialize,
+        dynamic_type::DynamicType,
+        instance_handle::{
+            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+        },
+        xcdr_deserializer::Xcdr1LeDeserializer,
     },
 };
 use std::{
@@ -172,11 +177,10 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    //type_support.instance_handle_from_serialized_key(data)?
-                    todo!()
+                    get_instance_handle_from_serialized_key(data, type_support.as_ref())?
                 }
             }
-            None => todo!(), //type_support.instance_handle_from_serialized_key(data)?,
+            None => get_instance_handle_from_serialized_key(data, type_support.as_ref())?,
         },
     })
 }

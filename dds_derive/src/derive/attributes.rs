@@ -11,7 +11,7 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
+        .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("extensibility") {
@@ -51,7 +51,7 @@ pub fn get_field_id(field: &Field) -> Result<syn::Expr> {
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
+        .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("id") {
@@ -71,7 +71,7 @@ pub fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
+        .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("key") {
