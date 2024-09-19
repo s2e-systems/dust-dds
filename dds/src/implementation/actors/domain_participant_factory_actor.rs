@@ -1,7 +1,7 @@
 use super::{
     data_reader_actor::DataReaderActor,
     data_writer_actor::DataWriterActor,
-    domain_participant_actor::{self, FooTypeSupport},
+    domain_participant_actor::{self},
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
@@ -62,7 +62,8 @@ use crate::{
             PROTOCOLVERSION, VENDOR_ID_S2E,
         },
         writer::RtpsWriter,
-    }, topic_definition::type_support::TypeSupport,
+    },
+    topic_definition::type_support::TypeSupport,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;

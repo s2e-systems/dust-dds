@@ -59,7 +59,6 @@ use crate::{
         writer::RtpsWriter,
         writer_history_cache::RtpsWriterCacheChange,
     },
-    topic_definition::type_support::DdsKey,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -1056,10 +1055,13 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                     .subscription_builtin_topic_data(),
                 &message.publisher_qos,
             );
-            let instance_handle =
-                InstanceHandle::try_from_key(&message.discovered_reader_data.get_key().unwrap())
-                    .unwrap();
-
+            let instance_handle = InstanceHandle::new(
+                message
+                    .discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .key
+                    .value,
+            );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if message
                     .discovered_reader_data

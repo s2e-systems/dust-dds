@@ -1,8 +1,6 @@
 mod derive;
 use derive::{
-    dds_key::{expand_dds_key, expand_has_key},
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
-    dds_type_xml::expand_dds_type_xml,
     dynamic_type::expand_xtypes_dynamic_type,
     type_support::expand_type_support,
     xtypes::{expand_xtypes_deserialize, expand_xtypes_serialize},
@@ -58,30 +56,6 @@ pub fn derive_dds_deserialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DdsHasKey, attributes(dust_dds))]
-pub fn derive_dds_has_key(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_has_key(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(DdsKey, attributes(dust_dds))]
-pub fn derive_dds_key(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_dds_key(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(DdsTypeXml, attributes(dust_dds))]
-pub fn derive_dds_type_xml(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_dds_type_xml(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
 #[proc_macro_derive(DdsType, attributes(dust_dds))]
 pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
@@ -90,9 +64,6 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
     output.extend(derive_xtypes_deserialize(input.clone()));
     output.extend(derive_dds_serialize(input.clone()));
     output.extend(derive_dds_deserialize(input.clone()));
-    output.extend(derive_dds_key(input.clone()));
-    output.extend(derive_dds_has_key(input.clone()));
-    output.extend(derive_dds_type_xml(input.clone()));
     output.extend(derive_type_support(input));
 
     output

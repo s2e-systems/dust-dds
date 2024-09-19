@@ -1,9 +1,10 @@
 use dust_dds::{
     infrastructure::{error::DdsResult, instance::InstanceHandle},
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1LeDeserializer, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::Xcdr1LeSerializer,
+        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        xcdr_serializer::Xcdr1LeSerializer,
     },
 };
 use pyo3::{
@@ -61,7 +62,9 @@ fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
 
 pub struct PythonTypeRepresentation(Py<PyAny>);
 impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
-    fn get_descriptor(&self) -> Result<dust_dds::xtypes::dynamic_type::TypeDescriptor, XTypesError> {
+    fn get_descriptor(
+        &self,
+    ) -> Result<dust_dds::xtypes::dynamic_type::TypeDescriptor, XTypesError> {
         todo!()
     }
 
@@ -77,7 +80,10 @@ impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
         todo!()
     }
 
-    fn get_member_by_index(&self, index: u32) -> Result<&dyn dust_dds::xtypes::dynamic_type::DynamicTypeMember, XTypesError> {
+    fn get_member_by_index(
+        &self,
+        index: u32,
+    ) -> Result<&dyn dust_dds::xtypes::dynamic_type::DynamicTypeMember, XTypesError> {
         todo!()
     }
 }
@@ -316,21 +322,6 @@ impl PythonDdsData {
     }
 }
 
-impl DdsHasKey for PythonDdsData {
-    const HAS_KEY: bool = true;
-}
-
-impl DdsKey for PythonDdsData {
-    type Key = Vec<u8>;
-
-    fn get_key(&self) -> DdsResult<Self::Key> {
-        Ok(self.key.clone())
-    }
-
-    fn get_key_from_serialized_data(_serialized_foo: &[u8]) -> DdsResult<Self::Key> {
-        todo!()
-    }
-}
 
 impl DdsSerialize for PythonDdsData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
@@ -344,11 +335,5 @@ impl<'de> DdsDeserialize<'de> for PythonDdsData {
             data: serialized_data.to_vec(),
             key: Vec::new(),
         })
-    }
-}
-
-impl DdsTypeXml for PythonDdsData {
-    fn get_type_xml() -> Option<String> {
-        None
     }
 }

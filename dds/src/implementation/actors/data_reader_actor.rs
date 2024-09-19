@@ -65,7 +65,6 @@ use crate::{
         writer_proxy::RtpsWriterProxy,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::DdsKey,
     xtypes::{
         deserialize::XTypesDeserialize,
         dynamic_type::DynamicType,
@@ -2207,9 +2206,13 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 type_name = type_name,
                 "Writer with matched topic and type found",
             );
-            let instance_handle =
-                InstanceHandle::try_from_key(&message.discovered_writer_data.get_key().unwrap())
-                    .unwrap();
+            let instance_handle = InstanceHandle::new(
+                message
+                    .discovered_writer_data
+                    .dds_publication_data
+                    .key
+                    .value,
+            );
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &message.discovered_writer_data,

@@ -15,9 +15,8 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     rtps::types::{EntityId, Guid, Locator},
-    topic_definition::type_support::{
-        DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport,
-    }, xtypes::type_object::TypeIdentifier,
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+    xtypes::type_object::TypeIdentifier,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -57,28 +56,25 @@ impl TypeSupport for DiscoveredWriterData {
                         type_name: "DiscoveredWriterData".to_string(),
                     },
                 },
-                member_seq: vec![
-                    dust_dds::xtypes::type_object::CompleteStructMember {
-                        common: dust_dds::xtypes::type_object::CommonStructMember {
-                            member_id: 0x5Au32,
-                            member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
-                                try_construct:
-                                    dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                is_external: false,
-                                is_optional: false,
-                                is_must_undestand: true,
-                                is_key: false,
-                            },
-                            member_type_id:
-                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                member_seq: vec![dust_dds::xtypes::type_object::CompleteStructMember {
+                    common: dust_dds::xtypes::type_object::CommonStructMember {
+                        member_id: 0x5Au32,
+                        member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                            try_construct:
+                                dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                            is_external: false,
+                            is_optional: false,
+                            is_must_undestand: true,
+                            is_key: false,
                         },
-                        detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
-                            name: "value".to_string(),
-                            ann_builtin: None,
-                            ann_custom: None,
-                        },
+                        member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
                     },
-                ],
+                    detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                        name: "value".to_string(),
+                        ann_builtin: None,
+                        ann_custom: None,
+                    },
+                }],
             },
         }
     }
@@ -260,31 +256,6 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
                     .read_with_default(PID_DATA_MAX_SIZE_SERIALIZED, Default::default())?,
             },
         })
-    }
-}
-
-impl DdsHasKey for DiscoveredWriterData {
-    const HAS_KEY: bool = true;
-}
-
-impl DdsKey for DiscoveredWriterData {
-    type Key = [u8; 16];
-
-    fn get_key(&self) -> DdsResult<Self::Key> {
-        Ok(self.dds_publication_data.key().value)
-    }
-
-    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
-        Ok(Self::deserialize_data(serialized_foo)?
-            .dds_publication_data
-            .key()
-            .value)
-    }
-}
-
-impl DdsTypeXml for DiscoveredWriterData {
-    fn get_type_xml() -> Option<String> {
-        None
     }
 }
 

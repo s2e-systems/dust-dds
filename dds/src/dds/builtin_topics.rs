@@ -7,7 +7,6 @@ use crate::{
         TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         UserDataQosPolicy,
     },
-    topic_definition::type_support::DdsHasKey,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 
@@ -22,7 +21,6 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 
 /// Topic name of the built-in participant discovery topic
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
-
 
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, Default, XTypesSerialize, XTypesDeserialize)]
@@ -48,10 +46,6 @@ impl ParticipantBuiltinTopicData {
     pub fn user_data(&self) -> &UserDataQosPolicy {
         &self.user_data
     }
-}
-
-impl DdsHasKey for ParticipantBuiltinTopicData {
-    const HAS_KEY: bool = true;
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
@@ -155,10 +149,6 @@ impl TopicBuiltinTopicData {
     pub fn representation(&self) -> &DataRepresentationQosPolicy {
         &self.representation
     }
-}
-
-impl DdsHasKey for TopicBuiltinTopicData {
-    const HAS_KEY: bool = true;
 }
 
 /// Structure representing a discovered [`DataWriter`](crate::publication::data_writer::DataWriter).
@@ -289,10 +279,6 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-impl DdsHasKey for PublicationBuiltinTopicData {
-    const HAS_KEY: bool = true;
-}
-
 /// Structure representing a discovered [`DataReader`](crate::subscription::data_reader::DataReader).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SubscriptionBuiltinTopicData {
@@ -413,8 +399,4 @@ impl SubscriptionBuiltinTopicData {
     pub fn representation(&self) -> &DataRepresentationQosPolicy {
         &self.representation
     }
-}
-
-impl DdsHasKey for SubscriptionBuiltinTopicData {
-    const HAS_KEY: bool = true;
 }

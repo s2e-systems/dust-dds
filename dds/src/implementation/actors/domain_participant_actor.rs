@@ -81,8 +81,7 @@ use crate::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{
-        deserialize_rtps_encapsulated_data, serialize_rtps_xtypes_xcdr1_le, DdsHasKey, DdsKey,
-        DdsTypeXml,
+        deserialize_rtps_encapsulated_data, serialize_rtps_xtypes_xcdr1_le,
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -100,59 +99,6 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
 ];
-
-pub struct FooTypeSupport {
-    has_key: bool,
-    get_serialized_key_from_serialized_foo: fn(&[u8]) -> DdsResult<Vec<u8>>,
-    instance_handle_from_serialized_foo: fn(&[u8]) -> DdsResult<InstanceHandle>,
-    instance_handle_from_serialized_key: fn(&[u8]) -> DdsResult<InstanceHandle>,
-    type_xml: String,
-}
-
-impl FooTypeSupport {
-    pub fn new<Foo>() -> Self
-    where
-        Foo: DdsKey + DdsHasKey + DdsTypeXml,
-    {
-        // This function is a workaround due to an issue resolving
-        // lifetimes of the closure.
-        // See for more details: https://github.com/rust-lang/rust/issues/41078
-        fn define_function_with_correct_lifetime<F, O>(closure: F) -> F
-        where
-            F: for<'a> Fn(&'a [u8]) -> DdsResult<O>,
-        {
-            closure
-        }
-
-        let get_serialized_key_from_serialized_foo =
-            define_function_with_correct_lifetime(|serialized_foo| {
-                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                serialize_rtps_xtypes_xcdr1_le(&foo_key)
-            });
-
-        let instance_handle_from_serialized_foo =
-            define_function_with_correct_lifetime(|serialized_foo| {
-                let foo_key = Foo::get_key_from_serialized_data(serialized_foo)?;
-                InstanceHandle::try_from_key(&foo_key)
-            });
-
-        let instance_handle_from_serialized_key =
-            define_function_with_correct_lifetime(|mut serialized_key| {
-                let foo_key = deserialize_rtps_encapsulated_data::<Foo::Key>(&mut serialized_key)?;
-                InstanceHandle::try_from_key(&foo_key)
-            });
-
-        let type_xml = Foo::get_type_xml().unwrap_or(String::new());
-
-        Self {
-            has_key: Foo::HAS_KEY,
-            get_serialized_key_from_serialized_foo,
-            instance_handle_from_serialized_foo,
-            instance_handle_from_serialized_key,
-            type_xml,
-        }
-    }
-}
 
 pub enum ListenerKind {
     Reader {
