@@ -2,24 +2,17 @@ use super::{
     deserializer::{DeserializeMutableStruct, DeserializeSequence},
     serialize::XTypesSerializer,
     serializer::SerializeFinalStruct,
-    type_object::TypeKind,
     xcdr_deserializer::Xcdr1BeDeserializer,
 };
 use crate::{
-    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_PARTICIPANT_GUID,
     infrastructure::instance::InstanceHandle,
-    topic_definition::type_support::TypeSupport,
     xtypes::{
-        deserializer::XTypesDeserializer,
-        dynamic_type::DynamicType,
-        error::XTypesError,
-        serialize::{Write, XTypesSerialize},
-        type_object,
-        xcdr_deserializer::Xcdr1LeDeserializer,
-        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
+        deserializer::XTypesDeserializer, dynamic_type::DynamicType, error::XTypesError,
+        serialize::Write, type_object, xcdr_deserializer::Xcdr1LeDeserializer,
+        xcdr_serializer::Xcdr2BeSerializer,
     },
 };
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 
 struct Md5 {
     key: [u8; 16],
@@ -172,9 +165,73 @@ fn push_to_key_built_in<'a>(
     deserializer: &mut Xcdr1LeDeserializer<'a>,
 ) -> Result<(), XTypesError> {
     let mut de = deserializer.deserialize_mutable_struct()?;
-    let pid = dynamic_type.get_member_by_index(0)?.get_descriptor()?.id;
-    let key: InstanceHandle = de.deserialize_field(pid, "")?;
-    serializer.serialize_field(&key, "")?;
+    for id in 0..dynamic_type.get_member_count() {
+        let member = dynamic_type.get_member_by_index(id)?;
+        let descriptor = member.get_descriptor()?;
+        let pid = descriptor.id;
+        let is_key_field = descriptor.is_key;
+        match descriptor.type_.get_descriptor()?.kind {
+            type_object::TK_BOOLEAN => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<bool>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_INT64 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<i64>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_UINT64 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<u64>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_UINT16 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<u16>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_INT32 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<i32>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_UINT32 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<u32>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_UINT8 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<u8>(pid, "")?, "")?;
+                }
+            }
+            type_object::TK_ARRAY => {
+                // let mut v = Vec::new();
+                // for _ in 0..descriptor.type_.get_member_count() {
+                // }
+                serializer.serialize_field(&de.deserialize_field::<[u8; 16]>(pid, "")?, "")?;
+            }
+            type_object::TK_SEQUENCE => {
+                // let len = de.deserialize_sequence()?.len();
+                // for _ in 0..len {
+                //     push_to_key(dynamic_type, serializer, de)?;
+                // }
+                todo!()
+            }
+            type_object::TK_STRUCTURE => {
+                //push_to_key(dynamic_type, serializer, de)?;
+                todo!()
+            }
+            type_object::TK_STRING8 => {
+                if is_key_field {
+                    serializer.serialize_field(&de.deserialize_field::<&str>(pid, "")?, "")?;
+                }
+            }
+            _ => panic!(),
+        }
+    }
+
     Ok(())
 }
 
@@ -249,9 +306,11 @@ pub fn get_serialized_key_from_serialized_foo(
     dynamic_type: &dyn DynamicType,
 ) -> Result<Vec<u8>, XTypesError> {
     let mut collection = Vec::new();
-    collection.append(&mut vec![0, 1, 0, 0]);
     {
         let representation_identifier = [data[0], data[1]];
+        let representation_options = [data[2], data[3]];
+        collection.extend_from_slice(&representation_identifier);
+        collection.extend_from_slice(&representation_options);
         data.consume(4);
         let mut serializer = Xcdr2BeSerializer::new(&mut collection);
         let mut s = serializer.serialize_final_struct()?;
@@ -272,8 +331,134 @@ pub fn get_serialized_key_from_serialized_foo(
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        topic_definition::type_support::TypeSupport,
+        xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
+    };
+
     use super::*;
     use dust_dds_derive::TypeSupport;
+
+    //#[derive(TypeSupport)]
+    //#[dust_dds(extensibility = "Mutable")]
+    struct MutableStruct {
+        //#[dust_dds(key)]
+        _key_field1: u8,
+        //#[dust_dds(key)]
+        _field_inbetween: u32,
+        //#[dust_dds(key)]
+        _key_field2: u16,
+    }
+
+    impl dust_dds::topic_definition::type_support::TypeSupport for MutableStruct {
+        fn get_type_name() -> &'static str {
+            "MutableStruct"
+        }
+        fn get_type() -> impl dust_dds::xtypes::dynamic_type::DynamicType {
+            dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
+                struct_type: dust_dds::xtypes::type_object::CompleteStructType {
+                    struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
+                        is_final: false,
+                        is_appendable: false,
+                        is_mutable: true,
+                        is_nested: false,
+                        is_autoid_hash: false,
+                    },
+                    header: dust_dds::xtypes::type_object::CompleteStructHeader {
+                        base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
+                        detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
+                            ann_builtin: None,
+                            ann_custom: None,
+                            type_name: "MutableStruct".to_string(),
+                        },
+                    },
+                    member_seq: vec![
+                        dust_dds::xtypes::type_object::CompleteStructMember {
+                            common: dust_dds::xtypes::type_object::CommonStructMember {
+                                member_id: 10u32,
+                                member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                    try_construct:
+                                        dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                    is_external: false,
+                                    is_optional: false,
+                                    is_must_undestand: true,
+                                    is_key: true,
+                                },
+                                member_type_id:
+                                    dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+                            },
+                            detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                                name: "_key_field1".to_string(),
+                                ann_builtin: None,
+                                ann_custom: None,
+                            },
+                        },
+                        dust_dds::xtypes::type_object::CompleteStructMember {
+                            common: dust_dds::xtypes::type_object::CommonStructMember {
+                                member_id: 77u32,
+                                member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                    try_construct:
+                                        dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                    is_external: false,
+                                    is_optional: false,
+                                    is_must_undestand: true,
+                                    is_key: false,
+                                },
+                                member_type_id:
+                                    dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                            },
+                            detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                                name: "_field_inbetween".to_string(),
+                                ann_builtin: None,
+                                ann_custom: None,
+                            },
+                        },
+                        dust_dds::xtypes::type_object::CompleteStructMember {
+                            common: dust_dds::xtypes::type_object::CommonStructMember {
+                                member_id: 11u32,
+                                member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                    try_construct:
+                                        dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                    is_external: false,
+                                    is_optional: false,
+                                    is_must_undestand: true,
+                                    is_key: true,
+                                },
+                                member_type_id:
+                                    dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type,
+                            },
+                            detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                                name: "_key_field2".to_string(),
+                                ann_builtin: None,
+                                ann_custom: None,
+                            },
+                        },
+                    ],
+                },
+            }
+        }
+    }
+
+    #[test]
+    fn key_from_mutable_struct() {
+        let data = [
+            0, 3, 0, 0, //rtps header (PL_CDR_LE: version 1)
+            10, 0, 4, 0, // PID | length (CDR1: incl padding)
+            1, 0, 0, 0, //key_field1 (u8) | padding (3bytes)
+            77, 0, 4, 0, // PID | length (CDR1: incl padding)
+            7, 0, 0, 0, //field_inbetween (u32)
+            11, 0, 4, 0, // PID | length (CDR1: incl padding)
+            2, 0, 0, 0, //key_field2 (u16) | padding (2bytes)
+            1, 0, 0, 0, // Sentinel
+        ];
+        assert_eq!(
+            get_serialized_key_from_serialized_foo(&data, &MutableStruct::get_type()).unwrap(),
+            vec![
+                0, 3, 0, 0, // RTPS header
+                1, 0, 0, 2 // key_field1 (u8) | padding (1byte) | key_field2 (u16)
+            ]
+        );
+    }
 
     #[derive(XTypesSerialize, TypeSupport)]
     //@extensibility(FINAL) @nested

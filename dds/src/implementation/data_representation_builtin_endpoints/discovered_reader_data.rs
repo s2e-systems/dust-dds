@@ -70,7 +70,21 @@ impl TypeSupport for DiscoveredReaderData {
                             is_must_undestand: true,
                             is_key: true,
                         },
-                        member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                        member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
+                            array_sdefn: Box::new(
+                                dust_dds::xtypes::type_object::PlainArraySElemDefn {
+                                    header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                        equiv_kind: 0,
+                                        element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                            try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                            is_external: false,
+                                        },
+                                    },
+                                    array_bound_seq: vec![16],
+                                    element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+                                },
+                            ),
+                        },
                     },
                     detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
                         name: "value".to_string(),
