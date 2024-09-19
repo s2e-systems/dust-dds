@@ -29,7 +29,6 @@ use crate::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    xtypes::type_object::TypeIdentifier,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -88,7 +87,7 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
                             is_external: false,
                             is_optional: false,
                             is_must_undestand: true,
-                            is_key: false,
+                            is_key: true,
                         },
                         member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
                     },

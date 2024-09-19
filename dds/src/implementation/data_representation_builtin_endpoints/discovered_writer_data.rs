@@ -65,7 +65,7 @@ impl TypeSupport for DiscoveredWriterData {
                             is_external: false,
                             is_optional: false,
                             is_must_undestand: true,
-                            is_key: false,
+                            is_key: true,
                         },
                         member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
                     },
