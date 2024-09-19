@@ -206,6 +206,12 @@ fn push_to_key_built_in<'a>(
                     serializer.serialize_field(&de.deserialize_field::<u8>(pid, "")?, "")?;
                 }
             }
+            type_object::TK_ARRAY => {
+                // let mut v = Vec::new();
+                // for _ in 0..descriptor.type_.get_member_count() {
+                // }
+                serializer.serialize_field(&de.deserialize_field::<[u8; 16]>(pid, "")?, "")?;
+            }
             type_object::TK_SEQUENCE => {
                 // let len = de.deserialize_sequence()?.len();
                 // for _ in 0..len {
