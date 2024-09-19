@@ -1,4 +1,4 @@
-use syn::{spanned::Spanned, DeriveInput, Field, Result};
+use syn::{spanned::Spanned, DeriveInput, Expr, Field, Result};
 
 pub enum Extensibility {
     Final,
@@ -76,6 +76,9 @@ pub fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("key") {
                 has_key = true;
+                return Ok(());
+            } else if meta.path.is_ident("id") {
+                let id: Expr = meta.value()?.parse()?;
             }
             Ok(())
         })?;

@@ -76,7 +76,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
             match extensibility {
                 Extensibility::Final | Extensibility::Appendable => (),
                 Extensibility::Mutable => field_serialization.extend(
-                    quote! { dust_dds::xtypes::serializer::SerializeMutableStruct::end(&mut s)?;},
+                    quote! { dust_dds::xtypes::serializer::SerializeMutableStruct::end(s)?;},
                 ),
             }
 

@@ -8,15 +8,7 @@ use derive::{
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
-#[proc_macro_derive(XTypesDynamicType, attributes(xtypes))]
-pub fn derive_xtypes_dynamic_type(input: TokenStream) -> TokenStream {
-    let input: DeriveInput = parse_macro_input!(input);
-    expand_xtypes_dynamic_type(&input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_derive(XTypesSerialize, attributes(xtypes))]
+#[proc_macro_derive(XTypesSerialize, attributes(dust_dds))]
 pub fn derive_xtypes_serialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_xtypes_serialize(&input)
@@ -24,7 +16,7 @@ pub fn derive_xtypes_serialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(XTypesDeserialize, attributes(xtypes))]
+#[proc_macro_derive(XTypesDeserialize, attributes(dust_dds))]
 pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_xtypes_deserialize(&input)
@@ -32,7 +24,7 @@ pub fn derive_xtypes_deserialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(TypeSupport, attributes(xtypes, dust_dds))]
+#[proc_macro_derive(TypeSupport, attributes(dust_dds))]
 pub fn derive_type_support(input: TokenStream) -> TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     expand_type_support(&input)

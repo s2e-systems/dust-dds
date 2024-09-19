@@ -1,7 +1,5 @@
 use super::{error::XTypesError, type_object::TypeKind};
 
-pub use dust_dds_derive::XTypesDynamicType;
-
 pub type ObjectName = String;
 
 #[derive(Clone, Copy)]
@@ -46,7 +44,7 @@ pub struct MemberDescriptor<'a> {
     pub is_default_label: bool,
 }
 
-pub trait DynamicType : Send + Sync + 'static {
+pub trait DynamicType: Send + Sync + 'static {
     fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError>;
     fn get_name(&self) -> ObjectName;
     fn get_kind(&self) -> TypeKind;

@@ -1,72 +1,14 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{spanned::Spanned, DeriveInput, Result};
-
-enum Format {
-    CdrLe,
-    CdrBe,
-    PlCdrLe,
-    PlCdrBe,
-}
-
-fn get_format(input: &DeriveInput) -> Result<Format> {
-    let mut format = Format::CdrLe;
-    if let Some(dds_attribute) = input.attrs.iter().find(|&a| a.path().is_ident("dust_dds")) {
-        dds_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("format") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "CDR_LE" => {
-                        format = Format::CdrLe;
-                        Ok(())
-                    }
-                    "CDR_BE" => {
-                        format = Format::CdrBe;
-                        Ok(())
-                    }
-                    "PL_CDR_LE" => {
-                        format = Format::PlCdrLe;
-                        Ok(())
-                    }
-                    "PL_CDR_BE" => {
-                        format = Format::PlCdrBe;
-                        Ok(())
-                    }
-                    _ => Err(syn::Error::new(
-                        meta.path.span(),
-                        r#"Invalid format specified. Valid options are "CDR_LE", "CDR_BE", "PL_CDR_LE", "PL_CDR_BE". "#,
-                    )),
-                }
-            } else {
-                Ok(())
-            }
-        })?;
-    }
-    Ok(format)
-}
+use syn::{DeriveInput, Result};
 
 pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(_) | syn::Data::Enum(_) => {
-            let format = get_format(input)?;
-            let serialize_function = match format {
-                Format::CdrLe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_le(
-                        self,
-                )},
-                Format::CdrBe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_be(
-                        self,
-                )},
-                Format::PlCdrLe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl_le(
-                        self,
-                )},
-                Format::PlCdrBe => quote! {
-                    dust_dds::topic_definition::type_support::serialize_rtps_cdr_pl_be(
-                        self,
-                )},
-            };
+            let serialize_function = quote! {
+                dust_dds::topic_definition::type_support::serialize_rtps_xtypes_xcdr1_le(
+                    self,
+            )};
 
             let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
             let ident = &input.ident;
@@ -89,7 +31,6 @@ pub fn expand_dds_serialize_data(input: &DeriveInput) -> Result<TokenStream> {
 pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         syn::Data::Struct(_) | syn::Data::Enum(_) => {
-            let format = get_format(input)?;
             let (_, type_generics, where_clause) = input.generics.split_for_impl();
 
             // Create a '__de lifetime bound to all the lifetimes of the struct
@@ -108,15 +49,8 @@ pub fn expand_dds_deserialize_data(input: &DeriveInput) -> Result<TokenStream> {
 
             let ident = &input.ident;
 
-            let deserialize_function = match format {
-                Format::CdrLe | Format::CdrBe => {
-                    quote! {
-                        dust_dds::topic_definition::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
-                    }
-                }
-                Format::PlCdrLe | Format::PlCdrBe => quote! {
-                    dust_dds::topic_definition::type_support::deserialize_rtps_cdr_pl(&mut serialized_data)
-                },
+            let deserialize_function = quote! {
+                dust_dds::topic_definition::type_support::deserialize_rtps_encapsulated_data(&mut serialized_data)
             };
 
             Ok(quote! {
