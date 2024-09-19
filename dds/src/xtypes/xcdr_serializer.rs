@@ -153,11 +153,11 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr1BeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
         let length = Xcdr1BeSerializer::bytes_len(value)? as u16;
-        self.writer.write_slice(&pid.to_be_bytes());
+        self.writer.write_slice(&(pid as u16).to_be_bytes());
         self.writer.write_slice(&length.to_be_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
         self.writer.pad(4);
@@ -323,11 +323,11 @@ impl<C: Write> SerializeMutableStruct for &mut Xcdr1LeSerializer<'_, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
         let length = Xcdr1LeSerializer::bytes_len(value)? as u16;
-        self.writer.write_slice(&pid.to_le_bytes());
+        self.writer.write_slice(&(pid as u16).to_le_bytes());
         self.writer.write_slice(&length.to_le_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
         self.writer.pad(4);
@@ -477,11 +477,11 @@ impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2BeSerializer<'a, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
         let length = Xcdr2BeSerializer::bytes_len(value)? as u16;
-        self.writer.write_slice(&pid.to_be_bytes());
+        self.writer.write_slice(&(pid as u16).to_be_bytes());
         self.writer.write_slice(&length.to_be_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
         self.writer.pad(4);
@@ -498,11 +498,11 @@ impl<'a, C: Write> SerializeMutableStruct for &mut Xcdr2LeSerializer<'a, C> {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<(), XTypesError> {
         let length = Xcdr2LeSerializer::bytes_len(value)? as u16;
-        self.writer.write_slice(&pid.to_le_bytes());
+        self.writer.write_slice(&(pid as u16).to_le_bytes());
         self.writer.write_slice(&length.to_le_bytes());
         XTypesSerialize::serialize(value, &mut **self)?;
         self.writer.pad(4);

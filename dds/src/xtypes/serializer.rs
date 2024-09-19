@@ -23,7 +23,7 @@ pub trait SerializeMutableStruct {
     fn serialize_field<T: XTypesSerialize>(
         &mut self,
         value: &T,
-        pid: u16,
+        pid: u32,
         name: &str,
     ) -> Result<(), XTypesError>;
     fn end(self) -> Result<(), XTypesError>;

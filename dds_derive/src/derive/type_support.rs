@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{spanned::Spanned, DeriveInput, Field, Result, Type};
 
-use super::attributes::{field_has_key_attribute, get_input_extensibility, Extensibility};
+use super::attributes::{get_field_attributes, get_input_extensibility, Extensibility};
 
 fn is_field_optional(field: &Field) -> bool {
     matches!(&field.ty, syn::Type::Path(field_type_path) if field_type_path.path.segments[0].ident == "Option")
@@ -182,7 +182,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     let complete_type_object_quote = match &input.data {
         syn::Data::Struct(data_struct) => {
             let type_name = ident.to_string();
-            let (is_final, is_appendable, is_mutable) = match get_input_extensibility(input)? {
+            let extensibility = get_input_extensibility(input)?;
+            let (is_final, is_appendable, is_mutable) = match extensibility {
                 Extensibility::Final => (true, false, false),
                 Extensibility::Appendable => (false, true, false),
                 Extensibility::Mutable => (false, false, true),
@@ -211,7 +212,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
             let mut member_seq = quote! {};
             for (field_index, field) in data_struct.fields.iter().enumerate() {
-                let member_id = field_index as u32;
+                let field_attributes = get_field_attributes(field)?;
+
+                let member_id = match extensibility {
+                    Extensibility::Final | Extensibility::Appendable => {
+                        syn::parse_str(&field_index.to_string())
+                    }
+                    Extensibility::Mutable => field_attributes.id.ok_or(syn::Error::new(
+                        field.span(),
+                        "Mutable struct must define id attribute for every field",
+                    )),
+                }?;
                 let field_name = field
                     .ident
                     .as_ref()
@@ -219,7 +230,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .unwrap_or(field_index.to_string());
                 let is_optional = is_field_optional(field);
                 let member_type_id = get_type_identifier(&field.ty)?;
-                let is_key = field_has_key_attribute(field)?;
+                let is_key = field_attributes.key;
                 member_seq.extend(
                     quote! {dust_dds::xtypes::type_object::CompleteStructMember {
                         common: dust_dds::xtypes::type_object::CommonStructMember {

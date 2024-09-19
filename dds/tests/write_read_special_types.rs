@@ -1,7 +1,5 @@
 mod utils;
 
-use std::ops::Range;
-
 use dust_dds::{
     dds_async::{
         data_reader_listener::DataReaderListenerAsync,
@@ -10,8 +8,6 @@ use dust_dds::{
     },
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        error::DdsResult,
-        instance::InstanceHandle,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -23,10 +19,23 @@ use dust_dds::{
         data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, DynamicTypeInterface},
+    topic_definition::type_support::DdsType,
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
+const ABCD: u32 = 10;
+#[derive(DdsType)]
+#[dust_dds(extensibility = "Mutable")]
+struct MutableType {
+    #[dust_dds(key, id = ABCD)]
+    // #[dust_dds(key)]
+    id: u32,
+    #[dust_dds(id = 20)]
+    value: Vec<u8>,
+    #[dust_dds(key, id = 30)]
+    another_id: u64,
+}
 
 #[test]
 fn foo_with_lifetime_should_read_and_write() {

@@ -1,5 +1,5 @@
 use super::{
-    attributes::{get_field_id, get_input_extensibility, Extensibility},
+    attributes::{get_field_attributes, get_input_extensibility, Extensibility},
     enum_support::{
         get_enum_bitbound, is_enum_xtypes_union, read_enum_variant_discriminant_mapping, BitBound,
     },
@@ -47,7 +47,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                                 quote! { dust_dds::xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.#field_name, #field_name_str)?;},
                             ),
                             Extensibility::Mutable => {
-                                let id = get_field_id(field)?;
+                                let id = get_field_attributes(field)?.id.ok_or(syn::Error::new(field.span(), "Mutable struct must define id attribute for every field"))?;
                                 field_serialization.extend(
                                     quote! { dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.#field_name, #id, #field_name_str)?;},
                                 );
@@ -63,7 +63,7 @@ pub fn expand_xtypes_serialize(input: &DeriveInput) -> Result<TokenStream> {
                             Extensibility::Appendable => field_serialization
                                 .extend(quote! { dust_dds::xtypes::serializer::SerializeAppendableStruct::serialize_field(&mut s, &self.#index, #index_str)?;}),
                             Extensibility::Mutable => {
-                                let id = get_field_id(field)?;
+                                let id = get_field_attributes(field)?.id.ok_or(syn::Error::new(field.span(), "Mutable struct must define id attribute for every field"))?;
                                 field_serialization.extend(
                                     quote! { dust_dds::xtypes::serializer::SerializeMutableStruct::serialize_field(&mut s, &self.#index, #id, #index_str)?;},
                                 );
@@ -256,7 +256,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                                 Extensibility::Appendable => field_deserialization
                                     .extend(quote! { dust_dds::xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #index_str)?,}),
                                 Extensibility::Mutable => {
-                                    let id = get_field_id(field)?;
+                                    let id = get_field_attributes(field)?.id.ok_or(syn::Error::new(field.span(), "Mutable struct must define id attribute for every field"))?;
                                     field_deserialization
                                         .extend(quote! { dust_dds::xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #index_str)?,});
                                 }
@@ -275,7 +275,7 @@ pub fn expand_xtypes_deserialize(input: &DeriveInput) -> Result<TokenStream> {
                                     quote! {#field_name:  dust_dds::xtypes::deserializer::DeserializeAppendableStruct::deserialize_field(&mut d, #field_name_str)?,},
                                 ),
                                 Extensibility::Mutable => {
-                                    let id = get_field_id(field)?;
+                                    let id = get_field_attributes(field)?.id.ok_or(syn::Error::new(field.span(), "Mutable struct must define id attribute for every field"))?;
                                     field_deserialization.extend(
                                         quote! {#field_name:  dust_dds::xtypes::deserializer::DeserializeMutableStruct::deserialize_field(&mut d, #id, #field_name_str)?,},
                                     );

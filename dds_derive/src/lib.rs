@@ -1,7 +1,6 @@
 mod derive;
 use derive::{
     dds_serialize_data::{expand_dds_deserialize_data, expand_dds_serialize_data},
-    dynamic_type::expand_xtypes_dynamic_type,
     type_support::expand_type_support,
     xtypes::{expand_xtypes_deserialize, expand_xtypes_serialize},
 };

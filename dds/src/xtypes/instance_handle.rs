@@ -172,7 +172,7 @@ fn push_to_key_built_in<'a>(
     deserializer: &mut Xcdr1LeDeserializer<'a>,
 ) -> Result<(), XTypesError> {
     let mut de = deserializer.deserialize_mutable_struct()?;
-    let pid = dynamic_type.get_member_by_index(0)?.get_descriptor()?.id as u16;
+    let pid = dynamic_type.get_member_by_index(0)?.get_descriptor()?.id;
     let key: InstanceHandle = de.deserialize_field(pid, "")?;
     serializer.serialize_field(&key, "")?;
     Ok(())
