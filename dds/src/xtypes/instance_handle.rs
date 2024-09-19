@@ -19,8 +19,10 @@ use crate::{
 use dust_dds_derive::TypeSupport;
 
 use super::{
-    deserializer::DeserializeMutableStruct, serialize::XTypesSerializer,
-    serializer::SerializeFinalStruct, xcdr_deserializer::Xcdr1BeDeserializer,
+    deserializer::{DeserializeMutableStruct, DeserializeSequence},
+    serialize::XTypesSerializer,
+    serializer::SerializeFinalStruct,
+    xcdr_deserializer::Xcdr1BeDeserializer,
 };
 
 struct Md5 {
@@ -63,14 +65,32 @@ fn push_to_key(
         let member = dynamic_type.get_member_by_index(id)?;
         let is_key_field = member.get_descriptor()?.is_key;
         match member.get_descriptor()?.type_.get_kind() {
+            type_object::TK_BOOLEAN => {
+                let v = de.deserialize_boolean()?;
+                if is_key_field {
+                    serializer.serialize_field(&v, "")?;
+                }
+            }
             type_object::TK_INT64 => {
                 let v = de.deserialize_int64()?;
                 if is_key_field {
                     serializer.serialize_field(&v, "")?;
                 }
             }
+            type_object::TK_UINT64 => {
+                let v = de.deserialize_uint64()?;
+                if is_key_field {
+                    serializer.serialize_field(&v, "")?;
+                }
+            }
             type_object::TK_UINT16 => {
                 let v = de.deserialize_uint16()?;
+                if is_key_field {
+                    serializer.serialize_field(&v, "")?;
+                }
+            }
+            type_object::TK_INT32 => {
+                let v = de.deserialize_int32()?;
                 if is_key_field {
                     serializer.serialize_field(&v, "")?;
                 }
@@ -85,6 +105,13 @@ fn push_to_key(
                 let v = de.deserialize_uint8()?;
                 if is_key_field {
                     serializer.serialize_field(&v, "")?;
+                }
+            }
+            type_object::TK_SEQUENCE => {
+
+                let len = de.deserialize_sequence()?.len();
+                for _ in 0..len {
+                    push_to_key(member.get_descriptor()?.type_, serializer, de)?;
                 }
             }
             type_object::TK_STRUCTURE => {
@@ -105,15 +132,24 @@ fn push_to_key_for_key(
         let member = dynamic_type.get_member_by_index(id)?;
         let is_key_field = member.get_descriptor()?.is_key;
         if is_key_field {
-            match member.get_descriptor()?.type_.get_kind() {
+            match member.get_descriptor()?.type_.get_kind() {                
+                type_object::TK_BOOLEAN => {
+                    serializer.serialize_field(&de.deserialize_boolean()?, "")?
+                }
                 type_object::TK_INT64 => {
                     serializer.serialize_field(&de.deserialize_int64()?, "")?;
+                }
+                type_object::TK_UINT64 => {
+                    serializer.serialize_field(&de.deserialize_uint64()?, "")?;
                 }
                 type_object::TK_UINT16 => {
                     serializer.serialize_field(&de.deserialize_uint16()?, "")?
                 }
                 type_object::TK_UINT32 => {
                     serializer.serialize_field(&de.deserialize_uint32()?, "")?
+                }
+                type_object::TK_INT32 => {
+                    serializer.serialize_field(&de.deserialize_int32()?, "")?
                 }
                 type_object::TK_UINT8 => {
                     serializer.serialize_field(&de.deserialize_uint8()?, "")?
@@ -168,8 +204,12 @@ pub fn get_instance_handle_from_serialized_key(
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut s = serializer.serialize_final_struct()?;
         match representation_identifier {
-            CDR_BE => push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            CDR_LE => push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR_BE => {
+                push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
+            }
+            CDR_LE => {
+                push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
+            }
             _ => panic!("representation_identifier not supported"),
         }
     }
@@ -238,110 +278,114 @@ mod tests {
     #[derive(XTypesSerialize, TypeSupport)]
     //@extensibility(FINAL) @nested
     struct Nested {
-        #[xtypes(key)]
+        #[dust_dds(key)]
         x: u8,
-        #[xtypes(key)]
+        #[dust_dds(key)]
         y: u8,
     }
     #[derive(XTypesSerialize, TypeSupport)]
     //@extensibility(FINAL)
     struct Complex {
         field1: i64,
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field1: u16,
         field2: u32,
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field2: Nested,
     }
 
     #[derive(XTypesSerialize, TypeSupport)]
     //@extensibility(FINAL)
     struct Simple {
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field1: i64,
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field2: i64,
     }
 
-    // #[test]
-    // fn simple_key() {
-    //     let v = Simple {
-    //         key_field1: 1,
-    //         key_field2: 2,
-    //     };
-    //     let data = [
-    //         1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-    //         2, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-    //     ];
-    //     let mut collection = Vec::new();
-    //     v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
-    //         .unwrap();
-    //     assert_eq!(&data, collection.as_slice());
-    //     let key_data = InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]);
-    //     assert_eq!(
-    //         get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
-    //         key_data
-    //     );
-    // }
+    #[test]
+    fn simple_key() {
+        let v = Simple {
+            key_field1: 1,
+            key_field2: 2,
+        };
+        let data = [
+            0, 1, 0, 0, //rtps header
+            1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+            2, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+        ];
+        let mut collection = data[..4].to_vec();
+        v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
+            .unwrap();
+        assert_eq!(&data, collection.as_slice());
+        let key_data = InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq!(
+            get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
+            key_data
+        );
+    }
 
-    // #[test]
-    // fn key() {
-    //     let v = Complex {
-    //         field1: 2,
-    //         key_field1: 3,
-    //         field2: 4,
-    //         key_field2: Nested { x: 5, y: 6 },
-    //     };
-    //     let data = [
-    //         2, 0, 0, 0, 0, 0, 0, 0, //field1 (i64)
-    //         3, 0, 0, 0, //key_field1 (u16) | padding (2B)
-    //         4, 0, 0, 0, //field2 (u32)
-    //         5, 6, //key_field2 (u8, u8)
-    //     ];
-    //     let mut collection = Vec::new();
-    //     v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
-    //         .unwrap();
-    //     assert_eq!(&data, collection.as_slice());
-    //     let key_data = InstanceHandle::new([0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-    //     assert_eq!(
-    //         get_instance_handle_from_serialized_foo(&data, &Complex::get_type()).unwrap(),
-    //         key_data
-    //     );
-    // }
+    #[test]
+    fn key() {
+        let v = Complex {
+            field1: 2,
+            key_field1: 3,
+            field2: 4,
+            key_field2: Nested { x: 5, y: 6 },
+        };
+        let data = [
+            0, 1, 0, 0, //rtps header
+            2, 0, 0, 0, 0, 0, 0, 0, //field1 (i64)
+            3, 0, 0, 0, //key_field1 (u16) | padding (2B)
+            4, 0, 0, 0, //field2 (u32)
+            5, 6, //key_field2 (u8, u8)
+        ];
+        let mut collection = data[..4].to_vec();
+        v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
+            .unwrap();
+        assert_eq!(&data, collection.as_slice());
+        let key_data = InstanceHandle::new([0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            get_instance_handle_from_serialized_foo(&data, &Complex::get_type()).unwrap(),
+            key_data
+        );
+    }
 
     #[derive(XTypesSerialize, TypeSupport)]
     //@extensibility(FINAL)
     struct Large {
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field1: i64,
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field2: i64,
-        #[xtypes(key)]
+        #[dust_dds(key)]
         key_field3: i64,
     }
 
-    // #[test]
-    // fn large_key() {
-    //     let v = Large {
-    //         key_field1: 1,
-    //         key_field2: 2,
-    //         key_field3: 3,
-    //     };
-    //     let data = [
-    //         1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-    //         2, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-    //         3, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-    //     ];
-    //     let mut collection = Vec::new();
-    //     v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
-    //         .unwrap();
-    //     assert_eq!(&data, collection.as_slice());
-    //     let key_data = [
-    //         0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3,
-    //     ];
-    //     assert_eq!(
-    //         get_instance_handle_from_serialized_foo(&data, &Large::get_type()).unwrap(),
-    //         md5::compute(key_data).as_slice()
-    //     );
-    // }
+    #[test]
+    fn large_key() {
+        let v = Large {
+            key_field1: 1,
+            key_field2: 2,
+            key_field3: 3,
+        };
+        let data = [
+            0, 1, 0, 0, //rtps header
+            1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+            2, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+            3, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+        ];
+        let mut collection = data[..4].to_vec();
+        v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
+            .unwrap();
+        assert_eq!(&data, collection.as_slice());
+        let key_data = [
+            0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3,
+        ];
+        let instance_handle = get_instance_handle_from_serialized_foo(&data, &Large::get_type()).unwrap();
+        assert_eq!(
+            <[u8;16]>::from(instance_handle),
+            md5::compute(key_data).as_slice()
+        );
+    }
 }
