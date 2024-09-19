@@ -1,9 +1,12 @@
-use std::io::BufRead;
-
+use super::{
+    deserializer::{DeserializeMutableStruct, DeserializeSequence},
+    serialize::XTypesSerializer,
+    serializer::SerializeFinalStruct,
+    type_object::TypeKind,
+    xcdr_deserializer::Xcdr1BeDeserializer,
+};
 use crate::{
-    implementation::data_representation_builtin_endpoints::parameter_id_values::{
-        PID_ENDPOINT_GUID, PID_PARTICIPANT_GUID,
-    },
+    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_PARTICIPANT_GUID,
     infrastructure::instance::InstanceHandle,
     topic_definition::type_support::TypeSupport,
     xtypes::{
@@ -16,14 +19,7 @@ use crate::{
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
-use dust_dds_derive::TypeSupport;
-
-use super::{
-    deserializer::{DeserializeMutableStruct, DeserializeSequence},
-    serialize::XTypesSerializer,
-    serializer::SerializeFinalStruct,
-    xcdr_deserializer::Xcdr1BeDeserializer,
-};
+use std::io::BufRead;
 
 struct Md5 {
     key: [u8; 16],
@@ -56,115 +52,115 @@ impl Write for Md5 {
     }
 }
 
-fn push_to_key(
+fn deserialize_and_serialize_if_key_field<'a, T>(
     dynamic_type: &dyn DynamicType,
+    is_key_field: bool,
+    de: &mut T,
     serializer: &mut impl SerializeFinalStruct,
-    de: &mut Xcdr1LeDeserializer<'_>,
-) -> Result<(), XTypesError> {
-    for id in 0..dynamic_type.get_member_count() {
-        let member = dynamic_type.get_member_by_index(id)?;
-        let is_key_field = member.get_descriptor()?.is_key;
-        match member.get_descriptor()?.type_.get_kind() {
-            type_object::TK_BOOLEAN => {
-                let v = de.deserialize_boolean()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
+) -> Result<(), XTypesError>
+where
+    for<'b> &'b mut T: XTypesDeserializer<'a>,
+{
+    match dynamic_type.get_kind() {
+        type_object::TK_BOOLEAN => {
+            let v = de.deserialize_boolean()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
             }
-            type_object::TK_INT64 => {
-                let v = de.deserialize_int64()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_UINT64 => {
-                let v = de.deserialize_uint64()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_UINT16 => {
-                let v = de.deserialize_uint16()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_INT32 => {
-                let v = de.deserialize_int32()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_UINT32 => {
-                let v = de.deserialize_uint32()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_UINT8 => {
-                let v = de.deserialize_uint8()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_SEQUENCE => {
-
-                let len = de.deserialize_sequence()?.len();
-                for _ in 0..len {
-                    push_to_key(member.get_descriptor()?.type_, serializer, de)?;
-                }
-            }
-            type_object::TK_STRUCTURE => {
-                push_to_key(member.get_descriptor()?.type_, serializer, de)?;
-            }
-            type_object::TK_STRING8 => {
-                let v = de.deserialize_string()?;
-                if is_key_field {
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            _ => panic!(),
         }
+        type_object::TK_INT64 => {
+            let v = de.deserialize_int64()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        type_object::TK_UINT64 => {
+            let v = de.deserialize_uint64()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        type_object::TK_UINT16 => {
+            let v = de.deserialize_uint16()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        type_object::TK_INT32 => {
+            let v = de.deserialize_int32()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        type_object::TK_UINT32 => {
+            let v = de.deserialize_uint32()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        type_object::TK_UINT8 => {
+            let v = de.deserialize_uint8()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        type_object::TK_SEQUENCE => {
+            let len = de.deserialize_sequence()?.len();
+            for _ in 0..len {
+                push_to_key(dynamic_type, serializer, de)?;
+            }
+        }
+        type_object::TK_STRUCTURE => {
+            push_to_key(dynamic_type, serializer, de)?;
+        }
+        type_object::TK_STRING8 => {
+            let v = de.deserialize_string()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        _ => panic!(),
     }
     Ok(())
 }
 
-fn push_to_key_for_key(
+fn push_to_key<'a, T>(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
-    de: &mut Xcdr1LeDeserializer<'_>,
-) -> Result<(), XTypesError> {
+    de: &mut T,
+) -> Result<(), XTypesError>
+where
+    for<'b> &'b mut T: XTypesDeserializer<'a>,
+{
     for id in 0..dynamic_type.get_member_count() {
         let member = dynamic_type.get_member_by_index(id)?;
-        let is_key_field = member.get_descriptor()?.is_key;
-        if is_key_field {
-            match member.get_descriptor()?.type_.get_kind() {                
-                type_object::TK_BOOLEAN => {
-                    serializer.serialize_field(&de.deserialize_boolean()?, "")?
-                }
-                type_object::TK_INT64 => {
-                    serializer.serialize_field(&de.deserialize_int64()?, "")?;
-                }
-                type_object::TK_UINT64 => {
-                    serializer.serialize_field(&de.deserialize_uint64()?, "")?;
-                }
-                type_object::TK_UINT16 => {
-                    serializer.serialize_field(&de.deserialize_uint16()?, "")?
-                }
-                type_object::TK_UINT32 => {
-                    serializer.serialize_field(&de.deserialize_uint32()?, "")?
-                }
-                type_object::TK_INT32 => {
-                    serializer.serialize_field(&de.deserialize_int32()?, "")?
-                }
-                type_object::TK_UINT8 => {
-                    serializer.serialize_field(&de.deserialize_uint8()?, "")?
-                }
-                type_object::TK_STRUCTURE => {
-                    push_to_key(member.get_descriptor()?.type_, serializer, de)?;
-                }
-                _ => panic!(),
-            }
+        deserialize_and_serialize_if_key_field(
+            member.get_descriptor()?.type_,
+            member.get_descriptor()?.is_key,
+            de,
+            serializer,
+        )?;
+    }
+    Ok(())
+}
+
+fn push_to_key_for_key<'a, T>(
+    dynamic_type: &dyn DynamicType,
+    serializer: &mut impl SerializeFinalStruct,
+    de: &mut T,
+) -> Result<(), XTypesError>
+where
+    for<'b> &'b mut T: XTypesDeserializer<'a>,
+{
+    for id in 0..dynamic_type.get_member_count() {
+        let member = dynamic_type.get_member_by_index(id)?;
+        if member.get_descriptor()?.is_key {
+            deserialize_and_serialize_if_key_field(
+                member.get_descriptor()?.type_,
+                true,
+                de,
+                serializer,
+            )?;
         }
     }
     Ok(())
@@ -183,8 +179,6 @@ fn push_to_key_built_in<'a>(
 }
 
 type RepresentationIdentifier = [u8; 2];
-type RepresentationOptions = [u8; 2];
-
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const _CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
@@ -193,7 +187,6 @@ const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
-const _REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 pub fn get_instance_handle_from_serialized_key(
     mut data: &[u8],
@@ -211,7 +204,7 @@ pub fn get_instance_handle_from_serialized_key(
         let mut s = serializer.serialize_final_struct()?;
         match representation_identifier {
             CDR_BE => {
-                push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
+                push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?
             }
             CDR_LE => {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
@@ -237,7 +230,7 @@ pub fn get_instance_handle_from_serialized_foo(
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut s = serializer.serialize_final_struct()?;
         match representation_identifier {
-            CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
             PL_CDR_BE => {
                 push_to_key_built_in(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
@@ -263,7 +256,7 @@ pub fn get_serialized_key_from_serialized_foo(
         let mut serializer = Xcdr2BeSerializer::new(&mut collection);
         let mut s = serializer.serialize_final_struct()?;
         match representation_identifier {
-            CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
             PL_CDR_BE => {
                 push_to_key_built_in(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
@@ -280,6 +273,7 @@ pub fn get_serialized_key_from_serialized_foo(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dust_dds_derive::TypeSupport;
 
     #[derive(XTypesSerialize, TypeSupport)]
     //@extensibility(FINAL) @nested
@@ -332,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn key() {
+    fn from_serialized_foo_complex() {
         let v = Complex {
             field1: 2,
             key_field1: 3,
@@ -350,11 +344,27 @@ mod tests {
         v.serialize(&mut Xcdr1LeSerializer::new(&mut collection))
             .unwrap();
         assert_eq!(&data, collection.as_slice());
-        let key_data = InstanceHandle::new([0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(
             get_instance_handle_from_serialized_foo(&data, &Complex::get_type()).unwrap(),
-            key_data
+            InstanceHandle::new([0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         );
+        assert_eq!(
+            get_serialized_key_from_serialized_foo(&data, &Complex::get_type()).unwrap(),
+            vec![0, 1, 0, 0, 0, 3, 5, 6]
+        )
+    }
+
+    #[test]
+    fn instance_handle_from_serialized_key() {
+        let data = [
+            0, 1, 0, 0, //rtps header
+            3, 0, //key_field1 (u16) | padding (2B)
+            5, 6, //key_field2 (u8, u8)
+        ];
+        assert_eq!(
+            get_instance_handle_from_serialized_key(&data, &Complex::get_type()).unwrap(),
+            InstanceHandle::new([0, 3, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        )
     }
 
     #[derive(XTypesSerialize, TypeSupport)]
@@ -388,9 +398,10 @@ mod tests {
         let key_data = [
             0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3,
         ];
-        let instance_handle = get_instance_handle_from_serialized_foo(&data, &Large::get_type()).unwrap();
+        let instance_handle =
+            get_instance_handle_from_serialized_foo(&data, &Large::get_type()).unwrap();
         assert_eq!(
-            <[u8;16]>::from(instance_handle),
+            <[u8; 16]>::from(instance_handle),
             md5::compute(key_data).as_slice()
         );
     }
