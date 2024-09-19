@@ -6,15 +6,16 @@ use dust_dds::{
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, Length, ResourceLimitsQosPolicy},
         status::NO_STATUS,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsSerialize, DdsType, DdsTypeXml },
 };
+use dust_dds_derive::{DdsDeserialize, DdsHasKey, DdsKey, TypeSupport, XTypesDeserialize, XTypesSerialize};
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-#[derive(Clone, Debug, PartialEq, DdsType)]
+#[derive(Clone, Debug, PartialEq, TypeSupport, DdsSerialize, XTypesSerialize, DdsTypeXml, DdsHasKey, DdsKey, XTypesDeserialize, DdsDeserialize)]
 struct KeyedData {
-    #[dust_dds(key)]
+    #[xtypes(key)]
     id: u8,
     value: u32,
 }

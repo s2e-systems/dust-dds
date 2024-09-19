@@ -67,8 +67,7 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsKey,
     xtypes::{
-        deserialize::XTypesDeserialize, dynamic_type::DynamicType,
-        xcdr_deserializer::Xcdr1LeDeserializer,
+        deserialize::XTypesDeserialize, dynamic_type::DynamicType, instance_handle::get_instance_handle_from_serialized_foo, xcdr_deserializer::Xcdr1LeDeserializer
     },
 };
 use std::{
@@ -161,8 +160,7 @@ fn build_instance_handle(
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            //type_support.instance_handle_from_serialized_foo(data)?
-            todo!()
+            get_instance_handle_from_serialized_foo(data, type_support.as_ref())?
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered

@@ -135,7 +135,7 @@ pub fn get_instance_handle_from_serialized_foo(
         data.consume(4);
         let mut serializer = Xcdr2BeSerializer::new(&mut md5_collection);
         let mut s = serializer.serialize_final_struct()?;
-
+        println!("get_instance_handle_from_serialized_foo {:?}", representation_identifier);
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
@@ -162,7 +162,7 @@ pub fn get_serialized_key_from_serialized_foo(
         data.consume(4);
         let mut serializer = Xcdr2BeSerializer::new(&mut collection);
         let mut s = serializer.serialize_final_struct()?;
-
+        println!("get_serialized_key_from_serialized_foo {:?}", representation_identifier);
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
