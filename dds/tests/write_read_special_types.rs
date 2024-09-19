@@ -24,16 +24,12 @@ use dust_dds::{
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-const ABCD: u32 = 10;
 #[derive(DdsType)]
-#[dust_dds(extensibility = "Mutable")]
 struct MutableType {
-    #[dust_dds(key, id = ABCD)]
-    // #[dust_dds(key)]
+    #[dust_dds(key)]
     id: u32,
-    #[dust_dds(id = 20)]
     value: Vec<u8>,
-    #[dust_dds(key, id = 30)]
+    #[dust_dds(key)]
     another_id: u64,
 }
 
