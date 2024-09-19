@@ -28,9 +28,11 @@ use crate::{
         messages::types::Count,
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport}, xtypes::type_object::TypeIdentifier,
+    topic_definition::type_support::{
+        DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml, TypeSupport,
+    },
+    xtypes::type_object::TypeIdentifier,
 };
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantProxy {
@@ -62,7 +64,47 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     }
 
     fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
-        TypeIdentifier::TkNone
+        dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
+            struct_type: dust_dds::xtypes::type_object::CompleteStructType {
+                struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
+                    is_final: false,
+                    is_appendable: false,
+                    is_mutable: true,
+                    is_nested: false,
+                    is_autoid_hash: false,
+                },
+                header: dust_dds::xtypes::type_object::CompleteStructHeader {
+                    base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
+                    detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: "SpdpDiscoveredParticipantData".to_string(),
+                    },
+                },
+                member_seq: vec![
+                    dust_dds::xtypes::type_object::CompleteStructMember {
+                        common: dust_dds::xtypes::type_object::CommonStructMember {
+                            member_id: 0x50u32,
+                            member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                                try_construct:
+                                    dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                is_external: false,
+                                is_optional: false,
+                                is_must_undestand: true,
+                                is_key: false,
+                            },
+                            member_type_id:
+                                dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+                        },
+                        detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                            name: "value".to_string(),
+                            ann_builtin: None,
+                            ann_custom: None,
+                        },
+                    },
+                ],
+            },
+        }
     }
 }
 

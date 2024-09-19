@@ -1,7 +1,9 @@
 use std::io::BufRead;
 
 use crate::{
-    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_ENDPOINT_GUID,
+    implementation::data_representation_builtin_endpoints::parameter_id_values::{
+        PID_ENDPOINT_GUID, PID_PARTICIPANT_GUID,
+    },
     infrastructure::instance::InstanceHandle,
     topic_definition::type_support::TypeSupport,
     xtypes::{
@@ -100,7 +102,8 @@ fn push_to_key_built_in<'a>(
     deserializer: &mut Xcdr1LeDeserializer<'a>,
 ) -> Result<(), XTypesError> {
     let mut de = deserializer.deserialize_mutable_struct()?;
-    let key: InstanceHandle = de.deserialize_field(PID_ENDPOINT_GUID as u16, "")?;
+    let pid = dynamic_type.get_member_by_index(0)?.get_descriptor()?.id as u16;
+    let key: InstanceHandle = de.deserialize_field(pid, "")?;
     serializer.serialize_field(&key, "")?;
     Ok(())
 }
@@ -108,13 +111,13 @@ fn push_to_key_built_in<'a>(
 type RepresentationIdentifier = [u8; 2];
 type RepresentationOptions = [u8; 2];
 
-const _CDR_BE: RepresentationIdentifier = [0x00, 0x00];
+const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
 const _CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
 const _CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
-const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
 const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
 const _REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
@@ -149,17 +152,28 @@ pub fn get_instance_handle_from_serialized_foo(
 }
 
 pub fn get_serialized_key_from_serialized_foo(
-    data: &[u8],
+    mut data: &[u8],
     dynamic_type: &dyn DynamicType,
 ) -> Result<Vec<u8>, XTypesError> {
     let mut collection = Vec::new();
     collection.append(&mut vec![0, 1, 0, 0]);
     {
-        let mut serializer = Xcdr1LeSerializer::new(&mut collection);
-        let mut de: Xcdr1LeDeserializer<'_> = Xcdr1LeDeserializer::new(data);
-
+        let representation_identifier = [data[0], data[1]];
+        data.consume(4);
+        let mut serializer = Xcdr2BeSerializer::new(&mut collection);
         let mut s = serializer.serialize_final_struct()?;
-        push_to_key(dynamic_type, &mut s, &mut de)?;
+
+        match representation_identifier {
+            CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            PL_CDR_BE => {
+                push_to_key_built_in(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
+            }
+            PL_CDR_LE => {
+                push_to_key_built_in(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
+            }
+            _ => panic!("representation_identifier not supported"),
+        }
     }
     Ok(collection)
 }
