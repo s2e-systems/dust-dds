@@ -97,6 +97,14 @@ where
                 serializer.serialize_field(&v, "")?;
             }
         }
+        type_object::TK_ARRAY => {
+            let mut array_des = de.deserialize_array()?;
+            for _ in 0..16 {
+                //descriptor.type_.get_member_count() {
+                let v: u8 = array_des.deserialize_element()?;
+                serializer.serialize_field(&v, "")?;
+            }
+        }
         type_object::TK_SEQUENCE => {
             let len = de.deserialize_sequence()?.len();
             for _ in 0..len {
@@ -159,7 +167,6 @@ where
     Ok(())
 }
 
-
 fn seek_to_pid_le(reader: &mut &[u8], pid: u32) -> Result<(), XTypesError> {
     const PID_SENTINEL: u16 = 1;
     loop {
@@ -192,69 +199,14 @@ fn push_to_key_built_in<'a>(
         let is_key_field = descriptor.is_key;
         if is_key_field {
             seek_to_pid_le(&mut buffer, pid)?;
-        }
-        let mut de = Xcdr1LeDeserializer::new(buffer);
-        match descriptor.type_.get_descriptor()?.kind {
-            type_object::TK_BOOLEAN => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_boolean()?, "")?;
-                }
-            }
-            type_object::TK_INT64 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_int64()?, "")?;
-                }
-            }
-            type_object::TK_UINT64 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_uint64()?, "")?;
-                }
-            }
-            type_object::TK_UINT16 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_uint16()?, "")?;
-                }
-            }
-            type_object::TK_INT32 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_int32()?, "")?;
-                }
-            }
-            type_object::TK_UINT32 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_uint32()?, "")?;
-                }
-            }
-            type_object::TK_UINT8 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_uint8()?, "")?;
-                }
-            }
-            type_object::TK_ARRAY => {
-                
-                let mut array_des = de.deserialize_array()?;
-                for _ in 0..16 {//descriptor.type_.get_member_count() {
-                    let v:u8 =  array_des.deserialize_element()?;
-                    serializer.serialize_field(&v, "")?;
-                }
-            }
-            type_object::TK_SEQUENCE => {
-                // let len = de.deserialize_sequence()?.len();
-                // for _ in 0..len {
-                //     push_to_key(dynamic_type, serializer, de)?;
-                // }
-                todo!()
-            }
-            type_object::TK_STRUCTURE => {
-                //push_to_key(dynamic_type, serializer, de)?;
-                todo!()
-            }
-            type_object::TK_STRING8 => {
-                if is_key_field {
-                    serializer.serialize_field(&de.deserialize_string()?, "")?;
-                }
-            }
-            _ => panic!(),
+
+            let mut de = Xcdr1LeDeserializer::new(buffer);
+            deserialize_and_serialize_if_key_field(
+                descriptor.type_,
+                is_key_field,
+                &mut de,
+                serializer,
+            )?;
         }
     }
 
@@ -315,12 +267,8 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            PL_CDR_BE => {
-                push_to_key_built_in(dynamic_type, &mut s, data)?
-            }
-            PL_CDR_LE => {
-                push_to_key_built_in(dynamic_type, &mut s, data)?
-            }
+            PL_CDR_BE => push_to_key_built_in(dynamic_type, &mut s, data)?,
+            PL_CDR_LE => push_to_key_built_in(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
         }
     }
@@ -343,12 +291,8 @@ pub fn get_serialized_key_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            PL_CDR_BE => {
-                push_to_key_built_in(dynamic_type, &mut s, data)?
-            }
-            PL_CDR_LE => {
-                push_to_key_built_in(dynamic_type, &mut s, data)?
-            }
+            PL_CDR_BE => push_to_key_built_in(dynamic_type, &mut s, data)?,
+            PL_CDR_LE => push_to_key_built_in(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
         }
     }
@@ -368,11 +312,11 @@ mod tests {
     #[derive(TypeSupport)]
     #[dust_dds(extensibility = "Mutable")]
     struct MutableStruct {
-        #[dust_dds(key, id=10)]
+        #[dust_dds(key, id = 10)]
         _key_field1: u8,
-        #[dust_dds(id=20)]
+        #[dust_dds(id = 20)]
         _field_inbetween: u32,
-        #[dust_dds(key, id=11)]
+        #[dust_dds(key, id = 11)]
         _key_field2: u16,
     }
 
