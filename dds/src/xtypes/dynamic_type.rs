@@ -1,4 +1,7 @@
-use super::{error::XTypesError, type_object::TypeKind};
+use super::{
+    error::XTypesError,
+    type_object::{TypeIdentifier, TypeKind},
+};
 
 pub type ObjectName = String;
 
@@ -32,7 +35,7 @@ pub type MemberId = u32;
 pub struct MemberDescriptor<'a> {
     pub name: ObjectName,
     pub id: MemberId,
-    pub type_: &'a dyn DynamicType,
+    pub type_: &'a TypeIdentifier,
     pub default_value: &'static str,
     pub index: u32,
     // pub label :UnionCaseLabelSeq,
