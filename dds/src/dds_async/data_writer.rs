@@ -21,6 +21,9 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -38,14 +41,7 @@ use crate::{
         types::ChangeKind,
     },
     topic_definition::type_support::DdsSerialize,
-    xtypes::{
-        self,
-        instance_handle::{
-            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
-        },
-        serialize::XTypesSerialize,
-        xcdr_serializer::Xcdr1LeSerializer,
-    },
+    xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
 };
 use std::{marker::PhantomData, sync::Arc};
 
@@ -290,10 +286,7 @@ where
 
         let serialized_foo = instance.serialize_data()?;
         let instance_serialized_key =
-            xtypes::instance_handle::get_serialized_key_from_serialized_foo(
-                &serialized_foo,
-                type_support.as_ref(),
-            )?;
+            get_serialized_key_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
 
         let message_sender_actor = self
             .participant_address()
@@ -431,10 +424,7 @@ where
             .await;
 
         let serialized_data = data.serialize_data()?;
-        let key = xtypes::instance_handle::get_instance_handle_from_serialized_foo(
-            &serialized_data,
-            type_support.as_ref(),
-        )?;
+        let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
         let message_sender_actor = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetMessageSender)?

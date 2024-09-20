@@ -1,12 +1,14 @@
-use super::{
-    deserialize::XTypesDeserialize, deserializer::DeserializeSequence, dynamic_type::MemberDescriptor, serialize::XTypesSerializer, serializer::SerializeFinalStruct, type_object::TypeIdentifier, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::Xcdr1LeSerializer
-};
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
-        deserializer::XTypesDeserializer, dynamic_type::DynamicType, error::XTypesError,
-        serialize::Write, xcdr_deserializer::Xcdr1LeDeserializer,
-        xcdr_serializer::Xcdr2BeSerializer,
+        deserializer::{DeserializeSequence, XTypesDeserializer},
+        dynamic_type::{DynamicType, MemberDescriptor},
+        error::XTypesError,
+        serialize::{Write, XTypesSerializer},
+        serializer::SerializeFinalStruct,
+        type_object::TypeIdentifier,
+        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
+        xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
 use std::io::BufRead;
@@ -227,11 +229,9 @@ impl<'a> Iterator for MemberDescriptorIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.range.next()?;
         match self.dynamic_type.get_member_by_index(i) {
-            Ok(member) => {
-                match member.get_descriptor() {
-                    Ok(descriptor) => Some(Ok(descriptor)),
-                    Err(err) => return Some(Err(err)),
-                }
+            Ok(member) => match member.get_descriptor() {
+                Ok(descriptor) => Some(Ok(descriptor)),
+                Err(err) => return Some(Err(err)),
             },
             Err(err) => return Some(Err(err)),
         }
@@ -728,8 +728,6 @@ mod tests {
         )
     }
 
-
-    
     // #[derive(TypeSupport)]
     // #[dust_dds(extensibility = "Final")]
     // struct EveryBasicType {

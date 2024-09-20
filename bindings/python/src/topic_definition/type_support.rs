@@ -69,7 +69,7 @@ impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
     }
 
     fn get_name(&self) -> dust_dds::xtypes::dynamic_type::ObjectName {
-        todo!()
+        Python::with_gil(|py|self.0.bind(py).get_type().name().expect("name exists").to_string())
     }
 
     fn get_kind(&self) -> dust_dds::xtypes::type_object::TypeKind {
@@ -91,38 +91,6 @@ impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
 impl From<Py<PyAny>> for PythonTypeRepresentation {
     fn from(value: Py<PyAny>) -> Self {
         Self(value)
-    }
-}
-
-impl dust_dds::topic_definition::type_support::DynamicTypeInterface for PythonTypeRepresentation {
-    fn has_key(&self) -> bool {
-        true
-    }
-
-    fn get_serialized_key_from_serialized_foo(&self, _serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-        todo!()
-    }
-
-    fn instance_handle_from_serialized_foo(
-        &self,
-        _serialized_foo: &[u8],
-    ) -> DdsResult<dust_dds::infrastructure::instance::InstanceHandle> {
-        Ok(InstanceHandle::default())
-    }
-
-    fn instance_handle_from_serialized_key(
-        &self,
-        _serialized_key: &[u8],
-    ) -> DdsResult<dust_dds::infrastructure::instance::InstanceHandle> {
-        todo!()
-    }
-
-    fn xml_type(&self) -> String {
-        String::new()
-    }
-
-    fn user_data(&self) -> Option<&dyn std::any::Any> {
-        Some(&self.0)
     }
 }
 
