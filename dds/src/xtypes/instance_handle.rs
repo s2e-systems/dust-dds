@@ -161,6 +161,7 @@ where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
     for member_descriptor in dynamic_type.into_iter() {
+        let member_descriptor = member_descriptor?;
         deserialize_and_serialize_if_key_field(
             member_descriptor.type_,
             member_descriptor.is_key,
@@ -180,6 +181,7 @@ where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
     for member_descriptor in dynamic_type.into_iter() {
+        let member_descriptor = member_descriptor?;
         if member_descriptor.is_key {
             deserialize_and_serialize_if_key_field(member_descriptor.type_, true, de, serializer)?;
         }
@@ -222,22 +224,24 @@ pub struct MemberDescriptorIter<'a> {
     range: core::ops::Range<u32>,
 }
 impl<'a> Iterator for MemberDescriptorIter<'a> {
-    type Item = MemberDescriptor<'a>;
+    type Item = Result<MemberDescriptor<'a>, XTypesError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.range.next()?;
-        Some(
-            self.dynamic_type
-                .get_member_by_index(i)
-                .unwrap()
-                .get_descriptor()
-                .unwrap(),
-        )
+        match self.dynamic_type.get_member_by_index(i) {
+            Ok(member) => {
+                match member.get_descriptor() {
+                    Ok(descriptor) => Some(Ok(descriptor)),
+                    Err(err) => return Some(Err(err)),
+                }
+            },
+            Err(err) => return Some(Err(err)),
+        }
     }
 }
 
 impl<'a> IntoIterator for &'a dyn DynamicType {
-    type Item = MemberDescriptor<'a>;
+    type Item = Result<MemberDescriptor<'a>, XTypesError>;
     type IntoIter = MemberDescriptorIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -254,6 +258,7 @@ fn push_to_key_parameter_list_le<'a>(
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for descriptor in dynamic_type.into_iter() {
+        let descriptor = descriptor?;
         if descriptor.is_key {
             let buffer = go_to_pid_le(&data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
@@ -269,6 +274,7 @@ fn push_to_key_parameter_list_be<'a>(
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for descriptor in dynamic_type.into_iter() {
+        let descriptor = descriptor?;
         if descriptor.is_key {
             let buffer = go_to_pid_be(&data, descriptor.id)?;
             let mut de = Xcdr1BeDeserializer::new(buffer);
