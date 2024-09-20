@@ -30,7 +30,7 @@ fn get_type_identifier(type_: &Type) -> Result<TokenStream> {
                         }
                     } else {
                         dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArrayLarge {
-                            array_sdefn: Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
+                            array_ldefn: Box::new(dust_dds::xtypes::type_object::PlainArrayLElemDefn {
                                 header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                     equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
                                     element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
