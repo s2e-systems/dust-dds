@@ -1418,4 +1418,117 @@ mod tests {
             ]
         );
     }
+
+    
+    #[derive(Debug, PartialEq)]
+    struct BasicTypes {
+        f1: bool,
+        f2: i8,
+        f3: i16,
+        f4: i32,
+        f5: i64,
+        f6: u8,
+        f7: u16,
+        f8: u32,
+        f9: u64,
+        f10: f32,
+        f11: f64,
+        f12: char,
+    }
+
+    impl XTypesSerialize for BasicTypes {
+        fn serialize(&self, serializer: impl XTypesSerializer) -> Result<(), XTypesError> {
+            let mut serializer = serializer.serialize_final_struct()?;
+            serializer.serialize_field(&self.f1, "f1")?;
+            serializer.serialize_field(&self.f2, "f2")?;
+            serializer.serialize_field(&self.f3, "f3")?;
+            serializer.serialize_field(&self.f4, "f4")?;
+            serializer.serialize_field(&self.f5, "f5")?;
+            serializer.serialize_field(&self.f6, "f6")?;
+            serializer.serialize_field(&self.f7, "f7")?;
+            serializer.serialize_field(&self.f8, "f8")?;
+            serializer.serialize_field(&self.f9, "f9")?;
+            serializer.serialize_field(&self.f10, "f10")?;
+            serializer.serialize_field(&self.f11, "f11")?;
+            serializer.serialize_field(&self.f12, "f12")
+        }
+    }
+
+    #[test]
+    fn serialize_basic_types_struct() {
+        let v = BasicTypes {
+            f1: true,
+            f2: 2,
+            f3: 3,
+            f4: 4,
+            f5: 5,
+            f6: 6,
+            f7: 7,
+            f8: 8,
+            f9: 9,
+            f10: 1.0,
+            f11: 1.0,
+            f12: 'a',
+        };
+        // PLAIN_CDR:
+        assert_eq!(
+            serialize_v1_be(&v),
+            vec![
+                1, 2, 0, 3, 0, 0, 0, 4, // f1: bool | f2: i8 | f3: i16 | f4: i32
+                0, 0, 0, 0, 0, 0, 0, 5, // f5: i64
+                6, 0, 0, 7, 0, 0, 0, 8, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
+                0, 0, 0, 0, 0, 0, 0, 9, // f9: u64
+                0x3F, 0x80, 0x00, 0x00, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
+                0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // f11: f64
+                b'a', // f12: char
+            ]
+        );
+        assert_eq!(
+            serialize_v1_le(&v),
+            vec![
+                1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
+                5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
+                6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
+                9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
+                0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
+                b'a', // f12: char
+            ]
+        );
+        //PLAIN_CDR2:
+        assert_eq!(
+            serialize_v2_be(&v),
+            vec![
+                1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
+                0, 0, 0, 4, // f4: i32
+                0, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 5, // f5-2: i64
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16 
+                0, 0, 0, 8, // f8: u32
+                0, 0, 0, 0, // f9-1: u64
+                0, 0, 0, 9, // f9-2: u64
+                0x3F, 0x80, 0x00, 0x00, // f10: f32 
+                0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
+                0x00, 0x00, 0x00, 0x00, // f11-2: f64
+                b'a', // f12: char
+            ]
+        );
+        assert_eq!(
+            serialize_v2_le(&v),
+            vec![
+                1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
+                4, 0, 0, 0, // f4: i32
+                5, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 0, // f5-2: i64
+                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16 
+                8, 0, 0, 0, // f8: u32
+                9, 0, 0, 0, // f9-1: u64
+                0, 0, 0, 0, // f9-2: u64
+                0x00, 0x00, 0x80, 0x3F, // f10: f32 
+                0x00, 0x00, 0x00, 0x00, // f11-1: f64
+                0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
+                b'a', // f12: char
+            ]
+        );
+    }
 }
