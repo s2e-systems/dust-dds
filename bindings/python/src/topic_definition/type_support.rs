@@ -1,5 +1,6 @@
+use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
-    infrastructure::{error::DdsResult, instance::InstanceHandle},
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
@@ -12,8 +13,6 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDict, PyList, PySequence, PyString, PyTuple, PyType},
 };
-
-use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 
 #[allow(non_camel_case_types)]
 #[pyclass]
@@ -69,7 +68,14 @@ impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
     }
 
     fn get_name(&self) -> dust_dds::xtypes::dynamic_type::ObjectName {
-        Python::with_gil(|py|self.0.bind(py).get_type().name().expect("name exists").to_string())
+        Python::with_gil(|py| {
+            self.0
+                .bind(py)
+                .get_type()
+                .name()
+                .expect("name exists")
+                .to_string()
+        })
     }
 
     fn get_kind(&self) -> dust_dds::xtypes::type_object::TypeKind {
@@ -289,7 +295,6 @@ impl PythonDdsData {
         }
     }
 }
-
 
 impl DdsSerialize for PythonDdsData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {

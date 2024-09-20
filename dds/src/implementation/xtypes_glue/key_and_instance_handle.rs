@@ -231,9 +231,9 @@ impl<'a> Iterator for MemberDescriptorIter<'a> {
         match self.dynamic_type.get_member_by_index(i) {
             Ok(member) => match member.get_descriptor() {
                 Ok(descriptor) => Some(Ok(descriptor)),
-                Err(err) => return Some(Err(err)),
+                Err(err) => Some(Err(err)),
             },
-            Err(err) => return Some(Err(err)),
+            Err(err) => Some(Err(err)),
         }
     }
 }
@@ -250,7 +250,7 @@ impl<'a> IntoIterator for &'a dyn DynamicType {
     }
 }
 
-fn push_to_key_parameter_list_le<'a>(
+fn push_to_key_parameter_list_le(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
@@ -258,7 +258,7 @@ fn push_to_key_parameter_list_le<'a>(
     for descriptor in dynamic_type.into_iter() {
         let descriptor = descriptor?;
         if descriptor.is_key {
-            let buffer = go_to_pid_le(&data, descriptor.id)?;
+            let buffer = go_to_pid_le(data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
             deserialize_and_serialize_if_key_field(descriptor.type_, true, &mut de, serializer)?;
         }
@@ -266,7 +266,7 @@ fn push_to_key_parameter_list_le<'a>(
     Ok(())
 }
 
-fn push_to_key_parameter_list_be<'a>(
+fn push_to_key_parameter_list_be(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
@@ -274,7 +274,7 @@ fn push_to_key_parameter_list_be<'a>(
     for descriptor in dynamic_type.into_iter() {
         let descriptor = descriptor?;
         if descriptor.is_key {
-            let buffer = go_to_pid_be(&data, descriptor.id)?;
+            let buffer = go_to_pid_be(data, descriptor.id)?;
             let mut de = Xcdr1BeDeserializer::new(buffer);
             deserialize_and_serialize_if_key_field(descriptor.type_, true, &mut de, serializer)?;
         }

@@ -1,7 +1,4 @@
-use crate::{
-    infrastructure::error::{DdsError, DdsResult},
-    xtypes::dynamic_type::DynamicType,
-};
+use crate::{infrastructure::error::DdsResult, xtypes::dynamic_type::DynamicType};
 pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
 use std::io::{Read, Write};
 
