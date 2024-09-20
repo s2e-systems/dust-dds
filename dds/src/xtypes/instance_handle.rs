@@ -167,49 +167,40 @@ where
     Ok(())
 }
 
-fn seek_to_pid_le(reader: &mut &[u8], pid: u32) -> Result<(), XTypesError> {
+fn go_to_pid_le(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
     const PID_SENTINEL: u16 = 1;
     loop {
-        let mut current_pid_buf = [0u8; 2];
-        let mut length_buf = [0u8; 2];
-        reader.read_exact(&mut current_pid_buf).unwrap();
-        reader.read_exact(&mut length_buf).unwrap();
-        let current_pid = u16::from_le_bytes(current_pid_buf);
-        let length = u16::from_le_bytes(length_buf) as usize;
+        let current_pid = u16::from_le_bytes([reader[0], reader[1]]);
         if current_pid == pid as u16 {
-            return Ok(());
+            return Ok(&reader[4..]);
         } else if current_pid == PID_SENTINEL {
             return Err(XTypesError::PidNotFound(pid as u16));
         } else {
-            *reader = &reader[length..];
+            let length = u16::from_le_bytes([reader[2], reader[3]]) as usize;
+            reader = &reader[length..];
         }
     }
 }
 
-fn push_to_key_built_in<'a>(
+fn push_to_key_parameter_list<'a>(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
 ) -> Result<(), XTypesError> {
     for id in 0..dynamic_type.get_member_count() {
-        let mut buffer = data;
         let member = dynamic_type.get_member_by_index(id)?;
         let descriptor = member.get_descriptor()?;
-        let pid = descriptor.id;
-        let is_key_field = descriptor.is_key;
-        if is_key_field {
-            seek_to_pid_le(&mut buffer, pid)?;
-
+        if descriptor.is_key {
+            let buffer = go_to_pid_le(&data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
             deserialize_and_serialize_if_key_field(
                 descriptor.type_,
-                is_key_field,
+                true,
                 &mut de,
                 serializer,
             )?;
         }
     }
-
     Ok(())
 }
 
@@ -267,8 +258,8 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            PL_CDR_BE => push_to_key_built_in(dynamic_type, &mut s, data)?,
-            PL_CDR_LE => push_to_key_built_in(dynamic_type, &mut s, data)?,
+            PL_CDR_BE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
+            PL_CDR_LE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
         }
     }
@@ -291,8 +282,8 @@ pub fn get_serialized_key_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            PL_CDR_BE => push_to_key_built_in(dynamic_type, &mut s, data)?,
-            PL_CDR_LE => push_to_key_built_in(dynamic_type, &mut s, data)?,
+            PL_CDR_BE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
+            PL_CDR_LE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
         }
     }
