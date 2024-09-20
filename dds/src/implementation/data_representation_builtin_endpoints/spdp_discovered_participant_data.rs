@@ -29,7 +29,6 @@ use crate::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    xtypes::type_object::{CollectionElementFlag, PlainCollectionHeader},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]

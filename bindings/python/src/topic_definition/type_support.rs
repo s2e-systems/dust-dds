@@ -82,7 +82,7 @@ impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
 
     fn get_member_by_index(
         &self,
-        index: u32,
+        _index: u32,
     ) -> Result<&dyn dust_dds::xtypes::dynamic_type::DynamicTypeMember, XTypesError> {
         todo!()
     }

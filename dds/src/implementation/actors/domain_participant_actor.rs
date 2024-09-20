@@ -80,9 +80,6 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{
-        deserialize_rtps_encapsulated_data, serialize_rtps_xtypes_xcdr1_le,
-    },
     xtypes::dynamic_type::DynamicType,
 };
 use std::{

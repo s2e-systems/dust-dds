@@ -16,7 +16,6 @@ use crate::{
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    xtypes::type_object::TypeIdentifier,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]

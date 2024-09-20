@@ -1,8 +1,8 @@
-use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError},
-    prelude::*,
+use super::{
+    data_reader_listener::DataReaderListener,
+    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    subscriber::Subscriber,
 };
-
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{
@@ -19,12 +19,7 @@ use crate::{
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
-
-use super::{
-    data_reader_listener::DataReaderListener,
-    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    subscriber::Subscriber,
-};
+use pyo3::{exceptions::PyTypeError, prelude::*};
 
 #[pyclass]
 pub struct DataReader(dust_dds::subscription::data_reader::DataReader<PythonDdsData>);
@@ -43,19 +38,11 @@ impl AsRef<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for D
 
 impl DataReader {
     fn get_data_type(&self) -> PyResult<Py<PyAny>> {
-        let type_support = self
+        let _type_support = self
             .0
             .get_topicdescription()
             .get_type_support()
             .map_err(into_pyerr)?;
-        // type_support
-        //     .user_data()
-        //     .ok_or(PyRuntimeError::new_err("Type missing user data"))?
-        //     .downcast_ref::<Py<PyAny>>()
-        //     .ok_or(PyTypeError::new_err(
-        //         "Type support user data should be of PyAny type",
-        //     ))
-        //     .cloned()
         todo!()
     }
 }

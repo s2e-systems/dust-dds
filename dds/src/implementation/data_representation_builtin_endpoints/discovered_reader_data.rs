@@ -19,7 +19,6 @@ use crate::{
     },
     rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    xtypes::type_object::TypeIdentifier,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
