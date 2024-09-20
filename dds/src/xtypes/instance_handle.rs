@@ -1,18 +1,19 @@
 use super::{
-    deserializer::{DeserializeArray, DeserializeMutableStruct, DeserializeSequence},
+    deserializer::{DeserializeArray, DeserializeSequence},
     serialize::XTypesSerializer,
     serializer::SerializeFinalStruct,
+    type_object::TypeIdentifier,
     xcdr_deserializer::Xcdr1BeDeserializer,
 };
 use crate::{
     infrastructure::instance::InstanceHandle,
     xtypes::{
         deserializer::XTypesDeserializer, dynamic_type::DynamicType, error::XTypesError,
-        serialize::Write, type_object, xcdr_deserializer::Xcdr1LeDeserializer,
+        serialize::Write, xcdr_deserializer::Xcdr1LeDeserializer,
         xcdr_serializer::Xcdr2BeSerializer,
     },
 };
-use std::io::{BufRead, Read};
+use std::io::BufRead;
 
 struct Md5 {
     key: [u8; 16],
@@ -46,7 +47,7 @@ impl Write for Md5 {
 }
 
 fn deserialize_and_serialize_if_key_field<'a, T>(
-    dynamic_type: &dyn DynamicType,
+    dynamic_type: &TypeIdentifier,
     is_key_field: bool,
     de: &mut T,
     serializer: &mut impl SerializeFinalStruct,
@@ -54,50 +55,75 @@ fn deserialize_and_serialize_if_key_field<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    match dynamic_type.get_kind() {
-        type_object::TK_BOOLEAN => {
+    match dynamic_type {
+        TypeIdentifier::TkNone => todo!(),
+        TypeIdentifier::TkBoolean => {
             let v = de.deserialize_boolean()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        type_object::TK_INT64 => {
-            let v = de.deserialize_int64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        type_object::TK_UINT64 => {
-            let v = de.deserialize_uint64()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        type_object::TK_UINT16 => {
-            let v = de.deserialize_uint16()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        type_object::TK_INT32 => {
+        TypeIdentifier::TkByteType => todo!(),
+        TypeIdentifier::TkInt8Type => todo!(),
+        TypeIdentifier::TkInt16Type => todo!(),
+        TypeIdentifier::TkInt32Type => {
             let v = de.deserialize_int32()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        type_object::TK_UINT32 => {
-            let v = de.deserialize_uint32()?;
+        TypeIdentifier::TkInt64Type => {
+            let v = de.deserialize_int64()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        type_object::TK_UINT8 => {
+        TypeIdentifier::TkUint8Type => {
             let v = de.deserialize_uint8()?;
             if is_key_field {
                 serializer.serialize_field(&v, "")?;
             }
         }
-        type_object::TK_ARRAY => {
+        TypeIdentifier::TkUint16Type => {
+            let v = de.deserialize_uint16()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkUint32Type => {
+            let v = de.deserialize_uint32()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkUint64Type => {
+            let v = de.deserialize_uint64()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TkFloat32Type => todo!(),
+        TypeIdentifier::TkFloat64Type => todo!(),
+        TypeIdentifier::TkFloat128Type => todo!(),
+        TypeIdentifier::TkChar8Type => todo!(),
+        TypeIdentifier::TkChar16Type => todo!(),
+        TypeIdentifier::TiString8Small { .. } => {
+            let v = de.deserialize_string()?;
+            if is_key_field {
+                serializer.serialize_field(&v, "")?;
+            }
+        }
+        TypeIdentifier::TiString16Small { .. } => todo!(),
+        TypeIdentifier::TiString8Large { .. } => todo!(),
+        TypeIdentifier::TiString16Large { .. } => todo!(),
+        TypeIdentifier::TiPlainSequenceSmall { .. } => {
+            let len = de.deserialize_sequence()?.len();
+            for _ in 0..len {
+                push_to_key(dynamic_type, serializer, de)?;
+            }
+        }
+        TypeIdentifier::TiPlainSequenceLarge { .. } => todo!(),
+        TypeIdentifier::TiPlainArraySmall { .. } => {
             let mut array_des = de.deserialize_array()?;
             for _ in 0..16 {
                 //descriptor.type_.get_member_count() {
@@ -105,22 +131,14 @@ where
                 serializer.serialize_field(&v, "")?;
             }
         }
-        type_object::TK_SEQUENCE => {
-            let len = de.deserialize_sequence()?.len();
-            for _ in 0..len {
-                push_to_key(dynamic_type, serializer, de)?;
-            }
-        }
-        type_object::TK_STRUCTURE => {
+        TypeIdentifier::TiPlainArrayLarge { .. } => todo!(),
+        TypeIdentifier::TiPlainMapSmall { .. } => todo!(),
+        TypeIdentifier::TiPlainMapLarge { .. } => todo!(),
+        TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
+        TypeIdentifier::EkComplete { .. } => {
             push_to_key(dynamic_type, serializer, de)?;
         }
-        type_object::TK_STRING8 => {
-            let v = de.deserialize_string()?;
-            if is_key_field {
-                serializer.serialize_field(&v, "")?;
-            }
-        }
-        _ => panic!(),
+        TypeIdentifier::EkMinimal { .. } => todo!(),
     }
     Ok(())
 }
@@ -177,7 +195,7 @@ fn go_to_pid_le(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
             return Err(XTypesError::PidNotFound(pid as u16));
         } else {
             let length = u16::from_le_bytes([reader[2], reader[3]]) as usize;
-            reader = &reader[length..];
+            reader = &reader[length + 4..];
         }
     }
 }
@@ -193,12 +211,7 @@ fn push_to_key_parameter_list<'a>(
         if descriptor.is_key {
             let buffer = go_to_pid_le(&data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
-            deserialize_and_serialize_if_key_field(
-                descriptor.type_,
-                true,
-                &mut de,
-                serializer,
-            )?;
+            deserialize_and_serialize_if_key_field(descriptor.type_, true, &mut de, serializer)?;
         }
     }
     Ok(())
