@@ -1,5 +1,6 @@
 use super::{
     deserializer::{DeserializeArray, DeserializeSequence},
+    dynamic_type::{DynamicTypeMember, MemberDescriptor},
     serialize::XTypesSerializer,
     serializer::SerializeFinalStruct,
     type_object::TypeIdentifier,
@@ -135,8 +136,8 @@ where
         TypeIdentifier::TiPlainMapSmall { .. } => todo!(),
         TypeIdentifier::TiPlainMapLarge { .. } => todo!(),
         TypeIdentifier::TiStronglyConnectedComponent { .. } => todo!(),
-        TypeIdentifier::EkComplete { .. } => {
-            push_to_key(dynamic_type, serializer, de)?;
+        TypeIdentifier::EkComplete { complete } => {
+            push_to_key(complete.as_ref(), serializer, de)?;
         }
         TypeIdentifier::EkMinimal { .. } => todo!(),
     }
@@ -151,11 +152,10 @@ fn push_to_key<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    for id in 0..dynamic_type.get_member_count() {
-        let member = dynamic_type.get_member_by_index(id)?;
+    for member_descriptor in dynamic_type.into_iter() {
         deserialize_and_serialize_if_key_field(
-            member.get_descriptor()?.type_,
-            member.get_descriptor()?.is_key,
+            member_descriptor.type_,
+            member_descriptor.is_key,
             de,
             serializer,
         )?;
@@ -171,11 +171,10 @@ fn push_to_key_for_key<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    for id in 0..dynamic_type.get_member_count() {
-        let member = dynamic_type.get_member_by_index(id)?;
-        if member.get_descriptor()?.is_key {
+    for member_descriptor in dynamic_type.into_iter() {
+        if member_descriptor.is_key {
             deserialize_and_serialize_if_key_field(
-                member.get_descriptor()?.type_,
+                member_descriptor.type_,
                 true,
                 de,
                 serializer,
@@ -200,14 +199,62 @@ fn go_to_pid_le(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
     }
 }
 
-fn push_to_key_parameter_list<'a>(
+fn go_to_pid_be(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
+    const PID_SENTINEL: u16 = 1;
+    loop {
+        let current_pid = u16::from_be_bytes([reader[0], reader[1]]);
+        if current_pid == pid as u16 {
+            return Ok(&reader[4..]);
+        } else if current_pid == PID_SENTINEL {
+            return Err(XTypesError::PidNotFound(pid as u16));
+        } else {
+            let length = u16::from_be_bytes([reader[2], reader[3]]) as usize;
+            reader = &reader[length + 4..];
+        }
+    }
+}
+
+pub struct MemberDescriptorIter<'a> {
+    dynamic_type: &'a dyn DynamicType,
+    i: u32,
+}
+impl<'a> Iterator for MemberDescriptorIter<'a> {
+    type Item = MemberDescriptor<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.i += 1;
+        if self.i <= self.dynamic_type.get_member_count() {
+            Some(
+                self.dynamic_type
+                    .get_member_by_index(self.i-1)
+                    .unwrap()
+                    .get_descriptor()
+                    .unwrap(),
+            )
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a dyn DynamicType {
+    type Item = MemberDescriptor<'a>;
+    type IntoIter = MemberDescriptorIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MemberDescriptorIter {
+            dynamic_type: self,
+            i: 0,
+        }
+    }
+}
+
+fn push_to_key_parameter_list_le<'a>(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
     data: &[u8],
 ) -> Result<(), XTypesError> {
-    for id in 0..dynamic_type.get_member_count() {
-        let member = dynamic_type.get_member_by_index(id)?;
-        let descriptor = member.get_descriptor()?;
+    for descriptor in dynamic_type.into_iter() {
         if descriptor.is_key {
             let buffer = go_to_pid_le(&data, descriptor.id)?;
             let mut de = Xcdr1LeDeserializer::new(buffer);
@@ -216,6 +263,23 @@ fn push_to_key_parameter_list<'a>(
     }
     Ok(())
 }
+
+
+fn push_to_key_parameter_list_be<'a>(
+    dynamic_type: &dyn DynamicType,
+    serializer: &mut impl SerializeFinalStruct,
+    data: &[u8],
+) -> Result<(), XTypesError> {
+    for descriptor in dynamic_type.into_iter() {
+        if descriptor.is_key {
+            let buffer = go_to_pid_be(&data, descriptor.id)?;
+            let mut de = Xcdr1BeDeserializer::new(buffer);
+            deserialize_and_serialize_if_key_field(descriptor.type_, true, &mut de, serializer)?;
+        }
+    }
+    Ok(())
+}
+
 
 type RepresentationIdentifier = [u8; 2];
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
@@ -271,8 +335,8 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            PL_CDR_BE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
-            PL_CDR_LE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
+            PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
+            PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
         }
     }
@@ -295,8 +359,8 @@ pub fn get_serialized_key_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
-            PL_CDR_BE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
-            PL_CDR_LE => push_to_key_parameter_list(dynamic_type, &mut s, data)?,
+            PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
+            PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
         }
     }
