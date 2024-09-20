@@ -1,7 +1,5 @@
 use super::{
-    deserializer::DeserializeSequence, dynamic_type::MemberDescriptor, serialize::XTypesSerializer,
-    serializer::SerializeFinalStruct, type_object::TypeIdentifier,
-    xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::Xcdr1LeSerializer,
+    deserialize::XTypesDeserialize, deserializer::DeserializeSequence, dynamic_type::MemberDescriptor, serialize::XTypesSerializer, serializer::SerializeFinalStruct, type_object::TypeIdentifier, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::Xcdr1LeSerializer
 };
 use crate::{
     infrastructure::instance::InstanceHandle,
@@ -729,4 +727,70 @@ mod tests {
             expected_instance_handle
         )
     }
+
+
+    
+    // #[derive(TypeSupport)]
+    // #[dust_dds(extensibility = "Final")]
+    // struct EveryBasicType {
+    //     #[dust_dds(key)]
+    //     _f2: bool,
+    //     #[dust_dds(key)]
+    //     _f4: i8,
+    //     #[dust_dds(key)]
+    //     _f5: i16,
+    //     #[dust_dds(key)]
+    //     _f6: i32,
+    //     #[dust_dds(key)]
+    //     _f7: i64,
+    //     #[dust_dds(key)]
+    //     _f8: u8,
+    //     #[dust_dds(key)]
+    //     _f9: u16,
+    //     #[dust_dds(key)]
+    //     _f10: u32,
+    //     #[dust_dds(key)]
+    //     _f11: u64,
+    //     #[dust_dds(key)]
+    //     _f12: f32,
+    //     #[dust_dds(key)]
+    //     _f13: f64,
+    // }
+
+    // #[test]
+    // fn every_basic_type_be() {
+    //     let data = [
+    //         0, 0, 0, 0, //rtps header
+    //         1, // f2: bool
+    //         2, 0, // f4: i8
+    //         3, 0, 0, 0, // f5: i16
+    //         4, 0, 0, 0, 0, 0, 0, 0, // f6: i32
+    //         5, 0, 0, 0, 0, 0, 0, 0, // f7: i64
+    //         6, // f8: u8
+    //         7, 0, 0, 0, // f9: u16
+    //         8, 0, 0, 0, 0, 0, 0, 0, // f10: u32
+    //         9, 0, 0, 0, 0, 0, 0, 0, // f11: u64
+    //          // f12: f32
+    //          // f13: f64
+    //     ];
+    //     let expected_instance_handle =
+    //         InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]);
+    //     assert_eq!(
+    //         get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
+    //         expected_instance_handle
+    //     );
+    //     let expected_key = vec![
+    //         0, 1, 0, 0, // RTPS header
+    //         1, 0, 0, 0, 0, 0, 0, 0, // key_field1
+    //         2, 0, 0, 0, 0, 0, 0, 0, // key_field2
+    //     ];
+    //     assert_eq!(
+    //         get_serialized_key_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
+    //         expected_key
+    //     );
+    //     assert_eq!(
+    //         get_instance_handle_from_serialized_key(&expected_key, &Simple::get_type()).unwrap(),
+    //         expected_instance_handle
+    //     )
+    // }
 }
