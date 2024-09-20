@@ -48,7 +48,7 @@ impl Write for Md5 {
 }
 
 fn deserialize_and_serialize_if_key_field<'a, T>(
-    dynamic_type: &TypeIdentifier,
+    type_identifier: &TypeIdentifier,
     is_key_field: bool,
     de: &mut T,
     serializer: &mut impl SerializeFinalStruct,
@@ -56,7 +56,7 @@ fn deserialize_and_serialize_if_key_field<'a, T>(
 where
     for<'b> &'b mut T: XTypesDeserializer<'a>,
 {
-    match dynamic_type {
+    match type_identifier {
         TypeIdentifier::TkNone => todo!(),
         TypeIdentifier::TkBoolean => {
             let v = de.deserialize_boolean()?;
@@ -117,19 +117,26 @@ where
         TypeIdentifier::TiString16Small { .. } => todo!(),
         TypeIdentifier::TiString8Large { .. } => todo!(),
         TypeIdentifier::TiString16Large { .. } => todo!(),
-        TypeIdentifier::TiPlainSequenceSmall { .. } => {
+        TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
             let len = de.deserialize_sequence()?.len();
             for _ in 0..len {
-                push_to_key(dynamic_type, serializer, de)?;
+                deserialize_and_serialize_if_key_field(
+                    &seq_sdefn.element_identifier,
+                    is_key_field,
+                    de,
+                    serializer,
+                )?;
             }
         }
         TypeIdentifier::TiPlainSequenceLarge { .. } => todo!(),
-        TypeIdentifier::TiPlainArraySmall { .. } => {
-            let mut array_des = de.deserialize_array()?;
-            for _ in 0..16 {
-                //descriptor.type_.get_member_count() {
-                let v: u8 = array_des.deserialize_element()?;
-                serializer.serialize_field(&v, "")?;
+        TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+            for _ in 0..array_sdefn.array_bound_seq[0] {
+                deserialize_and_serialize_if_key_field(
+                    &array_sdefn.element_identifier,
+                    is_key_field,
+                    de,
+                    serializer,
+                )?;
             }
         }
         TypeIdentifier::TiPlainArrayLarge { .. } => todo!(),
@@ -173,12 +180,7 @@ where
 {
     for member_descriptor in dynamic_type.into_iter() {
         if member_descriptor.is_key {
-            deserialize_and_serialize_if_key_field(
-                member_descriptor.type_,
-                true,
-                de,
-                serializer,
-            )?;
+            deserialize_and_serialize_if_key_field(member_descriptor.type_, true, de, serializer)?;
         }
     }
     Ok(())
@@ -216,24 +218,20 @@ fn go_to_pid_be(mut reader: &[u8], pid: u32) -> Result<&[u8], XTypesError> {
 
 pub struct MemberDescriptorIter<'a> {
     dynamic_type: &'a dyn DynamicType,
-    i: u32,
+    range: core::ops::Range<u32>,
 }
 impl<'a> Iterator for MemberDescriptorIter<'a> {
     type Item = MemberDescriptor<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.i += 1;
-        if self.i <= self.dynamic_type.get_member_count() {
-            Some(
-                self.dynamic_type
-                    .get_member_by_index(self.i-1)
-                    .unwrap()
-                    .get_descriptor()
-                    .unwrap(),
-            )
-        } else {
-            None
-        }
+        let i = self.range.next()?;
+        Some(
+            self.dynamic_type
+                .get_member_by_index(i)
+                .unwrap()
+                .get_descriptor()
+                .unwrap(),
+        )
     }
 }
 
@@ -244,7 +242,7 @@ impl<'a> IntoIterator for &'a dyn DynamicType {
     fn into_iter(self) -> Self::IntoIter {
         MemberDescriptorIter {
             dynamic_type: self,
-            i: 0,
+            range: 0..self.get_member_count(),
         }
     }
 }
@@ -264,7 +262,6 @@ fn push_to_key_parameter_list_le<'a>(
     Ok(())
 }
 
-
 fn push_to_key_parameter_list_be<'a>(
     dynamic_type: &dyn DynamicType,
     serializer: &mut impl SerializeFinalStruct,
@@ -279,7 +276,6 @@ fn push_to_key_parameter_list_be<'a>(
     }
     Ok(())
 }
-
 
 type RepresentationIdentifier = [u8; 2];
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
@@ -539,4 +535,5 @@ mod tests {
             md5::compute(key_data).as_slice()
         );
     }
+
 }
