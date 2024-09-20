@@ -29,6 +29,9 @@ use crate::{
             mpsc::{mpsc_channel, MpscSender},
             timer::TimerHandle,
         },
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+        },
     },
     infrastructure::{
         self,
@@ -66,11 +69,7 @@ use crate::{
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     xtypes::{
-        deserialize::XTypesDeserialize,
-        dynamic_type::DynamicType,
-        instance_handle::{
-            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-        },
+        deserialize::XTypesDeserialize, dynamic_type::DynamicType,
         xcdr_deserializer::Xcdr1LeDeserializer,
     },
 };
