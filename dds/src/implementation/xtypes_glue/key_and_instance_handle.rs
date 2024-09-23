@@ -391,7 +391,16 @@ pub fn get_serialized_key_from_serialized_foo(
             _ => panic!("representation_identifier not supported"),
         }
     }
+    let padding_len = ((collection.len() + 4 - 1) / 4 * 4) - collection.len();
+    const ZEROS: [u8; 4] = [0; 4];
+    collection.extend_from_slice(&ZEROS[..padding_len]);
+    collection[3] |= padding_len as u8;
     Ok(collection)
+}
+
+#[test]
+fn paddd() {
+    assert_eq!(19 % 4, 20)
 }
 
 #[cfg(test)]
@@ -502,26 +511,26 @@ mod tests {
         #[dust_dds(key)]
         _key_field1: i64,
         #[dust_dds(key)]
-        _key_field2: i64,
+        _key_field2: i16,
     }
 
     #[test]
     fn simple_key_be() {
         let data = [
-            0, 0, 0, 0, //rtps header
+            0, 0, 0, 0b0000_0010, //rtps header
             0, 0, 0, 0, 0, 0, 0, 1, //key_field1 (i64)
-            0, 0, 0, 0, 0, 0, 0, 2, //key_field1 (i64)
+            0, 2, 0, 0, //key_field1 (i16) | padding 2 bytes
         ];
         let expected_instance_handle =
-            InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]);
+            InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0]);
         assert_eq!(
             get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
             expected_instance_handle
         );
         let expected_key = vec![
-            0, 1, 0, 0, // RTPS header
+            0, 1, 0, 0b0000_0010, // RTPS header
             1, 0, 0, 0, 0, 0, 0, 0, // key_field1
-            2, 0, 0, 0, 0, 0, 0, 0, // key_field2
+            2, 0, 0, 0, // key_field2 | padding 2 bytes
         ];
         assert_eq!(
             get_serialized_key_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
@@ -536,20 +545,20 @@ mod tests {
     #[test]
     fn simple_key_le() {
         let data = [
-            0, 1, 0, 0, //rtps header
+            0, 1, 0, 0b0000_0010, //rtps header
             1, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
-            2, 0, 0, 0, 0, 0, 0, 0, //key_field1 (i64)
+            2, 0, 0, 0,//key_field1 (i16) | padding 2 bytes
         ];
         let expected_instance_handle =
-            InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]);
+            InstanceHandle::new([0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0]);
         assert_eq!(
             get_instance_handle_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
             expected_instance_handle
         );
         let expected_key = vec![
-            0, 1, 0, 0, // RTPS header
+            0, 1, 0, 0b0000_0010, // RTPS header
             1, 0, 0, 0, 0, 0, 0, 0, // key_field1
-            2, 0, 0, 0, 0, 0, 0, 0, // key_field2
+            2, 0, 0, 0, // key_field2 | padding 2 bytes
         ];
         assert_eq!(
             get_serialized_key_from_serialized_foo(&data, &Simple::get_type()).unwrap(),
@@ -785,26 +794,26 @@ mod tests {
     #[test]
     fn basic_types_be() {
         let data = [
-            0, 0, 0, 0, //rtps header
+            0, 0, 0, 3, //rtps header (incl. padding length)
             1, 2, 0, 3, 0, 0, 0, 4, // f1: bool | f2: i8 | f3: i16 | f4: i32
             0, 0, 0, 0, 0, 0, 0, 5, // f5: i64
             6, 0, 0, 7, 0, 0, 0, 8, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
             0, 0, 0, 0, 0, 0, 0, 9, // f9: u64
             0x3F, 0x80, 0x00, 0x00, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
             0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // f11: f64
-            b'a', // f12: char
+            b'a', 0, 0, 0, // f12: char | padding 3 bytes
         ];
         let expected_instance_handle = InstanceHandle::new(
             md5::compute(&[
                 1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
                 0, 0, 0, 4, // f4: i32
-                0, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 0, // f5-1: i64
                 0, 0, 0, 5, // f5-2: i64
-                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16 
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16
                 0, 0, 0, 8, // f8: u32
                 0, 0, 0, 0, // f9-1: u64
                 0, 0, 0, 9, // f9-2: u64
-                0x3F, 0x80, 0x00, 0x00, // f10: f32 
+                0x3F, 0x80, 0x00, 0x00, // f10: f32
                 0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0x00, 0x00, // f11-2: f64
                 b'a', // f12: char
@@ -816,14 +825,14 @@ mod tests {
             expected_instance_handle
         );
         let expected_key = vec![
-            0, 1, 0, 0, // RTPS header
+            0, 1, 0, 3, // RTPS header (incl. padding length)
             1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
             5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
             6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
             9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
             0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
-            b'a', // f12: char
+            b'a', 0, 0, 0, // f12: char
         ];
         assert_eq!(
             get_serialized_key_from_serialized_foo(&data, &BasicTypes::get_type()).unwrap(),
@@ -839,26 +848,26 @@ mod tests {
     #[test]
     fn basic_types_le() {
         let data = [
-            0, 1, 0, 0, //rtps header
+            0, 1, 0, 3, //rtps header (incl. padding length)
             1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
             5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
             6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
             9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
             0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
-            b'a', // f12: char
+            b'a', 0, 0, 0, // f12: char
         ];
         let expected_instance_handle = InstanceHandle::new(
             md5::compute(&[
                 1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
                 0, 0, 0, 4, // f4: i32
-                0, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 0, // f5-1: i64
                 0, 0, 0, 5, // f5-2: i64
-                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16 
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16
                 0, 0, 0, 8, // f8: u32
                 0, 0, 0, 0, // f9-1: u64
                 0, 0, 0, 9, // f9-2: u64
-                0x3F, 0x80, 0x00, 0x00, // f10: f32 
+                0x3F, 0x80, 0x00, 0x00, // f10: f32
                 0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
                 0x00, 0x00, 0x00, 0x00, // f11-2: f64
                 b'a', // f12: char
@@ -870,14 +879,14 @@ mod tests {
             expected_instance_handle
         );
         let expected_key = vec![
-            0, 1, 0, 0, // RTPS header
+            0, 1, 0, 3, // RTPS header (incl. padding length)
             1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
             5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
             6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
             9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
             0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
-            b'a', // f12: char
+            b'a', 0, 0, 0, // f12: char
         ];
         assert_eq!(
             get_serialized_key_from_serialized_foo(&data, &BasicTypes::get_type()).unwrap(),

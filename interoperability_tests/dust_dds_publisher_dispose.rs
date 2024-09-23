@@ -19,7 +19,14 @@ mod dispose_data {
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
-
+    participant_factory
+        .set_configuration(
+            dust_dds::configuration::DustDdsConfigurationBuilder::new()
+                .interface_name(Some("Wi-Fi".to_string()))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
