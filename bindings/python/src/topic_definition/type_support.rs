@@ -146,34 +146,68 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                     .values();
                 let field = dataclass_fields.get_item(index as usize)?;
 
-                Ok(field
-                    .downcast::<PyDict>()?
-                    .get_item("name")?
-                    .expect("name item must exist")
-                    .to_string())
+                Ok(field.getattr("name")?.to_string())
             }
             let name = Python::with_gil(|py| get_member_name(py, &value, index))?;
 
-            let is_key = true; //TODO!
+            let is_key = false; //TODO!
 
             fn get_member_type(
                 py: Python<'_>,
                 type_representation: &Py<PyAny>,
                 index: usize,
-            ) -> PyResult<TypeKind> {
+            ) -> PyResult<dust_dds::xtypes::type_object::TypeIdentifier> {
                 let dataclass_fields = type_representation
                     .getattr(py, "__dataclass_fields__")?
                     .downcast_bound::<PyDict>(py)?
                     .values();
                 let field = dataclass_fields.get_item(index as usize)?;
 
-                field
-                    .downcast::<PyDict>()?
-                    .get_item("type")?
-                    .expect("type item must exist")
-                    .extract()
+                let type_value = field.getattr("type")?;
+
+                if let Ok(type_kind) = type_value.extract::<TypeKind>() {
+                    Ok(type_kind.into())
+                } else if is_list(&type_value)? {
+                    todo!()
+                } else {
+                    if let Ok(py_type) = type_value.downcast::<PyType>() {
+                        if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
+                            Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
+                                seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
+                                        header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                            equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                            element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                                try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                                is_external: false
+                                            },
+                                        },
+                                        bound: 0,
+                                        element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+                                    })
+                                })
+                        } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+                            Ok(
+                                dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
+                                    string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
+                                        bound: 0,
+                                    },
+                                },
+                            )
+                        } else {
+                            Err(PyTypeError::new_err(format!(
+                                "Unsupported Dust DDS representation for Python Type {}",
+                                py_type
+                            )))
+                        }
+                    } else {
+                        Err(PyTypeError::new_err(format!(
+                            "Unsupported Dust DDS representation for Python Type {}",
+                            type_value
+                        )))
+                    }
+                }
             }
-            let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))?.into();
+            let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))?;
 
             member_seq.push(dust_dds::xtypes::type_object::CompleteStructMember {
                 common: dust_dds::xtypes::type_object::CommonStructMember {
