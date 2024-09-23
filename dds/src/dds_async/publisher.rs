@@ -80,11 +80,11 @@ impl PublisherAsync {
                 .receive_reply()
                 .await
                 .topic_data;
-            let xml_type = topic
-                .send_actor_mail(topic_actor::GetTypeSupport)?
-                .receive_reply()
-                .await
-                .xml_type();
+            let xml_type = "".to_string();//topic
+                // .send_actor_mail(topic_actor::GetTypeSupport)?
+                // .receive_reply()
+                // .await
+                // .xml_type();
             let data = writer
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
@@ -132,12 +132,25 @@ impl PublisherAsync {
             .await;
 
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let has_key = a_topic
+        let type_support = a_topic
             .topic_address()
             .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
-            .await
-            .has_key();
+            .await;
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
         let topic_name = a_topic.get_name();
         let type_name = a_topic.get_type_name();
         let topic_status_condition = a_topic.get_statuscondition().address().clone();

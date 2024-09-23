@@ -29,6 +29,9 @@ use crate::{
             mpsc::{mpsc_channel, MpscSender},
             timer::TimerHandle,
         },
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+        },
     },
     infrastructure::{
         self,
@@ -65,8 +68,10 @@ use crate::{
         writer_proxy::RtpsWriterProxy,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsKey, DynamicTypeInterface},
-    xtypes::{deserialize::XTypesDeserialize, xcdr_deserializer::Xcdr1LeDeserializer},
+    xtypes::{
+        deserialize::XTypesDeserialize, dynamic_type::DynamicType,
+        xcdr_deserializer::Xcdr1LeDeserializer,
+    },
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -151,14 +156,14 @@ impl ReaderCacheChange {
 }
 
 fn build_instance_handle(
-    type_support: &Arc<dyn DynamicTypeInterface + Send + Sync>,
+    type_support: &Arc<dyn DynamicType + Send + Sync>,
     change_kind: ChangeKind,
     data: &[u8],
     inline_qos: &[Parameter],
 ) -> DdsResult<InstanceHandle> {
     Ok(match change_kind {
         ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            type_support.instance_handle_from_serialized_foo(data)?
+            get_instance_handle_from_serialized_foo(data, type_support.as_ref())?
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
@@ -170,10 +175,10 @@ fn build_instance_handle(
                 if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
                     InstanceHandle::new(key)
                 } else {
-                    type_support.instance_handle_from_serialized_key(data)?
+                    get_instance_handle_from_serialized_key(data, type_support.as_ref())?
                 }
             }
-            None => type_support.instance_handle_from_serialized_key(data)?,
+            None => get_instance_handle_from_serialized_key(data, type_support.as_ref())?,
         },
     })
 }
@@ -367,7 +372,7 @@ pub struct DataReaderActor {
     topic_name: String,
     type_name: String,
     topic_status_condition: ActorAddress<StatusConditionActor>,
-    type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+    type_support: Arc<dyn DynamicType + Send + Sync>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
@@ -394,7 +399,7 @@ impl DataReaderActor {
         topic_name: String,
         type_name: String,
         topic_status_condition: ActorAddress<StatusConditionActor>,
-        type_support: Arc<dyn DynamicTypeInterface + Send + Sync>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
@@ -2200,9 +2205,13 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 type_name = type_name,
                 "Writer with matched topic and type found",
             );
-            let instance_handle =
-                InstanceHandle::try_from_key(&message.discovered_writer_data.get_key().unwrap())
-                    .unwrap();
+            let instance_handle = InstanceHandle::new(
+                message
+                    .discovered_writer_data
+                    .dds_publication_data
+                    .key
+                    .value,
+            );
             let incompatible_qos_policy_list = self
                 .get_discovered_writer_incompatible_qos_policy_list(
                     &message.discovered_writer_data,

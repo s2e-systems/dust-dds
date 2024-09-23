@@ -20,7 +20,7 @@ mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(DdsType)]
-struct UserType(i32);
+struct UserType(#[dust_dds(key)] i32);
 
 #[test]
 fn writer_discovers_reader_in_same_participant() {

@@ -79,11 +79,11 @@ impl SubscriberAsync {
                 .receive_reply()
                 .await
                 .topic_data;
-            let xml_type = topic
-                .send_actor_mail(topic_actor::GetTypeSupport)?
-                .receive_reply()
-                .await
-                .xml_type();
+            let xml_type = "".to_string();//topic
+                // .send_actor_mail(topic_actor::GetTypeSupport)?
+                // .receive_reply()
+                // .await
+                // .xml_type();
             let data = reader
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
@@ -135,7 +135,20 @@ impl SubscriberAsync {
             .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
             .await;
-        let has_key = type_support.has_key();
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
 
         let reader_address = self
             .subscriber_address

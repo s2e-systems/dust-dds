@@ -15,12 +15,12 @@ pub trait DeserializeAppendableStruct<'a> {
 pub trait DeserializeMutableStruct<'a> {
     fn deserialize_field<T: XTypesDeserialize<'a>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         name: &str,
     ) -> Result<T, XTypesError>;
     fn deserialize_optional_field<T: XTypesDeserialize<'a>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         name: &str,
     ) -> Result<Option<T>, XTypesError>;
 }

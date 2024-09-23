@@ -1,4 +1,4 @@
-use syn::{spanned::Spanned, DeriveInput, Field, Result};
+use syn::{spanned::Spanned, DeriveInput, Expr, Field, Result};
 
 pub enum Extensibility {
     Final,
@@ -11,7 +11,7 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
+        .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("extensibility") {
@@ -42,43 +42,27 @@ pub fn get_input_extensibility(input: &DeriveInput) -> Result<Extensibility> {
     Ok(extensibility)
 }
 
-pub fn get_field_id(field: &Field) -> Result<syn::Expr> {
-    let mut result = Err(syn::Error::new(
-        field.span(),
-        r#"Field of mutable struct must define id attribute "#,
-    ));
-
-    if let Some(xtypes_attribute) = field
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
-    {
-        xtypes_attribute.parse_nested_meta(|meta| {
-            if meta.path.is_ident("id") {
-                result = Ok(meta.value()?.parse()?);
-                Ok(())
-            } else {
-                Ok(())
-            }
-        })?;
-    }
-
-    result
+pub struct FieldAttributes {
+    pub key: bool,
+    pub id: Option<Expr>,
 }
 
-pub fn field_has_key_attribute(field: &Field) -> syn::Result<bool> {
-    let mut has_key = false;
+pub fn get_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
+    let mut key = false;
+    let mut id = None;
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("xtypes"))
+        .find(|attr| attr.path().is_ident("dust_dds"))
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("key") {
-                has_key = true;
+                key = true;
+            } else if meta.path.is_ident("id") {
+                id = Some(meta.value()?.parse()?);
             }
             Ok(())
         })?;
     }
-    Ok(has_key)
+    Ok(FieldAttributes { key, id })
 }

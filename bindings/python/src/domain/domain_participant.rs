@@ -1,3 +1,8 @@
+use std::{
+    collections::HashMap,
+    sync::{Mutex, OnceLock},
+};
+
 use pyo3::prelude::*;
 
 use crate::{
@@ -19,6 +24,8 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
+static TYPE_REGISTRY: OnceLock<Mutex<HashMap<String, Py<PyAny>>>> = OnceLock::new();
+
 #[pyclass]
 pub struct DomainParticipant(dust_dds::domain::domain_participant::DomainParticipant);
 
@@ -31,6 +38,12 @@ impl From<dust_dds::domain::domain_participant::DomainParticipant> for DomainPar
 impl AsRef<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {
     fn as_ref(&self) -> &dust_dds::domain::domain_participant::DomainParticipant {
         &self.0
+    }
+}
+
+impl DomainParticipant {
+    pub fn get_type(type_name: &str) -> Option<Py<PyAny>> {
+        TYPE_REGISTRY.get()?.lock().unwrap().get(type_name).cloned()
     }
 }
 
@@ -135,7 +148,13 @@ impl DomainParticipant {
 
         let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
 
-        let dynamic_type_representation = Box::new(PythonTypeRepresentation::from(type_));
+        TYPE_REGISTRY
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .unwrap()
+            .insert(type_name.clone(), type_.clone());
+
+        let dynamic_type_representation = Box::new(PythonTypeRepresentation::try_from(type_)?);
         match self.0.create_dynamic_topic(
             &topic_name,
             &type_name,

@@ -199,21 +199,21 @@ struct PlCdrBeDecoder<'a> {
 impl<'de> DeserializeMutableStruct<'de> for PlCdrBeDecoder<'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        seek_to_pid_be(&mut reader, pid)?;
+        seek_to_pid_be(&mut reader, pid as u16)?;
         T::deserialize(&mut Xcdr1BeDeserializer { reader })
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        Ok(if seek_to_optional_pid_be(&mut reader, pid)? {
+        Ok(if seek_to_optional_pid_be(&mut reader, pid as u16)? {
             Some(T::deserialize(&mut Xcdr1BeDeserializer { reader })?)
         } else {
             None
@@ -228,21 +228,21 @@ struct PlCdrLeDecoder<'a> {
 impl<'de> DeserializeMutableStruct<'de> for PlCdrLeDecoder<'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        seek_to_pid_le(&mut reader, pid)?;
+        seek_to_pid_le(&mut reader, pid as u16)?;
         T::deserialize(&mut Xcdr1LeDeserializer { reader })
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
+        Ok(if seek_to_optional_pid_le(&mut reader, pid as u16)? {
             Some(T::deserialize(&mut Xcdr1LeDeserializer { reader })?)
         } else {
             None
@@ -257,21 +257,21 @@ struct PlCdr2BeDecoder<'a> {
 impl<'de> DeserializeMutableStruct<'de> for PlCdr2BeDecoder<'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        seek_to_pid_be(&mut reader, pid)?;
+        seek_to_pid_be(&mut reader, pid as u16)?;
         T::deserialize(&mut Xcdr2BeDeserializer { reader })
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        Ok(if seek_to_optional_pid_be(&mut reader, pid)? {
+        Ok(if seek_to_optional_pid_be(&mut reader, pid as u16)? {
             Some(T::deserialize(&mut Xcdr2BeDeserializer { reader })?)
         } else {
             None
@@ -286,21 +286,21 @@ struct PlCdr2LeDecoder<'a> {
 impl<'de> DeserializeMutableStruct<'de> for PlCdr2LeDecoder<'de> {
     fn deserialize_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<T, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        seek_to_pid_le(&mut reader, pid)?;
+        seek_to_pid_le(&mut reader, pid as u16)?;
         T::deserialize(&mut Xcdr2LeDeserializer { reader })
     }
 
     fn deserialize_optional_field<T: XTypesDeserialize<'de>>(
         &mut self,
-        pid: u16,
+        pid: u32,
         _name: &str,
     ) -> Result<Option<T>, XTypesError> {
         let mut reader = Reader::new(self.buffer);
-        Ok(if seek_to_optional_pid_le(&mut reader, pid)? {
+        Ok(if seek_to_optional_pid_le(&mut reader, pid as u16)? {
             Some(T::deserialize(&mut Xcdr2LeDeserializer { reader })?)
         } else {
             None
@@ -1412,6 +1412,119 @@ mod tests {
                 0x050, 0x00, 4, 0, // PID | length
                 8, 0, 0, 0, // participant_key
                 0, 0, 0, 0, // Sentinel
+            ]),
+            expected
+        );
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct BasicTypes {
+        f1: bool,
+        f2: i8,
+        f3: i16,
+        f4: i32,
+        f5: i64,
+        f6: u8,
+        f7: u16,
+        f8: u32,
+        f9: u64,
+        f10: f32,
+        f11: f64,
+        f12: char,
+    }
+    impl<'de> XTypesDeserialize<'de> for BasicTypes {
+        fn deserialize(deserializer: impl XTypesDeserializer<'de>) -> Result<Self, XTypesError> {
+            let mut deserializer = deserializer.deserialize_final_struct()?;
+            Ok(Self {
+                f1: deserializer.deserialize_field("f1")?,
+                f2: deserializer.deserialize_field("f2")?,
+                f3: deserializer.deserialize_field("f3")?,
+                f4: deserializer.deserialize_field("f4")?,
+                f5: deserializer.deserialize_field("f5")?,
+                f6: deserializer.deserialize_field("f6")?,
+                f7: deserializer.deserialize_field("f7")?,
+                f8: deserializer.deserialize_field("f8")?,
+                f9: deserializer.deserialize_field("f9")?,
+                f10: deserializer.deserialize_field("f10")?,
+                f11: deserializer.deserialize_field("f11")?,
+                f12: deserializer.deserialize_field("f12")?,
+            })
+        }
+    }
+
+    #[test]
+    fn deserialize_basic_types_struct() {
+        let expected = Ok(BasicTypes {
+            f1: true,
+            f2: 2,
+            f3: 3,
+            f4: 4,
+            f5: 5,
+            f6: 6,
+            f7: 7,
+            f8: 8,
+            f9: 9,
+            f10: 1.0,
+            f11: 1.0,
+            f12: 'a',
+        });
+        // PLAIN_CDR:
+        assert_eq!(
+            deserialize_v1_be(&[
+                1, 2, 0, 3, 0, 0, 0, 4, // f1: bool | f2: i8 | f3: i16 | f4: i32
+                0, 0, 0, 0, 0, 0, 0, 5, // f5: i64
+                6, 0, 0, 7, 0, 0, 0, 8, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
+                0, 0, 0, 0, 0, 0, 0, 9, // f9: u64
+                0x3F, 0x80, 0x00, 0x00, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
+                0x3F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // f11: f64
+                b'a', // f12: char
+            ]),
+            expected
+        );
+        assert_eq!(
+            deserialize_v1_le(&[
+                1, 2, 3, 0, 4, 0, 0, 0, // f1: bool | f2: i8 | f3: i16 | f4: i32
+                5, 0, 0, 0, 0, 0, 0, 0, // f5: i64
+                6, 0, 7, 0, 8, 0, 0, 0, // f6: u8 | padding (1 byte) | f7: u16 | f8: u32
+                9, 0, 0, 0, 0, 0, 0, 0, // f9: u64
+                0x00, 0x00, 0x80, 0x3F, 0, 0, 0, 0, // f10: f32 | padding (4 bytes)
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // f11: f64
+                b'a', // f12: char
+            ]),
+            expected
+        );
+        //PLAIN_CDR2:
+        assert_eq!(
+            deserialize_v2_be(&[
+                1, 2, 0, 3, // f1: bool | f2: i8 | f3: i16
+                0, 0, 0, 4, // f4: i32
+                0, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 5, // f5-2: i64
+                6, 0, 0, 7, // f6: u8 | padding (1 byte) | f7: u16 
+                0, 0, 0, 8, // f8: u32
+                0, 0, 0, 0, // f9-1: u64
+                0, 0, 0, 9, // f9-2: u64
+                0x3F, 0x80, 0x00, 0x00, // f10: f32 
+                0x3F, 0xF0, 0x00, 0x00, // f11-1: f64
+                0x00, 0x00, 0x00, 0x00, // f11-2: f64
+                b'a', // f12: char
+            ]),
+            expected
+        );
+        assert_eq!(
+            deserialize_v2_le(&[
+                1, 2, 3, 0, // f1: bool | f2: i8 | f3: i16
+                4, 0, 0, 0, // f4: i32
+                5, 0, 0, 0, // f5-1: i64 
+                0, 0, 0, 0, // f5-2: i64
+                6, 0, 7, 0, // f6: u8 | padding (1 byte) | f7: u16 
+                8, 0, 0, 0, // f8: u32
+                9, 0, 0, 0, // f9-1: u64
+                0, 0, 0, 0, // f9-2: u64
+                0x00, 0x00, 0x80, 0x3F, // f10: f32 
+                0x00, 0x00, 0x00, 0x00, // f11-1: f64
+                0x00, 0x00, 0xF0, 0x3F, // f11-2: f64
+                b'a', // f12: char
             ]),
             expected
         );

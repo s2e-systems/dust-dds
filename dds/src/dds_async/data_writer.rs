@@ -21,6 +21,9 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -119,13 +122,13 @@ impl<Foo> DataWriterAsync<Foo> {
                 .receive_reply()
                 .await
                 .topic_data;
-            let xml_type = self
-                .topic
-                .topic_address()
-                .send_actor_mail(topic_actor::GetTypeSupport)?
-                .receive_reply()
-                .await
-                .xml_type();
+            let xml_type = "".to_string(); //self
+                                           //     .topic
+                                           //     .topic_address()
+                                           //     .send_actor_mail(topic_actor::GetTypeSupport)?
+                                           //     .receive_reply()
+                                           //     .await
+                                           //     .xml_type();
             let discovered_writer_data = self
                 .writer_address
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
@@ -185,7 +188,8 @@ where
             .await;
 
         let serialized_data = instance.serialize_data()?;
-        let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
+        let instance_handle =
+            get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
 
         self.writer_address
             .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp { instance_handle })?
@@ -232,8 +236,21 @@ where
             .send_actor_mail(topic_actor::GetTypeSupport)?
             .receive_reply()
             .await;
-
-        if !type_support.has_key() {
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
+        if !has_key {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -268,9 +285,8 @@ where
         }?;
 
         let serialized_foo = instance.serialize_data()?;
-        let instance_serialized_key = type_support
-            .get_serialized_key_from_serialized_foo(&serialized_foo)?
-            .into();
+        let instance_serialized_key =
+            get_serialized_key_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
 
         let message_sender_actor = self
             .participant_address()
@@ -301,7 +317,7 @@ where
             .writer_address
             .send_actor_mail(data_writer_actor::NewChange {
                 kind: ChangeKind::NotAliveUnregistered,
-                data: instance_serialized_key,
+                data: instance_serialized_key.into(),
                 inline_qos,
                 handle: instance_handle,
                 timestamp,
@@ -358,7 +374,8 @@ where
             .await;
 
         let serialized_foo = instance.serialize_data()?;
-        let instance_handle = type_support.instance_handle_from_serialized_foo(&serialized_foo)?;
+        let instance_handle =
+            get_instance_handle_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
 
         self.writer_address
             .send_actor_mail(data_writer_actor::LookupInstance { instance_handle })?
@@ -407,8 +424,7 @@ where
             .await;
 
         let serialized_data = data.serialize_data()?;
-        let key = type_support.instance_handle_from_serialized_foo(&serialized_data)?;
-
+        let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
         let message_sender_actor = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetMessageSender)?
@@ -568,12 +584,26 @@ where
             .receive_reply()
             .await;
 
-        if !type_support.has_key() {
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
+        if !has_key {
             return Err(DdsError::IllegalOperation);
         }
 
         let serialized_foo = data.serialize_data()?;
-        let key = type_support.get_serialized_key_from_serialized_foo(&serialized_foo)?;
+        let key = get_serialized_key_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
         let message_sender_actor = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetMessageSender)?

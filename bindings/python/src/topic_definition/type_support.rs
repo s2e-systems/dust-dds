@@ -1,9 +1,11 @@
+use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 use dust_dds::{
-    infrastructure::{error::DdsResult, instance::InstanceHandle},
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    infrastructure::error::DdsResult,
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     xtypes::{
         deserializer::XTypesDeserializer, error::XTypesError, serializer::XTypesSerializer,
-        xcdr_deserializer::Xcdr1LeDeserializer, xcdr_deserializer::Xcdr1BeDeserializer, xcdr_serializer::Xcdr1LeSerializer,
+        xcdr_deserializer::Xcdr1BeDeserializer, xcdr_deserializer::Xcdr1LeDeserializer,
+        xcdr_serializer::Xcdr1LeSerializer,
     },
 };
 use pyo3::{
@@ -11,8 +13,6 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDict, PyList, PySequence, PyString, PyTuple, PyType},
 };
-
-use crate::xtypes::endianness::{self, CDR_LE, REPRESENTATION_OPTIONS};
 
 #[allow(non_camel_case_types)]
 #[pyclass]
@@ -33,6 +33,28 @@ pub enum TypeKind {
     float32,
     float64,
     float128,
+}
+
+impl From<TypeKind> for dust_dds::xtypes::type_object::TypeIdentifier {
+    fn from(value: TypeKind) -> Self {
+        match value {
+            TypeKind::boolean => dust_dds::xtypes::type_object::TypeIdentifier::TkBoolean,
+            TypeKind::byte => dust_dds::xtypes::type_object::TypeIdentifier::TkByteType,
+            TypeKind::int8 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt8Type,
+            TypeKind::uint8 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt16Type,
+            TypeKind::int16 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt32Type,
+            TypeKind::uint16 => dust_dds::xtypes::type_object::TypeIdentifier::TkInt64Type,
+            TypeKind::int32 => dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+            TypeKind::uint32 => dust_dds::xtypes::type_object::TypeIdentifier::TkUint16Type,
+            TypeKind::int64 => dust_dds::xtypes::type_object::TypeIdentifier::TkUint32Type,
+            TypeKind::uint64 => dust_dds::xtypes::type_object::TypeIdentifier::TkUint64Type,
+            TypeKind::float32 => dust_dds::xtypes::type_object::TypeIdentifier::TkFloat32Type,
+            TypeKind::float64 => dust_dds::xtypes::type_object::TypeIdentifier::TkFloat64Type,
+            TypeKind::float128 => dust_dds::xtypes::type_object::TypeIdentifier::TkFloat128Type,
+            TypeKind::char8 => dust_dds::xtypes::type_object::TypeIdentifier::TkChar8Type,
+            TypeKind::char16 => dust_dds::xtypes::type_object::TypeIdentifier::TkChar16Type,
+        }
+    }
 }
 
 fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
@@ -59,43 +81,174 @@ fn deserialize_into_py_object<'de, D: XTypesDeserializer<'de>>(
     }
 }
 
-pub struct PythonTypeRepresentation(Py<PyAny>);
+pub struct PythonTypeRepresentation(dust_dds::xtypes::type_object::CompleteTypeObject);
+impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
+    fn get_descriptor(
+        &self,
+    ) -> Result<dust_dds::xtypes::dynamic_type::TypeDescriptor, XTypesError> {
+        self.0.get_descriptor()
+    }
 
-impl From<Py<PyAny>> for PythonTypeRepresentation {
-    fn from(value: Py<PyAny>) -> Self {
-        Self(value)
+    fn get_name(&self) -> dust_dds::xtypes::dynamic_type::ObjectName {
+        self.0.get_name()
+    }
+
+    fn get_kind(&self) -> dust_dds::xtypes::type_object::TypeKind {
+        self.0.get_kind()
+    }
+
+    fn get_member_count(&self) -> u32 {
+        self.0.get_member_count()
+    }
+
+    fn get_member_by_index(
+        &self,
+        index: u32,
+    ) -> Result<&dyn dust_dds::xtypes::dynamic_type::DynamicTypeMember, XTypesError> {
+        self.0.get_member_by_index(index)
     }
 }
 
-impl dust_dds::topic_definition::type_support::DynamicTypeInterface for PythonTypeRepresentation {
-    fn has_key(&self) -> bool {
-        true
-    }
+impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
+    type Error = PyErr;
 
-    fn get_serialized_key_from_serialized_foo(&self, _serialized_foo: &[u8]) -> DdsResult<Vec<u8>> {
-        todo!()
-    }
+    fn try_from(value: Py<PyAny>) -> PyResult<Self> {
+        let type_name = Python::with_gil(|py| {
+            value
+                .bind(py)
+                .get_type()
+                .name()
+                .expect("name exists")
+                .to_string()
+        });
 
-    fn instance_handle_from_serialized_foo(
-        &self,
-        _serialized_foo: &[u8],
-    ) -> DdsResult<dust_dds::infrastructure::instance::InstanceHandle> {
-        Ok(InstanceHandle::default())
-    }
+        fn get_member_count(py: Python<'_>, python_type: &Py<PyAny>) -> PyResult<usize> {
+            Ok(python_type
+                .getattr(py, "__dataclass_fields__")?
+                .downcast_bound::<PyDict>(py)?
+                .values()
+                .len())
+        }
 
-    fn instance_handle_from_serialized_key(
-        &self,
-        _serialized_key: &[u8],
-    ) -> DdsResult<dust_dds::infrastructure::instance::InstanceHandle> {
-        todo!()
-    }
+        let member_count = Python::with_gil(|py| get_member_count(py, &value))
+            .expect("Should be able to get member size");
 
-    fn xml_type(&self) -> String {
-        String::new()
-    }
+        let mut member_seq = Vec::new();
+        for index in 0..member_count {
+            fn get_member_name(
+                py: Python<'_>,
+                type_representation: &Py<PyAny>,
+                index: usize,
+            ) -> PyResult<String> {
+                let dataclass_fields = type_representation
+                    .getattr(py, "__dataclass_fields__")?
+                    .downcast_bound::<PyDict>(py)?
+                    .values();
+                let field = dataclass_fields.get_item(index)?;
 
-    fn user_data(&self) -> Option<&dyn std::any::Any> {
-        Some(&self.0)
+                Ok(field.getattr("name")?.to_string())
+            }
+            let name = Python::with_gil(|py| get_member_name(py, &value, index))?;
+
+            let is_key = false; //TODO!
+
+            fn get_member_type(
+                py: Python<'_>,
+                type_representation: &Py<PyAny>,
+                index: usize,
+            ) -> PyResult<dust_dds::xtypes::type_object::TypeIdentifier> {
+                let dataclass_fields = type_representation
+                    .getattr(py, "__dataclass_fields__")?
+                    .downcast_bound::<PyDict>(py)?
+                    .values();
+                let field = dataclass_fields.get_item(index)?;
+
+                let type_value = field.getattr("type")?;
+
+                if let Ok(type_kind) = type_value.extract::<TypeKind>() {
+                    Ok(type_kind.into())
+                } else if is_list(&type_value)? {
+                    todo!()
+                } else if let Ok(py_type) = type_value.downcast::<PyType>() {
+                    if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
+                        Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
+                                seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
+                                        header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                            equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
+                                            element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                                try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                                is_external: false
+                                            },
+                                        },
+                                        bound: 0,
+                                        element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+                                    })
+                                })
+                    } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+                        Ok(
+                            dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
+                                string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
+                                    bound: 0,
+                                },
+                            },
+                        )
+                    } else {
+                        Err(PyTypeError::new_err(format!(
+                            "Unsupported Dust DDS representation for Python Type {}",
+                            py_type
+                        )))
+                    }
+                } else {
+                    Err(PyTypeError::new_err(format!(
+                        "Unsupported Dust DDS representation for Python Type {}",
+                        type_value
+                    )))
+                }
+            }
+            let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))?;
+
+            member_seq.push(dust_dds::xtypes::type_object::CompleteStructMember {
+                common: dust_dds::xtypes::type_object::CommonStructMember {
+                    member_id: index as u32,
+                    member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                        try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                        is_external: false,
+                        is_optional: false,
+                        is_must_undestand: true,
+                        is_key,
+                    },
+                    member_type_id,
+                },
+                detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                    name,
+                    ann_builtin: None,
+                    ann_custom: None,
+                },
+            });
+        }
+
+        Ok(Self(
+            dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
+                struct_type: dust_dds::xtypes::type_object::CompleteStructType {
+                    struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
+                        is_final: true,
+                        is_appendable: false,
+                        is_mutable: false,
+                        is_nested: false,
+                        is_autoid_hash: false,
+                    },
+                    header: dust_dds::xtypes::type_object::CompleteStructHeader {
+                        base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
+                        detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
+                            ann_builtin: None,
+                            ann_custom: None,
+                            type_name,
+                        },
+                    },
+                    member_seq,
+                },
+            },
+        ))
     }
 }
 
@@ -295,22 +448,6 @@ impl PythonDdsData {
     }
 }
 
-impl DdsHasKey for PythonDdsData {
-    const HAS_KEY: bool = true;
-}
-
-impl DdsKey for PythonDdsData {
-    type Key = Vec<u8>;
-
-    fn get_key(&self) -> DdsResult<Self::Key> {
-        Ok(self.key.clone())
-    }
-
-    fn get_key_from_serialized_data(_serialized_foo: &[u8]) -> DdsResult<Self::Key> {
-        todo!()
-    }
-}
-
 impl DdsSerialize for PythonDdsData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
         Ok(self.data.clone())
@@ -323,11 +460,5 @@ impl<'de> DdsDeserialize<'de> for PythonDdsData {
             data: serialized_data.to_vec(),
             key: Vec::new(),
         })
-    }
-}
-
-impl DdsTypeXml for PythonDdsData {
-    fn get_type_xml() -> Option<String> {
-        None
     }
 }

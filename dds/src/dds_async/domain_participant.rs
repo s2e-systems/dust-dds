@@ -14,7 +14,7 @@ use crate::{
         actors::{
             data_reader_actor, data_writer_actor,
             domain_participant_actor::{
-                self, DomainParticipantActor, FooTypeSupport, BUILT_IN_TOPIC_NAME_LIST,
+                self, DomainParticipantActor, BUILT_IN_TOPIC_NAME_LIST,
             },
             publisher_actor,
             status_condition_actor::StatusConditionActor,
@@ -31,7 +31,8 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time},
     },
-    topic_definition::type_support::{DdsHasKey, DdsKey, DdsTypeXml, DynamicTypeInterface},
+    topic_definition::type_support::TypeSupport,
+    xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
 
@@ -276,9 +277,9 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<TopicAsync>
     where
-        Foo: DdsKey + DdsHasKey + DdsTypeXml,
+        Foo: TypeSupport,
     {
-        let type_support = Box::new(FooTypeSupport::new::<Foo>());
+        let type_support = Box::new(Foo::get_type());
 
         self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
             .await
@@ -293,7 +294,7 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: Box<dyn DynamicTypeInterface + Send + Sync>,
+        dynamic_type_representation: Box<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         let (topic_address, topic_status_condition) = self
             .participant_address
@@ -417,11 +418,11 @@ impl DomainParticipantAsync {
         timeout: Duration,
     ) -> DdsResult<TopicAsync>
     where
-        Foo: DdsKey + DdsHasKey + DdsTypeXml,
+        Foo: TypeSupport,
     {
         let participant_address = self.participant_address.clone();
         let runtime_handle = self.executor_handle.clone();
-        let type_support = Arc::new(FooTypeSupport::new::<Foo>());
+        let type_support = Arc::new(Foo::get_type());
         let topic_name = topic_name.to_owned();
         let participant = self.clone();
         self.timer_handle

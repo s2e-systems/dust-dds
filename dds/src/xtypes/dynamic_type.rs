@@ -1,6 +1,7 @@
-use super::{error::XTypesError, type_object::TypeKind};
-
-pub use dust_dds_derive::XTypesDynamicType;
+use super::{
+    error::XTypesError,
+    type_object::{TypeIdentifier, TypeKind},
+};
 
 pub type ObjectName = String;
 
@@ -34,7 +35,7 @@ pub type MemberId = u32;
 pub struct MemberDescriptor<'a> {
     pub name: ObjectName,
     pub id: MemberId,
-    pub type_: &'a dyn DynamicType,
+    pub type_: &'a TypeIdentifier,
     pub default_value: &'static str,
     pub index: u32,
     // pub label :UnionCaseLabelSeq,
@@ -46,7 +47,7 @@ pub struct MemberDescriptor<'a> {
     pub is_default_label: bool,
 }
 
-pub trait DynamicType {
+pub trait DynamicType: Send + Sync + 'static {
     fn get_descriptor(&self) -> Result<TypeDescriptor, XTypesError>;
     fn get_name(&self) -> ObjectName;
     fn get_kind(&self) -> TypeKind;

@@ -18,7 +18,7 @@ use crate::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     rtps::types::{EntityId, Guid, Locator},
-    topic_definition::type_support::{DdsDeserialize, DdsHasKey, DdsKey, DdsSerialize, DdsTypeXml},
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -35,7 +35,66 @@ pub struct DiscoveredReaderData {
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     reader_proxy: ReaderProxy,
 }
+impl TypeSupport for DiscoveredReaderData {
+    fn get_type_name() -> &'static str {
+        "DiscoveredReaderData"
+    }
 
+    fn get_type() -> impl crate::xtypes::dynamic_type::DynamicType {
+        dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
+            struct_type: dust_dds::xtypes::type_object::CompleteStructType {
+                struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
+                    is_final: false,
+                    is_appendable: false,
+                    is_mutable: true,
+                    is_nested: false,
+                    is_autoid_hash: false,
+                },
+                header: dust_dds::xtypes::type_object::CompleteStructHeader {
+                    base_type: dust_dds::xtypes::type_object::TypeIdentifier::TkNone,
+                    detail: dust_dds::xtypes::type_object::CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: "DiscoveredReaderData".to_string(),
+                    },
+                },
+                member_seq: vec![dust_dds::xtypes::type_object::CompleteStructMember {
+                    common: dust_dds::xtypes::type_object::CommonStructMember {
+                        member_id: 0x5Au32,
+                        member_flags: dust_dds::xtypes::type_object::StructMemberFlag {
+                            try_construct:
+                                dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                            is_external: false,
+                            is_optional: false,
+                            is_must_undestand: true,
+                            is_key: true,
+                        },
+                        member_type_id: dust_dds::xtypes::type_object::TypeIdentifier::TiPlainArraySmall {
+                            array_sdefn: Box::new(
+                                dust_dds::xtypes::type_object::PlainArraySElemDefn {
+                                    header: dust_dds::xtypes::type_object::PlainCollectionHeader {
+                                        equiv_kind: 0,
+                                        element_flags: dust_dds::xtypes::type_object::CollectionElementFlag {
+                                            try_construct: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                                            is_external: false,
+                                        },
+                                    },
+                                    array_bound_seq: vec![16],
+                                    element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
+                                },
+                            ),
+                        },
+                    },
+                    detail: dust_dds::xtypes::type_object::CompleteMemberDetail {
+                        name: "value".to_string(),
+                        ann_builtin: None,
+                        ann_custom: None,
+                    },
+                }],
+            },
+        }
+    }
+}
 impl DdsSerialize for DiscoveredReaderData {
     fn serialize_data(&self) -> DdsResult<Vec<u8>> {
         let mut serializer = ParameterListCdrSerializer::default();
@@ -239,30 +298,6 @@ impl DiscoveredReaderData {
     }
 }
 
-impl DdsHasKey for DiscoveredReaderData {
-    const HAS_KEY: bool = true;
-}
-
-impl DdsKey for DiscoveredReaderData {
-    type Key = [u8; 16];
-
-    fn get_key(&self) -> DdsResult<Self::Key> {
-        Ok(self.subscription_builtin_topic_data.key().value)
-    }
-
-    fn get_key_from_serialized_data(serialized_foo: &[u8]) -> DdsResult<Self::Key> {
-        Ok(Self::deserialize_data(serialized_foo)?
-            .subscription_builtin_topic_data
-            .key()
-            .value)
-    }
-}
-
-impl DdsTypeXml for DiscoveredReaderData {
-    fn get_type_xml() -> Option<String> {
-        None
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,7 +379,7 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredReaderData {
-            reader_proxy: ReaderProxy{
+            reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
                     EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
