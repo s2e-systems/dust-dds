@@ -144,7 +144,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                     .getattr(py, "__dataclass_fields__")?
                     .downcast_bound::<PyDict>(py)?
                     .values();
-                let field = dataclass_fields.get_item(index as usize)?;
+                let field = dataclass_fields.get_item(index)?;
 
                 Ok(field.getattr("name")?.to_string())
             }
@@ -161,7 +161,7 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                     .getattr(py, "__dataclass_fields__")?
                     .downcast_bound::<PyDict>(py)?
                     .values();
-                let field = dataclass_fields.get_item(index as usize)?;
+                let field = dataclass_fields.get_item(index)?;
 
                 let type_value = field.getattr("type")?;
 
@@ -169,10 +169,9 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                     Ok(type_kind.into())
                 } else if is_list(&type_value)? {
                     todo!()
-                } else {
-                    if let Ok(py_type) = type_value.downcast::<PyType>() {
-                        if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
-                            Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
+                } else if let Ok(py_type) = type_value.downcast::<PyType>() {
+                    if py_type.py().get_type_bound::<PyBytes>().is(py_type) {
+                        Ok(dust_dds::xtypes::type_object::TypeIdentifier::TiPlainSequenceSmall {
                                 seq_sdefn: Box::new(dust_dds::xtypes::type_object::PlainSequenceSElemDefn {
                                         header: dust_dds::xtypes::type_object::PlainCollectionHeader {
                                             equiv_kind: dust_dds::xtypes::type_object::EK_COMPLETE,
@@ -185,26 +184,25 @@ impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
                                         element_identifier: dust_dds::xtypes::type_object::TypeIdentifier::TkUint8Type,
                                     })
                                 })
-                        } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
-                            Ok(
-                                dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
-                                    string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
-                                        bound: 0,
-                                    },
+                    } else if py_type.py().get_type_bound::<PyString>().is(py_type) {
+                        Ok(
+                            dust_dds::xtypes::type_object::TypeIdentifier::TiString8Small {
+                                string_sdefn: dust_dds::xtypes::type_object::StringSTypeDefn {
+                                    bound: 0,
                                 },
-                            )
-                        } else {
-                            Err(PyTypeError::new_err(format!(
-                                "Unsupported Dust DDS representation for Python Type {}",
-                                py_type
-                            )))
-                        }
+                            },
+                        )
                     } else {
                         Err(PyTypeError::new_err(format!(
                             "Unsupported Dust DDS representation for Python Type {}",
-                            type_value
+                            py_type
                         )))
                     }
+                } else {
+                    Err(PyTypeError::new_err(format!(
+                        "Unsupported Dust DDS representation for Python Type {}",
+                        type_value
+                    )))
                 }
             }
             let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))?;
