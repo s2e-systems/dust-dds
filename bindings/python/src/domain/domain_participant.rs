@@ -135,7 +135,7 @@ impl DomainParticipant {
 
         let type_name = Python::with_gil(|py| type_.getattr(py, "__name__"))?.to_string();
 
-        let dynamic_type_representation = Box::new(PythonTypeRepresentation::from(type_));
+        let dynamic_type_representation = Box::new(PythonTypeRepresentation::try_from(type_)?);
         match self.0.create_dynamic_topic(
             &topic_name,
             &type_name,

@@ -109,8 +109,10 @@ impl dust_dds::xtypes::dynamic_type::DynamicType for PythonTypeRepresentation {
     }
 }
 
-impl From<Py<PyAny>> for PythonTypeRepresentation {
-    fn from(value: Py<PyAny>) -> Self {
+impl TryFrom<Py<PyAny>> for PythonTypeRepresentation {
+    type Error = PyErr;
+
+    fn try_from(value: Py<PyAny>) -> PyResult<Self> {
         let type_name = Python::with_gil(|py| {
             value
                 .bind(py)
@@ -150,8 +152,7 @@ impl From<Py<PyAny>> for PythonTypeRepresentation {
                     .expect("name item must exist")
                     .to_string())
             }
-            let name = Python::with_gil(|py| get_member_name(py, &value, index))
-                .expect("Should be able to get name");
+            let name = Python::with_gil(|py| get_member_name(py, &value, index))?;
 
             let is_key = true; //TODO!
 
@@ -172,9 +173,7 @@ impl From<Py<PyAny>> for PythonTypeRepresentation {
                     .expect("type item must exist")
                     .extract()
             }
-            let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))
-                .expect("Should be able to get type id")
-                .into();
+            let member_type_id = Python::with_gil(|py| get_member_type(py, &value, index))?.into();
 
             member_seq.push(dust_dds::xtypes::type_object::CompleteStructMember {
                 common: dust_dds::xtypes::type_object::CommonStructMember {
@@ -196,7 +195,7 @@ impl From<Py<PyAny>> for PythonTypeRepresentation {
             });
         }
 
-        Self(
+        Ok(Self(
             dust_dds::xtypes::type_object::CompleteTypeObject::TkStructure {
                 struct_type: dust_dds::xtypes::type_object::CompleteStructType {
                     struct_flags: dust_dds::xtypes::type_object::StructTypeFlag {
@@ -217,7 +216,7 @@ impl From<Py<PyAny>> for PythonTypeRepresentation {
                     member_seq,
                 },
             },
-        )
+        ))
     }
 }
 
