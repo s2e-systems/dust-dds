@@ -41,4 +41,4 @@ def test_write_read():
 
     received_data = data_reader.read(max_samples = 1)
 
-    assert data == received_data[0].get_data(MyDataType)
+    assert data == received_data[0].get_data()

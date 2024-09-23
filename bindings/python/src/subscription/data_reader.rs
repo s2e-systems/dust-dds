@@ -5,6 +5,7 @@ use super::{
 };
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         condition::StatusCondition,
         error::into_pyerr,
@@ -51,6 +52,8 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
             .map(dust_dds::subscription::sample_info::SampleStateKind::from)
@@ -67,7 +70,13 @@ impl DataReader {
             .0
             .read(max_samples, &sample_states, &view_states, &instance_states)
         {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample { sample: s }).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
@@ -86,6 +95,8 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
             .map(dust_dds::subscription::sample_info::SampleStateKind::from)
@@ -102,22 +113,38 @@ impl DataReader {
             .0
             .take(max_samples, &sample_states, &view_states, &instance_states)
         {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample { sample: s }).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
     }
 
     pub fn read_next_sample(&self) -> PyResult<Sample> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.read_next_sample() {
-            Ok(s) => Ok(Sample { sample: s }),
+            Ok(s) => Ok(Sample {
+                sample: s,
+                type_: type_.clone(),
+            }),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
     }
 
     pub fn take_next_sample(&self) -> PyResult<Sample> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         match self.0.take_next_sample() {
-            Ok(s) => Ok(Sample { sample: s }),
+            Ok(s) => Ok(Sample {
+                sample: s,
+                type_: type_.clone(),
+            }),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
     }
@@ -137,6 +164,8 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
             .map(dust_dds::subscription::sample_info::SampleStateKind::from)
@@ -156,7 +185,13 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample { sample: s }).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
@@ -177,6 +212,8 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
             .map(dust_dds::subscription::sample_info::SampleStateKind::from)
@@ -196,7 +233,13 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample { sample: s }).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
@@ -217,6 +260,8 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
             .map(dust_dds::subscription::sample_info::SampleStateKind::from)
@@ -236,7 +281,13 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample { sample: s }).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
@@ -257,6 +308,8 @@ impl DataReader {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
     ) -> PyResult<Vec<Sample>> {
+        let type_ = DomainParticipant::get_type(&self.0.get_topicdescription().get_type_name())
+            .ok_or(PyTypeError::new_err("Type information not found"))?;
         let sample_states: Vec<_> = sample_states
             .into_iter()
             .map(dust_dds::subscription::sample_info::SampleStateKind::from)
@@ -276,7 +329,13 @@ impl DataReader {
             &view_states,
             &instance_states,
         ) {
-            Ok(s) => Ok(s.into_iter().map(|s| Sample { sample: s }).collect()),
+            Ok(s) => Ok(s
+                .into_iter()
+                .map(|s| Sample {
+                    sample: s,
+                    type_: type_.clone(),
+                })
+                .collect()),
             Err(dust_dds::infrastructure::error::DdsError::NoData) => Ok(Vec::new()),
             Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
         }
@@ -435,15 +494,16 @@ impl DataReader {
 #[pyclass]
 pub struct Sample {
     sample: dust_dds::subscription::data_reader::Sample<PythonDdsData>,
+    type_: Py<PyAny>,
 }
 
 #[pymethods]
 impl Sample {
-    pub fn get_data(&self, type_: Py<PyAny>) -> PyResult<Py<PyAny>> {
+    pub fn get_data(&self) -> PyResult<Py<PyAny>> {
         self.sample
             .data()
             .map_err(into_pyerr)?
-            .into_py_object(&type_)
+            .into_py_object(&self.type_)
     }
 
     pub fn get_sample_info(&self) -> SampleInfo {
