@@ -398,10 +398,6 @@ pub fn get_serialized_key_from_serialized_foo(
     Ok(collection)
 }
 
-#[test]
-fn paddd() {
-    assert_eq!(19 % 4, 20)
-}
 
 #[cfg(test)]
 mod tests {
