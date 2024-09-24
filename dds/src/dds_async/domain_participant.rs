@@ -13,9 +13,7 @@ use crate::{
         actor::{Actor, ActorAddress},
         actors::{
             data_reader_actor, data_writer_actor,
-            domain_participant_actor::{
-                self, DomainParticipantActor, BUILT_IN_TOPIC_NAME_LIST,
-            },
+            domain_participant_actor::{self, DomainParticipantActor, BUILT_IN_TOPIC_NAME_LIST},
             publisher_actor,
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
@@ -279,7 +277,7 @@ impl DomainParticipantAsync {
     where
         Foo: TypeSupport,
     {
-        let type_support = Box::new(Foo::get_type());
+        let type_support = Arc::new(Foo::get_type());
 
         self.create_dynamic_topic(topic_name, type_name, qos, a_listener, mask, type_support)
             .await
@@ -294,7 +292,7 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: Box<dyn DynamicType + Send + Sync>,
+        dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
         let (topic_address, topic_status_condition) = self
             .participant_address
@@ -304,7 +302,7 @@ impl DomainParticipantAsync {
                 qos,
                 a_listener,
                 mask: mask.to_vec(),
-                type_support: dynamic_type_representation.into(),
+                type_support: dynamic_type_representation,
                 executor_handle: self.executor_handle.clone(),
             })?
             .receive_reply()
