@@ -7,7 +7,9 @@ use crate::{
         serialize::{Write, XTypesSerializer},
         serializer::SerializeFinalStruct,
         type_object::TypeIdentifier,
-        xcdr_deserializer::{Xcdr1BeDeserializer, Xcdr1LeDeserializer},
+        xcdr_deserializer::{
+            Xcdr1BeDeserializer, Xcdr1LeDeserializer, Xcdr2BeDeserializer, Xcdr2LeDeserializer,
+        },
         xcdr_serializer::{Xcdr1LeSerializer, Xcdr2BeSerializer},
     },
 };
@@ -310,8 +312,8 @@ fn push_to_key_parameter_list_be(
 type RepresentationIdentifier = [u8; 2];
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
-const _CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
-const _CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
@@ -338,6 +340,12 @@ pub fn get_instance_handle_from_serialized_key(
             CDR_LE => {
                 push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?
             }
+            CDR2_BE => {
+                push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?
+            }
+            CDR2_LE => {
+                push_to_key_for_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?
+            }
             _ => panic!("representation_identifier not supported"),
         }
     }
@@ -361,6 +369,8 @@ pub fn get_instance_handle_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
+            CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
             PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
             PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
@@ -386,6 +396,8 @@ pub fn get_serialized_key_from_serialized_foo(
         match representation_identifier {
             CDR_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr1BeDeserializer::new(data))?,
             CDR_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr1LeDeserializer::new(data))?,
+            CDR2_BE => push_to_key(dynamic_type, &mut s, &mut Xcdr2BeDeserializer::new(data))?,
+            CDR2_LE => push_to_key(dynamic_type, &mut s, &mut Xcdr2LeDeserializer::new(data))?,
             PL_CDR_BE => push_to_key_parameter_list_be(dynamic_type, &mut s, data)?,
             PL_CDR_LE => push_to_key_parameter_list_le(dynamic_type, &mut s, data)?,
             _ => panic!("representation_identifier not supported"),
@@ -397,7 +409,6 @@ pub fn get_serialized_key_from_serialized_foo(
     collection[3] |= padding_len as u8;
     Ok(collection)
 }
-
 
 #[cfg(test)]
 mod tests {
