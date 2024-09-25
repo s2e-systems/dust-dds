@@ -1,4 +1,10 @@
-use crate::{infrastructure::error::DdsResult, xtypes::dynamic_type::DynamicType};
+use crate::{
+    infrastructure::error::DdsResult,
+    xtypes::{
+        dynamic_type::DynamicType,
+        xcdr_deserializer::{Xcdr2BeDeserializer, Xcdr2LeDeserializer},
+    },
+};
 pub use dust_dds_derive::{DdsDeserialize, DdsSerialize};
 use std::io::{Read, Write};
 
@@ -84,8 +90,8 @@ type RepresentationOptions = [u8; 2];
 
 const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
 const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
-const _CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
-const _CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
 const _D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
 const _D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const _PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
@@ -142,6 +148,8 @@ where
     let value = match representation_identifier {
         CDR_BE => XTypesDeserialize::deserialize(&mut Xcdr1BeDeserializer::new(serialized_data)),
         CDR_LE => XTypesDeserialize::deserialize(&mut Xcdr1LeDeserializer::new(serialized_data)),
+        CDR2_BE => XTypesDeserialize::deserialize(&mut Xcdr2BeDeserializer::new(serialized_data)),
+        CDR2_LE => XTypesDeserialize::deserialize(&mut Xcdr2LeDeserializer::new(serialized_data)),
         _ => Err(XTypesError::InvalidData),
     }?;
     Ok(value)

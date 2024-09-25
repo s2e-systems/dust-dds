@@ -171,7 +171,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListener + Send>>,
         mask: &[StatusKind],
-        dynamic_type_representation: Box<dyn DynamicType + Send + Sync>,
+        dynamic_type_representation: std::sync::Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<Topic> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,
