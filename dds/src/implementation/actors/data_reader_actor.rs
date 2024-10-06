@@ -55,7 +55,6 @@ use crate::{
     },
     rtps::{
         self,
-        cache_change::RtpsCacheChange,
         messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{
@@ -141,17 +140,21 @@ impl InstanceState {
 
 #[derive(Debug)]
 struct ReaderCacheChange {
-    rtps_cache_change: RtpsCacheChange,
+    kind: ChangeKind,
+    writer_guid: Guid,
+    instance_handle: InstanceHandle,
+    source_timestamp: Option<rtps::messages::types::Time>,
+    data_value: Data,
+    _inline_qos: ParameterList,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
     reception_timestamp: rtps::messages::types::Time,
-    source_timestamp: Option<rtps::messages::types::Time>,
 }
 
 impl ReaderCacheChange {
     fn instance_handle(&self) -> InstanceHandle {
-        self.rtps_cache_change.instance_handle.into()
+        self.instance_handle.into()
     }
 }
 
@@ -1314,20 +1317,18 @@ impl DataReaderActor {
         }?;
 
         Ok(ReaderCacheChange {
-            rtps_cache_change: RtpsCacheChange {
-                kind: change_kind,
-                writer_guid,
-                instance_handle: instance_handle.into(),
-                data_value: data,
-                inline_qos,
-            },
+            kind: change_kind,
+            writer_guid,
+            instance_handle: instance_handle.into(),
+            source_timestamp,
+            data_value: data,
+            _inline_qos: inline_qos,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,
             no_writers_generation_count: self.instances[&instance_handle]
                 .most_recent_no_writers_generation_count,
             reception_timestamp,
-            source_timestamp,
         })
     }
 
@@ -1355,9 +1356,8 @@ impl DataReaderActor {
                 self.instance_ownership.get(&change.instance_handle())
             {
                 let instance_owner = InstanceHandle::new(instance_owner_handle.into());
-                let instance_writer =
-                    InstanceHandle::new(change.rtps_cache_change.writer_guid.into());
-                if instance_owner_handle != change.rtps_cache_change.writer_guid
+                let instance_writer = InstanceHandle::new(change.writer_guid.into());
+                if instance_owner_handle != change.writer_guid
                     && self.matched_publication_list[&instance_writer]
                         .ownership_strength()
                         .value
@@ -1369,13 +1369,11 @@ impl DataReaderActor {
                 }
             }
 
-            self.instance_ownership.insert(
-                change.instance_handle(),
-                change.rtps_cache_change.writer_guid,
-            );
+            self.instance_ownership
+                .insert(change.instance_handle(), change.writer_guid);
         }
 
-        match change.rtps_cache_change.kind {
+        match change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (),
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
@@ -1425,7 +1423,7 @@ impl DataReaderActor {
                     .iter()
                     .filter(|cc| {
                         cc.instance_handle() == change.instance_handle()
-                            && cc.rtps_cache_change.kind == ChangeKind::Alive
+                            && cc.kind == ChangeKind::Alive
                     })
                     .count() as u32;
 
@@ -1436,7 +1434,7 @@ impl DataReaderActor {
                             .iter()
                             .position(|cc| {
                                 cc.instance_handle() == change.instance_handle()
-                                    && cc.rtps_cache_change.kind == ChangeKind::Alive
+                                    && cc.kind == ChangeKind::Alive
                             })
                             .expect("Samples must exist");
                         self.changes.remove(index_sample_to_remove);
@@ -1509,7 +1507,7 @@ impl DataReaderActor {
         let total_samples = self
             .changes
             .iter()
-            .filter(|cc| cc.rtps_cache_change.kind == ChangeKind::Alive)
+            .filter(|cc| cc.kind == ChangeKind::Alive)
             .count();
 
         total_samples == self.qos.resource_limits.max_samples
@@ -1577,7 +1575,7 @@ impl DataReaderActor {
             instances_in_collection
                 .get_mut(&cache_change.instance_handle())
                 .unwrap()
-                .update_state(cache_change.rtps_cache_change.kind);
+                .update_state(cache_change.kind);
             let sample_state = cache_change.sample_state;
             let view_state = self.instances[&cache_change.instance_handle()].view_state;
             let instance_state = self.instances[&cache_change.instance_handle()].instance_state;
@@ -1591,11 +1589,10 @@ impl DataReaderActor {
                     + instances_in_collection[&cache_change.instance_handle()]
                         .most_recent_no_writers_generation_count);
 
-            let (data, valid_data) = match cache_change.rtps_cache_change.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(cache_change.rtps_cache_change.data_value.clone()),
-                    true,
-                ),
+            let (data, valid_data) = match cache_change.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                    (Some(cache_change.data_value.clone()), true)
+                }
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered => (None, false),
@@ -1612,9 +1609,7 @@ impl DataReaderActor {
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp.map(Into::into),
                 instance_handle: cache_change.instance_handle(),
-                publication_handle: InstanceHandle::new(
-                    cache_change.rtps_cache_change.writer_guid.into(),
-                ),
+                publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
                 valid_data,
             };
 

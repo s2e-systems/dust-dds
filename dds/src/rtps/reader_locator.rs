@@ -1,6 +1,6 @@
 use super::{
+    cache_change::RtpsCacheChange,
     types::{Locator, SequenceNumber},
-    writer_history_cache::RtpsWriterCacheChange,
 };
 
 pub struct RtpsReaderLocator {
@@ -24,7 +24,7 @@ impl RtpsReaderLocator {
 
     pub fn next_unsent_change<'a>(
         &'a mut self,
-        writer_history_cache: impl Iterator<Item = &'a RtpsWriterCacheChange>,
+        writer_history_cache: impl Iterator<Item = &'a RtpsCacheChange>,
     ) -> Option<SequenceNumber> {
         // unsent_changes := { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
         // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID

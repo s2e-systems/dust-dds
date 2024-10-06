@@ -1,10 +1,10 @@
 use super::{
+    cache_change::RtpsCacheChange,
     messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
-    writer_history_cache::RtpsWriterCacheChange,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -166,7 +166,7 @@ impl RtpsReaderProxy {
 
     pub fn next_unsent_change<'a>(
         &'a self,
-        writer_history_cache: impl Iterator<Item = &'a RtpsWriterCacheChange>,
+        writer_history_cache: impl Iterator<Item = &'a RtpsCacheChange>,
     ) -> Option<SequenceNumber> {
         //         unsent_changes :=
         // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
@@ -181,7 +181,7 @@ impl RtpsReaderProxy {
 
     pub fn unsent_changes<'a>(
         &'a self,
-        writer_history_cache: impl Iterator<Item = &'a RtpsWriterCacheChange>,
+        writer_history_cache: impl Iterator<Item = &'a RtpsCacheChange>,
     ) -> bool {
         // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
         self.next_unsent_change(writer_history_cache).is_some()

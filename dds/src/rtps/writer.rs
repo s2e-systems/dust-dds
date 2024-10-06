@@ -1,12 +1,12 @@
 use super::{
     behavior_types::{Duration, InstanceHandle},
+    cache_change::RtpsCacheChange,
     endpoint::RtpsEndpoint,
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
     },
     types::{ChangeKind, Guid, Locator, SequenceNumber},
-    writer_history_cache::RtpsWriterCacheChange,
 };
 
 pub struct RtpsWriter {
@@ -70,16 +70,17 @@ impl RtpsWriter {
         inline_qos: ParameterList,
         handle: InstanceHandle,
         timestamp: messages::types::Time,
-    ) -> RtpsWriterCacheChange {
+    ) -> RtpsCacheChange {
         self.last_change_sequence_number += 1;
-        RtpsWriterCacheChange::new(
+
+        RtpsCacheChange {
             kind,
-            self.guid(),
-            handle,
-            self.last_change_sequence_number,
-            timestamp,
-            data,
+            writer_guid: self.guid(),
+            instance_handle: handle,
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(timestamp),
+            data_value: data,
             inline_qos,
-        )
+        }
     }
 }

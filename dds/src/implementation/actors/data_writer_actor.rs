@@ -42,6 +42,7 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::{
+        cache_change::RtpsCacheChange,
         messages::{
             submessage_elements::{Data, ParameterList, SequenceNumberSet, SerializedDataFragment},
             submessages::{
@@ -49,6 +50,7 @@ use crate::{
                 info_destination::InfoDestinationSubmessage,
                 info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
             },
+            types::TIME_INVALID,
         },
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
@@ -57,7 +59,6 @@ use crate::{
             ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
         writer::RtpsWriter,
-        writer_history_cache::RtpsWriterCacheChange,
     },
 };
 use std::{
@@ -258,7 +259,7 @@ pub struct DataWriterActor {
     status_condition: Actor<StatusConditionActor>,
     data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
-    changes: Vec<RtpsWriterCacheChange>,
+    changes: Vec<RtpsCacheChange>,
     max_seq_num: Option<SequenceNumber>,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
@@ -383,19 +384,19 @@ impl DataWriterActor {
                             .iter()
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
-                            let info_ts_submessage = Box::new(InfoTimestampSubmessage::new(
-                                false,
-                                cache_change.timestamp(),
-                            ));
-                            let data_submessage =
-                                Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
+                            if let Some(timestamp) = cache_change.source_timestamp() {
+                                let info_ts_submessage =
+                                    Box::new(InfoTimestampSubmessage::new(false, timestamp));
+                                let data_submessage =
+                                    Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
 
-                            message_sender_actor
-                                .send_actor_mail(message_sender_actor::WriteMessage {
-                                    submessages: vec![info_ts_submessage, data_submessage],
-                                    destination_locator_list: vec![reader_locator.locator()],
-                                })
-                                .ok();
+                                message_sender_actor
+                                    .send_actor_mail(message_sender_actor::WriteMessage {
+                                        submessages: vec![info_ts_submessage, data_submessage],
+                                        destination_locator_list: vec![reader_locator.locator()],
+                                    })
+                                    .ok();
+                            }
                         } else {
                             let gap_submessage = Box::new(GapSubmessage::new(
                                 ENTITYID_UNKNOWN,
@@ -1300,7 +1301,7 @@ pub struct NewChange {
     pub timestamp: Time,
 }
 impl Mail for NewChange {
-    type Result = RtpsWriterCacheChange;
+    type Result = RtpsCacheChange;
 }
 impl MailHandler<NewChange> for DataWriterActor {
     fn handle(&mut self, message: NewChange) -> <NewChange as Mail>::Result {
@@ -1315,7 +1316,7 @@ impl MailHandler<NewChange> for DataWriterActor {
 }
 
 pub struct AddChange {
-    pub change: RtpsWriterCacheChange,
+    pub change: RtpsCacheChange,
     pub now: Time,
     pub message_sender_actor: ActorAddress<MessageSenderActor>,
     pub writer_address: ActorAddress<DataWriterActor>,
@@ -1358,7 +1359,7 @@ impl MailHandler<AddChange> for DataWriterActor {
         }
 
         let change_instance_handle = message.change.instance_handle();
-        let change_timestamp = message.change.timestamp();
+        let change_timestamp = message.change.source_timestamp();
         let seq_num = message.change.sequence_number();
 
         if seq_num > self.max_seq_num.unwrap_or(0) {
@@ -1500,18 +1501,20 @@ impl MailHandler<AddChange> for DataWriterActor {
         }
 
         if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
-            let change_lifespan =
-                crate::infrastructure::time::Time::from(change_timestamp) - message.now + lifespan;
-            if change_lifespan > Duration::new(0, 0) {
-                self.changes.push(message.change);
-                message.executor_handle.spawn(async move {
-                    message.timer_handle.sleep(change_lifespan.into()).await;
+            if let Some(timestamp) = change_timestamp {
+                let change_lifespan =
+                    crate::infrastructure::time::Time::from(timestamp) - message.now + lifespan;
+                if change_lifespan > Duration::new(0, 0) {
+                    self.changes.push(message.change);
+                    message.executor_handle.spawn(async move {
+                        message.timer_handle.sleep(change_lifespan.into()).await;
 
-                    message
-                        .writer_address
-                        .send_actor_mail(RemoveChange { seq_num })
-                        .ok();
-                });
+                        message
+                            .writer_address
+                            .send_actor_mail(RemoveChange { seq_num })
+                            .ok();
+                    });
+                }
             }
         } else {
             self.changes.push(message.change);
@@ -1734,7 +1737,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    changes: &[RtpsWriterCacheChange],
+    changes: &[RtpsCacheChange],
     data_max_size_serialized: usize,
     message_sender_actor: &ActorAddress<MessageSenderActor>,
 ) {
@@ -1797,10 +1800,11 @@ fn send_message_to_reader_proxy_best_effort(
                         reader_proxy.remote_reader_guid().prefix(),
                     ));
 
-                    let info_timestamp = Box::new(InfoTimestampSubmessage::new(
-                        false,
-                        cache_change.timestamp(),
-                    ));
+                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                        Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                    } else {
+                        Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
+                    };
 
                     let inline_qos_flag = true;
                     let key_flag = match cache_change.kind() {
@@ -1854,10 +1858,11 @@ fn send_message_to_reader_proxy_best_effort(
                     reader_proxy.remote_reader_guid().prefix(),
                 ));
 
-                let info_timestamp = Box::new(InfoTimestampSubmessage::new(
-                    false,
-                    cache_change.timestamp(),
-                ));
+                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                    Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                } else {
+                    Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
+                };
 
                 let data_submessage = Box::new(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
@@ -1892,7 +1897,7 @@ fn send_message_to_reader_proxy_best_effort(
 fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    changes: &[RtpsWriterCacheChange],
+    changes: &[RtpsCacheChange],
     seq_num_min: Option<SequenceNumber>,
     seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
@@ -1987,7 +1992,7 @@ fn send_message_to_reader_proxy_reliable(
 fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    changes: &[RtpsWriterCacheChange],
+    changes: &[RtpsCacheChange],
     seq_num_min: Option<SequenceNumber>,
     seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
@@ -2011,10 +2016,11 @@ fn send_change_message_reader_proxy_reliable(
                         reader_proxy.remote_reader_guid().prefix(),
                     ));
 
-                    let info_timestamp = Box::new(InfoTimestampSubmessage::new(
-                        false,
-                        cache_change.timestamp(),
-                    ));
+                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                        Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                    } else {
+                        Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
+                    };
 
                     let inline_qos_flag = true;
                     let key_flag = match cache_change.kind() {
@@ -2068,10 +2074,11 @@ fn send_change_message_reader_proxy_reliable(
                     reader_proxy.remote_reader_guid().prefix(),
                 ));
 
-                let info_timestamp = Box::new(InfoTimestampSubmessage::new(
-                    false,
-                    cache_change.timestamp(),
-                ));
+                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
+                    Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                } else {
+                    Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
+                };
 
                 let data_submessage = Box::new(
                     cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
