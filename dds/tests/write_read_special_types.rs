@@ -174,7 +174,7 @@ async fn async_foo_with_lifetime_with_listener_should_compile() {
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactoryAsync::new();
+    let participant_factory = DomainParticipantFactoryAsync::get_instance();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .await

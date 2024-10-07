@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use super::{
     domain_participant::DomainParticipantAsync,
     domain_participant_listener::DomainParticipantListenerAsync,
@@ -32,26 +34,7 @@ pub struct DomainParticipantFactoryAsync {
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
 
-impl Default for DomainParticipantFactoryAsync {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DomainParticipantFactoryAsync {
-    /// Create a new [`DomainParticipantFactoryAsync`].
-    /// All the tasks of Dust DDS will be spawned on the runtime which is given as an argument.
-    pub fn new() -> Self {
-        let executor = Executor::new();
-        let domain_participant_factory_actor =
-            Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
-
-        Self {
-            _executor: executor,
-            domain_participant_factory_actor,
-        }
-    }
-
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -146,6 +129,23 @@ impl DomainParticipantFactoryAsync {
                 "Domain participant still contains other entities".to_string(),
             ))
         }
+    }
+
+    /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
+    #[tracing::instrument]
+    pub fn get_instance() -> &'static Self {
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
+        PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
+            let executor = Executor::new();
+            let domain_participant_factory_actor =
+                Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
+
+            Self {
+                _executor: executor,
+                domain_participant_factory_actor,
+            }
+        })
     }
 
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
