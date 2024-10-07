@@ -31,7 +31,6 @@ use crate::{
         time::Duration,
     },
     rtps::{
-        behavior_types::DURATION_ZERO,
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
         messages::submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
@@ -259,15 +258,14 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
                 &message.default_unicast_locator_list,
                 &message.default_multicast_locator_list,
             ),
-            true,
             Duration::new(0, 200_000_000).into(),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            message.data_max_size_serialized,
         );
 
         let data_writer = DataWriterActor::new(
-            rtps_writer_impl,
+            Box::new(rtps_writer_impl),
+            guid,
+            message.data_max_size_serialized,
+            Duration::new(0, 200_000_000).into(),
             message.topic_address,
             message.topic_name,
             message.type_name,

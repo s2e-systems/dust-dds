@@ -1,14 +1,11 @@
 use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy;
 
 use super::{
-    behavior_types::{Duration, InstanceHandle},
+    behavior_types::Duration,
     cache_change::RtpsCacheChange,
     endpoint::RtpsEndpoint,
-    messages::{
-        self,
-        submessage_elements::{Data, ParameterList},
-    },
-    types::{ChangeKind, Guid, Locator, SequenceNumber},
+    reader_proxy::RtpsReaderProxy,
+    types::{DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
 
 pub trait WriterHistoryCache {
@@ -20,7 +17,14 @@ pub trait WriterHistoryCache {
 }
 
 pub trait TransportWriter {
-    fn add_matched_reader(&mut self, reader_proxy: ReaderProxy);
+    fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache;
+
+    fn add_matched_reader(
+        &mut self,
+        reader_proxy: ReaderProxy,
+        reliability_kind: ReliabilityKind,
+        durability_kind: DurabilityKind,
+    );
 
     fn delete_matched_reader(&mut self, reader_guid: Guid);
 }
@@ -28,32 +32,17 @@ pub trait TransportWriter {
 pub struct RtpsWriter {
     endpoint: RtpsEndpoint,
     changes: Vec<RtpsCacheChange>,
-    _push_mode: bool,
     heartbeat_period: Duration,
-    _nack_response_delay: Duration,
-    _nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
-    data_max_size_serialized: usize,
+    matched_readers: Vec<RtpsReaderProxy>,
 }
 
 impl RtpsWriter {
-    pub fn new(
-        endpoint: RtpsEndpoint,
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_size_serialized: usize,
-    ) -> Self {
+    pub fn new(endpoint: RtpsEndpoint, heartbeat_period: Duration) -> Self {
         Self {
             endpoint,
             changes: Vec::new(),
-            _push_mode: push_mode,
             heartbeat_period,
-            _nack_response_delay: nack_response_delay,
-            _nack_suppression_duration: nack_suppression_duration,
-            last_change_sequence_number: 0,
-            data_max_size_serialized,
+            matched_readers: Vec::new(),
         }
     }
 
@@ -69,51 +58,63 @@ impl RtpsWriter {
         self.endpoint.multicast_locator_list()
     }
 
-    pub fn _push_mode(&self) -> bool {
-        self._push_mode
-    }
-
     pub fn heartbeat_period(&self) -> Duration {
         self.heartbeat_period
     }
+}
 
-    pub fn data_max_size_serialized(&self) -> usize {
-        self.data_max_size_serialized
+impl TransportWriter for RtpsWriter {
+    fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache {
+        self
     }
 
-    pub fn new_change(
+    fn add_matched_reader(
         &mut self,
-        kind: ChangeKind,
-        data: Data,
-        inline_qos: ParameterList,
-        handle: InstanceHandle,
-        timestamp: messages::types::Time,
-    ) -> RtpsCacheChange {
-        self.last_change_sequence_number += 1;
+        reader_proxy: ReaderProxy,
+        reliability_kind: ReliabilityKind,
+        durability_kind: DurabilityKind,
+    ) {
+        let first_relevant_sample_seq_num = match durability_kind {
+            DurabilityKind::Volatile => self
+                .changes
+                .iter()
+                .map(|cc| cc.sequence_number)
+                .max()
+                .unwrap_or(0),
+            DurabilityKind::TransientLocal
+            | DurabilityKind::Transient
+            | DurabilityKind::Persistent => 0,
+        };
+        let rtps_reader_proxy = RtpsReaderProxy::new(
+            reader_proxy.remote_reader_guid,
+            reader_proxy.remote_group_entity_id,
+            &reader_proxy.unicast_locator_list,
+            &reader_proxy.multicast_locator_list,
+            reader_proxy.expects_inline_qos,
+            true,
+            reliability_kind,
+            first_relevant_sample_seq_num,
+        );
+        self.matched_readers.push(rtps_reader_proxy);
+    }
 
-        RtpsCacheChange {
-            kind,
-            writer_guid: self.guid(),
-            instance_handle: handle,
-            sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(timestamp),
-            data_value: data,
-            inline_qos,
-        }
+    fn delete_matched_reader(&mut self, reader_guid: Guid) {
+        self.matched_readers
+            .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
 }
 
-impl RtpsWriter {
-    pub fn add_change(&mut self, cache_change: RtpsCacheChange) {
+impl WriterHistoryCache for RtpsWriter {
+    fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
     }
 
-    pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
+    fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
             .retain(|cc| cc.sequence_number() != sequence_number);
     }
 
-    pub fn get_changes(&self) -> &[RtpsCacheChange] {
+    fn get_changes(&self) -> &[RtpsCacheChange] {
         &self.changes
     }
 }

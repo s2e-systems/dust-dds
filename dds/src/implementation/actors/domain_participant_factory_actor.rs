@@ -347,7 +347,12 @@ impl DomainParticipantFactoryActor {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let mut spdp_builtin_participant_writer = DataWriterActor::new(
-            create_builtin_stateless_writer(spdp_builtin_participant_writer_guid),
+            Box::new(create_builtin_stateless_writer(
+                spdp_builtin_participant_writer_guid,
+            )),
+            spdp_builtin_participant_writer_guid,
+            usize::MAX,
+            Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_PARTICIPANT].0.address(),
             DCPS_PARTICIPANT.to_string(),
             "SpdpDiscoveredParticipantData".to_string(),
@@ -374,7 +379,12 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_topics_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DataWriterActor::new(
-            create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
+            Box::new(create_builtin_stateful_writer(
+                sedp_builtin_topics_writer_guid,
+            )),
+            sedp_builtin_topics_writer_guid,
+            usize::MAX,
+            Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_TOPIC].0.address(),
             DCPS_TOPIC.to_string(),
             "DiscoveredTopicData".to_string(),
@@ -388,7 +398,12 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_publications_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DataWriterActor::new(
-            create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
+            Box::new(create_builtin_stateful_writer(
+                sedp_builtin_publications_writer_guid,
+            )),
+            sedp_builtin_publications_writer_guid,
+            usize::MAX,
+            Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_PUBLICATION].0.address(),
             DCPS_PUBLICATION.to_string(),
             "DiscoveredWriterData".to_string(),
@@ -402,7 +417,12 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_subscriptions_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
-            create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
+            Box::new(create_builtin_stateful_writer(
+                sedp_builtin_subscriptions_writer_guid,
+            )),
+            sedp_builtin_subscriptions_writer_guid,
+            usize::MAX,
+            Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_SUBSCRIPTION].0.address(),
             DCPS_SUBSCRIPTION.to_string(),
             "DiscoveredReaderData".to_string(),
@@ -790,10 +810,6 @@ const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
 const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
-const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-const DEFAULT_NACK_SUPPRESSION_DURATION: Duration =
-    Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
-
 fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
@@ -890,11 +906,7 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
     let topic_kind = TopicKind::WithKey;
-    let push_mode = true;
     let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
-    let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY.into();
-    let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION.into();
-    let data_max_size_serialized = usize::MAX;
 
     RtpsWriter::new(
         RtpsEndpoint::new(
@@ -903,18 +915,12 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
             unicast_locator_list,
             multicast_locator_list,
         ),
-        push_mode,
         heartbeat_period,
-        nack_response_delay,
-        nack_suppression_duration,
-        data_max_size_serialized,
     )
 }
 
 fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
     let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
-    let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY.into();
-    let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION.into();
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
@@ -925,11 +931,7 @@ fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
             unicast_locator_list,
             multicast_locator_list,
         ),
-        true,
         heartbeat_period,
-        nack_response_delay,
-        nack_suppression_duration,
-        usize::MAX,
     )
 }
 

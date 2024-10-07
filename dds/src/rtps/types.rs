@@ -383,6 +383,16 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
+/// DurabilityKind_t
+/// Enumeration used to indicate the level of the durability used for communications.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DurabilityKind {
+    Volatile,
+    TransientLocal,
+    Transient,
+    Persistent,
+}
+
 /// InstanceHandle_t
 /// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
 // Defined elsewhere in DDS
