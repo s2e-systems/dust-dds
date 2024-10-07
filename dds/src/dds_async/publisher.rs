@@ -80,11 +80,11 @@ impl PublisherAsync {
                 .receive_reply()
                 .await
                 .topic_data;
-            let xml_type = "".to_string();//topic
-                // .send_actor_mail(topic_actor::GetTypeSupport)?
-                // .receive_reply()
-                // .await
-                // .xml_type();
+            let xml_type = "".to_string(); //topic
+                                           // .send_actor_mail(topic_actor::GetTypeSupport)?
+                                           // .receive_reply()
+                                           // .await
+                                           // .xml_type();
             let data = writer
                 .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
                     publisher_qos,
@@ -114,16 +114,6 @@ impl PublisherAsync {
     where
         Foo: 'b,
     {
-        let default_unicast_locator_list = self
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-            .receive_reply()
-            .await;
-        let default_multicast_locator_list = self
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-            .receive_reply()
-            .await;
         let data_max_size_serialized = self
             .participant
             .participant_address()
@@ -166,8 +156,6 @@ impl PublisherAsync {
                 qos,
                 a_listener: listener,
                 mask: mask.to_vec(),
-                default_unicast_locator_list,
-                default_multicast_locator_list,
                 executor_handle: self.participant.executor_handle().clone(),
             })?
             .receive_reply()

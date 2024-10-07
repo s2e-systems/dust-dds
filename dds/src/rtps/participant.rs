@@ -1,6 +1,7 @@
 use super::{
     entity::RtpsEntity,
     types::{Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT},
+    writer::TransportWriter,
 };
 
 pub struct RtpsParticipant {
@@ -76,5 +77,12 @@ impl RtpsParticipant {
 
     pub fn set_metatraffic_multicast_locator_list(&mut self, list: Vec<Locator>) {
         self.metatraffic_multicast_locator_list = list;
+    }
+}
+
+impl RtpsParticipant {
+    pub fn create_writer(&self) -> Box<dyn TransportWriter> {
+
+        todo!()
     }
 }

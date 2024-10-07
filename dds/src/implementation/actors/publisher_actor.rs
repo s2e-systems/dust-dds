@@ -31,11 +31,10 @@ use crate::{
         time::Duration,
     },
     rtps::{
-        endpoint::RtpsEndpoint,
         group::RtpsGroup,
         messages::submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
         types::{
-            EntityId, Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            EntityId, Guid, GuidPrefix, Locator, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
         writer::RtpsWriter,
@@ -221,8 +220,6 @@ pub struct CreateDatawriter {
     pub qos: QosKind<DataWriterQos>,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub mask: Vec<StatusKind>,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
     pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateDatawriter {
@@ -239,9 +236,9 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
         };
 
         let guid_prefix = self.rtps_group.guid().prefix();
-        let (entity_kind, topic_kind) = match message.has_key {
-            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        let entity_kind = match message.has_key {
+            true => USER_DEFINED_WRITER_WITH_KEY,
+            false => USER_DEFINED_WRITER_NO_KEY,
         };
         let entity_key = [
             self.rtps_group.guid().entity_id().entity_key()[0],
@@ -251,15 +248,7 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let rtps_writer_impl = RtpsWriter::new(
-            RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                &message.default_unicast_locator_list,
-                &message.default_multicast_locator_list,
-            ),
-            Duration::new(0, 200_000_000).into(),
-        );
+        let rtps_writer_impl = RtpsWriter::new(guid);
 
         let data_writer = DataWriterActor::new(
             Box::new(rtps_writer_impl),

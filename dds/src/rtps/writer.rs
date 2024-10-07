@@ -1,11 +1,9 @@
 use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy;
 
 use super::{
-    behavior_types::Duration,
     cache_change::RtpsCacheChange,
-    endpoint::RtpsEndpoint,
     reader_proxy::RtpsReaderProxy,
-    types::{DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber},
+    types::{DurabilityKind, Guid, ReliabilityKind, SequenceNumber},
 };
 
 pub trait WriterHistoryCache {
@@ -30,36 +28,22 @@ pub trait TransportWriter {
 }
 
 pub struct RtpsWriter {
-    endpoint: RtpsEndpoint,
+    guid: Guid,
     changes: Vec<RtpsCacheChange>,
-    heartbeat_period: Duration,
     matched_readers: Vec<RtpsReaderProxy>,
 }
 
 impl RtpsWriter {
-    pub fn new(endpoint: RtpsEndpoint, heartbeat_period: Duration) -> Self {
+    pub fn new(guid: Guid) -> Self {
         Self {
-            endpoint,
+            guid,
             changes: Vec::new(),
-            heartbeat_period,
             matched_readers: Vec::new(),
         }
     }
 
     pub fn guid(&self) -> Guid {
-        self.endpoint.guid()
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.multicast_locator_list()
-    }
-
-    pub fn heartbeat_period(&self) -> Duration {
-        self.heartbeat_period
+        self.guid
     }
 }
 

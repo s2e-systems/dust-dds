@@ -809,7 +809,6 @@ const PB: i32 = 7400;
 const DG: i32 = 250;
 #[allow(non_upper_case_globals)]
 const d0: i32 = 0;
-const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
 fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
@@ -903,36 +902,11 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
 }
 
 fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
-    let unicast_locator_list = &[];
-    let multicast_locator_list = &[];
-    let topic_kind = TopicKind::WithKey;
-    let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
-
-    RtpsWriter::new(
-        RtpsEndpoint::new(
-            guid,
-            topic_kind,
-            unicast_locator_list,
-            multicast_locator_list,
-        ),
-        heartbeat_period,
-    )
+    RtpsWriter::new(guid)
 }
 
 fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
-    let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD.into();
-    let unicast_locator_list = &[];
-    let multicast_locator_list = &[];
-
-    RtpsWriter::new(
-        RtpsEndpoint::new(
-            guid,
-            TopicKind::WithKey,
-            unicast_locator_list,
-            multicast_locator_list,
-        ),
-        heartbeat_period,
-    )
+    RtpsWriter::new(guid)
 }
 
 pub fn sedp_data_reader_qos() -> DataReaderQos {
