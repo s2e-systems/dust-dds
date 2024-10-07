@@ -1,3 +1,5 @@
+use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy;
+
 use super::{
     behavior_types::{Duration, InstanceHandle},
     cache_change::RtpsCacheChange,
@@ -8,6 +10,20 @@ use super::{
     },
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
+
+pub trait WriterHistoryCache {
+    fn add_change(&mut self, cache_change: RtpsCacheChange);
+
+    fn remove_change(&mut self, sequence_number: SequenceNumber);
+
+    fn get_changes(&self) -> &[RtpsCacheChange];
+}
+
+pub trait TransportWriter {
+    fn add_matched_reader(&mut self, reader_proxy: ReaderProxy);
+
+    fn delete_matched_reader(&mut self, reader_guid: Guid);
+}
 
 pub struct RtpsWriter {
     endpoint: RtpsEndpoint,
