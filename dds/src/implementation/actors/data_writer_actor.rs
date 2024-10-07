@@ -259,7 +259,6 @@ pub struct DataWriterActor {
     status_condition: Actor<StatusConditionActor>,
     data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
-    changes: Vec<RtpsCacheChange>,
     max_seq_num: Option<SequenceNumber>,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
@@ -297,7 +296,6 @@ impl DataWriterActor {
             status_condition,
             data_writer_listener_thread,
             status_kind,
-            changes: Vec::new(),
             max_seq_num: None,
             qos,
             registered_instance_list: HashSet::new(),
@@ -373,14 +371,15 @@ impl DataWriterActor {
             match &self.qos.reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     while let Some(unsent_change_seq_num) =
-                        reader_locator.next_unsent_change(self.changes.iter())
+                        reader_locator.next_unsent_change(self.rtps_writer.get_changes().iter())
                     {
                         // The post-condition:
                         // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
                         // should be full-filled by next_unsent_change()
 
                         if let Some(cache_change) = self
-                            .changes
+                            .rtps_writer
+                            .get_changes()
                             .iter()
                             .find(|cc| cc.sequence_number() == unsent_change_seq_num)
                         {
@@ -433,7 +432,7 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_best_effort(
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
-                        &self.changes,
+                        self.rtps_writer.get_changes(),
                         self.rtps_writer.data_max_size_serialized(),
                         message_sender_actor,
                     )
@@ -442,8 +441,12 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_reliable(
                         reader_proxy,
                         self.rtps_writer.guid().entity_id(),
-                        &self.changes,
-                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
+                        self.rtps_writer.get_changes(),
+                        self.rtps_writer
+                            .get_changes()
+                            .iter()
+                            .map(|cc| cc.sequence_number())
+                            .min(),
                         self.max_seq_num,
                         self.rtps_writer.data_max_size_serialized(),
                         self.rtps_writer.heartbeat_period().into(),
@@ -1339,21 +1342,22 @@ impl MailHandler<AddChange> for DataWriterActor {
     fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if self
-                .changes
+                .rtps_writer
+                .get_changes()
                 .iter()
                 .filter(|cc| cc.instance_handle() == message.change.instance_handle())
                 .count()
                 == depth as usize
             {
                 if let Some(smallest_seq_num_instance) = self
-                    .changes
+                    .rtps_writer
+                    .get_changes()
                     .iter()
                     .filter(|cc| cc.instance_handle() == message.change.instance_handle())
                     .map(|cc| cc.sequence_number())
                     .min()
                 {
-                    self.changes
-                        .retain(|cc| cc.sequence_number() != smallest_seq_num_instance);
+                    self.rtps_writer.remove_change(smallest_seq_num_instance);
                 }
             }
         }
@@ -1505,7 +1509,7 @@ impl MailHandler<AddChange> for DataWriterActor {
                 let change_lifespan =
                     crate::infrastructure::time::Time::from(timestamp) - message.now + lifespan;
                 if change_lifespan > Duration::new(0, 0) {
-                    self.changes.push(message.change);
+                    self.rtps_writer.add_change(message.change);
                     message.executor_handle.spawn(async move {
                         message.timer_handle.sleep(change_lifespan.into()).await;
 
@@ -1517,7 +1521,7 @@ impl MailHandler<AddChange> for DataWriterActor {
                 }
             }
         } else {
-            self.changes.push(message.change);
+            self.rtps_writer.add_change(message.change);
         }
 
         self.send_message(message.message_sender_actor);
@@ -1532,8 +1536,7 @@ impl Mail for RemoveChange {
 }
 impl MailHandler<RemoveChange> for DataWriterActor {
     fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
-        self.changes
-            .retain(|cc| cc.sequence_number() != message.seq_num);
+        self.rtps_writer.remove_change(message.seq_num);
     }
 }
 
@@ -1560,10 +1563,11 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
     ) -> <IsResourcesLimitReached as Mail>::Result {
         if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
             if !self
-                .changes
+                .rtps_writer
+                .get_changes()
                 .iter()
                 .any(|cc| cc.instance_handle() == message.instance_handle.into())
-                && self.changes.len() == max_instances as usize
+                && self.rtps_writer.get_changes().len() == max_instances as usize
             {
                 return true;
             }
@@ -1579,7 +1583,8 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
                 _ => {
                     // Only Alive changes count towards the resource limits
                     if self
-                        .changes
+                        .rtps_writer
+                        .get_changes()
                         .iter()
                         .filter(|cc| cc.instance_handle() == message.instance_handle.into())
                         .filter(|cc| cc.kind() == ChangeKind::Alive)
@@ -1594,7 +1599,8 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
 
         if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
             let total_samples = self
-                .changes
+                .rtps_writer
+                .get_changes()
                 .iter()
                 .filter(|cc| cc.kind() == ChangeKind::Alive)
                 .count();
@@ -1621,14 +1627,16 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
     ) -> <IsDataLostAfterAddingChange as Mail>::Result {
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if self
-                .changes
+                .rtps_writer
+                .get_changes()
                 .iter()
                 .filter(|cc| cc.instance_handle() == message.instance_handle.into())
                 .count()
                 == depth as usize
             {
                 let highest_change_seq_num = self
-                    .changes
+                    .rtps_writer
+                    .get_changes()
                     .iter()
                     .filter(|cc| cc.instance_handle() == message.instance_handle.into())
                     .map(|cc| cc.sequence_number())

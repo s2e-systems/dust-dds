@@ -11,6 +11,7 @@ use super::{
 
 pub struct RtpsWriter {
     endpoint: RtpsEndpoint,
+    changes: Vec<RtpsCacheChange>,
     _push_mode: bool,
     heartbeat_period: Duration,
     _nack_response_delay: Duration,
@@ -30,6 +31,7 @@ impl RtpsWriter {
     ) -> Self {
         Self {
             endpoint,
+            changes: Vec::new(),
             _push_mode: push_mode,
             heartbeat_period,
             _nack_response_delay: nack_response_delay,
@@ -82,5 +84,20 @@ impl RtpsWriter {
             data_value: data,
             inline_qos,
         }
+    }
+}
+
+impl RtpsWriter {
+    pub fn add_change(&mut self, cache_change: RtpsCacheChange) {
+        self.changes.push(cache_change);
+    }
+
+    pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
+        self.changes
+            .retain(|cc| cc.sequence_number() != sequence_number);
+    }
+
+    pub fn get_changes(&self) -> &[RtpsCacheChange] {
+        &self.changes
     }
 }
