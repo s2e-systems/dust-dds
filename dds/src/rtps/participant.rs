@@ -24,6 +24,7 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
+    reader::RtpsStatefulReader,
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
@@ -118,6 +119,7 @@ pub struct RtpsParticipant {
     builtin_stateless_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessWriter>>>>>,
     builtin_stateful_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
     user_defined_writer_list: Arc<Mutex<HashMap<[u8; 16], Arc<Mutex<RtpsStatefulWriter>>>>>,
+    user_defined_reader_list: Arc<Mutex<HashMap<[u8; 16], Arc<Mutex<RtpsStatefulReader>>>>>,
     sender_socket: UdpSocket,
 }
 
@@ -133,6 +135,7 @@ impl RtpsParticipant {
         let builtin_stateful_writer_list =
             Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulWriter>>>::new()));
         let user_defined_writer_list = Arc::new(Mutex::new(HashMap::new()));
+        let user_defined_reader_list = Arc::new(Mutex::new(HashMap::new()));
 
         // Open socket for unicast user-defined data
         let interface_address_list = NetworkInterface::show()
@@ -385,6 +388,7 @@ impl RtpsParticipant {
             builtin_stateless_writer_list,
             builtin_stateful_writer_list,
             user_defined_writer_list,
+            user_defined_reader_list,
             sender_socket,
         })
     }
@@ -524,6 +528,17 @@ impl RtpsParticipant {
 
     pub fn delete_writer(&mut self, writer_guid: Guid) {
         self.user_defined_writer_list
+            .lock()
+            .unwrap()
+            .remove(&<[u8; 16]>::from(writer_guid));
+    }
+
+    pub fn create_reader(&mut self) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
+        todo!()
+    }
+
+    pub fn delete_reader(&mut self, writer_guid: Guid) {
+        self.user_defined_reader_list
             .lock()
             .unwrap()
             .remove(&<[u8; 16]>::from(writer_guid));

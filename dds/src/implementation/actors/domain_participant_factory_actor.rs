@@ -40,7 +40,6 @@ use crate::{
         time::{Duration, DurationKind, DURATION_ZERO_NSEC, DURATION_ZERO_SEC},
     },
     rtps::{
-        behavior_types::DURATION_ZERO,
         discovery_types::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -51,7 +50,7 @@ use crate::{
         },
         endpoint::RtpsEndpoint,
         participant::RtpsParticipant,
-        reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
+        reader::{RtpsReader, RtpsStatefulReader, RtpsStatelessReader, TransportReader},
         types::{
             EntityId, Guid, GuidPrefix, TopicKind, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
             PROTOCOLVERSION, VENDOR_ID_S2E,
@@ -247,6 +246,7 @@ impl DomainParticipantFactoryActor {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader = DataReaderActor::new(
+            spdp_builtin_participant_reader_guid,
             create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
             topic_list[DCPS_PARTICIPANT].0.address(),
             DCPS_PARTICIPANT.to_string(),
@@ -262,6 +262,7 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_topics_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = DataReaderActor::new(
+            sedp_builtin_topics_reader_guid,
             create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
             topic_list[DCPS_TOPIC].0.address(),
             DCPS_TOPIC.to_string(),
@@ -277,6 +278,7 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_publications_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader = DataReaderActor::new(
+            sedp_builtin_publications_reader_guid,
             create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
             topic_list[DCPS_PUBLICATION].0.address(),
             DCPS_PUBLICATION.to_string(),
@@ -292,6 +294,7 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader = DataReaderActor::new(
+            sedp_builtin_subscriptions_reader_guid,
             create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
             topic_list[DCPS_SUBSCRIPTION].0.address(),
             DCPS_SUBSCRIPTION.to_string(),
@@ -630,46 +633,37 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     }
 }
 
-fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {
+fn create_builtin_stateless_reader(
+    guid: Guid,
+) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    RtpsReaderKind::Stateless(RtpsStatelessReader::new(RtpsReader::new(
+    Arc::new(Mutex::new(RtpsStatelessReader::new(RtpsReader::new(
         RtpsEndpoint::new(
             guid,
             TopicKind::WithKey,
             unicast_locator_list,
             multicast_locator_list,
         ),
-        DURATION_ZERO,
-        DURATION_ZERO,
-        false,
-    )))
+    ))))
 }
 
-fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
-    const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration =
-        Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC);
-    const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
-
+fn create_builtin_stateful_reader(
+    guid: Guid,
+) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
     let topic_kind = TopicKind::WithKey;
-    let heartbeat_response_delay = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION.into();
-    let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_RESPONSE_DELAY.into();
-    let expects_inline_qos = false;
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
+    Arc::new(Mutex::new(RtpsStatefulReader::new(RtpsReader::new(
         RtpsEndpoint::new(
             guid,
             topic_kind,
             unicast_locator_list,
             multicast_locator_list,
         ),
-        heartbeat_response_delay,
-        heartbeat_suppression_duration,
-        expects_inline_qos,
-    )))
+    ))))
 }
 
 pub fn sedp_data_reader_qos() -> DataReaderQos {

@@ -807,7 +807,9 @@ impl DomainParticipantAsync {
                 .await
             {
                 builtin_reader
-                    .send_actor_mail(data_reader_actor::Enable)?
+                    .send_actor_mail(data_reader_actor::Enable {
+                        data_reader_address: builtin_reader.clone(),
+                    })?
                     .receive_reply()
                     .await;
             }

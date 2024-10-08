@@ -8,7 +8,7 @@ use super::{
         },
         types::Count,
     },
-    types::{EntityId, Guid, Locator, SequenceNumber},
+    types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
 use crate::implementation::{
     actor::ActorAddress,
@@ -39,6 +39,7 @@ pub struct RtpsWriterProxy {
     pub(crate) acknack_count: Count,
     pub(crate) nack_frag_count: Count,
     pub(crate) frag_buffer: HashMap<SequenceNumber, Vec<DataFragSubmessage>>,
+    pub(crate) reliability: ReliabilityKind,
 }
 
 impl RtpsWriterProxy {
@@ -48,6 +49,7 @@ impl RtpsWriterProxy {
         multicast_locator_list: &[Locator],
         data_max_size_serialized: Option<i32>,
         remote_group_entity_id: EntityId,
+        reliability: ReliabilityKind,
     ) -> Self {
         Self {
             remote_writer_guid,
@@ -64,6 +66,7 @@ impl RtpsWriterProxy {
             acknack_count: 0,
             nack_frag_count: 0,
             frag_buffer: HashMap::new(),
+            reliability,
         }
     }
 

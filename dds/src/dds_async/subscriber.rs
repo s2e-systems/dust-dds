@@ -79,11 +79,11 @@ impl SubscriberAsync {
                 .receive_reply()
                 .await
                 .topic_data;
-            let xml_type = "".to_string();//topic
-                // .send_actor_mail(topic_actor::GetTypeSupport)?
-                // .receive_reply()
-                // .await
-                // .xml_type();
+            let xml_type = "".to_string(); //topic
+                                           // .send_actor_mail(topic_actor::GetTypeSupport)?
+                                           // .receive_reply()
+                                           // .await
+                                           // .xml_type();
             let data = reader
                 .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
                     subscriber_qos,
@@ -207,18 +207,6 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
-        // Send messages before deleting the reader
-        let message_sender_actor = self
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)?
-            .receive_reply()
-            .await;
-        a_datareader
-            .reader_address()
-            .send_actor_mail(data_reader_actor::SendMessage {
-                message_sender_actor,
-            })?;
-
         let topic = a_datareader.get_topicdescription().topic_address().clone();
 
         let deleted_reader = self
@@ -317,22 +305,11 @@ impl SubscriberAsync {
             .receive_reply()
             .await;
 
-        let message_sender_actor = self
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)?
-            .receive_reply()
-            .await;
-
         for deleted_reader_actor in deleted_reader_actor_list {
             let topic = deleted_reader_actor
                 .send_actor_mail(data_reader_actor::GetTopicAddress)
                 .receive_reply()
                 .await;
-
-            // Send messages before deleting the reader
-            deleted_reader_actor.send_actor_mail(data_reader_actor::SendMessage {
-                message_sender_actor: message_sender_actor.clone(),
-            });
 
             self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
                 .await?;
@@ -446,7 +423,9 @@ impl SubscriberAsync {
                     .await
                 {
                     data_reader
-                        .send_actor_mail(data_reader_actor::Enable)?
+                        .send_actor_mail(data_reader_actor::Enable {
+                            data_reader_address: data_reader.clone(),
+                        })?
                         .receive_reply()
                         .await;
                 }

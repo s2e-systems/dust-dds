@@ -65,8 +65,6 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         group::RtpsGroup,
-        message_receiver::MessageReceiver,
-        messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         participant::RtpsParticipant,
         types::{
             EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
@@ -1331,215 +1329,6 @@ impl MailHandler<GetBuiltinPublisher> for DomainParticipantActor {
     }
 }
 
-pub struct ProcessMetatrafficRtpsMessage {
-    pub rtps_message: RtpsMessageRead,
-    pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
-}
-impl Mail for ProcessMetatrafficRtpsMessage {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: ProcessMetatrafficRtpsMessage,
-    ) -> <ProcessMetatrafficRtpsMessage as Mail>::Result {
-        tracing::trace!(
-            rtps_message = ?message.rtps_message,
-            "Received metatraffic RTPS message"
-        );
-        let reception_timestamp = self.get_current_time().into();
-        let mut message_receiver = MessageReceiver::new(message.rtps_message);
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    let participant_mask_listener = (
-                        self.participant_listener_thread
-                            .as_ref()
-                            .map(|l| l.sender().clone()),
-                        self.status_kind.clone(),
-                    );
-                    self.builtin_subscriber.send_actor_mail(
-                        subscriber_actor::ProcessDataSubmessage {
-                            data_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                            source_timestamp: message_receiver.source_timestamp(),
-                            reception_timestamp,
-                            subscriber_address: self.builtin_subscriber.address(),
-                            participant: message.participant.clone(),
-                            participant_mask_listener,
-                            executor_handle: message.executor_handle.clone(),
-                            timer_handle: self.timer_driver.handle(),
-                        },
-                    );
-                }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    let participant_mask_listener = (
-                        self.participant_listener_thread
-                            .as_ref()
-                            .map(|l| l.sender().clone()),
-                        self.status_kind.clone(),
-                    );
-                    self.builtin_subscriber.send_actor_mail(
-                        subscriber_actor::ProcessDataFragSubmessage {
-                            data_frag_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                            source_timestamp: message_receiver.source_timestamp(),
-                            reception_timestamp,
-                            subscriber_address: self.builtin_subscriber.address(),
-                            participant: message.participant.clone(),
-                            participant_mask_listener,
-                            executor_handle: message.executor_handle.clone(),
-                            timer_handle: self.timer_driver.handle(),
-                        },
-                    );
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    self.builtin_subscriber.send_actor_mail(
-                        subscriber_actor::ProcessGapSubmessage {
-                            gap_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                        },
-                    );
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    self.builtin_subscriber.send_actor_mail(
-                        subscriber_actor::ProcessHeartbeatSubmessage {
-                            heartbeat_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                            message_sender_actor: self.message_sender_actor.address(),
-                        },
-                    );
-                }
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                    self.builtin_subscriber.send_actor_mail(
-                        subscriber_actor::ProcessHeartbeatFragSubmessage {
-                            heartbeat_frag_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                        },
-                    );
-                }
-
-                _ => (),
-            }
-        }
-
-        message.executor_handle.spawn(async move {
-            process_discovery_data(message.participant.clone())
-                .await
-                .ok();
-        });
-
-        Ok(())
-    }
-}
-
-pub struct ProcessUserDefinedRtpsMessage {
-    pub rtps_message: RtpsMessageRead,
-    pub participant: DomainParticipantAsync,
-    pub executor_handle: ExecutorHandle,
-}
-impl Mail for ProcessUserDefinedRtpsMessage {
-    type Result = ();
-}
-impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: ProcessUserDefinedRtpsMessage,
-    ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
-        let reception_timestamp = self.get_current_time().into();
-        let mut message_receiver = MessageReceiver::new(message.rtps_message);
-        while let Some(submessage) = message_receiver.next() {
-            match submessage {
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
-                    {
-                        let participant_mask_listener = (
-                            self.participant_listener_thread
-                                .as_ref()
-                                .map(|l| l.sender().clone()),
-                            self.status_kind.clone(),
-                        );
-                        user_defined_subscriber_actor.send_actor_mail(
-                            subscriber_actor::ProcessDataSubmessage {
-                                data_submessage: data_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                                source_timestamp: message_receiver.source_timestamp(),
-                                reception_timestamp,
-                                subscriber_address: user_defined_subscriber_actor.address(),
-                                participant: message.participant.clone(),
-                                participant_mask_listener,
-                                executor_handle: message.executor_handle.clone(),
-                                timer_handle: self.timer_driver.handle(),
-                            },
-                        );
-                    }
-                }
-                RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
-                    {
-                        let participant_mask_listener = (
-                            self.participant_listener_thread
-                                .as_ref()
-                                .map(|l| l.sender().clone()),
-                            self.status_kind.clone(),
-                        );
-                        user_defined_subscriber_actor.send_actor_mail(
-                            subscriber_actor::ProcessDataFragSubmessage {
-                                data_frag_submessage: data_frag_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                                source_timestamp: message_receiver.source_timestamp(),
-                                reception_timestamp,
-                                subscriber_address: user_defined_subscriber_actor.address(),
-                                participant: message.participant.clone(),
-                                participant_mask_listener,
-                                executor_handle: message.executor_handle.clone(),
-                                timer_handle: self.timer_driver.handle(),
-                            },
-                        );
-                    }
-                }
-                RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
-                    {
-                        user_defined_subscriber_actor.send_actor_mail(
-                            subscriber_actor::ProcessGapSubmessage {
-                                gap_submessage: gap_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                            },
-                        );
-                    }
-                }
-                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
-                    {
-                        user_defined_subscriber_actor.send_actor_mail(
-                            subscriber_actor::ProcessHeartbeatSubmessage {
-                                heartbeat_submessage: heartbeat_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                                message_sender_actor: self.message_sender_actor.address(),
-                            },
-                        );
-                    }
-                }
-                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                    for user_defined_subscriber_actor in self.user_defined_subscriber_list.values()
-                    {
-                        user_defined_subscriber_actor.send_actor_mail(
-                            subscriber_actor::ProcessHeartbeatFragSubmessage {
-                                heartbeat_frag_submessage: heartbeat_frag_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                            },
-                        );
-                    }
-                }
-
-                _ => (),
-            }
-        }
-    }
-}
-
 pub struct SetListener {
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
@@ -1724,14 +1513,6 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     .into(),
                 ))
             {
-                let default_unicast_locator_list = discovered_participant_data
-                    .participant_proxy
-                    .default_unicast_locator_list
-                    .to_vec();
-                let default_multicast_locator_list = discovered_participant_data
-                    .participant_proxy
-                    .default_multicast_locator_list
-                    .to_vec();
                 for subscriber in self.user_defined_subscriber_list.values() {
                     let subscriber_address = subscriber.address();
                     let participant_mask_listener = (
@@ -1742,8 +1523,6 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     );
                     subscriber.send_actor_mail(subscriber_actor::AddMatchedWriter {
                         discovered_writer_data: message.discovered_writer_data.clone(),
-                        default_unicast_locator_list: default_unicast_locator_list.clone(),
-                        default_multicast_locator_list: default_multicast_locator_list.clone(),
                         subscriber_address,
                         participant: message.participant.clone(),
                         participant_mask_listener,
@@ -2257,8 +2036,6 @@ impl DomainParticipantActor {
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
-                    default_unicast_locator_list: vec![],
-                    default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
                     participant_mask_listener: (
@@ -2406,8 +2183,6 @@ impl DomainParticipantActor {
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
-                    default_unicast_locator_list: vec![],
-                    default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
                     participant_mask_listener: (
@@ -2556,8 +2331,6 @@ impl DomainParticipantActor {
             self.builtin_subscriber
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
-                    default_unicast_locator_list: vec![],
-                    default_multicast_locator_list: vec![],
                     subscriber_address: self.builtin_subscriber.address(),
                     participant,
                     participant_mask_listener: (
