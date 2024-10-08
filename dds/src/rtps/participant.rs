@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    net::UdpSocket,
     sync::{Arc, Mutex},
 };
 
@@ -11,6 +12,8 @@ use crate::{
 use super::{
     discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
     entity::RtpsEntity,
+    error::RtpsResult,
+    message_sender::MessageSender,
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
@@ -31,6 +34,7 @@ pub struct RtpsParticipant {
     builtin_stateless_writer_list: Vec<Arc<Mutex<RtpsStatelessWriter>>>,
     builtin_stateful_writer_list: Vec<Arc<Mutex<RtpsStatefulWriter>>>,
     user_defined_writer_list: HashMap<[u8; 16], Arc<Mutex<RtpsStatefulWriter>>>,
+    sender_socket: UdpSocket,
 }
 
 impl RtpsParticipant {
@@ -43,8 +47,9 @@ impl RtpsParticipant {
         metatraffic_multicast_locator_list: Vec<Locator>,
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
-    ) -> Self {
-        Self {
+    ) -> RtpsResult<Self> {
+        let sender_socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
+        Ok(Self {
             entity: RtpsEntity::new(Guid::new(guid_prefix, ENTITYID_PARTICIPANT)),
             domain_tag,
             protocol_version,
@@ -56,7 +61,8 @@ impl RtpsParticipant {
             builtin_stateless_writer_list: Vec::new(),
             builtin_stateful_writer_list: Vec::new(),
             user_defined_writer_list: HashMap::new(),
-        }
+            sender_socket,
+        })
     }
 
     pub fn guid(&self) -> Guid {
@@ -107,7 +113,15 @@ impl RtpsParticipant {
         &mut self,
         writer_guid: Guid,
     ) -> Arc<Mutex<RtpsStatelessWriter>> {
-        let writer = Arc::new(Mutex::new(RtpsStatelessWriter::new(writer_guid)));
+        let socket = self
+            .sender_socket
+            .try_clone()
+            .expect("Should always be clone");
+        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
+        let writer = Arc::new(Mutex::new(RtpsStatelessWriter::new(
+            writer_guid,
+            message_sender,
+        )));
         self.builtin_stateless_writer_list.push(writer.clone());
         writer
     }
@@ -116,7 +130,15 @@ impl RtpsParticipant {
         &mut self,
         writer_guid: Guid,
     ) -> Arc<Mutex<RtpsStatefulWriter>> {
-        let writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(writer_guid)));
+        let socket = self
+            .sender_socket
+            .try_clone()
+            .expect("Should always be clone");
+        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
+        let writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
+            writer_guid,
+            message_sender,
+        )));
         self.builtin_stateful_writer_list.push(writer.clone());
         writer
     }
@@ -145,7 +167,15 @@ impl RtpsParticipant {
         &mut self,
         writer_guid: Guid,
     ) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
-        let writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(writer_guid)));
+        let socket = self
+            .sender_socket
+            .try_clone()
+            .expect("Should always be clone");
+        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
+        let writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
+            writer_guid,
+            message_sender,
+        )));
         self.user_defined_writer_list
             .insert(writer_guid.into(), writer.clone());
         writer

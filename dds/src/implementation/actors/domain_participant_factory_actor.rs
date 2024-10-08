@@ -56,7 +56,6 @@ use crate::{
         messages::overall_structure::RtpsMessageRead,
         participant::RtpsParticipant,
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
-        reader_locator::RtpsReaderLocator,
         types::{
             EntityId, Guid, GuidPrefix, Locator, TopicKind, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
             LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
@@ -348,7 +347,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let spdp_builtin_participant_rtps_writer =
             participant.create_builtin_stateless_writer(spdp_builtin_participant_writer_guid);
-        let mut spdp_builtin_participant_writer = DataWriterActor::new(
+        let spdp_builtin_participant_writer = DataWriterActor::new(
             spdp_builtin_participant_rtps_writer.clone(),
             spdp_builtin_participant_writer_guid,
             usize::MAX,
@@ -369,11 +368,11 @@ impl DomainParticipantFactoryActor {
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
 
-        for reader_locator in spdp_discovery_locator_list
-            .iter()
-            .map(|&locator| RtpsReaderLocator::new(locator, false))
-        {
-            spdp_builtin_participant_writer.reader_locator_add(reader_locator);
+        for reader_locator in spdp_discovery_locator_list {
+            spdp_builtin_participant_rtps_writer
+                .lock()
+                .unwrap()
+                .reader_locator_add(reader_locator);
         }
 
         let sedp_builtin_topics_writer_guid =
@@ -482,7 +481,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             vec![],
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
-        );
+        )?;
         let participant_guid = rtps_participant.guid();
 
         let topic_list = self.create_builtin_topics(guid_prefix, &executor.handle());

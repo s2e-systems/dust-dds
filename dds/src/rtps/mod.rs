@@ -6,6 +6,7 @@ pub mod entity;
 pub mod error;
 pub mod group;
 pub mod message_receiver;
+pub mod message_sender;
 pub mod messages;
 pub mod participant;
 pub mod reader;

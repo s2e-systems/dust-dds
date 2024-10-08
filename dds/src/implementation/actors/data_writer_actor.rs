@@ -52,7 +52,6 @@ use crate::{
             },
             types::TIME_INVALID,
         },
-        reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
         stateful_writer::TransportWriter,
         types::{
@@ -251,7 +250,6 @@ pub struct DataWriterActor {
     guid: Guid,
     data_max_size_serialized: usize,
     heartbeat_period: Duration,
-    reader_locators: Vec<RtpsReaderLocator>,
     matched_readers: Vec<RtpsReaderProxy>,
     topic_address: ActorAddress<TopicActor>,
     topic_name: String,
@@ -295,7 +293,6 @@ impl DataWriterActor {
             guid,
             data_max_size_serialized,
             heartbeat_period,
-            reader_locators: Vec::new(),
             matched_readers: Vec::new(),
             topic_address,
             topic_name,
@@ -316,21 +313,11 @@ impl DataWriterActor {
         }
     }
 
-    pub fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
-        let mut locator = a_locator;
-        if let Some(highest_available_change_sn) = self.max_seq_num {
-            locator.set_highest_sent_change_sn(highest_available_change_sn)
-        }
-
-        self.reader_locators.push(locator);
-    }
-
     pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.guid.into())
     }
 
     fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
-        self.send_message_to_reader_locators(&message_sender_actor);
         self.send_message_to_reader_proxies(&message_sender_actor);
     }
 
@@ -370,65 +357,6 @@ impl DataWriterActor {
                             self.send_message(message_sender_actor);
                         }
                     }
-                }
-            }
-        }
-    }
-
-    fn send_message_to_reader_locators(
-        &mut self,
-        message_sender_actor: &ActorAddress<MessageSenderActor>,
-    ) {
-        let mut rtps_writer = self.rtps_writer.lock().unwrap();
-        for reader_locator in &mut self.reader_locators {
-            match &self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    while let Some(unsent_change_seq_num) = reader_locator
-                        .next_unsent_change(rtps_writer.get_history_cache().get_changes().iter())
-                    {
-                        // The post-condition:
-                        // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-                        // should be full-filled by next_unsent_change()
-
-                        if let Some(cache_change) = rtps_writer
-                            .get_history_cache()
-                            .get_changes()
-                            .iter()
-                            .find(|cc| cc.sequence_number() == unsent_change_seq_num)
-                        {
-                            if let Some(timestamp) = cache_change.source_timestamp() {
-                                let info_ts_submessage =
-                                    Box::new(InfoTimestampSubmessage::new(false, timestamp));
-                                let data_submessage =
-                                    Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
-
-                                message_sender_actor
-                                    .send_actor_mail(message_sender_actor::WriteMessage {
-                                        submessages: vec![info_ts_submessage, data_submessage],
-                                        destination_locator_list: vec![reader_locator.locator()],
-                                    })
-                                    .ok();
-                            }
-                        } else {
-                            let gap_submessage = Box::new(GapSubmessage::new(
-                                ENTITYID_UNKNOWN,
-                                self.guid.entity_id(),
-                                unsent_change_seq_num,
-                                SequenceNumberSet::new(unsent_change_seq_num + 1, []),
-                            ));
-
-                            message_sender_actor
-                                .send_actor_mail(message_sender_actor::WriteMessage {
-                                    submessages: vec![gap_submessage],
-                                    destination_locator_list: vec![reader_locator.locator()],
-                                })
-                                .ok();
-                        }
-                        reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
-                    }
-                }
-                ReliabilityQosPolicyKind::Reliable => {
-                    unimplemented!("Reliable messages to reader locators not implemented")
                 }
             }
         }

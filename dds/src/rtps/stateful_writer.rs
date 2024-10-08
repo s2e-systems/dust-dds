@@ -2,6 +2,7 @@ use crate::implementation::data_representation_builtin_endpoints::discovered_rea
 
 use super::{
     cache_change::RtpsCacheChange,
+    message_sender::MessageSender,
     reader_proxy::RtpsReaderProxy,
     types::{DurabilityKind, Guid, ReliabilityKind, SequenceNumber},
 };
@@ -31,14 +32,16 @@ pub struct RtpsStatefulWriter {
     guid: Guid,
     changes: Vec<RtpsCacheChange>,
     matched_readers: Vec<RtpsReaderProxy>,
+    message_sender: MessageSender,
 }
 
 impl RtpsStatefulWriter {
-    pub fn new(guid: Guid) -> Self {
+    pub fn new(guid: Guid, message_sender: MessageSender) -> Self {
         Self {
             guid,
             changes: Vec::new(),
             matched_readers: Vec::new(),
+            message_sender,
         }
     }
 
