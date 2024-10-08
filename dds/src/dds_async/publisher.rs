@@ -114,13 +114,6 @@ impl PublisherAsync {
     where
         Foo: 'b,
     {
-        let data_max_size_serialized = self
-            .participant
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetDataMaxSizeSerialized)?
-            .receive_reply()
-            .await;
-
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let type_support = a_topic
             .topic_address()
@@ -152,7 +145,6 @@ impl PublisherAsync {
                 type_name,
                 topic_status_condition,
                 has_key,
-                data_max_size_serialized,
                 qos,
                 a_listener: listener,
                 mask: mask.to_vec(),
@@ -198,18 +190,6 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         let writer_handle = a_datawriter.get_instance_handle().await?;
 
-        let message_sender_actor = self
-            .participant
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)?
-            .receive_reply()
-            .await;
-
-        a_datawriter
-            .writer_address()
-            .send_actor_mail(data_writer_actor::SendMessage {
-                message_sender_actor,
-            })?;
         let topic = a_datawriter.get_topic();
 
         let deleted_writer = self
@@ -326,21 +306,12 @@ impl PublisherAsync {
             .send_actor_mail(publisher_actor::DrainDataWriterList)?
             .receive_reply()
             .await;
-        let message_sender_actor = self
-            .participant
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::GetMessageSender)?
-            .receive_reply()
-            .await;
 
         for deleted_writer_actor in deleted_writer_actor_list {
             let topic_address = deleted_writer_actor
                 .send_actor_mail(data_writer_actor::GetTopicAddress)
                 .receive_reply()
                 .await;
-            deleted_writer_actor.send_actor_mail(data_writer_actor::SendMessage {
-                message_sender_actor: message_sender_actor.clone(),
-            });
 
             self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
                 .await?;

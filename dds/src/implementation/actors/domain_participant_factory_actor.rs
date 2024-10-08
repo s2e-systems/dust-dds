@@ -350,7 +350,6 @@ impl DomainParticipantFactoryActor {
         let spdp_builtin_participant_writer = DataWriterActor::new(
             spdp_builtin_participant_rtps_writer.clone(),
             spdp_builtin_participant_writer_guid,
-            usize::MAX,
             Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_PARTICIPANT].0.address(),
             DCPS_PARTICIPANT.to_string(),
@@ -380,7 +379,6 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_topics_writer = DataWriterActor::new(
             participant.create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             sedp_builtin_topics_writer_guid,
-            usize::MAX,
             Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_TOPIC].0.address(),
             DCPS_TOPIC.to_string(),
@@ -397,7 +395,6 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_publications_writer = DataWriterActor::new(
             participant.create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             sedp_builtin_publications_writer_guid,
-            usize::MAX,
             Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_PUBLICATION].0.address(),
             DCPS_PUBLICATION.to_string(),
@@ -414,7 +411,6 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
             participant.create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             sedp_builtin_subscriptions_writer_guid,
-            usize::MAX,
             Duration::new(0, 200_000_000).into(),
             topic_list[DCPS_SUBSCRIPTION].0.address(),
             DCPS_SUBSCRIPTION.to_string(),

@@ -3,7 +3,7 @@ use super::{
     domain_participant_actor::{
         ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
     },
-    message_sender_actor::{self, MessageSenderActor},
+    message_sender_actor::MessageSenderActor,
     publisher_actor::{PublisherListenerMessage, PublisherListenerOperation},
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
     topic_actor::TopicActor,
@@ -44,19 +44,14 @@ use crate::{
     rtps::{
         cache_change::RtpsCacheChange,
         messages::{
-            submessage_elements::{Data, ParameterList, SequenceNumberSet, SerializedDataFragment},
-            submessages::{
-                ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
-                info_destination::InfoDestinationSubmessage,
-                info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage,
-            },
-            types::TIME_INVALID,
+            submessage_elements::{Data, ParameterList},
+            submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
         },
         reader_proxy::RtpsReaderProxy,
         stateful_writer::TransportWriter,
         types::{
             ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-            SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+            SequenceNumber, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
     },
 };
@@ -248,7 +243,6 @@ impl DataWriterListenerThread {
 pub struct DataWriterActor {
     rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
     guid: Guid,
-    data_max_size_serialized: usize,
     heartbeat_period: Duration,
     matched_readers: Vec<RtpsReaderProxy>,
     topic_address: ActorAddress<TopicActor>,
@@ -274,7 +268,6 @@ impl DataWriterActor {
     pub fn new(
         rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
         guid: Guid,
-        data_max_size_serialized: usize,
         heartbeat_period: Duration,
         topic_address: ActorAddress<TopicActor>,
         topic_name: String,
@@ -291,7 +284,6 @@ impl DataWriterActor {
         DataWriterActor {
             rtps_writer,
             guid,
-            data_max_size_serialized,
             heartbeat_period,
             matched_readers: Vec::new(),
             topic_address,
@@ -315,10 +307,6 @@ impl DataWriterActor {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.guid.into())
-    }
-
-    fn send_message(&mut self, message_sender_actor: ActorAddress<MessageSenderActor>) {
-        self.send_message_to_reader_proxies(&message_sender_actor);
     }
 
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
@@ -354,51 +342,10 @@ impl DataWriterActor {
                             reader_proxy
                                 .set_last_received_acknack_count(acknack_submessage.count());
 
-                            self.send_message(message_sender_actor);
+                            todo!()
+                            // self.send_message(message_sender_actor);
                         }
                     }
-                }
-            }
-        }
-    }
-
-    fn send_message_to_reader_proxies(
-        &mut self,
-        message_sender_actor: &ActorAddress<MessageSenderActor>,
-    ) {
-        let mut rtps_writer = self.rtps_writer.lock().unwrap();
-        for reader_proxy in &mut self.matched_readers {
-            match (&self.qos.reliability.kind, reader_proxy.reliability()) {
-                (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::BestEffort)
-                | (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::BestEffort) => {
-                    send_message_to_reader_proxy_best_effort(
-                        reader_proxy,
-                        self.guid.entity_id(),
-                        rtps_writer.get_history_cache().get_changes(),
-                        self.data_max_size_serialized,
-                        message_sender_actor,
-                    )
-                }
-                (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
-                    let seq_num_min = rtps_writer
-                        .get_history_cache()
-                        .get_changes()
-                        .iter()
-                        .map(|cc| cc.sequence_number())
-                        .min();
-                    send_message_to_reader_proxy_reliable(
-                        reader_proxy,
-                        self.guid.entity_id(),
-                        rtps_writer.get_history_cache().get_changes(),
-                        seq_num_min,
-                        self.max_seq_num,
-                        self.data_max_size_serialized,
-                        self.heartbeat_period.into(),
-                        message_sender_actor,
-                    )
-                }
-                (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::Reliable) => {
-                    panic!("Impossible combination. Should not be matched")
                 }
             }
         }
@@ -707,12 +654,13 @@ impl MailHandler<Enable> for DataWriterActor {
                 loop {
                     timer_handle.sleep(half_heartbeat_period).await;
 
-                    let r = data_writer_address.send_actor_mail(SendMessage {
-                        message_sender_actor: message_sender_actor.clone(),
-                    });
-                    if r.is_err() {
-                        break;
-                    }
+                    todo!();
+                    // let r =data_writer_address.send_actor_mail(SendMessage {
+                    //     message_sender_actor: message_sender_actor.clone(),
+                    // });
+                    // if r.is_err() {
+                    // break;
+                    // }
                 }
             });
         }
@@ -1126,8 +1074,6 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         message.participant_mask_listener,
                     )?;
                 }
-
-                self.send_message(message.message_sender_actor);
             } else if !self.incompatible_subscriptions.contains(&instance_handle) {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
@@ -1223,18 +1169,6 @@ impl MailHandler<ProcessNackFragSubmessage> for DataWriterActor {
             &message.nackfrag_submessage,
             message.source_guid_prefix,
         )
-    }
-}
-
-pub struct SendMessage {
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-}
-impl Mail for SendMessage {
-    type Result = ();
-}
-impl MailHandler<SendMessage> for DataWriterActor {
-    fn handle(&mut self, message: SendMessage) -> <SendMessage as Mail>::Result {
-        self.send_message(message.message_sender_actor)
     }
 }
 
@@ -1494,7 +1428,6 @@ impl MailHandler<AddChange> for DataWriterActor {
                 rtps_writer.get_history_cache().add_change(message.change);
             }
         }
-        self.send_message(message.message_sender_actor);
     }
 }
 
@@ -1716,392 +1649,4 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     }
 
     incompatible_qos_policy_list
-}
-
-fn send_message_to_reader_proxy_best_effort(
-    reader_proxy: &mut RtpsReaderProxy,
-    writer_id: EntityId,
-    changes: &[RtpsCacheChange],
-    data_max_size_serialized: usize,
-    message_sender_actor: &ActorAddress<MessageSenderActor>,
-) {
-    // a_change_seq_num := the_reader_proxy.next_unsent_change();
-    // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
-    //      GAP = new GAP(the_reader_locator.higuest_sent_seq_num + 1, a_change_seq_num -1);
-    //      GAP.readerId := ENTITYID_UNKNOWN;
-    //      GAP.filteredCount := 0;
-    //      send GAP;
-    // }
-    // a_change := the_writer.writer_cache.get_change(a_change_seq_num );
-    // if ( DDS_FILTER(the_reader_proxy, a_change) ) {
-    //      DATA = new DATA(a_change);
-    //      IF (the_reader_proxy.expectsInlineQos) {
-    //          DATA.inlineQos := the_rtps_writer.related_dds_writer.qos;
-    //          DATA.inlineQos += a_change.inlineQos;
-    //      }
-    //      DATA.readerId := ENTITYID_UNKNOWN;
-    //      send DATA;
-    // }
-    // else {
-    //      GAP = new GAP(a_change.sequenceNumber);
-    //      GAP.readerId := ENTITYID_UNKNOWN;
-    //      GAP.filteredCount := 1;
-    //      send GAP;
-    // }
-    // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
-    while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(changes.iter()) {
-        if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
-            let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
-            let gap_end_sequence_number = next_unsent_change_seq_num - 1;
-            let gap_submessage = Box::new(GapSubmessage::new(
-                reader_proxy.remote_reader_guid().entity_id(),
-                writer_id,
-                gap_start_sequence_number,
-                SequenceNumberSet::new(gap_end_sequence_number + 1, []),
-            ));
-
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
-                    submessages: vec![gap_submessage],
-                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                })
-                .ok();
-
-            reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
-        } else if let Some(cache_change) = changes
-            .iter()
-            .find(|cc| cc.sequence_number() == next_unsent_change_seq_num)
-        {
-            let number_of_fragments = cache_change
-                .data_value()
-                .len()
-                .div_ceil(data_max_size_serialized);
-
-            // Either send a DATAFRAG submessages or send a single DATA submessage
-            if number_of_fragments > 1 {
-                for frag_index in 0..number_of_fragments {
-                    let info_dst = Box::new(InfoDestinationSubmessage::new(
-                        reader_proxy.remote_reader_guid().prefix(),
-                    ));
-
-                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                        Box::new(InfoTimestampSubmessage::new(false, timestamp))
-                    } else {
-                        Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
-                    };
-
-                    let inline_qos_flag = true;
-                    let key_flag = match cache_change.kind() {
-                        ChangeKind::Alive => false,
-                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-                        _ => todo!(),
-                    };
-                    let non_standard_payload_flag = false;
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    let writer_id = cache_change.writer_guid().entity_id();
-                    let writer_sn = cache_change.sequence_number();
-                    let fragment_starting_num = (frag_index + 1) as u32;
-                    let fragments_in_submessage = 1;
-                    let fragment_size = data_max_size_serialized as u16;
-                    let data_size = cache_change.data_value().len() as u32;
-                    let inline_qos = cache_change.inline_qos().clone();
-
-                    let start = frag_index * data_max_size_serialized;
-                    let end = std::cmp::min(
-                        (frag_index + 1) * data_max_size_serialized,
-                        cache_change.data_value().len(),
-                    );
-
-                    let serialized_payload =
-                        SerializedDataFragment::new(cache_change.data_value().clone(), start..end);
-
-                    let data_frag = Box::new(DataFragSubmessage::new(
-                        inline_qos_flag,
-                        non_standard_payload_flag,
-                        key_flag,
-                        reader_id,
-                        writer_id,
-                        writer_sn,
-                        fragment_starting_num,
-                        fragments_in_submessage,
-                        fragment_size,
-                        data_size,
-                        inline_qos,
-                        serialized_payload,
-                    ));
-
-                    message_sender_actor
-                        .send_actor_mail(message_sender_actor::WriteMessage {
-                            submessages: vec![info_dst, info_timestamp, data_frag],
-                            destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                        })
-                        .ok();
-                }
-            } else {
-                let info_dst = Box::new(InfoDestinationSubmessage::new(
-                    reader_proxy.remote_reader_guid().prefix(),
-                ));
-
-                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                    Box::new(InfoTimestampSubmessage::new(false, timestamp))
-                } else {
-                    Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
-                };
-
-                let data_submessage = Box::new(
-                    cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
-                );
-
-                message_sender_actor
-                    .send_actor_mail(message_sender_actor::WriteMessage {
-                        submessages: vec![info_dst, info_timestamp, data_submessage],
-                        destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                    })
-                    .ok();
-            }
-        } else {
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
-                    submessages: vec![Box::new(GapSubmessage::new(
-                        ENTITYID_UNKNOWN,
-                        writer_id,
-                        next_unsent_change_seq_num,
-                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
-                    ))],
-                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                })
-                .ok();
-        }
-
-        reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn send_message_to_reader_proxy_reliable(
-    reader_proxy: &mut RtpsReaderProxy,
-    writer_id: EntityId,
-    changes: &[RtpsCacheChange],
-    seq_num_min: Option<SequenceNumber>,
-    seq_num_max: Option<SequenceNumber>,
-    data_max_size_serialized: usize,
-    heartbeat_period: Duration,
-    message_sender_actor: &ActorAddress<MessageSenderActor>,
-) {
-    // Top part of the state machine - Figure 8.19 RTPS standard
-    if reader_proxy.unsent_changes(changes.iter()) {
-        while let Some(next_unsent_change_seq_num) = reader_proxy.next_unsent_change(changes.iter())
-        {
-            if next_unsent_change_seq_num > reader_proxy.highest_sent_seq_num() + 1 {
-                let gap_start_sequence_number = reader_proxy.highest_sent_seq_num() + 1;
-                let gap_end_sequence_number = next_unsent_change_seq_num - 1;
-                let gap_submessage = Box::new(GapSubmessage::new(
-                    reader_proxy.remote_reader_guid().entity_id(),
-                    writer_id,
-                    gap_start_sequence_number,
-                    SequenceNumberSet::new(gap_end_sequence_number + 1, []),
-                ));
-                let first_sn = seq_num_min.unwrap_or(1);
-                let last_sn = seq_num_max.unwrap_or(0);
-                let heartbeat_submessage = Box::new(
-                    reader_proxy
-                        .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn),
-                );
-                message_sender_actor
-                    .send_actor_mail(message_sender_actor::WriteMessage {
-                        submessages: vec![gap_submessage, heartbeat_submessage],
-                        destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                    })
-                    .ok();
-            } else {
-                send_change_message_reader_proxy_reliable(
-                    reader_proxy,
-                    writer_id,
-                    changes,
-                    seq_num_min,
-                    seq_num_max,
-                    data_max_size_serialized,
-                    next_unsent_change_seq_num,
-                    message_sender_actor,
-                );
-            }
-            reader_proxy.set_highest_sent_seq_num(next_unsent_change_seq_num);
-        }
-    } else if !reader_proxy.unacked_changes(seq_num_max) {
-        // Idle
-    } else if reader_proxy
-        .heartbeat_machine()
-        .is_time_for_heartbeat(heartbeat_period.into())
-    {
-        let first_sn = seq_num_min.unwrap_or(1);
-        let last_sn = seq_num_max.unwrap_or(0);
-        let heartbeat_submessage = Box::new(
-            reader_proxy
-                .heartbeat_machine()
-                .generate_new_heartbeat(writer_id, first_sn, last_sn),
-        );
-
-        message_sender_actor
-            .send_actor_mail(message_sender_actor::WriteMessage {
-                submessages: vec![heartbeat_submessage],
-                destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-            })
-            .ok();
-    }
-
-    // Middle-part of the state-machine - Figure 8.19 RTPS standard
-    if !reader_proxy.requested_changes().is_empty() {
-        while let Some(next_requested_change_seq_num) = reader_proxy.next_requested_change() {
-            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-            // it's not done here to avoid the change being a mutable reference
-            // Also the post-condition:
-            // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
-            // should be full-filled by next_requested_change()
-            send_change_message_reader_proxy_reliable(
-                reader_proxy,
-                writer_id,
-                changes,
-                seq_num_min,
-                seq_num_max,
-                data_max_size_serialized,
-                next_requested_change_seq_num,
-                message_sender_actor,
-            );
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn send_change_message_reader_proxy_reliable(
-    reader_proxy: &mut RtpsReaderProxy,
-    writer_id: EntityId,
-    changes: &[RtpsCacheChange],
-    seq_num_min: Option<SequenceNumber>,
-    seq_num_max: Option<SequenceNumber>,
-    data_max_size_serialized: usize,
-    change_seq_num: SequenceNumber,
-    message_sender_actor: &ActorAddress<MessageSenderActor>,
-) {
-    match changes
-        .iter()
-        .find(|cc| cc.sequence_number() == change_seq_num)
-    {
-        Some(cache_change) if change_seq_num > reader_proxy.first_relevant_sample_seq_num() => {
-            let number_of_fragments = cache_change
-                .data_value()
-                .len()
-                .div_ceil(data_max_size_serialized);
-
-            // Either send a DATAFRAG submessages or send a single DATA submessage
-            if number_of_fragments > 1 {
-                for frag_index in 0..number_of_fragments {
-                    let info_dst = Box::new(InfoDestinationSubmessage::new(
-                        reader_proxy.remote_reader_guid().prefix(),
-                    ));
-
-                    let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                        Box::new(InfoTimestampSubmessage::new(false, timestamp))
-                    } else {
-                        Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
-                    };
-
-                    let inline_qos_flag = true;
-                    let key_flag = match cache_change.kind() {
-                        ChangeKind::Alive => false,
-                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
-                        _ => todo!(),
-                    };
-                    let non_standard_payload_flag = false;
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    let writer_id = cache_change.writer_guid().entity_id();
-                    let writer_sn = cache_change.sequence_number();
-                    let fragment_starting_num = (frag_index + 1) as u32;
-                    let fragments_in_submessage = 1;
-                    let fragment_size = data_max_size_serialized as u16;
-                    let data_size = cache_change.data_value().len() as u32;
-                    let inline_qos = cache_change.inline_qos().clone();
-
-                    let start = frag_index * data_max_size_serialized;
-                    let end = std::cmp::min(
-                        (frag_index + 1) * data_max_size_serialized,
-                        cache_change.data_value().len(),
-                    );
-
-                    let serialized_payload =
-                        SerializedDataFragment::new(cache_change.data_value().clone(), start..end);
-
-                    let data_frag = Box::new(DataFragSubmessage::new(
-                        inline_qos_flag,
-                        non_standard_payload_flag,
-                        key_flag,
-                        reader_id,
-                        writer_id,
-                        writer_sn,
-                        fragment_starting_num,
-                        fragments_in_submessage,
-                        fragment_size,
-                        data_size,
-                        inline_qos,
-                        serialized_payload,
-                    ));
-
-                    message_sender_actor
-                        .send_actor_mail(message_sender_actor::WriteMessage {
-                            submessages: vec![info_dst, info_timestamp, data_frag],
-                            destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                        })
-                        .ok();
-                }
-            } else {
-                let info_dst = Box::new(InfoDestinationSubmessage::new(
-                    reader_proxy.remote_reader_guid().prefix(),
-                ));
-
-                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                    Box::new(InfoTimestampSubmessage::new(false, timestamp))
-                } else {
-                    Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
-                };
-
-                let data_submessage = Box::new(
-                    cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
-                );
-
-                let first_sn = seq_num_min.unwrap_or(1);
-                let last_sn = seq_num_max.unwrap_or(0);
-                let heartbeat = Box::new(
-                    reader_proxy
-                        .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn),
-                );
-
-                message_sender_actor
-                    .send_actor_mail(message_sender_actor::WriteMessage {
-                        submessages: vec![info_dst, info_timestamp, data_submessage, heartbeat],
-                        destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                    })
-                    .ok();
-            }
-        }
-        _ => {
-            let info_dst = Box::new(InfoDestinationSubmessage::new(
-                reader_proxy.remote_reader_guid().prefix(),
-            ));
-
-            let gap_submessage = Box::new(GapSubmessage::new(
-                ENTITYID_UNKNOWN,
-                writer_id,
-                change_seq_num,
-                SequenceNumberSet::new(change_seq_num + 1, []),
-            ));
-
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
-                    submessages: vec![info_dst, gap_submessage],
-                    destination_locator_list: reader_proxy.unicast_locator_list().to_vec(),
-                })
-                .ok();
-        }
-    }
 }

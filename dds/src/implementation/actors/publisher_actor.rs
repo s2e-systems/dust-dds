@@ -223,7 +223,6 @@ pub struct CreateDatawriter {
     pub type_name: String,
     pub topic_status_condition: ActorAddress<StatusConditionActor>,
     pub has_key: bool,
-    pub data_max_size_serialized: usize,
     pub qos: QosKind<DataWriterQos>,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub mask: Vec<StatusKind>,
@@ -260,7 +259,6 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
         let data_writer = DataWriterActor::new(
             rtps_writer,
             guid,
-            message.data_max_size_serialized,
             Duration::new(0, 200_000_000).into(),
             message.topic_address,
             message.topic_name,
