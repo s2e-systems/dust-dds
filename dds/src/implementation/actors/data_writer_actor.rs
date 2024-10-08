@@ -43,15 +43,12 @@ use crate::{
     },
     rtps::{
         cache_change::RtpsCacheChange,
-        messages::{
-            submessage_elements::{Data, ParameterList},
-            submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
-        },
+        messages::submessage_elements::{Data, ParameterList},
         reader_proxy::RtpsReaderProxy,
         stateful_writer::TransportWriter,
         types::{
-            ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-            SequenceNumber, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+            ChangeKind, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
+            GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
     },
 };
@@ -312,74 +309,6 @@ impl DataWriterActor {
     fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
-    }
-
-    fn on_acknack_submessage_received(
-        &mut self,
-        acknack_submessage: &AckNackSubmessage,
-        source_guid_prefix: GuidPrefix,
-        message_sender_actor: ActorAddress<MessageSenderActor>,
-    ) {
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
-            && &self.guid.entity_id() == acknack_submessage.writer_id()
-        {
-            let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .matched_readers
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => (),
-                    ReliabilityKind::Reliable => {
-                        if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
-                            reader_proxy
-                                .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
-                            reader_proxy
-                                .requested_changes_set(acknack_submessage.reader_sn_state().set());
-
-                            reader_proxy
-                                .set_last_received_acknack_count(acknack_submessage.count());
-
-                            todo!()
-                            // self.send_message(message_sender_actor);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn on_nack_frag_submessage_received(
-        &mut self,
-        nackfrag_submessage: &NackFragSubmessage,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
-
-            if let Some(reader_proxy) = self
-                .matched_readers
-                .iter_mut()
-                .find(|x| x.remote_reader_guid() == reader_guid)
-            {
-                match reader_proxy.reliability() {
-                    ReliabilityKind::BestEffort => (),
-                    ReliabilityKind::Reliable => {
-                        if nackfrag_submessage.count()
-                            > reader_proxy.last_received_nack_frag_count()
-                        {
-                            reader_proxy.requested_changes_set(std::iter::once(
-                                nackfrag_submessage.writer_sn(),
-                            ));
-                            reader_proxy
-                                .set_last_received_nack_frag_count(nackfrag_submessage.count());
-                        }
-                    }
-                }
-            }
-        }
     }
 
     fn on_publication_matched(
@@ -654,7 +583,6 @@ impl MailHandler<Enable> for DataWriterActor {
                 loop {
                     timer_handle.sleep(half_heartbeat_period).await;
 
-                    todo!();
                     // let r =data_writer_address.send_actor_mail(SendMessage {
                     //     message_sender_actor: message_sender_actor.clone(),
                     // });
@@ -1129,46 +1057,6 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
         }
 
         Ok(())
-    }
-}
-
-pub struct ProcessAckNackSubmessage {
-    pub acknack_submessage: AckNackSubmessage,
-    pub source_guid_prefix: GuidPrefix,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-}
-impl Mail for ProcessAckNackSubmessage {
-    type Result = ();
-}
-impl MailHandler<ProcessAckNackSubmessage> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: ProcessAckNackSubmessage,
-    ) -> <ProcessAckNackSubmessage as Mail>::Result {
-        self.on_acknack_submessage_received(
-            &message.acknack_submessage,
-            message.source_guid_prefix,
-            message.message_sender_actor,
-        )
-    }
-}
-
-pub struct ProcessNackFragSubmessage {
-    pub nackfrag_submessage: NackFragSubmessage,
-    pub source_guid_prefix: GuidPrefix,
-}
-impl Mail for ProcessNackFragSubmessage {
-    type Result = ();
-}
-impl MailHandler<ProcessNackFragSubmessage> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: ProcessNackFragSubmessage,
-    ) -> <ProcessNackFragSubmessage as Mail>::Result {
-        self.on_nack_frag_submessage_received(
-            &message.nackfrag_submessage,
-            message.source_guid_prefix,
-        )
     }
 }
 

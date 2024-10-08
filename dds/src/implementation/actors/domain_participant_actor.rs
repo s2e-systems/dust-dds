@@ -1419,23 +1419,7 @@ impl MailHandler<ProcessMetatrafficRtpsMessage> for DomainParticipantActor {
                         },
                     );
                 }
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    self.builtin_publisher.send_actor_mail(
-                        publisher_actor::ProcessAckNackSubmessage {
-                            acknack_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                            message_sender_actor: self.message_sender_actor.address(),
-                        },
-                    );
-                }
-                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                    self.builtin_publisher.send_actor_mail(
-                        publisher_actor::ProcessNackFragSubmessage {
-                            nackfrag_submessage,
-                            source_guid_prefix: message_receiver.source_guid_prefix(),
-                        },
-                    );
-                }
+
                 _ => (),
             }
         }
@@ -1549,27 +1533,7 @@ impl MailHandler<ProcessUserDefinedRtpsMessage> for DomainParticipantActor {
                         );
                     }
                 }
-                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    for user_defined_publisher_actor in self.user_defined_publisher_list.values() {
-                        user_defined_publisher_actor.send_actor_mail(
-                            publisher_actor::ProcessAckNackSubmessage {
-                                acknack_submessage: acknack_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                                message_sender_actor: self.message_sender_actor.address(),
-                            },
-                        );
-                    }
-                }
-                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                    for user_defined_publisher_actor in self.user_defined_publisher_list.values() {
-                        user_defined_publisher_actor.send_actor_mail(
-                            publisher_actor::ProcessNackFragSubmessage {
-                                nackfrag_submessage: nackfrag_submessage.clone(),
-                                source_guid_prefix: message_receiver.source_guid_prefix(),
-                            },
-                        );
-                    }
-                }
+
                 _ => (),
             }
         }

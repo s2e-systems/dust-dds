@@ -32,11 +32,9 @@ use crate::{
     },
     rtps::{
         group::RtpsGroup,
-        messages::submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
+            EntityId, Guid, Locator, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -434,50 +432,6 @@ impl MailHandler<GetDataWriterList> for PublisherActor {
             .values()
             .map(|x| x.address())
             .collect()
-    }
-}
-
-pub struct ProcessAckNackSubmessage {
-    pub acknack_submessage: AckNackSubmessage,
-    pub source_guid_prefix: GuidPrefix,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-}
-impl Mail for ProcessAckNackSubmessage {
-    type Result = ();
-}
-impl MailHandler<ProcessAckNackSubmessage> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: ProcessAckNackSubmessage,
-    ) -> <ProcessAckNackSubmessage as Mail>::Result {
-        for data_writer_actor in self.data_writer_list.values() {
-            data_writer_actor.send_actor_mail(data_writer_actor::ProcessAckNackSubmessage {
-                acknack_submessage: message.acknack_submessage.clone(),
-                source_guid_prefix: message.source_guid_prefix,
-                message_sender_actor: message.message_sender_actor.clone(),
-            });
-        }
-    }
-}
-
-pub struct ProcessNackFragSubmessage {
-    pub nackfrag_submessage: NackFragSubmessage,
-    pub source_guid_prefix: GuidPrefix,
-}
-impl Mail for ProcessNackFragSubmessage {
-    type Result = ();
-}
-impl MailHandler<ProcessNackFragSubmessage> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: ProcessNackFragSubmessage,
-    ) -> <ProcessNackFragSubmessage as Mail>::Result {
-        for data_writer_actor in self.data_writer_list.values() {
-            data_writer_actor.send_actor_mail(data_writer_actor::ProcessNackFragSubmessage {
-                nackfrag_submessage: message.nackfrag_submessage.clone(),
-                source_guid_prefix: message.source_guid_prefix,
-            });
-        }
     }
 }
 

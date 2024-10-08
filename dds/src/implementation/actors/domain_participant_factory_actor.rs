@@ -1,9 +1,6 @@
 use super::{
-    data_reader_actor::DataReaderActor,
-    data_writer_actor::DataWriterActor,
-    domain_participant_actor::{self},
-    message_sender_actor::MessageSenderActor,
-    status_condition_actor::StatusConditionActor,
+    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
+    message_sender_actor::MessageSenderActor, status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -53,29 +50,25 @@ use crate::{
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         endpoint::RtpsEndpoint,
-        messages::overall_structure::RtpsMessageRead,
         participant::RtpsParticipant,
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
         types::{
-            EntityId, Guid, GuidPrefix, Locator, TopicKind, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
-            LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, TopicKind, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
+            PROTOCOLVERSION, VENDOR_ID_S2E,
         },
     },
     topic_definition::type_support::TypeSupport,
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use socket2::Socket;
 use std::{
     collections::HashMap,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::IpAddr,
     sync::{
         atomic::{AtomicU32, Ordering},
         Arc, Mutex, OnceLock,
     },
 };
-use tracing::{info, warn};
-
-const MAX_DATAGRAM_SIZE: usize = 65507;
+use tracing::warn;
 
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
@@ -322,7 +315,6 @@ impl DomainParticipantFactoryActor {
     fn create_builtin_writers(
         &self,
         guid_prefix: GuidPrefix,
-        domain_id: DomainId,
         participant: &mut RtpsParticipant,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         handle: &ExecutorHandle,
@@ -360,19 +352,6 @@ impl DomainParticipantFactoryActor {
             spdp_writer_qos,
             handle,
         );
-
-        let spdp_discovery_locator_list = [Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-
-        for reader_locator in spdp_discovery_locator_list {
-            spdp_builtin_participant_rtps_writer
-                .lock()
-                .unwrap()
-                .reader_locator_add(reader_locator);
-        }
 
         let sedp_builtin_topics_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
@@ -431,18 +410,6 @@ impl DomainParticipantFactoryActor {
     }
 }
 
-pub fn read_message(
-    socket: &mut std::net::UdpSocket,
-    buf: &mut [u8],
-) -> DdsResult<RtpsMessageRead> {
-    let (bytes, _) = socket.recv_from(buf)?;
-    if bytes > 0 {
-        Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
-    } else {
-        Err(DdsError::NoData)
-    }
-}
-
 pub struct CreateParticipant {
     pub domain_id: DomainId,
     pub qos: QosKind<DomainParticipantQos>,
@@ -470,80 +437,22 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let mut rtps_participant = RtpsParticipant::new(
             guid_prefix,
+            message.domain_id,
             self.configuration.domain_tag().to_string(),
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            PROTOCOLVERSION,
-            VENDOR_ID_S2E,
+            self.configuration.interface_name(),
+            self.configuration.udp_receive_buffer_size(),
         )?;
         let participant_guid = rtps_participant.guid();
 
         let topic_list = self.create_builtin_topics(guid_prefix, &executor.handle());
         let builtin_data_writer_list = self.create_builtin_writers(
             guid_prefix,
-            message.domain_id,
             &mut rtps_participant,
             &topic_list,
             &executor_handle,
         );
         let builtin_data_reader_list =
             self.create_builtin_readers(guid_prefix, &topic_list, &executor_handle);
-
-        // Open socket for unicast user-defined data
-        let interface_address_list = NetworkInterface::show()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter(|x| {
-                if let Some(if_name) = self.configuration.interface_name() {
-                    &x.name == if_name
-                } else {
-                    true
-                }
-            })
-            .flat_map(|i| {
-                i.addr.into_iter().filter(|a| match a {
-                    #[rustfmt::skip]
-                    Addr::V4(_) => true,
-                    _ => false,
-                })
-            });
-
-        let default_unicast_socket =
-            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-        default_unicast_socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
-        default_unicast_socket.set_nonblocking(false)?;
-        if let Some(buffer_size) = self.configuration.udp_receive_buffer_size() {
-            default_unicast_socket.set_recv_buffer_size(buffer_size)?;
-        }
-        let mut default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
-        let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
-        let default_unicast_locator_list: Vec<Locator> = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
-            .collect();
-        rtps_participant.set_default_unicast_locator_list(default_unicast_locator_list);
-
-        // Open socket for unicast metatraffic data
-        let mut metatrafic_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
-        metatrafic_unicast_socket.set_nonblocking(false)?;
-        let metattrafic_unicast_locator_port =
-            metatrafic_unicast_socket.local_addr()?.port().into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
-            .collect();
-        rtps_participant.set_metatraffic_unicast_locator_list(metatraffic_unicast_locator_list);
-
-        // Open socket for multicast metatraffic data
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(message.domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-        rtps_participant.set_metatraffic_multicast_locator_list(metatraffic_multicast_locator_list);
 
         let timer_driver = TimerDriver::new();
         let timer_handle = timer_driver.handle();
@@ -580,27 +489,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             timer_handle.clone(),
         );
 
-        let participant_address_clone = participant_actor.address();
-        let participant_clone = participant.clone();
-
-        std::thread::spawn(move || {
-            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-            loop {
-                if let Ok(message) = read_message(&mut default_unicast_socket, buf.as_mut_slice()) {
-                    let r = participant_address_clone.send_actor_mail(
-                        domain_participant_actor::ProcessUserDefinedRtpsMessage {
-                            rtps_message: message,
-                            participant: participant_clone.clone(),
-                            executor_handle: participant_clone.executor_handle().clone(),
-                        },
-                    );
-                    if r.is_err() {
-                        break;
-                    }
-                }
-            }
-        });
-
         // Start the regular participant announcement task
         let participant_clone = participant.clone();
         let participant_announcement_interval =
@@ -614,56 +502,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 }
 
                 timer_handle.sleep(participant_announcement_interval).await;
-            }
-        });
-
-        let participant_address_clone = participant_actor.address();
-        let participant_clone = participant.clone();
-
-        std::thread::spawn(move || {
-            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-            loop {
-                if let Ok(message) =
-                    read_message(&mut metatrafic_unicast_socket, buf.as_mut_slice())
-                {
-                    let r = participant_address_clone.send_actor_mail(
-                        domain_participant_actor::ProcessMetatrafficRtpsMessage {
-                            rtps_message: message,
-                            participant: participant_clone.clone(),
-                            executor_handle: participant_clone.executor_handle().clone(),
-                        },
-                    );
-
-                    if r.is_err() {
-                        break;
-                    }
-                }
-            }
-        });
-
-        let participant_address_clone = participant_actor.address();
-        let participant_clone = participant.clone();
-        let mut socket = get_multicast_socket(
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            port_builtin_multicast(message.domain_id),
-            interface_address_list,
-        )?;
-        std::thread::spawn(move || {
-            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-            loop {
-                if let Ok(message) = read_message(&mut socket, buf.as_mut_slice()) {
-                    let r = participant_address_clone.send_actor_mail(
-                        domain_participant_actor::ProcessMetatrafficRtpsMessage {
-                            rtps_message: message,
-                            participant: participant_clone.clone(),
-                            executor_handle: participant_clone.executor_handle().clone(),
-                        },
-                    );
-
-                    if r.is_err() {
-                        break;
-                    }
-                }
             }
         });
 
@@ -790,65 +628,6 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
         self.configuration.clone()
     }
-}
-
-type LocatorAddress = [u8; 16];
-// As of 9.6.1.4.1  Default multicast address
-const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
-
-const PB: i32 = 7400;
-const DG: i32 = 250;
-#[allow(non_upper_case_globals)]
-const d0: i32 = 0;
-fn port_builtin_multicast(domain_id: DomainId) -> u16 {
-    (PB + DG * domain_id + d0) as u16
-}
-
-fn get_multicast_socket(
-    multicast_address: LocatorAddress,
-    port: u16,
-    interface_address_list: impl IntoIterator<Item = Addr>,
-) -> std::io::Result<std::net::UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
-
-    let socket = Socket::new(
-        socket2::Domain::IPV4,
-        socket2::Type::DGRAM,
-        Some(socket2::Protocol::UDP),
-    )?;
-
-    socket.set_reuse_address(true)?;
-    #[cfg(target_family = "unix")]
-    socket.set_reuse_port(true)?;
-    socket.set_nonblocking(false)?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
-
-    socket.bind(&socket_addr.into())?;
-    let addr = Ipv4Addr::new(
-        multicast_address[12],
-        multicast_address[13],
-        multicast_address[14],
-        multicast_address[15],
-    );
-    for interface_addr in interface_address_list {
-        match interface_addr {
-            Addr::V4(a) => {
-                let r = socket.join_multicast_v4(&addr, &a.ip);
-                if let Err(e) = r {
-                    info!(
-                        "Failed to join multicast group on address {} with error {}",
-                        a.ip, e
-                    )
-                }
-            }
-            Addr::V6(_) => (),
-        }
-    }
-
-    socket.set_multicast_loop_v4(true)?;
-
-    Ok(socket.into())
 }
 
 fn create_builtin_stateless_reader(guid: Guid) -> RtpsReaderKind {

@@ -7,14 +7,15 @@ use super::{
     messages::{
         submessage_elements::{SequenceNumberSet, SerializedDataFragment},
         submessages::{
-            data_frag::DataFragSubmessage, gap::GapSubmessage,
+            ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             info_destination::InfoDestinationSubmessage, info_timestamp::InfoTimestampSubmessage,
+            nack_frag::NackFragSubmessage,
         },
         types::TIME_INVALID,
     },
     reader_proxy::RtpsReaderProxy,
     types::{
-        ChangeKind, DurabilityKind, EntityId, Guid, ReliabilityKind, SequenceNumber,
+        ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber,
         ENTITYID_UNKNOWN,
     },
 };
@@ -85,6 +86,77 @@ impl RtpsStatefulWriter {
                     self.heartbeat_period.into(),
                     &self.message_sender,
                 ),
+            }
+        }
+    }
+
+    pub fn on_acknack_submessage_received(
+        &mut self,
+        acknack_submessage: &AckNackSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if &self.guid.entity_id() == acknack_submessage.writer_id() {
+            let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
+
+            if let Some(reader_proxy) = self
+                .matched_readers
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                if reader_proxy.reliability() == ReliabilityKind::Reliable {
+                    if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
+                        reader_proxy
+                            .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
+                        reader_proxy
+                            .requested_changes_set(acknack_submessage.reader_sn_state().set());
+
+                        reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
+
+                        send_message_to_reader_proxy_reliable(
+                            reader_proxy,
+                            self.guid.entity_id(),
+                            &self.changes,
+                            self.changes.iter().map(|cc| cc.sequence_number()).min(),
+                            self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                            self.data_max_size_serialized,
+                            self.heartbeat_period.into(),
+                            &self.message_sender,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn on_nack_frag_submessage_received(
+        &mut self,
+        nackfrag_submessage: &NackFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
+
+        if let Some(reader_proxy) = self
+            .matched_readers
+            .iter_mut()
+            .find(|x| x.remote_reader_guid() == reader_guid)
+        {
+            if reader_proxy.reliability() == ReliabilityKind::Reliable {
+                if nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count() {
+                    reader_proxy
+                        .requested_changes_set(std::iter::once(nackfrag_submessage.writer_sn()));
+                    reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
+
+                    send_message_to_reader_proxy_reliable(
+                        reader_proxy,
+                        self.guid.entity_id(),
+                        &self.changes,
+                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
+                        self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                        self.data_max_size_serialized,
+                        self.heartbeat_period.into(),
+                        &self.message_sender,
+                    );
+                }
             }
         }
     }
