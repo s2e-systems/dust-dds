@@ -58,10 +58,9 @@ use crate::{
         reader::{RtpsReader, RtpsReaderKind, RtpsStatefulReader, RtpsStatelessReader},
         reader_locator::RtpsReaderLocator,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, TopicKind, BUILT_IN_TOPIC, LOCATOR_KIND_UDP_V4,
-            PROTOCOLVERSION, VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, Locator, TopicKind, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
+            LOCATOR_KIND_UDP_V4, PROTOCOLVERSION, VENDOR_ID_S2E,
         },
-        writer::RtpsWriter,
     },
     topic_definition::type_support::TypeSupport,
 };
@@ -72,7 +71,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, OnceLock,
+        Arc, Mutex, OnceLock,
     },
 };
 use tracing::{info, warn};
@@ -325,6 +324,7 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
+        participant: &mut RtpsParticipant,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         handle: &ExecutorHandle,
     ) -> Vec<DataWriterActor> {
@@ -346,10 +346,10 @@ impl DomainParticipantFactoryActor {
         };
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+        let spdp_builtin_participant_rtps_writer =
+            participant.create_builtin_stateless_writer(spdp_builtin_participant_writer_guid);
         let mut spdp_builtin_participant_writer = DataWriterActor::new(
-            Box::new(create_builtin_stateless_writer(
-                spdp_builtin_participant_writer_guid,
-            )),
+            spdp_builtin_participant_rtps_writer.clone(),
             spdp_builtin_participant_writer_guid,
             usize::MAX,
             Duration::new(0, 200_000_000).into(),
@@ -379,9 +379,7 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_topics_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let sedp_builtin_topics_writer = DataWriterActor::new(
-            Box::new(create_builtin_stateful_writer(
-                sedp_builtin_topics_writer_guid,
-            )),
+            participant.create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             sedp_builtin_topics_writer_guid,
             usize::MAX,
             Duration::new(0, 200_000_000).into(),
@@ -398,9 +396,7 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_publications_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = DataWriterActor::new(
-            Box::new(create_builtin_stateful_writer(
-                sedp_builtin_publications_writer_guid,
-            )),
+            participant.create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             sedp_builtin_publications_writer_guid,
             usize::MAX,
             Duration::new(0, 200_000_000).into(),
@@ -417,9 +413,7 @@ impl DomainParticipantFactoryActor {
         let sedp_builtin_subscriptions_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let sedp_builtin_subscriptions_writer = DataWriterActor::new(
-            Box::new(create_builtin_stateful_writer(
-                sedp_builtin_subscriptions_writer_guid,
-            )),
+            participant.create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             sedp_builtin_subscriptions_writer_guid,
             usize::MAX,
             Duration::new(0, 200_000_000).into(),
@@ -481,6 +475,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let mut rtps_participant = RtpsParticipant::new(
             guid_prefix,
+            self.configuration.domain_tag().to_string(),
             vec![],
             vec![],
             vec![],
@@ -494,6 +489,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let builtin_data_writer_list = self.create_builtin_writers(
             guid_prefix,
             message.domain_id,
+            &mut rtps_participant,
             &topic_list,
             &executor_handle,
         );
@@ -563,7 +559,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_subscriber,
             builtin_subscriber_status_condition_address,
         ) = DomainParticipantActor::new(
-            rtps_participant,
+            Arc::new(Mutex::new(rtps_participant)),
+            Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             message.domain_id,
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
@@ -899,14 +896,6 @@ fn create_builtin_stateful_reader(guid: Guid) -> RtpsReaderKind {
         heartbeat_suppression_duration,
         expects_inline_qos,
     )))
-}
-
-fn create_builtin_stateful_writer(guid: Guid) -> RtpsWriter {
-    RtpsWriter::new(guid)
-}
-
-fn create_builtin_stateless_writer(guid: Guid) -> RtpsWriter {
-    RtpsWriter::new(guid)
 }
 
 pub fn sedp_data_reader_qos() -> DataReaderQos {

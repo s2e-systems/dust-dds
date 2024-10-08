@@ -11,6 +11,7 @@ pub mod participant;
 pub mod reader;
 pub mod reader_locator;
 pub mod reader_proxy;
+pub mod stateful_writer;
+pub mod stateless_writer;
 pub mod types;
-pub mod writer;
 pub mod writer_proxy;

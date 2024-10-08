@@ -32,7 +32,7 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         runtime::{
             executor::{block_on, Executor, ExecutorHandle},
@@ -58,7 +58,7 @@ use crate::{
     },
     rtps::{
         discovery_types::{
-            BuiltinEndpointQos, BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -66,10 +66,7 @@ use crate::{
         },
         group::RtpsGroup,
         message_receiver::MessageReceiver,
-        messages::{
-            overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-            types::Count,
-        },
+        messages::overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         participant::RtpsParticipant,
         types::{
             EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
@@ -84,7 +81,7 @@ use crate::{
 };
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, Mutex},
     thread::JoinHandle,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -379,7 +376,8 @@ impl ParticipantListenerThread {
 }
 
 pub struct DomainParticipantActor {
-    rtps_participant: RtpsParticipant,
+    rtps_participant: Arc<Mutex<RtpsParticipant>>,
+    guid: Guid,
     domain_id: DomainId,
     domain_tag: String,
     qos: DomainParticipantQos,
@@ -394,7 +392,6 @@ pub struct DomainParticipantActor {
     topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
-    manual_liveliness_count: Count,
     lease_duration: Duration,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
@@ -415,7 +412,8 @@ pub struct DomainParticipantActor {
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        rtps_participant: RtpsParticipant,
+        rtps_participant: Arc<Mutex<RtpsParticipant>>,
+        guid: Guid,
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
@@ -435,7 +433,7 @@ impl DomainParticipantActor {
         ActorAddress<StatusConditionActor>,
     ) {
         let lease_duration = Duration::new(100, 0);
-        let guid_prefix = rtps_participant.guid().prefix();
+        let guid_prefix = guid.prefix();
         let executor_handle = executor.handle();
 
         let (builtin_subscriber, builtin_subscriber_status_condition) = SubscriberActor::new(
@@ -459,6 +457,7 @@ impl DomainParticipantActor {
                     guid_prefix,
                     EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
                 )),
+                rtps_participant.clone(),
                 None,
                 vec![],
                 builtin_data_writer_list,
@@ -473,6 +472,7 @@ impl DomainParticipantActor {
         (
             Self {
                 rtps_participant,
+                guid,
                 domain_id,
                 domain_tag,
                 qos: domain_participant_qos,
@@ -487,7 +487,6 @@ impl DomainParticipantActor {
                 topic_list,
                 user_defined_topic_counter: 0,
                 default_topic_qos: TopicQos::default(),
-                manual_liveliness_count: 0,
                 lease_duration,
                 discovered_participant_list: HashMap::new(),
                 discovered_topic_list: HashMap::new(),
@@ -568,7 +567,7 @@ impl DomainParticipantActor {
             let topic_counter = self.user_defined_topic_counter;
             self.user_defined_topic_counter += 1;
             let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
-            let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+            let guid = Guid::new(self.guid.prefix(), entity_id);
 
             let (topic, topic_status_condition) = TopicActor::new(
                 guid,
@@ -636,12 +635,13 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         let publisher_counter = self.user_defined_publisher_counter;
         self.user_defined_publisher_counter += 1;
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = message.mask.to_vec();
         let publisher = PublisherActor::new(
             publisher_qos,
             rtps_group,
+            self.rtps_participant.clone(),
             message.a_listener,
             status_kind,
             vec![],
@@ -711,7 +711,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let subcriber_counter = self.user_defined_subscriber_counter;
         self.user_defined_subscriber_counter += 1;
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let status_kind = message.mask.to_vec();
 
@@ -849,7 +849,7 @@ impl Mail for GetInstanceHandle {
 }
 impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
     fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        InstanceHandle::new(self.rtps_participant.guid().into())
+        InstanceHandle::new(self.guid.into())
     }
 }
 
@@ -965,6 +965,8 @@ impl MailHandler<GetDefaultUnicastLocatorList> for DomainParticipantActor {
         _: GetDefaultUnicastLocatorList,
     ) -> <GetDefaultUnicastLocatorList as Mail>::Result {
         self.rtps_participant
+            .lock()
+            .unwrap()
             .default_unicast_locator_list()
             .to_vec()
     }
@@ -980,6 +982,8 @@ impl MailHandler<GetDefaultMulticastLocatorList> for DomainParticipantActor {
         _: GetDefaultMulticastLocatorList,
     ) -> <GetDefaultMulticastLocatorList as Mail>::Result {
         self.rtps_participant
+            .lock()
+            .unwrap()
             .default_multicast_locator_list()
             .to_vec()
     }
@@ -995,6 +999,8 @@ impl MailHandler<GetMetatrafficUnicastLocatorList> for DomainParticipantActor {
         _: GetMetatrafficUnicastLocatorList,
     ) -> <GetMetatrafficUnicastLocatorList as Mail>::Result {
         self.rtps_participant
+            .lock()
+            .unwrap()
             .metatraffic_unicast_locator_list()
             .to_vec()
     }
@@ -1010,6 +1016,8 @@ impl MailHandler<GetMetatrafficMulticastLocatorList> for DomainParticipantActor 
         _: GetMetatrafficMulticastLocatorList,
     ) -> <GetMetatrafficMulticastLocatorList as Mail>::Result {
         self.rtps_participant
+            .lock()
+            .unwrap()
             .metatraffic_multicast_locator_list()
             .to_vec()
     }
@@ -1282,37 +1290,11 @@ impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
         SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: self.rtps_participant.guid().into(),
+                    value: self.guid.into(),
                 },
                 user_data: self.qos.user_data.clone(),
             },
-            participant_proxy: ParticipantProxy {
-                domain_id: Some(self.domain_id),
-                domain_tag: self.domain_tag.clone(),
-                protocol_version: self.rtps_participant.protocol_version(),
-                guid_prefix: self.rtps_participant.guid().prefix(),
-                vendor_id: self.rtps_participant.vendor_id(),
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: self
-                    .rtps_participant
-                    .metatraffic_unicast_locator_list()
-                    .to_vec(),
-                metatraffic_multicast_locator_list: self
-                    .rtps_participant
-                    .metatraffic_multicast_locator_list()
-                    .to_vec(),
-                default_unicast_locator_list: self
-                    .rtps_participant
-                    .default_unicast_locator_list()
-                    .to_vec(),
-                default_multicast_locator_list: self
-                    .rtps_participant
-                    .default_multicast_locator_list()
-                    .to_vec(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: self.manual_liveliness_count,
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            },
+            participant_proxy: self.rtps_participant.lock().unwrap().participant_proxy(),
             lease_duration: self.lease_duration,
             discovered_participant_list: self.discovered_participant_list.keys().cloned().collect(),
         }
@@ -1629,70 +1611,6 @@ impl Mail for GetMessageSender {
 impl MailHandler<GetMessageSender> for DomainParticipantActor {
     fn handle(&mut self, _: GetMessageSender) -> <GetMessageSender as Mail>::Result {
         self.message_sender_actor.address()
-    }
-}
-
-pub struct SetDefaultUnicastLocatorList {
-    pub list: Vec<Locator>,
-}
-impl Mail for SetDefaultUnicastLocatorList {
-    type Result = ();
-}
-impl MailHandler<SetDefaultUnicastLocatorList> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultUnicastLocatorList,
-    ) -> <SetDefaultUnicastLocatorList as Mail>::Result {
-        self.rtps_participant
-            .set_default_unicast_locator_list(message.list)
-    }
-}
-
-pub struct SetDefaultMulticastLocatorList {
-    pub list: Vec<Locator>,
-}
-impl Mail for SetDefaultMulticastLocatorList {
-    type Result = ();
-}
-impl MailHandler<SetDefaultMulticastLocatorList> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultMulticastLocatorList,
-    ) -> <SetDefaultMulticastLocatorList as Mail>::Result {
-        self.rtps_participant
-            .set_default_multicast_locator_list(message.list)
-    }
-}
-
-pub struct SetMetatrafficUnicastLocatorList {
-    pub list: Vec<Locator>,
-}
-impl Mail for SetMetatrafficUnicastLocatorList {
-    type Result = ();
-}
-impl MailHandler<SetMetatrafficUnicastLocatorList> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetMetatrafficUnicastLocatorList,
-    ) -> <SetMetatrafficUnicastLocatorList as Mail>::Result {
-        self.rtps_participant
-            .set_metatraffic_unicast_locator_list(message.list)
-    }
-}
-
-pub struct SetMetatrafficMulticastLocatorList {
-    pub list: Vec<Locator>,
-}
-impl Mail for SetMetatrafficMulticastLocatorList {
-    type Result = ();
-}
-impl MailHandler<SetMetatrafficMulticastLocatorList> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetMetatrafficMulticastLocatorList,
-    ) -> <SetMetatrafficMulticastLocatorList as Mail>::Result {
-        self.rtps_participant
-            .set_metatraffic_multicast_locator_list(message.list)
     }
 }
 
@@ -2288,17 +2206,23 @@ impl DomainParticipantActor {
             };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
+            let default_unicast_locator_list = self
+                .rtps_participant
+                .lock()
+                .unwrap()
+                .default_unicast_locator_list()
+                .to_vec();
+            let default_multicast_locator_list = self
+                .rtps_participant
+                .lock()
+                .unwrap()
+                .default_multicast_locator_list()
+                .to_vec();
             self.builtin_publisher
                 .send_actor_mail(publisher_actor::AddMatchedReader {
                     discovered_reader_data,
-                    default_unicast_locator_list: self
-                        .rtps_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    default_multicast_locator_list: self
-                        .rtps_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
                     publisher_address: self.builtin_publisher.address(),
                     participant,
                     participant_mask_listener,

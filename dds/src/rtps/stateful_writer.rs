@@ -27,13 +27,13 @@ pub trait TransportWriter {
     fn delete_matched_reader(&mut self, reader_guid: Guid);
 }
 
-pub struct RtpsWriter {
+pub struct RtpsStatefulWriter {
     guid: Guid,
     changes: Vec<RtpsCacheChange>,
     matched_readers: Vec<RtpsReaderProxy>,
 }
 
-impl RtpsWriter {
+impl RtpsStatefulWriter {
     pub fn new(guid: Guid) -> Self {
         Self {
             guid,
@@ -47,7 +47,7 @@ impl RtpsWriter {
     }
 }
 
-impl TransportWriter for RtpsWriter {
+impl TransportWriter for RtpsStatefulWriter {
     fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache {
         self
     }
@@ -88,7 +88,7 @@ impl TransportWriter for RtpsWriter {
     }
 }
 
-impl WriterHistoryCache for RtpsWriter {
+impl WriterHistoryCache for RtpsStatefulWriter {
     fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
     }

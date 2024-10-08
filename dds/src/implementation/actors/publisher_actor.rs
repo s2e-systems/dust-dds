@@ -33,15 +33,19 @@ use crate::{
     rtps::{
         group::RtpsGroup,
         messages::submessages::{ack_nack::AckNackSubmessage, nack_frag::NackFragSubmessage},
+        participant::RtpsParticipant,
         types::{
             EntityId, Guid, GuidPrefix, Locator, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
-        writer::RtpsWriter,
     },
 };
 use fnmatch_regex::glob_to_regex;
-use std::{collections::HashMap, thread::JoinHandle};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    thread::JoinHandle,
+};
 use tracing::warn;
 
 pub enum PublisherListenerOperation {
@@ -114,6 +118,7 @@ impl PublisherListenerThread {
 pub struct PublisherActor {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
+    transport: Arc<Mutex<RtpsParticipant>>,
     data_writer_list: HashMap<InstanceHandle, Actor<DataWriterActor>>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
@@ -127,6 +132,7 @@ impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
+        transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         data_writer_list: Vec<DataWriterActor>,
@@ -139,6 +145,7 @@ impl PublisherActor {
         let publisher_listener_thread = listener.map(PublisherListenerThread::new);
         Self {
             qos,
+            transport,
             rtps_group,
             data_writer_list,
             enabled: false,
@@ -248,10 +255,10 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let rtps_writer_impl = RtpsWriter::new(guid);
+        let rtps_writer = self.transport.lock().unwrap().create_writer(guid);
 
         let data_writer = DataWriterActor::new(
-            Box::new(rtps_writer_impl),
+            rtps_writer,
             guid,
             message.data_max_size_serialized,
             Duration::new(0, 200_000_000).into(),

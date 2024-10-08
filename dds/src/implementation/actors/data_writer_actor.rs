@@ -54,15 +54,16 @@ use crate::{
         },
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
+        stateful_writer::TransportWriter,
         types::{
             ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
             SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
-        writer::TransportWriter,
     },
 };
 use std::{
     collections::{HashMap, HashSet},
+    sync::{Arc, Mutex},
     thread::JoinHandle,
 };
 
@@ -246,7 +247,7 @@ impl DataWriterListenerThread {
 }
 
 pub struct DataWriterActor {
-    rtps_writer: Box<dyn TransportWriter + Send + Sync + 'static>,
+    rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
     guid: Guid,
     data_max_size_serialized: usize,
     heartbeat_period: Duration,
@@ -273,7 +274,7 @@ pub struct DataWriterActor {
 impl DataWriterActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        rtps_writer: Box<dyn TransportWriter + Send + Sync + 'static>,
+        rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
         guid: Guid,
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
@@ -378,18 +379,18 @@ impl DataWriterActor {
         &mut self,
         message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
+        let mut rtps_writer = self.rtps_writer.lock().unwrap();
         for reader_locator in &mut self.reader_locators {
             match &self.qos.reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
-                    while let Some(unsent_change_seq_num) = reader_locator.next_unsent_change(
-                        self.rtps_writer.get_history_cache().get_changes().iter(),
-                    ) {
+                    while let Some(unsent_change_seq_num) = reader_locator
+                        .next_unsent_change(rtps_writer.get_history_cache().get_changes().iter())
+                    {
                         // The post-condition:
                         // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
                         // should be full-filled by next_unsent_change()
 
-                        if let Some(cache_change) = self
-                            .rtps_writer
+                        if let Some(cache_change) = rtps_writer
                             .get_history_cache()
                             .get_changes()
                             .iter()
@@ -437,6 +438,7 @@ impl DataWriterActor {
         &mut self,
         message_sender_actor: &ActorAddress<MessageSenderActor>,
     ) {
+        let mut rtps_writer = self.rtps_writer.lock().unwrap();
         for reader_proxy in &mut self.matched_readers {
             match (&self.qos.reliability.kind, reader_proxy.reliability()) {
                 (ReliabilityQosPolicyKind::BestEffort, ReliabilityKind::BestEffort)
@@ -444,14 +446,13 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_best_effort(
                         reader_proxy,
                         self.guid.entity_id(),
-                        self.rtps_writer.get_history_cache().get_changes(),
+                        rtps_writer.get_history_cache().get_changes(),
                         self.data_max_size_serialized,
                         message_sender_actor,
                     )
                 }
                 (ReliabilityQosPolicyKind::Reliable, ReliabilityKind::Reliable) => {
-                    let seq_num_min = self
-                        .rtps_writer
+                    let seq_num_min = rtps_writer
                         .get_history_cache()
                         .get_changes()
                         .iter()
@@ -460,7 +461,7 @@ impl DataWriterActor {
                     send_message_to_reader_proxy_reliable(
                         reader_proxy,
                         self.guid.entity_id(),
-                        self.rtps_writer.get_history_cache().get_changes(),
+                        rtps_writer.get_history_cache().get_changes(),
                         seq_num_min,
                         self.max_seq_num,
                         self.data_max_size_serialized,
@@ -1163,7 +1164,7 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                    self.rtps_writer.add_matched_reader(
+                    self.rtps_writer.lock().unwrap().add_matched_reader(
                         message.discovered_reader_data.reader_proxy().clone(),
                         reliability_kind,
                         durability_kind,
@@ -1238,7 +1239,10 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
         {
             let handle = r.key().value.into();
             self.matched_reader_remove(handle);
-            self.rtps_writer.delete_matched_reader(handle);
+            self.rtps_writer
+                .lock()
+                .unwrap()
+                .delete_matched_reader(handle);
             self.matched_subscriptions
                 .remove_matched_subscription(InstanceHandle::new(handle.into()));
 
@@ -1372,141 +1376,143 @@ impl Mail for AddChange {
 }
 impl MailHandler<AddChange> for DataWriterActor {
     fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
-        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if self
-                .rtps_writer
-                .get_history_cache()
-                .get_changes()
-                .iter()
-                .filter(|cc| cc.instance_handle() == message.change.instance_handle())
-                .count()
-                == depth as usize
-            {
-                if let Some(smallest_seq_num_instance) = self
-                    .rtps_writer
+        {
+            let mut rtps_writer = self.rtps_writer.lock().unwrap();
+            if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                if rtps_writer
                     .get_history_cache()
                     .get_changes()
                     .iter()
                     .filter(|cc| cc.instance_handle() == message.change.instance_handle())
-                    .map(|cc| cc.sequence_number())
-                    .min()
+                    .count()
+                    == depth as usize
                 {
-                    self.rtps_writer
+                    if let Some(smallest_seq_num_instance) = rtps_writer
                         .get_history_cache()
-                        .remove_change(smallest_seq_num_instance);
+                        .get_changes()
+                        .iter()
+                        .filter(|cc| cc.instance_handle() == message.change.instance_handle())
+                        .map(|cc| cc.sequence_number())
+                        .min()
+                    {
+                        rtps_writer
+                            .get_history_cache()
+                            .remove_change(smallest_seq_num_instance);
+                    }
                 }
             }
-        }
 
-        let change_instance_handle = message.change.instance_handle();
-        let change_timestamp = message.change.source_timestamp();
-        let seq_num = message.change.sequence_number();
+            let change_instance_handle = message.change.instance_handle();
+            let change_timestamp = message.change.source_timestamp();
+            let seq_num = message.change.sequence_number();
 
-        if seq_num > self.max_seq_num.unwrap_or(0) {
-            self.max_seq_num = Some(seq_num)
-        }
+            if seq_num > self.max_seq_num.unwrap_or(0) {
+                self.max_seq_num = Some(seq_num)
+            }
 
-        if let Some(t) = self
-            .instance_deadline_missed_task
-            .remove(&change_instance_handle.into())
-        {
-            t.abort();
-        }
+            if let Some(t) = self
+                .instance_deadline_missed_task
+                .remove(&change_instance_handle.into())
+            {
+                t.abort();
+            }
 
-        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            let deadline_missed_interval = std::time::Duration::new(
-                deadline_missed_period.sec() as u64,
-                deadline_missed_period.nanosec(),
-            );
-            let writer_status_condition = self.status_condition.address();
-            let writer_address = message.writer_address.clone();
-            let timer_handle = message.timer_handle.clone();
-            let writer_listener_mask = self.status_kind.clone();
-            let data_writer_listener_sender = self
-                .data_writer_listener_thread
-                .as_ref()
-                .map(|l| l.sender().clone());
-            let publisher_listener = message.publisher_mask_listener.0.clone();
-            let publisher_listener_mask = message.publisher_mask_listener.1.clone();
-            let participant_listener = message.participant_mask_listener.0.clone();
-            let participant_listener_mask = message.participant_mask_listener.1.clone();
-            let status_condition_address = self.status_condition.address();
-            let topic_address = self.topic_address.clone();
-            let topic_status_condition_address = self.topic_status_condition.clone();
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
-            let publisher = message.publisher.clone();
+            if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
+                let deadline_missed_interval = std::time::Duration::new(
+                    deadline_missed_period.sec() as u64,
+                    deadline_missed_period.nanosec(),
+                );
+                let writer_status_condition = self.status_condition.address();
+                let writer_address = message.writer_address.clone();
+                let timer_handle = message.timer_handle.clone();
+                let writer_listener_mask = self.status_kind.clone();
+                let data_writer_listener_sender = self
+                    .data_writer_listener_thread
+                    .as_ref()
+                    .map(|l| l.sender().clone());
+                let publisher_listener = message.publisher_mask_listener.0.clone();
+                let publisher_listener_mask = message.publisher_mask_listener.1.clone();
+                let participant_listener = message.participant_mask_listener.0.clone();
+                let participant_listener_mask = message.participant_mask_listener.1.clone();
+                let status_condition_address = self.status_condition.address();
+                let topic_address = self.topic_address.clone();
+                let topic_status_condition_address = self.topic_status_condition.clone();
+                let type_name = self.type_name.clone();
+                let topic_name = self.topic_name.clone();
+                let publisher = message.publisher.clone();
 
-            let deadline_missed_task = message.executor_handle.spawn(async move {
-                loop {
-                    timer_handle.sleep(deadline_missed_interval).await;
-                    let publisher_listener = publisher_listener.clone();
-                    let participant_listener = participant_listener.clone();
+                let deadline_missed_task = message.executor_handle.spawn(async move {
+                    loop {
+                        timer_handle.sleep(deadline_missed_interval).await;
+                        let publisher_listener = publisher_listener.clone();
+                        let participant_listener = participant_listener.clone();
 
-                    let r: DdsResult<()> = async {
-                        writer_address.send_actor_mail(IncrementOfferedDeadlineMissedStatus {
-                            instance_handle: change_instance_handle.into(),
-                        })?;
+                        let r: DdsResult<()> = async {
+                            writer_address.send_actor_mail(
+                                IncrementOfferedDeadlineMissedStatus {
+                                    instance_handle: change_instance_handle.into(),
+                                },
+                            )?;
 
-                        let writer_address = writer_address.clone();
-                        let status_condition_address = status_condition_address.clone();
-                        let publisher = publisher.clone();
-                        let topic = TopicAsync::new(
-                            topic_address.clone(),
-                            topic_status_condition_address.clone(),
-                            type_name.clone(),
-                            topic_name.clone(),
-                            publisher.get_participant(),
-                        );
-                        if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
-                            let status = writer_address
-                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = &data_writer_listener_sender {
-                                listener
-                                    .send(DataWriterListenerMessage {
-                                        listener_operation:
-                                            DataWriterListenerOperation::OfferedDeadlineMissed(
-                                                status,
-                                            ),
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    })
-                                    .ok();
-                            }
-                        } else if publisher_listener_mask
-                            .contains(&StatusKind::OfferedDeadlineMissed)
-                        {
-                            let status = writer_address
-                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = publisher_listener {
-                                listener
-                                    .send(PublisherListenerMessage {
-                                        listener_operation:
-                                            PublisherListenerOperation::OfferedDeadlineMissed(
-                                                status,
-                                            ),
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    })
-                                    .ok();
-                            }
-                        } else if participant_listener_mask
-                            .contains(&StatusKind::OfferedDeadlineMissed)
-                        {
-                            let status = writer_address
-                                .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = participant_listener {
-                                listener
+                            let writer_address = writer_address.clone();
+                            let status_condition_address = status_condition_address.clone();
+                            let publisher = publisher.clone();
+                            let topic = TopicAsync::new(
+                                topic_address.clone(),
+                                topic_status_condition_address.clone(),
+                                type_name.clone(),
+                                topic_name.clone(),
+                                publisher.get_participant(),
+                            );
+                            if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
+                                let status = writer_address
+                                    .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                    .receive_reply()
+                                    .await;
+                                if let Some(listener) = &data_writer_listener_sender {
+                                    listener
+                                        .send(DataWriterListenerMessage {
+                                            listener_operation:
+                                                DataWriterListenerOperation::OfferedDeadlineMissed(
+                                                    status,
+                                                ),
+                                            writer_address,
+                                            status_condition_address,
+                                            publisher,
+                                            topic,
+                                        })
+                                        .ok();
+                                }
+                            } else if publisher_listener_mask
+                                .contains(&StatusKind::OfferedDeadlineMissed)
+                            {
+                                let status = writer_address
+                                    .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                    .receive_reply()
+                                    .await;
+                                if let Some(listener) = publisher_listener {
+                                    listener
+                                        .send(PublisherListenerMessage {
+                                            listener_operation:
+                                                PublisherListenerOperation::OfferedDeadlineMissed(
+                                                    status,
+                                                ),
+                                            writer_address,
+                                            status_condition_address,
+                                            publisher,
+                                            topic,
+                                        })
+                                        .ok();
+                                }
+                            } else if participant_listener_mask
+                                .contains(&StatusKind::OfferedDeadlineMissed)
+                            {
+                                let status = writer_address
+                                    .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+                                    .receive_reply()
+                                    .await;
+                                if let Some(listener) = participant_listener {
+                                    listener
                                     .send(ParticipantListenerMessage {
                                         listener_operation:
                                             ParticipantListenerOperation::_OfferedDeadlineMissed(
@@ -1520,50 +1526,46 @@ impl MailHandler<AddChange> for DataWriterActor {
                                         },
                                     })
                                     .ok();
+                                }
                             }
+                            writer_status_condition
+                                .send_actor_mail(AddCommunicationState {
+                                    state: StatusKind::OfferedDeadlineMissed,
+                                })?
+                                .receive_reply()
+                                .await;
+                            Ok(())
                         }
-                        writer_status_condition
-                            .send_actor_mail(AddCommunicationState {
-                                state: StatusKind::OfferedDeadlineMissed,
-                            })?
-                            .receive_reply()
-                            .await;
-                        Ok(())
+                        .await;
+                        if r.is_err() {
+                            break;
+                        }
                     }
-                    .await;
-                    if r.is_err() {
-                        break;
-                    }
-                }
-            });
-            self.instance_deadline_missed_task
-                .insert(change_instance_handle.into(), deadline_missed_task);
-        }
-
-        if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
-            if let Some(timestamp) = change_timestamp {
-                let change_lifespan =
-                    crate::infrastructure::time::Time::from(timestamp) - message.now + lifespan;
-                if change_lifespan > Duration::new(0, 0) {
-                    self.rtps_writer
-                        .get_history_cache()
-                        .add_change(message.change);
-                    message.executor_handle.spawn(async move {
-                        message.timer_handle.sleep(change_lifespan.into()).await;
-
-                        message
-                            .writer_address
-                            .send_actor_mail(RemoveChange { seq_num })
-                            .ok();
-                    });
-                }
+                });
+                self.instance_deadline_missed_task
+                    .insert(change_instance_handle.into(), deadline_missed_task);
             }
-        } else {
-            self.rtps_writer
-                .get_history_cache()
-                .add_change(message.change);
-        }
 
+            if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
+                if let Some(timestamp) = change_timestamp {
+                    let change_lifespan =
+                        crate::infrastructure::time::Time::from(timestamp) - message.now + lifespan;
+                    if change_lifespan > Duration::new(0, 0) {
+                        rtps_writer.get_history_cache().add_change(message.change);
+                        message.executor_handle.spawn(async move {
+                            message.timer_handle.sleep(change_lifespan.into()).await;
+
+                            message
+                                .writer_address
+                                .send_actor_mail(RemoveChange { seq_num })
+                                .ok();
+                        });
+                    }
+                }
+            } else {
+                rtps_writer.get_history_cache().add_change(message.change);
+            }
+        }
         self.send_message(message.message_sender_actor);
     }
 }
@@ -1577,6 +1579,8 @@ impl Mail for RemoveChange {
 impl MailHandler<RemoveChange> for DataWriterActor {
     fn handle(&mut self, message: RemoveChange) -> <RemoveChange as Mail>::Result {
         self.rtps_writer
+            .lock()
+            .unwrap()
             .get_history_cache()
             .remove_change(message.seq_num);
     }
@@ -1603,15 +1607,14 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
         &mut self,
         message: IsResourcesLimitReached,
     ) -> <IsResourcesLimitReached as Mail>::Result {
+        let mut rtps_writer = self.rtps_writer.lock().unwrap();
         if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
-            if !self
-                .rtps_writer
+            if !rtps_writer
                 .get_history_cache()
                 .get_changes()
                 .iter()
                 .any(|cc| cc.instance_handle() == message.instance_handle.into())
-                && self.rtps_writer.get_history_cache().get_changes().len()
-                    == max_instances as usize
+                && rtps_writer.get_history_cache().get_changes().len() == max_instances as usize
             {
                 return true;
             }
@@ -1626,8 +1629,7 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
                 HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
                 _ => {
                     // Only Alive changes count towards the resource limits
-                    if self
-                        .rtps_writer
+                    if rtps_writer
                         .get_history_cache()
                         .get_changes()
                         .iter()
@@ -1643,8 +1645,7 @@ impl MailHandler<IsResourcesLimitReached> for DataWriterActor {
         }
 
         if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
-            let total_samples = self
-                .rtps_writer
+            let total_samples = rtps_writer
                 .get_history_cache()
                 .get_changes()
                 .iter()
@@ -1671,9 +1672,9 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
         &mut self,
         message: IsDataLostAfterAddingChange,
     ) -> <IsDataLostAfterAddingChange as Mail>::Result {
+        let mut rtps_writer = self.rtps_writer.lock().unwrap();
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if self
-                .rtps_writer
+            if rtps_writer
                 .get_history_cache()
                 .get_changes()
                 .iter()
@@ -1681,8 +1682,7 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
                 .count()
                 == depth as usize
             {
-                let highest_change_seq_num = self
-                    .rtps_writer
+                let highest_change_seq_num = rtps_writer
                     .get_history_cache()
                     .get_changes()
                     .iter()
