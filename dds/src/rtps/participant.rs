@@ -1,3 +1,10 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
+use crate::rtps::writer::RtpsWriter;
+
 use super::{
     entity::RtpsEntity,
     types::{Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT},
@@ -12,6 +19,7 @@ pub struct RtpsParticipant {
     default_multicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
+    writer_list: HashMap<[u8; 16], Arc<Mutex<RtpsWriter>>>,
 }
 
 impl RtpsParticipant {
@@ -32,6 +40,7 @@ impl RtpsParticipant {
             default_multicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
+            writer_list: HashMap::new(),
         }
     }
 
@@ -81,8 +90,13 @@ impl RtpsParticipant {
 }
 
 impl RtpsParticipant {
-    pub fn create_writer(&self) -> Box<dyn TransportWriter> {
+    pub fn create_writer(&mut self, writer_guid: Guid) -> Arc<Mutex<dyn TransportWriter>> {
+        let writer = Arc::new(Mutex::new(RtpsWriter::new(writer_guid)));
+        self.writer_list.insert(writer_guid.into(), writer.clone());
+        writer
+    }
 
-        todo!()
+    pub fn delete_writer(&mut self, writer_guid: Guid) {
+        self.writer_list.remove(&<[u8; 16]>::from(writer_guid));
     }
 }
