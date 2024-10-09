@@ -1,3 +1,5 @@
+use tracing::debug;
+
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
     domain_participant_actor::{
@@ -50,7 +52,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::DurationKind,
+        time::{DurationKind, Time},
     },
     rtps::{
         self,
@@ -130,20 +132,20 @@ impl InstanceState {
 }
 
 #[derive(Debug)]
-struct ReaderCacheChange {
+struct ReaderSample {
     kind: ChangeKind,
     writer_guid: Guid,
     instance_handle: InstanceHandle,
-    source_timestamp: Option<rtps::messages::types::Time>,
+    source_timestamp: Option<Time>,
     data_value: Data,
     _inline_qos: ParameterList,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
-    reception_timestamp: rtps::messages::types::Time,
+    reception_timestamp: Time,
 }
 
-impl ReaderCacheChange {
+impl ReaderSample {
     fn instance_handle(&self) -> InstanceHandle {
         self.instance_handle.into()
     }
@@ -364,14 +366,16 @@ pub struct DdsReaderHistoryCache {
 
 impl ReaderHistoryCache for DdsReaderHistoryCache {
     fn add_change(&mut self, cache_change: rtps::reader::ReaderCacheChange) {
-        todo!()
+        self.data_reader_address
+            .send_actor_mail(AddChange { cache_change })
+            .ok();
     }
 }
 
 pub struct DataReaderActor {
     guid: Guid,
     rtps_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
-    changes: Vec<ReaderCacheChange>,
+    changes: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_address: ActorAddress<TopicActor>,
     topic_name: String,
@@ -1264,15 +1268,13 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn convert_received_data_to_cache_change(
+    fn convert_cache_change_to_sample(
         &mut self,
-        writer_guid: Guid,
-        inline_qos: ParameterList,
-        data: Data,
-        source_timestamp: Option<rtps::messages::types::Time>,
-        reception_timestamp: rtps::messages::types::Time,
-    ) -> DdsResult<ReaderCacheChange> {
-        let change_kind = if let Some(p) = inline_qos
+        cache_change: rtps::reader::ReaderCacheChange,
+        reception_timestamp: Time,
+    ) -> DdsResult<ReaderSample> {
+        let change_kind = if let Some(p) = cache_change
+            .inline_qos
             .parameter()
             .iter()
             .find(|&x| x.parameter_id() == PID_STATUS_INFO)
@@ -1293,8 +1295,8 @@ impl DataReaderActor {
         let instance_handle = build_instance_handle(
             &self.type_support,
             change_kind,
-            data.as_ref(),
-            inline_qos.parameter(),
+            cache_change.data_value.as_ref(),
+            cache_change.inline_qos.parameter(),
         )?;
 
         match change_kind {
@@ -1320,13 +1322,13 @@ impl DataReaderActor {
             }
         }?;
 
-        Ok(ReaderCacheChange {
+        Ok(ReaderSample {
             kind: change_kind,
-            writer_guid,
+            writer_guid: cache_change.writer_guid,
             instance_handle: instance_handle.into(),
-            source_timestamp,
-            data_value: data,
-            _inline_qos: inline_qos,
+            source_timestamp: cache_change.source_timestamp.map(Into::into),
+            data_value: cache_change.data_value,
+            _inline_qos: cache_change.inline_qos,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,
@@ -1339,7 +1341,7 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     fn add_change(
         &mut self,
-        change: ReaderCacheChange,
+        change: ReaderSample,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(
@@ -1484,19 +1486,18 @@ impl DataReaderActor {
         Ok(())
     }
 
-    fn is_sample_of_interest_based_on_time(&self, change: &ReaderCacheChange) -> bool {
+    fn is_sample_of_interest_based_on_time(&self, sample: &ReaderSample) -> bool {
         let closest_timestamp_before_received_sample = self
             .changes
             .iter()
-            .filter(|cc| cc.instance_handle() == change.instance_handle())
-            .filter(|cc| cc.source_timestamp <= change.source_timestamp)
+            .filter(|cc| cc.instance_handle() == sample.instance_handle())
+            .filter(|cc| cc.source_timestamp <= sample.source_timestamp)
             .map(|cc| cc.source_timestamp)
             .max();
 
         if let Some(Some(t)) = closest_timestamp_before_received_sample {
-            if let Some(sample_source_time) = change.source_timestamp {
-                let sample_separation = infrastructure::time::Duration::from(sample_source_time)
-                    - infrastructure::time::Duration::from(t);
+            if let Some(sample_source_time) = sample.source_timestamp {
+                let sample_separation = sample_source_time - t;
                 DurationKind::Finite(sample_separation)
                     >= self.qos.time_based_filter.minimum_separation
             } else {
@@ -1507,7 +1508,7 @@ impl DataReaderActor {
         }
     }
 
-    fn is_max_samples_limit_reached(&self, _change: &ReaderCacheChange) -> bool {
+    fn is_max_samples_limit_reached(&self, _change: &ReaderSample) -> bool {
         let total_samples = self
             .changes
             .iter()
@@ -1517,7 +1518,7 @@ impl DataReaderActor {
         total_samples == self.qos.resource_limits.max_samples
     }
 
-    fn is_max_instances_limit_reached(&self, change: &ReaderCacheChange) -> bool {
+    fn is_max_instances_limit_reached(&self, change: &ReaderSample) -> bool {
         let instance_handle_list: HashSet<_> =
             self.changes.iter().map(|cc| cc.instance_handle()).collect();
 
@@ -1528,7 +1529,7 @@ impl DataReaderActor {
         }
     }
 
-    fn is_max_samples_per_instance_limit_reached(&self, change: &ReaderCacheChange) -> bool {
+    fn is_max_samples_per_instance_limit_reached(&self, change: &ReaderSample) -> bool {
         let total_samples_of_instance = self
             .changes
             .iter()
@@ -2398,5 +2399,24 @@ impl MailHandler<RemoveInstanceOwnership> for DataReaderActor {
         message: RemoveInstanceOwnership,
     ) -> <RemoveInstanceOwnership as Mail>::Result {
         self.instance_ownership.remove(&message.instance);
+    }
+}
+
+pub struct AddChange {
+    cache_change: rtps::reader::ReaderCacheChange,
+}
+impl Mail for AddChange {
+    type Result = ();
+}
+impl MailHandler<AddChange> for DataReaderActor {
+    fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
+        match self.convert_cache_change_to_sample(message.cache_change, Time::now()) {
+            Ok(_) => todo!(),
+            Err(e) => debug!(
+                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.",
+                guid = self.guid,
+                err = e,
+            ),
+        }
     }
 }

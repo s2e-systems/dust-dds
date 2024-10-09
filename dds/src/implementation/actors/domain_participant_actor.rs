@@ -599,14 +599,6 @@ impl DomainParticipantActor {
             Ok(None)
         }
     }
-
-    fn get_current_time(&self) -> infrastructure::time::Time {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        infrastructure::time::Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
-    }
 }
 
 pub struct CreateUserDefinedPublisher {
@@ -1315,7 +1307,7 @@ impl Mail for GetCurrentTime {
 }
 impl MailHandler<GetCurrentTime> for DomainParticipantActor {
     fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
-        self.get_current_time()
+        Time::now()
     }
 }
 

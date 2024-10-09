@@ -587,6 +587,7 @@ impl MailHandler<SetListener> for SubscriberActor {
         }
         self.subscriber_listener_thread = message.listener.map(SubscriberListenerThread::new);
         self.status_kind = message.status_kind;
+
         Ok(())
     }
 }
