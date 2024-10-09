@@ -12,7 +12,6 @@ use crate::{
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
-    dds::infrastructure,
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync,
@@ -81,7 +80,6 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::{Arc, Mutex},
     thread::JoinHandle,
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::warn;
 

@@ -165,6 +165,7 @@ impl SubscriberAsync {
                 default_unicast_locator_list,
                 default_multicast_locator_list,
                 executor_handle: self.participant.executor_handle().clone(),
+                timer_handle: self.participant.timer_handle().clone(),
             })?
             .receive_reply()
             .await?;

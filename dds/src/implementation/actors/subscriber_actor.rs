@@ -17,6 +17,7 @@ use crate::{
         runtime::{
             executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
+            timer::TimerHandle,
         },
     },
     infrastructure::{
@@ -244,6 +245,7 @@ pub struct CreateDatareader {
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
     pub executor_handle: ExecutorHandle,
+    pub timer_handle: TimerHandle,
 }
 impl Mail for CreateDatareader {
     type Result = DdsResult<ActorAddress<DataReaderActor>>;
@@ -299,7 +301,8 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             qos,
             message.a_listener,
             status_kind,
-            &message.executor_handle,
+            message.executor_handle.clone(),
+            message.timer_handle,
         );
 
         let reader_actor = Actor::spawn(data_reader, &message.executor_handle);

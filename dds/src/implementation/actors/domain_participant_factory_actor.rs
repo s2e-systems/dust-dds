@@ -22,7 +22,7 @@ use crate::{
         },
         runtime::{
             executor::{Executor, ExecutorHandle},
-            timer::TimerDriver,
+            timer::{TimerDriver, TimerHandle},
         },
     },
     infrastructure::{
@@ -225,7 +225,8 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
-        handle: &ExecutorHandle,
+        executor_handle: ExecutorHandle,
+        timer_handle: TimerHandle,
     ) -> Vec<DataReaderActor> {
         let spdp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -256,7 +257,8 @@ impl DomainParticipantFactoryActor {
             spdp_reader_qos,
             None,
             vec![],
-            handle,
+            executor_handle.clone(),
+            timer_handle.clone(),
         );
 
         let sedp_builtin_topics_reader_guid =
@@ -272,7 +274,8 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             vec![],
-            handle,
+            executor_handle.clone(),
+            timer_handle.clone(),
         );
 
         let sedp_builtin_publications_reader_guid =
@@ -288,7 +291,8 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             vec![],
-            handle,
+            executor_handle.clone(),
+            timer_handle.clone(),
         );
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -304,7 +308,8 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             vec![],
-            handle,
+            executor_handle,
+            timer_handle,
         );
 
         vec![
@@ -427,6 +432,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let executor = Executor::new();
         let executor_handle = executor.handle();
 
+        let timer_driver = TimerDriver::new();
+        let timer_handle = timer_driver.handle();
+
         let domain_participant_qos = match message.qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -454,11 +462,13 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             &topic_list,
             &executor_handle,
         );
-        let builtin_data_reader_list =
-            self.create_builtin_readers(guid_prefix, &topic_list, &executor_handle);
+        let builtin_data_reader_list = self.create_builtin_readers(
+            guid_prefix,
+            &topic_list,
+            executor_handle.clone(),
+            timer_handle.clone(),
+        );
 
-        let timer_driver = TimerDriver::new();
-        let timer_handle = timer_driver.handle();
         //****** Spawn the participant actor and tasks **********//
         let (
             domain_participant,

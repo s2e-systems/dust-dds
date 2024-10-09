@@ -35,7 +35,6 @@ use crate::{
         },
     },
     infrastructure::{
-        self,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, SubscriberQos},
@@ -55,9 +54,8 @@ use crate::{
         time::{DurationKind, Time},
     },
     rtps::{
-        self,
-        messages::submessage_elements::{Data, Parameter, ParameterList},
-        reader::{ReaderHistoryCache, TransportReader},
+        messages::submessage_elements::{Data, ParameterList},
+        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
         types::{ChangeKind, DurabilityKind, Guid, Locator, ReliabilityKind},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -149,34 +147,6 @@ impl ReaderSample {
     fn instance_handle(&self) -> InstanceHandle {
         self.instance_handle.into()
     }
-}
-
-fn build_instance_handle(
-    type_support: &Arc<dyn DynamicType + Send + Sync>,
-    change_kind: ChangeKind,
-    data: &[u8],
-    inline_qos: &[Parameter],
-) -> DdsResult<InstanceHandle> {
-    Ok(match change_kind {
-        ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            get_instance_handle_from_serialized_foo(data, type_support.as_ref())?
-        }
-        ChangeKind::NotAliveDisposed
-        | ChangeKind::NotAliveUnregistered
-        | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
-            .iter()
-            .find(|&x| x.parameter_id() == PID_KEY_HASH)
-        {
-            Some(p) => {
-                if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
-                    InstanceHandle::new(key)
-                } else {
-                    get_instance_handle_from_serialized_key(data, type_support.as_ref())?
-                }
-            }
-            None => get_instance_handle_from_serialized_key(data, type_support.as_ref())?,
-        },
-    })
 }
 
 impl SampleLostStatus {
@@ -365,7 +335,7 @@ pub struct DdsReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for DdsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: rtps::reader::ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.data_reader_address
             .send_actor_mail(AddChange { cache_change })
             .ok();
@@ -375,7 +345,7 @@ impl ReaderHistoryCache for DdsReaderHistoryCache {
 pub struct DataReaderActor {
     guid: Guid,
     rtps_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
-    changes: Vec<ReaderSample>,
+    sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_address: ActorAddress<TopicActor>,
     topic_name: String,
@@ -394,10 +364,12 @@ pub struct DataReaderActor {
     incompatible_writer_list: HashSet<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
     data_reader_listener_thread: Option<DataReaderListenerThread>,
-    status_kind: Vec<StatusKind>,
+    data_reader_status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, Guid>,
+    executor_handle: ExecutorHandle,
+    timer_handle: TimerHandle,
 }
 
 impl DataReaderActor {
@@ -413,15 +385,16 @@ impl DataReaderActor {
         qos: DataReaderQos,
         listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         status_kind: Vec<StatusKind>,
-        handle: &ExecutorHandle,
+        executor_handle: ExecutorHandle,
+        timer_handle: TimerHandle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
         let data_reader_listener_thread = listener.map(DataReaderListenerThread::new);
 
         DataReaderActor {
             guid,
             rtps_reader,
-            changes: Vec::new(),
+            sample_list: Vec::new(),
             topic_address,
             topic_name,
             type_name,
@@ -438,12 +411,14 @@ impl DataReaderActor {
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
             status_condition,
-            status_kind,
+            data_reader_status_kind: status_kind,
             data_reader_listener_thread,
             qos,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
             instance_ownership: HashMap::new(),
+            executor_handle,
+            timer_handle,
         }
     }
 
@@ -497,7 +472,7 @@ impl DataReaderActor {
             .unzip();
 
         for index in change_index_list {
-            self.changes[index].sample_state = SampleStateKind::Read;
+            self.sample_list[index].sample_state = SampleStateKind::Read;
         }
 
         Ok(samples)
@@ -537,7 +512,7 @@ impl DataReaderActor {
             .unzip();
 
         while let Some(index) = change_index_list.pop() {
-            self.changes.remove(index);
+            self.sample_list.remove(index);
         }
 
         Ok(samples)
@@ -590,7 +565,10 @@ impl DataReaderActor {
                     topic,
                 })?;
             }
-        } else if self.status_kind.contains(&StatusKind::DataAvailable) {
+        } else if self
+            .data_reader_status_kind
+            .contains(&StatusKind::DataAvailable)
+        {
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
                     listener_operation: DataReaderListenerOperation::DataAvailable,
@@ -983,7 +961,10 @@ impl DataReaderActor {
             topic_name.clone(),
             subscriber.get_participant(),
         );
-        if self.status_kind.contains(&StatusKind::SampleLost) {
+        if self
+            .data_reader_status_kind
+            .contains(&StatusKind::SampleLost)
+        {
             let status = self.sample_lost_status.read_and_reset();
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
@@ -1058,7 +1039,10 @@ impl DataReaderActor {
             topic_name.clone(),
             subscriber.get_participant(),
         );
-        if self.status_kind.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+        if self
+            .data_reader_status_kind
+            .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+        {
             let status = self
                 .subscription_matched_status
                 .read_and_reset(self.matched_publication_list.len() as i32);
@@ -1141,7 +1125,10 @@ impl DataReaderActor {
             topic_name.clone(),
             subscriber.get_participant(),
         );
-        if self.status_kind.contains(&StatusKind::SampleRejected) {
+        if self
+            .data_reader_status_kind
+            .contains(&StatusKind::SampleRejected)
+        {
             let status = self.sample_rejected_status.read_and_reset();
             if let Some(listener) = &self.data_reader_listener_thread {
                 listener.sender().send(DataReaderListenerMessage {
@@ -1216,7 +1203,7 @@ impl DataReaderActor {
             subscriber.get_participant(),
         );
         if self
-            .status_kind
+            .data_reader_status_kind
             .contains(&StatusKind::RequestedIncompatibleQos)
         {
             let status = self.requested_incompatible_qos_status.read_and_reset();
@@ -1267,10 +1254,9 @@ impl DataReaderActor {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn convert_cache_change_to_sample(
         &mut self,
-        cache_change: rtps::reader::ReaderCacheChange,
+        cache_change: ReaderCacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
         let change_kind = if let Some(p) = cache_change
@@ -1292,35 +1278,39 @@ impl DataReaderActor {
             Ok(ChangeKind::Alive)
         }?;
 
-        let instance_handle = build_instance_handle(
-            &self.type_support,
-            change_kind,
-            cache_change.data_value.as_ref(),
-            cache_change.inline_qos.parameter(),
-        )?;
-
-        match change_kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                self.instances
-                    .entry(instance_handle)
-                    .or_insert_with(InstanceState::new)
-                    .update_state(change_kind);
-                Ok(())
-            }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => {
-                match self.instances.get_mut(&instance_handle) {
-                    Some(instance) => {
-                        instance.update_state(change_kind);
-                        Ok(())
-                    }
-                    None => Err(DdsError::Error(
-                        "Received message changing state of unknown instance".to_string(),
-                    )),
+        let instance_handle = {
+            match change_kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                    get_instance_handle_from_serialized_foo(
+                        cache_change.data_value.as_ref(),
+                        self.type_support.as_ref(),
+                    )?
                 }
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => match &cache_change
+                    .inline_qos
+                    .parameter()
+                    .iter()
+                    .find(|&x| x.parameter_id() == PID_KEY_HASH)
+                {
+                    Some(p) => {
+                        if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
+                            InstanceHandle::new(key)
+                        } else {
+                            get_instance_handle_from_serialized_key(
+                                cache_change.data_value.as_ref(),
+                                self.type_support.as_ref(),
+                            )?
+                        }
+                    }
+                    None => get_instance_handle_from_serialized_key(
+                        cache_change.data_value.as_ref(),
+                        self.type_support.as_ref(),
+                    )?,
+                },
             }
-        }?;
+        };
 
         Ok(ReaderSample {
             kind: change_kind,
@@ -1339,9 +1329,9 @@ impl DataReaderActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn add_change(
+    fn add_sample(
         &mut self,
-        change: ReaderSample,
+        sample: ReaderSample,
         data_reader_address: &ActorAddress<DataReaderActor>,
         subscriber: &SubscriberAsync,
         subscriber_mask_listener: &(
@@ -1352,18 +1342,16 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        executor_handle: &ExecutorHandle,
-        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         // For exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
             // Get the InstanceHandle of the data writer owning this instance
             if let Some(&instance_owner_handle) =
-                self.instance_ownership.get(&change.instance_handle())
+                self.instance_ownership.get(&sample.instance_handle())
             {
                 let instance_owner = InstanceHandle::new(instance_owner_handle.into());
-                let instance_writer = InstanceHandle::new(change.writer_guid.into());
-                if instance_owner_handle != change.writer_guid
+                let instance_writer = InstanceHandle::new(sample.writer_guid.into());
+                if instance_owner_handle != sample.writer_guid
                     && self.matched_publication_list[&instance_writer]
                         .ownership_strength()
                         .value
@@ -1376,47 +1364,47 @@ impl DataReaderActor {
             }
 
             self.instance_ownership
-                .insert(change.instance_handle(), change.writer_guid);
+                .insert(sample.instance_handle(), sample.writer_guid);
         }
 
-        match change.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (),
+        if matches!(
+            sample.kind,
             ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => {
-                // Drop the ownership and stop the deadline task
-                self.instance_ownership.remove(&change.instance_handle());
-                if let Some(t) = self
-                    .instance_deadline_missed_task
-                    .remove(&change.instance_handle())
-                {
-                    t.abort();
-                }
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered
+        ) {
+            // Drop the ownership and stop the deadline task
+            self.instance_ownership.remove(&sample.instance_handle());
+            if let Some(t) = self
+                .instance_deadline_missed_task
+                .remove(&sample.instance_handle())
+            {
+                t.abort();
             }
         }
 
-        if self.is_sample_of_interest_based_on_time(&change) {
-            if self.is_max_samples_limit_reached(&change) {
+        if self.is_sample_of_interest_based_on_time(&sample) {
+            if self.is_max_samples_limit_reached(&sample) {
                 self.on_sample_rejected(
-                    change.instance_handle(),
+                    sample.instance_handle(),
                     SampleRejectedStatusKind::RejectedBySamplesLimit,
                     data_reader_address,
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )?;
-            } else if self.is_max_instances_limit_reached(&change) {
+            } else if self.is_max_instances_limit_reached(&sample) {
                 self.on_sample_rejected(
-                    change.instance_handle(),
+                    sample.instance_handle(),
                     SampleRejectedStatusKind::RejectedByInstancesLimit,
                     data_reader_address,
                     subscriber,
                     subscriber_mask_listener,
                     participant_mask_listener,
                 )?;
-            } else if self.is_max_samples_per_instance_limit_reached(&change) {
+            } else if self.is_max_samples_per_instance_limit_reached(&sample) {
                 self.on_sample_rejected(
-                    change.instance_handle(),
+                    sample.instance_handle(),
                     SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
                     data_reader_address,
                     subscriber,
@@ -1425,10 +1413,10 @@ impl DataReaderActor {
                 )?;
             } else {
                 let num_alive_samples_of_instance = self
-                    .changes
+                    .sample_list
                     .iter()
                     .filter(|cc| {
-                        cc.instance_handle() == change.instance_handle()
+                        cc.instance_handle() == sample.instance_handle()
                             && cc.kind == ChangeKind::Alive
                     })
                     .count() as u32;
@@ -1436,34 +1424,55 @@ impl DataReaderActor {
                 if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
                     if depth == num_alive_samples_of_instance {
                         let index_sample_to_remove = self
-                            .changes
+                            .sample_list
                             .iter()
                             .position(|cc| {
-                                cc.instance_handle() == change.instance_handle()
+                                cc.instance_handle() == sample.instance_handle()
                                     && cc.kind == ChangeKind::Alive
                             })
                             .expect("Samples must exist");
-                        self.changes.remove(index_sample_to_remove);
+                        self.sample_list.remove(index_sample_to_remove);
                     }
                 }
 
                 self.start_deadline_missed_task(
-                    change.instance_handle(),
+                    sample.instance_handle(),
                     data_reader_address.clone(),
                     subscriber.clone(),
                     subscriber_mask_listener,
                     participant_mask_listener,
-                    executor_handle,
-                    timer_handle,
                 )?;
 
-                tracing::debug!(cache_change = ?change, "Adding change to data reader history cache");
-                self.changes.push(change);
+                match sample.kind {
+                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                        self.instances
+                            .entry(sample.instance_handle)
+                            .or_insert_with(InstanceState::new)
+                            .update_state(sample.kind);
+                        Ok(())
+                    }
+                    ChangeKind::NotAliveDisposed
+                    | ChangeKind::NotAliveUnregistered
+                    | ChangeKind::NotAliveDisposedUnregistered => {
+                        match self.instances.get_mut(&sample.instance_handle) {
+                            Some(instance) => {
+                                instance.update_state(sample.kind);
+                                Ok(())
+                            }
+                            None => Err(DdsError::Error(
+                                "Received message changing state of unknown instance".to_string(),
+                            )),
+                        }
+                    }
+                }?;
+
+                tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
+                self.sample_list.push(sample);
                 self.data_available_status_changed_flag = true;
 
                 match self.qos.destination_order.kind {
                     DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                        self.changes.sort_by(|a, b| {
+                        self.sample_list.sort_by(|a, b| {
                             a.source_timestamp
                                 .as_ref()
                                 .expect("Missing source timestamp")
@@ -1475,7 +1484,7 @@ impl DataReaderActor {
                         });
                     }
                     DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                        .changes
+                        .sample_list
                         .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
                 }
 
@@ -1488,7 +1497,7 @@ impl DataReaderActor {
 
     fn is_sample_of_interest_based_on_time(&self, sample: &ReaderSample) -> bool {
         let closest_timestamp_before_received_sample = self
-            .changes
+            .sample_list
             .iter()
             .filter(|cc| cc.instance_handle() == sample.instance_handle())
             .filter(|cc| cc.source_timestamp <= sample.source_timestamp)
@@ -1510,7 +1519,7 @@ impl DataReaderActor {
 
     fn is_max_samples_limit_reached(&self, _change: &ReaderSample) -> bool {
         let total_samples = self
-            .changes
+            .sample_list
             .iter()
             .filter(|cc| cc.kind == ChangeKind::Alive)
             .count();
@@ -1519,8 +1528,11 @@ impl DataReaderActor {
     }
 
     fn is_max_instances_limit_reached(&self, change: &ReaderSample) -> bool {
-        let instance_handle_list: HashSet<_> =
-            self.changes.iter().map(|cc| cc.instance_handle()).collect();
+        let instance_handle_list: HashSet<_> = self
+            .sample_list
+            .iter()
+            .map(|cc| cc.instance_handle())
+            .collect();
 
         if instance_handle_list.contains(&change.instance_handle()) {
             false
@@ -1531,7 +1543,7 @@ impl DataReaderActor {
 
     fn is_max_samples_per_instance_limit_reached(&self, change: &ReaderSample) -> bool {
         let total_samples_of_instance = self
-            .changes
+            .sample_list
             .iter()
             .filter(|cc| cc.instance_handle() == change.instance_handle())
             .count();
@@ -1558,7 +1570,7 @@ impl DataReaderActor {
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
-            .changes
+            .sample_list
             .iter()
             .enumerate()
             .filter(|(_, cc)| {
@@ -1702,8 +1714,6 @@ impl DataReaderActor {
             Option<MpscSender<ParticipantListenerMessage>>,
             Vec<StatusKind>,
         ),
-        executor_handle: &ExecutorHandle,
-        timer_handle: &TimerHandle,
     ) -> DdsResult<()> {
         if let Some(t) = self
             .instance_deadline_missed_task
@@ -1722,7 +1732,7 @@ impl DataReaderActor {
                 .data_reader_listener_thread
                 .as_ref()
                 .map(|l| l.sender().clone());
-            let reader_listener_mask = self.status_kind.clone();
+            let reader_listener_mask = self.data_reader_status_kind.clone();
             let subscriber_listener = subscriber_mask_listener.0.clone();
             let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             let participant_listener = participant_mask_listener.0.clone();
@@ -1732,8 +1742,8 @@ impl DataReaderActor {
             let topic_name = self.topic_name.clone();
             let status_condition_address = self.status_condition.address();
             let topic_status_condition_address = self.topic_status_condition.clone();
-            let timer_handle = timer_handle.clone();
-            let deadline_missed_task = executor_handle.spawn(async move {
+            let timer_handle = self.timer_handle.clone();
+            let deadline_missed_task = self.executor_handle.spawn(async move {
                 loop {
                     timer_handle.sleep(deadline_missed_interval).await;
                     let subscriber_listener = subscriber_listener.clone();
@@ -2359,7 +2369,7 @@ impl MailHandler<SetListener> for DataReaderActor {
             listener.join()?;
         }
         self.data_reader_listener_thread = message.listener.map(DataReaderListenerThread::new);
-        self.status_kind = message.status_kind;
+        self.data_reader_status_kind = message.status_kind;
         Ok(())
     }
 }
@@ -2403,7 +2413,7 @@ impl MailHandler<RemoveInstanceOwnership> for DataReaderActor {
 }
 
 pub struct AddChange {
-    cache_change: rtps::reader::ReaderCacheChange,
+    cache_change: ReaderCacheChange,
 }
 impl Mail for AddChange {
     type Result = ();
@@ -2411,7 +2421,9 @@ impl Mail for AddChange {
 impl MailHandler<AddChange> for DataReaderActor {
     fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
         match self.convert_cache_change_to_sample(message.cache_change, Time::now()) {
-            Ok(_) => todo!(),
+            Ok(sample) => {
+                // self.add_sample(sample, data_reader_address, subscriber, subscriber_mask_listener, participant_mask_listener, executor_handle, timer_handle)
+            }
             Err(e) => debug!(
                 "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.",
                 guid = self.guid,
