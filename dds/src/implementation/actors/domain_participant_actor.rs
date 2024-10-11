@@ -66,9 +66,8 @@ use crate::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
-            ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-            USER_DEFINED_WRITER_GROUP,
+            EntityId, Guid, Locator, BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+            USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
         },
     },
     subscription::sample_info::{
@@ -418,33 +417,14 @@ impl DomainParticipantActor {
         status_kind: Vec<StatusKind>,
         topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         builtin_data_writer_list: Vec<DataWriterActor>,
-        builtin_data_reader_list: Vec<DataReaderActor>,
+        builtin_subscriber: Actor<SubscriberActor>,
         message_sender_actor: MessageSenderActor,
         executor: Executor,
         timer_driver: TimerDriver,
-    ) -> (
-        Self,
-        ActorAddress<StatusConditionActor>,
-        ActorAddress<SubscriberActor>,
-        ActorAddress<StatusConditionActor>,
-    ) {
+    ) -> (Self, ActorAddress<StatusConditionActor>) {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = guid.prefix();
         let executor_handle = executor.handle();
-
-        let (builtin_subscriber, builtin_subscriber_status_condition) = SubscriberActor::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            None,
-            vec![],
-            builtin_data_reader_list,
-            &executor_handle,
-        );
-        let builtin_subscriber = Actor::spawn(builtin_subscriber, &executor_handle);
-        let builtin_subscriber_address = builtin_subscriber.address();
 
         let builtin_publisher = Actor::spawn(
             PublisherActor::new(
@@ -500,8 +480,6 @@ impl DomainParticipantActor {
                 timer_driver,
             },
             status_condition_address,
-            builtin_subscriber_address,
-            builtin_subscriber_status_condition,
         )
     }
 
@@ -701,13 +679,15 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let status_kind = message.mask.to_vec();
+        let subscriber_status_kind = message.mask.to_vec();
+        let domain_participant_status_kind = self.status_kind.clone();
 
         let (subscriber, subscriber_status_condition) = SubscriberActor::new(
             subscriber_qos,
             rtps_group,
             message.a_listener,
-            status_kind,
+            subscriber_status_kind,
+            domain_participant_status_kind,
             vec![],
             &message.executor_handle,
         );

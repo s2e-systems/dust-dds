@@ -8,8 +8,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress},
         actors::{
-            any_data_reader_listener::AnyDataReaderListener,
-            data_reader_actor::{self, DataReaderActor},
+            data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
@@ -113,8 +112,10 @@ impl SubscriberAsync {
     where
         Foo: 'b,
     {
-        let listener =
-            a_listener.map::<Box<dyn AnyDataReaderListener + Send + 'static>, _>(|b| Box::new(b));
+        let listener = a_listener.map(|b| DataReaderActorListener {
+            data_reader_listener: Box::new(b),
+            subscriber_async: self.clone(),
+        });
 
         let default_unicast_locator_list = self
             .participant_address()
@@ -164,6 +165,7 @@ impl SubscriberAsync {
                 mask: mask.to_vec(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
+                subscriber_address: self.subscriber_address.clone(),
                 executor_handle: self.participant.executor_handle().clone(),
                 timer_handle: self.participant.timer_handle().clone(),
             })?

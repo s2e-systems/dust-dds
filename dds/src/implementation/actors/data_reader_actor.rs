@@ -6,16 +6,18 @@ use super::{
         ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
     },
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    subscriber_actor::{SubscriberListenerMessage, SubscriberListenerOperation},
+    subscriber_actor::{
+        self, SubscriberActor, SubscriberListenerMessage, SubscriberListenerOperation,
+    },
     topic_actor::TopicActor,
 };
 use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
         },
         data_representation_inline_qos::{
@@ -56,7 +58,7 @@ use crate::{
     rtps::{
         messages::submessage_elements::{Data, ParameterList},
         reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-        types::{ChangeKind, DurabilityKind, Guid, Locator, ReliabilityKind},
+        types::{ChangeKind, DurabilityKind, Guid, Locator, ReliabilityKind, GUID_UNKNOWN},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     xtypes::{
@@ -296,10 +298,14 @@ struct DataReaderListenerMessage {
 struct DataReaderListenerThread {
     thread: JoinHandle<()>,
     sender: MpscSender<DataReaderListenerMessage>,
+    subscriber_async: SubscriberAsync,
 }
 
 impl DataReaderListenerThread {
-    fn new(mut listener: Box<dyn AnyDataReaderListener + Send>) -> Self {
+    fn new(
+        mut listener: Box<dyn AnyDataReaderListener + Send>,
+        subscriber_async: SubscriberAsync,
+    ) -> Self {
         let (sender, receiver) = mpsc_channel::<DataReaderListenerMessage>();
         let thread = std::thread::spawn(move || {
             block_on(async {
@@ -316,7 +322,11 @@ impl DataReaderListenerThread {
                 }
             });
         });
-        Self { thread, sender }
+        Self {
+            thread,
+            sender,
+            subscriber_async,
+        }
     }
 
     fn sender(&self) -> &MpscSender<DataReaderListenerMessage> {
@@ -331,15 +341,24 @@ impl DataReaderListenerThread {
 }
 
 pub struct DdsReaderHistoryCache {
-    data_reader_address: ActorAddress<DataReaderActor>,
+    pub subscriber_address: ActorAddress<SubscriberActor>,
+    pub reader_instance_handle: InstanceHandle,
 }
 
 impl ReaderHistoryCache for DdsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        self.data_reader_address
-            .send_actor_mail(AddChange { cache_change })
+        self.subscriber_address
+            .send_actor_mail(subscriber_actor::AddChange {
+                cache_change,
+                reader_instance_handle: self.reader_instance_handle,
+            })
             .ok();
     }
+}
+
+pub struct DataReaderActorListener {
+    pub data_reader_listener: Box<dyn AnyDataReaderListener + Send>,
+    pub subscriber_async: SubscriberAsync,
 }
 
 pub struct DataReaderActor {
@@ -365,6 +384,8 @@ pub struct DataReaderActor {
     status_condition: Actor<StatusConditionActor>,
     data_reader_listener_thread: Option<DataReaderListenerThread>,
     data_reader_status_kind: Vec<StatusKind>,
+    subscriber_status_kind: Vec<StatusKind>,
+    domain_participant_status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, Guid>,
@@ -383,13 +404,16 @@ impl DataReaderActor {
         topic_status_condition: ActorAddress<StatusConditionActor>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         qos: DataReaderQos,
-        listener: Option<Box<dyn AnyDataReaderListener + Send>>,
-        status_kind: Vec<StatusKind>,
+        listener: Option<DataReaderActorListener>,
+        data_reader_status_kind: Vec<StatusKind>,
+        subscriber_status_kind: Vec<StatusKind>,
+        domain_participant_status_kind: Vec<StatusKind>,
         executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
-        let data_reader_listener_thread = listener.map(DataReaderListenerThread::new);
+        let data_reader_listener_thread = listener
+            .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
 
         DataReaderActor {
             guid,
@@ -411,7 +435,9 @@ impl DataReaderActor {
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
             status_condition,
-            data_reader_status_kind: status_kind,
+            data_reader_status_kind,
+            subscriber_status_kind,
+            domain_participant_status_kind,
             data_reader_listener_thread,
             qos,
             instances: HashMap::new(),
@@ -520,71 +546,58 @@ impl DataReaderActor {
 
     fn on_data_available(
         &self,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_reader_address: &ActorAddress<DataReaderActor>,
+        // subscriber: &SubscriberAsync,
+        // (subscriber_listener, subscriber_listener_mask): &(
+        //     Option<MpscSender<SubscriberListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
-        subscriber
-            .get_statuscondition()
-            .address()
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::DataOnReaders,
-            })?;
-
         self.status_condition
             .address()
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::DataAvailable,
             })?;
 
-        let topic_status_condition_address = self.topic_status_condition.clone();
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let reader_address = data_reader_address.clone();
-        let status_condition_address = self.status_condition.address();
-        let subscriber = subscriber.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address.clone(),
-            type_name.clone(),
-            topic_name.clone(),
-            subscriber.get_participant(),
-        );
-        if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
-            if let Some(listener) = subscriber_listener {
-                listener.send(SubscriberListenerMessage {
-                    listener_operation: SubscriberListenerOperation::DataOnReaders(
-                        subscriber.clone(),
-                    ),
-                    reader_address,
-                    status_condition_address,
-                    subscriber: subscriber.clone(),
-                    topic,
-                })?;
-            }
-        } else if self
-            .data_reader_status_kind
-            .contains(&StatusKind::DataAvailable)
-        {
-            if let Some(listener) = &self.data_reader_listener_thread {
-                listener.sender().send(DataReaderListenerMessage {
-                    listener_operation: DataReaderListenerOperation::DataAvailable,
-                    reader_address,
-                    status_condition_address,
-                    subscriber: subscriber.clone(),
-                    topic,
-                })?;
-            }
-        }
-        subscriber
-            .get_statuscondition()
-            .address()
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::DataOnReaders,
-            })?;
+        // let topic_status_condition_address = self.topic_status_condition.clone();
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
+        // let reader_address = data_reader_address.clone();
+        // let status_condition_address = self.status_condition.address();
+        // let subscriber = subscriber.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address.clone(),
+        //     type_name.clone(),
+        //     topic_name.clone(),
+        //     subscriber.get_participant(),
+        // );
+        // if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
+        //     if let Some(listener) = subscriber_listener {
+        //         listener.send(SubscriberListenerMessage {
+        //             listener_operation: SubscriberListenerOperation::DataOnReaders(
+        //                 subscriber.clone(),
+        //             ),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber: subscriber.clone(),
+        //             topic,
+        //         })?;
+        //     }
+        // } else if self
+        //     .data_reader_status_kind
+        //     .contains(&StatusKind::DataAvailable)
+        // {
+        //     if let Some(listener) = &self.data_reader_listener_thread {
+        //         listener.sender().send(DataReaderListenerMessage {
+        //             listener_operation: DataReaderListenerOperation::DataAvailable,
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber: subscriber.clone(),
+        //             topic,
+        //         })?;
+        //     }
+        // }
 
         self.status_condition
             .address()
@@ -1097,16 +1110,16 @@ impl DataReaderActor {
         &mut self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener, participant_listener_mask): &(
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_reader_address: &ActorAddress<DataReaderActor>,
+        // subscriber: &SubscriberAsync,
+        // (subscriber_listener, subscriber_listener_mask): &(
+        //     Option<MpscSender<SubscriberListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // (participant_listener, participant_listener_mask): &(
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
@@ -1115,55 +1128,55 @@ impl DataReaderActor {
         let topic_name = self.topic_name.clone();
 
         let topic_status_condition_address = self.topic_status_condition.clone();
-        let reader_address = data_reader_address.clone();
-        let status_condition_address = self.status_condition.address();
-        let subscriber = subscriber.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address.clone(),
-            type_name.clone(),
-            topic_name.clone(),
-            subscriber.get_participant(),
-        );
-        if self
-            .data_reader_status_kind
-            .contains(&StatusKind::SampleRejected)
-        {
-            let status = self.sample_rejected_status.read_and_reset();
-            if let Some(listener) = &self.data_reader_listener_thread {
-                listener.sender().send(DataReaderListenerMessage {
-                    listener_operation: DataReaderListenerOperation::SampleRejected(status),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
-            let status = self.sample_rejected_status.read_and_reset();
-            if let Some(listener) = subscriber_listener {
-                listener.send(SubscriberListenerMessage {
-                    listener_operation: SubscriberListenerOperation::SampleRejected(status),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
-            let status = self.sample_rejected_status.read_and_reset();
-            if let Some(listener) = participant_listener {
-                listener.send(ParticipantListenerMessage {
-                    listener_operation: ParticipantListenerOperation::SampleRejected(status),
-                    listener_kind: ListenerKind::Reader {
-                        reader_address,
-                        status_condition_address,
-                        subscriber,
-                        topic,
-                    },
-                })?;
-            }
-        }
+        // let reader_address = data_reader_address.clone();
+        // let status_condition_address = self.status_condition.address();
+        // let subscriber = subscriber.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address.clone(),
+        //     type_name.clone(),
+        //     topic_name.clone(),
+        //     subscriber.get_participant(),
+        // );
+        // if self
+        //     .data_reader_status_kind
+        //     .contains(&StatusKind::SampleRejected)
+        // {
+        //     let status = self.sample_rejected_status.read_and_reset();
+        //     if let Some(listener) = &self.data_reader_listener_thread {
+        //         listener.sender().send(DataReaderListenerMessage {
+        //             listener_operation: DataReaderListenerOperation::SampleRejected(status),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if subscriber_listener_mask.contains(&StatusKind::SampleRejected) {
+        //     let status = self.sample_rejected_status.read_and_reset();
+        //     if let Some(listener) = subscriber_listener {
+        //         listener.send(SubscriberListenerMessage {
+        //             listener_operation: SubscriberListenerOperation::SampleRejected(status),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if participant_listener_mask.contains(&StatusKind::SampleRejected) {
+        //     let status = self.sample_rejected_status.read_and_reset();
+        //     if let Some(listener) = participant_listener {
+        //         listener.send(ParticipantListenerMessage {
+        //             listener_operation: ParticipantListenerOperation::SampleRejected(status),
+        //             listener_kind: ListenerKind::Reader {
+        //                 reader_address,
+        //                 status_condition_address,
+        //                 subscriber,
+        //                 topic,
+        //             },
+        //         })?;
+        //     }
+        // }
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SampleRejected,
@@ -1175,16 +1188,16 @@ impl DataReaderActor {
     fn on_requested_incompatible_qos(
         &mut self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener, participant_listener_mask): &(
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_reader_address: &ActorAddress<DataReaderActor>,
+        // subscriber: &SubscriberAsync,
+        // (subscriber_listener, subscriber_listener_mask): &(
+        //     Option<MpscSender<SubscriberListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // (participant_listener, participant_listener_mask): &(
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
@@ -1192,61 +1205,61 @@ impl DataReaderActor {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let topic_status_condition_address = self.topic_status_condition.clone();
-        let reader_address = data_reader_address.clone();
-        let status_condition_address = self.status_condition.address();
-        let subscriber = subscriber.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address.clone(),
-            type_name.clone(),
-            topic_name.clone(),
-            subscriber.get_participant(),
-        );
-        if self
-            .data_reader_status_kind
-            .contains(&StatusKind::RequestedIncompatibleQos)
-        {
-            let status = self.requested_incompatible_qos_status.read_and_reset();
-            if let Some(listener) = &self.data_reader_listener_thread {
-                listener.sender().send(DataReaderListenerMessage {
-                    listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
-                        status,
-                    ),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
-            let status = self.requested_incompatible_qos_status.read_and_reset();
-            if let Some(listener) = subscriber_listener {
-                listener.send(SubscriberListenerMessage {
-                    listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
-                        status,
-                    ),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
-            let status = self.requested_incompatible_qos_status.read_and_reset();
-            if let Some(listener) = participant_listener {
-                listener.send(ParticipantListenerMessage {
-                    listener_operation: ParticipantListenerOperation::RequestedIncompatibleQos(
-                        status,
-                    ),
-                    listener_kind: ListenerKind::Reader {
-                        reader_address,
-                        status_condition_address,
-                        subscriber,
-                        topic,
-                    },
-                })?;
-            }
-        }
+        // let reader_address = data_reader_address.clone();
+        // let status_condition_address = self.status_condition.address();
+        // let subscriber = subscriber.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address.clone(),
+        //     type_name.clone(),
+        //     topic_name.clone(),
+        //     subscriber.get_participant(),
+        // );
+        // if self
+        //     .data_reader_status_kind
+        //     .contains(&StatusKind::RequestedIncompatibleQos)
+        // {
+        //     let status = self.requested_incompatible_qos_status.read_and_reset();
+        //     if let Some(listener) = &self.data_reader_listener_thread {
+        //         listener.sender().send(DataReaderListenerMessage {
+        //             listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
+        //                 status,
+        //             ),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
+        //     let status = self.requested_incompatible_qos_status.read_and_reset();
+        //     if let Some(listener) = subscriber_listener {
+        //         listener.send(SubscriberListenerMessage {
+        //             listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
+        //                 status,
+        //             ),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
+        //     let status = self.requested_incompatible_qos_status.read_and_reset();
+        //     if let Some(listener) = participant_listener {
+        //         listener.send(ParticipantListenerMessage {
+        //             listener_operation: ParticipantListenerOperation::RequestedIncompatibleQos(
+        //                 status,
+        //             ),
+        //             listener_kind: ListenerKind::Reader {
+        //                 reader_address,
+        //                 status_condition_address,
+        //                 subscriber,
+        //                 topic,
+        //             },
+        //         })?;
+        //     }
+        // }
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::RequestedIncompatibleQos,
@@ -1332,16 +1345,16 @@ impl DataReaderActor {
     fn add_sample(
         &mut self,
         sample: ReaderSample,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber: &SubscriberAsync,
-        subscriber_mask_listener: &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: &(
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_reader_address: &ActorAddress<DataReaderActor>,
+        // subscriber: &SubscriberAsync,
+        // subscriber_mask_listener: &(
+        //     Option<MpscSender<SubscriberListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // participant_mask_listener: &(
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
         // For exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
@@ -1388,28 +1401,28 @@ impl DataReaderActor {
                 self.on_sample_rejected(
                     sample.instance_handle(),
                     SampleRejectedStatusKind::RejectedBySamplesLimit,
-                    data_reader_address,
-                    subscriber,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
+                    // data_reader_address,
+                    // subscriber,
+                    // subscriber_mask_listener,
+                    // participant_mask_listener,
                 )?;
             } else if self.is_max_instances_limit_reached(&sample) {
                 self.on_sample_rejected(
                     sample.instance_handle(),
                     SampleRejectedStatusKind::RejectedByInstancesLimit,
-                    data_reader_address,
-                    subscriber,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
+                    // data_reader_address,
+                    // subscriber,
+                    // subscriber_mask_listener,
+                    // participant_mask_listener,
                 )?;
             } else if self.is_max_samples_per_instance_limit_reached(&sample) {
                 self.on_sample_rejected(
                     sample.instance_handle(),
                     SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
-                    data_reader_address,
-                    subscriber,
-                    subscriber_mask_listener,
-                    participant_mask_listener,
+                    // data_reader_address,
+                    // subscriber,
+                    // subscriber_mask_listener,
+                    // participant_mask_listener,
                 )?;
             } else {
                 let num_alive_samples_of_instance = self
@@ -1437,10 +1450,10 @@ impl DataReaderActor {
 
                 self.start_deadline_missed_task(
                     sample.instance_handle(),
-                    data_reader_address.clone(),
-                    subscriber.clone(),
-                    subscriber_mask_listener,
-                    participant_mask_listener,
+                    // data_reader_address.clone(),
+                    // subscriber.clone(),
+                    // subscriber_mask_listener,
+                    // participant_mask_listener,
                 )?;
 
                 match sample.kind {
@@ -1488,7 +1501,9 @@ impl DataReaderActor {
                         .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
                 }
 
-                self.on_data_available(data_reader_address, subscriber, subscriber_mask_listener)?;
+                self.on_data_available(
+                    // data_reader_address, subscriber, subscriber_mask_listener
+                )?;
             }
         }
 
@@ -1704,16 +1719,16 @@ impl DataReaderActor {
     fn start_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber: SubscriberAsync,
-        subscriber_mask_listener: &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        participant_mask_listener: &(
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_reader_address: ActorAddress<DataReaderActor>,
+        // subscriber: SubscriberAsync,
+        // subscriber_mask_listener: &(
+        //     Option<MpscSender<SubscriberListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // participant_mask_listener: &(
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
         if let Some(t) = self
             .instance_deadline_missed_task
@@ -1733,10 +1748,10 @@ impl DataReaderActor {
                 .as_ref()
                 .map(|l| l.sender().clone());
             let reader_listener_mask = self.data_reader_status_kind.clone();
-            let subscriber_listener = subscriber_mask_listener.0.clone();
-            let subscriber_listener_mask = subscriber_mask_listener.1.clone();
-            let participant_listener = participant_mask_listener.0.clone();
-            let participant_listener_mask = participant_mask_listener.1.clone();
+            // let subscriber_listener = subscriber_mask_listener.0.clone();
+            // let subscriber_listener_mask = subscriber_mask_listener.1.clone();
+            // let participant_listener = participant_mask_listener.0.clone();
+            // let participant_listener_mask = participant_mask_listener.1.clone();
             let topic_address = self.topic_address.clone();
             let type_name = self.type_name.clone();
             let topic_name = self.topic_name.clone();
@@ -1746,95 +1761,95 @@ impl DataReaderActor {
             let deadline_missed_task = self.executor_handle.spawn(async move {
                 loop {
                     timer_handle.sleep(deadline_missed_interval).await;
-                    let subscriber_listener = subscriber_listener.clone();
-                    let participant_listener = participant_listener.clone();
+                    // let subscriber_listener = subscriber_listener.clone();
+                    // let participant_listener = participant_listener.clone();
                     let r: DdsResult<()> = async {
-                        data_reader_address.send_actor_mail(
-                            IncrementRequestedDeadlineMissedStatus {
-                                instance_handle: change_instance_handle,
-                            },
-                        )?;
-                        data_reader_address
-                            .send_actor_mail(RemoveInstanceOwnership {
-                                instance: change_instance_handle,
-                            })?
-                            .receive_reply()
-                            .await;
+                        // data_reader_address.send_actor_mail(
+                        //     IncrementRequestedDeadlineMissedStatus {
+                        //         instance_handle: change_instance_handle,
+                        //     },
+                        // )?;
+                        // data_reader_address
+                        //     .send_actor_mail(RemoveInstanceOwnership {
+                        //         instance: change_instance_handle,
+                        //     })?
+                        //     .receive_reply()
+                        //     .await;
 
-                        let reader_address = data_reader_address.clone();
-                        let subscriber = subscriber.clone();
-                        let topic = TopicAsync::new(
-                            topic_address.clone(),
-                            topic_status_condition_address.clone(),
-                            type_name.clone(),
-                            topic_name.clone(),
-                            subscriber.get_participant(),
-                        );
-                        let status_condition_address = status_condition_address.clone();
-                        if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                            let status = data_reader_address
-                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = &data_reader_listener_sender {
-                                listener
-                                    .send(DataReaderListenerMessage {
-                                        listener_operation:
-                                            DataReaderListenerOperation::RequestedDeadlineMissed(
-                                                status,
-                                            ),
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    })
-                                    .ok();
-                            }
-                        } else if subscriber_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed)
-                        {
-                            let status = data_reader_address
-                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = subscriber_listener {
-                                listener
-                                    .send(SubscriberListenerMessage {
-                                        listener_operation:
-                                            SubscriberListenerOperation::RequestedDeadlineMissed(
-                                                status,
-                                            ),
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    })
-                                    .ok();
-                            }
-                        } else if participant_listener_mask
-                            .contains(&StatusKind::RequestedDeadlineMissed)
-                        {
-                            let status = data_reader_address
-                                .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                                .receive_reply()
-                                .await;
-                            if let Some(listener) = participant_listener {
-                                listener
-                                    .send(ParticipantListenerMessage {
-                                        listener_operation:
-                                            ParticipantListenerOperation::RequestedDeadlineMissed(
-                                                status,
-                                            ),
-                                        listener_kind: ListenerKind::Reader {
-                                            reader_address,
-                                            status_condition_address,
-                                            subscriber,
-                                            topic,
-                                        },
-                                    })
-                                    .ok();
-                            }
-                        }
+                        // let reader_address = data_reader_address.clone();
+                        // let subscriber = subscriber.clone();
+                        // let topic = TopicAsync::new(
+                        //     topic_address.clone(),
+                        //     topic_status_condition_address.clone(),
+                        //     type_name.clone(),
+                        //     topic_name.clone(),
+                        //     subscriber.get_participant(),
+                        // );
+                        // let status_condition_address = status_condition_address.clone();
+                        // if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+                        //     let status = data_reader_address
+                        //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                        //         .receive_reply()
+                        //         .await;
+                        //     if let Some(listener) = &data_reader_listener_sender {
+                        //         listener
+                        //             .send(DataReaderListenerMessage {
+                        //                 listener_operation:
+                        //                     DataReaderListenerOperation::RequestedDeadlineMissed(
+                        //                         status,
+                        //                     ),
+                        //                 reader_address,
+                        //                 status_condition_address,
+                        //                 subscriber,
+                        //                 topic,
+                        //             })
+                        //             .ok();
+                        //     }
+                        // } else if subscriber_listener_mask
+                        //     .contains(&StatusKind::RequestedDeadlineMissed)
+                        // {
+                        //     let status = data_reader_address
+                        //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                        //         .receive_reply()
+                        //         .await;
+                        //     if let Some(listener) = subscriber_listener {
+                        //         listener
+                        //             .send(SubscriberListenerMessage {
+                        //                 listener_operation:
+                        //                     SubscriberListenerOperation::RequestedDeadlineMissed(
+                        //                         status,
+                        //                     ),
+                        //                 reader_address,
+                        //                 status_condition_address,
+                        //                 subscriber,
+                        //                 topic,
+                        //             })
+                        //             .ok();
+                        //     }
+                        // } else if participant_listener_mask
+                        //     .contains(&StatusKind::RequestedDeadlineMissed)
+                        // {
+                        //     let status = data_reader_address
+                        //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+                        //         .receive_reply()
+                        //         .await;
+                        //     if let Some(listener) = participant_listener {
+                        //         listener
+                        //             .send(ParticipantListenerMessage {
+                        //                 listener_operation:
+                        //                     ParticipantListenerOperation::RequestedDeadlineMissed(
+                        //                         status,
+                        //                     ),
+                        //                 listener_kind: ListenerKind::Reader {
+                        //                     reader_address,
+                        //                     status_condition_address,
+                        //                     subscriber,
+                        //                     topic,
+                        //                 },
+                        //             })
+                        //             .ok();
+                        //     }
+                        // }
                         reader_status_condition
                             .send_actor_mail(AddCommunicationState {
                                 state: StatusKind::RequestedDeadlineMissed,
@@ -1947,55 +1962,42 @@ impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
         &mut self,
         message: AsDiscoveredReaderData,
     ) -> <AsDiscoveredReaderData as Mail>::Result {
-        todo!()
-        // let guid = self.rtps_reader.guid();
-        // let type_name = self.type_name.clone();
-        // let topic_name = self.topic_name.clone();
+        let guid = self.guid;
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
 
-        // let unicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-        //     message.default_unicast_locator_list
-        // } else {
-        //     self.rtps_reader.unicast_locator_list().to_vec()
-        // };
-
-        // let multicast_locator_list = if self.rtps_reader.unicast_locator_list().is_empty() {
-        //     message.default_multicast_locator_list
-        // } else {
-        //     self.rtps_reader.multicast_locator_list().to_vec()
-        // };
-
-        // Ok(DiscoveredReaderData::new(
-        //     ReaderProxy {
-        //         remote_reader_guid: guid,
-        //         remote_group_entity_id: guid.entity_id(),
-        //         unicast_locator_list,
-        //         multicast_locator_list,
-        //         expects_inline_qos: false,
-        //     },
-        //     SubscriptionBuiltinTopicData {
-        //         key: BuiltInTopicKey { value: guid.into() },
-        //         participant_key: BuiltInTopicKey {
-        //             value: GUID_UNKNOWN.into(),
-        //         },
-        //         topic_name,
-        //         type_name,
-        //         durability: self.qos.durability.clone(),
-        //         deadline: self.qos.deadline.clone(),
-        //         latency_budget: self.qos.latency_budget.clone(),
-        //         liveliness: self.qos.liveliness.clone(),
-        //         reliability: self.qos.reliability.clone(),
-        //         ownership: self.qos.ownership.clone(),
-        //         destination_order: self.qos.destination_order.clone(),
-        //         user_data: self.qos.user_data.clone(),
-        //         time_based_filter: self.qos.time_based_filter.clone(),
-        //         presentation: message.subscriber_qos.presentation,
-        //         partition: message.subscriber_qos.partition,
-        //         topic_data: message.topic_data,
-        //         group_data: message.subscriber_qos.group_data,
-        //         xml_type: message.xml_type,
-        //         representation: self.qos.representation.clone(),
-        //     },
-        // ))
+        Ok(DiscoveredReaderData::new(
+            ReaderProxy {
+                remote_reader_guid: guid,
+                remote_group_entity_id: guid.entity_id(),
+                unicast_locator_list: message.default_unicast_locator_list,
+                multicast_locator_list: message.default_multicast_locator_list,
+                expects_inline_qos: false,
+            },
+            SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                topic_name,
+                type_name,
+                durability: self.qos.durability.clone(),
+                deadline: self.qos.deadline.clone(),
+                latency_budget: self.qos.latency_budget.clone(),
+                liveliness: self.qos.liveliness.clone(),
+                reliability: self.qos.reliability.clone(),
+                ownership: self.qos.ownership.clone(),
+                destination_order: self.qos.destination_order.clone(),
+                user_data: self.qos.user_data.clone(),
+                time_based_filter: self.qos.time_based_filter.clone(),
+                presentation: message.subscriber_qos.presentation,
+                partition: message.subscriber_qos.partition,
+                topic_data: message.topic_data,
+                group_data: message.subscriber_qos.group_data,
+                xml_type: message.xml_type,
+                representation: self.qos.representation.clone(),
+            },
+        ))
     }
 }
 
@@ -2078,12 +2080,6 @@ impl MailHandler<Enable> for DataReaderActor {
     fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         if !self.enabled {
             self.enabled = true;
-            self.rtps_reader
-                .lock()
-                .unwrap()
-                .set_history_cache(Box::new(DdsReaderHistoryCache {
-                    data_reader_address: message.data_reader_address,
-                }));
         }
     }
 }
@@ -2285,10 +2281,10 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                 self.incompatible_writer_list.insert(instance_handle);
                 self.on_requested_incompatible_qos(
                     incompatible_qos_policy_list,
-                    &message.data_reader_address,
-                    &message.subscriber,
-                    &message.subscriber_mask_listener,
-                    &message.participant_mask_listener,
+                    // &message.data_reader_address,
+                    // &message.subscriber,
+                    // &message.subscriber_mask_listener,
+                    // &message.participant_mask_listener,
                 )?;
             }
         }
@@ -2357,7 +2353,7 @@ impl MailHandler<GetTypeName> for DataReaderActor {
 }
 
 pub struct SetListener {
-    pub listener: Option<Box<dyn AnyDataReaderListener + Send>>,
+    pub listener: Option<DataReaderActorListener>,
     pub status_kind: Vec<StatusKind>,
 }
 impl Mail for SetListener {
@@ -2368,7 +2364,9 @@ impl MailHandler<SetListener> for DataReaderActor {
         if let Some(listener) = self.data_reader_listener_thread.take() {
             listener.join()?;
         }
-        self.data_reader_listener_thread = message.listener.map(DataReaderListenerThread::new);
+        self.data_reader_listener_thread = message
+            .listener
+            .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
         self.data_reader_status_kind = message.status_kind;
         Ok(())
     }
@@ -2413,7 +2411,7 @@ impl MailHandler<RemoveInstanceOwnership> for DataReaderActor {
 }
 
 pub struct AddChange {
-    cache_change: ReaderCacheChange,
+    pub cache_change: ReaderCacheChange,
 }
 impl Mail for AddChange {
     type Result = ();

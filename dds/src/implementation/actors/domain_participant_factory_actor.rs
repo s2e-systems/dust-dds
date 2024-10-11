@@ -1,6 +1,9 @@
 use super::{
-    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
-    message_sender_actor::MessageSenderActor, status_condition_actor::StatusConditionActor,
+    data_reader_actor::{DataReaderActor, DdsReaderHistoryCache},
+    data_writer_actor::DataWriterActor,
+    message_sender_actor::MessageSenderActor,
+    status_condition_actor::StatusConditionActor,
+    subscriber_actor::{self, SubscriberActor},
     topic_actor::TopicActor,
 };
 use crate::{
@@ -30,7 +33,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
-            QosKind, TopicQos,
+            QosKind, SubscriberQos, TopicQos,
         },
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -49,11 +52,12 @@ use crate::{
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         endpoint::RtpsEndpoint,
+        group::RtpsGroup,
         participant::RtpsParticipant,
         reader::{RtpsReader, RtpsStatefulReader, RtpsStatelessReader, TransportReader},
         types::{
-            EntityId, Guid, GuidPrefix, TopicKind, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
-            PROTOCOLVERSION, VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, TopicKind, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC,
+            ENTITYID_PARTICIPANT, PROTOCOLVERSION, VENDOR_ID_S2E,
         },
     },
     topic_definition::type_support::TypeSupport,
@@ -225,6 +229,8 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
+        builtin_subscriber_address: ActorAddress<SubscriberActor>,
+        domain_participant_status_kind: Vec<StatusKind>,
         executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
     ) -> Vec<DataReaderActor> {
@@ -248,7 +254,10 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         let spdp_builtin_participant_reader = DataReaderActor::new(
             spdp_builtin_participant_reader_guid,
-            create_builtin_stateless_reader(spdp_builtin_participant_reader_guid),
+            create_builtin_stateless_reader(
+                spdp_builtin_participant_reader_guid,
+                builtin_subscriber_address.clone(),
+            ),
             topic_list[DCPS_PARTICIPANT].0.address(),
             DCPS_PARTICIPANT.to_string(),
             "SpdpDiscoveredParticipantData".to_string(),
@@ -257,6 +266,8 @@ impl DomainParticipantFactoryActor {
             spdp_reader_qos,
             None,
             vec![],
+            vec![],
+            domain_participant_status_kind.clone(),
             executor_handle.clone(),
             timer_handle.clone(),
         );
@@ -265,7 +276,10 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let sedp_builtin_topics_reader = DataReaderActor::new(
             sedp_builtin_topics_reader_guid,
-            create_builtin_stateful_reader(sedp_builtin_topics_reader_guid),
+            create_builtin_stateful_reader(
+                sedp_builtin_topics_reader_guid,
+                builtin_subscriber_address.clone(),
+            ),
             topic_list[DCPS_TOPIC].0.address(),
             DCPS_TOPIC.to_string(),
             "DiscoveredTopicData".to_string(),
@@ -274,6 +288,8 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             vec![],
+            vec![],
+            domain_participant_status_kind.clone(),
             executor_handle.clone(),
             timer_handle.clone(),
         );
@@ -282,7 +298,10 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let sedp_builtin_publications_reader = DataReaderActor::new(
             sedp_builtin_publications_reader_guid,
-            create_builtin_stateful_reader(sedp_builtin_publications_reader_guid),
+            create_builtin_stateful_reader(
+                sedp_builtin_publications_reader_guid,
+                builtin_subscriber_address.clone(),
+            ),
             topic_list[DCPS_PUBLICATION].0.address(),
             DCPS_PUBLICATION.to_string(),
             "DiscoveredWriterData".to_string(),
@@ -291,6 +310,8 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             vec![],
+            vec![],
+            domain_participant_status_kind.clone(),
             executor_handle.clone(),
             timer_handle.clone(),
         );
@@ -299,7 +320,10 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_reader = DataReaderActor::new(
             sedp_builtin_subscriptions_reader_guid,
-            create_builtin_stateful_reader(sedp_builtin_subscriptions_reader_guid),
+            create_builtin_stateful_reader(
+                sedp_builtin_subscriptions_reader_guid,
+                builtin_subscriber_address,
+            ),
             topic_list[DCPS_SUBSCRIPTION].0.address(),
             DCPS_SUBSCRIPTION.to_string(),
             "DiscoveredReaderData".to_string(),
@@ -308,6 +332,8 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             vec![],
+            vec![],
+            domain_participant_status_kind,
             executor_handle,
             timer_handle,
         );
@@ -454,6 +480,22 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.udp_receive_buffer_size(),
         )?;
         let participant_guid = rtps_participant.guid();
+        let domain_participant_status_kind = message.status_kind.clone();
+        let (builtin_subscriber, builtin_subscriber_status_condition_address) =
+            SubscriberActor::new(
+                SubscriberQos::default(),
+                RtpsGroup::new(Guid::new(
+                    guid_prefix,
+                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+                )),
+                None,
+                vec![],
+                domain_participant_status_kind.clone(),
+                vec![],
+                &executor_handle,
+            );
+        let builtin_subscriber_actor = Actor::spawn(builtin_subscriber, &executor_handle);
+        let builtin_subscriber_address = builtin_subscriber_actor.address();
 
         let topic_list = self.create_builtin_topics(guid_prefix, &executor.handle());
         let builtin_data_writer_list = self.create_builtin_writers(
@@ -465,17 +507,22 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let builtin_data_reader_list = self.create_builtin_readers(
             guid_prefix,
             &topic_list,
+            builtin_subscriber_address.clone(),
+            domain_participant_status_kind,
             executor_handle.clone(),
             timer_handle.clone(),
         );
+        for builtin_data_reader in builtin_data_reader_list {
+            let instance_handle = builtin_data_reader.get_instance_handle();
+            let data_reader_actor = Actor::spawn(builtin_data_reader, &executor_handle);
+            builtin_subscriber_actor.send_actor_mail(subscriber_actor::AddDataReaderActor {
+                instance_handle,
+                data_reader_actor,
+            });
+        }
 
         //****** Spawn the participant actor and tasks **********//
-        let (
-            domain_participant,
-            status_condition,
-            builtin_subscriber,
-            builtin_subscriber_status_condition_address,
-        ) = DomainParticipantActor::new(
+        let (domain_participant, status_condition) = DomainParticipantActor::new(
             Arc::new(Mutex::new(rtps_participant)),
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             message.domain_id,
@@ -486,7 +533,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             message.status_kind,
             topic_list,
             builtin_data_writer_list,
-            builtin_data_reader_list,
+            builtin_subscriber_actor,
             message_sender_actor,
             executor,
             timer_driver,
@@ -495,7 +542,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
             status_condition.clone(),
-            builtin_subscriber,
+            builtin_subscriber_address,
             builtin_subscriber_status_condition_address,
             message.domain_id,
             executor_handle.clone(),
@@ -645,35 +692,45 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
 
 fn create_builtin_stateless_reader(
     guid: Guid,
+    builtin_subscriber_address: ActorAddress<SubscriberActor>,
 ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    Arc::new(Mutex::new(RtpsStatelessReader::new(RtpsReader::new(
-        RtpsEndpoint::new(
+    Arc::new(Mutex::new(RtpsStatelessReader::new(
+        RtpsReader::new(RtpsEndpoint::new(
             guid,
             TopicKind::WithKey,
             unicast_locator_list,
             multicast_locator_list,
-        ),
-    ))))
+        )),
+        Box::new(DdsReaderHistoryCache {
+            subscriber_address: builtin_subscriber_address,
+            reader_instance_handle: InstanceHandle::new(guid.into()),
+        }),
+    )))
 }
 
 fn create_builtin_stateful_reader(
     guid: Guid,
+    builtin_subscriber_address: ActorAddress<SubscriberActor>,
 ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
     let topic_kind = TopicKind::WithKey;
     let unicast_locator_list = &[];
     let multicast_locator_list = &[];
 
-    Arc::new(Mutex::new(RtpsStatefulReader::new(RtpsReader::new(
-        RtpsEndpoint::new(
+    Arc::new(Mutex::new(RtpsStatefulReader::new(
+        RtpsReader::new(RtpsEndpoint::new(
             guid,
             topic_kind,
             unicast_locator_list,
             multicast_locator_list,
-        ),
-    ))))
+        )),
+        Box::new(DdsReaderHistoryCache {
+            subscriber_address: builtin_subscriber_address,
+            reader_instance_handle: InstanceHandle::new(guid.into()),
+        }),
+    )))
 }
 
 pub fn sedp_data_reader_qos() -> DataReaderQos {

@@ -8,7 +8,7 @@ use crate::{
         actor::ActorAddress,
         actors::{
             any_data_reader_listener::AnyDataReaderListener,
-            data_reader_actor::{self, DataReaderActor},
+            data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
@@ -565,8 +565,10 @@ where
     ) -> DdsResult<()> {
         self.reader_address
             .send_actor_mail(data_reader_actor::SetListener {
-                listener: a_listener
-                    .map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b)),
+                listener: a_listener.map(|b| DataReaderActorListener {
+                    data_reader_listener: Box::new(b),
+                    subscriber_async: self.subscriber.clone(),
+                }),
                 status_kind: mask.to_vec(),
             })?
             .receive_reply()

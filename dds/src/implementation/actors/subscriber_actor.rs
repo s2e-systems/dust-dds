@@ -1,7 +1,7 @@
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader_actor::{self, DataReaderActor},
+    data_reader_actor::{self, DataReaderActor, DataReaderActorListener, DdsReaderHistoryCache},
     domain_participant_actor::ParticipantListenerMessage,
+    status_condition_actor::AddCommunicationState,
     topic_actor::TopicActor,
 };
 use crate::{
@@ -33,7 +33,7 @@ use crate::{
     rtps::{
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        reader::{RtpsReader, RtpsStatefulReader},
+        reader::{ReaderCacheChange, RtpsReader, RtpsStatefulReader},
         types::{
             EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
             USER_DEFINED_READER_WITH_KEY,
@@ -141,7 +141,8 @@ pub struct SubscriberActor {
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
     subscriber_listener_thread: Option<SubscriberListenerThread>,
-    status_kind: Vec<StatusKind>,
+    subscriber_status_kind: Vec<StatusKind>,
+    domain_participant_status_kind: Vec<StatusKind>,
 }
 
 impl SubscriberActor {
@@ -149,7 +150,8 @@ impl SubscriberActor {
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
-        status_kind: Vec<StatusKind>,
+        subscriber_status_kind: Vec<StatusKind>,
+        domain_participant_status_kind: Vec<StatusKind>,
         data_reader_list: Vec<DataReaderActor>,
         handle: &ExecutorHandle,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
@@ -170,7 +172,8 @@ impl SubscriberActor {
                 default_data_reader_qos: Default::default(),
                 status_condition,
                 subscriber_listener_thread,
-                status_kind,
+                subscriber_status_kind,
+                domain_participant_status_kind,
             },
             status_condition_address,
         )
@@ -240,10 +243,11 @@ pub struct CreateDatareader {
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
     pub has_key: bool,
     pub qos: QosKind<DataReaderQos>,
-    pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
+    pub a_listener: Option<DataReaderActorListener>,
     pub mask: Vec<StatusKind>,
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
+    pub subscriber_address: ActorAddress<SubscriberActor>,
     pub executor_handle: ExecutorHandle,
     pub timer_handle: TimerHandle,
 }
@@ -280,16 +284,24 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             false => TopicKind::NoKey,
         };
 
-        let rtps_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
+        let dds_reader_history_cache = DdsReaderHistoryCache {
+            subscriber_address: message.subscriber_address,
+            reader_instance_handle: InstanceHandle::new(guid.into()),
+        };
+
+        let rtps_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
+            RtpsReader::new(RtpsEndpoint::new(
                 guid,
                 topic_kind,
                 &message.default_unicast_locator_list,
                 &message.default_multicast_locator_list,
-            ),
-        ))));
+            )),
+            Box::new(dds_reader_history_cache),
+        )));
 
-        let status_kind = message.mask.to_vec();
+        let data_reader_status_kind = message.mask.to_vec();
+        let subscriber_status_kind = self.subscriber_status_kind.clone();
+        let domain_participant_status_kind = self.domain_participant_status_kind.clone();
         let data_reader = DataReaderActor::new(
             guid,
             rtps_reader,
@@ -300,7 +312,9 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             message.type_support,
             qos,
             message.a_listener,
-            status_kind,
+            data_reader_status_kind,
+            subscriber_status_kind,
+            domain_participant_status_kind,
             message.executor_handle.clone(),
             message.timer_handle,
         );
@@ -486,7 +500,7 @@ impl Mail for GetStatusKind {
 }
 impl MailHandler<GetStatusKind> for SubscriberActor {
     fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
-        self.status_kind.clone()
+        self.subscriber_status_kind.clone()
     }
 }
 
@@ -515,7 +529,7 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                     self.subscriber_listener_thread
                         .as_ref()
                         .map(|l| l.sender().clone()),
-                    self.status_kind.clone(),
+                    self.subscriber_status_kind.clone(),
                 );
                 let data_reader_address = data_reader.address();
                 let subscriber_qos = self.qos.clone();
@@ -557,7 +571,7 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
                 self.subscriber_listener_thread
                     .as_ref()
                     .map(|l| l.sender().clone()),
-                self.status_kind.clone(),
+                self.subscriber_status_kind.clone(),
             );
             data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
@@ -589,8 +603,44 @@ impl MailHandler<SetListener> for SubscriberActor {
             l.join()?;
         }
         self.subscriber_listener_thread = message.listener.map(SubscriberListenerThread::new);
-        self.status_kind = message.status_kind;
+        self.subscriber_status_kind = message.status_kind;
 
         Ok(())
+    }
+}
+
+pub struct AddDataReaderActor {
+    pub instance_handle: InstanceHandle,
+    pub data_reader_actor: Actor<DataReaderActor>,
+}
+impl Mail for AddDataReaderActor {
+    type Result = ();
+}
+impl MailHandler<AddDataReaderActor> for SubscriberActor {
+    fn handle(&mut self, message: AddDataReaderActor) -> <AddDataReaderActor as Mail>::Result {
+        self.data_reader_list
+            .insert(message.instance_handle, message.data_reader_actor);
+    }
+}
+
+pub struct AddChange {
+    pub cache_change: ReaderCacheChange,
+    pub reader_instance_handle: InstanceHandle,
+}
+impl Mail for AddChange {
+    type Result = ();
+}
+impl MailHandler<AddChange> for SubscriberActor {
+    fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
+        if let Some(reader) = self.data_reader_list.get(&message.reader_instance_handle) {
+            reader.send_actor_mail(data_reader_actor::AddChange {
+                cache_change: message.cache_change,
+            });
+        }
+
+        self.status_condition
+            .send_actor_mail(AddCommunicationState {
+                state: StatusKind::DataOnReaders,
+            });
     }
 }

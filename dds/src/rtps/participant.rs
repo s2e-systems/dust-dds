@@ -24,7 +24,7 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
-    reader::RtpsStatefulReader,
+    reader::{ReaderHistoryCache, RtpsStatefulReader, TransportReader},
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
@@ -515,7 +515,7 @@ impl RtpsParticipant {
             .try_clone()
             .expect("Should always be clone");
         let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
+        let writer: Arc<Mutex<RtpsStatefulWriter>> = Arc::new(Mutex::new(RtpsStatefulWriter::new(
             writer_guid,
             message_sender,
         )));
@@ -533,7 +533,10 @@ impl RtpsParticipant {
             .remove(&<[u8; 16]>::from(writer_guid));
     }
 
-    pub fn create_reader(&mut self) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
+    pub fn create_reader(
+        &mut self,
+        reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
         todo!()
     }
 

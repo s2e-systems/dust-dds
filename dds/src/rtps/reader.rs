@@ -25,11 +25,6 @@ pub trait ReaderHistoryCache {
 }
 
 pub trait TransportReader {
-    fn set_history_cache(
-        &mut self,
-        reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    );
-
     fn add_matched_writer(
         &mut self,
         writer_proxy: WriterProxy,
@@ -64,14 +59,17 @@ impl RtpsReader {
 
 pub struct RtpsStatelessReader {
     rtps_reader: RtpsReader,
-    history_cache: Option<Box<dyn ReaderHistoryCache + Send + Sync + 'static>>,
+    history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
 }
 
 impl RtpsStatelessReader {
-    pub fn new(rtps_reader: RtpsReader) -> Self {
+    pub fn new(
+        rtps_reader: RtpsReader,
+        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    ) -> Self {
         Self {
             rtps_reader,
-            history_cache: None,
+            history_cache,
         }
     }
 
@@ -81,13 +79,6 @@ impl RtpsStatelessReader {
 }
 
 impl TransportReader for RtpsStatelessReader {
-    fn set_history_cache(
-        &mut self,
-        reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    ) {
-        self.history_cache = Some(reader_history_cache)
-    }
-
     fn add_matched_writer(
         &mut self,
         _writer_proxy: WriterProxy,
@@ -105,17 +96,10 @@ impl TransportReader for RtpsStatelessReader {
 pub struct RtpsStatefulReader {
     rtps_reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
-    history_cache: Option<Box<dyn ReaderHistoryCache + Send + Sync + 'static>>,
+    history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
 }
 
 impl TransportReader for RtpsStatefulReader {
-    fn set_history_cache(
-        &mut self,
-        reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    ) {
-        self.history_cache = Some(reader_history_cache)
-    }
-
     fn add_matched_writer(
         &mut self,
         writer_proxy: WriterProxy,
@@ -146,11 +130,14 @@ impl TransportReader for RtpsStatefulReader {
 }
 
 impl RtpsStatefulReader {
-    pub fn new(rtps_reader: RtpsReader) -> Self {
+    pub fn new(
+        rtps_reader: RtpsReader,
+        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    ) -> Self {
         Self {
             rtps_reader,
             matched_writers: Vec::new(),
-            history_cache: None,
+            history_cache,
         }
     }
 
@@ -177,30 +164,28 @@ impl RtpsStatefulReader {
                         if sequence_number > expected_seq_num {
                             writer_proxy.lost_changes_update(sequence_number);
                         }
-                        if let Some(hc) = &mut self.history_cache {
-                            let cache_change = ReaderCacheChange {
-                                writer_guid,
-                                source_timestamp,
-                                data_value: data_submessage.serialized_payload().clone(),
-                                inline_qos: data_submessage.inline_qos().clone(),
-                            };
-                            hc.add_change(cache_change);
-                        }
+
+                        let cache_change = ReaderCacheChange {
+                            writer_guid,
+                            source_timestamp,
+                            data_value: data_submessage.serialized_payload().clone(),
+                            inline_qos: data_submessage.inline_qos().clone(),
+                        };
+                        self.history_cache.add_change(cache_change);
                     }
                 }
                 ReliabilityKind::Reliable => {
                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                     if sequence_number == expected_seq_num {
                         writer_proxy.received_change_set(sequence_number);
-                        if let Some(hc) = &mut self.history_cache {
-                            let cache_change = ReaderCacheChange {
-                                writer_guid,
-                                source_timestamp,
-                                data_value: data_submessage.serialized_payload().clone(),
-                                inline_qos: data_submessage.inline_qos().clone(),
-                            };
-                            hc.add_change(cache_change);
-                        }
+
+                        let cache_change = ReaderCacheChange {
+                            writer_guid,
+                            source_timestamp,
+                            data_value: data_submessage.serialized_payload().clone(),
+                            inline_qos: data_submessage.inline_qos().clone(),
+                        };
+                        self.history_cache.add_change(cache_change);
                     }
                 }
             }
