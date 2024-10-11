@@ -1,4 +1,5 @@
 use super::{
+    message_sender::MessageSender,
     messages::{
         overall_structure::Submessage,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
@@ -10,10 +11,7 @@ use super::{
     },
     types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
-use crate::implementation::{
-    actor::ActorAddress,
-    actors::message_sender_actor::{self, MessageSenderActor},
-};
+
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
@@ -229,11 +227,7 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub fn send_message(
-        &mut self,
-        reader_guid: &Guid,
-        message_sender_actor: &ActorAddress<MessageSenderActor>,
-    ) {
+    pub fn send_message(&mut self, reader_guid: &Guid, message_sender: &MessageSender) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
@@ -285,12 +279,7 @@ impl RtpsWriterProxy {
                 }
             }
 
-            message_sender_actor
-                .send_actor_mail(message_sender_actor::WriteMessage {
-                    submessages,
-                    destination_locator_list: self.unicast_locator_list().to_vec(),
-                })
-                .ok();
+            message_sender.write_message(&submessages, self.unicast_locator_list().to_vec());
         }
     }
 

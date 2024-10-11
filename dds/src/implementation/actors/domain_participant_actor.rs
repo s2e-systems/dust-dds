@@ -432,6 +432,7 @@ impl DomainParticipantActor {
                     guid_prefix,
                     EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
                 )),
+                rtps_participant.clone(),
                 None,
                 vec![],
                 vec![],
@@ -700,6 +701,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let subscriber = SubscriberActor::new(
             subscriber_qos,
             rtps_group,
+            self.rtps_participant.clone(),
             message.a_listener,
             subscriber_status_kind,
             domain_participant_status_kind,
@@ -1484,7 +1486,6 @@ impl MailHandler<RemoveDiscoveredParticipant> for DomainParticipantActor {
 
 pub struct AddMatchedWriter {
     pub discovered_writer_data: DiscoveredWriterData,
-    pub participant: DomainParticipantAsync,
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -1652,7 +1653,6 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
 
 pub struct AddMatchedReader {
     pub discovered_reader_data: DiscoveredReaderData,
-    pub participant: DomainParticipantAsync,
 }
 impl Mail for AddMatchedReader {
     type Result = DdsResult<()>;
@@ -2436,7 +2436,6 @@ async fn process_sedp_publications_discovery(
                             participant.participant_address().send_actor_mail(
                                 AddMatchedWriter {
                                     discovered_writer_data,
-                                    participant: participant.clone(),
                                 },
                             )?;
                         }
@@ -2490,7 +2489,6 @@ async fn process_sedp_subscriptions_discovery(
                             participant.participant_address().send_actor_mail(
                                 AddMatchedReader {
                                     discovered_reader_data,
-                                    participant: participant.clone(),
                                 },
                             )?;
                         }

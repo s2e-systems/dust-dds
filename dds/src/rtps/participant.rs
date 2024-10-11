@@ -1,6 +1,5 @@
 use core::net::{Ipv4Addr, SocketAddr};
 use std::{
-    collections::HashMap,
     net::UdpSocket,
     sync::{Arc, Mutex},
 };
@@ -12,10 +11,7 @@ use tracing::info;
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::data_representation_builtin_endpoints::spdp_discovered_participant_data::ParticipantProxy,
-    rtps::{
-        message_receiver::MessageReceiver, messages::overall_structure::RtpsSubmessageReadKind,
-        stateful_writer::RtpsStatefulWriter,
-    },
+    rtps::{message_receiver::MessageReceiver, stateful_writer::RtpsStatefulWriter},
 };
 
 use super::{
@@ -119,8 +115,9 @@ pub struct RtpsParticipant {
     builtin_stateless_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessWriter>>>>>,
     builtin_stateful_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
     builtin_stateless_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessReader>>>>>,
-    user_defined_writer_list: Arc<Mutex<HashMap<[u8; 16], Arc<Mutex<RtpsStatefulWriter>>>>>,
-    user_defined_reader_list: Arc<Mutex<HashMap<[u8; 16], Arc<Mutex<RtpsStatefulReader>>>>>,
+    builtin_stateful_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulReader>>>>>,
+    user_defined_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
+    user_defined_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulReader>>>>>,
     sender_socket: UdpSocket,
 }
 
@@ -133,12 +130,16 @@ impl RtpsParticipant {
         udp_receive_buffer_size: Option<usize>,
     ) -> RtpsResult<Self> {
         let builtin_stateless_writer_list = Arc::new(Mutex::new(Vec::new()));
-        let builtin_stateless_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessReader>>>>> =
-            Arc::new(Mutex::new(Vec::new()));
+        let builtin_stateless_reader_list =
+            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatelessReader>>>::new()));
         let builtin_stateful_writer_list =
             Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulWriter>>>::new()));
-        let user_defined_writer_list = Arc::new(Mutex::new(HashMap::new()));
-        let user_defined_reader_list = Arc::new(Mutex::new(HashMap::new()));
+        let builtin_stateful_reader_list =
+            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulReader>>>::new()));
+        let user_defined_writer_list =
+            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulWriter>>>::new()));
+        let user_defined_reader_list =
+            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulReader>>>::new()));
 
         // Open socket for unicast user-defined data
         let interface_address_list = NetworkInterface::show()
@@ -174,11 +175,11 @@ impl RtpsParticipant {
             .collect();
 
         // Open socket for unicast metatraffic data
-        let mut metatrafic_unicast_socket =
+        let mut metatraffic_unicast_socket =
             std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
-        metatrafic_unicast_socket.set_nonblocking(false)?;
+        metatraffic_unicast_socket.set_nonblocking(false)?;
         let metattrafic_unicast_locator_port =
-            metatrafic_unicast_socket.local_addr()?.port().into();
+            metatraffic_unicast_socket.local_addr()?.port().into();
         let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .clone()
             .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
@@ -197,6 +198,7 @@ impl RtpsParticipant {
             interface_address_list,
         )?;
         let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
+        let builtin_stateful_reader_list_clone = builtin_stateful_reader_list.clone();
         let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
         std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
@@ -208,144 +210,39 @@ impl RtpsParticipant {
                         rtps_message = ?rtps_message,
                         "Received metatraffic multicast RTPS message"
                     );
-                    // let reception_timestamp = self.get_current_time().into();
-                    let mut message_receiver = MessageReceiver::new(rtps_message);
-                    while let Some(submessage) = message_receiver.next() {
-                        match submessage {
-                            RtpsSubmessageReadKind::Data(data_submessage) => {
-                                for builtin_stateless_reader in
-                                    builtin_stateless_reader_list_clone.lock().unwrap().iter()
-                                {
-                                    builtin_stateless_reader
-                                        .lock()
-                                        .unwrap()
-                                        .on_data_submessage_received(
-                                            &data_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            message_receiver.source_timestamp(),
-                                        );
-                                }
-                            }
-                            //         RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                            //             let participant_mask_listener = (
-                            //                 self.participant_listener_thread
-                            //                     .as_ref()
-                            //                     .map(|l| l.sender().clone()),
-                            //                 self.status_kind.clone(),
-                            //             );
-                            //             self.builtin_subscriber.send_actor_mail(
-                            //                 subscriber_actor::ProcessDataFragSubmessage {
-                            //                     data_frag_submessage,
-                            //                     source_guid_prefix: message_receiver.source_guid_prefix(),
-                            //                     source_timestamp: message_receiver.source_timestamp(),
-                            //                     reception_timestamp,
-                            //                     subscriber_address: self.builtin_subscriber.address(),
-                            //                     participant: message.participant.clone(),
-                            //                     participant_mask_listener,
-                            //                     executor_handle: message.executor_handle.clone(),
-                            //                     timer_handle: self.timer_driver.handle(),
-                            //                 },
-                            //             );
-                            //         }
-                            //         RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                            //             self.builtin_subscriber.send_actor_mail(
-                            //                 subscriber_actor::ProcessGapSubmessage {
-                            //                     gap_submessage,
-                            //                     source_guid_prefix: message_receiver.source_guid_prefix(),
-                            //                 },
-                            //             );
-                            //         }
-                            //         RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                            //             self.builtin_subscriber.send_actor_mail(
-                            //                 subscriber_actor::ProcessHeartbeatSubmessage {
-                            //                     heartbeat_submessage,
-                            //                     source_guid_prefix: message_receiver.source_guid_prefix(),
-                            //                     message_sender_actor: self.message_sender_actor.address(),
-                            //                 },
-                            //             );
-                            //         }
-                            //         RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                            //             self.builtin_subscriber.send_actor_mail(
-                            //                 subscriber_actor::ProcessHeartbeatFragSubmessage {
-                            //                     heartbeat_frag_submessage,
-                            //                     source_guid_prefix: message_receiver.source_guid_prefix(),
-                            //                 },
-                            //             );
-                            //         }
-                            RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                                for writer in
-                                    builtin_stateful_writer_list_clone.lock().unwrap().iter()
-                                {
-                                    writer.lock().unwrap().on_acknack_submessage_received(
-                                        &acknack_submessage,
-                                        message_receiver.source_guid_prefix(),
-                                    );
-                                }
-                            }
-                            RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                                for writer in
-                                    builtin_stateful_writer_list_clone.lock().unwrap().iter()
-                                {
-                                    writer.lock().unwrap().on_nack_frag_submessage_received(
-                                        &nackfrag_submessage,
-                                        message_receiver.source_guid_prefix(),
-                                    );
-                                }
-                            }
-                            _ => (),
-                        }
-                    }
-
-                    // message.executor_handle.spawn(async move {
-                    //     process_discovery_data(message.participant.clone())
-                    //         .await
-                    //         .ok();
-                    // });
-
-                    // Ok(())
-                    //     let r = participant_address_clone.send_actor_mail(
-                    //         domain_participant_actor::ProcessMetatrafficRtpsMessage {
-                    //             rtps_message: message,
-                    //             participant: participant_clone.clone(),
-                    //             executor_handle: participant_clone.executor_handle().clone(),
-                    //         },
-                    //     );
-
-                    //     if r.is_err() {
-                    //         break;
-                    //     }
+                    MessageReceiver::new(rtps_message).process_message(
+                        builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
+                        builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
+                        builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
+                    );
                 }
             }
         });
 
+        let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
+        let builtin_stateful_reader_list_clone = builtin_stateful_reader_list.clone();
         let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
         std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
             loop {
                 if let Ok(rtps_message) =
-                    read_message(&mut metatrafic_unicast_socket, buf.as_mut_slice())
+                    read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
                 {
                     tracing::trace!(
                         rtps_message = ?rtps_message,
                         "Received metatraffic unicast RTPS message"
                     );
 
-                    let mut message_receiver = MessageReceiver::new(rtps_message);
-                    //             let r = participant_address_clone.send_actor_mail(
-                    //                 domain_participant_actor::ProcessMetatrafficRtpsMessage {
-                    //                     rtps_message: message,
-                    //                     participant: participant_clone.clone(),
-                    //                     executor_handle: participant_clone.executor_handle().clone(),
-                    //                 },
-                    //             );
-
-                    //             if r.is_err() {
-                    //                 break;
-                    //             }
+                    MessageReceiver::new(rtps_message).process_message(
+                        builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
+                        builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
+                        builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
+                    );
                 }
             }
         });
 
+        let user_defined_reader_list_clone = user_defined_reader_list.clone();
         let user_defined_writer_list_clone = user_defined_writer_list.clone();
         std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
@@ -357,17 +254,25 @@ impl RtpsParticipant {
                         rtps_message = ?rtps_message,
                         "Received user defined data unicast RTPS message"
                     );
-                    //             let r = participant_address_clone.send_actor_mail(
-                    //                 domain_participant_actor::ProcessUserDefinedRtpsMessage {
-                    //                     rtps_message: message,
-                    //                     participant: participant_clone.clone(),
-                    //                     executor_handle: participant_clone.executor_handle().clone(),
-                    //                 },
-                    //             );
-                    //             if r.is_err() {
-                    //                 break;
-                    //             }
+                    MessageReceiver::new(rtps_message).process_message(
+                        &[],
+                        user_defined_reader_list_clone.lock().unwrap().as_ref(),
+                        user_defined_writer_list_clone.lock().unwrap().as_ref(),
+                    );
                 }
+            }
+        });
+
+        // Heartbeat thread
+        let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
+        let user_defined_writer_list_clone = user_defined_writer_list.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            for builtin_writer in builtin_stateful_writer_list_clone.lock().unwrap().iter() {
+                builtin_writer.lock().unwrap().send_message();
+            }
+            for user_defined_writer in user_defined_writer_list_clone.lock().unwrap().iter() {
+                user_defined_writer.lock().unwrap().send_message();
             }
         });
 
@@ -385,6 +290,7 @@ impl RtpsParticipant {
             builtin_stateless_writer_list,
             builtin_stateful_writer_list,
             builtin_stateless_reader_list,
+            builtin_stateful_reader_list,
             user_defined_writer_list,
             user_defined_reader_list,
             sender_socket,
@@ -489,10 +395,33 @@ impl RtpsParticipant {
         reader_guid: Guid,
         history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
     ) -> Arc<Mutex<RtpsStatelessReader>> {
-        let stateless_reader = RtpsStatelessReader::new(reader_guid, history_cache);
-
-        let reader = Arc::new(Mutex::new(stateless_reader));
+        let reader = Arc::new(Mutex::new(RtpsStatelessReader::new(
+            reader_guid,
+            history_cache,
+        )));
         self.builtin_stateless_reader_list
+            .lock()
+            .unwrap()
+            .push(reader.clone());
+        reader
+    }
+
+    pub fn create_builtin_stateful_reader(
+        &mut self,
+        reader_guid: Guid,
+        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    ) -> Arc<Mutex<RtpsStatefulReader>> {
+        let socket = self
+            .sender_socket
+            .try_clone()
+            .expect("Should always be clone");
+        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
+        let reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
+            reader_guid,
+            history_cache,
+            message_sender,
+        )));
+        self.builtin_stateful_reader_list
             .lock()
             .unwrap()
             .push(reader.clone());
@@ -535,7 +464,7 @@ impl RtpsParticipant {
         self.user_defined_writer_list
             .lock()
             .unwrap()
-            .insert(writer_guid.into(), writer.clone());
+            .push(writer.clone());
         writer
     }
 
@@ -543,20 +472,35 @@ impl RtpsParticipant {
         self.user_defined_writer_list
             .lock()
             .unwrap()
-            .remove(&<[u8; 16]>::from(writer_guid));
+            .retain(|x| x.lock().unwrap().guid() != writer_guid);
     }
 
     pub fn create_reader(
         &mut self,
+        reader_guid: Guid,
         reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
     ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
-        todo!()
-    }
-
-    pub fn delete_reader(&mut self, writer_guid: Guid) {
+        let socket = self
+            .sender_socket
+            .try_clone()
+            .expect("Should always be clone");
+        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
+        let reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
+            reader_guid,
+            reader_history_cache,
+            message_sender,
+        )));
         self.user_defined_reader_list
             .lock()
             .unwrap()
-            .remove(&<[u8; 16]>::from(writer_guid));
+            .push(reader.clone());
+        reader
+    }
+
+    pub fn delete_reader(&mut self, reader_guid: Guid) {
+        self.user_defined_reader_list
+            .lock()
+            .unwrap()
+            .retain(|x| x.lock().unwrap().guid() != reader_guid);
     }
 }

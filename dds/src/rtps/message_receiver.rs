@@ -1,9 +1,13 @@
+use std::sync::{Arc, Mutex};
+
 use super::{
     messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         types::TIME_INVALID,
     },
+    reader::{RtpsStatefulReader, RtpsStatelessReader},
+    stateful_writer::RtpsStatefulWriter,
     types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
 };
 
@@ -71,6 +75,105 @@ impl MessageReceiver {
             have_timestamp: false,
             timestamp: TIME_INVALID,
             submessages: message.submessages().into_iter(),
+        }
+    }
+
+    pub fn process_message(
+        mut self,
+        stateless_reader_list: &[Arc<Mutex<RtpsStatelessReader>>],
+        stateful_reader_list: &[Arc<Mutex<RtpsStatefulReader>>],
+        stateful_writer_list: &[Arc<Mutex<RtpsStatefulWriter>>],
+    ) {
+        for submessage in self.submessages {
+            match &submessage {
+                RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
+                    for stateful_writer in stateful_writer_list {
+                        stateful_writer
+                            .lock()
+                            .unwrap()
+                            .on_acknack_submessage_received(
+                                &acknack_submessage,
+                                self.source_guid_prefix,
+                            );
+                    }
+                }
+                RtpsSubmessageReadKind::DataFrag(_) | RtpsSubmessageReadKind::HeartbeatFrag(_) => {
+                    todo!()
+                }
+                RtpsSubmessageReadKind::Gap(gap_submessage) => {
+                    for stateful_reader in stateful_reader_list {
+                        stateful_reader
+                            .lock()
+                            .unwrap()
+                            .on_gap_submessage_received(gap_submessage, self.source_guid_prefix);
+                    }
+                }
+                RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
+                    for stateful_reader in stateful_reader_list {
+                        stateful_reader
+                            .lock()
+                            .unwrap()
+                            .on_heartbeat_submessage_received(
+                                heartbeat_submessage,
+                                self.source_guid_prefix,
+                            );
+                    }
+                }
+                RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
+                    for stateful_writer in stateful_writer_list {
+                        stateful_writer
+                            .lock()
+                            .unwrap()
+                            .on_nack_frag_submessage_received(
+                                &nackfrag_submessage,
+                                self.source_guid_prefix,
+                            );
+                    }
+                }
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    let source_timestamp = if self.have_timestamp {
+                        Some(self.timestamp)
+                    } else {
+                        None
+                    };
+                    for stateless_reader in stateless_reader_list {
+                        stateless_reader
+                            .lock()
+                            .unwrap()
+                            .on_data_submessage_received(
+                                &data_submessage,
+                                self.source_guid_prefix,
+                                source_timestamp,
+                            );
+                    }
+                    for stateful_reader in stateful_reader_list {
+                        stateful_reader.lock().unwrap().on_data_submessage_received(
+                            data_submessage,
+                            self.source_guid_prefix,
+                            source_timestamp,
+                        );
+                    }
+                }
+                RtpsSubmessageReadKind::InfoDestination(m) => {
+                    self.dest_guid_prefix = m.guid_prefix();
+                }
+                RtpsSubmessageReadKind::InfoReply(_) => todo!(),
+                RtpsSubmessageReadKind::InfoSource(m) => {
+                    self.source_vendor_id = m.vendor_id();
+                    self.source_version = m.protocol_version();
+                    self.source_guid_prefix = m.guid_prefix();
+                }
+                RtpsSubmessageReadKind::InfoTimestamp(m) => {
+                    if !m.invalidate_flag() {
+                        self.have_timestamp = true;
+                        self.timestamp = m.timestamp();
+                    } else {
+                        self.have_timestamp = false;
+                        self.timestamp = TIME_INVALID;
+                    }
+                }
+                RtpsSubmessageReadKind::Pad(_) => (),
+            }
         }
     }
 

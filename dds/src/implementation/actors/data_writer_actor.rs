@@ -241,7 +241,6 @@ pub struct DataWriterActor {
     rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
     guid: Guid,
     heartbeat_period: Duration,
-    matched_readers: Vec<RtpsReaderProxy>,
     topic_address: ActorAddress<TopicActor>,
     topic_name: String,
     type_name: String,
@@ -282,7 +281,6 @@ impl DataWriterActor {
             rtps_writer,
             guid,
             heartbeat_period,
-            matched_readers: Vec::new(),
             topic_address,
             topic_name,
             type_name,
@@ -304,11 +302,6 @@ impl DataWriterActor {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.guid.into())
-    }
-
-    fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
-        self.matched_readers
-            .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
 
     fn on_publication_matched(
@@ -712,10 +705,10 @@ impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
         &mut self,
         _: AreAllChangesAcknowledge,
     ) -> <AreAllChangesAcknowledge as Mail>::Result {
-        !self
-            .matched_readers
-            .iter()
-            .any(|rp| rp.unacked_changes(self.max_seq_num))
+        self.rtps_writer
+            .lock()
+            .unwrap()
+            .are_all_changes_acknowledged()
     }
 }
 
@@ -943,11 +936,18 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                 );
 
                 if !self
-                    .matched_readers
-                    .iter()
-                    .any(|x| x.remote_reader_guid() == reader_proxy.remote_reader_guid())
+                    .matched_subscriptions
+                    .get_matched_subscriptions()
+                    .contains(&instance_handle)
+                    || self
+                        .matched_subscriptions
+                        .get_matched_subscription_data(instance_handle)
+                        != Some(
+                            message
+                                .discovered_reader_data
+                                .subscription_builtin_topic_data(),
+                        )
                 {
-                    self.matched_readers.push(reader_proxy);
                     let reliability_kind = match message
                         .discovered_reader_data
                         .subscription_builtin_topic_data()
@@ -973,21 +973,6 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                         reliability_kind,
                         durability_kind,
                     );
-                }
-
-                if !self
-                    .matched_subscriptions
-                    .get_matched_subscriptions()
-                    .contains(&instance_handle)
-                    || self
-                        .matched_subscriptions
-                        .get_matched_subscription_data(instance_handle)
-                        != Some(
-                            message
-                                .discovered_reader_data
-                                .subscription_builtin_topic_data(),
-                        )
-                {
                     self.matched_subscriptions.add_matched_subscription(
                         instance_handle,
                         message
@@ -1040,7 +1025,6 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
             .get_matched_subscription_data(message.discovered_reader_handle)
         {
             let handle = r.key().value.into();
-            self.matched_reader_remove(handle);
             self.rtps_writer
                 .lock()
                 .unwrap()
@@ -1431,19 +1415,11 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
                 .count()
                 == depth as usize
             {
-                let highest_change_seq_num = rtps_writer
-                    .get_history_cache()
-                    .get_changes()
-                    .iter()
-                    .filter(|cc| cc.instance_handle() == message.instance_handle.into())
-                    .map(|cc| cc.sequence_number())
-                    .max();
-
-                if self
-                    .matched_readers
-                    .iter()
-                    .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
-                    .any(|rp| rp.unacked_changes(highest_change_seq_num))
+                if !self
+                    .rtps_writer
+                    .lock()
+                    .unwrap()
+                    .are_all_changes_acknowledged()
                 {
                     return true;
                 }

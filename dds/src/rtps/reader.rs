@@ -1,17 +1,15 @@
 use super::{
     endpoint::RtpsEndpoint,
+    message_sender::MessageSender,
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
-        submessages::data::DataSubmessage,
+        submessages::{data::DataSubmessage, gap::GapSubmessage, heartbeat::HeartbeatSubmessage},
     },
     types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, ENTITYID_UNKNOWN},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::{
-    actor::ActorAddress, actors::message_sender_actor::MessageSenderActor,
-    data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-};
+use crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy;
 
 pub struct ReaderCacheChange {
     pub writer_guid: Guid,
@@ -114,9 +112,10 @@ impl TransportReader for RtpsStatelessReader {
 }
 
 pub struct RtpsStatefulReader {
-    rtps_reader: RtpsReader,
+    guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
     history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    message_sender: MessageSender,
 }
 
 impl TransportReader for RtpsStatefulReader {
@@ -151,14 +150,20 @@ impl TransportReader for RtpsStatefulReader {
 
 impl RtpsStatefulReader {
     pub fn new(
-        rtps_reader: RtpsReader,
+        guid: Guid,
         history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+        message_sender: MessageSender,
     ) -> Self {
         Self {
-            rtps_reader,
+            guid,
             matched_writers: Vec::new(),
             history_cache,
+            message_sender,
         }
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.guid
     }
 
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {
@@ -211,6 +216,57 @@ impl RtpsStatefulReader {
             }
         }
     }
+
+    pub fn on_gap_submessage_received(
+        &mut self,
+        gap_submessage: &GapSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id());
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|w| w.remote_writer_guid() == writer_guid)
+        {
+            for seq_num in gap_submessage.gap_start()..gap_submessage.gap_list().base() {
+                writer_proxy.irrelevant_change_set(seq_num)
+            }
+
+            for seq_num in gap_submessage.gap_list().set() {
+                writer_proxy.irrelevant_change_set(seq_num)
+            }
+        }
+    }
+
+    pub fn on_heartbeat_submessage_received(
+        &mut self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|w| w.remote_writer_guid() == writer_guid)
+        {
+            if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
+                writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
+
+                writer_proxy.set_must_send_acknacks(
+                    !heartbeat_submessage.final_flag()
+                        || (!heartbeat_submessage.liveliness_flag()
+                            && !writer_proxy.missing_changes().count() == 0),
+                );
+
+                if !heartbeat_submessage.final_flag() {
+                    writer_proxy.set_must_send_acknacks(true);
+                }
+                writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+                writer_proxy.send_message(&self.guid, &self.message_sender);
+            }
+        }
+    }
 }
 
 // The methods in this impl block are not defined by the standard
@@ -222,9 +278,9 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub fn send_message(&mut self, message_sender_actor: &ActorAddress<MessageSenderActor>) {
+    pub fn send_message(&mut self) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.rtps_reader.guid(), message_sender_actor)
+            writer_proxy.send_message(&self.guid, &self.message_sender)
         }
     }
 }

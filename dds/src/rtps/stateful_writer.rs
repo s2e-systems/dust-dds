@@ -39,6 +39,8 @@ pub trait TransportWriter {
     );
 
     fn delete_matched_reader(&mut self, reader_guid: Guid);
+
+    fn are_all_changes_acknowledged(&self) -> bool;
 }
 
 pub struct RtpsStatefulWriter {
@@ -565,17 +567,28 @@ impl TransportWriter for RtpsStatefulWriter {
             first_relevant_sample_seq_num,
         );
         self.matched_readers.push(rtps_reader_proxy);
+        self.send_message();
     }
 
     fn delete_matched_reader(&mut self, reader_guid: Guid) {
         self.matched_readers
             .retain(|rp| rp.remote_reader_guid() != reader_guid);
     }
+
+    fn are_all_changes_acknowledged(&self) -> bool {
+        let max_seq_num = self.changes.iter().map(|cc| cc.sequence_number).max();
+        !self
+            .matched_readers
+            .iter()
+            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
+            .any(|rp| rp.unacked_changes(max_seq_num))
+    }
 }
 
 impl WriterHistoryCache for RtpsStatefulWriter {
     fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
+        self.send_message();
     }
 
     fn remove_change(&mut self, sequence_number: SequenceNumber) {

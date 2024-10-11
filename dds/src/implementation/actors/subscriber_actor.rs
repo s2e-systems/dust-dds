@@ -31,12 +31,11 @@ use crate::{
         },
     },
     rtps::{
-        endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        reader::{ReaderCacheChange, ReaderHistoryCache, RtpsReader, RtpsStatefulReader},
+        participant::RtpsParticipant,
+        reader::{ReaderCacheChange, ReaderHistoryCache},
         types::{
-            EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
-            USER_DEFINED_READER_WITH_KEY,
+            EntityId, Guid, Locator, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
         },
     },
     xtypes::dynamic_type::DynamicType,
@@ -135,6 +134,7 @@ impl SubscriberListenerThread {
 pub struct SubscriberActor {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
+    transport: Arc<Mutex<RtpsParticipant>>,
     data_reader_list: HashMap<InstanceHandle, Actor<DataReaderActor>>,
     enabled: bool,
     user_defined_data_reader_counter: u8,
@@ -149,6 +149,7 @@ impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
+        transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         subscriber_status_kind: Vec<StatusKind>,
         domain_participant_status_kind: Vec<StatusKind>,
@@ -165,6 +166,7 @@ impl SubscriberActor {
         SubscriberActor {
             qos,
             rtps_group,
+            transport,
             data_reader_list,
             enabled: false,
             user_defined_data_reader_counter: 0,
@@ -296,25 +298,16 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(subscriber_guid.prefix(), entity_id);
 
-        let topic_kind = match message.has_key {
-            true => TopicKind::WithKey,
-            false => TopicKind::NoKey,
-        };
-
         let user_defined_reader_history_cache = UserDefinedReaderHistoryCache {
             subscriber_address: message.subscriber_address,
             reader_instance_handle: InstanceHandle::new(guid.into()),
         };
 
-        let rtps_reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
-            RtpsReader::new(RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                &message.default_unicast_locator_list,
-                &message.default_multicast_locator_list,
-            )),
-            Box::new(user_defined_reader_history_cache),
-        )));
+        let rtps_reader = self
+            .transport
+            .lock()
+            .unwrap()
+            .create_reader(guid, Box::new(user_defined_reader_history_cache));
 
         let data_reader_status_kind = message.mask.to_vec();
         let subscriber_status_kind = self.subscriber_status_kind.clone();

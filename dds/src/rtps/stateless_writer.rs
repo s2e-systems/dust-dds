@@ -102,6 +102,10 @@ impl TransportWriter for RtpsStatelessWriter {
     fn delete_matched_reader(&mut self, _reader_guid: Guid) {
         // Do nothing
     }
+
+    fn are_all_changes_acknowledged(&self) -> bool {
+        todo!()
+    }
 }
 
 impl WriterHistoryCache for RtpsStatelessWriter {
