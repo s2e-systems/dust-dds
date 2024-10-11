@@ -1,5 +1,5 @@
 use super::{
-    data_reader_actor::{DataReaderActor, DdsReaderHistoryCache},
+    data_reader_actor::{DataReaderActor},
     data_writer_actor::DataWriterActor,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
@@ -54,7 +54,10 @@ use crate::{
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
         participant::RtpsParticipant,
-        reader::{RtpsReader, RtpsStatefulReader, RtpsStatelessReader, TransportReader},
+        reader::{
+            ReaderCacheChange, ReaderHistoryCache, RtpsReader, RtpsStatefulReader,
+            RtpsStatelessReader, TransportReader,
+        },
         types::{
             EntityId, Guid, GuidPrefix, TopicKind, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC,
             ENTITYID_PARTICIPANT, PROTOCOLVERSION, VENDOR_ID_S2E,
@@ -690,6 +693,22 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     }
 }
 
+struct BuiltinReaderHistoryCache {
+    pub reader_instance_handle: InstanceHandle,
+    pub subscriber_address: ActorAddress<SubscriberActor>,
+}
+
+impl ReaderHistoryCache for BuiltinReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        self.subscriber_address
+            .send_actor_mail(subscriber_actor::AddChange {
+                cache_change,
+                reader_instance_handle: self.reader_instance_handle,
+            })
+            .ok();
+    }
+}
+
 fn create_builtin_stateless_reader(
     guid: Guid,
     builtin_subscriber_address: ActorAddress<SubscriberActor>,
@@ -704,7 +723,7 @@ fn create_builtin_stateless_reader(
             unicast_locator_list,
             multicast_locator_list,
         )),
-        Box::new(DdsReaderHistoryCache {
+        Box::new(BuiltinReaderHistoryCache {
             subscriber_address: builtin_subscriber_address,
             reader_instance_handle: InstanceHandle::new(guid.into()),
         }),
@@ -726,7 +745,7 @@ fn create_builtin_stateful_reader(
             unicast_locator_list,
             multicast_locator_list,
         )),
-        Box::new(DdsReaderHistoryCache {
+        Box::new(BuiltinReaderHistoryCache {
             subscriber_address: builtin_subscriber_address,
             reader_instance_handle: InstanceHandle::new(guid.into()),
         }),

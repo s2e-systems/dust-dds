@@ -1,5 +1,5 @@
 use super::{
-    data_reader_actor::{self, DataReaderActor, DataReaderActorListener, DdsReaderHistoryCache},
+    data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
     domain_participant_actor::ParticipantListenerMessage,
     status_condition_actor::AddCommunicationState,
     topic_actor::TopicActor,
@@ -33,7 +33,7 @@ use crate::{
     rtps::{
         endpoint::RtpsEndpoint,
         group::RtpsGroup,
-        reader::{ReaderCacheChange, RtpsReader, RtpsStatefulReader},
+        reader::{ReaderCacheChange, ReaderHistoryCache, RtpsReader, RtpsStatefulReader},
         types::{
             EntityId, Guid, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
             USER_DEFINED_READER_WITH_KEY,
@@ -256,6 +256,22 @@ impl Mail for CreateDatareader {
 }
 impl MailHandler<CreateDatareader> for SubscriberActor {
     fn handle(&mut self, message: CreateDatareader) -> <CreateDatareader as Mail>::Result {
+        struct UserDefinedReaderHistoryCache {
+            pub subscriber_address: ActorAddress<SubscriberActor>,
+            pub reader_instance_handle: InstanceHandle,
+        }
+
+        impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
+            fn add_change(&mut self, cache_change: ReaderCacheChange) {
+                self.subscriber_address
+                    .send_actor_mail(AddChange {
+                        cache_change,
+                        reader_instance_handle: self.reader_instance_handle,
+                    })
+                    .ok();
+            }
+        }
+
         let qos = match message.qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
             QosKind::Specific(q) => {
@@ -284,7 +300,7 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
             false => TopicKind::NoKey,
         };
 
-        let dds_reader_history_cache = DdsReaderHistoryCache {
+        let user_defined_reader_history_cache = UserDefinedReaderHistoryCache {
             subscriber_address: message.subscriber_address,
             reader_instance_handle: InstanceHandle::new(guid.into()),
         };
@@ -296,7 +312,7 @@ impl MailHandler<CreateDatareader> for SubscriberActor {
                 &message.default_unicast_locator_list,
                 &message.default_multicast_locator_list,
             )),
-            Box::new(dds_reader_history_cache),
+            Box::new(user_defined_reader_history_cache),
         )));
 
         let data_reader_status_kind = message.mask.to_vec();

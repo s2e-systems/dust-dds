@@ -340,22 +340,6 @@ impl DataReaderListenerThread {
     }
 }
 
-pub struct DdsReaderHistoryCache {
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub reader_instance_handle: InstanceHandle,
-}
-
-impl ReaderHistoryCache for DdsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        self.subscriber_address
-            .send_actor_mail(subscriber_actor::AddChange {
-                cache_change,
-                reader_instance_handle: self.reader_instance_handle,
-            })
-            .ok();
-    }
-}
-
 pub struct DataReaderActorListener {
     pub data_reader_listener: Box<dyn AnyDataReaderListener + Send>,
     pub subscriber_async: SubscriberAsync,
