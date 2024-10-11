@@ -1,6 +1,7 @@
 use super::{
-    data_reader_actor::{DataReaderActor},
+    data_reader_actor::DataReaderActor,
     data_writer_actor::DataWriterActor,
+    domain_participant_actor,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     subscriber_actor::{self, SubscriberActor},
@@ -63,7 +64,7 @@ use crate::{
             ENTITYID_PARTICIPANT, PROTOCOLVERSION, VENDOR_ID_S2E,
         },
     },
-    topic_definition::type_support::TypeSupport,
+    topic_definition::type_support::{DdsDeserialize, TypeSupport},
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
@@ -231,8 +232,10 @@ impl DomainParticipantFactoryActor {
     fn create_builtin_readers(
         &self,
         guid_prefix: GuidPrefix,
+        transport: &Arc<Mutex<RtpsParticipant>>,
         topic_list: &HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         builtin_subscriber_address: ActorAddress<SubscriberActor>,
+        participant_address: ActorAddress<DomainParticipantActor>,
         domain_participant_status_kind: Vec<StatusKind>,
         executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
@@ -259,7 +262,9 @@ impl DomainParticipantFactoryActor {
             spdp_builtin_participant_reader_guid,
             create_builtin_stateless_reader(
                 spdp_builtin_participant_reader_guid,
+                transport,
                 builtin_subscriber_address.clone(),
+                participant_address,
             ),
             topic_list[DCPS_PARTICIPANT].0.address(),
             DCPS_PARTICIPANT.to_string(),
@@ -484,19 +489,21 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         )?;
         let participant_guid = rtps_participant.guid();
         let domain_participant_status_kind = message.status_kind.clone();
-        let (builtin_subscriber, builtin_subscriber_status_condition_address) =
-            SubscriberActor::new(
-                SubscriberQos::default(),
-                RtpsGroup::new(Guid::new(
-                    guid_prefix,
-                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-                )),
-                None,
-                vec![],
-                domain_participant_status_kind.clone(),
-                vec![],
-                &executor_handle,
-            );
+
+        let builtin_subscriber = SubscriberActor::new(
+            SubscriberQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            None,
+            vec![],
+            domain_participant_status_kind.clone(),
+            vec![],
+            &executor_handle,
+        );
+        let builtin_subscriber_status_condition_address =
+            builtin_subscriber.get_status_condition_address();
         let builtin_subscriber_actor = Actor::spawn(builtin_subscriber, &executor_handle);
         let builtin_subscriber_address = builtin_subscriber_actor.address();
 
@@ -507,10 +514,31 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             &topic_list,
             &executor_handle,
         );
+
+        let transport = Arc::new(Mutex::new(rtps_participant));
+        let (domain_participant, status_condition) = DomainParticipantActor::new(
+            transport.clone(),
+            Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
+            message.domain_id,
+            self.configuration.domain_tag().to_string(),
+            domain_participant_qos,
+            self.configuration.fragment_size(),
+            message.listener,
+            message.status_kind,
+            builtin_data_writer_list,
+            message_sender_actor,
+            executor,
+            timer_driver,
+        );
+        let participant_actor = Actor::spawn(domain_participant, &executor_handle);
+        let participant_actor_address = participant_actor.address();
+
         let builtin_data_reader_list = self.create_builtin_readers(
             guid_prefix,
+            &transport,
             &topic_list,
             builtin_subscriber_address.clone(),
+            participant_actor_address,
             domain_participant_status_kind,
             executor_handle.clone(),
             timer_handle.clone(),
@@ -523,25 +551,12 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 data_reader_actor,
             });
         }
+        participant_actor.send_actor_mail(domain_participant_actor::SetTopicList { topic_list });
+        participant_actor.send_actor_mail(domain_participant_actor::SetBuiltInSubscriber {
+            builtin_subscriber: builtin_subscriber_actor,
+        });
 
         //****** Spawn the participant actor and tasks **********//
-        let (domain_participant, status_condition) = DomainParticipantActor::new(
-            Arc::new(Mutex::new(rtps_participant)),
-            Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
-            message.domain_id,
-            self.configuration.domain_tag().to_string(),
-            domain_participant_qos,
-            self.configuration.fragment_size(),
-            message.listener,
-            message.status_kind,
-            topic_list,
-            builtin_data_writer_list,
-            builtin_subscriber_actor,
-            message_sender_actor,
-            executor,
-            timer_driver,
-        );
-        let participant_actor = Actor::spawn(domain_participant, &executor_handle);
         let participant = DomainParticipantAsync::new(
             participant_actor.address(),
             status_condition.clone(),
@@ -709,25 +724,47 @@ impl ReaderHistoryCache for BuiltinReaderHistoryCache {
     }
 }
 
+struct SpdpBuiltinReaderHistoryCache {
+    pub subscriber_address: ActorAddress<SubscriberActor>,
+    pub reader_instance_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
+}
+
+impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        if let Ok(discovered_participant_data) =
+            SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
+        {
+            self.participant_address
+                .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
+                    discovered_participant_data,
+                    // participant: participant.clone(),
+                })
+                .ok();
+        }
+        self.subscriber_address
+            .send_actor_mail(subscriber_actor::AddChange {
+                cache_change,
+                reader_instance_handle: self.reader_instance_handle,
+            })
+            .ok();
+    }
+}
+
 fn create_builtin_stateless_reader(
     guid: Guid,
+    transport: &Arc<Mutex<RtpsParticipant>>,
     builtin_subscriber_address: ActorAddress<SubscriberActor>,
+    participant_address: ActorAddress<DomainParticipantActor>,
 ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
-    let unicast_locator_list = &[];
-    let multicast_locator_list = &[];
-
-    Arc::new(Mutex::new(RtpsStatelessReader::new(
-        RtpsReader::new(RtpsEndpoint::new(
-            guid,
-            TopicKind::WithKey,
-            unicast_locator_list,
-            multicast_locator_list,
-        )),
-        Box::new(BuiltinReaderHistoryCache {
+    transport.lock().unwrap().create_builtin_stateless_reader(
+        guid,
+        Box::new(SpdpBuiltinReaderHistoryCache {
             subscriber_address: builtin_subscriber_address,
             reader_instance_handle: InstanceHandle::new(guid.into()),
+            participant_address,
         }),
-    )))
+    )
 }
 
 fn create_builtin_stateful_reader(

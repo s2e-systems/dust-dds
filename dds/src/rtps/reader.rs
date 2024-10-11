@@ -5,7 +5,7 @@ use super::{
         submessage_elements::{Data, ParameterList},
         submessages::data::DataSubmessage,
     },
-    types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind},
+    types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, ENTITYID_UNKNOWN},
     writer_proxy::RtpsWriterProxy,
 };
 use crate::implementation::{
@@ -58,23 +58,43 @@ impl RtpsReader {
 }
 
 pub struct RtpsStatelessReader {
-    rtps_reader: RtpsReader,
+    guid: Guid,
     history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
 }
 
 impl RtpsStatelessReader {
     pub fn new(
-        rtps_reader: RtpsReader,
+        guid: Guid,
         history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
     ) -> Self {
         Self {
-            rtps_reader,
+            guid,
             history_cache,
         }
     }
 
     pub fn guid(&self) -> Guid {
-        self.rtps_reader.guid()
+        self.guid
+    }
+
+    pub fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<messages::types::Time>,
+    ) {
+        if data_submessage.reader_id() == ENTITYID_UNKNOWN
+            || data_submessage.reader_id() == self.guid.entity_id()
+        {
+            // Stateless reader behavior. We add the change if the data is correct. No error is printed
+            // because all readers would get changes marked with ENTITYID_UNKNOWN
+            self.history_cache.add_change(ReaderCacheChange {
+                writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
+                source_timestamp: source_timestamp,
+                data_value: data_submessage.serialized_payload().clone(),
+                inline_qos: data_submessage.inline_qos().clone(),
+            });
+        }
     }
 }
 

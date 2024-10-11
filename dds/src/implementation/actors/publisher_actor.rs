@@ -440,7 +440,7 @@ pub struct AddMatchedReader {
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
     pub publisher_address: ActorAddress<PublisherActor>,
-    pub participant: DomainParticipantAsync,
+    // pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
@@ -472,11 +472,11 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                     default_unicast_locator_list: message.default_unicast_locator_list.clone(),
                     default_multicast_locator_list: message.default_multicast_locator_list.clone(),
                     data_writer_address,
-                    publisher: PublisherAsync::new(
-                        message.publisher_address.clone(),
-                        self.status_condition.address(),
-                        message.participant.clone(),
-                    ),
+                    // publisher: PublisherAsync::new(
+                    //     message.publisher_address.clone(),
+                    //     self.status_condition.address(),
+                    //     message.participant.clone(),
+                    // ),
                     publisher_qos: self.qos.clone(),
                     publisher_mask_listener,
                     participant_mask_listener: message.participant_mask_listener.clone(),
@@ -512,14 +512,14 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
             );
             data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
-                data_writer_address,
-                publisher: PublisherAsync::new(
-                    message.publisher_address.clone(),
-                    self.status_condition.address(),
-                    message.participant.clone(),
-                ),
-                publisher_mask_listener,
-                participant_mask_listener: message.participant_mask_listener.clone(),
+                // data_writer_address,
+                // publisher: PublisherAsync::new(
+                //     message.publisher_address.clone(),
+                //     self.status_condition.address(),
+                //     message.participant.clone(),
+                // ),
+                // publisher_mask_listener,
+                // participant_mask_listener: message.participant_mask_listener.clone(),
             });
         }
         Ok(())

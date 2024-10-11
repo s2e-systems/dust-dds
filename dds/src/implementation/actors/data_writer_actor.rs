@@ -313,65 +313,65 @@ impl DataWriterActor {
 
     fn on_publication_matched(
         &mut self,
-        data_writer_address: ActorAddress<DataWriterActor>,
-        publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (
-            Option<MpscSender<PublisherListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener, participant_listener_mask): (
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_writer_address: ActorAddress<DataWriterActor>,
+        // publisher: PublisherAsync,
+        // (publisher_listener, publisher_listener_mask): (
+        //     Option<MpscSender<PublisherListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // (participant_listener, participant_listener_mask): (
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let participant = publisher.get_participant();
-        let status_condition_address = self.status_condition.address();
-        let topic_status_condition_address = self.topic_status_condition.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address,
-            type_name,
-            topic_name,
-            participant,
-        );
-        if self.status_kind.contains(&StatusKind::PublicationMatched) {
-            let status = self.matched_subscriptions.get_publication_matched_status();
-            if let Some(listener) = &self.data_writer_listener_thread {
-                listener.sender().send(DataWriterListenerMessage {
-                    listener_operation: DataWriterListenerOperation::PublicationMatched(status),
-                    writer_address: data_writer_address,
-                    status_condition_address,
-                    publisher,
-                    topic,
-                })?;
-            }
-        } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.matched_subscriptions.get_publication_matched_status();
-            if let Some(listener) = publisher_listener {
-                listener.send(PublisherListenerMessage {
-                    listener_operation: PublisherListenerOperation::PublicationMatched(status),
-                    writer_address: data_writer_address,
-                    status_condition_address,
-                    publisher,
-                    topic,
-                })?;
-            }
-        } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-            let status = self.matched_subscriptions.get_publication_matched_status();
-            if let Some(listener) = participant_listener {
-                listener.send(ParticipantListenerMessage {
-                    listener_operation: ParticipantListenerOperation::PublicationMatched(status),
-                    listener_kind: ListenerKind::Writer {
-                        writer_address: data_writer_address,
-                        status_condition_address,
-                        publisher,
-                        topic,
-                    },
-                })?;
-            }
-        }
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
+        // let participant = publisher.get_participant();
+        // let status_condition_address = self.status_condition.address();
+        // let topic_status_condition_address = self.topic_status_condition.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address,
+        //     type_name,
+        //     topic_name,
+        //     participant,
+        // );
+        // if self.status_kind.contains(&StatusKind::PublicationMatched) {
+        //     let status = self.matched_subscriptions.get_publication_matched_status();
+        //     if let Some(listener) = &self.data_writer_listener_thread {
+        //         listener.sender().send(DataWriterListenerMessage {
+        //             listener_operation: DataWriterListenerOperation::PublicationMatched(status),
+        //             writer_address: data_writer_address,
+        //             status_condition_address,
+        //             publisher,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
+        //     let status = self.matched_subscriptions.get_publication_matched_status();
+        //     if let Some(listener) = publisher_listener {
+        //         listener.send(PublisherListenerMessage {
+        //             listener_operation: PublisherListenerOperation::PublicationMatched(status),
+        //             writer_address: data_writer_address,
+        //             status_condition_address,
+        //             publisher,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
+        //     let status = self.matched_subscriptions.get_publication_matched_status();
+        //     if let Some(listener) = participant_listener {
+        //         listener.send(ParticipantListenerMessage {
+        //             listener_operation: ParticipantListenerOperation::PublicationMatched(status),
+        //             listener_kind: ListenerKind::Writer {
+        //                 writer_address: data_writer_address,
+        //                 status_condition_address,
+        //                 publisher,
+        //                 topic,
+        //             },
+        //         })?;
+        //     }
+        // }
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::PublicationMatched,
@@ -382,78 +382,78 @@ impl DataWriterActor {
 
     fn on_offered_incompatible_qos(
         &mut self,
-        data_writer_address: ActorAddress<DataWriterActor>,
-        publisher: PublisherAsync,
-        (publisher_listener, publisher_listener_mask): (
-            Option<MpscSender<PublisherListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener, participant_listener_mask): (
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_writer_address: ActorAddress<DataWriterActor>,
+        // publisher: PublisherAsync,
+        // (publisher_listener, publisher_listener_mask): (
+        //     Option<MpscSender<PublisherListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // (participant_listener, participant_listener_mask): (
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let participant = publisher.get_participant();
-        let status_condition_address = self.status_condition.address();
-        let topic_status_condition_address = self.topic_status_condition.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address,
-            type_name,
-            topic_name,
-            participant,
-        );
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
+        // let participant = publisher.get_participant();
+        // let status_condition_address = self.status_condition.address();
+        // let topic_status_condition_address = self.topic_status_condition.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address,
+        //     type_name,
+        //     topic_name,
+        //     participant,
+        // );
 
-        if self
-            .status_kind
-            .contains(&StatusKind::OfferedIncompatibleQos)
-        {
-            let status = self
-                .incompatible_subscriptions
-                .get_offered_incompatible_qos_status();
-            if let Some(listener) = &self.data_writer_listener_thread {
-                listener.sender().send(DataWriterListenerMessage {
-                    listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
-                    writer_address: data_writer_address,
-                    status_condition_address,
-                    publisher,
-                    topic,
-                })?;
-            }
-        } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
-            let status = self
-                .incompatible_subscriptions
-                .get_offered_incompatible_qos_status();
+        // if self
+        //     .status_kind
+        //     .contains(&StatusKind::OfferedIncompatibleQos)
+        // {
+        //     let status = self
+        //         .incompatible_subscriptions
+        //         .get_offered_incompatible_qos_status();
+        //     if let Some(listener) = &self.data_writer_listener_thread {
+        //         listener.sender().send(DataWriterListenerMessage {
+        //             listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
+        //             writer_address: data_writer_address,
+        //             status_condition_address,
+        //             publisher,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
+        //     let status = self
+        //         .incompatible_subscriptions
+        //         .get_offered_incompatible_qos_status();
 
-            if let Some(listener) = publisher_listener {
-                listener.send(PublisherListenerMessage {
-                    listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
-                    writer_address: data_writer_address,
-                    status_condition_address,
-                    publisher,
-                    topic,
-                })?;
-            }
-        } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
-            let status = self
-                .incompatible_subscriptions
-                .get_offered_incompatible_qos_status();
-            if let Some(listener) = participant_listener {
-                listener.send(ParticipantListenerMessage {
-                    listener_operation: ParticipantListenerOperation::OfferedIncompatibleQos(
-                        status,
-                    ),
-                    listener_kind: ListenerKind::Writer {
-                        writer_address: data_writer_address,
-                        status_condition_address,
-                        publisher,
-                        topic,
-                    },
-                })?;
-            }
-        }
+        //     if let Some(listener) = publisher_listener {
+        //         listener.send(PublisherListenerMessage {
+        //             listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
+        //             writer_address: data_writer_address,
+        //             status_condition_address,
+        //             publisher,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
+        //     let status = self
+        //         .incompatible_subscriptions
+        //         .get_offered_incompatible_qos_status();
+        //     if let Some(listener) = participant_listener {
+        //         listener.send(ParticipantListenerMessage {
+        //             listener_operation: ParticipantListenerOperation::OfferedIncompatibleQos(
+        //                 status,
+        //             ),
+        //             listener_kind: ListenerKind::Writer {
+        //                 writer_address: data_writer_address,
+        //                 status_condition_address,
+        //                 publisher,
+        //                 topic,
+        //             },
+        //         })?;
+        //     }
+        // }
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::OfferedIncompatibleQos,
@@ -819,7 +819,7 @@ pub struct AddMatchedReader {
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
     pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub publisher: PublisherAsync,
+    // pub publisher: PublisherAsync,
     pub publisher_qos: PublisherQos,
     pub publisher_mask_listener: (
         Option<MpscSender<PublisherListenerMessage>>,
@@ -996,20 +996,20 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
                             .clone(),
                     );
                     self.on_publication_matched(
-                        message.data_writer_address,
-                        message.publisher,
-                        message.publisher_mask_listener,
-                        message.participant_mask_listener,
+                        // message.data_writer_address,
+                        // // message.publisher,
+                        // message.publisher_mask_listener,
+                        // message.participant_mask_listener,
                     )?;
                 }
             } else if !self.incompatible_subscriptions.contains(&instance_handle) {
                 self.incompatible_subscriptions
                     .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
                 self.on_offered_incompatible_qos(
-                    message.data_writer_address,
-                    message.publisher,
-                    message.publisher_mask_listener,
-                    message.participant_mask_listener,
+                    // message.data_writer_address,
+                    // message.publisher,
+                    // message.publisher_mask_listener,
+                    // message.participant_mask_listener,
                 )?;
             }
         }
@@ -1019,16 +1019,16 @@ impl MailHandler<AddMatchedReader> for DataWriterActor {
 
 pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub publisher: PublisherAsync,
-    pub publisher_mask_listener: (
-        Option<MpscSender<PublisherListenerMessage>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
+    // pub data_writer_address: ActorAddress<DataWriterActor>,
+    // pub publisher: PublisherAsync,
+    // pub publisher_mask_listener: (
+    //     Option<MpscSender<PublisherListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
+    // pub participant_mask_listener: (
+    //     Option<MpscSender<ParticipantListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -1049,10 +1049,10 @@ impl MailHandler<RemoveMatchedReader> for DataWriterActor {
                 .remove_matched_subscription(InstanceHandle::new(handle.into()));
 
             self.on_publication_matched(
-                message.data_writer_address,
-                message.publisher,
-                message.publisher_mask_listener,
-                message.participant_mask_listener,
+                // message.data_writer_address,
+                // message.publisher,
+                // message.publisher_mask_listener,
+                // message.participant_mask_listener,
             )?;
         }
 

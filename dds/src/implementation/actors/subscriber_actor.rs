@@ -154,29 +154,30 @@ impl SubscriberActor {
         domain_participant_status_kind: Vec<StatusKind>,
         data_reader_list: Vec<DataReaderActor>,
         handle: &ExecutorHandle,
-    ) -> (Self, ActorAddress<StatusConditionActor>) {
+    ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
         let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
         let data_reader_list = data_reader_list
             .into_iter()
             .map(|dr| (dr.get_instance_handle(), Actor::spawn(dr, handle)))
             .collect();
-        let status_condition_address = status_condition.address();
-        (
-            SubscriberActor {
-                qos,
-                rtps_group,
-                data_reader_list,
-                enabled: false,
-                user_defined_data_reader_counter: 0,
-                default_data_reader_qos: Default::default(),
-                status_condition,
-                subscriber_listener_thread,
-                subscriber_status_kind,
-                domain_participant_status_kind,
-            },
-            status_condition_address,
-        )
+
+        SubscriberActor {
+            qos,
+            rtps_group,
+            data_reader_list,
+            enabled: false,
+            user_defined_data_reader_counter: 0,
+            default_data_reader_qos: Default::default(),
+            status_condition,
+            subscriber_listener_thread,
+            subscriber_status_kind,
+            domain_participant_status_kind,
+        }
+    }
+
+    pub fn get_status_condition_address(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     fn get_unique_reader_id(&mut self) -> u8 {
@@ -523,7 +524,7 @@ impl MailHandler<GetStatusKind> for SubscriberActor {
 pub struct AddMatchedWriter {
     pub discovered_writer_data: DiscoveredWriterData,
     pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub participant: DomainParticipantAsync,
+    // pub participant: DomainParticipantAsync,
     pub participant_mask_listener: (
         Option<MpscSender<ParticipantListenerMessage>>,
         Vec<StatusKind>,
@@ -551,15 +552,15 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
                 let subscriber_qos = self.qos.clone();
                 data_reader.send_actor_mail(data_reader_actor::AddMatchedWriter {
                     discovered_writer_data: message.discovered_writer_data.clone(),
-                    data_reader_address,
-                    subscriber: SubscriberAsync::new(
-                        message.subscriber_address.clone(),
-                        self.status_condition.address(),
-                        message.participant.clone(),
-                    ),
+                    // data_reader_address,
+                    // subscriber: SubscriberAsync::new(
+                    //     message.subscriber_address.clone(),
+                    //     self.status_condition.address(),
+                    //     message.participant.clone(),
+                    // ),
                     subscriber_qos,
-                    subscriber_mask_listener,
-                    participant_mask_listener: message.participant_mask_listener.clone(),
+                    // subscriber_mask_listener,
+                    // participant_mask_listener: message.participant_mask_listener.clone(),
                 });
             }
         }

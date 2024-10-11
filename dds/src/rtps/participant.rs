@@ -24,7 +24,7 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
-    reader::{ReaderHistoryCache, RtpsStatefulReader, TransportReader},
+    reader::{ReaderHistoryCache, RtpsStatefulReader, RtpsStatelessReader, TransportReader},
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
@@ -118,6 +118,7 @@ pub struct RtpsParticipant {
     metatraffic_multicast_locator_list: Vec<Locator>,
     builtin_stateless_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessWriter>>>>>,
     builtin_stateful_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
+    builtin_stateless_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessReader>>>>>,
     user_defined_writer_list: Arc<Mutex<HashMap<[u8; 16], Arc<Mutex<RtpsStatefulWriter>>>>>,
     user_defined_reader_list: Arc<Mutex<HashMap<[u8; 16], Arc<Mutex<RtpsStatefulReader>>>>>,
     sender_socket: UdpSocket,
@@ -132,6 +133,8 @@ impl RtpsParticipant {
         udp_receive_buffer_size: Option<usize>,
     ) -> RtpsResult<Self> {
         let builtin_stateless_writer_list = Arc::new(Mutex::new(Vec::new()));
+        let builtin_stateless_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessReader>>>>> =
+            Arc::new(Mutex::new(Vec::new()));
         let builtin_stateful_writer_list =
             Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulWriter>>>::new()));
         let user_defined_writer_list = Arc::new(Mutex::new(HashMap::new()));
@@ -193,6 +196,7 @@ impl RtpsParticipant {
             port_builtin_multicast(domain_id),
             interface_address_list,
         )?;
+        let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
         let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
         std::thread::spawn(move || {
             let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
@@ -208,27 +212,20 @@ impl RtpsParticipant {
                     let mut message_receiver = MessageReceiver::new(rtps_message);
                     while let Some(submessage) = message_receiver.next() {
                         match submessage {
-                            //         RtpsSubmessageReadKind::Data(data_submessage) => {
-                            //             let participant_mask_listener = (
-                            //                 self.participant_listener_thread
-                            //                     .as_ref()
-                            //                     .map(|l| l.sender().clone()),
-                            //                 self.status_kind.clone(),
-                            //             );
-                            //             self.builtin_subscriber.send_actor_mail(
-                            //                 subscriber_actor::ProcessDataSubmessage {
-                            //                     data_submessage,
-                            //                     source_guid_prefix: message_receiver.source_guid_prefix(),
-                            //                     source_timestamp: message_receiver.source_timestamp(),
-                            //                     reception_timestamp,
-                            //                     subscriber_address: self.builtin_subscriber.address(),
-                            //                     participant: message.participant.clone(),
-                            //                     participant_mask_listener,
-                            //                     executor_handle: message.executor_handle.clone(),
-                            //                     timer_handle: self.timer_driver.handle(),
-                            //                 },
-                            //             );
-                            //         }
+                            RtpsSubmessageReadKind::Data(data_submessage) => {
+                                for builtin_stateless_reader in
+                                    builtin_stateless_reader_list_clone.lock().unwrap().iter()
+                                {
+                                    builtin_stateless_reader
+                                        .lock()
+                                        .unwrap()
+                                        .on_data_submessage_received(
+                                            &data_submessage,
+                                            message_receiver.source_guid_prefix(),
+                                            message_receiver.source_timestamp(),
+                                        );
+                                }
+                            }
                             //         RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
                             //             let participant_mask_listener = (
                             //                 self.participant_listener_thread
@@ -387,6 +384,7 @@ impl RtpsParticipant {
             metatraffic_multicast_locator_list,
             builtin_stateless_writer_list,
             builtin_stateful_writer_list,
+            builtin_stateless_reader_list,
             user_defined_writer_list,
             user_defined_reader_list,
             sender_socket,
@@ -484,6 +482,21 @@ impl RtpsParticipant {
             .unwrap()
             .push(writer.clone());
         writer
+    }
+
+    pub fn create_builtin_stateless_reader(
+        &mut self,
+        reader_guid: Guid,
+        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    ) -> Arc<Mutex<RtpsStatelessReader>> {
+        let stateless_reader = RtpsStatelessReader::new(reader_guid, history_cache);
+
+        let reader = Arc::new(Mutex::new(stateless_reader));
+        self.builtin_stateless_reader_list
+            .lock()
+            .unwrap()
+            .push(reader.clone());
+        reader
     }
 }
 

@@ -66,8 +66,9 @@ use crate::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, Locator, BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
-            USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
+            ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+            USER_DEFINED_WRITER_GROUP,
         },
     },
     subscription::sample_info::{
@@ -415,9 +416,7 @@ impl DomainParticipantActor {
         data_max_size_serialized: usize,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
-        topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
         builtin_data_writer_list: Vec<DataWriterActor>,
-        builtin_subscriber: Actor<SubscriberActor>,
         message_sender_actor: MessageSenderActor,
         executor: Executor,
         timer_driver: TimerDriver,
@@ -425,6 +424,22 @@ impl DomainParticipantActor {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = guid.prefix();
         let executor_handle = executor.handle();
+
+        let builtin_subscriber = Actor::spawn(
+            SubscriberActor::new(
+                SubscriberQos::default(),
+                RtpsGroup::new(Guid::new(
+                    guid_prefix,
+                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+                )),
+                None,
+                vec![],
+                vec![],
+                vec![],
+                &executor_handle,
+            ),
+            &executor_handle,
+        );
 
         let builtin_publisher = Actor::spawn(
             PublisherActor::new(
@@ -460,7 +475,7 @@ impl DomainParticipantActor {
                 user_defined_publisher_list: HashMap::new(),
                 user_defined_publisher_counter: 0,
                 default_publisher_qos: PublisherQos::default(),
-                topic_list,
+                topic_list: HashMap::new(),
                 user_defined_topic_counter: 0,
                 default_topic_qos: TopicQos::default(),
                 lease_duration,
@@ -682,7 +697,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let subscriber_status_kind = message.mask.to_vec();
         let domain_participant_status_kind = self.status_kind.clone();
 
-        let (subscriber, subscriber_status_condition) = SubscriberActor::new(
+        let subscriber = SubscriberActor::new(
             subscriber_qos,
             rtps_group,
             message.a_listener,
@@ -691,6 +706,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             vec![],
             &message.executor_handle,
         );
+        let subscriber_status_condition = subscriber.get_status_condition_address();
 
         let subscriber_actor = Actor::spawn(subscriber, &message.executor_handle);
         let subscriber_address = subscriber_actor.address();
@@ -808,6 +824,18 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
         message: LookupTopicdescription,
     ) -> <LookupTopicdescription as Mail>::Result {
         self.lookup_topicdescription(message.topic_name)
+    }
+}
+
+pub struct SetTopicList {
+    pub topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
+}
+impl Mail for SetTopicList {
+    type Result = ();
+}
+impl MailHandler<SetTopicList> for DomainParticipantActor {
+    fn handle(&mut self, message: SetTopicList) -> <SetTopicList as Mail>::Result {
+        self.topic_list = message.topic_list;
     }
 }
 
@@ -1246,6 +1274,18 @@ impl MailHandler<GetBuiltInSubscriber> for DomainParticipantActor {
     }
 }
 
+pub struct SetBuiltInSubscriber {
+    pub builtin_subscriber: Actor<SubscriberActor>,
+}
+impl Mail for SetBuiltInSubscriber {
+    type Result = ();
+}
+impl MailHandler<SetBuiltInSubscriber> for DomainParticipantActor {
+    fn handle(&mut self, message: SetBuiltInSubscriber) -> <SetBuiltInSubscriber as Mail>::Result {
+        self.builtin_subscriber = message.builtin_subscriber;
+    }
+}
+
 pub struct AsSpdpDiscoveredParticipantData;
 impl Mail for AsSpdpDiscoveredParticipantData {
     type Result = SpdpDiscoveredParticipantData;
@@ -1339,7 +1379,7 @@ impl MailHandler<GetMessageSender> for DomainParticipantActor {
 
 pub struct AddDiscoveredParticipant {
     pub discovered_participant_data: SpdpDiscoveredParticipantData,
-    pub participant: DomainParticipantAsync,
+    // pub participant: DomainParticipantAsync,
 }
 impl Mail for AddDiscoveredParticipant {
     type Result = DdsResult<()>;
@@ -1389,27 +1429,27 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
         {
             self.add_matched_publications_detector(
                 &message.discovered_participant_data,
-                message.participant.clone(),
+                // message.participant.clone(),
             )?;
             self.add_matched_publications_announcer(
                 &message.discovered_participant_data,
-                message.participant.clone(),
+                // message.participant.clone(),
             )?;
             self.add_matched_subscriptions_detector(
                 &message.discovered_participant_data,
-                message.participant.clone(),
+                // message.participant.clone(),
             )?;
             self.add_matched_subscriptions_announcer(
                 &message.discovered_participant_data,
-                message.participant.clone(),
+                // message.participant.clone(),
             )?;
             self.add_matched_topics_detector(
                 &message.discovered_participant_data,
-                message.participant.clone(),
+                // message.participant.clone(),
             )?;
             self.add_matched_topics_announcer(
                 &message.discovered_participant_data,
-                message.participant.clone(),
+                // message.participant.clone(),
             )?;
 
             self.discovered_participant_list.insert(
@@ -1494,7 +1534,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
                     subscriber.send_actor_mail(subscriber_actor::AddMatchedWriter {
                         discovered_writer_data: message.discovered_writer_data.clone(),
                         subscriber_address,
-                        participant: message.participant.clone(),
+                        // participant: message.participant.clone(),
                         participant_mask_listener,
                     });
                 }
@@ -1674,7 +1714,7 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
                         default_unicast_locator_list: default_unicast_locator_list.clone(),
                         default_multicast_locator_list: default_multicast_locator_list.clone(),
                         publisher_address,
-                        participant: message.participant.clone(),
+                        // participant: message.participant.clone(),
                         participant_mask_listener,
                         message_sender_actor: self.message_sender_actor.address(),
                     });
@@ -1862,7 +1902,7 @@ impl DomainParticipantActor {
     fn add_matched_publications_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
+        // participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy
@@ -1937,7 +1977,7 @@ impl DomainParticipantActor {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                     publisher_address: self.builtin_publisher.address(),
-                    participant,
+                    // participant,
                     participant_mask_listener,
                     message_sender_actor: self.message_sender_actor.address(),
                 });
@@ -1948,7 +1988,7 @@ impl DomainParticipantActor {
     fn add_matched_publications_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
+        // participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy
@@ -2007,7 +2047,7 @@ impl DomainParticipantActor {
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
                     subscriber_address: self.builtin_subscriber.address(),
-                    participant,
+                    // participant,
                     participant_mask_listener: (
                         self.participant_listener_thread
                             .as_ref()
@@ -2022,7 +2062,7 @@ impl DomainParticipantActor {
     fn add_matched_subscriptions_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
+        // participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy
@@ -2079,7 +2119,7 @@ impl DomainParticipantActor {
                     default_unicast_locator_list: vec![],
                     default_multicast_locator_list: vec![],
                     publisher_address: self.builtin_publisher.address(),
-                    participant,
+                    // participant,
                     participant_mask_listener: (
                         self.participant_listener_thread
                             .as_ref()
@@ -2095,7 +2135,7 @@ impl DomainParticipantActor {
     fn add_matched_subscriptions_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
+        // participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy
@@ -2154,7 +2194,7 @@ impl DomainParticipantActor {
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
                     subscriber_address: self.builtin_subscriber.address(),
-                    participant,
+                    // participant,
                     participant_mask_listener: (
                         self.participant_listener_thread
                             .as_ref()
@@ -2170,7 +2210,7 @@ impl DomainParticipantActor {
     fn add_matched_topics_detector(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
+        // participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy
@@ -2227,7 +2267,7 @@ impl DomainParticipantActor {
                     default_unicast_locator_list: vec![],
                     default_multicast_locator_list: vec![],
                     publisher_address: self.builtin_publisher.address(),
-                    participant,
+                    // participant,
                     participant_mask_listener: (
                         self.participant_listener_thread
                             .as_ref()
@@ -2243,7 +2283,7 @@ impl DomainParticipantActor {
     fn add_matched_topics_announcer(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        participant: DomainParticipantAsync,
+        // participant: DomainParticipantAsync,
     ) -> DdsResult<()> {
         if discovered_participant_data
             .participant_proxy
@@ -2302,7 +2342,7 @@ impl DomainParticipantActor {
                 .send_actor_mail(subscriber_actor::AddMatchedWriter {
                     discovered_writer_data,
                     subscriber_address: self.builtin_subscriber.address(),
-                    participant,
+                    // participant,
                     participant_mask_listener: (
                         self.participant_listener_thread
                             .as_ref()
@@ -2348,7 +2388,7 @@ async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync
                                 .participant_address()
                                 .send_actor_mail(AddDiscoveredParticipant {
                                     discovered_participant_data,
-                                    participant: participant.clone(),
+                                    // participant: participant.clone(),
                                 })?
                                 .receive_reply()
                                 .await?;

@@ -1008,79 +1008,79 @@ impl DataReaderActor {
     fn on_subscription_matched(
         &mut self,
         instance_handle: InstanceHandle,
-        data_reader_address: ActorAddress<DataReaderActor>,
-        subscriber: SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener, participant_listener_mask): &(
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
+        // data_reader_address: ActorAddress<DataReaderActor>,
+        // subscriber: SubscriberAsync,
+        // (subscriber_listener, subscriber_listener_mask): &(
+        //     Option<MpscSender<SubscriberListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
+        // (participant_listener, participant_listener_mask): &(
+        //     Option<MpscSender<ParticipantListenerMessage>>,
+        //     Vec<StatusKind>,
+        // ),
     ) -> DdsResult<()> {
         self.subscription_matched_status.increment(instance_handle);
 
-        const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let reader_address = data_reader_address.clone();
-        let status_condition_address = self.status_condition.address();
-        let subscriber = subscriber.clone();
+        // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
+        // let reader_address = data_reader_address.clone();
+        // let status_condition_address = self.status_condition.address();
+        // let subscriber = subscriber.clone();
 
-        let topic_status_condition_address = self.topic_status_condition.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address.clone(),
-            type_name.clone(),
-            topic_name.clone(),
-            subscriber.get_participant(),
-        );
-        if self
-            .data_reader_status_kind
-            .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
-        {
-            let status = self
-                .subscription_matched_status
-                .read_and_reset(self.matched_publication_list.len() as i32);
-            if let Some(listener) = &self.data_reader_listener_thread {
-                listener.sender().send(DataReaderListenerMessage {
-                    listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let status = self
-                .subscription_matched_status
-                .read_and_reset(self.matched_publication_list.len() as i32);
-            if let Some(listener) = subscriber_listener {
-                listener.send(SubscriberListenerMessage {
-                    listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-            let status = self
-                .subscription_matched_status
-                .read_and_reset(self.matched_publication_list.len() as i32);
-            if let Some(listener) = participant_listener {
-                listener.send(ParticipantListenerMessage {
-                    listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
-                    listener_kind: ListenerKind::Reader {
-                        reader_address,
-                        status_condition_address,
-                        subscriber,
-                        topic,
-                    },
-                })?;
-            }
-        }
+        // let topic_status_condition_address = self.topic_status_condition.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address.clone(),
+        //     type_name.clone(),
+        //     topic_name.clone(),
+        //     subscriber.get_participant(),
+        // );
+        // if self
+        //     .data_reader_status_kind
+        //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+        // {
+        //     let status = self
+        //         .subscription_matched_status
+        //         .read_and_reset(self.matched_publication_list.len() as i32);
+        //     if let Some(listener) = &self.data_reader_listener_thread {
+        //         listener.sender().send(DataReaderListenerMessage {
+        //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+        //     let status = self
+        //         .subscription_matched_status
+        //         .read_and_reset(self.matched_publication_list.len() as i32);
+        //     if let Some(listener) = subscriber_listener {
+        //         listener.send(SubscriberListenerMessage {
+        //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+        //     let status = self
+        //         .subscription_matched_status
+        //         .read_and_reset(self.matched_publication_list.len() as i32);
+        //     if let Some(listener) = participant_listener {
+        //         listener.send(ParticipantListenerMessage {
+        //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+        //             listener_kind: ListenerKind::Reader {
+        //                 reader_address,
+        //                 status_condition_address,
+        //                 subscriber,
+        //                 topic,
+        //             },
+        //         })?;
+        //     }
+        // }
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SubscriptionMatched,
@@ -1308,6 +1308,8 @@ impl DataReaderActor {
                 },
             }
         };
+
+
 
         Ok(ReaderSample {
             kind: change_kind,
@@ -2170,17 +2172,17 @@ impl MailHandler<ReadNextInstance> for DataReaderActor {
 
 pub struct AddMatchedWriter {
     pub discovered_writer_data: DiscoveredWriterData,
-    pub data_reader_address: ActorAddress<DataReaderActor>,
-    pub subscriber: SubscriberAsync,
+    // pub data_reader_address: ActorAddress<DataReaderActor>,
+    // pub subscriber: SubscriberAsync,
     pub subscriber_qos: SubscriberQos,
-    pub subscriber_mask_listener: (
-        Option<MpscSender<SubscriberListenerMessage>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
+    // pub subscriber_mask_listener: (
+    //     Option<MpscSender<SubscriberListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
+    // pub participant_mask_listener: (
+    //     Option<MpscSender<ParticipantListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
 }
 impl Mail for AddMatchedWriter {
     type Result = DdsResult<()>;
@@ -2244,19 +2246,19 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
                     Some(value) if &value != publication_builtin_topic_data => {
                         self.on_subscription_matched(
                             instance_handle,
-                            message.data_reader_address,
-                            message.subscriber,
-                            &message.subscriber_mask_listener,
-                            &message.participant_mask_listener,
+                            // message.data_reader_address,
+                            // message.subscriber,
+                            // &message.subscriber_mask_listener,
+                            // &message.participant_mask_listener,
                         )?;
                     }
                     None => {
                         self.on_subscription_matched(
                             instance_handle,
-                            message.data_reader_address,
-                            message.subscriber,
-                            &message.subscriber_mask_listener,
-                            &message.participant_mask_listener,
+                            // message.data_reader_address,
+                            // message.subscriber,
+                            // &message.subscriber_mask_listener,
+                            // &message.participant_mask_listener,
                         )?;
                     }
                     _ => (),
@@ -2306,10 +2308,10 @@ impl MailHandler<RemoveMatchedWriter> for DataReaderActor {
 
             self.on_subscription_matched(
                 message.discovered_writer_handle,
-                message.data_reader_address,
-                message.subscriber,
-                &message.subscriber_mask_listener,
-                &message.participant_mask_listener,
+                // message.data_reader_address,
+                // message.subscriber,
+                // &message.subscriber_mask_listener,
+                // &message.participant_mask_listener,
             )?;
         }
         Ok(())
