@@ -2100,16 +2100,16 @@ impl MailHandler<AddMatchedWriter> for DataReaderActor {
 
 pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
-    pub data_reader_address: ActorAddress<DataReaderActor>,
-    pub subscriber: SubscriberAsync,
-    pub subscriber_mask_listener: (
-        Option<MpscSender<SubscriberListenerMessage>>,
-        Vec<StatusKind>,
-    ),
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
+    // pub data_reader_address: ActorAddress<DataReaderActor>,
+    // pub subscriber: SubscriberAsync,
+    // pub subscriber_mask_listener: (
+    //     Option<MpscSender<SubscriberListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
+    // pub participant_mask_listener: (
+    //     Option<MpscSender<ParticipantListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;

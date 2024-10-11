@@ -14,7 +14,6 @@ use crate::{
     },
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant::DomainParticipantAsync,
         domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
         publisher_listener::PublisherListenerAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync, topic::TopicAsync,
@@ -70,9 +69,6 @@ use crate::{
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
             USER_DEFINED_WRITER_GROUP,
         },
-    },
-    subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -1625,7 +1621,7 @@ impl MailHandler<AddMatchedWriter> for DomainParticipantActor {
 
 pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
-    pub participant: DomainParticipantAsync,
+    // pub participant: DomainParticipantAsync,
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -1642,9 +1638,9 @@ impl MailHandler<RemoveMatchedWriter> for DomainParticipantActor {
             );
             subscriber.send_actor_mail(subscriber_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
-                subscriber_address,
-                participant: message.participant.clone(),
-                participant_mask_listener,
+                // subscriber_address,
+                // participant: message.participant.clone(),
+                // participant_mask_listener,
             });
         }
         Ok(())
@@ -1801,7 +1797,6 @@ impl MailHandler<AddMatchedReader> for DomainParticipantActor {
 
 pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
-    pub participant: DomainParticipantAsync,
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -1818,9 +1813,9 @@ impl MailHandler<RemoveMatchedReader> for DomainParticipantActor {
             );
             publisher.send_actor_mail(publisher_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
-                publisher_address,
-                participant: message.participant.clone(),
-                participant_mask_listener,
+                // publisher_address,
+                // participant: message.participant.clone(),
+                // participant_mask_listener,
             });
         }
         Ok(())
@@ -2353,204 +2348,4 @@ impl DomainParticipantActor {
         }
         Ok(())
     }
-}
-
-async fn process_discovery_data(participant: DomainParticipantAsync) -> DdsResult<()> {
-    process_spdp_participant_discovery(&participant).await?;
-    process_sedp_publications_discovery(&participant).await?;
-    process_sedp_subscriptions_discovery(&participant).await?;
-    process_sedp_topics_discovery(&participant).await
-}
-
-async fn process_spdp_participant_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-
-    if let Ok(Some(spdp_participant_reader)) = builtin_subscriber
-        .lookup_datareader::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-        .await
-    {
-        if let Ok(spdp_discovered_participant_list) = spdp_participant_reader
-            .read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_participant_sample in spdp_discovered_participant_list {
-                match discovered_participant_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => {
-                        if let Ok(discovered_participant_data) =
-                            discovered_participant_sample.data()
-                        {
-                            participant
-                                .participant_address()
-                                .send_actor_mail(AddDiscoveredParticipant {
-                                    discovered_participant_data,
-                                    // participant: participant.clone(),
-                                })?
-                                .receive_reply()
-                                .await?;
-                        }
-                    }
-                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {
-                        participant
-                            .participant_address()
-                            .send_actor_mail(RemoveDiscoveredParticipant {
-                                handle: discovered_participant_sample.sample_info().instance_handle,
-                            })?
-                            .receive_reply()
-                            .await;
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-async fn process_sedp_publications_discovery(
-    participant: &DomainParticipantAsync,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-
-    if let Some(sedp_publications_detector) = builtin_subscriber
-        .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
-        .await?
-    {
-        if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
-                match discovered_writer_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => match discovered_writer_sample.data() {
-                        Ok(discovered_writer_data) => {
-                            participant.participant_address().send_actor_mail(
-                                AddMatchedWriter {
-                                    discovered_writer_data,
-                                },
-                            )?;
-                        }
-                        Err(e) => warn!(
-                            "Received invalid DiscoveredWriterData sample. Error {:?}",
-                            e
-                        ),
-                    },
-                    InstanceStateKind::NotAliveDisposed => {
-                        participant
-                            .participant_address()
-                            .send_actor_mail(RemoveMatchedWriter {
-                                discovered_writer_handle: discovered_writer_sample
-                                    .sample_info()
-                                    .instance_handle,
-                                participant: participant.clone(),
-                            })?;
-                    }
-                    InstanceStateKind::NotAliveNoWriters => {
-                        todo!()
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn process_sedp_subscriptions_discovery(
-    participant: &DomainParticipantAsync,
-) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-
-    if let Some(sedp_subscriptions_detector) = builtin_subscriber
-        .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-        .await?
-    {
-        if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
-                match discovered_reader_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => match discovered_reader_sample.data() {
-                        Ok(discovered_reader_data) => {
-                            participant.participant_address().send_actor_mail(
-                                AddMatchedReader {
-                                    discovered_reader_data,
-                                },
-                            )?;
-                        }
-                        Err(e) => warn!(
-                            "Received invalid DiscoveredReaderData sample. Error {:?}",
-                            e
-                        ),
-                    },
-                    InstanceStateKind::NotAliveDisposed => {
-                        participant
-                            .participant_address()
-                            .send_actor_mail(RemoveMatchedReader {
-                                discovered_reader_handle: discovered_reader_sample
-                                    .sample_info()
-                                    .instance_handle,
-                                participant: participant.clone(),
-                            })?;
-                    }
-                    InstanceStateKind::NotAliveNoWriters => {
-                        todo!()
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn process_sedp_topics_discovery(participant: &DomainParticipantAsync) -> DdsResult<()> {
-    let builtin_subscriber = participant.get_builtin_subscriber();
-    if let Some(sedp_topics_detector) = builtin_subscriber
-        .lookup_datareader::<DiscoveredTopicData>(DCPS_TOPIC)
-        .await?
-    {
-        if let Ok(mut discovered_topic_sample_list) = sedp_topics_detector
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .await
-        {
-            for discovered_topic_sample in discovered_topic_sample_list.drain(..) {
-                match discovered_topic_sample.sample_info().instance_state {
-                    InstanceStateKind::Alive => match discovered_topic_sample.data() {
-                        Ok(discovered_topic_data) => {
-                            participant
-                                .participant_address()
-                                .send_actor_mail(AddMatchedTopic {
-                                    discovered_topic_data,
-                                })?;
-                        }
-                        Err(e) => {
-                            warn!("Received invalid DiscoveredTopicData sample. Error {:?}", e)
-                        }
-                    },
-                    // Discovered topics are not deleted so it is not need to process these messages in any manner
-                    InstanceStateKind::NotAliveDisposed | InstanceStateKind::NotAliveNoWriters => {}
-                }
-            }
-        }
-    }
-    Ok(())
 }

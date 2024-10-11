@@ -563,12 +563,12 @@ impl MailHandler<AddMatchedWriter> for SubscriberActor {
 
 pub struct RemoveMatchedWriter {
     pub discovered_writer_handle: InstanceHandle,
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
+    // pub subscriber_address: ActorAddress<SubscriberActor>,
+    // pub participant: DomainParticipantAsync,
+    // pub participant_mask_listener: (
+    //     Option<MpscSender<ParticipantListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
 }
 impl Mail for RemoveMatchedWriter {
     type Result = DdsResult<()>;
@@ -585,14 +585,14 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
             );
             data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
                 discovered_writer_handle: message.discovered_writer_handle,
-                data_reader_address,
-                subscriber: SubscriberAsync::new(
-                    message.subscriber_address.clone(),
-                    self.status_condition.address(),
-                    message.participant.clone(),
-                ),
-                subscriber_mask_listener,
-                participant_mask_listener: message.participant_mask_listener.clone(),
+                // data_reader_address,
+                // subscriber: SubscriberAsync::new(
+                //     message.subscriber_address.clone(),
+                //     self.status_condition.address(),
+                //     message.participant.clone(),
+                // ),
+                // subscriber_mask_listener,
+                // participant_mask_listener: message.participant_mask_listener.clone(),
             });
         }
 

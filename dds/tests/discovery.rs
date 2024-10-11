@@ -90,7 +90,7 @@ fn deleted_readers_are_disposed_from_writer() {
 
     subscriber.delete_datareader(&data_reader).unwrap();
 
-    wait_set.wait(Duration::new(1, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 0);
 }

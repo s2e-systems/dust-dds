@@ -24,6 +24,10 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED},
+        },
         runtime::{
             executor::{Executor, ExecutorHandle},
             timer::{TimerDriver, TimerHandle},
@@ -61,6 +65,7 @@ use crate::{
         },
     },
     topic_definition::type_support::{DdsDeserialize, TypeSupport},
+    xtypes::{deserialize::XTypesDeserialize, xcdr_deserializer::Xcdr1LeDeserializer},
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
@@ -842,15 +847,39 @@ struct SedpBuiltinPublicationsReaderHistoryCache {
 
 impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Ok(discovered_writer_data) =
-            DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
+        if let Some(p) = cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
         {
-            self.participant_address
-                .send_actor_mail(domain_participant_actor::AddMatchedWriter {
-                    discovered_writer_data,
-                    // participant: participant.clone(),
-                })
-                .ok();
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(discovered_writer_handle) =
+                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
+                {
+                    self.participant_address
+                        .send_actor_mail(domain_participant_actor::RemoveMatchedWriter {
+                            discovered_writer_handle,
+                        })
+                        .ok();
+                }
+            }
+        } else {
+            if let Ok(discovered_writer_data) =
+                DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
+            {
+                self.participant_address
+                    .send_actor_mail(domain_participant_actor::AddMatchedWriter {
+                        discovered_writer_data,
+                        // participant: participant.clone(),
+                    })
+                    .ok();
+            }
         }
         self.subscriber_address
             .send_actor_mail(subscriber_actor::AddChange {
@@ -869,16 +898,41 @@ struct SedpBuiltinSubscriptionsReaderHistoryCache {
 
 impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Ok(discovered_reader_data) =
-            DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
+        if let Some(p) = cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
         {
-            self.participant_address
-                .send_actor_mail(domain_participant_actor::AddMatchedReader {
-                    discovered_reader_data,
-                    // participant: participant.clone(),
-                })
-                .ok();
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(discovered_reader_handle) =
+                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
+                {
+                    self.participant_address
+                        .send_actor_mail(domain_participant_actor::RemoveMatchedReader {
+                            discovered_reader_handle,
+                        })
+                        .ok();
+                }
+            }
+        } else {
+            if let Ok(discovered_reader_data) =
+                DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
+            {
+                self.participant_address
+                    .send_actor_mail(domain_participant_actor::AddMatchedReader {
+                        discovered_reader_data,
+                        // participant: participant.clone(),
+                    })
+                    .ok();
+            }
         }
+
         self.subscriber_address
             .send_actor_mail(subscriber_actor::AddChange {
                 cache_change,

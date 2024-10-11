@@ -8,8 +8,8 @@ use super::{
 };
 use crate::{
     dds_async::{
-        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
-        publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+        data_writer::DataWriterAsync, publisher::PublisherAsync,
+        publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -490,12 +490,12 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
 
 pub struct RemoveMatchedReader {
     pub discovered_reader_handle: InstanceHandle,
-    pub publisher_address: ActorAddress<PublisherActor>,
-    pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
+    // pub publisher_address: ActorAddress<PublisherActor>,
+    // pub participant: DomainParticipantAsync,
+    // pub participant_mask_listener: (
+    //     Option<MpscSender<ParticipantListenerMessage>>,
+    //     Vec<StatusKind>,
+    // ),
 }
 impl Mail for RemoveMatchedReader {
     type Result = DdsResult<()>;
@@ -503,13 +503,13 @@ impl Mail for RemoveMatchedReader {
 impl MailHandler<RemoveMatchedReader> for PublisherActor {
     fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for data_writer in self.data_writer_list.values() {
-            let data_writer_address = data_writer.address();
-            let publisher_mask_listener = (
-                self.publisher_listener_thread
-                    .as_ref()
-                    .map(|l| l.sender().clone()),
-                self.status_kind.clone(),
-            );
+            // let data_writer_address = data_writer.address();
+            // let publisher_mask_listener = (
+            //     self.publisher_listener_thread
+            //         .as_ref()
+            //         .map(|l| l.sender().clone()),
+            //     self.status_kind.clone(),
+            // );
             data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
                 discovered_reader_handle: message.discovered_reader_handle,
                 // data_writer_address,
