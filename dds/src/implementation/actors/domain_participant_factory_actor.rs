@@ -30,6 +30,7 @@ use crate::{
         },
         runtime::{
             executor::{Executor, ExecutorHandle},
+            mpsc::{mpsc_channel, MpscSender},
             timer::{TimerDriver, TimerHandle},
         },
     },
@@ -238,6 +239,7 @@ impl DomainParticipantFactoryActor {
         builtin_subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         domain_participant_status_kind: Vec<StatusKind>,
+        on_participant_discovery_sender: MpscSender<()>,
         executor_handle: ExecutorHandle,
         timer_handle: TimerHandle,
     ) -> Vec<DataReaderActor> {
@@ -268,6 +270,7 @@ impl DomainParticipantFactoryActor {
                         spdp_builtin_participant_reader_guid.into(),
                     ),
                     participant_address: participant_address.clone(),
+                    on_participant_discovery_sender,
                 }),
             );
         let spdp_builtin_participant_reader = DataReaderActor::new(
@@ -572,6 +575,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant_actor = Actor::spawn(domain_participant, &executor_handle);
         let participant_actor_address = participant_actor.address();
 
+        let (on_participant_discovery_sender, on_participant_discovery_receiver) = mpsc_channel();
+
         let builtin_data_reader_list = self.create_builtin_readers(
             guid_prefix,
             &transport,
@@ -579,6 +584,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             builtin_subscriber_address.clone(),
             participant_actor_address,
             domain_participant_status_kind,
+            on_participant_discovery_sender,
             executor_handle.clone(),
             timer_handle.clone(),
         );
@@ -619,6 +625,18 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 }
 
                 timer_handle.sleep(participant_announcement_interval).await;
+            }
+        });
+
+        let participant_clone = participant.clone();
+        executor_handle.spawn(async move {
+            loop {
+                let r = participant_clone.announce_participant().await;
+                if r.is_err() {
+                    break;
+                }
+
+                on_participant_discovery_receiver.recv().await;
             }
         });
 
@@ -786,9 +804,10 @@ pub fn sedp_data_writer_qos() -> DataWriterQos {
 }
 
 struct SpdpBuiltinReaderHistoryCache {
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub reader_instance_handle: InstanceHandle,
-    pub participant_address: ActorAddress<DomainParticipantActor>,
+    subscriber_address: ActorAddress<SubscriberActor>,
+    reader_instance_handle: InstanceHandle,
+    participant_address: ActorAddress<DomainParticipantActor>,
+    on_participant_discovery_sender: MpscSender<()>,
 }
 
 impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
@@ -827,6 +846,8 @@ impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
                     .ok();
             }
         }
+
+        self.on_participant_discovery_sender.send(()).ok();
 
         self.subscriber_address
             .send_actor_mail(subscriber_actor::AddChange {
