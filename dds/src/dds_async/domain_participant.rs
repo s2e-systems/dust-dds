@@ -296,6 +296,18 @@ impl DomainParticipantAsync {
     ) -> DdsResult<TopicAsync> {
         let (topic_address, topic_status_condition) = self
             .participant_address
+            .send_actor_mail(domain_participant_actor::CreateUserDefinedTopicActor {
+                topic_name: topic_name.to_string(),
+                type_name: type_name.to_string(),
+                qos: QosKind::Default,
+                a_listener: None,
+                mask: vec![],
+                type_support: dynamic_type_representation.clone(),
+                executor_handle: self.executor_handle.clone(),
+            })?
+            .receive_reply()
+            .await?;
+        self.participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedTopic {
                 topic_name: topic_name.to_string(),
                 type_name: type_name.to_string(),

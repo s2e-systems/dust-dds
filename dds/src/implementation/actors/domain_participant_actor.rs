@@ -524,15 +524,16 @@ impl DomainParticipantActor {
                     representation: discovered_topic_data.representation().clone(),
                 };
                 let type_name = discovered_topic_data.get_type_name().to_owned();
-                let (topic_address, status_condition_address) = self.create_user_defined_topic(
-                    topic_name,
-                    type_name.clone(),
-                    QosKind::Specific(qos),
-                    None,
-                    vec![],
-                    type_support,
-                    executor_handle,
-                )?;
+                let (topic_address, status_condition_address) = self
+                    .create_user_defined_topic_actor(
+                        topic_name,
+                        type_name.clone(),
+                        QosKind::Specific(qos),
+                        None,
+                        vec![],
+                        type_support,
+                        executor_handle,
+                    )?;
                 return Ok(Some((topic_address, status_condition_address)));
             }
         }
@@ -540,7 +541,7 @@ impl DomainParticipantActor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn create_user_defined_topic(
+    fn create_user_defined_topic_actor(
         &mut self,
         topic_name: String,
         type_name: String,
@@ -577,6 +578,45 @@ impl DomainParticipantActor {
             e.insert((topic_actor, topic_status_condition.clone()));
 
             Ok((topic_address, topic_status_condition))
+        } else {
+            Err(DdsError::PreconditionNotMet(format!("Topic with name {} already exists. To access this topic call the lookup_topicdescription method.",topic_name)))
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn create_user_defined_topic(
+        &mut self,
+        topic_name: String,
+        type_name: String,
+        qos: QosKind<TopicQos>,
+        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        _mask: Vec<StatusKind>,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
+        executor_handle: ExecutorHandle,
+    ) -> DdsResult<()> {
+        if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
+            let qos = match qos {
+                QosKind::Default => self.default_topic_qos.clone(),
+                QosKind::Specific(q) => q,
+            };
+            let topic_counter = self.user_defined_topic_counter;
+            self.user_defined_topic_counter += 1;
+            let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
+            let guid = Guid::new(self.guid.prefix(), entity_id);
+
+            let (topic, _) = TopicActor::new(
+                guid,
+                qos,
+                type_name,
+                &topic_name,
+                a_listener,
+                type_support,
+                &executor_handle,
+            );
+
+            e.insert(topic);
+
+            Ok(())
         } else {
             Err(DdsError::PreconditionNotMet(format!("Topic with name {} already exists. To access this topic call the lookup_topicdescription method.",topic_name)))
         }
@@ -759,7 +799,7 @@ pub struct CreateUserDefinedTopic {
     pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedTopic {
-    type Result = DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>;
+    type Result = DdsResult<()>;
 }
 impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
     fn handle(
@@ -767,6 +807,35 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         message: CreateUserDefinedTopic,
     ) -> <CreateUserDefinedTopic as Mail>::Result {
         self.create_user_defined_topic(
+            message.topic_name,
+            message.type_name,
+            message.qos,
+            message.a_listener,
+            message.mask,
+            message.type_support,
+            message.executor_handle,
+        )
+    }
+}
+
+pub struct CreateUserDefinedTopicActor {
+    pub topic_name: String,
+    pub type_name: String,
+    pub qos: QosKind<TopicQos>,
+    pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
+    pub mask: Vec<StatusKind>,
+    pub type_support: Arc<dyn DynamicType + Send + Sync>,
+    pub executor_handle: ExecutorHandle,
+}
+impl Mail for CreateUserDefinedTopicActor {
+    type Result = DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>;
+}
+impl MailHandler<CreateUserDefinedTopicActor> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateUserDefinedTopicActor,
+    ) -> <CreateUserDefinedTopicActor as Mail>::Result {
+        self.create_user_defined_topic_actor(
             message.topic_name,
             message.type_name,
             message.qos,
