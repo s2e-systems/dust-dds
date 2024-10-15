@@ -1,9 +1,11 @@
+use tracing::warn;
+
 use super::{
     condition::StatusConditionAsync, data_reader_listener::DataReaderListenerAsync,
     subscriber::SubscriberAsync, topic::TopicAsync,
 };
 use crate::{
-    builtin_topics::{PublicationBuiltinTopicData, DCPS_SUBSCRIPTION},
+    builtin_topics::{PublicationBuiltinTopicData, DCPS_PUBLICATION, DCPS_SUBSCRIPTION},
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -14,7 +16,10 @@ use crate::{
             subscriber_actor::{self, SubscriberActor},
             topic_actor,
         },
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -29,7 +34,8 @@ use crate::{
     subscription::{
         data_reader::Sample,
         sample_info::{
-            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
+            InstanceStateKind, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
+            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
     },
 };
@@ -126,6 +132,59 @@ impl<Foo> DataReaderAsync<Foo> {
             sedp_subscriptions_announcer
                 .write(&discovered_reader_data, None)
                 .await?;
+        }
+        Ok(())
+    }
+
+    async fn process_sedp_publications_discovery(&self) -> DdsResult<()> {
+        let participant = self.subscriber.get_participant();
+        let builtin_subscriber = participant.get_builtin_subscriber();
+
+        if let Some(sedp_publications_detector) = builtin_subscriber
+            .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
+            .await?
+        {
+            if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+                .read(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE,
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                )
+                .await
+            {
+                for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+                    match discovered_writer_sample.sample_info().instance_state {
+                        InstanceStateKind::Alive => match discovered_writer_sample.data() {
+                            Ok(discovered_writer_data) => {
+                                participant.participant_address().send_actor_mail(
+                                    domain_participant_actor::AddMatchedWriter {
+                                        discovered_writer_data,
+                                        // participant: participant.clone(),
+                                    },
+                                )?;
+                            }
+                            Err(e) => warn!(
+                                "Received invalid DiscoveredWriterData sample. Error {:?}",
+                                e
+                            ),
+                        },
+                        InstanceStateKind::NotAliveDisposed => {
+                            participant.participant_address().send_actor_mail(
+                                domain_participant_actor::RemoveMatchedWriter {
+                                    discovered_writer_handle: discovered_writer_sample
+                                        .sample_info()
+                                        .instance_handle,
+                                    // participant: participant.clone(),
+                                },
+                            )?;
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -537,6 +596,8 @@ impl<Foo> DataReaderAsync<Foo> {
                 .await;
 
             self.announce_reader().await?;
+
+            self.process_sedp_publications_discovery().await?;
         }
         Ok(())
     }
