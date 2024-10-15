@@ -12,7 +12,7 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
-            topic_actor::{self, TopicActor},
+            topic_actor::{self},
         },
     },
     infrastructure::{
@@ -55,7 +55,7 @@ impl SubscriberAsync {
     async fn announce_deleted_data_reader(
         &self,
         reader: &Actor<DataReaderActor>,
-        topic: &ActorAddress<TopicActor>,
+        topic_name: String,
     ) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_subscriptions_announcer) = builtin_publisher
@@ -73,10 +73,11 @@ impl SubscriberAsync {
                 .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
-            let topic_data = topic
-                .send_actor_mail(topic_actor::GetQos)?
+            let topic_data = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
                 .receive_reply()
-                .await
+                .await?
                 .topic_data;
             let xml_type = "".to_string(); //topic
                                            // .send_actor_mail(topic_actor::GetTypeSupport)?
@@ -220,8 +221,11 @@ impl SubscriberAsync {
             .receive_reply()
             .await?;
 
-        self.announce_deleted_data_reader(&deleted_reader, &topic)
-            .await?;
+        self.announce_deleted_data_reader(
+            &deleted_reader,
+            a_datareader.get_topicdescription().get_name(),
+        )
+        .await?;
         deleted_reader.stop().await;
         Ok(())
     }
@@ -314,8 +318,9 @@ impl SubscriberAsync {
                 .receive_reply()
                 .await;
 
-            self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
-                .await?;
+            todo!();
+            // self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
+            //     .await?;
             deleted_reader_actor.stop().await;
         }
         Ok(())

@@ -81,11 +81,13 @@ impl TopicAsync {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetInconsistentTopicStatus)?
+        self.participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetInconsistentTopicStatus {
+                topic_name: self.topic_name.clone(),
+            })?
             .receive_reply()
-            .await)
+            .await
     }
 }
 
@@ -113,18 +115,12 @@ impl TopicAsync {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => {
-                self.participant_address()
-                    .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)?
-                    .receive_reply()
-                    .await
-            }
-            QosKind::Specific(q) => q,
-        };
-
-        self.topic_address
-            .send_actor_mail(topic_actor::SetQos { qos })?
+        self.participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::SetTopicQos {
+                topic_name: self.topic_name.clone(),
+                topic_qos: qos,
+            })?
             .receive_reply()
             .await?;
 
@@ -142,11 +138,13 @@ impl TopicAsync {
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetQos)?
+        self.participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTopicQos {
+                topic_name: self.topic_name.clone(),
+            })?
             .receive_reply()
-            .await)
+            .await
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).

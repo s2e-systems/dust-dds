@@ -124,11 +124,12 @@ impl<Foo> DataWriterAsync<Foo> {
                 .receive_reply()
                 .await;
             let topic_data = self
-                .topic
-                .topic_address()
-                .send_actor_mail(topic_actor::GetQos)?
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetTopicQos {
+                    topic_name: self.topic.get_name(),
+                })?
                 .receive_reply()
-                .await
+                .await?
                 .topic_data;
             let xml_type = "".to_string(); //self
                                            //     .topic

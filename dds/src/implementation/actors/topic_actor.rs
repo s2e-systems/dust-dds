@@ -116,6 +116,31 @@ impl TopicActor {
             status_condition_address,
         )
     }
+
+    pub fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
+        let status = self.inconsistent_topic_status.read_and_reset();
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            });
+        status
+    }
+
+    pub fn get_qos(&self) -> &TopicQos {
+        &self.qos
+    }
+
+    pub fn set_qos(&mut self, topic_qos: TopicQos) -> DdsResult<()> {
+        topic_qos.is_consistent()?;
+
+        if self.enabled {
+            self.qos.check_immutability(&topic_qos)?
+        }
+
+        self.qos = topic_qos;
+
+        Ok(())
+    }
 }
 
 pub struct GetTypeName;
@@ -145,36 +170,6 @@ impl Mail for GetGuid {
 impl MailHandler<GetGuid> for TopicActor {
     fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
         self.guid
-    }
-}
-
-pub struct SetQos {
-    pub qos: TopicQos,
-}
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetQos> for TopicActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
-        message.qos.is_consistent()?;
-
-        if self.enabled {
-            self.qos.check_immutability(&message.qos)?
-        }
-
-        self.qos = message.qos;
-
-        Ok(())
-    }
-}
-
-pub struct GetQos;
-impl Mail for GetQos {
-    type Result = TopicQos;
-}
-impl MailHandler<GetQos> for TopicActor {
-    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
-        self.qos.clone()
     }
 }
 
@@ -247,24 +242,6 @@ impl MailHandler<AsDiscoveredTopicData> for TopicActor {
                 representation: topic_qos.representation,
             },
         }
-    }
-}
-
-pub struct GetInconsistentTopicStatus;
-impl Mail for GetInconsistentTopicStatus {
-    type Result = InconsistentTopicStatus;
-}
-impl MailHandler<GetInconsistentTopicStatus> for TopicActor {
-    fn handle(
-        &mut self,
-        _: GetInconsistentTopicStatus,
-    ) -> <GetInconsistentTopicStatus as Mail>::Result {
-        let status = self.inconsistent_topic_status.read_and_reset();
-        self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::InconsistentTopic,
-            });
-        status
     }
 }
 

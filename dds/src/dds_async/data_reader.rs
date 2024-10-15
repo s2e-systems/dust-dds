@@ -9,12 +9,10 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_reader_listener::AnyDataReaderListener,
             data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
-            topic_actor,
         },
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -74,10 +72,6 @@ impl<Foo> DataReaderAsync<Foo> {
         self.subscriber.subscriber_address()
     }
 
-    pub(crate) fn reader_address(&self) -> &ActorAddress<DataReaderActor> {
-        &self.reader_address
-    }
-
     async fn announce_reader(&self) -> DdsResult<()> {
         let builtin_publisher = self
             .get_subscriber()
@@ -104,11 +98,12 @@ impl<Foo> DataReaderAsync<Foo> {
                 .receive_reply()
                 .await;
             let topic_data = self
-                .topic
-                .topic_address()
-                .send_actor_mail(topic_actor::GetQos)?
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetTopicQos {
+                    topic_name: self.topic.get_name(),
+                })?
                 .receive_reply()
-                .await
+                .await?
                 .topic_data;
             let xml_type = "".to_string(); //self
                                            // .topic

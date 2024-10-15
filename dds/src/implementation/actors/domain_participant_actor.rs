@@ -47,10 +47,10 @@ use crate::{
             TransportPriorityQosPolicy,
         },
         status::{
-            LivelinessChangedStatus, LivelinessLostStatus, OfferedDeadlineMissedStatus,
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusKind,
-            SubscriptionMatchedStatus,
+            InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
+            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, Time},
     },
@@ -384,7 +384,8 @@ pub struct DomainParticipantActor {
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
+    topic_actor_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
+    topic_list: HashMap<String, TopicActor>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
     lease_duration: Duration,
@@ -475,6 +476,7 @@ impl DomainParticipantActor {
                 user_defined_publisher_list: HashMap::new(),
                 user_defined_publisher_counter: 0,
                 default_publisher_qos: PublisherQos::default(),
+                topic_actor_list: HashMap::new(),
                 topic_list: HashMap::new(),
                 user_defined_topic_counter: 0,
                 default_topic_qos: TopicQos::default(),
@@ -548,7 +550,7 @@ impl DomainParticipantActor {
         type_support: Arc<dyn DynamicType + Send + Sync>,
         executor_handle: ExecutorHandle,
     ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
-        if let Entry::Vacant(e) = self.topic_list.entry(topic_name.clone()) {
+        if let Entry::Vacant(e) = self.topic_actor_list.entry(topic_name.clone()) {
             let qos = match qos {
                 QosKind::Default => self.default_topic_qos.clone(),
                 QosKind::Specific(q) => q,
@@ -584,7 +586,7 @@ impl DomainParticipantActor {
         &self,
         topic_name: String,
     ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
-        if let Some((topic, topic_status_condition)) = self.topic_list.get(&topic_name) {
+        if let Some((topic, topic_status_condition)) = self.topic_actor_list.get(&topic_name) {
             Ok(Some((topic.address(), topic_status_condition.clone())))
         } else {
             Ok(None)
@@ -787,7 +789,9 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
-        self.topic_list.remove(&message.topic_name).map(|t| t.0)
+        self.topic_actor_list
+            .remove(&message.topic_name)
+            .map(|t| t.0)
     }
 }
 
@@ -836,7 +840,7 @@ impl Mail for SetTopicList {
 }
 impl MailHandler<SetTopicList> for DomainParticipantActor {
     fn handle(&mut self, message: SetTopicList) -> <SetTopicList as Mail>::Result {
-        self.topic_list = message.topic_list;
+        self.topic_actor_list = message.topic_list;
     }
 }
 
@@ -930,7 +934,7 @@ impl Mail for IsEmpty {
 impl MailHandler<IsEmpty> for DomainParticipantActor {
     fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         let no_user_defined_topics = self
-            .topic_list
+            .topic_actor_list
             .keys()
             .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.as_ref()))
             .count()
@@ -1067,13 +1071,13 @@ impl MailHandler<DrainTopicList> for DomainParticipantActor {
     fn handle(&mut self, _: DrainTopicList) -> <DrainTopicList as Mail>::Result {
         let mut drained_topic_list = Vec::new();
         let user_defined_topic_name_list: Vec<String> = self
-            .topic_list
+            .topic_actor_list
             .keys()
             .filter(|&k| !BUILT_IN_TOPIC_NAME_LIST.contains(&k.as_ref()))
             .cloned()
             .collect();
         for t in user_defined_topic_name_list {
-            if let Some((removed_topic, _)) = self.topic_list.remove(&t) {
+            if let Some((removed_topic, _)) = self.topic_actor_list.remove(&t) {
                 drained_topic_list.push(removed_topic);
             }
         }
@@ -1842,7 +1846,7 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
         );
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
-            for (topic, _) in self.topic_list.values() {
+            for (topic, _) in self.topic_actor_list.values() {
                 topic.send_actor_mail(topic_actor::ProcessDiscoveredTopic {
                     discovered_topic_data: message.discovered_topic_data.clone(),
                 });
@@ -1893,6 +1897,63 @@ impl MailHandler<GetListener> for DomainParticipantActor {
                 .map(|l| l.sender().clone()),
             self.status_kind.clone(),
         )
+    }
+}
+
+pub struct GetInconsistentTopicStatus {
+    pub topic_name: String,
+}
+impl Mail for GetInconsistentTopicStatus {
+    type Result = DdsResult<InconsistentTopicStatus>;
+}
+impl MailHandler<GetInconsistentTopicStatus> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetInconsistentTopicStatus,
+    ) -> <GetInconsistentTopicStatus as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_inconsistent_topic_status())
+    }
+}
+
+pub struct GetTopicQos {
+    pub topic_name: String,
+}
+impl Mail for GetTopicQos {
+    type Result = DdsResult<TopicQos>;
+}
+impl MailHandler<GetTopicQos> for DomainParticipantActor {
+    fn handle(&mut self, message: GetTopicQos) -> <GetTopicQos as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos()
+            .clone())
+    }
+}
+
+pub struct SetTopicQos {
+    pub topic_name: String,
+    pub topic_qos: QosKind<TopicQos>,
+}
+impl Mail for SetTopicQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetTopicQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetTopicQos) -> <SetTopicQos as Mail>::Result {
+        let qos = match message.topic_qos {
+            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_qos(qos)
     }
 }
 

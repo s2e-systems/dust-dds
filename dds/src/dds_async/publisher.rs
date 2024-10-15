@@ -13,7 +13,7 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             publisher_actor::{self, PublisherActor},
             status_condition_actor::StatusConditionActor,
-            topic_actor::{self, TopicActor},
+            topic_actor::{self},
         },
     },
     infrastructure::{
@@ -57,7 +57,7 @@ impl PublisherAsync {
     async fn announce_deleted_data_writer(
         &self,
         writer: &Actor<DataWriterActor>,
-        topic: &ActorAddress<TopicActor>,
+        topic_name: String,
     ) -> DdsResult<()> {
         let builtin_publisher = self.participant.get_builtin_publisher().await?;
         if let Some(sedp_publications_announcer) = builtin_publisher
@@ -75,10 +75,11 @@ impl PublisherAsync {
                 .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
                 .receive_reply()
                 .await;
-            let topic_data = topic
-                .send_actor_mail(topic_actor::GetQos)?
+            let topic_data = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
                 .receive_reply()
-                .await
+                .await?
                 .topic_data;
             let xml_type = "".to_string(); //topic
                                            // .send_actor_mail(topic_actor::GetTypeSupport)?
@@ -200,7 +201,7 @@ impl PublisherAsync {
             .receive_reply()
             .await?;
 
-        self.announce_deleted_data_writer(&deleted_writer, topic.topic_address())
+        self.announce_deleted_data_writer(&deleted_writer, topic.get_name())
             .await?;
         deleted_writer.stop().await;
         Ok(())
@@ -313,8 +314,9 @@ impl PublisherAsync {
                 .receive_reply()
                 .await;
 
-            self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
-                .await?;
+            todo!();
+            // self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
+            //     .await?;
             deleted_writer_actor.stop().await;
         }
         Ok(())
