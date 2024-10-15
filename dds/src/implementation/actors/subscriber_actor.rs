@@ -244,7 +244,6 @@ impl SubscriberActor {
 pub struct CreateDatareader {
     pub topic_name: String,
     pub type_name: String,
-    pub topic_status_condition: ActorAddress<StatusConditionActor>,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
     pub has_key: bool,
     pub qos: QosKind<DataReaderQos>,

@@ -221,7 +221,6 @@ impl PublisherActor {
 pub struct CreateDatawriter {
     pub topic_name: String,
     pub type_name: String,
-    pub topic_status_condition: ActorAddress<StatusConditionActor>,
     pub has_key: bool,
     pub qos: QosKind<DataWriterQos>,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,

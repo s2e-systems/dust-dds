@@ -139,13 +139,11 @@ impl PublisherAsync {
         };
         let topic_name = a_topic.get_name();
         let type_name = a_topic.get_type_name();
-        let topic_status_condition = a_topic.get_statuscondition().address().clone();
         let data_writer_address = self
             .publisher_address
             .send_actor_mail(publisher_actor::CreateDatawriter {
                 topic_name,
                 type_name,
-                topic_status_condition,
                 has_key,
                 qos,
                 a_listener: listener,

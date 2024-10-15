@@ -131,7 +131,6 @@ impl SubscriberAsync {
 
         let topic_name = a_topic.get_name();
         let type_name = a_topic.get_type_name();
-        let topic_status_condition = a_topic.get_statuscondition().address().clone();
         let type_support = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::GetTypeSupport {
@@ -159,7 +158,6 @@ impl SubscriberAsync {
             .send_actor_mail(subscriber_actor::CreateDatareader {
                 topic_name,
                 type_name,
-                topic_status_condition,
                 type_support,
                 has_key,
                 qos,
