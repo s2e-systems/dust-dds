@@ -1,9 +1,11 @@
+use tracing::warn;
+
 use super::{
     condition::StatusConditionAsync, data_writer_listener::DataWriterListenerAsync,
     publisher::PublisherAsync, topic::TopicAsync,
 };
 use crate::{
-    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PUBLICATION},
+    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PUBLICATION, DCPS_SUBSCRIPTION},
     implementation::{
         actor::ActorAddress,
         actors::{
@@ -14,7 +16,10 @@ use crate::{
             status_condition_actor::StatusConditionActor,
             topic_actor,
         },
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+        },
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -39,6 +44,9 @@ use crate::{
     rtps::{
         messages::submessage_elements::{Data, Parameter, ParameterList},
         types::ChangeKind,
+    },
+    subscription::sample_info::{
+        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::DdsSerialize,
     xtypes::{serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer},
@@ -143,6 +151,59 @@ impl<Foo> DataWriterAsync<Foo> {
             sedp_publications_announcer
                 .write(&discovered_writer_data, None)
                 .await?;
+        }
+        Ok(())
+    }
+
+    async fn process_sedp_subscriptions_discovery(&self) -> DdsResult<()> {
+        let participant = self.publisher.get_participant();
+        let builtin_subscriber = participant.get_builtin_subscriber();
+
+        if let Some(sedp_subscriptions_detector) = builtin_subscriber
+            .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+            .await?
+        {
+            if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+                .read(
+                    i32::MAX,
+                    ANY_SAMPLE_STATE,
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                )
+                .await
+            {
+                for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+                    match discovered_reader_sample.sample_info().instance_state {
+                        InstanceStateKind::Alive => match discovered_reader_sample.data() {
+                            Ok(discovered_reader_data) => {
+                                participant.participant_address().send_actor_mail(
+                                    domain_participant_actor::AddMatchedReader {
+                                        discovered_reader_data,
+                                        // participant: participant.clone(),
+                                    },
+                                )?;
+                            }
+                            Err(e) => warn!(
+                                "Received invalid DiscoveredReaderData sample. Error {:?}",
+                                e
+                            ),
+                        },
+                        InstanceStateKind::NotAliveDisposed => {
+                            participant.participant_address().send_actor_mail(
+                                domain_participant_actor::RemoveMatchedReader {
+                                    discovered_reader_handle: discovered_reader_sample
+                                        .sample_info()
+                                        .instance_handle,
+                                    // participant: participant.clone(),
+                                },
+                            )?;
+                        }
+                        InstanceStateKind::NotAliveNoWriters => {
+                            todo!()
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -852,6 +913,8 @@ impl<Foo> DataWriterAsync<Foo> {
                 .await;
 
             self.announce_writer().await?;
+
+            self.process_sedp_subscriptions_discovery().await?;
         }
         Ok(())
     }
