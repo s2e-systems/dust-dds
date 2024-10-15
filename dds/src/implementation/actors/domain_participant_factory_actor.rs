@@ -793,16 +793,41 @@ struct SpdpBuiltinReaderHistoryCache {
 
 impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Ok(discovered_participant_data) =
-            SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
+        if let Some(p) = cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
         {
-            self.participant_address
-                .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
-                    discovered_participant_data,
-                    // participant: participant.clone(),
-                })
-                .ok();
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(handle) =
+                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
+                {
+                    self.participant_address
+                        .send_actor_mail(domain_participant_actor::RemoveDiscoveredParticipant {
+                            handle,
+                        })
+                        .ok();
+                }
+            }
+        } else {
+            if let Ok(discovered_participant_data) =
+                SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
+            {
+                self.participant_address
+                    .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
+                        discovered_participant_data,
+                        // participant: participant.clone(),
+                    })
+                    .ok();
+            }
         }
+
         self.subscriber_address
             .send_actor_mail(subscriber_actor::AddChange {
                 cache_change,
