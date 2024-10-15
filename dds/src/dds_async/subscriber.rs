@@ -129,14 +129,16 @@ impl SubscriberAsync {
             .receive_reply()
             .await;
 
-        let topic = a_topic.topic_address();
         let topic_name = a_topic.get_name();
         let type_name = a_topic.get_type_name();
         let topic_status_condition = a_topic.get_statuscondition().address().clone();
-        let type_support = topic
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+        let type_support = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: topic_name.clone(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
         let has_key = {
             let mut has_key = false;
             for index in 0..type_support.get_member_count() {
@@ -155,7 +157,6 @@ impl SubscriberAsync {
         let reader_address = self
             .subscriber_address
             .send_actor_mail(subscriber_actor::CreateDatareader {
-                topic_address: a_topic.topic_address().clone(),
                 topic_name,
                 type_name,
                 topic_status_condition,
@@ -211,8 +212,6 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         let reader_handle = a_datareader.get_instance_handle().await?;
 
-        let topic = a_datareader.get_topicdescription().topic_address().clone();
-
         let deleted_reader = self
             .subscriber_address
             .send_actor_mail(subscriber_actor::DeleteDatareader {
@@ -236,7 +235,7 @@ impl SubscriberAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
-        if let Some((topic_address, topic_status_condition)) = self
+        if let Some(()) = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_string(),
@@ -256,15 +255,16 @@ impl SubscriberAsync {
                     .await?
                     == topic_name
                 {
-                    let type_name = topic_address
-                        .send_actor_mail(topic_actor::GetTypeName)?
+                    let type_name = self
+                        .participant_address()
+                        .send_actor_mail(domain_participant_actor::GetTopicTypeName {
+                            topic_name: topic_name.to_string(),
+                        })?
                         .receive_reply()
-                        .await;
+                        .await?;
                     let topic = TopicAsync::new(
-                        topic_address,
-                        topic_status_condition,
-                        topic_name.to_string(),
                         type_name,
+                        topic_name.to_string(),
                         self.participant.clone(),
                     );
                     let status_condition = dr
@@ -313,11 +313,6 @@ impl SubscriberAsync {
             .await;
 
         for deleted_reader_actor in deleted_reader_actor_list {
-            let topic = deleted_reader_actor
-                .send_actor_mail(data_reader_actor::GetTopicAddress)
-                .receive_reply()
-                .await;
-
             todo!();
             // self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
             //     .await?;

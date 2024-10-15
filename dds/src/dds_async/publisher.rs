@@ -116,11 +116,13 @@ impl PublisherAsync {
         Foo: 'b,
     {
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let type_support = a_topic
-            .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+        let type_support = self
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: a_topic.get_name(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
         let has_key = {
             let mut has_key = false;
             for index in 0..type_support.get_member_count() {
@@ -141,7 +143,6 @@ impl PublisherAsync {
         let data_writer_address = self
             .publisher_address
             .send_actor_mail(publisher_actor::CreateDatawriter {
-                topic_address: a_topic.topic_address().clone(),
                 topic_name,
                 type_name,
                 topic_status_condition,
@@ -213,7 +214,7 @@ impl PublisherAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
-        if let Some((topic_address, topic_status_condition)) = self
+        if let Some(_) = self
             .participant
             .participant_address()
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
@@ -234,15 +235,16 @@ impl PublisherAsync {
                     .await?
                     == topic_name
                 {
-                    let type_name = topic_address
-                        .send_actor_mail(topic_actor::GetTypeName)?
+                    let type_name = self
+                        .participant_address()
+                        .send_actor_mail(domain_participant_actor::GetTopicTypeName {
+                            topic_name: topic_name.to_string(),
+                        })?
                         .receive_reply()
-                        .await;
+                        .await?;
                     let topic = TopicAsync::new(
-                        topic_address,
-                        topic_status_condition,
-                        topic_name.to_string(),
                         type_name,
+                        topic_name.to_string(),
                         self.participant.clone(),
                     );
                     let status_condition = dw
@@ -309,11 +311,6 @@ impl PublisherAsync {
             .await;
 
         for deleted_writer_actor in deleted_writer_actor_list {
-            let topic_address = deleted_writer_actor
-                .send_actor_mail(data_writer_actor::GetTopicAddress)
-                .receive_reply()
-                .await;
-
             todo!();
             // self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
             //     .await?;

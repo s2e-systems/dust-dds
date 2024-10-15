@@ -384,7 +384,6 @@ pub struct DomainParticipantActor {
     user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_actor_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
     topic_list: HashMap<String, TopicActor>,
     user_defined_topic_counter: u8,
     default_topic_qos: TopicQos,
@@ -476,7 +475,6 @@ impl DomainParticipantActor {
                 user_defined_publisher_list: HashMap::new(),
                 user_defined_publisher_counter: 0,
                 default_publisher_qos: PublisherQos::default(),
-                topic_actor_list: HashMap::new(),
                 topic_list: HashMap::new(),
                 user_defined_topic_counter: 0,
                 default_topic_qos: TopicQos::default(),
@@ -505,7 +503,7 @@ impl DomainParticipantActor {
         topic_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         executor_handle: ExecutorHandle,
-    ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
+    ) -> DdsResult<Option<()>> {
         for discovered_topic_data in self.discovered_topic_list.values() {
             if discovered_topic_data.name() == topic_name {
                 let qos = TopicQos {
@@ -524,63 +522,19 @@ impl DomainParticipantActor {
                     representation: discovered_topic_data.representation().clone(),
                 };
                 let type_name = discovered_topic_data.get_type_name().to_owned();
-                let (topic_address, status_condition_address) = self
-                    .create_user_defined_topic_actor(
-                        topic_name,
-                        type_name.clone(),
-                        QosKind::Specific(qos),
-                        None,
-                        vec![],
-                        type_support,
-                        executor_handle,
-                    )?;
-                return Ok(Some((topic_address, status_condition_address)));
+                self.create_user_defined_topic(
+                    topic_name,
+                    type_name.clone(),
+                    QosKind::Specific(qos),
+                    None,
+                    vec![],
+                    type_support,
+                    executor_handle,
+                )?;
+                return Ok(Some(()));
             }
         }
         Ok(None)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn create_user_defined_topic_actor(
-        &mut self,
-        topic_name: String,
-        type_name: String,
-        qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
-        _mask: Vec<StatusKind>,
-        type_support: Arc<dyn DynamicType + Send + Sync>,
-        executor_handle: ExecutorHandle,
-    ) -> DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)> {
-        if let Entry::Vacant(e) = self.topic_actor_list.entry(topic_name.clone()) {
-            let qos = match qos {
-                QosKind::Default => self.default_topic_qos.clone(),
-                QosKind::Specific(q) => q,
-            };
-            let topic_counter = self.user_defined_topic_counter;
-            self.user_defined_topic_counter += 1;
-            let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
-            let guid = Guid::new(self.guid.prefix(), entity_id);
-
-            let (topic, topic_status_condition) = TopicActor::new(
-                guid,
-                qos,
-                type_name,
-                &topic_name,
-                a_listener,
-                type_support,
-                &executor_handle,
-            );
-
-            let topic_actor: crate::implementation::actor::Actor<TopicActor> =
-                Actor::spawn(topic, &executor_handle);
-            let topic_address = topic_actor.address();
-
-            e.insert((topic_actor, topic_status_condition.clone()));
-
-            Ok((topic_address, topic_status_condition))
-        } else {
-            Err(DdsError::PreconditionNotMet(format!("Topic with name {} already exists. To access this topic call the lookup_topicdescription method.",topic_name)))
-        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -622,12 +576,9 @@ impl DomainParticipantActor {
         }
     }
 
-    fn lookup_topicdescription(
-        &self,
-        topic_name: String,
-    ) -> DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>> {
-        if let Some((topic, topic_status_condition)) = self.topic_actor_list.get(&topic_name) {
-            Ok(Some((topic.address(), topic_status_condition.clone())))
+    fn lookup_topicdescription(&self, topic_name: String) -> DdsResult<Option<()>> {
+        if let Some(_) = self.topic_list.get(&topic_name) {
+            Ok(Some(()))
         } else {
             Ok(None)
         }
@@ -818,49 +769,35 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
     }
 }
 
-pub struct CreateUserDefinedTopicActor {
-    pub topic_name: String,
-    pub type_name: String,
-    pub qos: QosKind<TopicQos>,
-    pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
-    pub mask: Vec<StatusKind>,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub executor_handle: ExecutorHandle,
-}
-impl Mail for CreateUserDefinedTopicActor {
-    type Result = DdsResult<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>;
-}
-impl MailHandler<CreateUserDefinedTopicActor> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: CreateUserDefinedTopicActor,
-    ) -> <CreateUserDefinedTopicActor as Mail>::Result {
-        self.create_user_defined_topic_actor(
-            message.topic_name,
-            message.type_name,
-            message.qos,
-            message.a_listener,
-            message.mask,
-            message.type_support,
-            message.executor_handle,
-        )
-    }
-}
-
 pub struct DeleteUserDefinedTopic {
     pub topic_name: String,
 }
 impl Mail for DeleteUserDefinedTopic {
-    type Result = Option<Actor<TopicActor>>;
+    type Result = Option<TopicActor>;
 }
 impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
-        self.topic_actor_list
-            .remove(&message.topic_name)
-            .map(|t| t.0)
+        self.topic_list.remove(&message.topic_name)
+    }
+}
+
+pub struct GetTopicTypeName {
+    pub topic_name: String,
+}
+impl Mail for GetTopicTypeName {
+    type Result = DdsResult<String>;
+}
+impl MailHandler<GetTopicTypeName> for DomainParticipantActor {
+    fn handle(&mut self, message: GetTopicTypeName) -> <GetTopicTypeName as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_type_name()
+            .to_string())
     }
 }
 
@@ -870,12 +807,12 @@ pub struct FindTopic {
     pub executor_handle: ExecutorHandle,
 }
 impl Mail for FindTopic {
-    type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
+    type Result = DdsResult<Option<()>>;
 }
 impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
         if let Some(r) = self.lookup_topicdescription(message.topic_name.clone())? {
-            Ok(Some(r))
+            Ok(Some(()))
         } else {
             self.lookup_discovered_topic(
                 message.topic_name.clone(),
@@ -890,7 +827,7 @@ pub struct LookupTopicdescription {
     pub topic_name: String,
 }
 impl Mail for LookupTopicdescription {
-    type Result = DdsResult<Option<(ActorAddress<TopicActor>, ActorAddress<StatusConditionActor>)>>;
+    type Result = DdsResult<Option<()>>;
 }
 impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     fn handle(
@@ -901,15 +838,52 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     }
 }
 
+pub struct EnableTopic {
+    pub topic_name: String,
+}
+impl Mail for EnableTopic {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<EnableTopic> for DomainParticipantActor {
+    fn handle(&mut self, message: EnableTopic) -> <EnableTopic as Mail>::Result {
+        let topic = self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if !topic.is_enabled() {
+            topic.enable();
+        }
+
+        Ok(())
+    }
+}
+
+pub struct GetTypeSupport {
+    pub topic_name: String,
+}
+impl Mail for GetTypeSupport {
+    type Result = DdsResult<Arc<dyn DynamicType + Send + Sync>>;
+}
+impl MailHandler<GetTypeSupport> for DomainParticipantActor {
+    fn handle(&mut self, message: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_type_support()
+            .clone())
+    }
+}
+
 pub struct SetTopicList {
-    pub topic_list: HashMap<String, (Actor<TopicActor>, ActorAddress<StatusConditionActor>)>,
+    pub topic_list: HashMap<String, TopicActor>,
 }
 impl Mail for SetTopicList {
     type Result = ();
 }
 impl MailHandler<SetTopicList> for DomainParticipantActor {
     fn handle(&mut self, message: SetTopicList) -> <SetTopicList as Mail>::Result {
-        self.topic_actor_list = message.topic_list;
+        self.topic_list = message.topic_list;
     }
 }
 
@@ -1003,7 +977,7 @@ impl Mail for IsEmpty {
 impl MailHandler<IsEmpty> for DomainParticipantActor {
     fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         let no_user_defined_topics = self
-            .topic_actor_list
+            .topic_list
             .keys()
             .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.as_ref()))
             .count()
@@ -1134,19 +1108,19 @@ impl MailHandler<DrainPublisherList> for DomainParticipantActor {
 
 pub struct DrainTopicList;
 impl Mail for DrainTopicList {
-    type Result = Vec<Actor<TopicActor>>;
+    type Result = Vec<TopicActor>;
 }
 impl MailHandler<DrainTopicList> for DomainParticipantActor {
     fn handle(&mut self, _: DrainTopicList) -> <DrainTopicList as Mail>::Result {
         let mut drained_topic_list = Vec::new();
         let user_defined_topic_name_list: Vec<String> = self
-            .topic_actor_list
+            .topic_list
             .keys()
             .filter(|&k| !BUILT_IN_TOPIC_NAME_LIST.contains(&k.as_ref()))
             .cloned()
             .collect();
         for t in user_defined_topic_name_list {
-            if let Some((removed_topic, _)) = self.topic_actor_list.remove(&t) {
+            if let Some(removed_topic) = self.topic_list.remove(&t) {
                 drained_topic_list.push(removed_topic);
             }
         }
@@ -1915,10 +1889,11 @@ impl MailHandler<AddMatchedTopic> for DomainParticipantActor {
         );
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
-            for (topic, _) in self.topic_actor_list.values() {
-                topic.send_actor_mail(topic_actor::ProcessDiscoveredTopic {
-                    discovered_topic_data: message.discovered_topic_data.clone(),
-                });
+            for topic in self.topic_list.values() {
+                todo!()
+                // topic.send_actor_mail(topic_actor::ProcessDiscoveredTopic {
+                //     discovered_topic_data: message.discovered_topic_data.clone(),
+                // });
             }
             self.discovered_topic_list.insert(
                 handle,

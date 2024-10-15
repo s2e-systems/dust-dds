@@ -162,7 +162,7 @@ impl Topic {
 impl Topic {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType>> {
+    pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
         block_on(self.topic_async.get_type_support())
     }
 }

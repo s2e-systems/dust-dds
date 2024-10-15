@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_actor::{self},
             status_condition_actor::StatusConditionActor,
             topic_actor::{self, TopicActor},
         },
@@ -26,8 +26,6 @@ use std::sync::Arc;
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]
 pub struct TopicAsync {
-    topic_address: ActorAddress<TopicActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
@@ -35,45 +33,15 @@ pub struct TopicAsync {
 
 impl TopicAsync {
     pub(crate) fn new(
-        topic_address: ActorAddress<TopicActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
-            topic_address,
-            status_condition_address,
             type_name,
             topic_name,
             participant,
         }
-    }
-
-    pub(crate) fn topic_address(&self) -> &ActorAddress<TopicActor> {
-        &self.topic_address
-    }
-
-    pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
-        self.participant.participant_address()
-    }
-
-    async fn announce_topic(&self) -> DdsResult<()> {
-        let builtin_publisher = self.get_participant().get_builtin_publisher().await?;
-        if let Some(sedp_topics_announcer) = builtin_publisher
-            .lookup_datawriter::<DiscoveredTopicData>(DCPS_TOPIC)
-            .await?
-        {
-            let discovered_topic_data = self
-                .topic_address
-                .send_actor_mail(topic_actor::AsDiscoveredTopicData)?
-                .receive_reply()
-                .await;
-            sedp_topics_announcer
-                .write(&discovered_topic_data, None)
-                .await?;
-        }
-        Ok(())
     }
 }
 
@@ -122,17 +90,7 @@ impl TopicAsync {
                 topic_qos: qos,
             })?
             .receive_reply()
-            .await?;
-
-        if self
-            .topic_address
-            .send_actor_mail(topic_actor::IsEnabled)?
-            .receive_reply()
             .await
-        {
-            self.announce_topic().await?;
-        }
-        Ok(())
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
@@ -151,7 +109,8 @@ impl TopicAsync {
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
         StatusConditionAsync::new(
-            self.status_condition_address.clone(),
+            // self.status_condition_address.clone(),
+            todo!(),
             self.participant.executor_handle().clone(),
             self.participant.timer_handle().clone(),
         )
@@ -166,30 +125,19 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        if !self
-            .topic_address
-            .send_actor_mail(topic_actor::IsEnabled)?
+        self.participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::EnableTopic {
+                topic_name: self.topic_name.clone(),
+            })?
             .receive_reply()
             .await
-        {
-            self.topic_address
-                .send_actor_mail(topic_actor::Enable)?
-                .receive_reply()
-                .await;
-            self.announce_topic().await?;
-        }
-
-        Ok(())
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
     #[tracing::instrument(skip(self))]
     pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetInstanceHandle)?
-            .receive_reply()
-            .await)
+        todo!();
     }
 
     /// Async version of [`set_listener`](crate::topic_definition::topic::Topic::set_listener).
@@ -206,11 +154,13 @@ impl TopicAsync {
 impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType>> {
-        Ok(self
-            .topic_address
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+    pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
+        self.participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: self.topic_name.clone(),
+            })?
             .receive_reply()
-            .await)
+            .await
     }
 }

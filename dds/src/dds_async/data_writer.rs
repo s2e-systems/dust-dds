@@ -243,11 +243,12 @@ where
         }
 
         let type_support = self
-            .topic
-            .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: self.topic.get_name(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
 
         let serialized_data = instance.serialize_data()?;
         let instance_handle =
@@ -293,11 +294,12 @@ where
         }
 
         let type_support = self
-            .topic
-            .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: self.topic.get_name(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
         let has_key = {
             let mut has_key = false;
             for index in 0..type_support.get_member_count() {
@@ -429,11 +431,12 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let type_support = self
-            .topic
-            .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: self.topic.get_name(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
 
         let serialized_foo = instance.serialize_data()?;
         let instance_handle =
@@ -479,11 +482,12 @@ where
             .receive_reply()
             .await;
         let type_support = self
-            .topic
-            .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: self.topic.get_name(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
 
         let serialized_data = data.serialize_data()?;
         let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
@@ -640,11 +644,12 @@ where
         }?;
 
         let type_support = self
-            .topic
-            .topic_address()
-            .send_actor_mail(topic_actor::GetTypeSupport)?
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+                topic_name: self.topic.get_name(),
+            })?
             .receive_reply()
-            .await;
+            .await?;
 
         let has_key = {
             let mut has_key = false;

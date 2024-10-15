@@ -141,6 +141,26 @@ impl TopicActor {
 
         Ok(())
     }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    pub fn get_type_support(&self) -> &Arc<dyn DynamicType + Send + Sync> {
+        &self.type_support
+    }
+
+    pub fn get_type_name(&self) -> &str {
+        &self.type_name
+    }
+
+    pub fn get_name(&self) -> &str {
+        &self.topic_name
+    }
 }
 
 pub struct GetTypeName;

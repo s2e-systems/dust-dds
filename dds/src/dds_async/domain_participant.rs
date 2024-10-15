@@ -103,19 +103,20 @@ impl DomainParticipantAsync {
         Ok(())
     }
 
-    async fn announce_deleted_topic(&self, topic: Actor<TopicActor>) -> DdsResult<()> {
-        let builtin_publisher = self.get_builtin_publisher().await?;
+    async fn announce_deleted_topic(&self, topic: TopicActor) -> DdsResult<()> {
+        todo!()
+        // let builtin_publisher = self.get_builtin_publisher().await?;
 
-        if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
-        {
-            let data = topic
-                .send_actor_mail(topic_actor::AsDiscoveredTopicData)
-                .receive_reply()
-                .await;
-            sedp_topics_announcer.dispose(&data, None).await?;
-        }
+        // if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
+        // {
+        //     let data = topic
+        //         .send_actor_mail(topic_actor::AsDiscoveredTopicData)
+        //         .receive_reply()
+        //         .await;
+        //     sedp_topics_announcer.dispose(&data, None).await?;
+        // }
 
-        Ok(())
+        // Ok(())
     }
 }
 
@@ -294,19 +295,6 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
-        let (topic_address, topic_status_condition) = self
-            .participant_address
-            .send_actor_mail(domain_participant_actor::CreateUserDefinedTopicActor {
-                topic_name: topic_name.to_string(),
-                type_name: type_name.to_string(),
-                qos: QosKind::Default,
-                a_listener: None,
-                mask: vec![],
-                type_support: dynamic_type_representation.clone(),
-                executor_handle: self.executor_handle.clone(),
-            })?
-            .receive_reply()
-            .await?;
         self.participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedTopic {
                 topic_name: topic_name.to_string(),
@@ -319,13 +307,7 @@ impl DomainParticipantAsync {
             })?
             .receive_reply()
             .await?;
-        let topic = TopicAsync::new(
-            topic_address,
-            topic_status_condition,
-            type_name.to_string(),
-            topic_name.to_string(),
-            self.clone(),
-        );
+        let topic = TopicAsync::new(type_name.to_string(), topic_name.to_string(), self.clone());
         if self
             .participant_address
             .send_actor_mail(domain_participant_actor::IsEnabled)?
@@ -348,75 +330,70 @@ impl DomainParticipantAsync {
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
-        if a_topic.topic_address().is_closed() {
-            Err(DdsError::AlreadyDeleted)
-        } else {
-            let topic_name = a_topic.get_name();
-            if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
-                return Ok(());
-            }
-            let publisher_list = self
-                .participant_address
-                .send_actor_mail(domain_participant_actor::GetPublisherList)?
+        let topic_name = a_topic.get_name();
+        if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
+            return Ok(());
+        }
+        let publisher_list = self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetPublisherList)?
+            .receive_reply()
+            .await;
+        for publisher in publisher_list {
+            let data_writer_list = publisher
+                .send_actor_mail(publisher_actor::GetDataWriterList)?
                 .receive_reply()
                 .await;
-            for publisher in publisher_list {
-                let data_writer_list = publisher
-                    .send_actor_mail(publisher_actor::GetDataWriterList)?
+            for dw in data_writer_list {
+                if dw
+                    .send_actor_mail(data_writer_actor::GetTopicName)?
                     .receive_reply()
-                    .await;
-                for dw in data_writer_list {
-                    if dw
-                        .send_actor_mail(data_writer_actor::GetTopicName)?
-                        .receive_reply()
-                        .await?
-                        == topic_name
-                    {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data writer".to_string(),
-                        ));
-                    }
+                    .await?
+                    == topic_name
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data writer".to_string(),
+                    ));
                 }
             }
+        }
 
-            let subscriber_list = self
-                .participant_address
-                .send_actor_mail(domain_participant_actor::GetSubscriberList)?
+        let subscriber_list = self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetSubscriberList)?
+            .receive_reply()
+            .await;
+        for subscriber in subscriber_list {
+            let data_reader_list = subscriber
+                .send_actor_mail(subscriber_actor::GetDataReaderList)?
                 .receive_reply()
                 .await;
-            for subscriber in subscriber_list {
-                let data_reader_list = subscriber
-                    .send_actor_mail(subscriber_actor::GetDataReaderList)?
+            for dr in data_reader_list {
+                if dr
+                    .send_actor_mail(data_reader_actor::GetTopicName)?
                     .receive_reply()
-                    .await;
-                for dr in data_reader_list {
-                    if dr
-                        .send_actor_mail(data_reader_actor::GetTopicName)?
-                        .receive_reply()
-                        .await?
-                        == topic_name
-                    {
-                        return Err(DdsError::PreconditionNotMet(
-                            "Topic still attached to some data reader".to_string(),
-                        ));
-                    }
+                    .await?
+                    == topic_name
+                {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader".to_string(),
+                    ));
                 }
             }
-            if let Some(deleted_topic) = self
-                .participant_address
-                .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
-                    topic_name: a_topic.get_name(),
-                })?
-                .receive_reply()
-                .await
-            {
-                deleted_topic.stop().await;
-                Ok(())
-            } else {
-                Err(DdsError::PreconditionNotMet(
-                    "Topic can only be deleted from its parent participant".to_string(),
-                ))
-            }
+        }
+        if let Some(deleted_topic) = self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
+                topic_name: a_topic.get_name(),
+            })?
+            .receive_reply()
+            .await
+        {
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ))
         }
     }
 
@@ -434,13 +411,20 @@ impl DomainParticipantAsync {
         let runtime_handle = self.executor_handle.clone();
         let type_support = Arc::new(Foo::get_type());
         let topic_name = topic_name.to_owned();
+        let type_name = self
+            .participant_address
+            .send_actor_mail(domain_participant_actor::GetTopicTypeName {
+                topic_name: topic_name.to_string(),
+            })?
+            .receive_reply()
+            .await?;
         let participant = self.clone();
         self.timer_handle
             .timeout(
                 timeout.into(),
                 Box::pin(async move {
                     loop {
-                        if let Some((topic_address, status_condition_address)) = participant_address
+                        if let Some(_) = participant_address
                             .send_actor_mail(domain_participant_actor::FindTopic {
                                 topic_name: topic_name.clone(),
                                 type_support: type_support.clone(),
@@ -449,13 +433,7 @@ impl DomainParticipantAsync {
                             .receive_reply()
                             .await?
                         {
-                            let type_name = topic_address
-                                .send_actor_mail(topic_actor::GetTypeName)?
-                                .receive_reply()
-                                .await;
                             return Ok(TopicAsync::new(
-                                topic_address,
-                                status_condition_address,
                                 type_name,
                                 topic_name.to_owned(),
                                 participant,
@@ -471,7 +449,7 @@ impl DomainParticipantAsync {
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        if let Some((topic_address, status_condition_address)) = self
+        if let Some(_) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
@@ -479,13 +457,14 @@ impl DomainParticipantAsync {
             .receive_reply()
             .await?
         {
-            let type_name = topic_address
-                .send_actor_mail(topic_actor::GetTypeName)?
+            let type_name = self
+                .participant_address
+                .send_actor_mail(domain_participant_actor::GetTopicTypeName {
+                    topic_name: topic_name.to_string(),
+                })?
                 .receive_reply()
-                .await;
+                .await?;
             Ok(Some(TopicAsync::new(
-                topic_address,
-                status_condition_address,
                 type_name,
                 topic_name.to_owned(),
                 self.clone(),

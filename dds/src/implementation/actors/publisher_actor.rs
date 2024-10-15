@@ -219,7 +219,6 @@ impl PublisherActor {
 }
 
 pub struct CreateDatawriter {
-    pub topic_address: ActorAddress<TopicActor>,
     pub topic_name: String,
     pub type_name: String,
     pub topic_status_condition: ActorAddress<StatusConditionActor>,
@@ -261,10 +260,8 @@ impl MailHandler<CreateDatawriter> for PublisherActor {
             rtps_writer,
             guid,
             Duration::new(0, 200_000_000).into(),
-            message.topic_address,
             message.topic_name,
             message.type_name,
-            message.topic_status_condition,
             message.a_listener,
             message.mask,
             qos,

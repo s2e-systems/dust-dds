@@ -351,10 +351,8 @@ pub struct DataReaderActor {
     rtps_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
-    topic_address: ActorAddress<TopicActor>,
     topic_name: String,
     type_name: String,
-    topic_status_condition: ActorAddress<StatusConditionActor>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus,
@@ -383,10 +381,8 @@ impl DataReaderActor {
     pub fn new(
         guid: Guid,
         rtps_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
-        topic_address: ActorAddress<TopicActor>,
         topic_name: String,
         type_name: String,
-        topic_status_condition: ActorAddress<StatusConditionActor>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         qos: DataReaderQos,
         listener: Option<DataReaderActorListener>,
@@ -404,10 +400,8 @@ impl DataReaderActor {
             guid,
             rtps_reader,
             sample_list: Vec::new(),
-            topic_address,
             topic_name,
             type_name,
-            topic_status_condition,
             type_support,
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: ReaderRequestedDeadlineMissedStatus::default(),
@@ -744,58 +738,58 @@ impl DataReaderActor {
     ) -> DdsResult<()> {
         self.sample_lost_status.increment();
 
-        let topic_status_condition_address = self.topic_status_condition.clone();
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let reader_address = data_reader_address.clone();
-        let status_condition_address = self.status_condition.address();
-        let subscriber = subscriber.clone();
-        let topic = TopicAsync::new(
-            self.topic_address.clone(),
-            topic_status_condition_address.clone(),
-            type_name.clone(),
-            topic_name.clone(),
-            subscriber.get_participant(),
-        );
-        if self
-            .data_reader_status_kind
-            .contains(&StatusKind::SampleLost)
-        {
-            let status = self.sample_lost_status.read_and_reset();
-            if let Some(listener) = &self.data_reader_listener_thread {
-                listener.sender().send(DataReaderListenerMessage {
-                    listener_operation: DataReaderListenerOperation::SampleLost(status),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
-            let status = self.sample_lost_status.read_and_reset();
-            if let Some(listener) = subscriber_listener {
-                listener.send(SubscriberListenerMessage {
-                    listener_operation: SubscriberListenerOperation::SampleLost(status),
-                    reader_address,
-                    status_condition_address,
-                    subscriber,
-                    topic,
-                })?;
-            }
-        } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
-            let status = self.sample_lost_status.read_and_reset();
-            if let Some(listener) = participant_listener {
-                listener.send(ParticipantListenerMessage {
-                    listener_operation: ParticipantListenerOperation::SampleLost(status),
-                    listener_kind: ListenerKind::Reader {
-                        reader_address,
-                        status_condition_address,
-                        subscriber,
-                        topic,
-                    },
-                })?;
-            }
-        }
+        // let topic_status_condition_address = self.topic_status_condition.clone();
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
+        // let reader_address = data_reader_address.clone();
+        // let status_condition_address = self.status_condition.address();
+        // let subscriber = subscriber.clone();
+        // let topic = TopicAsync::new(
+        //     self.topic_address.clone(),
+        //     topic_status_condition_address.clone(),
+        //     type_name.clone(),
+        //     topic_name.clone(),
+        //     subscriber.get_participant(),
+        // );
+        // if self
+        //     .data_reader_status_kind
+        //     .contains(&StatusKind::SampleLost)
+        // {
+        //     let status = self.sample_lost_status.read_and_reset();
+        //     if let Some(listener) = &self.data_reader_listener_thread {
+        //         listener.sender().send(DataReaderListenerMessage {
+        //             listener_operation: DataReaderListenerOperation::SampleLost(status),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if subscriber_listener_mask.contains(&StatusKind::SampleLost) {
+        //     let status = self.sample_lost_status.read_and_reset();
+        //     if let Some(listener) = subscriber_listener {
+        //         listener.send(SubscriberListenerMessage {
+        //             listener_operation: SubscriberListenerOperation::SampleLost(status),
+        //             reader_address,
+        //             status_condition_address,
+        //             subscriber,
+        //             topic,
+        //         })?;
+        //     }
+        // } else if participant_listener_mask.contains(&StatusKind::SampleLost) {
+        //     let status = self.sample_lost_status.read_and_reset();
+        //     if let Some(listener) = participant_listener {
+        //         listener.send(ParticipantListenerMessage {
+        //             listener_operation: ParticipantListenerOperation::SampleLost(status),
+        //             listener_kind: ListenerKind::Reader {
+        //                 reader_address,
+        //                 status_condition_address,
+        //                 subscriber,
+        //                 topic,
+        //             },
+        //         })?;
+        //     }
+        // }
         self.status_condition
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::SampleLost,
@@ -907,10 +901,10 @@ impl DataReaderActor {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
 
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
 
-        let topic_status_condition_address = self.topic_status_condition.clone();
+        // let topic_status_condition_address = self.topic_status_condition.clone();
         // let reader_address = data_reader_address.clone();
         // let status_condition_address = self.status_condition.address();
         // let subscriber = subscriber.clone();
@@ -985,9 +979,9 @@ impl DataReaderActor {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
 
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let topic_status_condition_address = self.topic_status_condition.clone();
+        // let type_name = self.type_name.clone();
+        // let topic_name = self.topic_name.clone();
+        // let topic_status_condition_address = self.topic_status_condition.clone();
         // let reader_address = data_reader_address.clone();
         // let status_condition_address = self.status_condition.address();
         // let subscriber = subscriber.clone();
@@ -1560,11 +1554,11 @@ impl DataReaderActor {
             // let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             // let participant_listener = participant_mask_listener.0.clone();
             // let participant_listener_mask = participant_mask_listener.1.clone();
-            let topic_address = self.topic_address.clone();
+            // let topic_address = self.topic_address.clone();
             let type_name = self.type_name.clone();
             let topic_name = self.topic_name.clone();
             let status_condition_address = self.status_condition.address();
-            let topic_status_condition_address = self.topic_status_condition.clone();
+            // let topic_status_condition_address = self.topic_status_condition.clone();
             let timer_handle = self.timer_handle.clone();
             let deadline_missed_task = self.executor_handle.spawn(async move {
                 loop {
@@ -2193,15 +2187,7 @@ impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
     }
 }
 
-pub struct GetTopicAddress;
-impl Mail for GetTopicAddress {
-    type Result = ActorAddress<TopicActor>;
-}
-impl MailHandler<GetTopicAddress> for DataReaderActor {
-    fn handle(&mut self, _: GetTopicAddress) -> <GetTopicAddress as Mail>::Result {
-        self.topic_address.clone()
-    }
-}
+
 
 pub struct RemoveInstanceOwnership {
     pub instance: InstanceHandle,
