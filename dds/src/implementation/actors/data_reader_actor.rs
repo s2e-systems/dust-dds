@@ -305,21 +305,24 @@ impl DataReaderListenerThread {
         subscriber_async: SubscriberAsync,
     ) -> Self {
         let (sender, receiver) = mpsc_channel::<DataReaderListenerMessage>();
-        let thread = std::thread::spawn(move || {
-            block_on(async {
-                while let Some(m) = receiver.recv().await {
-                    listener
-                        .call_listener_function(
-                            m.listener_operation,
-                            m.reader_address,
-                            m.status_condition_address,
-                            m.subscriber,
-                            m.topic,
-                        )
-                        .await;
-                }
-            });
-        });
+        let thread = std::thread::Builder::new()
+            .name("Data reader listener".to_string())
+            .spawn(move || {
+                block_on(async {
+                    while let Some(m) = receiver.recv().await {
+                        listener
+                            .call_listener_function(
+                                m.listener_operation,
+                                m.reader_address,
+                                m.status_condition_address,
+                                m.subscriber,
+                                m.topic,
+                            )
+                            .await;
+                    }
+                });
+            })
+            .expect("failed to spawn thread");
         Self {
             thread,
             sender,

@@ -208,21 +208,24 @@ struct DataWriterListenerThread {
 impl DataWriterListenerThread {
     fn new(mut listener: Box<dyn AnyDataWriterListener + Send>) -> Self {
         let (sender, receiver) = mpsc_channel::<DataWriterListenerMessage>();
-        let thread = std::thread::spawn(move || {
-            block_on(async {
-                while let Some(m) = receiver.recv().await {
-                    listener
-                        .call_listener_function(
-                            m.listener_operation,
-                            m.writer_address,
-                            m.status_condition_address,
-                            m.publisher,
-                            m.topic,
-                        )
-                        .await;
-                }
-            });
-        });
+        let thread = std::thread::Builder::new()
+            .name("Data writer listener".to_string())
+            .spawn(move || {
+                block_on(async {
+                    while let Some(m) = receiver.recv().await {
+                        listener
+                            .call_listener_function(
+                                m.listener_operation,
+                                m.writer_address,
+                                m.status_condition_address,
+                                m.publisher,
+                                m.topic,
+                            )
+                            .await;
+                    }
+                });
+            })
+            .expect("failed to spawn thread");
         Self { thread, sender }
     }
 
@@ -1415,12 +1418,7 @@ impl MailHandler<IsDataLostAfterAddingChange> for DataWriterActor {
                 .count()
                 == depth as usize
             {
-                if !self
-                    .rtps_writer
-                    .lock()
-                    .unwrap()
-                    .are_all_changes_acknowledged()
-                {
+                if !rtps_writer.are_all_changes_acknowledged() {
                     return true;
                 }
             }

@@ -200,81 +200,93 @@ impl RtpsParticipant {
         let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
         let builtin_stateful_reader_list_clone = builtin_stateful_reader_list.clone();
         let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
-        std::thread::spawn(move || {
-            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-            loop {
-                if let Ok(rtps_message) =
-                    read_message(&mut metatraffic_multicast_socket, buf.as_mut_slice())
-                {
-                    tracing::trace!(
-                        rtps_message = ?rtps_message,
-                        "Received metatraffic multicast RTPS message"
-                    );
-                    MessageReceiver::new(rtps_message).process_message(
-                        builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
-                        builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
-                        builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
-                    );
+        std::thread::Builder::new()
+            .name("RTPS metatraffic multicast discovery".to_string())
+            .spawn(move || {
+                let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
+                loop {
+                    if let Ok(rtps_message) =
+                        read_message(&mut metatraffic_multicast_socket, buf.as_mut_slice())
+                    {
+                        tracing::trace!(
+                            rtps_message = ?rtps_message,
+                            "Received metatraffic multicast RTPS message"
+                        );
+                        MessageReceiver::new(rtps_message).process_message(
+                            builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
+                            builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
+                            builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
+                        );
+                    }
                 }
-            }
-        });
+            })
+            .expect("failed to spawn thread");
 
         let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
         let builtin_stateful_reader_list_clone = builtin_stateful_reader_list.clone();
         let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
-        std::thread::spawn(move || {
-            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-            loop {
-                if let Ok(rtps_message) =
-                    read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
-                {
-                    tracing::trace!(
-                        rtps_message = ?rtps_message,
-                        "Received metatraffic unicast RTPS message"
-                    );
+        std::thread::Builder::new()
+            .name("RTPS metatraffic unicast discovery".to_string())
+            .spawn(move || {
+                let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
+                loop {
+                    if let Ok(rtps_message) =
+                        read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
+                    {
+                        tracing::trace!(
+                            rtps_message = ?rtps_message,
+                            "Received metatraffic unicast RTPS message"
+                        );
 
-                    MessageReceiver::new(rtps_message).process_message(
-                        builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
-                        builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
-                        builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
-                    );
+                        MessageReceiver::new(rtps_message).process_message(
+                            builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
+                            builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
+                            builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
+                        );
+                    }
                 }
-            }
-        });
+            })
+            .expect("failed to spawn thread");
 
         let user_defined_reader_list_clone = user_defined_reader_list.clone();
         let user_defined_writer_list_clone = user_defined_writer_list.clone();
-        std::thread::spawn(move || {
-            let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-            loop {
-                if let Ok(rtps_message) =
-                    read_message(&mut default_unicast_socket, buf.as_mut_slice())
-                {
-                    tracing::trace!(
-                        rtps_message = ?rtps_message,
-                        "Received user defined data unicast RTPS message"
-                    );
-                    MessageReceiver::new(rtps_message).process_message(
-                        &[],
-                        user_defined_reader_list_clone.lock().unwrap().as_ref(),
-                        user_defined_writer_list_clone.lock().unwrap().as_ref(),
-                    );
+        std::thread::Builder::new()
+            .name("RTPS user defined traffic".to_string())
+            .spawn(move || {
+                let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
+                loop {
+                    if let Ok(rtps_message) =
+                        read_message(&mut default_unicast_socket, buf.as_mut_slice())
+                    {
+                        tracing::trace!(
+                            rtps_message = ?rtps_message,
+                            "Received user defined data unicast RTPS message"
+                        );
+                        MessageReceiver::new(rtps_message).process_message(
+                            &[],
+                            user_defined_reader_list_clone.lock().unwrap().as_ref(),
+                            user_defined_writer_list_clone.lock().unwrap().as_ref(),
+                        );
+                    }
                 }
-            }
-        });
+            })
+            .expect("failed to spawn thread");
 
         // Heartbeat thread
         let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
         let user_defined_writer_list_clone = user_defined_writer_list.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(50));
-            for builtin_writer in builtin_stateful_writer_list_clone.lock().unwrap().iter() {
-                builtin_writer.lock().unwrap().send_message();
-            }
-            for user_defined_writer in user_defined_writer_list_clone.lock().unwrap().iter() {
-                user_defined_writer.lock().unwrap().send_message();
-            }
-        });
+        std::thread::Builder::new()
+            .name("RTPS user defined heartbeat".to_string())
+            .spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                for builtin_writer in builtin_stateful_writer_list_clone.lock().unwrap().iter() {
+                    builtin_writer.lock().unwrap().send_message();
+                }
+                for user_defined_writer in user_defined_writer_list_clone.lock().unwrap().iter() {
+                    user_defined_writer.lock().unwrap().send_message();
+                }
+            })
+            .expect("failed to spawn thread");
 
         let sender_socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
         Ok(Self {

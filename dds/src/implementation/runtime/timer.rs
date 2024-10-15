@@ -182,32 +182,35 @@ impl TimerDriver {
     pub fn new() -> Self {
         let (periodic_task_sender, periodic_task_receiver) =
             std::sync::mpsc::channel::<TimerWake>();
-        let timer_thread_join_handle = std::thread::spawn(move || {
-            let mut timer_heap = TimerHeap::new();
-            loop {
-                // Check if there are any elapsed tasks and wake them
-                while timer_heap.is_next_timer_elapsed() {
-                    timer_heap.notify_next_timer();
-                }
+        let timer_thread_join_handle = std::thread::Builder::new()
+            .name("Dust DDS Timer".to_string())
+            .spawn(move || {
+                let mut timer_heap = TimerHeap::new();
+                loop {
+                    // Check if there are any elapsed tasks and wake them
+                    while timer_heap.is_next_timer_elapsed() {
+                        timer_heap.notify_next_timer();
+                    }
 
-                // Wait for a new timer wake to come. Sleep forever
-                // if there are no timer tasks on the queue otherwise
-                // sleep until the next deadline so that the tasks can be
-                // notified at the correct time
-                let new_timer = match timer_heap.duration_until_next_timer() {
-                    Some(d) => periodic_task_receiver.recv_timeout(d),
-                    None => periodic_task_receiver
-                        .recv()
-                        .map_err(|_| RecvTimeoutError::Disconnected),
-                };
+                    // Wait for a new timer wake to come. Sleep forever
+                    // if there are no timer tasks on the queue otherwise
+                    // sleep until the next deadline so that the tasks can be
+                    // notified at the correct time
+                    let new_timer = match timer_heap.duration_until_next_timer() {
+                        Some(d) => periodic_task_receiver.recv_timeout(d),
+                        None => periodic_task_receiver
+                            .recv()
+                            .map_err(|_| RecvTimeoutError::Disconnected),
+                    };
 
-                match new_timer {
-                    Ok(t) => timer_heap.push(t),
-                    Err(RecvTimeoutError::Timeout) => (),
-                    Err(RecvTimeoutError::Disconnected) => break,
+                    match new_timer {
+                        Ok(t) => timer_heap.push(t),
+                        Err(RecvTimeoutError::Timeout) => (),
+                        Err(RecvTimeoutError::Disconnected) => break,
+                    }
                 }
-            }
-        });
+            })
+            .expect("failed to spawn thread");
         let inner = Arc::new(Mutex::new(HandleInner {
             sleep_task_id: 0,
             periodic_task_sender,

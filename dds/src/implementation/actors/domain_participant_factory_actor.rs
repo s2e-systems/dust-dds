@@ -354,7 +354,7 @@ impl DomainParticipantFactoryActor {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let sedp_builtin_subscriptions_transport_reader =
             transport.lock().unwrap().create_builtin_stateful_reader(
-                sedp_builtin_topics_reader_guid,
+                sedp_builtin_subscriptions_reader_guid,
                 Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
                     subscriber_address: builtin_subscriber_address.clone(),
                     reader_instance_handle: InstanceHandle::new(

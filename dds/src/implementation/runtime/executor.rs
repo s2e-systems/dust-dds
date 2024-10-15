@@ -103,24 +103,27 @@ pub struct Executor {
 impl Executor {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();
-        let executor_thread_handle = std::thread::spawn(move || loop {
-            match task_receiver.try_recv() {
-                Ok(task) => {
-                    if !task.is_aborted() {
-                        let waker = Waker::from(task.clone());
-                        let mut cx = Context::from_waker(&waker);
-                        let _ = task
-                            .future
-                            .try_lock()
-                            .expect("Only ever locked here")
-                            .as_mut()
-                            .poll(&mut cx);
+        let executor_thread_handle = std::thread::Builder::new()
+            .name("Dust DDS Executor".to_string())
+            .spawn(move || loop {
+                match task_receiver.try_recv() {
+                    Ok(task) => {
+                        if !task.is_aborted() {
+                            let waker = Waker::from(task.clone());
+                            let mut cx = Context::from_waker(&waker);
+                            let _ = task
+                                .future
+                                .try_lock()
+                                .expect("Only ever locked here")
+                                .as_mut()
+                                .poll(&mut cx);
+                        }
                     }
+                    Err(TryRecvError::Empty) => thread::park(),
+                    Err(TryRecvError::Disconnected) => break,
                 }
-                Err(TryRecvError::Empty) => thread::park(),
-                Err(TryRecvError::Disconnected) => break,
-            }
-        });
+            })
+            .expect("failed to spawn thread");
 
         Self {
             task_sender,
