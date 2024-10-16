@@ -129,7 +129,7 @@ impl DomainParticipantAsync {
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
-        let (publisher_address, status_condition) = self
+        let (publisher_address, status_condition, guid) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedPublisher {
                 qos,
@@ -139,7 +139,8 @@ impl DomainParticipantAsync {
             })?
             .receive_reply()
             .await;
-        let publisher = PublisherAsync::new(publisher_address, status_condition, self.clone());
+        let publisher =
+            PublisherAsync::new(guid, publisher_address, status_condition, self.clone());
         if self
             .participant_address
             .send_actor_mail(domain_participant_actor::IsEnabled)?
@@ -533,6 +534,10 @@ impl DomainParticipantAsync {
             .await
         {
             PublisherAsync::new(
+                deleted_publisher
+                    .send_actor_mail(publisher_actor::GetGuid)
+                    .receive_reply()
+                    .await,
                 deleted_publisher.address(),
                 deleted_publisher
                     .send_actor_mail(publisher_actor::GetStatuscondition)
@@ -848,11 +853,16 @@ impl DomainParticipantAsync {
             .send_actor_mail(domain_participant_actor::GetBuiltinPublisher)?
             .receive_reply()
             .await;
+        let guid = publisher_address
+            .send_actor_mail(publisher_actor::GetGuid)?
+            .receive_reply()
+            .await;
         let publisher_status_condition = publisher_address
             .send_actor_mail(publisher_actor::GetStatuscondition)?
             .receive_reply()
             .await;
         Ok(PublisherAsync::new(
+            guid,
             publisher_address,
             publisher_status_condition,
             self.clone(),

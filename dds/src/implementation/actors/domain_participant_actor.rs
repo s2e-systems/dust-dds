@@ -4,7 +4,7 @@ use super::{
     message_sender_actor::MessageSenderActor,
     publisher_actor::{self, PublisherActor},
     status_condition_actor::StatusConditionActor,
-    subscriber_actor, topic_actor,
+    subscriber_actor,
 };
 use crate::{
     builtin_topics::{
@@ -595,6 +595,7 @@ impl Mail for CreateUserDefinedPublisher {
     type Result = (
         ActorAddress<PublisherActor>,
         ActorAddress<StatusConditionActor>,
+        Guid,
     );
 }
 impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
@@ -629,7 +630,7 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher_actor);
 
-        (publisher_address, publisher_status_condition)
+        (publisher_address, publisher_status_condition, guid)
     }
 }
 

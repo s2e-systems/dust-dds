@@ -23,11 +23,13 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
+    rtps::types::Guid,
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 #[derive(Clone)]
 pub struct PublisherAsync {
+    guid: Guid,
     publisher_address: ActorAddress<PublisherActor>,
     status_condition_address: ActorAddress<StatusConditionActor>,
     participant: DomainParticipantAsync,
@@ -35,11 +37,13 @@ pub struct PublisherAsync {
 
 impl PublisherAsync {
     pub(crate) fn new(
+        guid: Guid,
         publisher_address: ActorAddress<PublisherActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
+            guid,
             publisher_address,
             status_condition_address,
             participant,
