@@ -1,9 +1,6 @@
-use crate::{
-    implementation::runtime::timer::TimerHandle,
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        time::Duration,
-    },
+use crate::infrastructure::{
+    error::{DdsError, DdsResult},
+    time::Duration,
 };
 
 use super::condition::StatusConditionAsync;
@@ -13,14 +10,6 @@ use super::condition::StatusConditionAsync;
 pub enum ConditionAsync {
     /// Status condition variant
     StatusCondition(StatusConditionAsync),
-}
-
-impl ConditionAsync {
-    pub(crate) fn timer_handle(&self) -> &TimerHandle {
-        match self {
-            ConditionAsync::StatusCondition(s) => s.timer_handle(),
-        }
-    }
 }
 
 impl ConditionAsync {
@@ -49,33 +38,34 @@ impl WaitSetAsync {
     /// Async version of [`wait`](crate::infrastructure::wait_set::WaitSet::wait).
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
-        if self.conditions.is_empty() {
-            return Err(DdsError::PreconditionNotMet(
-                "WaitSet has no attached conditions".to_string(),
-            ));
-        };
+        todo!()
+        // if self.conditions.is_empty() {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "WaitSet has no attached conditions".to_string(),
+        //     ));
+        // };
 
-        let timer_handle = self.conditions[0].timer_handle().clone();
-        let start = std::time::Instant::now();
-        while std::time::Instant::now().duration_since(start) < timeout.into() {
-            let mut finished = false;
-            let mut trigger_conditions = Vec::new();
-            for condition in &self.conditions {
-                if condition.get_trigger_value().await? {
-                    trigger_conditions.push(condition.clone());
-                    finished = true;
-                }
-            }
+        // let timer_handle = self.conditions[0].timer_handle().clone();
+        // let start = std::time::Instant::now();
+        // while std::time::Instant::now().duration_since(start) < timeout.into() {
+        //     let mut finished = false;
+        //     let mut trigger_conditions = Vec::new();
+        //     for condition in &self.conditions {
+        //         if condition.get_trigger_value().await? {
+        //             trigger_conditions.push(condition.clone());
+        //             finished = true;
+        //         }
+        //     }
 
-            if finished {
-                return Ok(trigger_conditions);
-            }
-            timer_handle
-                .sleep(std::time::Duration::from_millis(20))
-                .await;
-        }
+        //     if finished {
+        //         return Ok(trigger_conditions);
+        //     }
+        //     timer_handle
+        //         .sleep(std::time::Duration::from_millis(20))
+        //         .await;
+        // }
 
-        Err(DdsError::Timeout)
+        // Err(DdsError::Timeout)
     }
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).

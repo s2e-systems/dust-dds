@@ -74,53 +74,54 @@ struct SubscriberListenerThread {
 
 impl SubscriberListenerThread {
     fn new(mut listener: Box<dyn SubscriberListenerAsync + Send>) -> Self {
-        let (sender, receiver) = mpsc_channel::<SubscriberListenerMessage>();
-        let thread = std::thread::Builder::new()
-            .name("Subscriber listener".to_string())
-            .spawn(move || {
-                block_on(async {
-                    while let Some(m) = receiver.recv().await {
-                        let data_reader = DataReaderAsync::new(
-                            m.reader_address,
-                            m.status_condition_address,
-                            m.subscriber,
-                            m.topic,
-                        );
-                        match m.listener_operation {
-                            SubscriberListenerOperation::DataOnReaders(the_subscriber) => {
-                                listener.on_data_on_readers(the_subscriber).await
-                            }
-                            SubscriberListenerOperation::_DataAvailable => {
-                                listener.on_data_available(data_reader).await
-                            }
-                            SubscriberListenerOperation::SampleRejected(status) => {
-                                listener.on_sample_rejected(data_reader, status).await
-                            }
-                            SubscriberListenerOperation::_LivenessChanged(status) => {
-                                listener.on_liveliness_changed(data_reader, status).await
-                            }
-                            SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
-                                listener
-                                    .on_requested_deadline_missed(data_reader, status)
-                                    .await
-                            }
-                            SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
-                                listener
-                                    .on_requested_incompatible_qos(data_reader, status)
-                                    .await
-                            }
-                            SubscriberListenerOperation::SubscriptionMatched(status) => {
-                                listener.on_subscription_matched(data_reader, status).await
-                            }
-                            SubscriberListenerOperation::SampleLost(status) => {
-                                listener.on_sample_lost(data_reader, status).await
-                            }
-                        }
-                    }
-                });
-            })
-            .expect("failed to spawn thread");
-        Self { thread, sender }
+        // let (sender, receiver) = mpsc_channel::<SubscriberListenerMessage>();
+        // let thread = std::thread::Builder::new()
+        //     .name("Subscriber listener".to_string())
+        //     .spawn(move || {
+        //         block_on(async {
+        //             while let Some(m) = receiver.recv().await {
+        //                 let data_reader = DataReaderAsync::new(
+        //                     m.reader_address,
+        //                     m.status_condition_address,
+        //                     m.subscriber,
+        //                     m.topic,
+        //                 );
+        //                 match m.listener_operation {
+        //                     SubscriberListenerOperation::DataOnReaders(the_subscriber) => {
+        //                         listener.on_data_on_readers(the_subscriber).await
+        //                     }
+        //                     SubscriberListenerOperation::_DataAvailable => {
+        //                         listener.on_data_available(data_reader).await
+        //                     }
+        //                     SubscriberListenerOperation::SampleRejected(status) => {
+        //                         listener.on_sample_rejected(data_reader, status).await
+        //                     }
+        //                     SubscriberListenerOperation::_LivenessChanged(status) => {
+        //                         listener.on_liveliness_changed(data_reader, status).await
+        //                     }
+        //                     SubscriberListenerOperation::RequestedDeadlineMissed(status) => {
+        //                         listener
+        //                             .on_requested_deadline_missed(data_reader, status)
+        //                             .await
+        //                     }
+        //                     SubscriberListenerOperation::RequestedIncompatibleQos(status) => {
+        //                         listener
+        //                             .on_requested_incompatible_qos(data_reader, status)
+        //                             .await
+        //                     }
+        //                     SubscriberListenerOperation::SubscriptionMatched(status) => {
+        //                         listener.on_subscription_matched(data_reader, status).await
+        //                     }
+        //                     SubscriberListenerOperation::SampleLost(status) => {
+        //                         listener.on_sample_lost(data_reader, status).await
+        //                     }
+        //                 }
+        //             }
+        //         });
+        //     })
+        //     .expect("failed to spawn thread");
+        // Self { thread, sender }
+        todo!()
     }
 
     fn sender(&self) -> &MpscSender<SubscriberListenerMessage> {

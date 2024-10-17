@@ -74,15 +74,8 @@ impl DomainParticipantFactoryAsync {
             .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
             .receive_reply()
             .await;
-        let domain_participant = DomainParticipantAsync::new(
-            participant_address.clone(),
-            status_condition,
-            builtin_subscriber,
-            builtin_subscriber_status_condition_address,
-            domain_id,
-            executor_handle,
-            timer_handle,
-        );
+        let domain_participant =
+            DomainParticipantAsync::new(participant_address.clone(), domain_id);
 
         if self
             .get_qos()
@@ -98,37 +91,38 @@ impl DomainParticipantFactoryAsync {
 
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
-        let is_participant_empty = participant
-            .participant_address()
-            .send_actor_mail(domain_participant_actor::IsEmpty)?
-            .receive_reply()
-            .await;
-        if is_participant_empty {
-            let handle = participant.get_instance_handle().await?;
+        todo!()
+        // let is_participant_empty = participant
+        //     .participant_address()
+        //     .send_actor_mail(domain_participant_actor::IsEmpty)?
+        //     .receive_reply()
+        //     .await;
+        // if is_participant_empty {
+        //     let handle = participant.get_instance_handle().await?;
 
-            let deleted_participant = self
-                .domain_participant_factory_actor
-                .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
-                .receive_reply()
-                .await?;
-            let builtin_publisher = participant.get_builtin_publisher().await?;
-            if let Some(spdp_participant_writer) = builtin_publisher
-                .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-                .await?
-            {
-                let data = deleted_participant
-                    .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
-                    .receive_reply()
-                    .await;
-                spdp_participant_writer.dispose(&data, None).await?;
-            }
-            deleted_participant.stop().await;
-            Ok(())
-        } else {
-            Err(DdsError::PreconditionNotMet(
-                "Domain participant still contains other entities".to_string(),
-            ))
-        }
+        //     let deleted_participant = self
+        //         .domain_participant_factory_actor
+        //         .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
+        //         .receive_reply()
+        //         .await?;
+        //     let builtin_publisher = participant.get_builtin_publisher().await?;
+        //     if let Some(spdp_participant_writer) = builtin_publisher
+        //         .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+        //         .await?
+        //     {
+        //         let data = deleted_participant
+        //             .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
+        //             .receive_reply()
+        //             .await;
+        //         spdp_participant_writer.dispose(&data, None).await?;
+        //     }
+        //     deleted_participant.stop().await;
+        //     Ok(())
+        // } else {
+        //     Err(DdsError::PreconditionNotMet(
+        //         "Domain participant still contains other entities".to_string(),
+        //     ))
+        // }
     }
 
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
@@ -185,15 +179,7 @@ impl DomainParticipantFactoryAsync {
                     .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
                     .receive_reply()
                     .await;
-                return Ok(Some(DomainParticipantAsync::new(
-                    dp,
-                    status_condition,
-                    builtin_subscriber,
-                    builtin_subscriber_status_condition_address,
-                    domain_id,
-                    executor_handle,
-                    timer_handle,
-                )));
+                return Ok(Some(DomainParticipantAsync::new(dp, domain_id)));
             }
         }
 

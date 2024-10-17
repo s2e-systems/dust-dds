@@ -562,43 +562,36 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         });
 
         //****** Spawn the participant actor and tasks **********//
-        let participant = DomainParticipantAsync::new(
-            participant_actor.address(),
-            status_condition.clone(),
-            builtin_subscriber_address,
-            builtin_subscriber_status_condition_address,
-            message.domain_id,
-            executor_handle.clone(),
-            timer_handle.clone(),
-        );
+        let participant =
+            DomainParticipantAsync::new(participant_actor.address(), message.domain_id);
 
-        // Start the regular participant announcement task
-        let participant_clone = participant.clone();
-        let participant_announcement_interval =
-            self.configuration.participant_announcement_interval();
+        // // Start the regular participant announcement task
+        // let participant_clone = participant.clone();
+        // let participant_announcement_interval =
+        //     self.configuration.participant_announcement_interval();
 
-        executor_handle.spawn(async move {
-            loop {
-                let r = participant_clone.announce_participant().await;
-                if r.is_err() {
-                    break;
-                }
+        // executor_handle.spawn(async move {
+        //     loop {
+        //         let r = participant_clone.announce_participant().await;
+        //         if r.is_err() {
+        //             break;
+        //         }
 
-                timer_handle.sleep(participant_announcement_interval).await;
-            }
-        });
+        //         timer_handle.sleep(participant_announcement_interval).await;
+        //     }
+        // });
 
-        let participant_clone = participant.clone();
-        executor_handle.spawn(async move {
-            loop {
-                let r = participant_clone.announce_participant().await;
-                if r.is_err() {
-                    break;
-                }
+        // let participant_clone = participant.clone();
+        // executor_handle.spawn(async move {
+        //     loop {
+        //         let r = participant_clone.announce_participant().await;
+        //         if r.is_err() {
+        //             break;
+        //         }
 
-                on_participant_discovery_receiver.recv().await;
-            }
-        });
+        //         on_participant_discovery_receiver.recv().await;
+        //     }
+        // });
 
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(

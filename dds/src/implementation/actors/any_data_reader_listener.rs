@@ -47,30 +47,31 @@ where
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let reader =
-                DataReaderAsync::new(reader_address, status_condition_address, subscriber, topic);
-            match listener_operation {
-                DataReaderListenerOperation::DataAvailable => self.on_data_available(reader).await,
-                DataReaderListenerOperation::SampleRejected(status) => {
-                    self.on_sample_rejected(reader, status).await
-                }
-                DataReaderListenerOperation::_LivelinessChanged(status) => {
-                    self.on_liveliness_changed(reader, status).await
-                }
-                DataReaderListenerOperation::RequestedDeadlineMissed(status) => {
-                    self.on_requested_deadline_missed(reader, status).await
-                }
-                DataReaderListenerOperation::RequestedIncompatibleQos(status) => {
-                    self.on_requested_incompatible_qos(reader, status).await
-                }
-                DataReaderListenerOperation::SubscriptionMatched(status) => {
-                    self.on_subscription_matched(reader, status).await
-                }
-                DataReaderListenerOperation::SampleLost(status) => {
-                    self.on_sample_lost(reader, status).await
-                }
-            }
-        })
+        todo!()
+        // Box::pin(async {
+        //     let reader =
+        //         DataReaderAsync::new(reader_address, status_condition_address, subscriber, topic);
+        //     match listener_operation {
+        //         DataReaderListenerOperation::DataAvailable => self.on_data_available(reader).await,
+        //         DataReaderListenerOperation::SampleRejected(status) => {
+        //             self.on_sample_rejected(reader, status).await
+        //         }
+        //         DataReaderListenerOperation::_LivelinessChanged(status) => {
+        //             self.on_liveliness_changed(reader, status).await
+        //         }
+        //         DataReaderListenerOperation::RequestedDeadlineMissed(status) => {
+        //             self.on_requested_deadline_missed(reader, status).await
+        //         }
+        //         DataReaderListenerOperation::RequestedIncompatibleQos(status) => {
+        //             self.on_requested_incompatible_qos(reader, status).await
+        //         }
+        //         DataReaderListenerOperation::SubscriptionMatched(status) => {
+        //             self.on_subscription_matched(reader, status).await
+        //         }
+        //         DataReaderListenerOperation::SampleLost(status) => {
+        //             self.on_sample_lost(reader, status).await
+        //         }
+        //     }
+        // })
     }
 }

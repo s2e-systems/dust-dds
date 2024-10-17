@@ -42,20 +42,21 @@ where
         publisher: PublisherAsync,
         topic: TopicAsync,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async {
-            let the_writer =
-                DataWriterAsync::new(writer_address, status_condition_address, publisher, topic);
-            match listener_operation {
-                DataWriterListenerOperation::OfferedDeadlineMissed(status) => {
-                    self.on_offered_deadline_missed(the_writer, status).await
-                }
-                DataWriterListenerOperation::OfferedIncompatibleQos(status) => {
-                    self.on_offered_incompatible_qos(the_writer, status).await
-                }
-                DataWriterListenerOperation::PublicationMatched(status) => {
-                    self.on_publication_matched(the_writer, status).await
-                }
-            }
-        })
+        todo!()
+        // Box::pin(async {
+        //     let the_writer =
+        //         DataWriterAsync::new(writer_address, status_condition_address, publisher, topic);
+        //     match listener_operation {
+        //         DataWriterListenerOperation::OfferedDeadlineMissed(status) => {
+        //             self.on_offered_deadline_missed(the_writer, status).await
+        //         }
+        //         DataWriterListenerOperation::OfferedIncompatibleQos(status) => {
+        //             self.on_offered_incompatible_qos(the_writer, status).await
+        //         }
+        //         DataWriterListenerOperation::PublicationMatched(status) => {
+        //             self.on_publication_matched(the_writer, status).await
+        //         }
+        //     }
+        // })
     }
 }
