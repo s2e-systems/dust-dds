@@ -1,4 +1,6 @@
 use super::{
+    any_data_reader_listener::AnyDataReaderListener,
+    any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     message_sender_actor::MessageSenderActor,
@@ -41,7 +43,10 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
+            SubscriberQos, TopicQos,
+        },
         qos_policy::{
             HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy,
@@ -66,8 +71,7 @@ use crate::{
         participant::RtpsParticipant,
         types::{
             EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
-            ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-            USER_DEFINED_WRITER_GROUP,
+            ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
         },
     },
     xtypes::dynamic_type::DynamicType,
@@ -127,236 +131,237 @@ struct ParticipantListenerThread {
 
 impl ParticipantListenerThread {
     fn new(mut listener: Box<dyn DomainParticipantListenerAsync + Send>) -> Self {
-        let (sender, receiver) = mpsc_channel::<ParticipantListenerMessage>();
-        let thread = std::thread::Builder::new()
-            .name("Domain participant listener".to_string())
-            .spawn(move || {
-                block_on(async {
-                    while let Some(m) = receiver.recv().await {
-                        match m.listener_operation {
-                            ParticipantListenerOperation::_DataAvailable => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener.on_data_available(data_reader).await
-                            }
-                            ParticipantListenerOperation::SampleRejected(status) => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener.on_sample_rejected(data_reader, status).await
-                            }
-                            ParticipantListenerOperation::_LivenessChanged(status) => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener.on_liveliness_changed(data_reader, status).await
-                            }
-                            ParticipantListenerOperation::RequestedDeadlineMissed(status) => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener
-                                    .on_requested_deadline_missed(data_reader, status)
-                                    .await
-                            }
-                            ParticipantListenerOperation::RequestedIncompatibleQos(status) => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener
-                                    .on_requested_incompatible_qos(data_reader, status)
-                                    .await
-                            }
-                            ParticipantListenerOperation::SubscriptionMatched(status) => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener.on_subscription_matched(data_reader, status).await
-                            }
-                            ParticipantListenerOperation::SampleLost(status) => {
-                                let data_reader = match m.listener_kind {
-                                    ListenerKind::Reader {
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    } => DataReaderAsync::new(
-                                        reader_address,
-                                        status_condition_address,
-                                        subscriber,
-                                        topic,
-                                    ),
-                                    ListenerKind::Writer { .. } => {
-                                        panic!("Expected Reader on this listener")
-                                    }
-                                };
-                                listener.on_sample_lost(data_reader, status).await
-                            }
-                            ParticipantListenerOperation::_LivelinessLost(status) => {
-                                let data_writer = match m.listener_kind {
-                                    ListenerKind::Reader { .. } => {
-                                        panic!("Expected Writer on this listener")
-                                    }
-                                    ListenerKind::Writer {
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    } => DataWriterAsync::new(
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    ),
-                                };
-                                listener.on_liveliness_lost(data_writer, status).await
-                            }
-                            ParticipantListenerOperation::_OfferedDeadlineMissed(status) => {
-                                let data_writer = match m.listener_kind {
-                                    ListenerKind::Reader { .. } => {
-                                        panic!("Expected Writer on this listener")
-                                    }
-                                    ListenerKind::Writer {
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    } => DataWriterAsync::new(
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    ),
-                                };
-                                listener
-                                    .on_offered_deadline_missed(data_writer, status)
-                                    .await
-                            }
-                            ParticipantListenerOperation::OfferedIncompatibleQos(status) => {
-                                let data_writer = match m.listener_kind {
-                                    ListenerKind::Reader { .. } => {
-                                        panic!("Expected Writer on this listener")
-                                    }
-                                    ListenerKind::Writer {
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    } => DataWriterAsync::new(
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    ),
-                                };
-                                listener
-                                    .on_offered_incompatible_qos(data_writer, status)
-                                    .await
-                            }
-                            ParticipantListenerOperation::PublicationMatched(status) => {
-                                let data_writer = match m.listener_kind {
-                                    ListenerKind::Reader { .. } => {
-                                        panic!("Expected Writer on this listener")
-                                    }
-                                    ListenerKind::Writer {
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    } => DataWriterAsync::new(
-                                        writer_address,
-                                        status_condition_address,
-                                        publisher,
-                                        topic,
-                                    ),
-                                };
-                                listener.on_publication_matched(data_writer, status).await
-                            }
-                        }
-                    }
-                });
-            })
-            .expect("failed to spawn thread");
-        Self { thread, sender }
+        // let (sender, receiver) = mpsc_channel::<ParticipantListenerMessage>();
+        // let thread = std::thread::Builder::new()
+        //     .name("Domain participant listener".to_string())
+        //     .spawn(move || {
+        //         block_on(async {
+        //             while let Some(m) = receiver.recv().await {
+        //                 match m.listener_operation {
+        //                     ParticipantListenerOperation::_DataAvailable => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener.on_data_available(data_reader).await
+        //                     }
+        //                     ParticipantListenerOperation::SampleRejected(status) => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener.on_sample_rejected(data_reader, status).await
+        //                     }
+        //                     ParticipantListenerOperation::_LivenessChanged(status) => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener.on_liveliness_changed(data_reader, status).await
+        //                     }
+        //                     ParticipantListenerOperation::RequestedDeadlineMissed(status) => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener
+        //                             .on_requested_deadline_missed(data_reader, status)
+        //                             .await
+        //                     }
+        //                     ParticipantListenerOperation::RequestedIncompatibleQos(status) => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener
+        //                             .on_requested_incompatible_qos(data_reader, status)
+        //                             .await
+        //                     }
+        //                     ParticipantListenerOperation::SubscriptionMatched(status) => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener.on_subscription_matched(data_reader, status).await
+        //                     }
+        //                     ParticipantListenerOperation::SampleLost(status) => {
+        //                         let data_reader = match m.listener_kind {
+        //                             ListenerKind::Reader {
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             } => DataReaderAsync::new(
+        //                                 reader_address,
+        //                                 status_condition_address,
+        //                                 subscriber,
+        //                                 topic,
+        //                             ),
+        //                             ListenerKind::Writer { .. } => {
+        //                                 panic!("Expected Reader on this listener")
+        //                             }
+        //                         };
+        //                         listener.on_sample_lost(data_reader, status).await
+        //                     }
+        //                     ParticipantListenerOperation::_LivelinessLost(status) => {
+        //                         let data_writer = match m.listener_kind {
+        //                             ListenerKind::Reader { .. } => {
+        //                                 panic!("Expected Writer on this listener")
+        //                             }
+        //                             ListenerKind::Writer {
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             } => DataWriterAsync::new(
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             ),
+        //                         };
+        //                         listener.on_liveliness_lost(data_writer, status).await
+        //                     }
+        //                     ParticipantListenerOperation::_OfferedDeadlineMissed(status) => {
+        //                         let data_writer = match m.listener_kind {
+        //                             ListenerKind::Reader { .. } => {
+        //                                 panic!("Expected Writer on this listener")
+        //                             }
+        //                             ListenerKind::Writer {
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             } => DataWriterAsync::new(
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             ),
+        //                         };
+        //                         listener
+        //                             .on_offered_deadline_missed(data_writer, status)
+        //                             .await
+        //                     }
+        //                     ParticipantListenerOperation::OfferedIncompatibleQos(status) => {
+        //                         let data_writer = match m.listener_kind {
+        //                             ListenerKind::Reader { .. } => {
+        //                                 panic!("Expected Writer on this listener")
+        //                             }
+        //                             ListenerKind::Writer {
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             } => DataWriterAsync::new(
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             ),
+        //                         };
+        //                         listener
+        //                             .on_offered_incompatible_qos(data_writer, status)
+        //                             .await
+        //                     }
+        //                     ParticipantListenerOperation::PublicationMatched(status) => {
+        //                         let data_writer = match m.listener_kind {
+        //                             ListenerKind::Reader { .. } => {
+        //                                 panic!("Expected Writer on this listener")
+        //                             }
+        //                             ListenerKind::Writer {
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             } => DataWriterAsync::new(
+        //                                 writer_address,
+        //                                 status_condition_address,
+        //                                 publisher,
+        //                                 topic,
+        //                             ),
+        //                         };
+        //                         listener.on_publication_matched(data_writer, status).await
+        //                     }
+        //                 }
+        //             }
+        //         });
+        //     })
+        //     .expect("failed to spawn thread");
+        // Self { thread, sender }
+        todo!()
     }
 
     fn sender(&self) -> &MpscSender<ParticipantListenerMessage> {
@@ -377,11 +382,11 @@ pub struct DomainParticipantActor {
     domain_tag: String,
     qos: DomainParticipantQos,
     builtin_subscriber: Actor<SubscriberActor>,
-    builtin_publisher: Actor<PublisherActor>,
+    builtin_publisher: PublisherActor,
     user_defined_subscriber_list: HashMap<InstanceHandle, Actor<SubscriberActor>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: HashMap<InstanceHandle, Actor<PublisherActor>>,
+    user_defined_publisher_list: HashMap<InstanceHandle, PublisherActor>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: HashMap<String, TopicActor>,
@@ -441,19 +446,16 @@ impl DomainParticipantActor {
             &executor_handle,
         );
 
-        let builtin_publisher = Actor::spawn(
-            PublisherActor::new(
-                PublisherQos::default(),
-                RtpsGroup::new(Guid::new(
-                    guid_prefix,
-                    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-                )),
-                rtps_participant.clone(),
-                None,
-                vec![],
-                builtin_data_writer_list,
-                &executor_handle,
-            ),
+        let builtin_publisher = PublisherActor::new(
+            PublisherQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+            )),
+            rtps_participant.clone(),
+            None,
+            vec![],
+            builtin_data_writer_list,
             &executor_handle,
         );
 
@@ -585,80 +587,105 @@ impl DomainParticipantActor {
     }
 }
 
+// ############################  Domain participant messages
 pub struct CreateUserDefinedPublisher {
     pub qos: QosKind<PublisherQos>,
     pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedPublisher {
-    type Result = (
-        ActorAddress<PublisherActor>,
-        ActorAddress<StatusConditionActor>,
-        Guid,
-    );
+    type Result = DdsResult<Guid>;
 }
 impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: CreateUserDefinedPublisher,
     ) -> <CreateUserDefinedPublisher as Mail>::Result {
-        let publisher_qos = match message.qos {
-            QosKind::Default => self.default_publisher_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        let publisher_counter = self.user_defined_publisher_counter;
-        self.user_defined_publisher_counter += 1;
-        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let status_kind = message.mask.to_vec();
-        let publisher = PublisherActor::new(
-            publisher_qos,
-            rtps_group,
-            self.rtps_participant.clone(),
-            message.a_listener,
-            status_kind,
-            vec![],
-            &message.executor_handle,
-        );
+        todo!()
+        // let publisher_qos = match message.qos {
+        //     QosKind::Default => self.default_publisher_qos.clone(),
+        //     QosKind::Specific(q) => q,
+        // };
+        // let publisher_counter = self.user_defined_publisher_counter;
+        // self.user_defined_publisher_counter += 1;
+        // let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
+        // let guid = Guid::new(self.guid.prefix(), entity_id);
+        // let rtps_group = RtpsGroup::new(guid);
+        // let status_kind = message.mask.to_vec();
+        // let publisher = PublisherActor::new(
+        //     publisher_qos,
+        //     rtps_group,
+        //     self.rtps_participant.clone(),
+        //     message.a_listener,
+        //     status_kind,
+        //     vec![],
+        //     &message.executor_handle,
+        // );
 
-        let publisher_status_condition = publisher.get_statuscondition();
-        let publisher_actor = Actor::spawn(publisher, &message.executor_handle);
-        let publisher_address = publisher_actor.address();
+        // let publisher_status_condition = publisher.get_statuscondition();
 
-        self.user_defined_publisher_list
-            .insert(InstanceHandle::new(guid.into()), publisher_actor);
+        // self.user_defined_publisher_list
+        //     .insert(InstanceHandle::new(guid.into()), publisher);
 
-        (publisher_address, publisher_status_condition, guid)
+        // if self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        //     && self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::GetQos)?
+        //         .receive_reply()
+        //         .await
+        //         .entity_factory
+        //         .autoenable_created_entities
+        // {
+        //     publisher.enable().await?;
+        // }
+
+        // Ok(guid)
     }
 }
 
 pub struct DeleteUserDefinedPublisher {
-    pub handle: InstanceHandle,
+    pub guid: Guid,
 }
 impl Mail for DeleteUserDefinedPublisher {
-    type Result = Option<Actor<PublisherActor>>;
+    type Result = DdsResult<()>;
 }
 impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: DeleteUserDefinedPublisher,
     ) -> <DeleteUserDefinedPublisher as Mail>::Result {
-        self.user_defined_publisher_list.remove(&message.handle)
-    }
-}
-
-pub struct GetPublisherList;
-impl Mail for GetPublisherList {
-    type Result = Vec<ActorAddress<PublisherActor>>;
-}
-impl MailHandler<GetPublisherList> for DomainParticipantActor {
-    fn handle(&mut self, _: GetPublisherList) -> <GetPublisherList as Mail>::Result {
-        self.user_defined_publisher_list
-            .values()
-            .map(|p| p.address())
-            .collect()
+        // self.user_defined_publisher_list.remove(&message.handle)
+        //     if a_publisher
+        //     .publisher_address()
+        //     .send_actor_mail(publisher_actor::IsEmpty)?
+        //     .receive_reply()
+        //     .await
+        // {
+        //     if let Some(deleted_publisher) = self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
+        //             handle: a_publisher.get_instance_handle().await?,
+        //         })?
+        //         .receive_reply()
+        //         .await
+        //     {
+        //         deleted_publisher.stop().await;
+        //         Ok(())
+        //     } else {
+        //         Err(DdsError::PreconditionNotMet(
+        //             "Publisher can only be deleted from its parent participant".to_string(),
+        //         ))
+        //     }
+        // } else {
+        //     Err(DdsError::PreconditionNotMet(
+        //         "Publisher still contains data writers".to_string(),
+        //     ))
+        // }
+        todo!()
     }
 }
 
@@ -666,78 +693,124 @@ pub struct CreateUserDefinedSubscriber {
     pub qos: QosKind<SubscriberQos>,
     pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedSubscriber {
-    type Result = (
-        ActorAddress<SubscriberActor>,
-        ActorAddress<StatusConditionActor>,
-    );
+    type Result = DdsResult<Guid>;
 }
 impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: CreateUserDefinedSubscriber,
     ) -> <CreateUserDefinedSubscriber as Mail>::Result {
-        let subscriber_qos = match message.qos {
-            QosKind::Default => self.default_subscriber_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
-        let subcriber_counter = self.user_defined_subscriber_counter;
-        self.user_defined_subscriber_counter += 1;
-        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-        let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
-        let subscriber_status_kind = message.mask.to_vec();
-        let domain_participant_status_kind = self.status_kind.clone();
+        todo!()
 
-        let subscriber = SubscriberActor::new(
-            subscriber_qos,
-            rtps_group,
-            self.rtps_participant.clone(),
-            message.a_listener,
-            subscriber_status_kind,
-            domain_participant_status_kind,
-            vec![],
-            &message.executor_handle,
-        );
-        let subscriber_status_condition = subscriber.get_status_condition_address();
+        //     let (subscriber_address, subscriber_status_condition) = self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::CreateUserDefinedSubscriber {
+        //         qos,
+        //         a_listener,
+        //         mask: mask.to_vec(),
+        //         executor_handle: self.executor_handle.clone(),
+        //     })?
+        //     .receive_reply()
+        //     .await;
 
-        let subscriber_actor = Actor::spawn(subscriber, &message.executor_handle);
-        let subscriber_address = subscriber_actor.address();
+        // let subscriber = SubscriberAsync::new(
+        //     subscriber_address,
+        //     subscriber_status_condition,
+        //     self.clone(),
+        // );
 
-        self.user_defined_subscriber_list
-            .insert(InstanceHandle::new(guid.into()), subscriber_actor);
+        // if self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        //     && self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::GetQos)?
+        //         .receive_reply()
+        //         .await
+        //         .entity_factory
+        //         .autoenable_created_entities
+        // {
+        //     subscriber.enable().await?;
+        // }
 
-        (subscriber_address, subscriber_status_condition)
+        // Ok(subscriber)
+        // let subscriber_qos = match message.qos {
+        //     QosKind::Default => self.default_subscriber_qos.clone(),
+        //     QosKind::Specific(q) => q,
+        // };
+        // let subcriber_counter = self.user_defined_subscriber_counter;
+        // self.user_defined_subscriber_counter += 1;
+        // let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
+        // let guid = Guid::new(self.guid.prefix(), entity_id);
+        // let rtps_group = RtpsGroup::new(guid);
+        // let subscriber_status_kind = message.mask.to_vec();
+        // let domain_participant_status_kind = self.status_kind.clone();
+
+        // let subscriber = SubscriberActor::new(
+        //     subscriber_qos,
+        //     rtps_group,
+        //     self.rtps_participant.clone(),
+        //     message.a_listener,
+        //     subscriber_status_kind,
+        //     domain_participant_status_kind,
+        //     vec![],
+        //     &message.executor_handle,
+        // );
+        // let subscriber_status_condition = subscriber.get_status_condition_address();
+
+        // let subscriber_actor = Actor::spawn(subscriber, &message.executor_handle);
+        // let subscriber_address = subscriber_actor.address();
+
+        // self.user_defined_subscriber_list
+        //     .insert(InstanceHandle::new(guid.into()), subscriber_actor);
+
+        // (subscriber_address, subscriber_status_condition)
     }
 }
 
 pub struct DeleteUserDefinedSubscriber {
-    pub handle: InstanceHandle,
+    pub guid: Guid,
 }
 impl Mail for DeleteUserDefinedSubscriber {
-    type Result = Option<Actor<SubscriberActor>>;
+    type Result = DdsResult<()>;
 }
 impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: DeleteUserDefinedSubscriber,
     ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
-        self.user_defined_subscriber_list.remove(&message.handle)
-    }
-}
-
-pub struct GetSubscriberList;
-impl Mail for GetSubscriberList {
-    type Result = Vec<ActorAddress<SubscriberActor>>;
-}
-impl MailHandler<GetSubscriberList> for DomainParticipantActor {
-    fn handle(&mut self, _: GetSubscriberList) -> <GetSubscriberList as Mail>::Result {
-        self.user_defined_subscriber_list
-            .values()
-            .map(|p| p.address())
-            .collect()
+        // self.user_defined_subscriber_list.remove(&message.handle)
+        // if a_subscriber
+        //     .subscriber_address()
+        //     .send_actor_mail(subscriber_actor::IsEmpty)?
+        //     .receive_reply()
+        //     .await
+        // {
+        //     if let Some(deleted_subscriber) = self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
+        //             handle: a_subscriber.get_instance_handle().await?,
+        //         })?
+        //         .receive_reply()
+        //         .await
+        //     {
+        //         deleted_subscriber.stop().await;
+        //         Ok(())
+        //     } else {
+        //         Err(DdsError::PreconditionNotMet(
+        //             "Subscriber can only be deleted from its parent participant".to_string(),
+        //         ))
+        //     }
+        // } else {
+        //     Err(DdsError::PreconditionNotMet(
+        //         "Subscriber still contains data readers".to_string(),
+        //     ))
+        // }
+        todo!()
     }
 }
 
@@ -748,7 +821,6 @@ pub struct CreateUserDefinedTopic {
     pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for CreateUserDefinedTopic {
     type Result = DdsResult<()>;
@@ -767,6 +839,25 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             message.type_support,
             message.executor_handle,
         )
+
+        // let topic = TopicAsync::new(type_name.to_string(), topic_name.to_string(), self.clone());
+        // if self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        //     && self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::GetQos)?
+        //         .receive_reply()
+        //         .await
+        //         .entity_factory
+        //         .autoenable_created_entities
+        // {
+        //     topic.enable().await?;
+        // }
+
+        // Ok(topic)
     }
 }
 
@@ -774,53 +865,104 @@ pub struct DeleteUserDefinedTopic {
     pub topic_name: String,
 }
 impl Mail for DeleteUserDefinedTopic {
-    type Result = Option<TopicActor>;
+    type Result = DdsResult<()>;
 }
 impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
-        self.topic_list.remove(&message.topic_name)
-    }
-}
+        // let topic_name = a_topic.get_name();
+        // if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
+        //     return Ok(());
+        // }
+        // let publisher_list = self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::GetPublisherList)?
+        //     .receive_reply()
+        //     .await;
+        // for publisher in publisher_list {
+        //     let data_writer_list = publisher
+        //         .send_actor_mail(publisher_actor::GetDataWriterList)?
+        //         .receive_reply()
+        //         .await;
+        //     for dw in data_writer_list {
+        //         if dw
+        //             .send_actor_mail(data_writer_actor::GetTopicName)?
+        //             .receive_reply()
+        //             .await?
+        //             == topic_name
+        //         {
+        //             return Err(DdsError::PreconditionNotMet(
+        //                 "Topic still attached to some data writer".to_string(),
+        //             ));
+        //         }
+        //     }
+        // }
 
-pub struct GetTopicTypeName {
-    pub topic_name: String,
-}
-impl Mail for GetTopicTypeName {
-    type Result = DdsResult<String>;
-}
-impl MailHandler<GetTopicTypeName> for DomainParticipantActor {
-    fn handle(&mut self, message: GetTopicTypeName) -> <GetTopicTypeName as Mail>::Result {
-        Ok(self
-            .topic_list
-            .get(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_type_name()
-            .to_string())
+        // let subscriber_list = self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::GetSubscriberList)?
+        //     .receive_reply()
+        //     .await;
+        // for subscriber in subscriber_list {
+        //     let data_reader_list = subscriber
+        //         .send_actor_mail(subscriber_actor::GetDataReaderList)?
+        //         .receive_reply()
+        //         .await;
+        //     for dr in data_reader_list {
+        //         if dr
+        //             .send_actor_mail(data_reader_actor::GetTopicName)?
+        //             .receive_reply()
+        //             .await?
+        //             == topic_name
+        //         {
+        //             return Err(DdsError::PreconditionNotMet(
+        //                 "Topic still attached to some data reader".to_string(),
+        //             ));
+        //         }
+        //     }
+        // }
+        // if let Some(deleted_topic) = self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
+        //         topic_name: a_topic.get_name(),
+        //     })?
+        //     .receive_reply()
+        //     .await
+        // {
+        //     Ok(())
+        // } else {
+        //     Err(DdsError::PreconditionNotMet(
+        //         "Topic can only be deleted from its parent participant".to_string(),
+        //     ))
+        // }
+
+        // self.topic_list.remove(&message.topic_name)
+
+        todo!()
     }
 }
 
 pub struct FindTopic {
     pub topic_name: String,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub executor_handle: ExecutorHandle,
 }
 impl Mail for FindTopic {
     type Result = DdsResult<Option<()>>;
 }
 impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
-        if let Some(r) = self.lookup_topicdescription(message.topic_name.clone())? {
-            Ok(Some(()))
-        } else {
-            self.lookup_discovered_topic(
-                message.topic_name.clone(),
-                message.type_support.clone(),
-                message.executor_handle.clone(),
-            )
-        }
+        todo!()
+        // if let Some(r) = self.lookup_topicdescription(message.topic_name.clone())? {
+        //     Ok(Some(()))
+        // } else {
+        //     self.lookup_discovered_topic(
+        //         message.topic_name.clone(),
+        //         message.type_support.clone(),
+        //         message.executor_handle.clone(),
+        //     )
+        // }
     }
 }
 
@@ -828,95 +970,15 @@ pub struct LookupTopicdescription {
     pub topic_name: String,
 }
 impl Mail for LookupTopicdescription {
-    type Result = DdsResult<Option<()>>;
+    type Result = DdsResult<Option<String>>;
 }
 impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: LookupTopicdescription,
     ) -> <LookupTopicdescription as Mail>::Result {
-        self.lookup_topicdescription(message.topic_name)
-    }
-}
-
-pub struct EnableTopic {
-    pub topic_name: String,
-}
-impl Mail for EnableTopic {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<EnableTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableTopic) -> <EnableTopic as Mail>::Result {
-        let topic = self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        if !topic.is_enabled() {
-            topic.enable();
-        }
-
-        Ok(())
-    }
-}
-
-pub struct GetTypeSupport {
-    pub topic_name: String,
-}
-impl Mail for GetTypeSupport {
-    type Result = DdsResult<Arc<dyn DynamicType + Send + Sync>>;
-}
-impl MailHandler<GetTypeSupport> for DomainParticipantActor {
-    fn handle(&mut self, message: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
-        Ok(self
-            .topic_list
-            .get(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_type_support()
-            .clone())
-    }
-}
-
-pub struct SetTopicList {
-    pub topic_list: HashMap<String, TopicActor>,
-}
-impl Mail for SetTopicList {
-    type Result = ();
-}
-impl MailHandler<SetTopicList> for DomainParticipantActor {
-    fn handle(&mut self, message: SetTopicList) -> <SetTopicList as Mail>::Result {
-        self.topic_list = message.topic_list;
-    }
-}
-
-pub struct GetInstanceHandle;
-impl Mail for GetInstanceHandle {
-    type Result = InstanceHandle;
-}
-impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
-    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        InstanceHandle::new(self.guid.into())
-    }
-}
-
-pub struct Enable;
-impl Mail for Enable {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<Enable> for DomainParticipantActor {
-    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
-        self.enabled = true;
-
-        Ok(())
-    }
-}
-
-pub struct IsEnabled;
-impl Mail for IsEnabled {
-    type Result = bool;
-}
-impl MailHandler<IsEnabled> for DomainParticipantActor {
-    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
-        self.enabled
+        todo!()
+        // self.lookup_topicdescription(message.topic_name)
     }
 }
 
@@ -971,6 +1033,1223 @@ impl MailHandler<IgnorePublication> for DomainParticipantActor {
     }
 }
 
+pub struct DeleteParticipantContainedEntities;
+impl Mail for DeleteParticipantContainedEntities {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: DeleteParticipantContainedEntities,
+    ) -> <DeleteParticipantContainedEntities as Mail>::Result {
+        // for deleted_publisher in self
+        //             .participant_address
+        //             .send_actor_mail(domain_participant_actor::DrainPublisherList)?
+        //             .receive_reply()
+        //             .await
+        //         {
+        //             PublisherAsync::new(
+        //                 deleted_publisher
+        //                     .send_actor_mail(publisher_actor::GetGuid)
+        //                     .receive_reply()
+        //                     .await,
+        //                 deleted_publisher.address(),
+        //                 deleted_publisher
+        //                     .send_actor_mail(publisher_actor::GetStatuscondition)
+        //                     .receive_reply()
+        //                     .await,
+        //                 self.clone(),
+        //             )
+        //             .delete_contained_entities()
+        //             .await?;
+        //         }
+
+        //         for deleted_subscriber in self
+        //             .participant_address
+        //             .send_actor_mail(domain_participant_actor::DrainSubscriberList)?
+        //             .receive_reply()
+        //             .await
+        //         {
+        //             SubscriberAsync::new(
+        //                 deleted_subscriber.address(),
+        //                 deleted_subscriber
+        //                     .send_actor_mail(subscriber_actor::GetStatuscondition)
+        //                     .receive_reply()
+        //                     .await,
+        //                 self.clone(),
+        //             )
+        //             .delete_contained_entities()
+        //             .await?;
+        //         }
+
+        //         for deleted_topic in self
+        //             .participant_address
+        //             .send_actor_mail(domain_participant_actor::DrainTopicList)?
+        //             .receive_reply()
+        //             .await
+        //         {
+        //             self.announce_deleted_topic(deleted_topic).await?;
+        //         }
+
+        //         Ok(())
+        todo!()
+    }
+}
+
+pub struct SetDefaultPublisherQos {
+    pub qos: QosKind<PublisherQos>,
+}
+impl Mail for SetDefaultPublisherQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultPublisherQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetDefaultPublisherQos,
+    ) -> <SetDefaultPublisherQos as Mail>::Result {
+        let qos = match message.qos {
+            QosKind::Default => PublisherQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.default_publisher_qos = qos;
+
+        Ok(())
+    }
+}
+
+pub struct GetDefaultPublisherQos;
+impl Mail for GetDefaultPublisherQos {
+    type Result = PublisherQos;
+}
+impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
+    fn handle(&mut self, _: GetDefaultPublisherQos) -> <GetDefaultPublisherQos as Mail>::Result {
+        self.default_publisher_qos.clone()
+    }
+}
+
+pub struct SetDefaultSubscriberQos {
+    pub qos: QosKind<SubscriberQos>,
+}
+impl Mail for SetDefaultSubscriberQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultSubscriberQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetDefaultSubscriberQos,
+    ) -> <SetDefaultSubscriberQos as Mail>::Result {
+        let qos = match message.qos {
+            QosKind::Default => SubscriberQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.default_subscriber_qos = qos;
+
+        Ok(())
+    }
+}
+
+pub struct GetDefaultSubscriberQos;
+impl Mail for GetDefaultSubscriberQos {
+    type Result = SubscriberQos;
+}
+impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
+    fn handle(&mut self, _: GetDefaultSubscriberQos) -> <GetDefaultSubscriberQos as Mail>::Result {
+        self.default_subscriber_qos.clone()
+    }
+}
+
+pub struct SetDefaultTopicQos {
+    pub qos: QosKind<TopicQos>,
+}
+impl Mail for SetDefaultTopicQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetDefaultTopicQos) -> <SetDefaultTopicQos as Mail>::Result {
+        let qos = match message.qos {
+            QosKind::Default => TopicQos::default(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
+        self.default_topic_qos = qos;
+
+        Ok(())
+    }
+}
+
+pub struct GetDefaultTopicQos;
+impl Mail for GetDefaultTopicQos {
+    type Result = TopicQos;
+}
+impl MailHandler<GetDefaultTopicQos> for DomainParticipantActor {
+    fn handle(&mut self, _: GetDefaultTopicQos) -> <GetDefaultTopicQos as Mail>::Result {
+        self.default_topic_qos.clone()
+    }
+}
+
+pub struct GetDiscoveredParticipants;
+impl Mail for GetDiscoveredParticipants {
+    type Result = Vec<InstanceHandle>;
+}
+impl MailHandler<GetDiscoveredParticipants> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _: GetDiscoveredParticipants,
+    ) -> <GetDiscoveredParticipants as Mail>::Result {
+        self.discovered_participant_list.keys().cloned().collect()
+    }
+}
+
+pub struct GetDiscoveredParticipantData {
+    pub participant_handle: InstanceHandle,
+}
+impl Mail for GetDiscoveredParticipantData {
+    type Result = DdsResult<ParticipantBuiltinTopicData>;
+}
+impl MailHandler<GetDiscoveredParticipantData> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetDiscoveredParticipantData,
+    ) -> <GetDiscoveredParticipantData as Mail>::Result {
+        Ok(self
+            .discovered_participant_list
+            .get(&message.participant_handle)
+            .ok_or(DdsError::PreconditionNotMet(
+                "Participant with this instance handle not discovered".to_owned(),
+            ))?
+            .dds_participant_data
+            .clone())
+    }
+}
+
+pub struct GetDiscoveredTopics;
+impl Mail for GetDiscoveredTopics {
+    type Result = Vec<InstanceHandle>;
+}
+impl MailHandler<GetDiscoveredTopics> for DomainParticipantActor {
+    fn handle(&mut self, _: GetDiscoveredTopics) -> <GetDiscoveredTopics as Mail>::Result {
+        self.discovered_topic_list.keys().cloned().collect()
+    }
+}
+
+pub struct GetDiscoveredTopicData {
+    pub topic_handle: InstanceHandle,
+}
+impl Mail for GetDiscoveredTopicData {
+    type Result = DdsResult<TopicBuiltinTopicData>;
+}
+impl MailHandler<GetDiscoveredTopicData> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetDiscoveredTopicData,
+    ) -> <GetDiscoveredTopicData as Mail>::Result {
+        self.discovered_topic_list
+            .get(&message.topic_handle)
+            .cloned()
+            .ok_or(DdsError::PreconditionNotMet(
+                "Topic with this handle not discovered".to_owned(),
+            ))
+    }
+}
+
+pub struct GetCurrentTime;
+impl Mail for GetCurrentTime {
+    type Result = Time;
+}
+impl MailHandler<GetCurrentTime> for DomainParticipantActor {
+    fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
+        Time::now()
+    }
+}
+
+pub struct SetDomainParticipantQos {
+    pub qos: QosKind<DomainParticipantQos>,
+}
+impl Mail for SetDomainParticipantQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDomainParticipantQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetDomainParticipantQos,
+    ) -> <SetDomainParticipantQos as Mail>::Result {
+        // let qos = match qos {
+        //     QosKind::Default => DomainParticipantQos::default(),
+        //     QosKind::Specific(q) => q,
+        // };
+
+        // self.participant_address
+        //     .send_actor_mail(domain_participant_actor::SetQos { qos })?
+        //     .receive_reply()
+        //     .await?;
+        // self.announce_participant().await
+        todo!()
+    }
+}
+
+pub struct GetDomainParticipantQos;
+impl Mail for GetDomainParticipantQos {
+    type Result = DdsResult<DomainParticipantQos>;
+}
+impl MailHandler<GetDomainParticipantQos> for DomainParticipantActor {
+    fn handle(&mut self, _: GetDomainParticipantQos) -> <GetDomainParticipantQos as Mail>::Result {
+        Ok(self.qos.clone())
+    }
+}
+
+pub struct SetDomainParticipantListener {
+    pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+    pub status_kind: Vec<StatusKind>,
+}
+impl Mail for SetDomainParticipantListener {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDomainParticipantListener> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetDomainParticipantListener,
+    ) -> <SetDomainParticipantListener as Mail>::Result {
+        if let Some(l) = self.participant_listener_thread.take() {
+            l.join()?;
+        }
+        self.participant_listener_thread = message.listener.map(ParticipantListenerThread::new);
+        self.status_kind = message.status_kind;
+        Ok(())
+    }
+}
+
+pub struct EnableDomainParticipant;
+impl Mail for EnableDomainParticipant {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<EnableDomainParticipant> for DomainParticipantActor {
+    fn handle(&mut self, _: EnableDomainParticipant) -> <EnableDomainParticipant as Mail>::Result {
+        todo!()
+        // if !self
+        //     .participant_address
+        //     .send_actor_mail(domain_participant_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        // {
+        //     let builtin_publisher = self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::GetBuiltinPublisher)?
+        //         .receive_reply()
+        //         .await;
+        //     builtin_publisher
+        //         .send_actor_mail(publisher_actor::Enable)?
+        //         .receive_reply()
+        //         .await;
+
+        //     let builtin_subscriber = self
+        //         .participant_address
+        //         .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
+        //         .receive_reply()
+        //         .await;
+        //     builtin_subscriber
+        //         .send_actor_mail(subscriber_actor::Enable)?
+        //         .receive_reply()
+        //         .await;
+
+        //     self.participant_address
+        //         .send_actor_mail(domain_participant_actor::Enable)?
+        //         .receive_reply()
+        //         .await?;
+
+        //     for builtin_reader in builtin_subscriber
+        //         .send_actor_mail(subscriber_actor::GetDataReaderList)?
+        //         .receive_reply()
+        //         .await
+        //     {
+        //         builtin_reader
+        //             .send_actor_mail(data_reader_actor::Enable {
+        //                 data_reader_address: builtin_reader.clone(),
+        //             })?
+        //             .receive_reply()
+        //             .await;
+        //     }
+        //     for builtin_writer in builtin_publisher
+        //         .send_actor_mail(publisher_actor::GetDataWriterList)?
+        //         .receive_reply()
+        //         .await
+        //     {
+        //         let message_sender_actor = self
+        //             .participant_address
+        //             .send_actor_mail(domain_participant_actor::GetMessageSender)?
+        //             .receive_reply()
+        //             .await;
+        //         builtin_writer
+        //             .send_actor_mail(data_writer_actor::Enable {
+        //                 data_writer_address: builtin_writer.clone(),
+        //                 message_sender_actor,
+        //                 executor_handle: self.executor_handle.clone(),
+        //                 timer_handle: self.timer_handle.clone(),
+        //             })?
+        //             .receive_reply()
+        //             .await;
+        //     }
+
+        //     self.announce_participant().await?;
+        // }
+        // Ok(())
+    }
+}
+
+pub struct GetDomainParticipantInstanceHandle;
+impl Mail for GetDomainParticipantInstanceHandle {
+    type Result = DdsResult<InstanceHandle>;
+}
+impl MailHandler<GetDomainParticipantInstanceHandle> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _: GetDomainParticipantInstanceHandle,
+    ) -> <GetDomainParticipantInstanceHandle as Mail>::Result {
+        Ok(InstanceHandle::new(self.guid.into()))
+    }
+}
+
+// ############################  Topic messages
+
+pub struct GetInconsistentTopicStatus {
+    pub topic_name: String,
+}
+impl Mail for GetInconsistentTopicStatus {
+    type Result = DdsResult<InconsistentTopicStatus>;
+}
+impl MailHandler<GetInconsistentTopicStatus> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetInconsistentTopicStatus,
+    ) -> <GetInconsistentTopicStatus as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_inconsistent_topic_status())
+    }
+}
+
+pub struct SetTopicQos {
+    pub topic_name: String,
+    pub topic_qos: QosKind<TopicQos>,
+}
+impl Mail for SetTopicQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetTopicQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetTopicQos) -> <SetTopicQos as Mail>::Result {
+        let qos = match message.topic_qos {
+            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Specific(q) => q,
+        };
+
+        self.topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_qos(qos)
+    }
+}
+
+pub struct GetTopicQos {
+    pub topic_name: String,
+}
+impl Mail for GetTopicQos {
+    type Result = DdsResult<TopicQos>;
+}
+impl MailHandler<GetTopicQos> for DomainParticipantActor {
+    fn handle(&mut self, message: GetTopicQos) -> <GetTopicQos as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos()
+            .clone())
+    }
+}
+
+pub struct EnableTopic {
+    pub topic_name: String,
+}
+impl Mail for EnableTopic {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<EnableTopic> for DomainParticipantActor {
+    fn handle(&mut self, message: EnableTopic) -> <EnableTopic as Mail>::Result {
+        let topic = self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if !topic.is_enabled() {
+            topic.enable();
+        }
+
+        Ok(())
+    }
+}
+
+pub struct GetTopicTypeSupport {
+    pub topic_name: String,
+}
+impl Mail for GetTopicTypeSupport {
+    type Result = DdsResult<Arc<dyn DynamicType + Send + Sync>>;
+}
+impl MailHandler<GetTopicTypeSupport> for DomainParticipantActor {
+    fn handle(&mut self, message: GetTopicTypeSupport) -> <GetTopicTypeSupport as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_type_support()
+            .clone())
+    }
+}
+
+// ############################  Publisher messages
+pub struct CreateUserDefinedDataWriter {
+    pub topic_name: String,
+    pub qos: QosKind<DataWriterQos>,
+    pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+    pub mask: Vec<StatusKind>,
+}
+impl Mail for CreateUserDefinedDataWriter {
+    type Result = DdsResult<Guid>;
+}
+impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateUserDefinedDataWriter,
+    ) -> <CreateUserDefinedDataWriter as Mail>::Result {
+        todo!()
+        // let qos = match message.qos {
+        //     QosKind::Default => self.default_datawriter_qos.clone(),
+        //     QosKind::Specific(q) => {
+        //         q.is_consistent()?;
+        //         q
+        //     }
+        // };
+
+        // let guid_prefix = self.rtps_group.guid().prefix();
+        // let entity_kind = match message.has_key {
+        //     true => USER_DEFINED_WRITER_WITH_KEY,
+        //     false => USER_DEFINED_WRITER_NO_KEY,
+        // };
+        // let entity_key = [
+        //     self.rtps_group.guid().entity_id().entity_key()[0],
+        //     self.get_unique_writer_id(),
+        //     0,
+        // ];
+        // let entity_id = EntityId::new(entity_key, entity_kind);
+        // let guid = Guid::new(guid_prefix, entity_id);
+
+        // let rtps_writer = self.transport.lock().unwrap().create_writer(guid);
+
+        // let data_writer = DataWriterActor::new(
+        //     rtps_writer,
+        //     guid,
+        //     Duration::new(0, 200_000_000).into(),
+        //     message.topic_name,
+        //     message.type_name,
+        //     message.a_listener,
+        //     message.mask,
+        //     qos,
+        //     &message.executor_handle,
+        // );
+        // let data_writer_actor = Actor::spawn(data_writer, &message.executor_handle);
+        // let data_writer_address = data_writer_actor.address();
+        // self.data_writer_list
+        //     .insert(InstanceHandle::new(guid.into()), data_writer_actor);
+
+        // if self
+        //     .publisher_address
+        //     .send_actor_mail(publisher_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        //     && self
+        //         .publisher_address
+        //         .send_actor_mail(publisher_actor::GetQos)?
+        //         .receive_reply()
+        //         .await
+        //         .entity_factory
+        //         .autoenable_created_entities
+        // {
+        //     data_writer.enable().await?
+        // }
+
+        // Ok(data_writer_address)
+    }
+}
+
+pub struct DeleteUserDefinedDataWriter {
+    pub guid: Guid,
+}
+impl Mail for DeleteUserDefinedDataWriter {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: DeleteUserDefinedDataWriter,
+    ) -> <DeleteUserDefinedDataWriter as Mail>::Result {
+        // if let Some(removed_writer) = self.data_writer_list.remove(&message.handle) {
+        //     Ok(removed_writer)
+        // } else {
+        //     Err(DdsError::PreconditionNotMet(
+        //         "Data writer can only be deleted from its parent publisher".to_string(),
+        //     ))
+        // }
+
+        // self.announce_deleted_data_writer(&deleted_writer, topic.get_name())
+        //     .await?;
+        // deleted_writer.stop().await;
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct LookupDataWriter {
+    pub publisher_guid: Guid,
+    pub topic_name: String,
+}
+impl Mail for LookupDataWriter {
+    type Result = DdsResult<Option<Guid>>;
+}
+impl MailHandler<LookupDataWriter> for DomainParticipantActor {
+    fn handle(&mut self, message: LookupDataWriter) -> <LookupDataWriter as Mail>::Result {
+        todo!()
+        // if let Some(_) = self
+        //     .participant
+        //     .participant_address()
+        //     .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+        //         topic_name: topic_name.to_string(),
+        //     })?
+        //     .receive_reply()
+        //     .await?
+        // {
+        //     let data_writer_list = self
+        //         .publisher_address
+        //         .send_actor_mail(publisher_actor::GetDataWriterList)?
+        //         .receive_reply()
+        //         .await;
+        //     for dw in data_writer_list {
+        //         if dw
+        //             .send_actor_mail(data_writer_actor::GetTopicName)?
+        //             .receive_reply()
+        //             .await?
+        //             == topic_name
+        //         {
+        //             let type_name = self
+        //                 .participant_address()
+        //                 .send_actor_mail(domain_participant_actor::GetTopicTypeName {
+        //                     topic_name: topic_name.to_string(),
+        //                 })?
+        //                 .receive_reply()
+        //                 .await?;
+        //             let topic = TopicAsync::new(
+        //                 type_name,
+        //                 topic_name.to_string(),
+        //                 self.participant.clone(),
+        //             );
+        //             let status_condition = dw
+        //                 .send_actor_mail(data_writer_actor::GetStatuscondition)?
+        //                 .receive_reply()
+        //                 .await;
+        //             return Ok(Some(DataWriterAsync::new(
+        //                 dw.clone(),
+        //                 status_condition,
+        //                 self.clone(),
+        //                 topic,
+        //             )));
+        //         }
+        //     }
+        //     Ok(None)
+        // } else {
+        //     Err(DdsError::BadParameter)
+        // }
+    }
+}
+
+pub struct DeletePublisherContainedEntities {
+    pub publisher_guid: Guid,
+}
+impl Mail for DeletePublisherContainedEntities {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<DeletePublisherContainedEntities> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: DeletePublisherContainedEntities,
+    ) -> <DeletePublisherContainedEntities as Mail>::Result {
+        // let deleted_writer_actor_list = self
+        //     .publisher_address
+        //     .send_actor_mail(publisher_actor::DrainDataWriterList)?
+        //     .receive_reply()
+        //     .await;
+
+        // for deleted_writer_actor in deleted_writer_actor_list {
+        //     todo!();
+        //     // self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
+        //     //     .await?;
+        //     deleted_writer_actor.stop().await;
+        // }
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct SetDefaultDataWriterQos {
+    pub publisher_guid: Guid,
+    pub qos: QosKind<DataWriterQos>,
+}
+impl Mail for SetDefaultDataWriterQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultDataWriterQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetDefaultDataWriterQos,
+    ) -> <SetDefaultDataWriterQos as Mail>::Result {
+        // let qos = match qos {
+        //     QosKind::Default => {
+        //         self.publisher_address
+        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
+        //             .receive_reply()
+        //             .await
+        //     }
+        //     QosKind::Specific(q) => {
+        //         q.is_consistent()?;
+        //         q
+        //     }
+        // };
+
+        // self.publisher_address
+        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
+        //     .receive_reply()
+        //     .await;
+
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct GetDefaultDataWriterQos {
+    pub publisher_guid: Guid,
+}
+impl Mail for GetDefaultDataWriterQos {
+    type Result = DdsResult<DataWriterQos>;
+}
+impl MailHandler<GetDefaultDataWriterQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetDefaultDataWriterQos,
+    ) -> <GetDefaultDataWriterQos as Mail>::Result {
+        // let qos = match qos {
+        //     QosKind::Default => {
+        //         self.publisher_address
+        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
+        //             .receive_reply()
+        //             .await
+        //     }
+        //     QosKind::Specific(q) => {
+        //         q.is_consistent()?;
+        //         q
+        //     }
+        // };
+
+        // self.publisher_address
+        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
+        //     .receive_reply()
+        //     .await;
+
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct SetPublisherQos {
+    pub publisher_guid: Guid,
+    pub qos: QosKind<PublisherQos>,
+}
+impl Mail for SetPublisherQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetPublisherQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetPublisherQos) -> <SetPublisherQos as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct GetPublisherQos {
+    pub publisher_guid: Guid,
+}
+impl Mail for GetPublisherQos {
+    type Result = DdsResult<PublisherQos>;
+}
+impl MailHandler<GetPublisherQos> for DomainParticipantActor {
+    fn handle(&mut self, message: GetPublisherQos) -> <GetPublisherQos as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct SetPublisherListener {
+    pub publisher_guid: Guid,
+    pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+    pub mask: Vec<StatusKind>,
+}
+impl Mail for SetPublisherListener {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetPublisherListener> for DomainParticipantActor {
+    fn handle(&mut self, message: SetPublisherListener) -> <SetPublisherQos as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct EnablePublisher {
+    pub publisher_guid: Guid,
+}
+impl Mail for EnablePublisher {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<EnablePublisher> for DomainParticipantActor {
+    fn handle(&mut self, message: EnablePublisher) -> <EnablePublisher as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct GetPublisherInstanceHandle {
+    pub publisher_guid: Guid,
+}
+impl Mail for GetPublisherInstanceHandle {
+    type Result = DdsResult<InstanceHandle>;
+}
+impl MailHandler<GetPublisherInstanceHandle> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetPublisherInstanceHandle,
+    ) -> <GetPublisherInstanceHandle as Mail>::Result {
+        todo!()
+    }
+}
+
+// ############################  Subscriber messages
+pub struct CreateUserDefinedDataReader {
+    pub topic_name: String,
+    pub qos: QosKind<DataReaderQos>,
+    pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
+    pub mask: Vec<StatusKind>,
+}
+impl Mail for CreateUserDefinedDataReader {
+    type Result = DdsResult<Guid>;
+}
+impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateUserDefinedDataReader,
+    ) -> <CreateUserDefinedDataReader as Mail>::Result {
+        todo!()
+        // let listener = a_listener.map(|b| DataReaderActorListener {
+        //     data_reader_listener: Box::new(b),
+        //     subscriber_async: self.clone(),
+        // });
+
+        // let default_unicast_locator_list = self
+        //     .participant_address()
+        //     .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
+        //     .receive_reply()
+        //     .await;
+        // let default_multicast_locator_list = self
+        //     .participant_address()
+        //     .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
+        //     .receive_reply()
+        //     .await;
+
+        // let topic_name = a_topic.get_name();
+        // let type_name = a_topic.get_type_name();
+        // let type_support = self
+        //     .participant_address()
+        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
+        //         topic_name: topic_name.clone(),
+        //     })?
+        //     .receive_reply()
+        //     .await?;
+        // let has_key = {
+        //     let mut has_key = false;
+        //     for index in 0..type_support.get_member_count() {
+        //         if type_support
+        //             .get_member_by_index(index)?
+        //             .get_descriptor()?
+        //             .is_key
+        //         {
+        //             has_key = true;
+        //             break;
+        //         }
+        //     }
+        //     has_key
+        // };
+
+        // let reader_address = self
+        //     .subscriber_address
+        //     .send_actor_mail(subscriber_actor::CreateDatareader {
+        //         topic_name,
+        //         type_name,
+        //         type_support,
+        //         has_key,
+        //         qos,
+        //         a_listener: listener,
+        //         mask: mask.to_vec(),
+        //         default_unicast_locator_list,
+        //         default_multicast_locator_list,
+        //         subscriber_address: self.subscriber_address.clone(),
+        //         executor_handle: self.participant.executor_handle().clone(),
+        //         timer_handle: self.participant.timer_handle().clone(),
+        //     })?
+        //     .receive_reply()
+        //     .await?;
+
+        // let status_condition = reader_address
+        //     .send_actor_mail(data_reader_actor::GetStatuscondition)?
+        //     .receive_reply()
+        //     .await;
+        // let data_reader = DataReaderAsync::new(
+        //     reader_address,
+        //     status_condition,
+        //     self.clone(),
+        //     a_topic.clone(),
+        // );
+
+        // if self
+        //     .subscriber_address
+        //     .send_actor_mail(subscriber_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        //     && self
+        //         .subscriber_address
+        //         .send_actor_mail(subscriber_actor::GetQos)?
+        //         .receive_reply()
+        //         .await
+        //         .entity_factory
+        //         .autoenable_created_entities
+        // {
+        //     data_reader.enable().await?;
+        // }
+
+        // Ok(data_reader)
+    }
+}
+
+pub struct DeleteUserDefinedDataReader {
+    pub guid: Guid,
+}
+impl Mail for DeleteUserDefinedDataReader {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: DeleteUserDefinedDataReader,
+    ) -> <DeleteUserDefinedDataReader as Mail>::Result {
+        // let reader_handle = a_datareader.get_instance_handle().await?;
+
+        // let deleted_reader = self
+        //     .subscriber_address
+        //     .send_actor_mail(subscriber_actor::DeleteDatareader {
+        //         handle: reader_handle,
+        //     })?
+        //     .receive_reply()
+        //     .await?;
+
+        // self.announce_deleted_data_reader(
+        //     &deleted_reader,
+        //     a_datareader.get_topicdescription().get_name(),
+        // )
+        // .await?;
+        // deleted_reader.stop().await;
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct LookupDataReader {
+    pub subscriber_guid: Guid,
+    pub topic_name: String,
+}
+impl Mail for LookupDataReader {
+    type Result = DdsResult<Option<Guid>>;
+}
+impl MailHandler<LookupDataReader> for DomainParticipantActor {
+    fn handle(&mut self, message: LookupDataReader) -> <LookupDataReader as Mail>::Result {
+        todo!()
+        //     if let Some(()) = self
+        //     .participant_address()
+        //     .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+        //         topic_name: topic_name.to_string(),
+        //     })?
+        //     .receive_reply()
+        //     .await?
+        // {
+        //     let data_reader_list = self
+        //         .subscriber_address
+        //         .send_actor_mail(subscriber_actor::GetDataReaderList)?
+        //         .receive_reply()
+        //         .await;
+        //     for dr in data_reader_list {
+        //         if dr
+        //             .send_actor_mail(data_reader_actor::GetTopicName)?
+        //             .receive_reply()
+        //             .await?
+        //             == topic_name
+        //         {
+        //             let type_name = self
+        //                 .participant_address()
+        //                 .send_actor_mail(domain_participant_actor::GetTopicTypeName {
+        //                     topic_name: topic_name.to_string(),
+        //                 })?
+        //                 .receive_reply()
+        //                 .await?;
+        //             let topic = TopicAsync::new(
+        //                 type_name,
+        //                 topic_name.to_string(),
+        //                 self.participant.clone(),
+        //             );
+        //             let status_condition = dr
+        //                 .send_actor_mail(data_reader_actor::GetStatuscondition)?
+        //                 .receive_reply()
+        //                 .await;
+        //             return Ok(Some(DataReaderAsync::new(
+        //                 dr,
+        //                 status_condition,
+        //                 self.clone(),
+        //                 topic,
+        //             )));
+        //         }
+        //     }
+        //     Ok(None)
+        // } else {
+        //     Err(DdsError::BadParameter)
+        // }
+    }
+}
+
+pub struct DeleteSubscriberContainedEntities {
+    pub subscriber_guid: Guid,
+}
+impl Mail for DeleteSubscriberContainedEntities {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<DeleteSubscriberContainedEntities> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: DeleteSubscriberContainedEntities,
+    ) -> <DeleteSubscriberContainedEntities as Mail>::Result {
+        //         let deleted_reader_actor_list = self
+        //         .subscriber_address
+        //         .send_actor_mail(subscriber_actor::DrainDataReaderList)?
+        //         .receive_reply()
+        //         .await;
+
+        //     for deleted_reader_actor in deleted_reader_actor_list {
+        //         todo!();
+        //         // self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
+        //         //     .await?;
+        //         deleted_reader_actor.stop().await;
+        //     }
+        //     Ok(())
+        // }
+        todo!()
+    }
+}
+
+pub struct SetDefaultDataReaderQos {
+    pub subscriber_guid: Guid,
+    pub qos: QosKind<DataReaderQos>,
+}
+impl Mail for SetDefaultDataReaderQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetDefaultDataReaderQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetDefaultDataReaderQos,
+    ) -> <SetDefaultDataReaderQos as Mail>::Result {
+        // let qos = match qos {
+        //     QosKind::Default => {
+        //         self.publisher_address
+        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
+        //             .receive_reply()
+        //             .await
+        //     }
+        //     QosKind::Specific(q) => {
+        //         q.is_consistent()?;
+        //         q
+        //     }
+        // };
+
+        // self.publisher_address
+        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
+        //     .receive_reply()
+        //     .await;
+
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct GetDefaultDataReaderQos {
+    pub subscriber_guid: Guid,
+}
+impl Mail for GetDefaultDataReaderQos {
+    type Result = DdsResult<DataReaderQos>;
+}
+impl MailHandler<GetDefaultDataReaderQos> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetDefaultDataReaderQos,
+    ) -> <GetDefaultDataReaderQos as Mail>::Result {
+        // let qos = match qos {
+        //     QosKind::Default => {
+        //         self.publisher_address
+        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
+        //             .receive_reply()
+        //             .await
+        //     }
+        //     QosKind::Specific(q) => {
+        //         q.is_consistent()?;
+        //         q
+        //     }
+        // };
+
+        // self.publisher_address
+        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
+        //     .receive_reply()
+        //     .await;
+
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct SetSubscriberQos {
+    pub subscriber_guid: Guid,
+    pub qos: QosKind<SubscriberQos>,
+}
+impl Mail for SetSubscriberQos {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetSubscriberQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetSubscriberQos) -> <SetSubscriberQos as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct GetSubscriberQos {
+    pub subscriber_guid: Guid,
+}
+impl Mail for GetSubscriberQos {
+    type Result = DdsResult<SubscriberQos>;
+}
+impl MailHandler<GetSubscriberQos> for DomainParticipantActor {
+    fn handle(&mut self, message: GetSubscriberQos) -> <GetSubscriberQos as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct SetSubscriberListener {
+    pub subscriber_guid: Guid,
+    pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+    pub mask: Vec<StatusKind>,
+}
+impl Mail for SetSubscriberListener {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<SetSubscriberListener> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetSubscriberListener,
+    ) -> <SetSubscriberListener as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct EnableSubscriber {
+    pub subscriber_guid: Guid,
+}
+impl Mail for EnableSubscriber {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<EnableSubscriber> for DomainParticipantActor {
+    fn handle(&mut self, message: EnableSubscriber) -> <EnableSubscriber as Mail>::Result {
+        // if !self
+        //     .subscriber_address
+        //     .send_actor_mail(subscriber_actor::IsEnabled)?
+        //     .receive_reply()
+        //     .await
+        // {
+        //     self.subscriber_address
+        //         .send_actor_mail(subscriber_actor::Enable)?
+        //         .receive_reply()
+        //         .await;
+
+        //     if self
+        //         .subscriber_address
+        //         .send_actor_mail(subscriber_actor::GetQos)?
+        //         .receive_reply()
+        //         .await
+        //         .entity_factory
+        //         .autoenable_created_entities
+        //     {
+        //         for data_reader in self
+        //             .subscriber_address
+        //             .send_actor_mail(subscriber_actor::GetDataReaderList)?
+        //             .receive_reply()
+        //             .await
+        //         {
+        //             data_reader
+        //                 .send_actor_mail(data_reader_actor::Enable {
+        //                     data_reader_address: data_reader.clone(),
+        //                 })?
+        //                 .receive_reply()
+        //                 .await;
+        //         }
+        //     }
+        // }
+
+        // Ok(())
+        todo!()
+    }
+}
+
+pub struct GetSubscriberInstanceHandle {
+    pub subscriber_guid: Guid,
+}
+impl Mail for GetSubscriberInstanceHandle {
+    type Result = DdsResult<InstanceHandle>;
+}
+impl MailHandler<GetSubscriberInstanceHandle> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetSubscriberInstanceHandle,
+    ) -> <GetSubscriberInstanceHandle as Mail>::Result {
+        todo!()
+    }
+}
+
+
+pub struct SetTopicList {
+    pub topic_list: HashMap<String, TopicActor>,
+}
+impl Mail for SetTopicList {
+    type Result = ();
+}
+impl MailHandler<SetTopicList> for DomainParticipantActor {
+    fn handle(&mut self, message: SetTopicList) -> <SetTopicList as Mail>::Result {
+        self.topic_list = message.topic_list;
+    }
+}
 pub struct IsEmpty;
 impl Mail for IsEmpty {
     type Result = bool;
@@ -987,16 +2266,6 @@ impl MailHandler<IsEmpty> for DomainParticipantActor {
         self.user_defined_publisher_list.is_empty()
             && self.user_defined_subscriber_list.is_empty()
             && no_user_defined_topics
-    }
-}
-
-pub struct GetQos;
-impl Mail for GetQos {
-    type Result = DomainParticipantQos;
-}
-impl MailHandler<GetQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
-        self.qos.clone()
     }
 }
 
@@ -1129,167 +2398,6 @@ impl MailHandler<DrainTopicList> for DomainParticipantActor {
     }
 }
 
-pub struct SetDefaultPublisherQos {
-    pub qos: QosKind<PublisherQos>,
-}
-impl Mail for SetDefaultPublisherQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDefaultPublisherQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultPublisherQos,
-    ) -> <SetDefaultPublisherQos as Mail>::Result {
-        let qos = match message.qos {
-            QosKind::Default => PublisherQos::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        self.default_publisher_qos = qos;
-
-        Ok(())
-    }
-}
-
-pub struct SetDefaultSubscriberQos {
-    pub qos: QosKind<SubscriberQos>,
-}
-impl Mail for SetDefaultSubscriberQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDefaultSubscriberQos> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultSubscriberQos,
-    ) -> <SetDefaultSubscriberQos as Mail>::Result {
-        let qos = match message.qos {
-            QosKind::Default => SubscriberQos::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        self.default_subscriber_qos = qos;
-
-        Ok(())
-    }
-}
-
-pub struct SetDefaultTopicQos {
-    pub qos: QosKind<TopicQos>,
-}
-impl Mail for SetDefaultTopicQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetDefaultTopicQos) -> <SetDefaultTopicQos as Mail>::Result {
-        let qos = match message.qos {
-            QosKind::Default => TopicQos::default(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-
-        self.default_topic_qos = qos;
-
-        Ok(())
-    }
-}
-
-pub struct GetDefaultPublisherQos;
-impl Mail for GetDefaultPublisherQos {
-    type Result = PublisherQos;
-}
-impl MailHandler<GetDefaultPublisherQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDefaultPublisherQos) -> <GetDefaultPublisherQos as Mail>::Result {
-        self.default_publisher_qos.clone()
-    }
-}
-
-pub struct GetDefaultSubscriberQos;
-impl Mail for GetDefaultSubscriberQos {
-    type Result = SubscriberQos;
-}
-impl MailHandler<GetDefaultSubscriberQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDefaultSubscriberQos) -> <GetDefaultSubscriberQos as Mail>::Result {
-        self.default_subscriber_qos.clone()
-    }
-}
-
-pub struct GetDefaultTopicQos;
-impl Mail for GetDefaultTopicQos {
-    type Result = TopicQos;
-}
-impl MailHandler<GetDefaultTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDefaultTopicQos) -> <GetDefaultTopicQos as Mail>::Result {
-        self.default_topic_qos.clone()
-    }
-}
-
-pub struct GetDiscoveredParticipants;
-impl Mail for GetDiscoveredParticipants {
-    type Result = Vec<InstanceHandle>;
-}
-impl MailHandler<GetDiscoveredParticipants> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: GetDiscoveredParticipants,
-    ) -> <GetDiscoveredParticipants as Mail>::Result {
-        self.discovered_participant_list.keys().cloned().collect()
-    }
-}
-
-pub struct GetDiscoveredParticipantData {
-    pub participant_handle: InstanceHandle,
-}
-impl Mail for GetDiscoveredParticipantData {
-    type Result = DdsResult<ParticipantBuiltinTopicData>;
-}
-impl MailHandler<GetDiscoveredParticipantData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDiscoveredParticipantData,
-    ) -> <GetDiscoveredParticipantData as Mail>::Result {
-        Ok(self
-            .discovered_participant_list
-            .get(&message.participant_handle)
-            .ok_or(DdsError::PreconditionNotMet(
-                "Participant with this instance handle not discovered".to_owned(),
-            ))?
-            .dds_participant_data
-            .clone())
-    }
-}
-
-pub struct GetDiscoveredTopics;
-impl Mail for GetDiscoveredTopics {
-    type Result = Vec<InstanceHandle>;
-}
-impl MailHandler<GetDiscoveredTopics> for DomainParticipantActor {
-    fn handle(&mut self, _: GetDiscoveredTopics) -> <GetDiscoveredTopics as Mail>::Result {
-        self.discovered_topic_list.keys().cloned().collect()
-    }
-}
-
-pub struct GetDiscoveredTopicData {
-    pub topic_handle: InstanceHandle,
-}
-impl Mail for GetDiscoveredTopicData {
-    type Result = DdsResult<TopicBuiltinTopicData>;
-}
-impl MailHandler<GetDiscoveredTopicData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDiscoveredTopicData,
-    ) -> <GetDiscoveredTopicData as Mail>::Result {
-        self.discovered_topic_list
-            .get(&message.topic_handle)
-            .cloned()
-            .ok_or(DdsError::PreconditionNotMet(
-                "Topic with this handle not discovered".to_owned(),
-            ))
-    }
-}
-
 pub struct SetQos {
     pub qos: DomainParticipantQos,
 }
@@ -1365,44 +2473,6 @@ impl Mail for GetStatusKind {
 impl MailHandler<GetStatusKind> for DomainParticipantActor {
     fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
         self.status_kind.clone()
-    }
-}
-
-pub struct GetCurrentTime;
-impl Mail for GetCurrentTime {
-    type Result = Time;
-}
-impl MailHandler<GetCurrentTime> for DomainParticipantActor {
-    fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
-        Time::now()
-    }
-}
-
-pub struct GetBuiltinPublisher;
-impl Mail for GetBuiltinPublisher {
-    type Result = ActorAddress<PublisherActor>;
-}
-impl MailHandler<GetBuiltinPublisher> for DomainParticipantActor {
-    fn handle(&mut self, _: GetBuiltinPublisher) -> <GetBuiltinPublisher as Mail>::Result {
-        self.builtin_publisher.address()
-    }
-}
-
-pub struct SetListener {
-    pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
-    pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetListener> for DomainParticipantActor {
-    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        if let Some(l) = self.participant_listener_thread.take() {
-            l.join()?;
-        }
-        self.participant_listener_thread = message.listener.map(ParticipantListenerThread::new);
-        self.status_kind = message.status_kind;
-        Ok(())
     }
 }
 
@@ -1945,60 +3015,49 @@ impl MailHandler<GetListener> for DomainParticipantActor {
     }
 }
 
-pub struct GetInconsistentTopicStatus {
-    pub topic_name: String,
+pub struct GetStatusConditionEnabledStatuses {
+    pub guid: Guid,
 }
-impl Mail for GetInconsistentTopicStatus {
-    type Result = DdsResult<InconsistentTopicStatus>;
+impl Mail for GetStatusConditionEnabledStatuses {
+    type Result = DdsResult<Vec<StatusKind>>;
 }
-impl MailHandler<GetInconsistentTopicStatus> for DomainParticipantActor {
+impl MailHandler<GetStatusConditionEnabledStatuses> for DomainParticipantActor {
     fn handle(
         &mut self,
-        message: GetInconsistentTopicStatus,
-    ) -> <GetInconsistentTopicStatus as Mail>::Result {
-        Ok(self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_inconsistent_topic_status())
+        message: GetStatusConditionEnabledStatuses,
+    ) -> <GetStatusConditionEnabledStatuses as Mail>::Result {
+        todo!()
     }
 }
 
-pub struct GetTopicQos {
-    pub topic_name: String,
+pub struct SetStatusConditionEnabledStatuses {
+    pub guid: Guid,
+    pub status_mask: Vec<StatusKind>,
 }
-impl Mail for GetTopicQos {
-    type Result = DdsResult<TopicQos>;
-}
-impl MailHandler<GetTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetTopicQos) -> <GetTopicQos as Mail>::Result {
-        Ok(self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_qos()
-            .clone())
-    }
-}
-
-pub struct SetTopicQos {
-    pub topic_name: String,
-    pub topic_qos: QosKind<TopicQos>,
-}
-impl Mail for SetTopicQos {
+impl Mail for SetStatusConditionEnabledStatuses {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetTopicQos) -> <SetTopicQos as Mail>::Result {
-        let qos = match message.topic_qos {
-            QosKind::Default => self.default_topic_qos.clone(),
-            QosKind::Specific(q) => q,
-        };
+impl MailHandler<SetStatusConditionEnabledStatuses> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: SetStatusConditionEnabledStatuses,
+    ) -> <SetStatusConditionEnabledStatuses as Mail>::Result {
+        todo!()
+    }
+}
 
-        self.topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_qos(qos)
+pub struct GetStatusConditionTriggerValue {
+    pub guid: Guid,
+}
+impl Mail for GetStatusConditionTriggerValue {
+    type Result = DdsResult<bool>;
+}
+impl MailHandler<GetStatusConditionTriggerValue> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: GetStatusConditionTriggerValue,
+    ) -> <GetStatusConditionTriggerValue as Mail>::Result {
+        todo!()
     }
 }
 
@@ -2458,3 +3517,386 @@ impl DomainParticipantActor {
         Ok(())
     }
 }
+
+// pub(crate) async fn announce_participant(&self) -> DdsResult<()> {
+//     if self
+//         .participant_address
+//         .send_actor_mail(domain_participant_actor::IsEnabled)?
+//         .receive_reply()
+//         .await
+//     {
+//         let builtin_publisher = self.get_builtin_publisher().await?;
+
+//         if let Some(spdp_participant_writer) = builtin_publisher
+//             .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+//             .await?
+//         {
+//             let data = self
+//                 .participant_address
+//                 .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)?
+//                 .receive_reply()
+//                 .await;
+//             spdp_participant_writer.write(&data, None).await?;
+//         }
+//     }
+//     Ok(())
+// }
+
+// async fn announce_deleted_topic(&self, topic: TopicActor) -> DdsResult<()> {
+//     todo!()
+//     // let builtin_publisher = self.get_builtin_publisher().await?;
+
+//     // if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
+//     // {
+//     //     let data = topic
+//     //         .send_actor_mail(topic_actor::AsDiscoveredTopicData)
+//     //         .receive_reply()
+//     //         .await;
+//     //     sedp_topics_announcer.dispose(&data, None).await?;
+//     // }
+
+//     // Ok(())
+// }
+
+// async fn announce_deleted_data_writer(
+//     &self,
+//     writer: &Actor<DataWriterActor>,
+//     topic_name: String,
+// ) -> DdsResult<()> {
+//     let builtin_publisher = self.participant.get_builtin_publisher().await?;
+//     if let Some(sedp_publications_announcer) = builtin_publisher
+//         .lookup_datawriter(DCPS_PUBLICATION)
+//         .await?
+//     {
+//         let publisher_qos = self.get_qos().await?;
+//         let default_unicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let default_multicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let topic_data = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
+//             .receive_reply()
+//             .await?
+//             .topic_data;
+//         let xml_type = "".to_string(); //topic
+//                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
+//                                        // .receive_reply()
+//                                        // .await
+//                                        // .xml_type();
+//         let data = writer
+//             .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
+//                 publisher_qos,
+//                 default_unicast_locator_list,
+//                 default_multicast_locator_list,
+//                 topic_data,
+//                 xml_type,
+//             })
+//             .receive_reply()
+//             .await?;
+//         sedp_publications_announcer.dispose(&data, None).await?;
+//     }
+//     Ok(())
+// }
+
+pub struct GetSubscriberList;
+impl Mail for GetSubscriberList {
+    type Result = Vec<ActorAddress<SubscriberActor>>;
+}
+impl MailHandler<GetSubscriberList> for DomainParticipantActor {
+    fn handle(&mut self, _: GetSubscriberList) -> <GetSubscriberList as Mail>::Result {
+        self.user_defined_subscriber_list
+            .values()
+            .map(|p| p.address())
+            .collect()
+    }
+}
+
+pub struct GetTopicTypeName {
+    pub topic_name: String,
+}
+impl Mail for GetTopicTypeName {
+    type Result = DdsResult<String>;
+}
+impl MailHandler<GetTopicTypeName> for DomainParticipantActor {
+    fn handle(&mut self, message: GetTopicTypeName) -> <GetTopicTypeName as Mail>::Result {
+        Ok(self
+            .topic_list
+            .get(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_type_name()
+            .to_string())
+    }
+}
+
+// async fn announce_deleted_data_reader(
+//     &self,
+//     reader: &Actor<DataReaderActor>,
+//     topic_name: String,
+// ) -> DdsResult<()> {
+//     let builtin_publisher = self.participant.get_builtin_publisher().await?;
+//     if let Some(sedp_subscriptions_announcer) = builtin_publisher
+//         .lookup_datawriter(DCPS_SUBSCRIPTION)
+//         .await?
+//     {
+//         let subscriber_qos = self.get_qos().await?;
+//         let default_unicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let default_multicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let topic_data = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
+//             .receive_reply()
+//             .await?
+//             .topic_data;
+//         let xml_type = "".to_string(); //topic
+//                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
+//                                        // .receive_reply()
+//                                        // .await
+//                                        // .xml_type();
+//         let data = reader
+//             .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
+//                 subscriber_qos,
+//                 default_unicast_locator_list,
+//                 default_multicast_locator_list,
+//                 topic_data,
+//                 xml_type,
+//             })
+//             .receive_reply()
+//             .await?;
+//         sedp_subscriptions_announcer.dispose(&data, None).await?;
+//     }
+//     Ok(())
+// }
+
+// async fn announce_reader(&self) -> DdsResult<()> {
+//     let builtin_publisher = self
+//         .get_subscriber()
+//         .get_participant()
+//         .get_builtin_publisher()
+//         .await?;
+//     if let Some(sedp_subscriptions_announcer) = builtin_publisher
+//         .lookup_datawriter::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+//         .await?
+//     {
+//         let subscriber_qos = self
+//             .subscriber_address()
+//             .send_actor_mail(subscriber_actor::GetQos)?
+//             .receive_reply()
+//             .await;
+//         let default_unicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let default_multicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let topic_data = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetTopicQos {
+//                 topic_name: self.topic.get_name(),
+//             })?
+//             .receive_reply()
+//             .await?
+//             .topic_data;
+//         let xml_type = "".to_string(); //self
+//                                        // .topic
+//                                        // .topic_address()
+//                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
+//                                        // .receive_reply()
+//                                        // .await
+//                                        // .xml_type();
+//         let discovered_reader_data = self
+//             .reader_address
+//             .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
+//                 subscriber_qos,
+//                 default_unicast_locator_list,
+//                 default_multicast_locator_list,
+//                 topic_data,
+//                 xml_type,
+//             })?
+//             .receive_reply()
+//             .await?;
+
+//         sedp_subscriptions_announcer
+//             .write(&discovered_reader_data, None)
+//             .await?;
+//     }
+//     Ok(())
+// }
+
+// async fn process_sedp_publications_discovery(&self) -> DdsResult<()> {
+//     let participant = self.subscriber.get_participant();
+//     let builtin_subscriber = participant.get_builtin_subscriber();
+
+//     if let Some(sedp_publications_detector) = builtin_subscriber
+//         .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
+//         .await?
+//     {
+//         if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
+//             .read(
+//                 i32::MAX,
+//                 ANY_SAMPLE_STATE,
+//                 ANY_VIEW_STATE,
+//                 ANY_INSTANCE_STATE,
+//             )
+//             .await
+//         {
+//             for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
+//                 match discovered_writer_sample.sample_info().instance_state {
+//                     InstanceStateKind::Alive => match discovered_writer_sample.data() {
+//                         Ok(discovered_writer_data) => {
+//                             participant.participant_address().send_actor_mail(
+//                                 domain_participant_actor::AddMatchedWriter {
+//                                     discovered_writer_data,
+//                                     // participant: participant.clone(),
+//                                 },
+//                             )?;
+//                         }
+//                         Err(e) => warn!(
+//                             "Received invalid DiscoveredWriterData sample. Error {:?}",
+//                             e
+//                         ),
+//                     },
+//                     InstanceStateKind::NotAliveDisposed => {
+//                         participant.participant_address().send_actor_mail(
+//                             domain_participant_actor::RemoveMatchedWriter {
+//                                 discovered_writer_handle: discovered_writer_sample
+//                                     .sample_info()
+//                                     .instance_handle,
+//                                 // participant: participant.clone(),
+//                             },
+//                         )?;
+//                     }
+//                     InstanceStateKind::NotAliveNoWriters => {
+//                         todo!()
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     Ok(())
+// }
+
+// async fn announce_writer(&self) -> DdsResult<()> {
+//     let builtin_publisher = self
+//         .get_publisher()
+//         .get_participant()
+//         .get_builtin_publisher()
+//         .await?;
+//     if let Some(sedp_publications_announcer) = builtin_publisher
+//         .lookup_datawriter::<DiscoveredWriterData>(DCPS_PUBLICATION)
+//         .await?
+//     {
+//         let publisher_qos = self.get_publisher().get_qos().await?;
+//         let default_unicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let default_multicast_locator_list = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
+//             .receive_reply()
+//             .await;
+//         let topic_data = self
+//             .participant_address()
+//             .send_actor_mail(domain_participant_actor::GetTopicQos {
+//                 topic_name: self.topic.get_name(),
+//             })?
+//             .receive_reply()
+//             .await?
+//             .topic_data;
+//         let xml_type = "".to_string(); //self
+//                                        //     .topic
+//                                        //     .topic_address()
+//                                        //     .send_actor_mail(topic_actor::GetTypeSupport)?
+//                                        //     .receive_reply()
+//                                        //     .await
+//                                        //     .xml_type();
+//         let discovered_writer_data = self
+//             .writer_address
+//             .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
+//                 publisher_qos,
+//                 default_unicast_locator_list,
+//                 default_multicast_locator_list,
+//                 topic_data,
+//                 xml_type,
+//             })?
+//             .receive_reply()
+//             .await?;
+//         sedp_publications_announcer
+//             .write(&discovered_writer_data, None)
+//             .await?;
+//     }
+//     Ok(())
+// }
+
+// async fn process_sedp_subscriptions_discovery(&self) -> DdsResult<()> {
+//     let participant = self.publisher.get_participant();
+//     let builtin_subscriber = participant.get_builtin_subscriber();
+
+//     if let Some(sedp_subscriptions_detector) = builtin_subscriber
+//         .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+//         .await?
+//     {
+//         if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
+//             .read(
+//                 i32::MAX,
+//                 ANY_SAMPLE_STATE,
+//                 ANY_VIEW_STATE,
+//                 ANY_INSTANCE_STATE,
+//             )
+//             .await
+//         {
+//             for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
+//                 match discovered_reader_sample.sample_info().instance_state {
+//                     InstanceStateKind::Alive => match discovered_reader_sample.data() {
+//                         Ok(discovered_reader_data) => {
+//                             participant.participant_address().send_actor_mail(
+//                                 domain_participant_actor::AddMatchedReader {
+//                                     discovered_reader_data,
+//                                     // participant: participant.clone(),
+//                                 },
+//                             )?;
+//                         }
+//                         Err(e) => warn!(
+//                             "Received invalid DiscoveredReaderData sample. Error {:?}",
+//                             e
+//                         ),
+//                     },
+//                     InstanceStateKind::NotAliveDisposed => {
+//                         participant.participant_address().send_actor_mail(
+//                             domain_participant_actor::RemoveMatchedReader {
+//                                 discovered_reader_handle: discovered_reader_sample
+//                                     .sample_info()
+//                                     .instance_handle,
+//                                 // participant: participant.clone(),
+//                             },
+//                         )?;
+//                     }
+//                     InstanceStateKind::NotAliveNoWriters => {
+//                         todo!()
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     Ok(())
+// }

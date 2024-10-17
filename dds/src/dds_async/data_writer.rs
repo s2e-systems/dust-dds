@@ -12,9 +12,8 @@ use crate::{
             any_data_writer_listener::AnyDataWriterListener,
             data_writer_actor::{self, DataWriterActor},
             domain_participant_actor::{self, DomainParticipantActor},
-            publisher_actor::{self, PublisherActor},
+            publisher_actor::{self},
             status_condition_actor::StatusConditionActor,
-            topic_actor,
         },
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -43,7 +42,7 @@ use crate::{
     },
     rtps::{
         messages::submessage_elements::{Data, Parameter, ParameterList},
-        types::ChangeKind,
+        types::{ChangeKind, Guid},
     },
     subscription::sample_info::{
         InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
@@ -55,8 +54,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
-    writer_address: ActorAddress<DataWriterActor>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
+    guid: Guid,
     publisher: PublisherAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -65,8 +63,7 @@ pub struct DataWriterAsync<Foo> {
 impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
-            writer_address: self.writer_address.clone(),
-            status_condition_address: self.status_condition_address.clone(),
+            guid: self.guid,
             publisher: self.publisher.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -75,138 +72,21 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 }
 
 impl<Foo> DataWriterAsync<Foo> {
-    pub(crate) fn new(
-        writer_address: ActorAddress<DataWriterActor>,
-        status_condition_address: ActorAddress<StatusConditionActor>,
-        publisher: PublisherAsync,
-        topic: TopicAsync,
-    ) -> Self {
+    pub(crate) fn new(guid: Guid, publisher: PublisherAsync, topic: TopicAsync) -> Self {
         Self {
-            writer_address,
-            status_condition_address,
+            guid,
             publisher,
             topic,
             phantom: PhantomData,
         }
     }
 
+    pub(crate) fn guid(&self) -> Guid {
+        self.guid
+    }
+
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         self.publisher.participant_address()
-    }
-
-    pub(crate) fn publisher_address(&self) -> &ActorAddress<PublisherActor> {
-        self.publisher.publisher_address()
-    }
-
-    pub(crate) fn writer_address(&self) -> &ActorAddress<DataWriterActor> {
-        &self.writer_address
-    }
-
-    async fn announce_writer(&self) -> DdsResult<()> {
-        let builtin_publisher = self
-            .get_publisher()
-            .get_participant()
-            .get_builtin_publisher()
-            .await?;
-        if let Some(sedp_publications_announcer) = builtin_publisher
-            .lookup_datawriter::<DiscoveredWriterData>(DCPS_PUBLICATION)
-            .await?
-        {
-            let publisher_qos = self.get_publisher().get_qos().await?;
-            let default_unicast_locator_list = self
-                .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-                .receive_reply()
-                .await;
-            let default_multicast_locator_list = self
-                .participant_address()
-                .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-                .receive_reply()
-                .await;
-            let topic_data = self
-                .participant_address()
-                .send_actor_mail(domain_participant_actor::GetTopicQos {
-                    topic_name: self.topic.get_name(),
-                })?
-                .receive_reply()
-                .await?
-                .topic_data;
-            let xml_type = "".to_string(); //self
-                                           //     .topic
-                                           //     .topic_address()
-                                           //     .send_actor_mail(topic_actor::GetTypeSupport)?
-                                           //     .receive_reply()
-                                           //     .await
-                                           //     .xml_type();
-            let discovered_writer_data = self
-                .writer_address
-                .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
-                    publisher_qos,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    topic_data,
-                    xml_type,
-                })?
-                .receive_reply()
-                .await?;
-            sedp_publications_announcer
-                .write(&discovered_writer_data, None)
-                .await?;
-        }
-        Ok(())
-    }
-
-    async fn process_sedp_subscriptions_discovery(&self) -> DdsResult<()> {
-        let participant = self.publisher.get_participant();
-        let builtin_subscriber = participant.get_builtin_subscriber();
-
-        if let Some(sedp_subscriptions_detector) = builtin_subscriber
-            .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-            .await?
-        {
-            if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-                .read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE,
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                )
-                .await
-            {
-                for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
-                    match discovered_reader_sample.sample_info().instance_state {
-                        InstanceStateKind::Alive => match discovered_reader_sample.data() {
-                            Ok(discovered_reader_data) => {
-                                participant.participant_address().send_actor_mail(
-                                    domain_participant_actor::AddMatchedReader {
-                                        discovered_reader_data,
-                                        // participant: participant.clone(),
-                                    },
-                                )?;
-                            }
-                            Err(e) => warn!(
-                                "Received invalid DiscoveredReaderData sample. Error {:?}",
-                                e
-                            ),
-                        },
-                        InstanceStateKind::NotAliveDisposed => {
-                            participant.participant_address().send_actor_mail(
-                                domain_participant_actor::RemoveMatchedReader {
-                                    discovered_reader_handle: discovered_reader_sample
-                                        .sample_info()
-                                        .instance_handle,
-                                    // participant: participant.clone(),
-                                },
-                            )?;
-                        }
-                        InstanceStateKind::NotAliveNoWriters => {
-                            todo!()
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
     }
 }
 
@@ -244,7 +124,7 @@ where
 
         let type_support = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
                 topic_name: self.topic.get_name(),
             })?
             .receive_reply()
@@ -295,7 +175,7 @@ where
 
         let type_support = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
                 topic_name: self.topic.get_name(),
             })?
             .receive_reply()
@@ -432,7 +312,7 @@ where
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let type_support = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
                 topic_name: self.topic.get_name(),
             })?
             .receive_reply()
@@ -483,7 +363,7 @@ where
             .await;
         let type_support = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
                 topic_name: self.topic.get_name(),
             })?
             .receive_reply()
@@ -645,7 +525,7 @@ where
 
         let type_support = self
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
                 topic_name: self.topic.get_name(),
             })?
             .receive_reply()

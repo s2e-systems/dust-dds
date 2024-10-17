@@ -3,16 +3,7 @@ use super::{
     topic_listener::TopicListenerAsync,
 };
 use crate::{
-    builtin_topics::DCPS_TOPIC,
-    implementation::{
-        actor::ActorAddress,
-        actors::{
-            domain_participant_actor::{self},
-            status_condition_actor::StatusConditionActor,
-            topic_actor::{self, TopicActor},
-        },
-        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-    },
+    implementation::actors::domain_participant_actor::{self},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -111,8 +102,7 @@ impl TopicAsync {
         StatusConditionAsync::new(
             // self.status_condition_address.clone(),
             todo!(),
-            self.participant.executor_handle().clone(),
-            self.participant.timer_handle().clone(),
+            todo!(),
         )
     }
 
@@ -157,7 +147,7 @@ impl TopicAsync {
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
         self.participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTypeSupport {
+            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
                 topic_name: self.topic_name.clone(),
             })?
             .receive_reply()
