@@ -880,7 +880,7 @@ impl DomainParticipantActor {
     }
 
     fn add_matched_publications_detector(
-        &self,
+        &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         // participant: DomainParticipantAsync,
     ) {
@@ -951,16 +951,8 @@ impl DomainParticipantActor {
                 .unwrap()
                 .default_multicast_locator_list()
                 .to_vec();
-            // self.builtin_publisher
-            //     .send_actor_mail(publisher_actor::AddMatchedReader {
-            //         discovered_reader_data,
-            //         default_unicast_locator_list,
-            //         default_multicast_locator_list,
-            //         publisher_address: self.builtin_publisher.address(),
-            //         // participant,
-            //         participant_mask_listener,
-            //         message_sender_actor: self.message_sender_actor.address(),
-            //     });
+            self.builtin_publisher
+                .add_matched_reader(discovered_reader_data, vec![], vec![]);
         }
     }
 
@@ -1037,7 +1029,7 @@ impl DomainParticipantActor {
     }
 
     fn add_matched_subscriptions_detector(
-        &self,
+        &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
         if discovered_participant_data
@@ -1089,21 +1081,8 @@ impl DomainParticipantActor {
             };
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-            // self.builtin_publisher
-            //     .send_actor_mail(publisher_actor::AddMatchedReader {
-            //         discovered_reader_data,
-            //         default_unicast_locator_list: vec![],
-            //         default_multicast_locator_list: vec![],
-            //         publisher_address: self.builtin_publisher.address(),
-            //         // participant,
-            //         participant_mask_listener: (
-            //             self.participant_listener_thread
-            //                 .as_ref()
-            //                 .map(|l| l.sender().clone()),
-            //             self.status_kind.clone(),
-            //         ),
-            //         message_sender_actor: self.message_sender_actor.address(),
-            //     });
+            self.builtin_publisher
+                .add_matched_reader(discovered_reader_data, vec![], vec![]);
         }
     }
 
@@ -1234,14 +1213,7 @@ impl DomainParticipantActor {
             let discovered_reader_data =
                 DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
             self.builtin_publisher
-                .lookup_datawriter_by_topic_name(DCPS_TOPIC)
-                .expect("DCPS Topic announcer must exist")
-                .add_matched_reader(
-                    discovered_reader_data,
-                    vec![],
-                    vec![],
-                    &PublisherQos::default(),
-                );
+                .add_matched_reader(discovered_reader_data, vec![], vec![]);
         }
     }
 

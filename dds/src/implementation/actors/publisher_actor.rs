@@ -229,6 +229,26 @@ impl PublisherActor {
         }
         Ok(())
     }
+
+    pub fn get_qos(&self) -> &PublisherQos {
+        &self.qos
+    }
+
+    pub fn add_matched_reader(
+        &mut self,
+        discovered_reader_data: DiscoveredReaderData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+    ) {
+        if let Some(dw) = self.data_writer_list.values_mut().find(|dw| {
+            dw.get_topic_name()
+                == discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .topic_name()
+        }) {
+            dw.add_matched_reader(discovered_reader_data, default_unicast_locator_list, default_multicast_locator_list, &self.qos);
+        }
+    }
 }
 
 pub struct Enable;
