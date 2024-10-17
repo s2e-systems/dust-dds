@@ -17,11 +17,13 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
+        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
         runtime::{
             executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
             timer::TimerHandle,
         },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -43,7 +45,7 @@ use crate::{
     },
     rtps::{
         cache_change::RtpsCacheChange,
-        messages::submessage_elements::{Data, ParameterList},
+        messages::submessage_elements::{Data, Parameter, ParameterList},
         reader_proxy::RtpsReaderProxy,
         stateful_writer::TransportWriter,
         types::{
@@ -51,6 +53,8 @@ use crate::{
             GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
         },
     },
+    topic_definition::type_support::DdsSerialize,
+    xtypes::dynamic_type::DynamicType,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -448,6 +452,227 @@ impl DataWriterActor {
             .send_actor_mail(AddCommunicationState {
                 state: StatusKind::OfferedIncompatibleQos,
             });
+        Ok(())
+    }
+
+    pub fn get_topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
+    fn add_change(&mut self, change: RtpsCacheChange) {
+        let mut rtps_writer = self.rtps_writer.lock().unwrap();
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if rtps_writer
+                .get_history_cache()
+                .get_changes()
+                .iter()
+                .filter(|cc| cc.instance_handle() == change.instance_handle())
+                .count()
+                == depth as usize
+            {
+                if let Some(smallest_seq_num_instance) = rtps_writer
+                    .get_history_cache()
+                    .get_changes()
+                    .iter()
+                    .filter(|cc| cc.instance_handle() == change.instance_handle())
+                    .map(|cc| cc.sequence_number())
+                    .min()
+                {
+                    rtps_writer
+                        .get_history_cache()
+                        .remove_change(smallest_seq_num_instance);
+                }
+            }
+        }
+
+        let change_instance_handle = change.instance_handle();
+        let change_timestamp = change.source_timestamp();
+        let seq_num = change.sequence_number();
+
+        if seq_num > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(seq_num)
+        }
+
+        if let Some(t) = self
+            .instance_deadline_missed_task
+            .remove(&change_instance_handle.into())
+        {
+            t.abort();
+        }
+
+        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
+            let deadline_missed_interval = std::time::Duration::new(
+                deadline_missed_period.sec() as u64,
+                deadline_missed_period.nanosec(),
+            );
+            // let writer_status_condition = self.status_condition.address();
+            // let writer_address = message.writer_address.clone();
+            // let timer_handle = message.timer_handle.clone();
+            // let writer_listener_mask = self.status_kind.clone();
+            // let data_writer_listener_sender = self
+            //     .data_writer_listener_thread
+            //     .as_ref()
+            //     .map(|l| l.sender().clone());
+            // let publisher_listener = message.publisher_mask_listener.0.clone();
+            // let publisher_listener_mask = message.publisher_mask_listener.1.clone();
+            // let participant_listener = message.participant_mask_listener.0.clone();
+            // let participant_listener_mask = message.participant_mask_listener.1.clone();
+            // let status_condition_address = self.status_condition.address();
+            // // let topic_address = self.topic_address.clone();
+            // // let topic_status_condition_address = self.topic_status_condition.clone();
+            // let type_name = self.type_name.clone();
+            // let topic_name = self.topic_name.clone();
+            // let publisher = message.publisher.clone();
+
+            // let deadline_missed_task = message.executor_handle.spawn(async move {
+            //     loop {
+            //         timer_handle.sleep(deadline_missed_interval).await;
+            //         let publisher_listener = publisher_listener.clone();
+            //         let participant_listener = participant_listener.clone();
+
+            //         let r: DdsResult<()> = async {
+            //             writer_address.send_actor_mail(
+            //                 IncrementOfferedDeadlineMissedStatus {
+            //                     instance_handle: change_instance_handle.into(),
+            //                 },
+            //             )?;
+
+            //             let writer_address = writer_address.clone();
+            //             let status_condition_address = status_condition_address.clone();
+            //             let publisher = publisher.clone();
+            //             let topic = TopicAsync::new(
+            //                 topic_address.clone(),
+            //                 topic_status_condition_address.clone(),
+            //                 type_name.clone(),
+            //                 topic_name.clone(),
+            //                 publisher.get_participant(),
+            //             );
+            //             if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
+            //                 let status = writer_address
+            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+            //                     .receive_reply()
+            //                     .await;
+            //                 if let Some(listener) = &data_writer_listener_sender {
+            //                     listener
+            //                         .send(DataWriterListenerMessage {
+            //                             listener_operation:
+            //                                 DataWriterListenerOperation::OfferedDeadlineMissed(
+            //                                     status,
+            //                                 ),
+            //                             writer_address,
+            //                             status_condition_address,
+            //                             publisher,
+            //                             topic,
+            //                         })
+            //                         .ok();
+            //                 }
+            //             } else if publisher_listener_mask
+            //                 .contains(&StatusKind::OfferedDeadlineMissed)
+            //             {
+            //                 let status = writer_address
+            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+            //                     .receive_reply()
+            //                     .await;
+            //                 if let Some(listener) = publisher_listener {
+            //                     listener
+            //                         .send(PublisherListenerMessage {
+            //                             listener_operation:
+            //                                 PublisherListenerOperation::OfferedDeadlineMissed(
+            //                                     status,
+            //                                 ),
+            //                             writer_address,
+            //                             status_condition_address,
+            //                             publisher,
+            //                             topic,
+            //                         })
+            //                         .ok();
+            //                 }
+            //             } else if participant_listener_mask
+            //                 .contains(&StatusKind::OfferedDeadlineMissed)
+            //             {
+            //                 let status = writer_address
+            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
+            //                     .receive_reply()
+            //                     .await;
+            //                 if let Some(listener) = participant_listener {
+            //                     listener
+            //                     .send(ParticipantListenerMessage {
+            //                         listener_operation:
+            //                             ParticipantListenerOperation::_OfferedDeadlineMissed(
+            //                                 status,
+            //                             ),
+            //                         listener_kind: ListenerKind::Writer {
+            //                             writer_address,
+            //                             status_condition_address,
+            //                             publisher,
+            //                             topic,
+            //                         },
+            //                     })
+            //                     .ok();
+            //                 }
+            //             }
+            //             writer_status_condition
+            //                 .send_actor_mail(AddCommunicationState {
+            //                     state: StatusKind::OfferedDeadlineMissed,
+            //                 })?
+            //                 .receive_reply()
+            //                 .await;
+            //             Ok(())
+            //         }
+            //         .await;
+            //         if r.is_err() {
+            //             break;
+            //         }
+            //     }
+            // });
+            // self.instance_deadline_missed_task
+            //     .insert(change_instance_handle.into(), deadline_missed_task);
+        }
+
+        // if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
+        //     if let Some(timestamp) = change_timestamp {
+        //         let change_lifespan =
+        //             crate::infrastructure::time::Time::from(timestamp) - message.now + lifespan;
+        //         if change_lifespan > Duration::new(0, 0) {
+        //             rtps_writer.get_history_cache().add_change(message.change);
+        //             message.executor_handle.spawn(async move {
+        //                 message.timer_handle.sleep(change_lifespan.into()).await;
+
+        //                 message
+        //                     .writer_address
+        //                     .send_actor_mail(RemoveChange { seq_num })
+        //                     .ok();
+        //             });
+        //         }
+        //     }
+        // } else {
+        rtps_writer.get_history_cache().add_change(change);
+        // }
+    }
+
+    pub fn write_w_timestamp(
+        &mut self,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        type_support: &dyn DynamicType,
+    ) -> DdsResult<()> {
+        self.last_change_sequence_number += 1;
+
+        let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support)?;
+
+        // let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
+        // let parameter_list = ParameterList::new(vec![pid_key_hash]);
+
+        let change = RtpsCacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: self.guid,
+            instance_handle: key.into(),
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(timestamp.into()),
+            data_value: serialized_data.into(),
+            inline_qos: ParameterList::new(vec![]),
+        };
+        self.add_change(change);
         Ok(())
     }
 }

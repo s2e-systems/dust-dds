@@ -77,7 +77,7 @@ use std::{
         Arc, Mutex, OnceLock,
     },
 };
-use tracing::warn;
+use tracing::{error, warn};
 
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
@@ -203,7 +203,6 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         transport: &Arc<Mutex<RtpsParticipant>>,
-        topic_list: &HashMap<String, TopicActor>,
         builtin_subscriber_address: ActorAddress<SubscriberActor>,
         participant_address: ActorAddress<DomainParticipantActor>,
         domain_participant_status_kind: Vec<StatusKind>,
@@ -352,7 +351,6 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         participant: &Arc<Mutex<RtpsParticipant>>,
-        topic_list: &HashMap<String, TopicActor>,
         handle: &ExecutorHandle,
     ) -> Vec<DataWriterActor> {
         let spdp_writer_qos = DataWriterQos {
@@ -508,7 +506,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let topic_list = self.create_builtin_topics(guid_prefix);
         let builtin_data_writer_list =
-            self.create_builtin_writers(guid_prefix, &transport, &topic_list, &executor_handle);
+            self.create_builtin_writers(guid_prefix, &transport, &executor_handle);
 
         let (domain_participant, status_condition) = DomainParticipantActor::new(
             transport.clone(),
@@ -521,6 +519,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             message.status_kind,
             builtin_data_writer_list,
             message_sender_actor,
+            topic_list,
             executor,
             timer_driver,
         );
@@ -532,7 +531,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let builtin_data_reader_list = self.create_builtin_readers(
             guid_prefix,
             &transport,
-            &topic_list,
             builtin_subscriber_address.clone(),
             participant_actor_address,
             domain_participant_status_kind,
@@ -554,24 +552,26 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         // });
 
         //****** Spawn the participant actor and tasks **********//
-        let participant =
-            DomainParticipantAsync::new(participant_actor.address(), message.domain_id);
 
-        // // Start the regular participant announcement task
-        // let participant_clone = participant.clone();
-        // let participant_announcement_interval =
-        //     self.configuration.participant_announcement_interval();
+        // Start the regular participant announcement task
+        let participant_address = participant_actor.address();
+        let participant_announcement_interval =
+            self.configuration.participant_announcement_interval();
 
-        // executor_handle.spawn(async move {
-        //     loop {
-        //         let r = participant_clone.announce_participant().await;
-        //         if r.is_err() {
-        //             break;
-        //         }
-
-        //         timer_handle.sleep(participant_announcement_interval).await;
-        //     }
-        // });
+        executor_handle.spawn(async move {
+            loop {
+                if let Ok(r) = participant_address
+                    .send_actor_mail(domain_participant_actor::AnnounceParticipant)
+                {
+                    if let Err(announce_result) = r.receive_reply().await {
+                        error!("Error announcing participant: {:?}", announce_result);
+                    }
+                    timer_handle.sleep(participant_announcement_interval).await;
+                } else {
+                    break;
+                }
+            }
+        });
 
         // let participant_clone = participant.clone();
         // executor_handle.spawn(async move {

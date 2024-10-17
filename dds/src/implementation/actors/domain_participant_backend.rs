@@ -76,6 +76,7 @@ use crate::{
         },
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    topic_definition::type_support::DdsSerialize,
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
@@ -424,6 +425,7 @@ impl DomainParticipantActor {
         status_kind: Vec<StatusKind>,
         builtin_data_writer_list: Vec<DataWriterActor>,
         message_sender_actor: MessageSenderActor,
+        topic_list: HashMap<String, TopicActor>,
         executor: Executor,
         timer_driver: TimerDriver,
     ) -> (Self, ActorAddress<StatusConditionActor>) {
@@ -479,7 +481,7 @@ impl DomainParticipantActor {
                 user_defined_publisher_list: HashMap::new(),
                 user_defined_publisher_counter: 0,
                 default_publisher_qos: PublisherQos::default(),
-                topic_list: HashMap::new(),
+                topic_list,
                 user_defined_topic_counter: 0,
                 default_topic_qos: TopicQos::default(),
                 lease_duration,
@@ -695,6 +697,10 @@ impl DomainParticipantActor {
             ))
     }
 
+    pub fn get_current_time(&self) -> Time {
+        Time::now()
+    }
+
     pub fn get_qos(&self) -> &DomainParticipantQos {
         &self.qos
     }
@@ -716,17 +722,9 @@ impl DomainParticipantActor {
     pub fn enable(&mut self) -> DdsResult<()> {
         if !self.enabled {
             self.builtin_publisher.enable()?;
-            todo!()
 
-            //     let builtin_publisher = self
-            //         .participant_address
-            //         .send_actor_mail(domain_participant_actor::GetBuiltinPublisher)?
-            //         .receive_reply()
-            //         .await;
-            //     builtin_publisher
-            //         .send_actor_mail(publisher_actor::Enable)?
-            //         .receive_reply()
-            //         .await;
+            self.enabled = true;
+            self.announce_participant()?;
 
             //     let builtin_subscriber = self
             //         .participant_address
@@ -778,8 +776,7 @@ impl DomainParticipantActor {
 
             //     self.announce_participant().await?;
         }
-
-        todo!()
+        Ok(())
     }
 
     pub fn set_listener(
@@ -797,5 +794,42 @@ impl DomainParticipantActor {
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         Ok(InstanceHandle::new(self.guid.into()))
+    }
+
+    pub fn announce_participant(&mut self) -> DdsResult<()> {
+        if self.enabled {
+            let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
+            let timestamp = self.get_current_time();
+            let dcps_participant_topic = self
+                .topic_list
+                .get_mut(DCPS_PARTICIPANT)
+                .expect("DCPS Participant topic must exist");
+
+            if let Some(dw) = self
+                .builtin_publisher
+                .lookup_datawriter_by_topic_name(DCPS_PARTICIPANT)
+            {
+                dw.write_w_timestamp(
+                    spdp_discovered_participant_data.serialize_data()?,
+                    timestamp,
+                    dcps_participant_topic.get_type_support().as_ref(),
+                )?
+            }
+        }
+        Ok(())
+    }
+
+    fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+        SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.guid.into(),
+                },
+                user_data: self.qos.user_data.clone(),
+            },
+            participant_proxy: self.rtps_participant.lock().unwrap().participant_proxy(),
+            lease_duration: self.lease_duration,
+            discovered_participant_list: self.discovered_participant_list.keys().cloned().collect(),
+        }
     }
 }

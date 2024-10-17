@@ -214,6 +214,15 @@ impl PublisherActor {
             || is_any_local_regex_matched_with_received_partition_qos
     }
 
+    pub fn lookup_datawriter_by_topic_name(
+        &mut self,
+        topic_name: &str,
+    ) -> Option<&mut DataWriterActor> {
+        self.data_writer_list
+            .values_mut()
+            .find(|dw| dw.get_topic_name() == topic_name)
+    }
+
     pub fn enable(&mut self) -> DdsResult<()> {
         if !self.enabled {
             self.enabled = true;

@@ -712,7 +712,7 @@ impl Mail for GetCurrentTime {
 }
 impl MailHandler<GetCurrentTime> for DomainParticipantActor {
     fn handle(&mut self, _: GetCurrentTime) -> <GetCurrentTime as Mail>::Result {
-        Time::now()
+        self.get_current_time()
     }
 }
 
@@ -2687,6 +2687,16 @@ impl MailHandler<GetStatusConditionTriggerValue> for DomainParticipantActor {
 }
 
 // ############################  Other messages
+pub struct AnnounceParticipant;
+impl Mail for AnnounceParticipant {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
+    fn handle(&mut self, _: AnnounceParticipant) -> <AnnounceParticipant as Mail>::Result {
+        self.announce_participant()
+    }
+}
+
 // pub struct SetTopicList {
 //     pub topic_list: HashMap<String, TopicActor>,
 // }
@@ -2844,29 +2854,6 @@ impl MailHandler<DrainPublisherList> for DomainParticipantActor {
 //             }
 //         }
 //         drained_topic_list
-//     }
-// }
-
-// pub struct AsSpdpDiscoveredParticipantData;
-// impl Mail for AsSpdpDiscoveredParticipantData {
-//     type Result = SpdpDiscoveredParticipantData;
-// }
-// impl MailHandler<AsSpdpDiscoveredParticipantData> for DomainParticipantActor {
-//     fn handle(
-//         &mut self,
-//         _: AsSpdpDiscoveredParticipantData,
-//     ) -> <AsSpdpDiscoveredParticipantData as Mail>::Result {
-//         SpdpDiscoveredParticipantData {
-//             dds_participant_data: ParticipantBuiltinTopicData {
-//                 key: BuiltInTopicKey {
-//                     value: self.guid.into(),
-//                 },
-//                 user_data: self.qos.user_data.clone(),
-//             },
-//             participant_proxy: self.rtps_participant.lock().unwrap().participant_proxy(),
-//             lease_duration: self.lease_duration,
-//             discovered_participant_list: self.discovered_participant_list.keys().cloned().collect(),
-//         }
 //     }
 // }
 
