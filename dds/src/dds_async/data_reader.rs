@@ -10,9 +10,9 @@ use crate::{
         actor::ActorAddress,
         actors::{
             data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
-            domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
+            {domain_participant_actor, domain_participant_backend::DomainParticipantActor},
         },
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,

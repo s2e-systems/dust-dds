@@ -17,7 +17,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::domain_participant_actor::DomainParticipantActor,
+        actors::domain_participant_backend::DomainParticipantActor,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -144,63 +144,55 @@ impl DomainParticipantFactoryActor {
         ]
     }
 
-    fn create_builtin_topics(
-        &self,
-        guid_prefix: GuidPrefix,
-        handle: &ExecutorHandle,
-    ) -> HashMap<String, TopicActor> {
+    fn create_builtin_topics(&self, guid_prefix: GuidPrefix) -> HashMap<String, TopicActor> {
         let mut topic_list = HashMap::new();
 
         let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let (spdp_topic_participant, _) = TopicActor::new(
+        let spdp_topic_participant = TopicActor::new(
             spdp_topic_guid,
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT,
             None,
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            handle,
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
         let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
         let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let (sedp_topic_topics, _) = TopicActor::new(
+        let sedp_topic_topics = TopicActor::new(
             sedp_topic_topics_guid,
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC,
             None,
             Arc::new(DiscoveredTopicData::get_type()),
-            handle,
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
         let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let (sedp_topic_publications, _) = TopicActor::new(
+        let sedp_topic_publications = TopicActor::new(
             sedp_topic_publications_guid,
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION,
             None,
             Arc::new(DiscoveredWriterData::get_type()),
-            handle,
         );
 
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
         let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let (sedp_topic_subscriptions, _) = TopicActor::new(
+        let sedp_topic_subscriptions = TopicActor::new(
             sedp_topic_subscriptions_guid,
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION,
             None,
             Arc::new(DiscoveredReaderData::get_type()),
-            handle,
         );
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
@@ -514,7 +506,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let builtin_subscriber_actor = Actor::spawn(builtin_subscriber, &executor_handle);
         let builtin_subscriber_address = builtin_subscriber_actor.address();
 
-        let topic_list = self.create_builtin_topics(guid_prefix, &executor.handle());
+        let topic_list = self.create_builtin_topics(guid_prefix);
         let builtin_data_writer_list =
             self.create_builtin_writers(guid_prefix, &transport, &topic_list, &executor_handle);
 
@@ -556,10 +548,10 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 data_reader_actor,
             });
         }
-        participant_actor.send_actor_mail(domain_participant_actor::SetTopicList { topic_list });
-        participant_actor.send_actor_mail(domain_participant_actor::SetBuiltInSubscriber {
-            builtin_subscriber: builtin_subscriber_actor,
-        });
+        // participant_actor.send_actor_mail(domain_participant_actor::SetTopicList { topic_list });
+        // participant_actor.send_actor_mail(domain_participant_actor::SetBuiltInSubscriber {
+        //     builtin_subscriber: builtin_subscriber_actor,
+        // });
 
         //****** Spawn the participant actor and tasks **********//
         let participant =
@@ -780,23 +772,25 @@ impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
                 if let Ok(handle) =
                     InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
                 {
-                    self.participant_address
-                        .send_actor_mail(domain_participant_actor::RemoveDiscoveredParticipant {
-                            handle,
-                        })
-                        .ok();
+                    todo!()
+                    // self.participant_address
+                    //     .send_actor_mail(domain_participant_actor::RemoveDiscoveredParticipant {
+                    //         handle,
+                    //     })
+                    //     .ok();
                 }
             }
         } else {
             if let Ok(discovered_participant_data) =
                 SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
             {
-                self.participant_address
-                    .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
-                        discovered_participant_data,
-                        // participant: participant.clone(),
-                    })
-                    .ok();
+                todo!()
+                // self.participant_address
+                //     .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
+                //         discovered_participant_data,
+                //         // participant: participant.clone(),
+                //     })
+                //     .ok();
             }
         }
 
@@ -822,12 +816,13 @@ impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
         if let Ok(discovered_topic_data) =
             DiscoveredTopicData::deserialize_data(cache_change.data_value.as_ref())
         {
-            self.participant_address
-                .send_actor_mail(domain_participant_actor::AddMatchedTopic {
-                    discovered_topic_data,
-                    // participant: participant.clone(),
-                })
-                .ok();
+            todo!()
+            // self.participant_address
+            //     .send_actor_mail(domain_participant_actor::AddMatchedTopic {
+            //         discovered_topic_data,
+            //         // participant: participant.clone(),
+            //     })
+            //     .ok();
         }
         self.subscriber_address
             .send_actor_mail(subscriber_actor::AddChange {
@@ -861,23 +856,25 @@ impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
                 if let Ok(discovered_writer_handle) =
                     InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
                 {
-                    self.participant_address
-                        .send_actor_mail(domain_participant_actor::RemoveMatchedWriter {
-                            discovered_writer_handle,
-                        })
-                        .ok();
+                    todo!()
+                    // self.participant_address
+                    //     .send_actor_mail(domain_participant_actor::RemoveMatchedWriter {
+                    //         discovered_writer_handle,
+                    //     })
+                    //     .ok();
                 }
             }
         } else {
             if let Ok(discovered_writer_data) =
                 DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
             {
-                self.participant_address
-                    .send_actor_mail(domain_participant_actor::AddMatchedWriter {
-                        discovered_writer_data,
-                        // participant: participant.clone(),
-                    })
-                    .ok();
+                todo!()
+                // self.participant_address
+                //     .send_actor_mail(domain_participant_actor::AddMatchedWriter {
+                //         discovered_writer_data,
+                //         // participant: participant.clone(),
+                //     })
+                //     .ok();
             }
         }
         self.subscriber_address
@@ -912,23 +909,25 @@ impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
                 if let Ok(discovered_reader_handle) =
                     InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
                 {
-                    self.participant_address
-                        .send_actor_mail(domain_participant_actor::RemoveMatchedReader {
-                            discovered_reader_handle,
-                        })
-                        .ok();
+                    todo!()
+                    // self.participant_address
+                    //     .send_actor_mail(domain_participant_actor::RemoveMatchedReader {
+                    //         discovered_reader_handle,
+                    //     })
+                    //     .ok();
                 }
             }
         } else {
             if let Ok(discovered_reader_data) =
                 DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
             {
-                self.participant_address
-                    .send_actor_mail(domain_participant_actor::AddMatchedReader {
-                        discovered_reader_data,
-                        // participant: participant.clone(),
-                    })
-                    .ok();
+                todo!()
+                // self.participant_address
+                //     .send_actor_mail(domain_participant_actor::AddMatchedReader {
+                //         discovered_reader_data,
+                //         // participant: participant.clone(),
+                //     })
+                //     .ok();
             }
         }
 

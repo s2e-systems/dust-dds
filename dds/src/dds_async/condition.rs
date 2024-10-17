@@ -1,7 +1,7 @@
 use crate::{
     implementation::{
         actor::ActorAddress,
-        actors::domain_participant_actor::{self, DomainParticipantActor},
+        actors::{domain_participant_actor, domain_participant_backend::DomainParticipantActor},
     },
     infrastructure::{error::DdsResult, status::StatusKind},
     rtps::types::Guid,

@@ -1,6 +1,6 @@
 use super::{
     data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
-    domain_participant_actor::ParticipantListenerMessage,
+    domain_participant_backend::ParticipantListenerMessage,
     status_condition_actor::AddCommunicationState,
     topic_actor::TopicActor,
 };

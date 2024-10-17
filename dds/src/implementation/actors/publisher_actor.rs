@@ -1,7 +1,7 @@
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_actor::ParticipantListenerMessage,
+    domain_participant_backend::ParticipantListenerMessage,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
@@ -121,13 +121,13 @@ pub struct PublisherActor {
     qos: PublisherQos,
     rtps_group: RtpsGroup,
     transport: Arc<Mutex<RtpsParticipant>>,
-    data_writer_list: HashMap<InstanceHandle, Actor<DataWriterActor>>,
+    data_writer_list: HashMap<InstanceHandle, DataWriterActor>,
     enabled: bool,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
     publisher_listener_thread: Option<PublisherListenerThread>,
     status_kind: Vec<StatusKind>,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: StatusConditionActor,
 }
 
 impl PublisherActor {
@@ -142,7 +142,7 @@ impl PublisherActor {
     ) -> Self {
         let data_writer_list = data_writer_list
             .into_iter()
-            .map(|dw| (dw.get_instance_handle(), Actor::spawn(dw, handle)))
+            .map(|dw| (dw.get_instance_handle(), dw))
             .collect();
         let publisher_listener_thread = listener.map(PublisherListenerThread::new);
         Self {
@@ -155,12 +155,8 @@ impl PublisherActor {
             default_datawriter_qos: DataWriterQos::default(),
             publisher_listener_thread,
             status_kind,
-            status_condition: Actor::spawn(StatusConditionActor::default(), handle),
+            status_condition: StatusConditionActor::default(),
         }
-    }
-
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
-        self.status_condition.address()
     }
 
     fn get_unique_writer_id(&mut self) -> u8 {
@@ -217,6 +213,13 @@ impl PublisherActor {
             || is_any_received_regex_matched_with_partition_qos
             || is_any_local_regex_matched_with_received_partition_qos
     }
+
+    pub fn enable(&mut self) -> DdsResult<()> {
+        if !self.enabled {
+            self.enabled = true;
+        }
+        Ok(())
+    }
 }
 
 pub struct Enable;
@@ -246,16 +249,6 @@ impl Mail for IsEmpty {
 impl MailHandler<IsEmpty> for PublisherActor {
     fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
         self.data_writer_list.is_empty()
-    }
-}
-
-pub struct DrainDataWriterList;
-impl Mail for DrainDataWriterList {
-    type Result = Vec<Actor<DataWriterActor>>;
-}
-impl MailHandler<DrainDataWriterList> for PublisherActor {
-    fn handle(&mut self, _: DrainDataWriterList) -> <DrainDataWriterList as Mail>::Result {
-        self.data_writer_list.drain().map(|(_, a)| a).collect()
     }
 }
 
@@ -347,19 +340,6 @@ impl MailHandler<GetQos> for PublisherActor {
     }
 }
 
-pub struct GetDataWriterList;
-impl Mail for GetDataWriterList {
-    type Result = Vec<ActorAddress<DataWriterActor>>;
-}
-impl MailHandler<GetDataWriterList> for PublisherActor {
-    fn handle(&mut self, _: GetDataWriterList) -> <GetDataWriterList as Mail>::Result {
-        self.data_writer_list
-            .values()
-            .map(|x| x.address())
-            .collect()
-    }
-}
-
 pub struct AddMatchedReader {
     pub discovered_reader_data: DiscoveredReaderData,
     pub default_unicast_locator_list: Vec<Locator>,
@@ -384,29 +364,30 @@ impl MailHandler<AddMatchedReader> for PublisherActor {
                 .partition(),
         ) {
             for data_writer in self.data_writer_list.values() {
-                let data_writer_address = data_writer.address();
-                let publisher_mask_listener = (
-                    self.publisher_listener_thread
-                        .as_ref()
-                        .map(|l| l.sender().clone()),
-                    self.status_kind.clone(),
-                );
+                todo!()
+                // let data_writer_address = data_writer.address();
+                // let publisher_mask_listener = (
+                //     self.publisher_listener_thread
+                //         .as_ref()
+                //         .map(|l| l.sender().clone()),
+                //     self.status_kind.clone(),
+                // );
 
-                data_writer.send_actor_mail(data_writer_actor::AddMatchedReader {
-                    discovered_reader_data: message.discovered_reader_data.clone(),
-                    default_unicast_locator_list: message.default_unicast_locator_list.clone(),
-                    default_multicast_locator_list: message.default_multicast_locator_list.clone(),
-                    data_writer_address,
-                    // publisher: PublisherAsync::new(
-                    //     message.publisher_address.clone(),
-                    //     self.status_condition.address(),
-                    //     message.participant.clone(),
-                    // ),
-                    publisher_qos: self.qos.clone(),
-                    publisher_mask_listener,
-                    participant_mask_listener: message.participant_mask_listener.clone(),
-                    message_sender_actor: message.message_sender_actor.clone(),
-                });
+                // data_writer.send_actor_mail(data_writer_actor::AddMatchedReader {
+                //     discovered_reader_data: message.discovered_reader_data.clone(),
+                //     default_unicast_locator_list: message.default_unicast_locator_list.clone(),
+                //     default_multicast_locator_list: message.default_multicast_locator_list.clone(),
+                //     data_writer_address,
+                //     // publisher: PublisherAsync::new(
+                //     //     message.publisher_address.clone(),
+                //     //     self.status_condition.address(),
+                //     //     message.participant.clone(),
+                //     // ),
+                //     publisher_qos: self.qos.clone(),
+                //     publisher_mask_listener,
+                //     participant_mask_listener: message.participant_mask_listener.clone(),
+                //     message_sender_actor: message.message_sender_actor.clone(),
+                // });
             }
         }
         Ok(())
@@ -428,6 +409,7 @@ impl Mail for RemoveMatchedReader {
 impl MailHandler<RemoveMatchedReader> for PublisherActor {
     fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
         for data_writer in self.data_writer_list.values() {
+            todo!()
             // let data_writer_address = data_writer.address();
             // let publisher_mask_listener = (
             //     self.publisher_listener_thread
@@ -435,29 +417,19 @@ impl MailHandler<RemoveMatchedReader> for PublisherActor {
             //         .map(|l| l.sender().clone()),
             //     self.status_kind.clone(),
             // );
-            data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
-                discovered_reader_handle: message.discovered_reader_handle,
-                // data_writer_address,
-                // publisher: PublisherAsync::new(
-                //     message.publisher_address.clone(),
-                //     self.status_condition.address(),
-                //     message.participant.clone(),
-                // ),
-                // publisher_mask_listener,
-                // participant_mask_listener: message.participant_mask_listener.clone(),
-            });
+            // data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
+            //     discovered_reader_handle: message.discovered_reader_handle,
+            //     // data_writer_address,
+            //     // publisher: PublisherAsync::new(
+            //     //     message.publisher_address.clone(),
+            //     //     self.status_condition.address(),
+            //     //     message.participant.clone(),
+            //     // ),
+            //     // publisher_mask_listener,
+            //     // participant_mask_listener: message.participant_mask_listener.clone(),
+            // });
         }
         Ok(())
-    }
-}
-
-pub struct GetStatuscondition;
-impl Mail for GetStatuscondition {
-    type Result = ActorAddress<StatusConditionActor>;
-}
-impl MailHandler<GetStatuscondition> for PublisherActor {
-    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
-        self.status_condition.address()
     }
 }
 

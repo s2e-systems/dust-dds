@@ -9,7 +9,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::ActorAddress,
-        actors::domain_participant_actor::{self, DomainParticipantActor},
+        actors::{domain_participant_actor, domain_participant_backend::DomainParticipantActor},
     },
     infrastructure::{
         error::DdsResult,
@@ -324,11 +324,10 @@ impl DomainParticipantAsync {
     /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self
-            .participant_address
+        self.participant_address
             .send_actor_mail(domain_participant_actor::GetDefaultPublisherQos)?
             .receive_reply()
-            .await)
+            .await
     }
 
     /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
@@ -343,11 +342,10 @@ impl DomainParticipantAsync {
     /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        Ok(self
-            .participant_address
+        self.participant_address
             .send_actor_mail(domain_participant_actor::GetDefaultSubscriberQos)?
             .receive_reply()
-            .await)
+            .await
     }
 
     /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
@@ -362,21 +360,19 @@ impl DomainParticipantAsync {
     /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self
-            .participant_address
+        self.participant_address
             .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)?
             .receive_reply()
-            .await)
+            .await
     }
 
     /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self
-            .participant_address
+        self.participant_address
             .send_actor_mail(domain_participant_actor::GetDiscoveredParticipants)?
             .receive_reply()
-            .await)
+            .await
     }
 
     /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
@@ -396,11 +392,10 @@ impl DomainParticipantAsync {
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self
-            .participant_address
+        self.participant_address
             .send_actor_mail(domain_participant_actor::GetDiscoveredTopics)?
             .receive_reply()
-            .await)
+            .await
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).

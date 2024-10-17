@@ -32,6 +32,33 @@ impl Default for StatusConditionActor {
     }
 }
 
+impl StatusConditionActor {
+    pub fn add_communication_state(&mut self, state: StatusKind) {
+        self.status_changes.push(state);
+    }
+
+    pub fn remove_communication_state(&mut self, state: StatusKind) {
+        self.status_changes.retain(|x| x != &state);
+    }
+
+    pub fn get_enabled_statuses(&self) -> Vec<StatusKind> {
+        self.enabled_statuses.clone()
+    }
+
+    pub fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) {
+        self.enabled_statuses = mask;
+    }
+
+    pub fn get_trigger_value(&self) -> bool {
+        for status in &self.status_changes {
+            if self.enabled_statuses.contains(status) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 pub struct AddCommunicationState {
     pub state: StatusKind,
 }
@@ -79,10 +106,7 @@ impl Mail for SetEnabledStatuses {
     type Result = ();
 }
 impl MailHandler<SetEnabledStatuses> for StatusConditionActor {
-    fn handle(
-        &mut self,
-        message: SetEnabledStatuses,
-    ) -> <SetEnabledStatuses as Mail>::Result {
+    fn handle(&mut self, message: SetEnabledStatuses) -> <SetEnabledStatuses as Mail>::Result {
         self.enabled_statuses = message.mask;
     }
 }
