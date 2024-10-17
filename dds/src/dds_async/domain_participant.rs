@@ -143,7 +143,8 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
-        self.participant_address
+        let guid = self
+            .participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedTopic {
                 topic_name: topic_name.to_string(),
                 type_name: type_name.to_string(),
@@ -156,6 +157,7 @@ impl DomainParticipantAsync {
             .await?;
 
         Ok(TopicAsync::new(
+            guid,
             type_name.to_string(),
             topic_name.to_string(),
             self.clone(),
@@ -234,7 +236,7 @@ impl DomainParticipantAsync {
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        if let Some(type_name) = self
+        if let Some((type_name, guid)) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
@@ -243,6 +245,7 @@ impl DomainParticipantAsync {
             .await?
         {
             Ok(Some(TopicAsync::new(
+                guid,
                 type_name,
                 topic_name.to_owned(),
                 self.clone(),

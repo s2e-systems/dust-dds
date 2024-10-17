@@ -675,6 +675,157 @@ impl DataWriterActor {
         self.add_change(change);
         Ok(())
     }
+
+    pub fn add_matched_reader(
+        &mut self,
+        discovered_reader_data: DiscoveredReaderData,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        publisher_qos: &PublisherQos,
+    ) {
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let is_matched_topic_name = discovered_reader_data
+            .subscription_builtin_topic_data()
+            .topic_name()
+            == topic_name;
+        let is_matched_type_name = discovered_reader_data
+            .subscription_builtin_topic_data()
+            .get_type_name()
+            == type_name;
+
+        if is_matched_topic_name && is_matched_type_name {
+            tracing::trace!(
+                topic_name = topic_name,
+                type_name = type_name,
+                "Reader with matched topic and type found",
+            );
+            let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+                &self.qos,
+                discovered_reader_data.subscription_builtin_topic_data(),
+                &publisher_qos,
+            );
+            let instance_handle = InstanceHandle::new(
+                discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .key
+                    .value,
+            );
+            if incompatible_qos_policy_list.is_empty() {
+                let unicast_locator_list = if discovered_reader_data
+                    .reader_proxy()
+                    .unicast_locator_list
+                    .is_empty()
+                {
+                    default_unicast_locator_list
+                } else {
+                    discovered_reader_data
+                        .reader_proxy()
+                        .unicast_locator_list
+                        .to_vec()
+                };
+
+                let multicast_locator_list = if discovered_reader_data
+                    .reader_proxy()
+                    .multicast_locator_list
+                    .is_empty()
+                {
+                    default_multicast_locator_list
+                } else {
+                    discovered_reader_data
+                        .reader_proxy()
+                        .multicast_locator_list
+                        .to_vec()
+                };
+
+                let proxy_reliability = match discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .reliability()
+                    .kind
+                {
+                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                };
+
+                let first_relevant_sample_seq_num = match discovered_reader_data
+                    .subscription_builtin_topic_data()
+                    .durability()
+                    .kind
+                {
+                    DurabilityQosPolicyKind::Volatile => self.max_seq_num.unwrap_or(0),
+                    DurabilityQosPolicyKind::TransientLocal
+                    | DurabilityQosPolicyKind::Transient
+                    | DurabilityQosPolicyKind::Persistent => 0,
+                };
+
+                let reader_proxy = RtpsReaderProxy::new(
+                    discovered_reader_data.reader_proxy().remote_reader_guid,
+                    discovered_reader_data.reader_proxy().remote_group_entity_id,
+                    &unicast_locator_list,
+                    &multicast_locator_list,
+                    discovered_reader_data.reader_proxy().expects_inline_qos,
+                    true,
+                    proxy_reliability,
+                    first_relevant_sample_seq_num,
+                );
+
+                if !self
+                    .matched_subscriptions
+                    .get_matched_subscriptions()
+                    .contains(&instance_handle)
+                    || self
+                        .matched_subscriptions
+                        .get_matched_subscription_data(instance_handle)
+                        != Some(discovered_reader_data.subscription_builtin_topic_data())
+                {
+                    let reliability_kind = match discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .reliability()
+                        .kind
+                    {
+                        ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                    };
+                    let durability_kind = match discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .durability()
+                        .kind
+                    {
+                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                        DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                        DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
+                    };
+                    self.rtps_writer.lock().unwrap().add_matched_reader(
+                        discovered_reader_data.reader_proxy().clone(),
+                        reliability_kind,
+                        durability_kind,
+                    );
+                    self.matched_subscriptions.add_matched_subscription(
+                        instance_handle,
+                        discovered_reader_data
+                            .subscription_builtin_topic_data()
+                            .clone(),
+                    );
+                    self.on_publication_matched(
+                        // message.data_writer_address,
+                        // // message.publisher,
+                        // message.publisher_mask_listener,
+                        // message.participant_mask_listener,
+                    );
+                }
+            } else if !self.incompatible_subscriptions.contains(&instance_handle) {
+                self.incompatible_subscriptions
+                    .add_offered_incompatible_qos(instance_handle, incompatible_qos_policy_list);
+                self.on_offered_incompatible_qos(
+                    // message.data_writer_address,
+                    // message.publisher,
+                    // message.publisher_mask_listener,
+                    // message.participant_mask_listener,
+                );
+            }
+        }
+    }
 }
 
 pub struct GetInstanceHandle;

@@ -1,6 +1,6 @@
-use super::status_condition_actor::StatusConditionActor;
+use super::{publisher_actor::PublisherActor, status_condition_actor::StatusConditionActor};
 use crate::{
-    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData, DCPS_TOPIC},
     dds_async::topic_listener::TopicListenerAsync,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -13,8 +13,10 @@ use crate::{
         error::DdsResult,
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
+        time::Time,
     },
     rtps::types::Guid,
+    topic_definition::type_support::DdsSerialize,
     xtypes::dynamic_type::DynamicType,
 };
 use std::{sync::Arc, thread::JoinHandle};
@@ -149,6 +151,10 @@ impl TopicActor {
 
     pub fn get_name(&self) -> &str {
         &self.topic_name
+    }
+
+    pub fn get_guid(&self) -> Guid {
+        self.guid
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {

@@ -1,7 +1,4 @@
-use crate::infrastructure::{
-    error::{DdsError, DdsResult},
-    time::Duration,
-};
+use crate::infrastructure::{error::DdsResult, time::Duration};
 
 use super::condition::StatusConditionAsync;
 

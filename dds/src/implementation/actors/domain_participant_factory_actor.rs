@@ -784,13 +784,11 @@ impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
             if let Ok(discovered_participant_data) =
                 SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
             {
-                todo!()
-                // self.participant_address
-                //     .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
-                //         discovered_participant_data,
-                //         // participant: participant.clone(),
-                //     })
-                //     .ok();
+                self.participant_address
+                    .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
+                        discovered_participant_data,
+                    })
+                    .ok();
             }
         }
 
