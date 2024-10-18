@@ -184,36 +184,6 @@ struct ReaderRequestedDeadlineMissedStatus {
     last_instance_handle: InstanceHandle,
 }
 
-pub struct IncrementRequestedDeadlineMissedStatus {
-    instance_handle: InstanceHandle,
-}
-impl Mail for IncrementRequestedDeadlineMissedStatus {
-    type Result = ();
-}
-impl MailHandler<IncrementRequestedDeadlineMissedStatus> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: IncrementRequestedDeadlineMissedStatus,
-    ) -> <IncrementRequestedDeadlineMissedStatus as Mail>::Result {
-        self.requested_deadline_missed_status.total_count += 1;
-        self.requested_deadline_missed_status.total_count_change += 1;
-        self.requested_deadline_missed_status.last_instance_handle = message.instance_handle;
-    }
-}
-
-pub struct ReadRequestedDeadlineMissedStatus;
-impl Mail for ReadRequestedDeadlineMissedStatus {
-    type Result = RequestedDeadlineMissedStatus;
-}
-impl MailHandler<ReadRequestedDeadlineMissedStatus> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: ReadRequestedDeadlineMissedStatus,
-    ) -> <ReadRequestedDeadlineMissedStatus as Mail>::Result {
-        self.get_requested_deadline_missed_status()
-    }
-}
-
 impl LivelinessChangedStatus {
     fn _read_and_reset(&mut self) -> Self {
         let status = self.clone();
