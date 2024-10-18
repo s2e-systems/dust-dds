@@ -31,18 +31,18 @@ fn writer_discovers_reader_in_same_participant() {
     let topic = dp
         .create_topic::<UserType>("topic_name", "UserType", QosKind::Default, None, NO_STATUS)
         .unwrap();
-    // let publisher = dp
-    //     .create_publisher(QosKind::Default, None, NO_STATUS)
-    //     .unwrap();
-    // let data_writer = publisher
-    //     .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
-    //     .unwrap();
-    // let subscriber = dp
-    //     .create_subscriber(QosKind::Default, None, NO_STATUS)
-    //     .unwrap();
-    // let _data_reader = subscriber
-    //     .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
-    //     .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
     // let cond = data_writer.get_statuscondition();
     // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
     //     .unwrap();

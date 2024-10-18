@@ -1,6 +1,6 @@
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    domain_participant_backend::{
+    domain_participant_actor::{
         ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
     },
     message_sender_actor::MessageSenderActor,
@@ -28,7 +28,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::{DataWriterQos, PublisherQos},
+        qos::{DataWriterQos, PublisherQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, HistoryQosPolicyKind, Length, QosPolicyId,
             ReliabilityQosPolicyKind, TopicDataQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID,
@@ -247,13 +247,12 @@ impl DataWriterListenerThread {
 pub struct DataWriterActor {
     rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
     guid: Guid,
-    heartbeat_period: Duration,
     topic_name: String,
     type_name: String,
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: StatusConditionActor,
     data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
     max_seq_num: Option<SequenceNumber>,
@@ -269,21 +268,18 @@ impl DataWriterActor {
     pub fn new(
         rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
         guid: Guid,
-        heartbeat_period: Duration,
         topic_name: String,
         type_name: String,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
-        handle: &ExecutorHandle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), handle);
+        let status_condition = StatusConditionActor::default();
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
 
         DataWriterActor {
             rtps_writer,
             guid,
-            heartbeat_period,
             topic_name,
             type_name,
             matched_subscriptions: MatchedSubscriptions::new(),
@@ -303,6 +299,14 @@ impl DataWriterActor {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.guid.into())
+    }
+
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    pub fn get_guid(&self) -> Guid {
+        self.guid
     }
 
     fn on_publication_matched(
@@ -367,9 +371,7 @@ impl DataWriterActor {
         //     }
         // }
         self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::PublicationMatched,
-            });
+            .add_communication_state(StatusKind::PublicationMatched);
 
         Ok(())
     }
@@ -449,9 +451,7 @@ impl DataWriterActor {
         //     }
         // }
         self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::OfferedIncompatibleQos,
-            });
+            .add_communication_state(StatusKind::OfferedIncompatibleQos);
         Ok(())
     }
 
@@ -826,6 +826,55 @@ impl DataWriterActor {
             }
         }
     }
+
+    pub fn as_discovered_writer_data(
+        &self,
+        publisher_qos: &PublisherQos,
+        topic_qos: &TopicQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        xml_type: String,
+    ) -> DiscoveredWriterData {
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let writer_qos = &self.qos;
+
+        DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.guid.into(),
+                },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                topic_name,
+                type_name,
+                durability: writer_qos.durability.clone(),
+                deadline: writer_qos.deadline.clone(),
+                latency_budget: writer_qos.latency_budget.clone(),
+                liveliness: writer_qos.liveliness.clone(),
+                reliability: writer_qos.reliability.clone(),
+                lifespan: writer_qos.lifespan.clone(),
+                user_data: writer_qos.user_data.clone(),
+                ownership: writer_qos.ownership.clone(),
+                ownership_strength: writer_qos.ownership_strength.clone(),
+                destination_order: writer_qos.destination_order.clone(),
+                presentation: publisher_qos.presentation.clone(),
+                partition: publisher_qos.partition.clone(),
+                topic_data: topic_qos.topic_data.clone(),
+                group_data: publisher_qos.group_data.clone(),
+                xml_type: xml_type,
+                representation: writer_qos.representation.clone(),
+            },
+            writer_proxy: WriterProxy {
+                remote_writer_guid: self.guid,
+                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
+                unicast_locator_list: default_unicast_locator_list,
+                multicast_locator_list: default_multicast_locator_list,
+                data_max_size_serialized: Default::default(),
+            },
+        }
+    }
 }
 
 pub struct GetInstanceHandle;
@@ -926,41 +975,6 @@ impl MailHandler<GetIncompatibleSubscriptions> for DataWriterActor {
     }
 }
 
-pub struct Enable {
-    pub data_writer_address: ActorAddress<DataWriterActor>,
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for Enable {
-    type Result = ();
-}
-impl MailHandler<Enable> for DataWriterActor {
-    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        self.enabled = true;
-
-        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let half_heartbeat_period =
-                std::time::Duration::from(Duration::from(self.heartbeat_period)) / 2;
-            let message_sender_actor = message.message_sender_actor;
-            let data_writer_address = message.data_writer_address;
-            let timer_handle = message.timer_handle;
-            message.executor_handle.spawn(async move {
-                loop {
-                    timer_handle.sleep(half_heartbeat_period).await;
-
-                    // let r =data_writer_address.send_actor_mail(SendMessage {
-                    //     message_sender_actor: message_sender_actor.clone(),
-                    // });
-                    // if r.is_err() {
-                    // break;
-                    // }
-                }
-            });
-        }
-    }
-}
-
 pub struct IsEnabled;
 impl Mail for IsEnabled {
     type Result = bool;
@@ -968,16 +982,6 @@ impl Mail for IsEnabled {
 impl MailHandler<IsEnabled> for DataWriterActor {
     fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
         self.enabled
-    }
-}
-
-pub struct GetStatuscondition;
-impl Mail for GetStatuscondition {
-    type Result = ActorAddress<StatusConditionActor>;
-}
-impl MailHandler<GetStatuscondition> for DataWriterActor {
-    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
-        self.status_condition.address()
     }
 }
 
@@ -1085,63 +1089,6 @@ impl MailHandler<AreAllChangesAcknowledge> for DataWriterActor {
     }
 }
 
-pub struct AsDiscoveredWriterData {
-    pub publisher_qos: PublisherQos,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub topic_data: TopicDataQosPolicy,
-    pub xml_type: String,
-}
-impl Mail for AsDiscoveredWriterData {
-    type Result = DdsResult<DiscoveredWriterData>;
-}
-impl MailHandler<AsDiscoveredWriterData> for DataWriterActor {
-    fn handle(
-        &mut self,
-        message: AsDiscoveredWriterData,
-    ) -> <AsDiscoveredWriterData as Mail>::Result {
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let writer_qos = &self.qos;
-
-        Ok(DiscoveredWriterData {
-            dds_publication_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.guid.into(),
-                },
-                participant_key: BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
-                },
-                topic_name,
-                type_name,
-                durability: writer_qos.durability.clone(),
-                deadline: writer_qos.deadline.clone(),
-                latency_budget: writer_qos.latency_budget.clone(),
-                liveliness: writer_qos.liveliness.clone(),
-                reliability: writer_qos.reliability.clone(),
-                lifespan: writer_qos.lifespan.clone(),
-                user_data: writer_qos.user_data.clone(),
-                ownership: writer_qos.ownership.clone(),
-                ownership_strength: writer_qos.ownership_strength.clone(),
-                destination_order: writer_qos.destination_order.clone(),
-                presentation: message.publisher_qos.presentation,
-                partition: message.publisher_qos.partition,
-                topic_data: message.topic_data,
-                group_data: message.publisher_qos.group_data,
-                xml_type: message.xml_type,
-                representation: writer_qos.representation.clone(),
-            },
-            writer_proxy: WriterProxy {
-                remote_writer_guid: self.guid,
-                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
-                unicast_locator_list: message.default_unicast_locator_list,
-                multicast_locator_list: message.default_multicast_locator_list,
-                data_max_size_serialized: Default::default(),
-            },
-        })
-    }
-}
-
 pub struct GetPublicationMatchedStatus;
 impl Mail for GetPublicationMatchedStatus {
     type Result = PublicationMatchedStatus;
@@ -1152,9 +1099,7 @@ impl MailHandler<GetPublicationMatchedStatus> for DataWriterActor {
         _: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::PublicationMatched,
-            });
+            .remove_communication_state(StatusKind::PublicationMatched);
 
         self.matched_subscriptions.get_publication_matched_status()
     }
@@ -1529,7 +1474,7 @@ impl MailHandler<AddChange> for DataWriterActor {
                     deadline_missed_period.sec() as u64,
                     deadline_missed_period.nanosec(),
                 );
-                let writer_status_condition = self.status_condition.address();
+                // let writer_status_condition = self.status_condition.address();
                 let writer_address = message.writer_address.clone();
                 let timer_handle = message.timer_handle.clone();
                 let writer_listener_mask = self.status_kind.clone();
@@ -1541,7 +1486,7 @@ impl MailHandler<AddChange> for DataWriterActor {
                 let publisher_listener_mask = message.publisher_mask_listener.1.clone();
                 let participant_listener = message.participant_mask_listener.0.clone();
                 let participant_listener_mask = message.participant_mask_listener.1.clone();
-                let status_condition_address = self.status_condition.address();
+                // let status_condition_address = self.status_condition.address();
                 // let topic_address = self.topic_address.clone();
                 // let topic_status_condition_address = self.topic_status_condition.clone();
                 let type_name = self.type_name.clone();

@@ -17,7 +17,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::domain_participant_backend::DomainParticipantActor,
+        actors::domain_participant_actor::DomainParticipantActor,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -155,6 +155,7 @@ impl DomainParticipantFactoryActor {
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT,
             None,
+            vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
@@ -167,6 +168,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC,
             None,
+            vec![],
             Arc::new(DiscoveredTopicData::get_type()),
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
@@ -179,6 +181,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION,
             None,
+            vec![],
             Arc::new(DiscoveredWriterData::get_type()),
         );
 
@@ -192,6 +195,7 @@ impl DomainParticipantFactoryActor {
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION,
             None,
+            vec![],
             Arc::new(DiscoveredReaderData::get_type()),
         );
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
@@ -248,8 +252,6 @@ impl DomainParticipantFactoryActor {
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
             spdp_reader_qos,
             None,
-            vec![],
-            vec![],
             domain_participant_status_kind.clone(),
             executor_handle.clone(),
             timer_handle.clone(),
@@ -276,8 +278,6 @@ impl DomainParticipantFactoryActor {
             Arc::new(DiscoveredTopicData::get_type()),
             sedp_data_reader_qos(),
             None,
-            vec![],
-            vec![],
             domain_participant_status_kind.clone(),
             executor_handle.clone(),
             timer_handle.clone(),
@@ -304,8 +304,6 @@ impl DomainParticipantFactoryActor {
             Arc::new(DiscoveredWriterData::get_type()),
             sedp_data_reader_qos(),
             None,
-            vec![],
-            vec![],
             domain_participant_status_kind.clone(),
             executor_handle.clone(),
             timer_handle.clone(),
@@ -332,8 +330,6 @@ impl DomainParticipantFactoryActor {
             Arc::new(DiscoveredReaderData::get_type()),
             sedp_data_reader_qos(),
             None,
-            vec![],
-            vec![],
             domain_participant_status_kind,
             executor_handle,
             timer_handle,
@@ -351,7 +347,6 @@ impl DomainParticipantFactoryActor {
         &self,
         guid_prefix: GuidPrefix,
         participant: &Arc<Mutex<RtpsParticipant>>,
-        handle: &ExecutorHandle,
     ) -> Vec<DataWriterActor> {
         let spdp_writer_qos = DataWriterQos {
             durability: DurabilityQosPolicy {
@@ -378,13 +373,11 @@ impl DomainParticipantFactoryActor {
         let spdp_builtin_participant_writer = DataWriterActor::new(
             spdp_builtin_participant_rtps_writer.clone(),
             spdp_builtin_participant_writer_guid,
-            Duration::new(0, 200_000_000).into(),
             DCPS_PARTICIPANT.to_string(),
             "SpdpDiscoveredParticipantData".to_string(),
             None,
             vec![],
             spdp_writer_qos,
-            handle,
         );
 
         let sedp_builtin_topics_writer_guid =
@@ -395,13 +388,11 @@ impl DomainParticipantFactoryActor {
                 .unwrap()
                 .create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
             sedp_builtin_topics_writer_guid,
-            Duration::new(0, 200_000_000).into(),
             DCPS_TOPIC.to_string(),
             "DiscoveredTopicData".to_string(),
             None,
             vec![],
             sedp_data_writer_qos(),
-            handle,
         );
 
         let sedp_builtin_publications_writer_guid =
@@ -412,13 +403,11 @@ impl DomainParticipantFactoryActor {
                 .unwrap()
                 .create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
             sedp_builtin_publications_writer_guid,
-            Duration::new(0, 200_000_000).into(),
             DCPS_PUBLICATION.to_string(),
             "DiscoveredWriterData".to_string(),
             None,
             vec![],
             sedp_data_writer_qos(),
-            handle,
         );
 
         let sedp_builtin_subscriptions_writer_guid =
@@ -429,13 +418,11 @@ impl DomainParticipantFactoryActor {
                 .unwrap()
                 .create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
             sedp_builtin_subscriptions_writer_guid,
-            Duration::new(0, 200_000_000).into(),
             DCPS_SUBSCRIPTION.to_string(),
             "DiscoveredReaderData".to_string(),
             None,
             vec![],
             sedp_data_writer_qos(),
-            handle,
         );
 
         vec![
@@ -495,18 +482,13 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             transport.clone(),
             None,
             vec![],
-            domain_participant_status_kind.clone(),
             vec![],
-            &executor_handle,
         );
-        let builtin_subscriber_status_condition_address =
-            builtin_subscriber.get_status_condition_address();
         let builtin_subscriber_actor = Actor::spawn(builtin_subscriber, &executor_handle);
         let builtin_subscriber_address = builtin_subscriber_actor.address();
 
         let topic_list = self.create_builtin_topics(guid_prefix);
-        let builtin_data_writer_list =
-            self.create_builtin_writers(guid_prefix, &transport, &executor_handle);
+        let builtin_data_writer_list = self.create_builtin_writers(guid_prefix, &transport);
 
         let (domain_participant, status_condition) = DomainParticipantActor::new(
             transport.clone(),
@@ -541,10 +523,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         for builtin_data_reader in builtin_data_reader_list {
             let instance_handle = builtin_data_reader.get_instance_handle();
             let data_reader_actor = Actor::spawn(builtin_data_reader, &executor_handle);
-            builtin_subscriber_actor.send_actor_mail(subscriber_actor::AddDataReaderActor {
-                instance_handle,
-                data_reader_actor,
-            });
         }
         // participant_actor.send_actor_mail(domain_participant_actor::SetTopicList { topic_list });
         // participant_actor.send_actor_mail(domain_participant_actor::SetBuiltInSubscriber {

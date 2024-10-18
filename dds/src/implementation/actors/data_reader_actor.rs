@@ -2,7 +2,7 @@ use tracing::debug;
 
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-    domain_participant_backend::{
+    domain_participant_actor::{
         ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
     },
     status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
@@ -364,16 +364,12 @@ pub struct DataReaderActor {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
-    status_condition: Actor<StatusConditionActor>,
+    status_condition: StatusConditionActor,
     data_reader_listener_thread: Option<DataReaderListenerThread>,
     data_reader_status_kind: Vec<StatusKind>,
-    subscriber_status_kind: Vec<StatusKind>,
-    domain_participant_status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, Guid>,
-    executor_handle: ExecutorHandle,
-    timer_handle: TimerHandle,
 }
 
 impl DataReaderActor {
@@ -387,12 +383,7 @@ impl DataReaderActor {
         qos: DataReaderQos,
         listener: Option<DataReaderActorListener>,
         data_reader_status_kind: Vec<StatusKind>,
-        subscriber_status_kind: Vec<StatusKind>,
-        domain_participant_status_kind: Vec<StatusKind>,
-        executor_handle: ExecutorHandle,
-        timer_handle: TimerHandle,
     ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
         let data_reader_listener_thread = listener
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
 
@@ -413,17 +404,13 @@ impl DataReaderActor {
             enabled: false,
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
-            status_condition,
+            status_condition: StatusConditionActor::default(),
             data_reader_status_kind,
-            subscriber_status_kind,
-            domain_participant_status_kind,
             data_reader_listener_thread,
             qos,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
             instance_ownership: HashMap::new(),
-            executor_handle,
-            timer_handle,
         }
     }
 
@@ -456,9 +443,7 @@ impl DataReaderActor {
         }
 
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::DataAvailable,
-            });
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -504,9 +489,7 @@ impl DataReaderActor {
         )?;
 
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::DataAvailable,
-            });
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -524,7 +507,7 @@ impl DataReaderActor {
     }
 
     fn on_data_available(
-        &self,
+        &mut self,
         // data_reader_address: &ActorAddress<DataReaderActor>,
         // subscriber: &SubscriberAsync,
         // (subscriber_listener, subscriber_listener_mask): &(
@@ -533,10 +516,7 @@ impl DataReaderActor {
         // ),
     ) -> DdsResult<()> {
         self.status_condition
-            .address()
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::DataAvailable,
-            })?;
+            .add_communication_state(StatusKind::DataAvailable);
 
         // let topic_status_condition_address = self.topic_status_condition.clone();
         // let type_name = self.type_name.clone();
@@ -579,10 +559,7 @@ impl DataReaderActor {
         // }
 
         self.status_condition
-            .address()
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::DataAvailable,
-            })?;
+            .add_communication_state(StatusKind::DataAvailable);
         Ok(())
     }
 
@@ -791,9 +768,7 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::SampleLost,
-            });
+            .add_communication_state(StatusKind::SampleLost);
 
         Ok(())
     }
@@ -875,9 +850,7 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            });
+            .add_communication_state(StatusKind::SubscriptionMatched);
 
         Ok(())
     }
@@ -955,9 +928,7 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::SampleRejected,
-            });
+            .add_communication_state(StatusKind::SampleRejected);
 
         Ok(())
     }
@@ -1038,9 +1009,7 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .send_actor_mail(AddCommunicationState {
-                state: StatusKind::RequestedIncompatibleQos,
-            });
+            .add_communication_state(StatusKind::RequestedIncompatibleQos);
         Ok(())
     }
 
@@ -1544,7 +1513,7 @@ impl DataReaderActor {
                 deadline_missed_period.sec() as u64,
                 deadline_missed_period.nanosec(),
             );
-            let reader_status_condition = self.status_condition.address();
+            // let reader_status_condition = self.status_condition.address();
             let data_reader_listener_sender = self
                 .data_reader_listener_thread
                 .as_ref()
@@ -1557,7 +1526,7 @@ impl DataReaderActor {
             // let topic_address = self.topic_address.clone();
             let type_name = self.type_name.clone();
             let topic_name = self.topic_name.clone();
-            let status_condition_address = self.status_condition.address();
+            // let status_condition_address = self.status_condition.address();
             // let topic_status_condition_address = self.topic_status_condition.clone();
             let timer_handle = self.timer_handle.clone();
             let deadline_missed_task = self.executor_handle.spawn(async move {
@@ -1652,12 +1621,12 @@ impl DataReaderActor {
                         //             .ok();
                         //     }
                         // }
-                        reader_status_condition
-                            .send_actor_mail(AddCommunicationState {
-                                state: StatusKind::RequestedDeadlineMissed,
-                            })?
-                            .receive_reply()
-                            .await;
+                        // reader_status_condition
+                        //     .send_actor_mail(AddCommunicationState {
+                        //         state: StatusKind::RequestedDeadlineMissed,
+                        //     })?
+                        //     .receive_reply()
+                        //     .await;
                         Ok(())
                     }
                     .await;

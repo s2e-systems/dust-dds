@@ -9,7 +9,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::ActorAddress,
-        actors::{domain_participant_actor, domain_participant_backend::DomainParticipantActor},
+        actors::{domain_participant_actor, domain_participant_actor::DomainParticipantActor},
     },
     infrastructure::{
         error::DdsResult,

@@ -8,7 +8,7 @@ use crate::{
         actor::ActorAddress,
         actors::{
             any_data_writer_listener::AnyDataWriterListener, domain_participant_actor,
-            domain_participant_backend::DomainParticipantActor,
+            domain_participant_actor::DomainParticipantActor,
         },
     },
     infrastructure::{
@@ -60,6 +60,7 @@ impl PublisherAsync {
         let guid = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::CreateUserDefinedDataWriter {
+                publisher_guid: self.guid,
                 topic_name,
                 qos,
                 a_listener: listener,

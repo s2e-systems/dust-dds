@@ -1,7 +1,7 @@
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::{self, DataWriterActor},
-    domain_participant_backend::ParticipantListenerMessage,
+    domain_participant_actor::ParticipantListenerMessage,
     message_sender_actor::MessageSenderActor,
     status_condition_actor::StatusConditionActor,
     topic_actor::TopicActor,
@@ -34,7 +34,8 @@ use crate::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, Locator, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+            EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -138,7 +139,6 @@ impl PublisherActor {
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         data_writer_list: Vec<DataWriterActor>,
-        handle: &ExecutorHandle,
     ) -> Self {
         let data_writer_list = data_writer_list
             .into_iter()
@@ -214,6 +214,81 @@ impl PublisherActor {
             || is_any_local_regex_matched_with_received_partition_qos
     }
 
+    pub fn create_datawriter(
+        &mut self,
+        a_topic: &TopicActor,
+        qos: QosKind<DataWriterQos>,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+        mask: Vec<StatusKind>,
+    ) -> DdsResult<Guid> {
+        let qos = match qos {
+            QosKind::Default => self.default_datawriter_qos.clone(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+
+        let guid_prefix = self.rtps_group.guid().prefix();
+        let topic_name = a_topic.get_name().to_string();
+        let type_name = a_topic.get_type_name().to_string();
+        let type_support = a_topic.get_type_support();
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
+        let entity_kind = match has_key {
+            true => USER_DEFINED_WRITER_WITH_KEY,
+            false => USER_DEFINED_WRITER_NO_KEY,
+        };
+        let entity_key = [
+            self.rtps_group.guid().entity_id().entity_key()[0],
+            self.get_unique_writer_id(),
+            0,
+        ];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = Guid::new(guid_prefix, entity_id);
+
+        let rtps_writer_impl = self.transport.lock().unwrap().create_writer(guid);
+
+        let data_writer = DataWriterActor::new(
+            rtps_writer_impl,
+            guid,
+            topic_name,
+            type_name,
+            a_listener,
+            mask,
+            qos,
+        );
+
+        self.data_writer_list
+            .insert(InstanceHandle::new(guid.into()), data_writer);
+
+        Ok(guid)
+    }
+
+    pub fn get_datawriter_by_guid(&self, datawriter_guid: Guid) -> &DataWriterActor {
+        self.data_writer_list
+            .get(&InstanceHandle::new(datawriter_guid.into()))
+            .expect("Must exist")
+    }
+
+    pub fn get_mut_datawriter_by_guid(&mut self, datawriter_guid: Guid) -> &mut DataWriterActor {
+        self.data_writer_list
+            .get_mut(&InstanceHandle::new(datawriter_guid.into()))
+            .expect("Must exist")
+    }
+
     pub fn lookup_datawriter_by_topic_name(
         &mut self,
         topic_name: &str,
@@ -246,75 +321,41 @@ impl PublisherActor {
                     .subscription_builtin_topic_data()
                     .topic_name()
         }) {
-            dw.add_matched_reader(discovered_reader_data, default_unicast_locator_list, default_multicast_locator_list, &self.qos);
+            dw.add_matched_reader(
+                discovered_reader_data,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+                &self.qos,
+            );
         }
     }
-}
 
-pub struct Enable;
-impl Mail for Enable {
-    type Result = ();
-}
-impl MailHandler<Enable> for PublisherActor {
-    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
-        self.enabled = true;
+    pub fn get_guid(&self) -> Guid {
+        self.rtps_group.guid()
     }
-}
 
-pub struct IsEnabled;
-impl Mail for IsEnabled {
-    type Result = bool;
-}
-impl MailHandler<IsEnabled> for PublisherActor {
-    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
-        self.enabled
-    }
-}
-
-pub struct IsEmpty;
-impl Mail for IsEmpty {
-    type Result = bool;
-}
-impl MailHandler<IsEmpty> for PublisherActor {
-    fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+    pub fn is_empty(&self) -> bool {
         self.data_writer_list.is_empty()
     }
-}
 
-pub struct SetDefaultDatawriterQos {
-    pub qos: DataWriterQos,
-}
-impl Mail for SetDefaultDatawriterQos {
-    type Result = ();
-}
-impl MailHandler<SetDefaultDatawriterQos> for PublisherActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultDatawriterQos,
-    ) -> <SetDefaultDatawriterQos as Mail>::Result {
-        self.default_datawriter_qos = message.qos;
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
     }
-}
 
-pub struct GetDefaultDatawriterQos;
-impl Mail for GetDefaultDatawriterQos {
-    type Result = DataWriterQos;
-}
-impl MailHandler<GetDefaultDatawriterQos> for PublisherActor {
-    fn handle(&mut self, _: GetDefaultDatawriterQos) -> <GetDefaultDatawriterQos as Mail>::Result {
-        self.default_datawriter_qos.clone()
+    pub fn set_default_data_writer_qos(&mut self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => DataWriterQos::default(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                q
+            }
+        };
+        self.default_datawriter_qos = qos;
+        Ok(())
     }
-}
 
-pub struct SetQos {
-    pub qos: QosKind<PublisherQos>,
-}
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetQos> for PublisherActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
-        let qos = match message.qos {
+    pub fn set_qos(&mut self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
         };
@@ -326,6 +367,16 @@ impl MailHandler<SetQos> for PublisherActor {
         self.qos = qos;
 
         Ok(())
+    }
+}
+
+pub struct GetDefaultDatawriterQos;
+impl Mail for GetDefaultDatawriterQos {
+    type Result = DataWriterQos;
+}
+impl MailHandler<GetDefaultDatawriterQos> for PublisherActor {
+    fn handle(&mut self, _: GetDefaultDatawriterQos) -> <GetDefaultDatawriterQos as Mail>::Result {
+        self.default_datawriter_qos.clone()
     }
 }
 

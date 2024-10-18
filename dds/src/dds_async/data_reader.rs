@@ -12,7 +12,7 @@ use crate::{
             data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
             status_condition_actor::StatusConditionActor,
             subscriber_actor::{self, SubscriberActor},
-            {domain_participant_actor, domain_participant_backend::DomainParticipantActor},
+            {domain_participant_actor, domain_participant_actor::DomainParticipantActor},
         },
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,

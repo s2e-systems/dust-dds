@@ -85,6 +85,7 @@ pub struct TopicActor {
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: StatusConditionActor,
     _topic_listener_thread: Option<TopicListenerThread>,
+    status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
@@ -95,6 +96,7 @@ impl TopicActor {
         type_name: String,
         topic_name: &str,
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
     ) -> Self {
         let topic_listener_thread = listener.map(TopicListenerThread::new);
@@ -108,6 +110,7 @@ impl TopicActor {
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition: StatusConditionActor::default(),
             _topic_listener_thread: topic_listener_thread,
+            status_kind,
             type_support,
         }
     }

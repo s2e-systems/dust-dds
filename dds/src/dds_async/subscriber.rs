@@ -8,7 +8,7 @@ use crate::{
         actor::ActorAddress,
         actors::{
             any_data_reader_listener::AnyDataReaderListener, domain_participant_actor,
-            domain_participant_backend::DomainParticipantActor,
+            domain_participant_actor::DomainParticipantActor,
         },
     },
     infrastructure::{
@@ -59,6 +59,7 @@ impl SubscriberAsync {
         let guid = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::CreateUserDefinedDataReader {
+                subscriber_guid: self.guid,
                 topic_name,
                 qos,
                 a_listener: listener,
