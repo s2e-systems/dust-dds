@@ -3,7 +3,6 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     data_writer_actor::DataWriterActor,
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
-    message_sender_actor::MessageSenderActor,
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
     subscriber_actor,
@@ -59,6 +58,7 @@ use crate::{
         time::{Duration, Time},
     },
     rtps::{
+        cache_change::RtpsCacheChange,
         discovery_types::{
             BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -69,6 +69,7 @@ use crate::{
         group::RtpsGroup,
         messages::submessage_elements::Data,
         participant::RtpsParticipant,
+        reader::ReaderCacheChange,
         types::{
             EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
             ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
@@ -384,7 +385,7 @@ pub struct DomainParticipantActor {
     domain_id: DomainId,
     domain_tag: String,
     qos: DomainParticipantQos,
-    builtin_subscriber: Actor<SubscriberActor>,
+    builtin_subscriber: SubscriberActor,
     builtin_publisher: PublisherActor,
     user_defined_subscriber_list: HashMap<InstanceHandle, SubscriberActor>,
     user_defined_subscriber_counter: u8,
@@ -403,11 +404,9 @@ pub struct DomainParticipantActor {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
-    data_max_size_serialized: usize,
     participant_listener_thread: Option<ParticipantListenerThread>,
     status_kind: Vec<StatusKind>,
-    status_condition: Actor<StatusConditionActor>,
-    message_sender_actor: Actor<MessageSenderActor>,
+    status_condition: StatusConditionActor,
     executor: Executor,
     timer_driver: TimerDriver,
 }
@@ -420,32 +419,27 @@ impl DomainParticipantActor {
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
-        data_max_size_serialized: usize,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         builtin_data_writer_list: Vec<DataWriterActor>,
-        message_sender_actor: MessageSenderActor,
         topic_list: HashMap<String, TopicActor>,
         executor: Executor,
         timer_driver: TimerDriver,
-    ) -> (Self, ActorAddress<StatusConditionActor>) {
+    ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = guid.prefix();
         let executor_handle = executor.handle();
 
-        let builtin_subscriber = Actor::spawn(
-            SubscriberActor::new(
-                SubscriberQos::default(),
-                RtpsGroup::new(Guid::new(
-                    guid_prefix,
-                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-                )),
-                rtps_participant.clone(),
-                None,
-                vec![],
-                vec![],
-            ),
-            &executor_handle,
+        let builtin_subscriber = SubscriberActor::new(
+            SubscriberQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            rtps_participant.clone(),
+            None,
+            vec![],
+            vec![],
         );
 
         let builtin_publisher = PublisherActor::new(
@@ -463,42 +457,38 @@ impl DomainParticipantActor {
         let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
         let status_condition_address = status_condition.address();
         let participant_listener_thread = listener.map(ParticipantListenerThread::new);
-        (
-            Self {
-                rtps_participant,
-                guid,
-                domain_id,
-                domain_tag,
-                qos: domain_participant_qos,
-                builtin_subscriber,
-                builtin_publisher,
-                user_defined_subscriber_list: HashMap::new(),
-                user_defined_subscriber_counter: 0,
-                default_subscriber_qos: SubscriberQos::default(),
-                user_defined_publisher_list: HashMap::new(),
-                user_defined_publisher_counter: 0,
-                default_publisher_qos: PublisherQos::default(),
-                topic_list,
-                user_defined_topic_counter: 0,
-                default_topic_qos: TopicQos::default(),
-                lease_duration,
-                discovered_participant_list: HashMap::new(),
-                discovered_topic_list: HashMap::new(),
-                enabled: false,
-                ignored_participants: HashSet::new(),
-                ignored_publications: HashSet::new(),
-                ignored_subcriptions: HashSet::new(),
-                ignored_topic_list: HashSet::new(),
-                data_max_size_serialized,
-                participant_listener_thread,
-                status_kind,
-                status_condition,
-                message_sender_actor: Actor::spawn(message_sender_actor, &executor_handle),
-                executor,
-                timer_driver,
-            },
-            status_condition_address,
-        )
+
+        Self {
+            rtps_participant,
+            guid,
+            domain_id,
+            domain_tag,
+            qos: domain_participant_qos,
+            builtin_subscriber,
+            builtin_publisher,
+            user_defined_subscriber_list: HashMap::new(),
+            user_defined_subscriber_counter: 0,
+            default_subscriber_qos: SubscriberQos::default(),
+            user_defined_publisher_list: HashMap::new(),
+            user_defined_publisher_counter: 0,
+            default_publisher_qos: PublisherQos::default(),
+            topic_list,
+            user_defined_topic_counter: 0,
+            default_topic_qos: TopicQos::default(),
+            lease_duration,
+            discovered_participant_list: HashMap::new(),
+            discovered_topic_list: HashMap::new(),
+            enabled: false,
+            ignored_participants: HashSet::new(),
+            ignored_publications: HashSet::new(),
+            ignored_subcriptions: HashSet::new(),
+            ignored_topic_list: HashSet::new(),
+            participant_listener_thread,
+            status_kind,
+            status_condition: StatusConditionActor::default(),
+            executor,
+            timer_driver,
+        }
     }
 
     pub fn get_current_time(&self) -> Time {
@@ -546,6 +536,30 @@ impl DomainParticipantActor {
                     discovered_writer_data.serialize_data()?,
                     timestamp,
                     dcps_publication_topic.get_type_support().as_ref(),
+                )?
+            }
+        }
+        Ok(())
+    }
+
+    pub fn announce_created_or_modified_datareader(
+        &mut self,
+        discovered_reader_data: DiscoveredReaderData,
+    ) -> DdsResult<()> {
+        if self.enabled {
+            let timestamp = self.get_current_time();
+            let dcps_subscription_topic = self
+                .topic_list
+                .get(DCPS_SUBSCRIPTION)
+                .expect("DCPS Subscription topic must exist");
+            if let Some(dw) = self
+                .builtin_publisher
+                .lookup_datawriter_by_topic_name(DCPS_SUBSCRIPTION)
+            {
+                dw.write_w_timestamp(
+                    discovered_reader_data.serialize_data()?,
+                    timestamp,
+                    dcps_subscription_topic.get_type_support().as_ref(),
                 )?
             }
         }
@@ -691,7 +705,7 @@ impl DomainParticipantActor {
     }
 
     fn add_matched_publications_announcer(
-        &self,
+        &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
         if discovered_participant_data
@@ -748,17 +762,7 @@ impl DomainParticipantActor {
                 writer_proxy,
             };
             self.builtin_subscriber
-                .send_actor_mail(subscriber_actor::AddMatchedWriter {
-                    discovered_writer_data,
-                    subscriber_address: self.builtin_subscriber.address(),
-                    // participant,
-                    participant_mask_listener: (
-                        self.participant_listener_thread
-                            .as_ref()
-                            .map(|l| l.sender().clone()),
-                        self.status_kind.clone(),
-                    ),
-                });
+                .add_matched_writer(discovered_writer_data);
         }
     }
 
@@ -821,7 +825,7 @@ impl DomainParticipantActor {
     }
 
     fn add_matched_subscriptions_announcer(
-        &self,
+        &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         // participant: DomainParticipantAsync,
     ) {
@@ -879,17 +883,7 @@ impl DomainParticipantActor {
                 writer_proxy,
             };
             self.builtin_subscriber
-                .send_actor_mail(subscriber_actor::AddMatchedWriter {
-                    discovered_writer_data,
-                    subscriber_address: self.builtin_subscriber.address(),
-                    // participant,
-                    participant_mask_listener: (
-                        self.participant_listener_thread
-                            .as_ref()
-                            .map(|l| l.sender().clone()),
-                        self.status_kind.clone(),
-                    ),
-                });
+                .add_matched_writer(discovered_writer_data);
         }
     }
 
@@ -952,7 +946,7 @@ impl DomainParticipantActor {
     }
 
     fn add_matched_topics_announcer(
-        &self,
+        &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
         if discovered_participant_data
@@ -1009,17 +1003,7 @@ impl DomainParticipantActor {
                 writer_proxy,
             };
             self.builtin_subscriber
-                .send_actor_mail(subscriber_actor::AddMatchedWriter {
-                    discovered_writer_data,
-                    subscriber_address: self.builtin_subscriber.address(),
-                    // participant,
-                    participant_mask_listener: (
-                        self.participant_listener_thread
-                            .as_ref()
-                            .map(|l| l.sender().clone()),
-                        self.status_kind.clone(),
-                    ),
-                });
+                .add_matched_writer(discovered_writer_data);
         }
     }
 
@@ -2164,6 +2148,7 @@ pub struct CreateUserDefinedDataReader {
     pub qos: QosKind<DataReaderQos>,
     pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
     pub mask: Vec<StatusKind>,
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateUserDefinedDataReader {
     type Result = DdsResult<Guid>;
@@ -2181,8 +2166,13 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             .topic_list
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let datareader_guid =
-            subscriber.create_datareader(topic, message.qos, message.a_listener, message.mask)?;
+        let datareader_guid = subscriber.create_datareader(
+            topic,
+            message.qos,
+            message.a_listener,
+            message.mask,
+            message.domain_participant_address,
+        )?;
         if subscriber.is_enabled()
             && subscriber
                 .get_qos()
@@ -2206,97 +2196,10 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                     xml_type,
                 );
 
-            self.announce_created_or_modified_datawriter(discovered_writer_data)?;
+            self.announce_created_or_modified_datareader(discovered_reader_data)?;
         }
 
-        Ok(datawriter_guid)
-        // let listener = a_listener.map(|b| DataReaderActorListener {
-        //     data_reader_listener: Box::new(b),
-        //     subscriber_async: self.clone(),
-        // });
-
-        // let default_unicast_locator_list = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-        //     .receive_reply()
-        //     .await;
-        // let default_multicast_locator_list = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-        //     .receive_reply()
-        //     .await;
-
-        // let topic_name = a_topic.get_name();
-        // let type_name = a_topic.get_type_name();
-        // let type_support = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
-        //         topic_name: topic_name.clone(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-        // let has_key = {
-        //     let mut has_key = false;
-        //     for index in 0..type_support.get_member_count() {
-        //         if type_support
-        //             .get_member_by_index(index)?
-        //             .get_descriptor()?
-        //             .is_key
-        //         {
-        //             has_key = true;
-        //             break;
-        //         }
-        //     }
-        //     has_key
-        // };
-
-        // let reader_address = self
-        //     .subscriber_address
-        //     .send_actor_mail(subscriber_actor::CreateDatareader {
-        //         topic_name,
-        //         type_name,
-        //         type_support,
-        //         has_key,
-        //         qos,
-        //         a_listener: listener,
-        //         mask: mask.to_vec(),
-        //         default_unicast_locator_list,
-        //         default_multicast_locator_list,
-        //         subscriber_address: self.subscriber_address.clone(),
-        //         executor_handle: self.participant.executor_handle().clone(),
-        //         timer_handle: self.participant.timer_handle().clone(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-
-        // let status_condition = reader_address
-        //     .send_actor_mail(data_reader_actor::GetStatuscondition)?
-        //     .receive_reply()
-        //     .await;
-        // let data_reader = DataReaderAsync::new(
-        //     reader_address,
-        //     status_condition,
-        //     self.clone(),
-        //     a_topic.clone(),
-        // );
-
-        // if self
-        //     .subscriber_address
-        //     .send_actor_mail(subscriber_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        //     && self
-        //         .subscriber_address
-        //         .send_actor_mail(subscriber_actor::GetQos)?
-        //         .receive_reply()
-        //         .await
-        //         .entity_factory
-        //         .autoenable_created_entities
-        // {
-        //     data_reader.enable().await?;
-        // }
-
-        // Ok(data_reader)
+        Ok(datareader_guid)
     }
 }
 
@@ -3718,6 +3621,21 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
         message: AddDiscoveredParticipant,
     ) -> <AddDiscoveredParticipant as Mail>::Result {
         self.add_discovered_participant(message.discovered_participant_data);
+    }
+}
+
+pub struct AddCacheChange {
+    pub cache_change: ReaderCacheChange,
+    pub subscriber_guid: Guid,
+    pub data_reader_guid: Guid,
+}
+
+impl Mail for AddCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddCacheChange> for DomainParticipantActor {
+    fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
+        todo!()
     }
 }
 

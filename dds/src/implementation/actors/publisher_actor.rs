@@ -1,23 +1,15 @@
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::{self, DataWriterActor},
-    domain_participant_actor::ParticipantListenerMessage,
-    message_sender_actor::MessageSenderActor,
-    status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
+    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
+    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
-        data_writer::DataWriterAsync, publisher::PublisherAsync,
-        publisher_listener::PublisherListenerAsync, topic::TopicAsync,
+        publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
+        actor::ActorAddress,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        runtime::{
-            executor::{block_on, ExecutorHandle},
-            mpsc::{mpsc_channel, MpscSender},
-        },
+        runtime::mpsc::MpscSender,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -28,14 +20,12 @@ use crate::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
         },
-        time::Duration,
     },
     rtps::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
+            EntityId, Guid, Locator, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -315,18 +305,24 @@ impl PublisherActor {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
     ) {
-        if let Some(dw) = self.data_writer_list.values_mut().find(|dw| {
-            dw.get_topic_name()
-                == discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .topic_name()
-        }) {
-            dw.add_matched_reader(
-                discovered_reader_data,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                &self.qos,
-            );
+        if self.is_partition_matched(
+            discovered_reader_data
+                .subscription_builtin_topic_data()
+                .partition(),
+        ) {
+            if let Some(dw) = self.data_writer_list.values_mut().find(|dw| {
+                dw.get_topic_name()
+                    == discovered_reader_data
+                        .subscription_builtin_topic_data()
+                        .topic_name()
+            }) {
+                dw.add_matched_reader(
+                    discovered_reader_data,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                    &self.qos,
+                );
+            }
         }
     }
 
@@ -368,184 +364,36 @@ impl PublisherActor {
 
         Ok(())
     }
-}
 
-pub struct GetDefaultDatawriterQos;
-impl Mail for GetDefaultDatawriterQos {
-    type Result = DataWriterQos;
-}
-impl MailHandler<GetDefaultDatawriterQos> for PublisherActor {
-    fn handle(&mut self, _: GetDefaultDatawriterQos) -> <GetDefaultDatawriterQos as Mail>::Result {
-        self.default_datawriter_qos.clone()
+    pub fn get_default_datawriter_qos(&self) -> &DataWriterQos {
+        &self.default_datawriter_qos
     }
-}
 
-pub struct GetGuid;
-impl Mail for GetGuid {
-    type Result = Guid;
-}
-impl MailHandler<GetGuid> for PublisherActor {
-    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
-        self.rtps_group.guid()
-    }
-}
-
-pub struct GetInstanceHandle;
-impl Mail for GetInstanceHandle {
-    type Result = InstanceHandle;
-}
-impl MailHandler<GetInstanceHandle> for PublisherActor {
-    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
-}
 
-pub struct GetStatusKind;
-impl Mail for GetStatusKind {
-    type Result = Vec<StatusKind>;
-}
-impl MailHandler<GetStatusKind> for PublisherActor {
-    fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
+    pub fn get_status_kind(&self) -> Vec<StatusKind> {
         self.status_kind.clone()
     }
-}
 
-pub struct GetQos;
-impl Mail for GetQos {
-    type Result = PublisherQos;
-}
-impl MailHandler<GetQos> for PublisherActor {
-    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
-        self.qos.clone()
-    }
-}
-
-pub struct AddMatchedReader {
-    pub discovered_reader_data: DiscoveredReaderData,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub publisher_address: ActorAddress<PublisherActor>,
-    // pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
-    pub message_sender_actor: ActorAddress<MessageSenderActor>,
-}
-impl Mail for AddMatchedReader {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AddMatchedReader> for PublisherActor {
-    fn handle(&mut self, message: AddMatchedReader) -> <AddMatchedReader as Mail>::Result {
-        if self.is_partition_matched(
-            message
-                .discovered_reader_data
-                .subscription_builtin_topic_data()
-                .partition(),
-        ) {
-            for data_writer in self.data_writer_list.values() {
-                todo!()
-                // let data_writer_address = data_writer.address();
-                // let publisher_mask_listener = (
-                //     self.publisher_listener_thread
-                //         .as_ref()
-                //         .map(|l| l.sender().clone()),
-                //     self.status_kind.clone(),
-                // );
-
-                // data_writer.send_actor_mail(data_writer_actor::AddMatchedReader {
-                //     discovered_reader_data: message.discovered_reader_data.clone(),
-                //     default_unicast_locator_list: message.default_unicast_locator_list.clone(),
-                //     default_multicast_locator_list: message.default_multicast_locator_list.clone(),
-                //     data_writer_address,
-                //     // publisher: PublisherAsync::new(
-                //     //     message.publisher_address.clone(),
-                //     //     self.status_condition.address(),
-                //     //     message.participant.clone(),
-                //     // ),
-                //     publisher_qos: self.qos.clone(),
-                //     publisher_mask_listener,
-                //     participant_mask_listener: message.participant_mask_listener.clone(),
-                //     message_sender_actor: message.message_sender_actor.clone(),
-                // });
-            }
-        }
-        Ok(())
-    }
-}
-
-pub struct RemoveMatchedReader {
-    pub discovered_reader_handle: InstanceHandle,
-    // pub publisher_address: ActorAddress<PublisherActor>,
-    // pub participant: DomainParticipantAsync,
-    // pub participant_mask_listener: (
-    //     Option<MpscSender<ParticipantListenerMessage>>,
-    //     Vec<StatusKind>,
-    // ),
-}
-impl Mail for RemoveMatchedReader {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<RemoveMatchedReader> for PublisherActor {
-    fn handle(&mut self, message: RemoveMatchedReader) -> <RemoveMatchedReader as Mail>::Result {
+    pub fn remove_matched_reader(&mut self, discovered_reader_handle: InstanceHandle) {
         for data_writer in self.data_writer_list.values() {
             todo!()
-            // let data_writer_address = data_writer.address();
-            // let publisher_mask_listener = (
-            //     self.publisher_listener_thread
-            //         .as_ref()
-            //         .map(|l| l.sender().clone()),
-            //     self.status_kind.clone(),
-            // );
-            // data_writer.send_actor_mail(data_writer_actor::RemoveMatchedReader {
-            //     discovered_reader_handle: message.discovered_reader_handle,
-            //     // data_writer_address,
-            //     // publisher: PublisherAsync::new(
-            //     //     message.publisher_address.clone(),
-            //     //     self.status_condition.address(),
-            //     //     message.participant.clone(),
-            //     // ),
-            //     // publisher_mask_listener,
-            //     // participant_mask_listener: message.participant_mask_listener.clone(),
-            // });
         }
-        Ok(())
     }
-}
 
-pub struct SetListener {
-    pub listener: Option<Box<dyn PublisherListenerAsync + Send>>,
-    pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetListener> for PublisherActor {
-    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    pub fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn PublisherListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
+    ) -> DdsResult<()> {
         if let Some(l) = self.publisher_listener_thread.take() {
             l.join()?;
         }
-        self.publisher_listener_thread = message.listener.map(PublisherListenerThread::new);
-        self.status_kind = message.status_kind;
+        self.publisher_listener_thread = listener.map(PublisherListenerThread::new);
+        self.status_kind = status_kind;
         Ok(())
-    }
-}
-
-pub struct GetListener;
-impl Mail for GetListener {
-    type Result = (
-        Option<MpscSender<PublisherListenerMessage>>,
-        Vec<StatusKind>,
-    );
-}
-impl MailHandler<GetListener> for PublisherActor {
-    fn handle(&mut self, _: GetListener) -> <GetListener as Mail>::Result {
-        (
-            self.publisher_listener_thread
-                .as_ref()
-                .map(|l| l.sender().clone()),
-            self.status_kind.clone(),
-        )
     }
 }
 

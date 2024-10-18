@@ -1,6 +1,6 @@
-use super::{publisher_actor::PublisherActor, status_condition_actor::StatusConditionActor};
+use super::status_condition_actor::StatusConditionActor;
 use crate::{
-    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData, DCPS_TOPIC},
+    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dds_async::topic_listener::TopicListenerAsync,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -13,10 +13,8 @@ use crate::{
         error::DdsResult,
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
-        time::Time,
     },
     rtps::types::Guid,
-    topic_definition::type_support::DdsSerialize,
     xtypes::dynamic_type::DynamicType,
 };
 use std::{sync::Arc, thread::JoinHandle};

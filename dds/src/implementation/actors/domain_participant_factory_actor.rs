@@ -1,19 +1,11 @@
 use super::{
-    data_reader_actor::DataReaderActor,
-    data_writer_actor::DataWriterActor,
-    domain_participant_actor,
-    message_sender_actor::MessageSenderActor,
-    status_condition_actor::StatusConditionActor,
-    subscriber_actor::{self, SubscriberActor},
-    topic_actor::TopicActor,
+    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
+    domain_participant_actor, subscriber_actor::SubscriberActor, topic_actor::TopicActor,
 };
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
-    dds_async::{
-        domain_participant::DomainParticipantAsync,
-        domain_participant_listener::DomainParticipantListenerAsync,
-    },
+    dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
@@ -29,9 +21,9 @@ use crate::{
             types::{StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED},
         },
         runtime::{
-            executor::{Executor, ExecutorHandle},
+            executor::Executor,
             mpsc::{mpsc_channel, MpscSender},
-            timer::{TimerDriver, TimerHandle},
+            timer::TimerDriver,
         },
     },
     infrastructure::{
@@ -61,8 +53,7 @@ use crate::{
         participant::RtpsParticipant,
         reader::{ReaderCacheChange, ReaderHistoryCache},
         types::{
-            EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC,
-            ENTITYID_PARTICIPANT, PROTOCOLVERSION, VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
         },
     },
     topic_definition::type_support::{DdsDeserialize, TypeSupport},
@@ -211,8 +202,6 @@ impl DomainParticipantFactoryActor {
         participant_address: ActorAddress<DomainParticipantActor>,
         domain_participant_status_kind: Vec<StatusKind>,
         on_participant_discovery_sender: MpscSender<()>,
-        executor_handle: ExecutorHandle,
-        timer_handle: TimerHandle,
     ) -> Vec<DataReaderActor> {
         let spdp_reader_qos = DataReaderQos {
             durability: DurabilityQosPolicy {
@@ -253,8 +242,6 @@ impl DomainParticipantFactoryActor {
             spdp_reader_qos,
             None,
             domain_participant_status_kind.clone(),
-            executor_handle.clone(),
-            timer_handle.clone(),
         );
 
         let sedp_builtin_topics_reader_guid =
@@ -279,8 +266,6 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             domain_participant_status_kind.clone(),
-            executor_handle.clone(),
-            timer_handle.clone(),
         );
 
         let sedp_builtin_publications_reader_guid =
@@ -305,8 +290,6 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             domain_participant_status_kind.clone(),
-            executor_handle.clone(),
-            timer_handle.clone(),
         );
 
         let sedp_builtin_subscriptions_reader_guid =
@@ -331,8 +314,6 @@ impl DomainParticipantFactoryActor {
             sedp_data_reader_qos(),
             None,
             domain_participant_status_kind,
-            executor_handle,
-            timer_handle,
         );
 
         vec![
@@ -458,10 +439,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let guid_prefix = self.create_new_guid_prefix();
 
-        let socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
-        let message_sender_actor =
-            MessageSenderActor::new(socket, PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
-
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
             message.domain_id,
@@ -490,17 +467,15 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let topic_list = self.create_builtin_topics(guid_prefix);
         let builtin_data_writer_list = self.create_builtin_writers(guid_prefix, &transport);
 
-        let (domain_participant, status_condition) = DomainParticipantActor::new(
+        let domain_participant = DomainParticipantActor::new(
             transport.clone(),
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             message.domain_id,
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
-            self.configuration.fragment_size(),
             message.listener,
             message.status_kind,
             builtin_data_writer_list,
-            message_sender_actor,
             topic_list,
             executor,
             timer_driver,
@@ -517,13 +492,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             participant_actor_address,
             domain_participant_status_kind,
             on_participant_discovery_sender,
-            executor_handle.clone(),
-            timer_handle.clone(),
         );
-        for builtin_data_reader in builtin_data_reader_list {
-            let instance_handle = builtin_data_reader.get_instance_handle();
-            let data_reader_actor = Actor::spawn(builtin_data_reader, &executor_handle);
-        }
         // participant_actor.send_actor_mail(domain_participant_actor::SetTopicList { topic_list });
         // participant_actor.send_actor_mail(domain_participant_actor::SetBuiltInSubscriber {
         //     builtin_subscriber: builtin_subscriber_actor,
@@ -772,12 +741,13 @@ impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
 
         self.on_participant_discovery_sender.send(()).ok();
 
-        self.subscriber_address
-            .send_actor_mail(subscriber_actor::AddChange {
-                cache_change,
-                reader_instance_handle: self.reader_instance_handle,
-            })
-            .ok();
+        todo!()
+        // self.participant_address
+        //     .send_actor_mail(domain_participant_actor::AddCacheChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }
 
@@ -800,12 +770,13 @@ impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
             //     })
             //     .ok();
         }
-        self.subscriber_address
-            .send_actor_mail(subscriber_actor::AddChange {
-                cache_change,
-                reader_instance_handle: self.reader_instance_handle,
-            })
-            .ok();
+        todo!()
+        // self.subscriber_address
+        //     .send_actor_mail(subscriber_actor::AddChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }
 
@@ -853,12 +824,13 @@ impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
                 //     .ok();
             }
         }
-        self.subscriber_address
-            .send_actor_mail(subscriber_actor::AddChange {
-                cache_change,
-                reader_instance_handle: self.reader_instance_handle,
-            })
-            .ok();
+        todo!()
+        // self.subscriber_address
+        //     .send_actor_mail(subscriber_actor::AddChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }
 
@@ -906,12 +878,12 @@ impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
                 //     .ok();
             }
         }
-
-        self.subscriber_address
-            .send_actor_mail(subscriber_actor::AddChange {
-                cache_change,
-                reader_instance_handle: self.reader_instance_handle,
-            })
-            .ok();
+        todo!()
+        // self.subscriber_address
+        //     .send_actor_mail(subscriber_actor::AddChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }

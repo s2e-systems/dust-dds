@@ -64,6 +64,7 @@ impl SubscriberAsync {
                 qos,
                 a_listener: listener,
                 mask: mask.to_vec(),
+                domain_participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await?;

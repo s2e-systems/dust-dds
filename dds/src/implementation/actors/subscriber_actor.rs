@@ -1,28 +1,20 @@
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader_actor::{self, DataReaderActor, DataReaderActorListener},
-    domain_participant_actor::ParticipantListenerMessage,
-    status_condition_actor::AddCommunicationState,
-    topic_actor::TopicActor,
+    any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
+    domain_participant_actor::DomainParticipantActor, topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
-        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
         topic::TopicAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::status_condition_actor::StatusConditionActor,
+        actor::ActorAddress,
+        actors::{domain_participant_actor, status_condition_actor::StatusConditionActor},
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        runtime::{
-            executor::{block_on, ExecutorHandle},
-            mpsc::{mpsc_channel, MpscSender},
-            timer::TimerHandle,
-        },
+        runtime::mpsc::MpscSender,
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::PartitionQosPolicy,
@@ -35,11 +27,8 @@ use crate::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         reader::{ReaderCacheChange, ReaderHistoryCache},
-        types::{
-            EntityId, Guid, Locator, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-        },
+        types::{EntityId, Guid, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY},
     },
-    xtypes::dynamic_type::DynamicType,
 };
 use fnmatch_regex::glob_to_regex;
 use std::{
@@ -248,18 +237,21 @@ impl SubscriberActor {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
+        domain_participant_address: ActorAddress<DomainParticipantActor>,
     ) -> DdsResult<Guid> {
         struct UserDefinedReaderHistoryCache {
-            pub subscriber_address: ActorAddress<SubscriberActor>,
-            pub reader_instance_handle: InstanceHandle,
+            pub domain_participant_address: ActorAddress<DomainParticipantActor>,
+            pub subscriber_guid: Guid,
+            pub data_reader_guid: Guid,
         }
 
         impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
             fn add_change(&mut self, cache_change: ReaderCacheChange) {
-                self.subscriber_address
-                    .send_actor_mail(AddChange {
+                self.domain_participant_address
+                    .send_actor_mail(domain_participant_actor::AddCacheChange {
                         cache_change,
-                        reader_instance_handle: self.reader_instance_handle,
+                        subscriber_guid: self.subscriber_guid,
+                        data_reader_guid: self.data_reader_guid,
                     })
                     .ok();
             }
@@ -304,67 +296,69 @@ impl SubscriberActor {
         ];
 
         let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = Guid::new(subscriber_guid.prefix(), entity_id);
+        let data_reader_guid = Guid::new(subscriber_guid.prefix(), entity_id);
 
         let user_defined_reader_history_cache = UserDefinedReaderHistoryCache {
-            subscriber_address: todo!(),
-            reader_instance_handle: InstanceHandle::new(guid.into()),
+            domain_participant_address,
+            subscriber_guid,
+            data_reader_guid,
         };
 
-        let rtps_reader = self
-            .transport
-            .lock()
-            .unwrap()
-            .create_reader(guid, Box::new(user_defined_reader_history_cache));
+        let rtps_reader = self.transport.lock().unwrap().create_reader(
+            data_reader_guid,
+            Box::new(user_defined_reader_history_cache),
+        );
 
+        let listener = None;
         let data_reader_status_kind = mask.to_vec();
         let data_reader = DataReaderActor::new(
-            guid,
+            data_reader_guid,
             rtps_reader,
             topic_name,
             type_name,
             type_support.clone(),
             qos,
-            a_listener,
+            listener,
             data_reader_status_kind,
         );
 
         self.data_reader_list
-            .insert(InstanceHandle::new(guid.into()), data_reader);
+            .insert(InstanceHandle::new(data_reader_guid.into()), data_reader);
 
-        Ok(guid)
+        Ok(data_reader_guid)
     }
-}
 
-pub struct CreateDatareader {
-    pub topic_name: String,
-    pub type_name: String,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub has_key: bool,
-    pub qos: QosKind<DataReaderQos>,
-    pub a_listener: Option<DataReaderActorListener>,
-    pub mask: Vec<StatusKind>,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub executor_handle: ExecutorHandle,
-    pub timer_handle: TimerHandle,
-}
-impl Mail for CreateDatareader {
-    type Result = DdsResult<Guid>;
-}
-impl MailHandler<CreateDatareader> for SubscriberActor {
-    fn handle(&mut self, message: CreateDatareader) -> <CreateDatareader as Mail>::Result {}
-}
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
 
-pub struct DeleteDatareader {
-    pub handle: InstanceHandle,
-}
-impl Mail for DeleteDatareader {
-    type Result = DdsResult<Actor<DataReaderActor>>;
-}
-impl MailHandler<DeleteDatareader> for SubscriberActor {
-    fn handle(&mut self, message: DeleteDatareader) -> <DeleteDatareader as Mail>::Result {
+    pub fn get_qos(&self) -> &SubscriberQos {
+        &self.qos
+    }
+
+    pub fn add_matched_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
+        if self.is_partition_matched(discovered_writer_data.dds_publication_data.partition()) {
+            if let Some(dr) = self.data_reader_list.values_mut().find(|dr| {
+                dr.get_topic_name() == discovered_writer_data.dds_publication_data.topic_name()
+            }) {
+                dr.add_matched_writer(discovered_writer_data, &self.qos);
+            }
+        }
+    }
+
+    pub fn get_mut_datareader_by_guid(&mut self, datareader_guid: Guid) -> &mut DataReaderActor {
+        self.data_reader_list
+            .get_mut(&InstanceHandle::new(datareader_guid.into()))
+            .expect("Must exist")
+    }
+
+    pub fn get_datareader_by_guid(&self, datareader_guid: Guid) -> &DataReaderActor {
+        self.data_reader_list
+            .get(&InstanceHandle::new(datareader_guid.into()))
+            .expect("Must exist")
+    }
+
+    pub fn delete_datareader(&mut self, handle: InstanceHandle) {
         todo!()
         // if let Some(removed_reader) = self.data_reader_list.remove(&message.handle) {
         //     Ok(removed_reader)
@@ -374,40 +368,13 @@ impl MailHandler<DeleteDatareader> for SubscriberActor {
         //     ))
         // }
     }
-}
 
-pub struct GetGuid;
-impl Mail for GetGuid {
-    type Result = Guid;
-}
-impl MailHandler<GetGuid> for SubscriberActor {
-    fn handle(&mut self, _: GetGuid) -> <GetGuid as Mail>::Result {
+    pub fn get_guid(&self) -> Guid {
         self.rtps_group.guid()
     }
-}
 
-pub struct IsEnabled;
-impl Mail for IsEnabled {
-    type Result = bool;
-}
-impl MailHandler<IsEnabled> for SubscriberActor {
-    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
-        self.enabled
-    }
-}
-
-pub struct SetDefaultDatareaderQos {
-    pub qos: QosKind<DataReaderQos>,
-}
-impl Mail for SetDefaultDatareaderQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDefaultDatareaderQos> for SubscriberActor {
-    fn handle(
-        &mut self,
-        message: SetDefaultDatareaderQos,
-    ) -> <SetDefaultDatareaderQos as Mail>::Result {
-        match message.qos {
+    pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+        match qos {
             QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
             QosKind::Specific(q) => {
                 q.is_consistent()?;
@@ -416,31 +383,12 @@ impl MailHandler<SetDefaultDatareaderQos> for SubscriberActor {
         }
         Ok(())
     }
-}
 
-pub struct GetDefaultDatareaderQos;
-impl Mail for GetDefaultDatareaderQos {
-    type Result = DataReaderQos;
-}
-impl MailHandler<GetDefaultDatareaderQos> for SubscriberActor {
-    fn handle(&mut self, _: GetDefaultDatareaderQos) -> <GetDefaultDatareaderQos as Mail>::Result {
-        self.default_data_reader_qos.clone()
+    pub fn get_default_datareader_qos(&self) -> &DataReaderQos {
+        &self.default_data_reader_qos
     }
-}
 
-pub struct SetQos {
-    pub qos: QosKind<SubscriberQos>,
-}
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetQos> for SubscriberActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
-        let qos = match message.qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-
+    pub fn set_qos(&mut self, qos: SubscriberQos) -> DdsResult<()> {
         if self.enabled {
             self.qos.check_immutability(&qos)?;
         }
@@ -449,117 +397,20 @@ impl MailHandler<SetQos> for SubscriberActor {
 
         Ok(())
     }
-}
 
-pub struct Enable;
-impl Mail for Enable {
-    type Result = ();
-}
-impl MailHandler<Enable> for SubscriberActor {
-    fn handle(&mut self, _: Enable) -> <Enable as Mail>::Result {
-        self.enabled = true;
-    }
-}
-
-pub struct GetInstanceHandle;
-impl Mail for GetInstanceHandle {
-    type Result = InstanceHandle;
-}
-impl MailHandler<GetInstanceHandle> for SubscriberActor {
-    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.rtps_group.guid().into())
     }
-}
 
-pub struct GetQos;
-impl Mail for GetQos {
-    type Result = SubscriberQos;
-}
-impl MailHandler<GetQos> for SubscriberActor {
-    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
-        self.qos.clone()
-    }
-}
-
-pub struct GetStatusKind;
-impl Mail for GetStatusKind {
-    type Result = Vec<StatusKind>;
-}
-impl MailHandler<GetStatusKind> for SubscriberActor {
-    fn handle(&mut self, _: GetStatusKind) -> <GetStatusKind as Mail>::Result {
-        self.subscriber_status_kind.clone()
-    }
-}
-
-pub struct AddMatchedWriter {
-    pub discovered_writer_data: DiscoveredWriterData,
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    // pub participant: DomainParticipantAsync,
-    pub participant_mask_listener: (
-        Option<MpscSender<ParticipantListenerMessage>>,
-        Vec<StatusKind>,
-    ),
-}
-impl Mail for AddMatchedWriter {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AddMatchedWriter> for SubscriberActor {
-    fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
-        if self.is_partition_matched(
-            message
-                .discovered_writer_data
-                .dds_publication_data
-                .partition(),
-        ) {
-            for data_reader in self.data_reader_list.values() {
-                let subscriber_mask_listener = (
-                    self.subscriber_listener_thread
-                        .as_ref()
-                        .map(|l| l.sender().clone()),
-                    self.subscriber_status_kind.clone(),
-                );
-
-                let subscriber_qos = self.qos.clone();
-                // data_reader.send_actor_mail(data_reader_actor::AddMatchedWriter {
-                //     discovered_writer_data: message.discovered_writer_data.clone(),
-                //     // data_reader_address,
-                //     // subscriber: SubscriberAsync::new(
-                //     //     message.subscriber_address.clone(),
-                //     //     self.status_condition.address(),
-                //     //     message.participant.clone(),
-                //     // ),
-                //     subscriber_qos,
-                //     // subscriber_mask_listener,
-                //     // participant_mask_listener: message.participant_mask_listener.clone(),
-                // });
-            }
-        }
-        Ok(())
-    }
-}
-
-pub struct RemoveMatchedWriter {
-    pub discovered_writer_handle: InstanceHandle,
-    // pub subscriber_address: ActorAddress<SubscriberActor>,
-    // pub participant: DomainParticipantAsync,
-    // pub participant_mask_listener: (
-    //     Option<MpscSender<ParticipantListenerMessage>>,
-    //     Vec<StatusKind>,
-    // ),
-}
-impl Mail for RemoveMatchedWriter {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
-    fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
+    pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
         for data_reader in self.data_reader_list.values() {
             // let data_reader_address = data_reader.address();
-            let subscriber_mask_listener = (
-                self.subscriber_listener_thread
-                    .as_ref()
-                    .map(|l| l.sender().clone()),
-                self.subscriber_status_kind.clone(),
-            );
+            // let subscriber_mask_listener = (
+            //     self.subscriber_listener_thread
+            //         .as_ref()
+            //         .map(|l| l.sender().clone()),
+            //     self.subscriber_status_kind.clone(),
+            // );
             // data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
             //     discovered_writer_handle: message.discovered_writer_handle,
             //     // data_reader_address,
@@ -572,39 +423,13 @@ impl MailHandler<RemoveMatchedWriter> for SubscriberActor {
             //     // participant_mask_listener: message.participant_mask_listener.clone(),
             // });
         }
-
-        Ok(())
     }
-}
 
-pub struct SetListener {
-    pub listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
-    pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetListener> for SubscriberActor {
-    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        if let Some(l) = self.subscriber_listener_thread.take() {
-            l.join()?;
-        }
-        self.subscriber_listener_thread = message.listener.map(SubscriberListenerThread::new);
-        self.subscriber_status_kind = message.status_kind;
-
-        Ok(())
-    }
-}
-
-pub struct AddChange {
-    pub cache_change: ReaderCacheChange,
-    pub reader_instance_handle: InstanceHandle,
-}
-impl Mail for AddChange {
-    type Result = ();
-}
-impl MailHandler<AddChange> for SubscriberActor {
-    fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
+    pub fn add_change(
+        &mut self,
+        cache_change: ReaderCacheChange,
+        reader_instance_handle: InstanceHandle,
+    ) {
         // if let Some(reader) = self.data_reader_list.get(&message.reader_instance_handle) {
         //     reader.send_actor_mail(data_reader_actor::AddChange {
         //         cache_change: message.cache_change,
@@ -613,5 +438,19 @@ impl MailHandler<AddChange> for SubscriberActor {
 
         self.status_condition
             .add_communication_state(StatusKind::DataOnReaders);
+    }
+
+    pub fn set_listener(
+        &mut self,
+        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
+        status_kind: Vec<StatusKind>,
+    ) -> DdsResult<()> {
+        if let Some(l) = self.subscriber_listener_thread.take() {
+            l.join()?;
+        }
+        self.subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
+        self.subscriber_status_kind = status_kind;
+
+        Ok(())
     }
 }

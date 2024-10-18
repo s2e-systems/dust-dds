@@ -2,18 +2,13 @@ use tracing::debug;
 
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-    domain_participant_actor::{
-        ListenerKind, ParticipantListenerMessage, ParticipantListenerOperation,
-    },
-    status_condition_actor::{self, AddCommunicationState, StatusConditionActor},
-    subscriber_actor::{SubscriberListenerMessage, SubscriberListenerOperation},
-    topic_actor::TopicActor,
+    status_condition_actor::StatusConditionActor,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
+        actor::{ActorAddress, Mail, MailHandler},
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::DiscoveredWriterData,
@@ -26,9 +21,8 @@ use crate::{
             },
         },
         runtime::{
-            executor::{block_on, ExecutorHandle, TaskHandle},
+            executor::{block_on, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
-            timer::TimerHandle,
         },
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -37,10 +31,10 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataReaderQos, SubscriberQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DestinationOrderQosPolicyKind, DurabilityQosPolicyKind, HistoryQosPolicyKind,
-            OwnershipQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+            OwnershipQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind,
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
@@ -216,7 +210,7 @@ impl MailHandler<ReadRequestedDeadlineMissedStatus> for DataReaderActor {
         &mut self,
         _: ReadRequestedDeadlineMissedStatus,
     ) -> <ReadRequestedDeadlineMissedStatus as Mail>::Result {
-        self.read_requested_deadline_missed_status()
+        self.get_requested_deadline_missed_status()
     }
 }
 
@@ -418,7 +412,7 @@ impl DataReaderActor {
         InstanceHandle::new(self.guid.into())
     }
 
-    fn read_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+    pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
         let status = RequestedDeadlineMissedStatus {
             total_count: self.requested_deadline_missed_status.total_count,
             total_count_change: self.requested_deadline_missed_status.total_count_change,
@@ -430,7 +424,7 @@ impl DataReaderActor {
         status
     }
 
-    fn read(
+    pub fn read(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -468,7 +462,7 @@ impl DataReaderActor {
         Ok(samples)
     }
 
-    fn take(
+    pub fn take(
         &mut self,
         max_samples: i32,
         sample_states: Vec<SampleStateKind>,
@@ -700,19 +694,7 @@ impl DataReaderActor {
         incompatible_qos_policy_list
     }
 
-    fn on_sample_lost(
-        &mut self,
-        data_reader_address: &ActorAddress<DataReaderActor>,
-        subscriber: &SubscriberAsync,
-        (subscriber_listener, subscriber_listener_mask): &(
-            Option<MpscSender<SubscriberListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-        (participant_listener, participant_listener_mask): &(
-            Option<MpscSender<ParticipantListenerMessage>>,
-            Vec<StatusKind>,
-        ),
-    ) -> DdsResult<()> {
+    fn on_sample_lost(&mut self) -> DdsResult<()> {
         self.sample_lost_status.increment();
 
         // let topic_status_condition_address = self.topic_status_condition.clone();
@@ -786,7 +768,7 @@ impl DataReaderActor {
         //     Option<MpscSender<ParticipantListenerMessage>>,
         //     Vec<StatusKind>,
         // ),
-    ) -> DdsResult<()> {
+    ) {
         self.subscription_matched_status.increment(instance_handle);
 
         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
@@ -851,8 +833,6 @@ impl DataReaderActor {
         // }
         self.status_condition
             .add_communication_state(StatusKind::SubscriptionMatched);
-
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -870,7 +850,7 @@ impl DataReaderActor {
         //     Option<MpscSender<ParticipantListenerMessage>>,
         //     Vec<StatusKind>,
         // ),
-    ) -> DdsResult<()> {
+    ) {
         self.sample_rejected_status
             .increment(instance_handle, rejected_reason);
 
@@ -929,8 +909,6 @@ impl DataReaderActor {
         // }
         self.status_condition
             .add_communication_state(StatusKind::SampleRejected);
-
-        Ok(())
     }
 
     fn on_requested_incompatible_qos(
@@ -946,7 +924,7 @@ impl DataReaderActor {
         //     Option<MpscSender<ParticipantListenerMessage>>,
         //     Vec<StatusKind>,
         // ),
-    ) -> DdsResult<()> {
+    ) {
         self.requested_incompatible_qos_status
             .increment(incompatible_qos_policy_list);
 
@@ -1010,7 +988,6 @@ impl DataReaderActor {
         // }
         self.status_condition
             .add_communication_state(StatusKind::RequestedIncompatibleQos);
-        Ok(())
     }
 
     fn convert_cache_change_to_sample(
@@ -1176,7 +1153,7 @@ impl DataReaderActor {
                     // subscriber,
                     // subscriber_mask_listener,
                     // participant_mask_listener,
-                )?;
+                );
             } else if self.is_max_instances_limit_reached(&sample) {
                 self.on_sample_rejected(
                     sample.instance_handle(),
@@ -1185,7 +1162,7 @@ impl DataReaderActor {
                     // subscriber,
                     // subscriber_mask_listener,
                     // participant_mask_listener,
-                )?;
+                );
             } else if self.is_max_samples_per_instance_limit_reached(&sample) {
                 self.on_sample_rejected(
                     sample.instance_handle(),
@@ -1194,7 +1171,7 @@ impl DataReaderActor {
                     // subscriber,
                     // subscriber_mask_listener,
                     // participant_mask_listener,
-                )?;
+                );
             } else {
                 let num_alive_samples_of_instance = self
                     .sample_list
@@ -1486,6 +1463,10 @@ impl DataReaderActor {
         }
     }
 
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn start_deadline_missed_task(
         &mut self,
@@ -1508,195 +1489,291 @@ impl DataReaderActor {
             t.abort();
         }
 
-        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            let deadline_missed_interval = std::time::Duration::new(
-                deadline_missed_period.sec() as u64,
-                deadline_missed_period.nanosec(),
-            );
+        if let DurationKind::Finite(_deadline_missed_period) = self.qos.deadline.period {
+            // let deadline_missed_interval = std::time::Duration::new(
+            //     deadline_missed_period.sec() as u64,
+            //     deadline_missed_period.nanosec(),
+            // );
             // let reader_status_condition = self.status_condition.address();
-            let data_reader_listener_sender = self
-                .data_reader_listener_thread
-                .as_ref()
-                .map(|l| l.sender().clone());
-            let reader_listener_mask = self.data_reader_status_kind.clone();
+            // let data_reader_listener_sender = self
+            //     .data_reader_listener_thread
+            //     .as_ref()
+            //     .map(|l| l.sender().clone());
+            // let reader_listener_mask = self.data_reader_status_kind.clone();
             // let subscriber_listener = subscriber_mask_listener.0.clone();
             // let subscriber_listener_mask = subscriber_mask_listener.1.clone();
             // let participant_listener = participant_mask_listener.0.clone();
             // let participant_listener_mask = participant_mask_listener.1.clone();
             // let topic_address = self.topic_address.clone();
-            let type_name = self.type_name.clone();
-            let topic_name = self.topic_name.clone();
+            // let type_name = self.type_name.clone();
+            // let topic_name = self.topic_name.clone();
             // let status_condition_address = self.status_condition.address();
             // let topic_status_condition_address = self.topic_status_condition.clone();
-            let timer_handle = self.timer_handle.clone();
-            let deadline_missed_task = self.executor_handle.spawn(async move {
-                loop {
-                    timer_handle.sleep(deadline_missed_interval).await;
-                    // let subscriber_listener = subscriber_listener.clone();
-                    // let participant_listener = participant_listener.clone();
-                    let r: DdsResult<()> = async {
-                        // data_reader_address.send_actor_mail(
-                        //     IncrementRequestedDeadlineMissedStatus {
-                        //         instance_handle: change_instance_handle,
-                        //     },
-                        // )?;
-                        // data_reader_address
-                        //     .send_actor_mail(RemoveInstanceOwnership {
-                        //         instance: change_instance_handle,
-                        //     })?
-                        //     .receive_reply()
-                        //     .await;
+            // let timer_handle = self.timer_handle.clone();
+            // let deadline_missed_task = self.executor_handle.spawn(async move {
+            //     loop {
+            //         timer_handle.sleep(deadline_missed_interval).await;
+            //         // let subscriber_listener = subscriber_listener.clone();
+            //         // let participant_listener = participant_listener.clone();
+            //         let r: DdsResult<()> = async {
+            //             // data_reader_address.send_actor_mail(
+            //             //     IncrementRequestedDeadlineMissedStatus {
+            //             //         instance_handle: change_instance_handle,
+            //             //     },
+            //             // )?;
+            //             // data_reader_address
+            //             //     .send_actor_mail(RemoveInstanceOwnership {
+            //             //         instance: change_instance_handle,
+            //             //     })?
+            //             //     .receive_reply()
+            //             //     .await;
 
-                        // let reader_address = data_reader_address.clone();
-                        // let subscriber = subscriber.clone();
-                        // let topic = TopicAsync::new(
-                        //     topic_address.clone(),
-                        //     topic_status_condition_address.clone(),
-                        //     type_name.clone(),
-                        //     topic_name.clone(),
-                        //     subscriber.get_participant(),
-                        // );
-                        // let status_condition_address = status_condition_address.clone();
-                        // if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-                        //     let status = data_reader_address
-                        //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                        //         .receive_reply()
-                        //         .await;
-                        //     if let Some(listener) = &data_reader_listener_sender {
-                        //         listener
-                        //             .send(DataReaderListenerMessage {
-                        //                 listener_operation:
-                        //                     DataReaderListenerOperation::RequestedDeadlineMissed(
-                        //                         status,
-                        //                     ),
-                        //                 reader_address,
-                        //                 status_condition_address,
-                        //                 subscriber,
-                        //                 topic,
-                        //             })
-                        //             .ok();
-                        //     }
-                        // } else if subscriber_listener_mask
-                        //     .contains(&StatusKind::RequestedDeadlineMissed)
-                        // {
-                        //     let status = data_reader_address
-                        //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                        //         .receive_reply()
-                        //         .await;
-                        //     if let Some(listener) = subscriber_listener {
-                        //         listener
-                        //             .send(SubscriberListenerMessage {
-                        //                 listener_operation:
-                        //                     SubscriberListenerOperation::RequestedDeadlineMissed(
-                        //                         status,
-                        //                     ),
-                        //                 reader_address,
-                        //                 status_condition_address,
-                        //                 subscriber,
-                        //                 topic,
-                        //             })
-                        //             .ok();
-                        //     }
-                        // } else if participant_listener_mask
-                        //     .contains(&StatusKind::RequestedDeadlineMissed)
-                        // {
-                        //     let status = data_reader_address
-                        //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-                        //         .receive_reply()
-                        //         .await;
-                        //     if let Some(listener) = participant_listener {
-                        //         listener
-                        //             .send(ParticipantListenerMessage {
-                        //                 listener_operation:
-                        //                     ParticipantListenerOperation::RequestedDeadlineMissed(
-                        //                         status,
-                        //                     ),
-                        //                 listener_kind: ListenerKind::Reader {
-                        //                     reader_address,
-                        //                     status_condition_address,
-                        //                     subscriber,
-                        //                     topic,
-                        //                 },
-                        //             })
-                        //             .ok();
-                        //     }
-                        // }
-                        // reader_status_condition
-                        //     .send_actor_mail(AddCommunicationState {
-                        //         state: StatusKind::RequestedDeadlineMissed,
-                        //     })?
-                        //     .receive_reply()
-                        //     .await;
-                        Ok(())
-                    }
-                    .await;
+            //             // let reader_address = data_reader_address.clone();
+            //             // let subscriber = subscriber.clone();
+            //             // let topic = TopicAsync::new(
+            //             //     topic_address.clone(),
+            //             //     topic_status_condition_address.clone(),
+            //             //     type_name.clone(),
+            //             //     topic_name.clone(),
+            //             //     subscriber.get_participant(),
+            //             // );
+            //             // let status_condition_address = status_condition_address.clone();
+            //             // if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
+            //             //     let status = data_reader_address
+            //             //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+            //             //         .receive_reply()
+            //             //         .await;
+            //             //     if let Some(listener) = &data_reader_listener_sender {
+            //             //         listener
+            //             //             .send(DataReaderListenerMessage {
+            //             //                 listener_operation:
+            //             //                     DataReaderListenerOperation::RequestedDeadlineMissed(
+            //             //                         status,
+            //             //                     ),
+            //             //                 reader_address,
+            //             //                 status_condition_address,
+            //             //                 subscriber,
+            //             //                 topic,
+            //             //             })
+            //             //             .ok();
+            //             //     }
+            //             // } else if subscriber_listener_mask
+            //             //     .contains(&StatusKind::RequestedDeadlineMissed)
+            //             // {
+            //             //     let status = data_reader_address
+            //             //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+            //             //         .receive_reply()
+            //             //         .await;
+            //             //     if let Some(listener) = subscriber_listener {
+            //             //         listener
+            //             //             .send(SubscriberListenerMessage {
+            //             //                 listener_operation:
+            //             //                     SubscriberListenerOperation::RequestedDeadlineMissed(
+            //             //                         status,
+            //             //                     ),
+            //             //                 reader_address,
+            //             //                 status_condition_address,
+            //             //                 subscriber,
+            //             //                 topic,
+            //             //             })
+            //             //             .ok();
+            //             //     }
+            //             // } else if participant_listener_mask
+            //             //     .contains(&StatusKind::RequestedDeadlineMissed)
+            //             // {
+            //             //     let status = data_reader_address
+            //             //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
+            //             //         .receive_reply()
+            //             //         .await;
+            //             //     if let Some(listener) = participant_listener {
+            //             //         listener
+            //             //             .send(ParticipantListenerMessage {
+            //             //                 listener_operation:
+            //             //                     ParticipantListenerOperation::RequestedDeadlineMissed(
+            //             //                         status,
+            //             //                     ),
+            //             //                 listener_kind: ListenerKind::Reader {
+            //             //                     reader_address,
+            //             //                     status_condition_address,
+            //             //                     subscriber,
+            //             //                     topic,
+            //             //                 },
+            //             //             })
+            //             //             .ok();
+            //             //     }
+            //             // }
+            //             // reader_status_condition
+            //             //     .send_actor_mail(AddCommunicationState {
+            //             //         state: StatusKind::RequestedDeadlineMissed,
+            //             //     })?
+            //             //     .receive_reply()
+            //             //     .await;
+            //             Ok(())
+            //         }
+            //         .await;
 
-                    if r.is_err() {
-                        break;
-                    }
-                }
-            });
+            //         if r.is_err() {
+            //             break;
+            //         }
+            //     }
+            // });
 
-            self.instance_deadline_missed_task
-                .insert(change_instance_handle, deadline_missed_task);
+            // self.instance_deadline_missed_task
+            //     .insert(change_instance_handle, deadline_missed_task);
         }
         Ok(())
     }
-}
 
-pub struct Read {
-    pub max_samples: i32,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-    pub specific_instance_handle: Option<InstanceHandle>,
-}
-impl Mail for Read {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<Read> for DataReaderActor {
-    fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
-        self.read(
-            message.max_samples,
-            message.sample_states,
-            message.view_states,
-            message.instance_states,
-            message.specific_instance_handle,
+    pub fn as_discovered_reader_data(
+        &self,
+        subscriber_qos: &SubscriberQos,
+        topic_qos: &TopicQos,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        xml_type: String,
+    ) -> DiscoveredReaderData {
+        let guid = self.guid;
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+
+        DiscoveredReaderData::new(
+            ReaderProxy {
+                remote_reader_guid: guid,
+                remote_group_entity_id: guid.entity_id(),
+                unicast_locator_list: default_unicast_locator_list,
+                multicast_locator_list: default_multicast_locator_list,
+                expects_inline_qos: false,
+            },
+            SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                topic_name,
+                type_name,
+                durability: self.qos.durability.clone(),
+                deadline: self.qos.deadline.clone(),
+                latency_budget: self.qos.latency_budget.clone(),
+                liveliness: self.qos.liveliness.clone(),
+                reliability: self.qos.reliability.clone(),
+                ownership: self.qos.ownership.clone(),
+                destination_order: self.qos.destination_order.clone(),
+                user_data: self.qos.user_data.clone(),
+                time_based_filter: self.qos.time_based_filter.clone(),
+                presentation: subscriber_qos.presentation.clone(),
+                partition: subscriber_qos.partition.clone(),
+                topic_data: topic_qos.topic_data.clone(),
+                group_data: subscriber_qos.group_data.clone(),
+                xml_type: xml_type,
+                representation: self.qos.representation.clone(),
+            },
         )
     }
-}
 
-pub struct Take {
-    pub max_samples: i32,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-    pub specific_instance_handle: Option<InstanceHandle>,
-}
-impl Mail for Take {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<Take> for DataReaderActor {
-    fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
-        self.take(
-            message.max_samples,
-            message.sample_states,
-            message.view_states,
-            message.instance_states,
-            message.specific_instance_handle,
-        )
+    pub fn get_topic_name(&self) -> &str {
+        &self.topic_name
     }
-}
 
-pub struct IsHistoricalDataReceived;
-impl Mail for IsHistoricalDataReceived {
-    type Result = DdsResult<bool>;
-}
-impl MailHandler<IsHistoricalDataReceived> for DataReaderActor {
-    fn handle(
+    pub fn add_matched_writer(
         &mut self,
-        _: IsHistoricalDataReceived,
-    ) -> <IsHistoricalDataReceived as Mail>::Result {
+        discovered_writer_data: DiscoveredWriterData,
+        subscriber_qos: &SubscriberQos,
+    ) {
+        let type_name = self.type_name.clone();
+        let topic_name = self.topic_name.clone();
+        let publication_builtin_topic_data = &discovered_writer_data.dds_publication_data;
+        if publication_builtin_topic_data.topic_name() == topic_name
+            && publication_builtin_topic_data.get_type_name() == type_name
+        {
+            tracing::trace!(
+                topic_name = topic_name,
+                type_name = type_name,
+                "Writer with matched topic and type found",
+            );
+            let instance_handle =
+                InstanceHandle::new(discovered_writer_data.dds_publication_data.key.value);
+            let incompatible_qos_policy_list = self
+                .get_discovered_writer_incompatible_qos_policy_list(
+                    &discovered_writer_data,
+                    &subscriber_qos,
+                );
+            if incompatible_qos_policy_list.is_empty() {
+                let reliability_kind =
+                    match discovered_writer_data.dds_publication_data.reliability.kind {
+                        ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                    };
+                let durability_kind =
+                    match discovered_writer_data.dds_publication_data.durability.kind {
+                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                        DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                        DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
+                    };
+                self.rtps_reader.lock().unwrap().add_matched_writer(
+                    discovered_writer_data.writer_proxy,
+                    reliability_kind,
+                    durability_kind,
+                );
+
+                let insert_matched_publication_result = self
+                    .matched_publication_list
+                    .insert(instance_handle, publication_builtin_topic_data.clone());
+                match insert_matched_publication_result {
+                    Some(value) if &value != publication_builtin_topic_data => {
+                        self.on_subscription_matched(
+                            instance_handle,
+                            // message.data_reader_address,
+                            // message.subscriber,
+                            // &message.subscriber_mask_listener,
+                            // &message.participant_mask_listener,
+                        );
+                    }
+                    None => {
+                        self.on_subscription_matched(
+                            instance_handle,
+                            // message.data_reader_address,
+                            // message.subscriber,
+                            // &message.subscriber_mask_listener,
+                            // &message.participant_mask_listener,
+                        );
+                    }
+                    _ => (),
+                }
+            } else if !self.incompatible_writer_list.contains(&instance_handle) {
+                self.incompatible_writer_list.insert(instance_handle);
+                self.on_requested_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    // &message.data_reader_address,
+                    // &message.subscriber,
+                    // &message.subscriber_mask_listener,
+                    // &message.participant_mask_listener,
+                );
+            }
+        }
+    }
+
+    pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
+        let matched_publication = self
+            .matched_publication_list
+            .remove(&discovered_writer_handle);
+        if let Some(w) = matched_publication {
+            self.rtps_reader
+                .lock()
+                .unwrap()
+                .delete_matched_writer(w.key().value.into());
+
+            self.on_subscription_matched(
+                discovered_writer_handle,
+                // message.data_reader_address,
+                // message.subscriber,
+                // &message.subscriber_mask_listener,
+                // &message.participant_mask_listener,
+            );
+        }
+    }
+
+    pub fn is_historical_data_received(&mut self) -> DdsResult<bool> {
         if !self.enabled {
             Err(DdsError::NotEnabled)
         } else {
@@ -1716,470 +1793,125 @@ impl MailHandler<IsHistoricalDataReceived> for DataReaderActor {
         //     RtpsReaderKind::Stateless(_) => Ok(true),
         // }
     }
-}
 
-pub struct AsDiscoveredReaderData {
-    pub subscriber_qos: SubscriberQos,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub topic_data: TopicDataQosPolicy,
-    pub xml_type: String,
-}
-impl Mail for AsDiscoveredReaderData {
-    type Result = DdsResult<DiscoveredReaderData>;
-}
-impl MailHandler<AsDiscoveredReaderData> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: AsDiscoveredReaderData,
-    ) -> <AsDiscoveredReaderData as Mail>::Result {
-        let guid = self.guid;
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-
-        Ok(DiscoveredReaderData::new(
-            ReaderProxy {
-                remote_reader_guid: guid,
-                remote_group_entity_id: guid.entity_id(),
-                unicast_locator_list: message.default_unicast_locator_list,
-                multicast_locator_list: message.default_multicast_locator_list,
-                expects_inline_qos: false,
-            },
-            SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey { value: guid.into() },
-                participant_key: BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
-                },
-                topic_name,
-                type_name,
-                durability: self.qos.durability.clone(),
-                deadline: self.qos.deadline.clone(),
-                latency_budget: self.qos.latency_budget.clone(),
-                liveliness: self.qos.liveliness.clone(),
-                reliability: self.qos.reliability.clone(),
-                ownership: self.qos.ownership.clone(),
-                destination_order: self.qos.destination_order.clone(),
-                user_data: self.qos.user_data.clone(),
-                time_based_filter: self.qos.time_based_filter.clone(),
-                presentation: message.subscriber_qos.presentation,
-                partition: message.subscriber_qos.partition,
-                topic_data: message.topic_data,
-                group_data: message.subscriber_qos.group_data,
-                xml_type: message.xml_type,
-                representation: self.qos.representation.clone(),
-            },
-        ))
-    }
-}
-
-pub struct GetInstanceHandle;
-impl Mail for GetInstanceHandle {
-    type Result = InstanceHandle;
-}
-impl MailHandler<GetInstanceHandle> for DataReaderActor {
-    fn handle(&mut self, _: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        self.get_instance_handle()
-    }
-}
-
-pub struct SetQos {
-    pub qos: DataReaderQos,
-}
-impl Mail for SetQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetQos> for DataReaderActor {
-    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
-        message.qos.is_consistent()?;
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
+        qos.is_consistent()?;
         if self.enabled {
-            message.qos.check_immutability(&self.qos)?;
+            qos.check_immutability(&self.qos)?;
         }
-        self.qos = message.qos;
+        self.qos = qos;
         Ok(())
     }
-}
 
-pub struct GetQos;
-impl Mail for GetQos {
-    type Result = DataReaderQos;
-}
-impl MailHandler<GetQos> for DataReaderActor {
-    fn handle(&mut self, _: GetQos) -> <GetQos as Mail>::Result {
-        self.qos.clone()
+    pub fn get_qos(&self) -> &DataReaderQos {
+        &self.qos
     }
-}
 
-pub struct GetMatchedPublicationData {
-    pub publication_handle: InstanceHandle,
-}
-impl Mail for GetMatchedPublicationData {
-    type Result = DdsResult<PublicationBuiltinTopicData>;
-}
-impl MailHandler<GetMatchedPublicationData> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: GetMatchedPublicationData,
-    ) -> <GetMatchedPublicationData as Mail>::Result {
+    pub fn get_matched_publication_data(
+        &self,
+        publication_handle: InstanceHandle,
+    ) -> DdsResult<PublicationBuiltinTopicData> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
         self.matched_publication_list
-            .get(&message.publication_handle)
+            .get(&publication_handle)
             .cloned()
             .ok_or(DdsError::BadParameter)
     }
-}
 
-pub struct IsEnabled;
-impl Mail for IsEnabled {
-    type Result = bool;
-}
-impl MailHandler<IsEnabled> for DataReaderActor {
-    fn handle(&mut self, _: IsEnabled) -> <IsEnabled as Mail>::Result {
+    pub fn is_enabled(&self) -> bool {
         self.enabled
     }
-}
 
-pub struct Enable {
-    pub data_reader_address: ActorAddress<DataReaderActor>,
-}
-impl Mail for Enable {
-    type Result = ();
-}
-impl MailHandler<Enable> for DataReaderActor {
-    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        if !self.enabled {
-            self.enabled = true;
-        }
-    }
-}
-
-pub struct GetStatuscondition;
-impl Mail for GetStatuscondition {
-    type Result = ActorAddress<StatusConditionActor>;
-}
-impl MailHandler<GetStatuscondition> for DataReaderActor {
-    fn handle(&mut self, _: GetStatuscondition) -> <GetStatuscondition as Mail>::Result {
-        self.status_condition.address()
-    }
-}
-
-pub struct GetMatchedPublications;
-impl Mail for GetMatchedPublications {
-    type Result = Vec<InstanceHandle>;
-}
-impl MailHandler<GetMatchedPublications> for DataReaderActor {
-    fn handle(&mut self, _: GetMatchedPublications) -> <GetMatchedPublications as Mail>::Result {
+    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list
             .iter()
             .map(|(&key, _)| key)
             .collect()
     }
-}
 
-pub struct TakeNextInstance {
-    pub max_samples: i32,
-    pub previous_handle: Option<InstanceHandle>,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-}
-impl Mail for TakeNextInstance {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<TakeNextInstance> for DataReaderActor {
-    fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
+    pub fn take_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        match self.next_instance(message.previous_handle) {
+        match self.next_instance(previous_handle) {
             Some(next_handle) => self.take(
-                message.max_samples,
-                message.sample_states,
-                message.view_states,
-                message.instance_states,
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
                 Some(next_handle),
             ),
             None => Err(DdsError::NoData),
         }
     }
-}
 
-pub struct GetSubscriptionMatchedStatus;
-impl Mail for GetSubscriptionMatchedStatus {
-    type Result = SubscriptionMatchedStatus;
-}
-impl MailHandler<GetSubscriptionMatchedStatus> for DataReaderActor {
-    fn handle(
+    pub fn read_next_instance(
         &mut self,
-        _: GetSubscriptionMatchedStatus,
-    ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            });
+            .remove_communication_state(StatusKind::SubscriptionMatched);
 
         self.subscription_matched_status
             .read_and_reset(self.matched_publication_list.len() as i32)
     }
-}
 
-pub struct ReadNextInstance {
-    pub max_samples: i32,
-    pub previous_handle: Option<InstanceHandle>,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-}
-impl Mail for ReadNextInstance {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<ReadNextInstance> for DataReaderActor {
-    fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(message.previous_handle) {
-            Some(next_handle) => self.read(
-                message.max_samples,
-                message.sample_states,
-                message.view_states,
-                message.instance_states,
-                Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
+    pub fn get_type_name(&self) -> &str {
+        &self.type_name
     }
-}
 
-pub struct AddMatchedWriter {
-    pub discovered_writer_data: DiscoveredWriterData,
-    // pub data_reader_address: ActorAddress<DataReaderActor>,
-    // pub subscriber: SubscriberAsync,
-    pub subscriber_qos: SubscriberQos,
-    // pub subscriber_mask_listener: (
-    //     Option<MpscSender<SubscriberListenerMessage>>,
-    //     Vec<StatusKind>,
-    // ),
-    // pub participant_mask_listener: (
-    //     Option<MpscSender<ParticipantListenerMessage>>,
-    //     Vec<StatusKind>,
-    // ),
-}
-impl Mail for AddMatchedWriter {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AddMatchedWriter> for DataReaderActor {
-    fn handle(&mut self, message: AddMatchedWriter) -> <AddMatchedWriter as Mail>::Result {
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-        let publication_builtin_topic_data = &message.discovered_writer_data.dds_publication_data;
-        if publication_builtin_topic_data.topic_name() == topic_name
-            && publication_builtin_topic_data.get_type_name() == type_name
-        {
-            tracing::trace!(
-                topic_name = topic_name,
-                type_name = type_name,
-                "Writer with matched topic and type found",
-            );
-            let instance_handle = InstanceHandle::new(
-                message
-                    .discovered_writer_data
-                    .dds_publication_data
-                    .key
-                    .value,
-            );
-            let incompatible_qos_policy_list = self
-                .get_discovered_writer_incompatible_qos_policy_list(
-                    &message.discovered_writer_data,
-                    &message.subscriber_qos,
-                );
-            if incompatible_qos_policy_list.is_empty() {
-                let reliability_kind = match message
-                    .discovered_writer_data
-                    .dds_publication_data
-                    .reliability
-                    .kind
-                {
-                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                };
-                let durability_kind = match message
-                    .discovered_writer_data
-                    .dds_publication_data
-                    .durability
-                    .kind
-                {
-                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                    DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-                    DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
-                    DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
-                };
-                self.rtps_reader.lock().unwrap().add_matched_writer(
-                    message.discovered_writer_data.writer_proxy,
-                    reliability_kind,
-                    durability_kind,
-                );
-
-                let insert_matched_publication_result = self
-                    .matched_publication_list
-                    .insert(instance_handle, publication_builtin_topic_data.clone());
-                match insert_matched_publication_result {
-                    Some(value) if &value != publication_builtin_topic_data => {
-                        self.on_subscription_matched(
-                            instance_handle,
-                            // message.data_reader_address,
-                            // message.subscriber,
-                            // &message.subscriber_mask_listener,
-                            // &message.participant_mask_listener,
-                        )?;
-                    }
-                    None => {
-                        self.on_subscription_matched(
-                            instance_handle,
-                            // message.data_reader_address,
-                            // message.subscriber,
-                            // &message.subscriber_mask_listener,
-                            // &message.participant_mask_listener,
-                        )?;
-                    }
-                    _ => (),
-                }
-            } else if !self.incompatible_writer_list.contains(&instance_handle) {
-                self.incompatible_writer_list.insert(instance_handle);
-                self.on_requested_incompatible_qos(
-                    incompatible_qos_policy_list,
-                    // &message.data_reader_address,
-                    // &message.subscriber,
-                    // &message.subscriber_mask_listener,
-                    // &message.participant_mask_listener,
-                )?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-pub struct RemoveMatchedWriter {
-    pub discovered_writer_handle: InstanceHandle,
-    // pub data_reader_address: ActorAddress<DataReaderActor>,
-    // pub subscriber: SubscriberAsync,
-    // pub subscriber_mask_listener: (
-    //     Option<MpscSender<SubscriberListenerMessage>>,
-    //     Vec<StatusKind>,
-    // ),
-    // pub participant_mask_listener: (
-    //     Option<MpscSender<ParticipantListenerMessage>>,
-    //     Vec<StatusKind>,
-    // ),
-}
-impl Mail for RemoveMatchedWriter {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<RemoveMatchedWriter> for DataReaderActor {
-    fn handle(&mut self, message: RemoveMatchedWriter) -> <RemoveMatchedWriter as Mail>::Result {
-        let matched_publication = self
-            .matched_publication_list
-            .remove(&message.discovered_writer_handle);
-        if let Some(w) = matched_publication {
-            self.rtps_reader
-                .lock()
-                .unwrap()
-                .delete_matched_writer(w.key().value.into());
-
-            self.on_subscription_matched(
-                message.discovered_writer_handle,
-                // message.data_reader_address,
-                // message.subscriber,
-                // &message.subscriber_mask_listener,
-                // &message.participant_mask_listener,
-            )?;
-        }
-        Ok(())
-    }
-}
-
-pub struct GetTopicName;
-impl Mail for GetTopicName {
-    type Result = DdsResult<String>;
-}
-impl MailHandler<GetTopicName> for DataReaderActor {
-    fn handle(&mut self, _: GetTopicName) -> <GetTopicName as Mail>::Result {
-        Ok(self.topic_name.clone())
-    }
-}
-
-pub struct GetTypeName;
-impl Mail for GetTypeName {
-    type Result = DdsResult<String>;
-}
-impl MailHandler<GetTypeName> for DataReaderActor {
-    fn handle(&mut self, _: GetTypeName) -> <GetTypeName as Mail>::Result {
-        Ok(self.type_name.clone())
-    }
-}
-
-pub struct SetListener {
-    pub listener: Option<DataReaderActorListener>,
-    pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetListener {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetListener> for DataReaderActor {
-    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+    pub fn set_listener(
+        &mut self,
+        listener: Option<DataReaderActorListener>,
+        status_kind: Vec<StatusKind>,
+    ) -> DdsResult<()> {
         if let Some(listener) = self.data_reader_listener_thread.take() {
             listener.join()?;
         }
-        self.data_reader_listener_thread = message
-            .listener
+        self.data_reader_listener_thread = listener
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
-        self.data_reader_status_kind = message.status_kind;
+        self.data_reader_status_kind = status_kind;
         Ok(())
     }
-}
 
-pub struct GetRequestedDeadlineMissedStatus;
-impl Mail for GetRequestedDeadlineMissedStatus {
-    type Result = RequestedDeadlineMissedStatus;
-}
-impl MailHandler<GetRequestedDeadlineMissedStatus> for DataReaderActor {
-    fn handle(
-        &mut self,
-        _: GetRequestedDeadlineMissedStatus,
-    ) -> <GetRequestedDeadlineMissedStatus as Mail>::Result {
-        self.read_requested_deadline_missed_status()
+    pub fn remove_instance_ownership(&mut self, instance: InstanceHandle) {
+        self.instance_ownership.remove(&instance);
     }
-}
 
-pub struct RemoveInstanceOwnership {
-    pub instance: InstanceHandle,
-}
-impl Mail for RemoveInstanceOwnership {
-    type Result = ();
-}
-impl MailHandler<RemoveInstanceOwnership> for DataReaderActor {
-    fn handle(
-        &mut self,
-        message: RemoveInstanceOwnership,
-    ) -> <RemoveInstanceOwnership as Mail>::Result {
-        self.instance_ownership.remove(&message.instance);
-    }
-}
-
-pub struct AddChange {
-    pub cache_change: ReaderCacheChange,
-}
-impl Mail for AddChange {
-    type Result = ();
-}
-impl MailHandler<AddChange> for DataReaderActor {
-    fn handle(&mut self, message: AddChange) -> <AddChange as Mail>::Result {
-        match self.convert_cache_change_to_sample(message.cache_change, Time::now()) {
+    pub fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        match self.convert_cache_change_to_sample(cache_change, Time::now()) {
             Ok(sample) => {
                 self.add_sample(
                     sample, // , data_reader_address, subscriber, subscriber_mask_listener, participant_mask_listener, executor_handle, timer_handle
