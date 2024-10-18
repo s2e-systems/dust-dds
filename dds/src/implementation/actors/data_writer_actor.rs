@@ -11,6 +11,7 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
+        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
         runtime::{
             executor::{block_on, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
@@ -36,7 +37,7 @@ use crate::{
     },
     rtps::{
         cache_change::RtpsCacheChange,
-        messages::submessage_elements::ParameterList,
+        messages::submessage_elements::{Parameter, ParameterList},
         reader_proxy::RtpsReaderProxy,
         stateful_writer::TransportWriter,
         types::{
@@ -47,7 +48,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex},
     thread::JoinHandle,
 };
@@ -235,7 +236,7 @@ impl DataWriterListenerThread {
 }
 
 pub struct DataWriterActor {
-    rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
+    transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
     guid: Guid,
     topic_name: String,
     type_name: String,
@@ -251,12 +252,13 @@ pub struct DataWriterActor {
     registered_instance_list: HashSet<InstanceHandle>,
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
+    instance_samples: HashMap<InstanceHandle, VecDeque<SequenceNumber>>,
 }
 
 impl DataWriterActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        rtps_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
+        transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
         guid: Guid,
         topic_name: String,
         type_name: String,
@@ -268,7 +270,7 @@ impl DataWriterActor {
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
 
         DataWriterActor {
-            rtps_writer,
+            transport_writer,
             guid,
             topic_name,
             type_name,
@@ -284,6 +286,7 @@ impl DataWriterActor {
             registered_instance_list: HashSet::new(),
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
             instance_deadline_missed_task: HashMap::new(),
+            instance_samples: HashMap::new(),
         }
     }
 
@@ -446,33 +449,21 @@ impl DataWriterActor {
         &self.topic_name
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange) {
-        let mut rtps_writer = self.rtps_writer.lock().unwrap();
+    fn add_sample(&mut self, instance_handle: InstanceHandle, change: RtpsCacheChange) {
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if rtps_writer
-                .get_history_cache()
-                .get_changes()
-                .iter()
-                .filter(|cc| cc.instance_handle() == change.instance_handle())
-                .count()
-                == depth as usize
-            {
-                if let Some(smallest_seq_num_instance) = rtps_writer
-                    .get_history_cache()
-                    .get_changes()
-                    .iter()
-                    .filter(|cc| cc.instance_handle() == change.instance_handle())
-                    .map(|cc| cc.sequence_number())
-                    .min()
-                {
-                    rtps_writer
-                        .get_history_cache()
-                        .remove_change(smallest_seq_num_instance);
+            if let Some(s) = self.instance_samples.get_mut(&instance_handle) {
+                if s.len() == depth as usize {
+                    if let Some(smallest_seq_num_instance) = s.pop_front() {
+                        self.transport_writer
+                            .lock()
+                            .unwrap()
+                            .get_history_cache()
+                            .remove_change(smallest_seq_num_instance);
+                    }
                 }
             }
         }
 
-        let change_instance_handle = change.instance_handle();
         let change_timestamp = change.source_timestamp();
         let seq_num = change.sequence_number();
 
@@ -482,7 +473,7 @@ impl DataWriterActor {
 
         if let Some(t) = self
             .instance_deadline_missed_task
-            .remove(&change_instance_handle.into())
+            .remove(&instance_handle.into())
         {
             t.abort();
         }
@@ -633,7 +624,15 @@ impl DataWriterActor {
         //         }
         //     }
         // } else {
-        rtps_writer.get_history_cache().add_change(change);
+        self.instance_samples
+            .entry(instance_handle)
+            .or_insert(VecDeque::new())
+            .push_back(change.sequence_number);
+        self.transport_writer
+            .lock()
+            .unwrap()
+            .get_history_cache()
+            .add_change(change);
         // }
     }
 
@@ -647,19 +646,18 @@ impl DataWriterActor {
 
         let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support)?;
 
-        // let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        // let parameter_list = ParameterList::new(vec![pid_key_hash]);
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*key.as_ref()));
+        let parameter_list = ParameterList::new(vec![pid_key_hash]);
 
         let change = RtpsCacheChange {
             kind: ChangeKind::Alive,
             writer_guid: self.guid,
-            instance_handle: key.into(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             data_value: serialized_data.into(),
-            inline_qos: ParameterList::new(vec![]),
+            inline_qos: parameter_list,
         };
-        self.add_change(change);
+        self.add_sample(key, change);
         Ok(())
     }
 
@@ -783,7 +781,7 @@ impl DataWriterActor {
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                    self.rtps_writer.lock().unwrap().add_matched_reader(
+                    self.transport_writer.lock().unwrap().add_matched_reader(
                         discovered_reader_data.reader_proxy().clone(),
                         reliability_kind,
                         durability_kind,
@@ -869,7 +867,7 @@ impl DataWriterActor {
             .get_matched_subscription_data(discovered_reader_handle)
         {
             let handle = r.key().value.into();
-            self.rtps_writer
+            self.transport_writer
                 .lock()
                 .unwrap()
                 .delete_matched_reader(handle);
@@ -972,7 +970,7 @@ impl DataWriterActor {
     }
 
     pub fn are_all_changes_acknowledged(&mut self) -> bool {
-        self.rtps_writer
+        self.transport_writer
             .lock()
             .unwrap()
             .are_all_changes_acknowledged()
@@ -1004,7 +1002,7 @@ impl DataWriterActor {
     }
 
     pub fn remove_change(&mut self, seq_num: SequenceNumber) {
-        self.rtps_writer
+        self.transport_writer
             .lock()
             .unwrap()
             .get_history_cache()
@@ -1012,14 +1010,10 @@ impl DataWriterActor {
     }
 
     pub fn is_resources_limit_reached(&self, instance_handle: InstanceHandle) -> bool {
-        let mut rtps_writer = self.rtps_writer.lock().unwrap();
+        let mut rtps_writer = self.transport_writer.lock().unwrap();
         if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
-            if !rtps_writer
-                .get_history_cache()
-                .get_changes()
-                .iter()
-                .any(|cc| cc.instance_handle() == instance_handle.into())
-                && rtps_writer.get_history_cache().get_changes().len() == max_instances as usize
+            if !self.instance_samples.contains_key(&instance_handle)
+                && self.instance_samples.len() == max_instances as usize
             {
                 return true;
             }
@@ -1033,29 +1027,21 @@ impl DataWriterActor {
             match self.qos.history.kind {
                 HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
                 _ => {
-                    // Only Alive changes count towards the resource limits
-                    if rtps_writer
-                        .get_history_cache()
-                        .get_changes()
-                        .iter()
-                        .filter(|cc| cc.instance_handle() == instance_handle.into())
-                        .filter(|cc| cc.kind() == ChangeKind::Alive)
-                        .count()
-                        >= max_samples_per_instance as usize
-                    {
-                        return true;
+                    if let Some(s) = self.instance_samples.get(&instance_handle) {
+                        // Only Alive changes count towards the resource limits
+                        if s.len() >= max_samples_per_instance as usize {
+                            return true;
+                        }
                     }
                 }
             }
         }
 
         if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
-            let total_samples = rtps_writer
-                .get_history_cache()
-                .get_changes()
+            let total_samples = self
+                .instance_samples
                 .iter()
-                .filter(|cc| cc.kind() == ChangeKind::Alive)
-                .count();
+                .fold(0, |acc, (_, x)| acc + x.len());
 
             if total_samples >= max_samples as usize {
                 return true;
@@ -1066,18 +1052,17 @@ impl DataWriterActor {
     }
 
     pub fn is_data_lost_after_adding_change(&self, instance_handle: InstanceHandle) -> bool {
-        let mut rtps_writer = self.rtps_writer.lock().unwrap();
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-            if rtps_writer
-                .get_history_cache()
-                .get_changes()
-                .iter()
-                .filter(|cc| cc.instance_handle() == instance_handle.into())
-                .count()
-                == depth as usize
-            {
-                if !rtps_writer.are_all_changes_acknowledged() {
-                    return true;
+            if let Some(s) = self.instance_samples.get(&instance_handle) {
+                if s.len() == depth as usize {
+                    if !self
+                        .transport_writer
+                        .lock()
+                        .unwrap()
+                        .are_all_changes_acknowledged()
+                    {
+                        return true;
+                    }
                 }
             }
         }

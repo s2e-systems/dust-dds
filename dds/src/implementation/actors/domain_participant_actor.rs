@@ -444,10 +444,7 @@ impl DomainParticipantActor {
 
         let builtin_publisher = PublisherActor::new(
             PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
+            Guid::new(guid_prefix, EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP)),
             rtps_participant.clone(),
             None,
             vec![],
@@ -1051,11 +1048,10 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         self.user_defined_publisher_counter += 1;
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.guid.prefix(), entity_id);
-        let rtps_group = RtpsGroup::new(guid);
         let status_kind = message.mask.to_vec();
         let mut publisher = PublisherActor::new(
             publisher_qos,
-            rtps_group,
+            guid,
             self.rtps_participant.clone(),
             message.a_listener,
             status_kind,

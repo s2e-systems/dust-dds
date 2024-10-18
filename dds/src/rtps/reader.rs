@@ -6,13 +6,17 @@ use super::{
         submessage_elements::{Data, ParameterList},
         submessages::{data::DataSubmessage, gap::GapSubmessage, heartbeat::HeartbeatSubmessage},
     },
-    types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, ENTITYID_UNKNOWN},
+    types::{
+        ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+        ENTITYID_UNKNOWN,
+    },
     writer_proxy::RtpsWriterProxy,
 };
 use crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy;
 
 pub struct ReaderCacheChange {
     pub writer_guid: Guid,
+    pub sequence_number: SequenceNumber,
     pub source_timestamp: Option<messages::types::Time>,
     pub data_value: Data,
     pub inline_qos: ParameterList,
@@ -89,6 +93,7 @@ impl RtpsStatelessReader {
             self.history_cache.add_change(ReaderCacheChange {
                 writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
                 source_timestamp: source_timestamp,
+                sequence_number: data_submessage.writer_sn(),
                 data_value: data_submessage.serialized_payload().clone(),
                 inline_qos: data_submessage.inline_qos().clone(),
             });
@@ -193,6 +198,7 @@ impl RtpsStatefulReader {
                         let cache_change = ReaderCacheChange {
                             writer_guid,
                             source_timestamp,
+                            sequence_number: data_submessage.writer_sn(),
                             data_value: data_submessage.serialized_payload().clone(),
                             inline_qos: data_submessage.inline_qos().clone(),
                         };
@@ -207,6 +213,7 @@ impl RtpsStatefulReader {
                         let cache_change = ReaderCacheChange {
                             writer_guid,
                             source_timestamp,
+                            sequence_number: data_submessage.writer_sn(),
                             data_value: data_submessage.serialized_payload().clone(),
                             inline_qos: data_submessage.inline_qos().clone(),
                         };

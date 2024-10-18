@@ -110,7 +110,7 @@ impl PublisherListenerThread {
 
 pub struct PublisherActor {
     qos: PublisherQos,
-    rtps_group: RtpsGroup,
+    guid: Guid,
     transport: Arc<Mutex<RtpsParticipant>>,
     data_writer_list: HashMap<InstanceHandle, DataWriterActor>,
     enabled: bool,
@@ -124,7 +124,7 @@ pub struct PublisherActor {
 impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
-        rtps_group: RtpsGroup,
+        guid: Guid,
         transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
@@ -138,7 +138,7 @@ impl PublisherActor {
         Self {
             qos,
             transport,
-            rtps_group,
+            guid,
             data_writer_list,
             enabled: false,
             user_defined_data_writer_counter: 0,
@@ -219,7 +219,7 @@ impl PublisherActor {
             }
         };
 
-        let guid_prefix = self.rtps_group.guid().prefix();
+        let guid_prefix = self.guid.prefix();
         let topic_name = a_topic.get_name().to_string();
         let type_name = a_topic.get_type_name().to_string();
         let type_support = a_topic.get_type_support();
@@ -242,7 +242,7 @@ impl PublisherActor {
             false => USER_DEFINED_WRITER_NO_KEY,
         };
         let entity_key = [
-            self.rtps_group.guid().entity_id().entity_key()[0],
+            self.guid.entity_id().entity_key()[0],
             self.get_unique_writer_id(),
             0,
         ];
@@ -327,7 +327,7 @@ impl PublisherActor {
     }
 
     pub fn get_guid(&self) -> Guid {
-        self.rtps_group.guid()
+        self.guid
     }
 
     pub fn is_empty(&self) -> bool {
@@ -370,7 +370,7 @@ impl PublisherActor {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.rtps_group.guid().into())
+        InstanceHandle::new(self.guid.into())
     }
 
     pub fn get_status_kind(&self) -> Vec<StatusKind> {

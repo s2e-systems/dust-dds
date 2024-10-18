@@ -118,8 +118,4 @@ impl WriterHistoryCache for RtpsStatelessWriter {
         self.changes
             .retain(|cc| cc.sequence_number() != sequence_number);
     }
-
-    fn get_changes(&self) -> &[RtpsCacheChange] {
-        &self.changes
-    }
 }

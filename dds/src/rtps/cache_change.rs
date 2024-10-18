@@ -1,5 +1,4 @@
 use super::{
-    behavior_types::InstanceHandle,
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
@@ -12,7 +11,6 @@ use super::{
 pub struct RtpsCacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
-    pub instance_handle: InstanceHandle,
     pub sequence_number: SequenceNumber,
     pub source_timestamp: Option<messages::types::Time>,
     pub data_value: Data,
@@ -30,10 +28,6 @@ impl RtpsCacheChange {
 
     pub fn sequence_number(&self) -> SequenceNumber {
         self.sequence_number
-    }
-
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
     }
 
     pub fn source_timestamp(&self) -> Option<messages::types::Time> {

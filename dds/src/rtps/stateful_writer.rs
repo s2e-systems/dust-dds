@@ -24,8 +24,6 @@ pub trait WriterHistoryCache {
     fn add_change(&mut self, cache_change: RtpsCacheChange);
 
     fn remove_change(&mut self, sequence_number: SequenceNumber);
-
-    fn get_changes(&self) -> &[RtpsCacheChange];
 }
 
 pub trait TransportWriter {
@@ -594,9 +592,5 @@ impl WriterHistoryCache for RtpsStatefulWriter {
     fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
             .retain(|cc| cc.sequence_number() != sequence_number);
-    }
-
-    fn get_changes(&self) -> &[RtpsCacheChange] {
-        &self.changes
     }
 }
