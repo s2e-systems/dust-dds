@@ -1,6 +1,6 @@
 use super::{
     data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
-    domain_participant_actor, subscriber_actor::SubscriberActor, topic_actor::TopicActor,
+    domain_participant_actor,
 };
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
@@ -14,24 +14,19 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
             types::{StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED},
         },
-        runtime::{
-            executor::Executor,
-            mpsc::{mpsc_channel, MpscSender},
-            timer::TimerDriver,
-        },
+        runtime::{executor::Executor, timer::TimerDriver},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{
             DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
-            QosKind, SubscriberQos, TopicQos,
+            QosKind,
         },
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -49,12 +44,9 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
-        group::RtpsGroup,
         participant::RtpsParticipant,
         reader::{ReaderCacheChange, ReaderHistoryCache},
-        types::{
-            EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, ENTITYID_PARTICIPANT,
-        },
+        types::{Guid, GuidPrefix, ENTITYID_PARTICIPANT},
     },
     topic_definition::type_support::{DdsDeserialize, TypeSupport},
     xtypes::{deserialize::XTypesDeserialize, xcdr_deserializer::Xcdr1LeDeserializer},
@@ -134,285 +126,6 @@ impl DomainParticipantFactoryActor {
             instance_id[3], // Instance ID
         ]
     }
-
-    fn create_builtin_topics(&self, guid_prefix: GuidPrefix) -> HashMap<String, TopicActor> {
-        let mut topic_list = HashMap::new();
-
-        let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
-        let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let spdp_topic_participant = TopicActor::new(
-            spdp_topic_guid,
-            TopicQos::default(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            DCPS_PARTICIPANT,
-            None,
-            vec![],
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
-        );
-        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
-
-        let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
-        let sedp_topic_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let sedp_topic_topics = TopicActor::new(
-            sedp_topic_topics_guid,
-            TopicQos::default(),
-            "DiscoveredTopicData".to_string(),
-            DCPS_TOPIC,
-            None,
-            vec![],
-            Arc::new(DiscoveredTopicData::get_type()),
-        );
-        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
-
-        let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
-        let sedp_topic_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let sedp_topic_publications = TopicActor::new(
-            sedp_topic_publications_guid,
-            TopicQos::default(),
-            "DiscoveredWriterData".to_string(),
-            DCPS_PUBLICATION,
-            None,
-            vec![],
-            Arc::new(DiscoveredWriterData::get_type()),
-        );
-
-        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
-
-        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 3], BUILT_IN_TOPIC);
-        let sedp_topic_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let sedp_topic_subscriptions = TopicActor::new(
-            sedp_topic_subscriptions_guid,
-            TopicQos::default(),
-            "DiscoveredReaderData".to_string(),
-            DCPS_SUBSCRIPTION,
-            None,
-            vec![],
-            Arc::new(DiscoveredReaderData::get_type()),
-        );
-        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
-
-        topic_list
-    }
-
-    fn create_builtin_readers(
-        &self,
-        guid_prefix: GuidPrefix,
-        transport: &Arc<Mutex<RtpsParticipant>>,
-        builtin_subscriber_address: ActorAddress<SubscriberActor>,
-        participant_address: ActorAddress<DomainParticipantActor>,
-        domain_participant_status_kind: Vec<StatusKind>,
-        on_participant_discovery_sender: MpscSender<()>,
-    ) -> Vec<DataReaderActor> {
-        let spdp_reader_qos = DataReaderQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(
-                    DURATION_ZERO_SEC,
-                    DURATION_ZERO_NSEC,
-                )),
-            },
-            ..Default::default()
-        };
-        let spdp_builtin_participant_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_transport_reader =
-            transport.lock().unwrap().create_builtin_stateless_reader(
-                spdp_builtin_participant_reader_guid,
-                Box::new(SpdpBuiltinReaderHistoryCache {
-                    subscriber_address: builtin_subscriber_address.clone(),
-                    reader_instance_handle: InstanceHandle::new(
-                        spdp_builtin_participant_reader_guid.into(),
-                    ),
-                    participant_address: participant_address.clone(),
-                    on_participant_discovery_sender,
-                }),
-            );
-        let spdp_builtin_participant_reader = DataReaderActor::new(
-            spdp_builtin_participant_reader_guid,
-            spdp_builtin_transport_reader,
-            DCPS_PARTICIPANT.to_string(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            spdp_reader_qos,
-            None,
-            domain_participant_status_kind.clone(),
-        );
-
-        let sedp_builtin_topics_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_transport_reader =
-            transport.lock().unwrap().create_builtin_stateful_reader(
-                sedp_builtin_topics_reader_guid,
-                Box::new(SedpBuiltinTopicsReaderHistoryCache {
-                    subscriber_address: builtin_subscriber_address.clone(),
-                    reader_instance_handle: InstanceHandle::new(
-                        sedp_builtin_topics_reader_guid.into(),
-                    ),
-                    participant_address: participant_address.clone(),
-                }),
-            );
-        let sedp_builtin_topics_reader = DataReaderActor::new(
-            sedp_builtin_topics_reader_guid,
-            sedp_builtin_topics_transport_reader,
-            DCPS_TOPIC.to_string(),
-            "DiscoveredTopicData".to_string(),
-            Arc::new(DiscoveredTopicData::get_type()),
-            sedp_data_reader_qos(),
-            None,
-            domain_participant_status_kind.clone(),
-        );
-
-        let sedp_builtin_publications_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_transport_reader =
-            transport.lock().unwrap().create_builtin_stateful_reader(
-                sedp_builtin_publications_reader_guid,
-                Box::new(SedpBuiltinPublicationsReaderHistoryCache {
-                    subscriber_address: builtin_subscriber_address.clone(),
-                    reader_instance_handle: InstanceHandle::new(
-                        sedp_builtin_publications_reader_guid.into(),
-                    ),
-                    participant_address: participant_address.clone(),
-                }),
-            );
-        let sedp_builtin_publications_reader = DataReaderActor::new(
-            sedp_builtin_publications_reader_guid,
-            sedp_builtin_publications_transport_reader,
-            DCPS_PUBLICATION.to_string(),
-            "DiscoveredWriterData".to_string(),
-            Arc::new(DiscoveredWriterData::get_type()),
-            sedp_data_reader_qos(),
-            None,
-            domain_participant_status_kind.clone(),
-        );
-
-        let sedp_builtin_subscriptions_reader_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_transport_reader =
-            transport.lock().unwrap().create_builtin_stateful_reader(
-                sedp_builtin_subscriptions_reader_guid,
-                Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
-                    subscriber_address: builtin_subscriber_address.clone(),
-                    reader_instance_handle: InstanceHandle::new(
-                        sedp_builtin_subscriptions_reader_guid.into(),
-                    ),
-                    participant_address: participant_address,
-                }),
-            );
-        let sedp_builtin_subscriptions_reader = DataReaderActor::new(
-            sedp_builtin_subscriptions_reader_guid,
-            sedp_builtin_subscriptions_transport_reader,
-            DCPS_SUBSCRIPTION.to_string(),
-            "DiscoveredReaderData".to_string(),
-            Arc::new(DiscoveredReaderData::get_type()),
-            sedp_data_reader_qos(),
-            None,
-            domain_participant_status_kind,
-        );
-
-        vec![
-            spdp_builtin_participant_reader,
-            sedp_builtin_topics_reader,
-            sedp_builtin_publications_reader,
-            sedp_builtin_subscriptions_reader,
-        ]
-    }
-
-    fn create_builtin_writers(
-        &self,
-        guid_prefix: GuidPrefix,
-        participant: &Arc<Mutex<RtpsParticipant>>,
-    ) -> Vec<DataWriterActor> {
-        let spdp_writer_qos = DataWriterQos {
-            durability: DurabilityQosPolicy {
-                kind: DurabilityQosPolicyKind::TransientLocal,
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(
-                    DURATION_ZERO_SEC,
-                    DURATION_ZERO_NSEC,
-                )),
-            },
-            ..Default::default()
-        };
-        let spdp_builtin_participant_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-        let spdp_builtin_participant_rtps_writer = participant
-            .lock()
-            .unwrap()
-            .create_builtin_stateless_writer(spdp_builtin_participant_writer_guid);
-        let spdp_builtin_participant_writer = DataWriterActor::new(
-            spdp_builtin_participant_rtps_writer.clone(),
-            spdp_builtin_participant_writer_guid,
-            DCPS_PARTICIPANT.to_string(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            None,
-            vec![],
-            spdp_writer_qos,
-        );
-
-        let sedp_builtin_topics_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-        let sedp_builtin_topics_writer = DataWriterActor::new(
-            participant
-                .lock()
-                .unwrap()
-                .create_builtin_stateful_writer(sedp_builtin_topics_writer_guid),
-            sedp_builtin_topics_writer_guid,
-            DCPS_TOPIC.to_string(),
-            "DiscoveredTopicData".to_string(),
-            None,
-            vec![],
-            sedp_data_writer_qos(),
-        );
-
-        let sedp_builtin_publications_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
-        let sedp_builtin_publications_writer = DataWriterActor::new(
-            participant
-                .lock()
-                .unwrap()
-                .create_builtin_stateful_writer(sedp_builtin_publications_writer_guid),
-            sedp_builtin_publications_writer_guid,
-            DCPS_PUBLICATION.to_string(),
-            "DiscoveredWriterData".to_string(),
-            None,
-            vec![],
-            sedp_data_writer_qos(),
-        );
-
-        let sedp_builtin_subscriptions_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let sedp_builtin_subscriptions_writer = DataWriterActor::new(
-            participant
-                .lock()
-                .unwrap()
-                .create_builtin_stateful_writer(sedp_builtin_subscriptions_writer_guid),
-            sedp_builtin_subscriptions_writer_guid,
-            DCPS_SUBSCRIPTION.to_string(),
-            "DiscoveredReaderData".to_string(),
-            None,
-            vec![],
-            sedp_data_writer_qos(),
-        );
-
-        vec![
-            spdp_builtin_participant_writer,
-            sedp_builtin_topics_writer,
-            sedp_builtin_publications_writer,
-            sedp_builtin_subscriptions_writer,
-        ]
-    }
 }
 
 pub struct CreateParticipant {
@@ -448,55 +161,97 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         )?;
         let participant_guid = rtps_participant.guid();
         let transport = Arc::new(Mutex::new(rtps_participant));
-        let domain_participant_status_kind = message.status_kind.clone();
-
-        let builtin_subscriber = SubscriberActor::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            transport.clone(),
-            None,
-            vec![],
-            vec![],
-        );
-        let builtin_subscriber_actor = Actor::spawn(builtin_subscriber, &executor_handle);
-        let builtin_subscriber_address = builtin_subscriber_actor.address();
-
-        let topic_list = self.create_builtin_topics(guid_prefix);
-        let builtin_data_writer_list = self.create_builtin_writers(guid_prefix, &transport);
 
         let domain_participant = DomainParticipantActor::new(
-            transport.clone(),
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             message.domain_id,
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
             message.listener,
             message.status_kind,
-            builtin_data_writer_list,
-            topic_list,
             executor,
             timer_driver,
+            transport.clone(),
         );
+
         let participant_actor = Actor::spawn(domain_participant, &executor_handle);
-        let participant_actor_address = participant_actor.address();
+        let participant_address = participant_actor.address();
 
-        let (on_participant_discovery_sender, on_participant_discovery_receiver) = mpsc_channel();
-
-        let builtin_data_reader_list = self.create_builtin_readers(
-            guid_prefix,
-            &transport,
-            builtin_subscriber_address.clone(),
-            participant_actor_address,
-            domain_participant_status_kind,
-            on_participant_discovery_sender,
+        participant_actor.send_actor_mail(
+            domain_participant_actor::CreateBuiltinParticipantsDetector {
+                transport_reader: transport.lock().unwrap().create_builtin_stateless_reader(
+                    Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+                    Box::new(SpdpBuiltinReaderHistoryCache {
+                        participant_address: participant_address.clone(),
+                    }),
+                ),
+            },
         );
-        // participant_actor.send_actor_mail(domain_participant_actor::SetTopicList { topic_list });
-        // participant_actor.send_actor_mail(domain_participant_actor::SetBuiltInSubscriber {
-        //     builtin_subscriber: builtin_subscriber_actor,
-        // });
+
+        participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsDetector {
+            transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
+                Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+                Box::new(SedpBuiltinTopicsReaderHistoryCache {
+                    participant_address: participant_address.clone(),
+                }),
+            ),
+        });
+
+        participant_actor.send_actor_mail(
+            domain_participant_actor::CreateBuiltinPublicationsDetector {
+                transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
+                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
+                    Box::new(SedpBuiltinPublicationsReaderHistoryCache {
+                        participant_address: participant_address.clone(),
+                    }),
+                ),
+            },
+        );
+
+        participant_actor.send_actor_mail(
+            domain_participant_actor::CreateBuiltinSubscriptionsDetector {
+                transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
+                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
+                    Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
+                        participant_address: participant_address,
+                    }),
+                ),
+            },
+        );
+
+        participant_actor.send_actor_mail(
+            domain_participant_actor::CreateBuiltinParticipantsAnnouncer {
+                transport_writer: transport.lock().unwrap().create_builtin_stateless_writer(
+                    Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
+                ),
+            },
+        );
+
+        participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsAnnouncer {
+            transport_writer: transport
+                .lock()
+                .unwrap()
+                .create_builtin_stateful_writer(Guid::new(
+                    guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+                )),
+        });
+
+        participant_actor.send_actor_mail(
+            domain_participant_actor::CreateBuiltinPublicationsAnnouncer {
+                transport_writer: transport.lock().unwrap().create_builtin_stateful_writer(
+                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
+                ),
+            },
+        );
+
+        participant_actor.send_actor_mail(
+            domain_participant_actor::CreateBuiltinSubscriptionsAnnouncer {
+                transport_writer: transport.lock().unwrap().create_builtin_stateful_writer(
+                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
+                ),
+            },
+        );
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -696,64 +451,17 @@ pub fn sedp_data_writer_qos() -> DataWriterQos {
 }
 
 struct SpdpBuiltinReaderHistoryCache {
-    subscriber_address: ActorAddress<SubscriberActor>,
-    reader_instance_handle: InstanceHandle,
     participant_address: ActorAddress<DomainParticipantActor>,
-    on_participant_discovery_sender: MpscSender<()>,
 }
 
 impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Some(p) = cache_change
-            .inline_qos
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
-            let status_info: StatusInfo =
-                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
-            if status_info == STATUS_INFO_DISPOSED
-                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
-            {
-                if let Ok(handle) =
-                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
-                {
-                    todo!()
-                    // self.participant_address
-                    //     .send_actor_mail(domain_participant_actor::RemoveDiscoveredParticipant {
-                    //         handle,
-                    //     })
-                    //     .ok();
-                }
-            }
-        } else {
-            if let Ok(discovered_participant_data) =
-                SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
-            {
-                self.participant_address
-                    .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant {
-                        discovered_participant_data,
-                    })
-                    .ok();
-            }
-        }
-
-        self.on_participant_discovery_sender.send(()).ok();
-
-        todo!()
-        // self.participant_address
-        //     .send_actor_mail(domain_participant_actor::AddCacheChange {
-        //         cache_change,
-        //         reader_instance_handle: self.reader_instance_handle,
-        //     })
-        //     .ok();
+        self.participant_address
+            .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant { cache_change });
     }
 }
 
 struct SedpBuiltinTopicsReaderHistoryCache {
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub reader_instance_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
@@ -781,8 +489,6 @@ impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
 }
 
 struct SedpBuiltinPublicationsReaderHistoryCache {
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub reader_instance_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
@@ -835,8 +541,6 @@ impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
 }
 
 struct SedpBuiltinSubscriptionsReaderHistoryCache {
-    pub subscriber_address: ActorAddress<SubscriberActor>,
-    pub reader_instance_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 

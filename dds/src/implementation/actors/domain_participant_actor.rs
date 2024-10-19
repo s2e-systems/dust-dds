@@ -5,7 +5,6 @@ use super::{
     domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
     publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
-    subscriber_actor,
 };
 use crate::{
     builtin_topics::{
@@ -32,11 +31,11 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        runtime::{
-            executor::{block_on, Executor, ExecutorHandle},
-            mpsc::{mpsc_channel, MpscSender},
-            timer::{TimerDriver, TimerHandle},
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED},
         },
+        runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -46,8 +45,8 @@ use crate::{
             SubscriberQos, TopicQos,
         },
         qos_policy::{
-            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
-            TransportPriorityQosPolicy,
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::{
             InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
@@ -55,37 +54,40 @@ use crate::{
             RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
             SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     rtps::{
-        cache_change::RtpsCacheChange,
         discovery_types::{
             BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         group::RtpsGroup,
         messages::submessage_elements::Data,
         participant::RtpsParticipant,
-        reader::ReaderCacheChange,
+        reader::{ReaderCacheChange, TransportReader},
+        stateful_writer::TransportWriter,
         types::{
-            EntityId, Guid, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
-            ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+            EntityId, Guid, BUILT_IN_READER_GROUP, BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP,
+            ENTITYID_UNKNOWN, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
             USER_DEFINED_WRITER_GROUP,
         },
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::DdsSerialize,
-    xtypes::dynamic_type::DynamicType,
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+    xtypes::{
+        deserialize::XTypesDeserialize, dynamic_type::DynamicType,
+        xcdr_deserializer::Xcdr1LeDeserializer,
+    },
 };
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::{Arc, Mutex},
     thread::JoinHandle,
 };
-use tracing::warn;
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -414,21 +416,63 @@ pub struct DomainParticipantActor {
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        rtps_participant: Arc<Mutex<RtpsParticipant>>,
         guid: Guid,
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
-        builtin_data_writer_list: Vec<DataWriterActor>,
-        topic_list: HashMap<String, TopicActor>,
         executor: Executor,
         timer_driver: TimerDriver,
+        rtps_participant: Arc<Mutex<RtpsParticipant>>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = guid.prefix();
-        let executor_handle = executor.handle();
+
+        let mut topic_list = HashMap::new();
+        let spdp_topic_participant = TopicActor::new(
+            Guid::new(guid_prefix, EntityId::new([0, 0, 0], BUILT_IN_TOPIC)),
+            TopicQos::default(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            DCPS_PARTICIPANT,
+            None,
+            vec![],
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+        );
+        topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
+
+        let sedp_topic_topics = TopicActor::new(
+            Guid::new(guid_prefix, EntityId::new([0, 0, 1], BUILT_IN_TOPIC)),
+            TopicQos::default(),
+            "DiscoveredTopicData".to_string(),
+            DCPS_TOPIC,
+            None,
+            vec![],
+            Arc::new(DiscoveredTopicData::get_type()),
+        );
+        topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
+
+        let sedp_topic_publications = TopicActor::new(
+            Guid::new(guid_prefix, EntityId::new([0, 0, 2], BUILT_IN_TOPIC)),
+            TopicQos::default(),
+            "DiscoveredWriterData".to_string(),
+            DCPS_PUBLICATION,
+            None,
+            vec![],
+            Arc::new(DiscoveredWriterData::get_type()),
+        );
+        topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
+
+        let sedp_topic_subscriptions = TopicActor::new(
+            Guid::new(guid_prefix, EntityId::new([0, 0, 3], BUILT_IN_TOPIC)),
+            TopicQos::default(),
+            "DiscoveredReaderData".to_string(),
+            DCPS_SUBSCRIPTION,
+            None,
+            vec![],
+            Arc::new(DiscoveredReaderData::get_type()),
+        );
+        topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
         let builtin_subscriber = SubscriberActor::new(
             SubscriberQos::default(),
@@ -448,11 +492,9 @@ impl DomainParticipantActor {
             rtps_participant.clone(),
             None,
             vec![],
-            builtin_data_writer_list,
+            vec![],
         );
 
-        let status_condition = Actor::spawn(StatusConditionActor::default(), &executor_handle);
-        let status_condition_address = status_condition.address();
         let participant_listener_thread = listener.map(ParticipantListenerThread::new);
 
         Self {
@@ -3606,7 +3648,7 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
 }
 
 pub struct AddDiscoveredParticipant {
-    pub discovered_participant_data: SpdpDiscoveredParticipantData,
+    pub cache_change: ReaderCacheChange,
 }
 impl Mail for AddDiscoveredParticipant {
     type Result = ();
@@ -3616,7 +3658,32 @@ impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
         &mut self,
         message: AddDiscoveredParticipant,
     ) -> <AddDiscoveredParticipant as Mail>::Result {
-        self.add_discovered_participant(message.discovered_participant_data);
+        if let Some(p) = message
+            .cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    todo!()
+                }
+            }
+        } else {
+            if let Ok(discovered_participant_data) = SpdpDiscoveredParticipantData::deserialize_data(
+                message.cache_change.data_value.as_ref(),
+            ) {
+                todo!()
+            }
+        }
     }
 }
 
@@ -3625,12 +3692,247 @@ pub struct AddCacheChange {
     pub subscriber_guid: Guid,
     pub data_reader_guid: Guid,
 }
-
 impl Mail for AddCacheChange {
     type Result = ();
 }
 impl MailHandler<AddCacheChange> for DomainParticipantActor {
     fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinParticipantsDetector {
+    pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+}
+impl Mail for CreateBuiltinParticipantsDetector {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinParticipantsDetector> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinParticipantsDetector,
+    ) -> <CreateBuiltinParticipantsDetector as Mail>::Result {
+        let spdp_reader_qos = DataReaderQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(1),
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+            },
+            ..Default::default()
+        };
+        let spdp_builtin_participant_reader_guid =
+            Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
+        DataReaderActor::new(
+            spdp_builtin_participant_reader_guid,
+            message.transport_reader,
+            DCPS_PARTICIPANT.to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            spdp_reader_qos,
+            None,
+            vec![],
+        );
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinTopicsDetector {
+    pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+}
+impl Mail for CreateBuiltinTopicsDetector {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinTopicsDetector> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinTopicsDetector,
+    ) -> <CreateBuiltinTopicsDetector as Mail>::Result {
+        let sedp_builtin_topics_reader = DataReaderActor::new(
+            Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+            message.transport_reader,
+            DCPS_TOPIC.to_string(),
+            "DiscoveredTopicData".to_string(),
+            Arc::new(DiscoveredTopicData::get_type()),
+            sedp_data_reader_qos(),
+            None,
+            vec![],
+        );
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinPublicationsDetector {
+    pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+}
+impl Mail for CreateBuiltinPublicationsDetector {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinPublicationsDetector> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinPublicationsDetector,
+    ) -> <CreateBuiltinPublicationsDetector as Mail>::Result {
+        let sedp_builtin_publications_reader = DataReaderActor::new(
+            Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ),
+            message.transport_reader,
+            DCPS_PUBLICATION.to_string(),
+            "DiscoveredWriterData".to_string(),
+            Arc::new(DiscoveredWriterData::get_type()),
+            sedp_data_reader_qos(),
+            None,
+            vec![],
+        );
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinSubscriptionsDetector {
+    pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+}
+impl Mail for CreateBuiltinSubscriptionsDetector {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinSubscriptionsDetector> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinSubscriptionsDetector,
+    ) -> <CreateBuiltinSubscriptionsDetector as Mail>::Result {
+        let sedp_builtin_subscriptions_reader = DataReaderActor::new(
+            Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            ),
+            message.transport_reader,
+            DCPS_SUBSCRIPTION.to_string(),
+            "DiscoveredReaderData".to_string(),
+            Arc::new(DiscoveredReaderData::get_type()),
+            sedp_data_reader_qos(),
+            None,
+            vec![],
+        );
+    }
+}
+
+pub struct CreateBuiltinParticipantsAnnouncer {
+    pub transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync>>,
+}
+impl Mail for CreateBuiltinParticipantsAnnouncer {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinParticipantsAnnouncer> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinParticipantsAnnouncer,
+    ) -> <CreateBuiltinParticipantsAnnouncer as Mail>::Result {
+        let spdp_writer_qos = DataWriterQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast(1),
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+            },
+            ..Default::default()
+        };
+        let spdp_builtin_participant_writer = DataWriterActor::new(
+            message.transport_writer,
+            Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
+            DCPS_PARTICIPANT.to_string(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            None,
+            vec![],
+            spdp_writer_qos,
+        );
+
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinTopicsAnnouncer {
+    pub transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync>>,
+}
+impl Mail for CreateBuiltinTopicsAnnouncer {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinTopicsAnnouncer> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinTopicsAnnouncer,
+    ) -> <CreateBuiltinTopicsAnnouncer as Mail>::Result {
+        let sedp_builtin_topics_writer = DataWriterActor::new(
+            message.transport_writer,
+            Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
+            DCPS_TOPIC.to_string(),
+            "DiscoveredTopicData".to_string(),
+            None,
+            vec![],
+            sedp_data_writer_qos(),
+        );
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinPublicationsAnnouncer {
+    pub transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync>>,
+}
+impl Mail for CreateBuiltinPublicationsAnnouncer {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinPublicationsAnnouncer> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinPublicationsAnnouncer,
+    ) -> <CreateBuiltinPublicationsAnnouncer as Mail>::Result {
+        let sedp_builtin_publications_writer = DataWriterActor::new(
+            message.transport_writer,
+            Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ),
+            DCPS_PUBLICATION.to_string(),
+            "DiscoveredWriterData".to_string(),
+            None,
+            vec![],
+            sedp_data_writer_qos(),
+        );
+        todo!()
+    }
+}
+
+pub struct CreateBuiltinSubscriptionsAnnouncer {
+    pub transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync>>,
+}
+impl Mail for CreateBuiltinSubscriptionsAnnouncer {
+    type Result = ();
+}
+impl MailHandler<CreateBuiltinSubscriptionsAnnouncer> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: CreateBuiltinSubscriptionsAnnouncer,
+    ) -> <CreateBuiltinSubscriptionsAnnouncer as Mail>::Result {
+        let sedp_builtin_subscriptions_writer = DataWriterActor::new(
+            message.transport_writer,
+            Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            ),
+            DCPS_SUBSCRIPTION.to_string(),
+            "DiscoveredReaderData".to_string(),
+            None,
+            vec![],
+            sedp_data_writer_qos(),
+        );
         todo!()
     }
 }
