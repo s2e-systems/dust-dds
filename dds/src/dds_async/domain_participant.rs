@@ -261,7 +261,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> SubscriberAsync {
-        SubscriberAsync::new(todo!(), self.clone())
+        SubscriberAsync::new(self.handle, self.clone())
     }
 
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
