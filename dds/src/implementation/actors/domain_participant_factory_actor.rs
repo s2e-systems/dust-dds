@@ -11,16 +11,8 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{
-            DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
-            QosKind,
-        },
-        qos_policy::{
-            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-        },
+        qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
-        time::{Duration, DurationKind, DURATION_ZERO_NSEC, DURATION_ZERO_SEC},
     },
     rtps::{
         discovery_types::{
@@ -173,6 +165,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         participant_address: participant_address.clone(),
                     }),
                 ),
+                domain_participant_address: participant_address.clone(),
             },
         );
 
@@ -183,6 +176,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                     participant_address: participant_address.clone(),
                 }),
             ),
+            domain_participant_address: participant_address.clone(),
         });
 
         participant_actor.send_actor_mail(
@@ -193,6 +187,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                         participant_address: participant_address.clone(),
                     }),
                 ),
+                domain_participant_address: participant_address.clone(),
             },
         );
 
@@ -201,9 +196,10 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
                     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
                     Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
-                        participant_address: participant_address,
+                        participant_address: participant_address.clone(),
                     }),
                 ),
+                domain_participant_address: participant_address.clone(),
             },
         );
 

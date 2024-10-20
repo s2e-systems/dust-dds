@@ -3672,9 +3672,10 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
 
 pub struct CreateBuiltinParticipantsDetector {
     pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateBuiltinParticipantsDetector {
-    type Result = ();
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateBuiltinParticipantsDetector> for DomainParticipantActor {
     fn handle(
@@ -3694,19 +3695,14 @@ impl MailHandler<CreateBuiltinParticipantsDetector> for DomainParticipantActor {
             },
             ..Default::default()
         };
-        let spdp_builtin_participant_reader_guid =
-            Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        // DataReaderActor::new(
-        //     spdp_builtin_participant_reader_guid,
-        //     message.transport_reader,
-        //     DCPS_PARTICIPANT.to_string(),
-        //     "SpdpDiscoveredParticipantData".to_string(),
-        //     Arc::new(SpdpDiscoveredParticipantData::get_type()),
-        //     spdp_reader_qos,
-        //     None,
-        //     vec![],
-        // );
-        todo!()
+        self.builtin_subscriber.create_datareader(
+            &self.topic_list[DCPS_PARTICIPANT],
+            QosKind::Specific(spdp_reader_qos),
+            None,
+            vec![],
+            message.domain_participant_address,
+            Some(message.transport_reader),
+        )
     }
 }
 
@@ -3752,9 +3748,10 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
 
 pub struct CreateBuiltinTopicsDetector {
     pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateBuiltinTopicsDetector {
-    type Result = ();
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateBuiltinTopicsDetector> for DomainParticipantActor {
     fn handle(
@@ -3766,19 +3763,9 @@ impl MailHandler<CreateBuiltinTopicsDetector> for DomainParticipantActor {
             QosKind::Specific(sedp_data_reader_qos()),
             None,
             vec![],
-            todo!(),
+            message.domain_participant_address,
             Some(message.transport_reader),
-        );
-        // let sedp_builtin_topics_reader = DataReaderActor::new(
-        //     message.transport_reader,
-        //     DCPS_TOPIC.to_string(),
-        //     "DiscoveredTopicData".to_string(),
-        //     Arc::new(DiscoveredTopicData::get_type()),
-        //     sedp_data_reader_qos(),
-        //     None,
-        //     vec![],
-        // );
-        todo!()
+        )
     }
 }
 
@@ -3816,25 +3803,24 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
 
 pub struct CreateBuiltinPublicationsDetector {
     pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateBuiltinPublicationsDetector {
-    type Result = ();
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateBuiltinPublicationsDetector> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: CreateBuiltinPublicationsDetector,
     ) -> <CreateBuiltinPublicationsDetector as Mail>::Result {
-        // let sedp_builtin_publications_reader = DataReaderActor::new(
-        //     message.transport_reader,
-        //     DCPS_PUBLICATION.to_string(),
-        //     "DiscoveredWriterData".to_string(),
-        //     Arc::new(DiscoveredWriterData::get_type()),
-        //     sedp_data_reader_qos(),
-        //     None,
-        //     vec![],
-        // );
-        todo!()
+        self.builtin_subscriber.create_datareader(
+            &self.topic_list[DCPS_PUBLICATION],
+            QosKind::Specific(sedp_data_reader_qos()),
+            None,
+            vec![],
+            message.domain_participant_address,
+            Some(message.transport_reader),
+        )
     }
 }
 
@@ -3898,25 +3884,24 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
 
 pub struct CreateBuiltinSubscriptionsDetector {
     pub transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync>>,
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateBuiltinSubscriptionsDetector {
-    type Result = ();
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateBuiltinSubscriptionsDetector> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: CreateBuiltinSubscriptionsDetector,
     ) -> <CreateBuiltinSubscriptionsDetector as Mail>::Result {
-        todo!()
-        // let sedp_builtin_subscriptions_reader = DataReaderActor::new(
-        //     message.transport_reader,
-        //     DCPS_SUBSCRIPTION.to_string(),
-        //     "DiscoveredReaderData".to_string(),
-        //     Arc::new(DiscoveredReaderData::get_type()),
-        //     sedp_data_reader_qos(),
-        //     None,
-        //     vec![],
-        // );
+        self.builtin_subscriber.create_datareader(
+            &self.topic_list[DCPS_SUBSCRIPTION],
+            QosKind::Specific(sedp_data_reader_qos()),
+            None,
+            vec![],
+            message.domain_participant_address,
+            Some(message.transport_reader),
+        )
     }
 }
 
