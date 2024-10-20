@@ -12,7 +12,9 @@ use super::{
     },
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy;
+use crate::implementation::data_representation_builtin_endpoints::{
+    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+};
 
 pub struct ReaderCacheChange {
     pub writer_guid: Guid,
@@ -35,6 +37,8 @@ pub trait TransportReader {
     );
 
     fn delete_matched_writer(&mut self, writer_guid: Guid);
+
+    fn reader_proxy(&self) -> ReaderProxy;
 }
 
 pub struct RtpsReader {
@@ -114,6 +118,16 @@ impl TransportReader for RtpsStatelessReader {
     fn delete_matched_writer(&mut self, _writer_guid: Guid) {
         // Do nothing
     }
+
+    fn reader_proxy(&self) -> ReaderProxy {
+        ReaderProxy {
+            remote_reader_guid: self.guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        }
+    }
 }
 
 pub struct RtpsStatefulReader {
@@ -150,6 +164,16 @@ impl TransportReader for RtpsStatefulReader {
     fn delete_matched_writer(&mut self, writer_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != writer_guid)
+    }
+
+    fn reader_proxy(&self) -> ReaderProxy {
+        ReaderProxy {
+            remote_reader_guid: self.guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        }
     }
 }
 

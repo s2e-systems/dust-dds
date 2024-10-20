@@ -249,7 +249,7 @@ impl PublisherActor {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let rtps_writer_impl = self.transport.lock().unwrap().create_writer(guid);
+        let rtps_writer_impl = self.transport.lock().unwrap().create_writer();
 
         let data_writer = DataWriterActor::new(
             rtps_writer_impl,

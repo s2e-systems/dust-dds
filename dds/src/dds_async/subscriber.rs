@@ -17,23 +17,21 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
-    rtps::types::Guid,
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 #[derive(Clone)]
 pub struct SubscriberAsync {
-    guid: Guid,
+    handle: InstanceHandle,
     participant: DomainParticipantAsync,
 }
 
 impl SubscriberAsync {
-    pub(crate) fn new(guid: Guid, participant: DomainParticipantAsync) -> Self {
-        Self { guid, participant }
-    }
-
-    pub(crate) fn guid(&self) -> Guid {
-        self.guid
+    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync) -> Self {
+        Self {
+            handle,
+            participant,
+        }
     }
 
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
@@ -59,7 +57,7 @@ impl SubscriberAsync {
         let guid = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::CreateUserDefinedDataReader {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
                 topic_name,
                 qos,
                 a_listener: listener,
@@ -80,7 +78,7 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedDataReader {
-                guid: a_datareader.guid(),
+                handle: a_datareader.get_instance_handle().await,
             })?
             .receive_reply()
             .await
@@ -94,7 +92,7 @@ impl SubscriberAsync {
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::LookupDataReader {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
                 topic_name: topic_name.to_string(),
             })?
             .receive_reply()
@@ -126,7 +124,7 @@ impl SubscriberAsync {
         self.participant_address()
             .send_actor_mail(
                 domain_participant_actor::DeleteSubscriberContainedEntities {
-                    subscriber_guid: self.guid,
+                    subscriber_handle: self.handle,
                 },
             )?
             .receive_reply()
@@ -138,7 +136,7 @@ impl SubscriberAsync {
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetDefaultDataReaderQos {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
                 qos,
             })?
             .receive_reply()
@@ -150,7 +148,7 @@ impl SubscriberAsync {
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetDefaultDataReaderQos {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -170,7 +168,7 @@ impl SubscriberAsync {
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetSubscriberQos {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
                 qos,
             })?
             .receive_reply()
@@ -182,7 +180,7 @@ impl SubscriberAsync {
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetSubscriberQos {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -197,7 +195,7 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetSubscriberListener {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
                 a_listener,
                 mask: mask.to_vec(),
             })?
@@ -208,7 +206,7 @@ impl SubscriberAsync {
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address().clone(), self.guid)
+        StatusConditionAsync::new(self.participant_address().clone(), self.handle)
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::subscriber::Subscriber::get_status_changes).
@@ -222,7 +220,7 @@ impl SubscriberAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::EnableSubscriber {
-                subscriber_guid: self.guid,
+                subscriber_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -230,12 +228,7 @@ impl SubscriberAsync {
 
     /// Async version of [`get_instance_handle`](crate::subscription::subscriber::Subscriber::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetSubscriberInstanceHandle {
-                subscriber_guid: self.guid,
-            })?
-            .receive_reply()
-            .await
+    pub async fn get_instance_handle(&self) -> InstanceHandle {
+        self.handle
     }
 }

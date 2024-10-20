@@ -1,24 +1,11 @@
-use super::{
-    data_reader_actor::DataReaderActor, data_writer_actor::DataWriterActor,
-    domain_participant_actor,
-};
+use super::{domain_participant_actor, handle::ParticipantHandle};
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     configuration::DustDdsConfiguration,
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
-            discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::DiscoveredWriterData,
-        },
-        data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
-            types::{StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED},
-        },
         runtime::{executor::Executor, timer::TimerDriver},
     },
     infrastructure::{
@@ -48,8 +35,6 @@ use crate::{
         reader::{ReaderCacheChange, ReaderHistoryCache},
         types::{Guid, GuidPrefix, ENTITYID_PARTICIPANT},
     },
-    topic_definition::type_support::{DdsDeserialize, TypeSupport},
-    xtypes::{deserialize::XTypesDeserialize, xcdr_deserializer::Xcdr1LeDeserializer},
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
@@ -68,6 +53,7 @@ pub struct DomainParticipantFactoryActor {
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
+    participant_counter: u8,
 }
 
 impl DomainParticipantFactoryActor {
@@ -135,7 +121,7 @@ pub struct CreateParticipant {
     pub status_kind: Vec<StatusKind>,
 }
 impl Mail for CreateParticipant {
-    type Result = DdsResult<ActorAddress<DomainParticipantActor>>;
+    type Result = DdsResult<(ActorAddress<DomainParticipantActor>, InstanceHandle)>;
 }
 impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
     fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
@@ -161,8 +147,10 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         )?;
         let participant_guid = rtps_participant.guid();
         let transport = Arc::new(Mutex::new(rtps_participant));
+        let participant_handle = ParticipantHandle::new(self.participant_counter);
 
         let domain_participant = DomainParticipantActor::new(
+            participant_handle,
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             message.domain_id,
             self.configuration.domain_tag().to_string(),
@@ -275,24 +263,12 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             }
         });
 
-        // let participant_clone = participant.clone();
-        // executor_handle.spawn(async move {
-        //     loop {
-        //         let r = participant_clone.announce_participant().await;
-        //         if r.is_err() {
-        //             break;
-        //         }
-
-        //         on_participant_discovery_receiver.recv().await;
-        //     }
-        // });
-
         let participant_address = participant_actor.address();
         self.domain_participant_list.insert(
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
-        Ok(participant_address)
+        Ok((participant_address, participant_handle.into()))
     }
 }
 
@@ -412,44 +388,6 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     }
 }
 
-pub fn sedp_data_reader_qos() -> DataReaderQos {
-    DataReaderQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(
-                DURATION_ZERO_SEC,
-                DURATION_ZERO_NSEC,
-            )),
-        },
-        ..Default::default()
-    }
-}
-
-pub fn sedp_data_writer_qos() -> DataWriterQos {
-    DataWriterQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(
-                DURATION_ZERO_SEC,
-                DURATION_ZERO_NSEC,
-            )),
-        },
-        ..Default::default()
-    }
-}
-
 struct SpdpBuiltinReaderHistoryCache {
     participant_address: ActorAddress<DomainParticipantActor>,
 }
@@ -457,7 +395,12 @@ struct SpdpBuiltinReaderHistoryCache {
 impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::AddDiscoveredParticipant { cache_change });
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinParticipantsDetectorCacheChange {
+                    cache_change,
+                },
+            )
+            .ok();
     }
 }
 
@@ -467,24 +410,11 @@ struct SedpBuiltinTopicsReaderHistoryCache {
 
 impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Ok(discovered_topic_data) =
-            DiscoveredTopicData::deserialize_data(cache_change.data_value.as_ref())
-        {
-            todo!()
-            // self.participant_address
-            //     .send_actor_mail(domain_participant_actor::AddMatchedTopic {
-            //         discovered_topic_data,
-            //         // participant: participant.clone(),
-            //     })
-            //     .ok();
-        }
-        todo!()
-        // self.subscriber_address
-        //     .send_actor_mail(subscriber_actor::AddChange {
-        //         cache_change,
-        //         reader_instance_handle: self.reader_instance_handle,
-        //     })
-        //     .ok();
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinTopicsDetectorCacheChange { cache_change },
+            )
+            .ok();
     }
 }
 
@@ -494,49 +424,13 @@ struct SedpBuiltinPublicationsReaderHistoryCache {
 
 impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Some(p) = cache_change
-            .inline_qos
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
-            let status_info: StatusInfo =
-                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
-            if status_info == STATUS_INFO_DISPOSED
-                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
-            {
-                if let Ok(discovered_writer_handle) =
-                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
-                {
-                    todo!()
-                    // self.participant_address
-                    //     .send_actor_mail(domain_participant_actor::RemoveMatchedWriter {
-                    //         discovered_writer_handle,
-                    //     })
-                    //     .ok();
-                }
-            }
-        } else {
-            if let Ok(discovered_writer_data) =
-                DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
-            {
-                todo!()
-                // self.participant_address
-                //     .send_actor_mail(domain_participant_actor::AddMatchedWriter {
-                //         discovered_writer_data,
-                //         // participant: participant.clone(),
-                //     })
-                //     .ok();
-            }
-        }
-        todo!()
-        // self.subscriber_address
-        //     .send_actor_mail(subscriber_actor::AddChange {
-        //         cache_change,
-        //         reader_instance_handle: self.reader_instance_handle,
-        //     })
-        //     .ok();
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinPublicationsDetectorCacheChange {
+                    cache_change,
+                },
+            )
+            .ok();
     }
 }
 
@@ -546,48 +440,12 @@ struct SedpBuiltinSubscriptionsReaderHistoryCache {
 
 impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        if let Some(p) = cache_change
-            .inline_qos
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
-            let status_info: StatusInfo =
-                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
-            if status_info == STATUS_INFO_DISPOSED
-                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
-            {
-                if let Ok(discovered_reader_handle) =
-                    InstanceHandle::deserialize_data(cache_change.data_value.as_ref())
-                {
-                    todo!()
-                    // self.participant_address
-                    //     .send_actor_mail(domain_participant_actor::RemoveMatchedReader {
-                    //         discovered_reader_handle,
-                    //     })
-                    //     .ok();
-                }
-            }
-        } else {
-            if let Ok(discovered_reader_data) =
-                DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
-            {
-                todo!()
-                // self.participant_address
-                //     .send_actor_mail(domain_participant_actor::AddMatchedReader {
-                //         discovered_reader_data,
-                //         // participant: participant.clone(),
-                //     })
-                //     .ok();
-            }
-        }
-        todo!()
-        // self.subscriber_address
-        //     .send_actor_mail(subscriber_actor::AddChange {
-        //         cache_change,
-        //         reader_instance_handle: self.reader_instance_handle,
-        //     })
-        //     .ok();
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinSubscriptionsDetectorCacheChange {
+                    cache_change,
+                },
+            )
+            .ok();
     }
 }

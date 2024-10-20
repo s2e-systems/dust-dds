@@ -4,6 +4,7 @@ pub mod data_reader_actor;
 pub mod data_writer_actor;
 pub mod domain_participant_actor;
 pub mod domain_participant_factory_actor;
+pub mod handle;
 pub mod publisher_actor;
 pub mod status_condition_actor;
 pub mod subscriber_actor;

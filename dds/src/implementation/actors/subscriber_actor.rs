@@ -1,6 +1,7 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    domain_participant_actor::DomainParticipantActor, topic_actor::TopicActor,
+    domain_participant_actor::DomainParticipantActor, handle::SubscriberHandle,
+    topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -9,7 +10,10 @@ use crate::{
     },
     implementation::{
         actor::ActorAddress,
-        actors::{domain_participant_actor, status_condition_actor::StatusConditionActor},
+        actors::{
+            domain_participant_actor, handle::DataReaderHandle,
+            status_condition_actor::StatusConditionActor,
+        },
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         runtime::mpsc::MpscSender,
     },
@@ -26,7 +30,7 @@ use crate::{
     rtps::{
         group::RtpsGroup,
         participant::RtpsParticipant,
-        reader::{ReaderCacheChange, ReaderHistoryCache},
+        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
         types::{EntityId, Guid, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY},
     },
 };
@@ -126,12 +130,13 @@ impl SubscriberListenerThread {
 }
 
 pub struct SubscriberActor {
+    subscriber_handle: SubscriberHandle,
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
     transport: Arc<Mutex<RtpsParticipant>>,
     data_reader_list: HashMap<InstanceHandle, DataReaderActor>,
     enabled: bool,
-    user_defined_data_reader_counter: u8,
+    data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     status_condition: StatusConditionActor,
     subscriber_listener_thread: Option<SubscriberListenerThread>,
@@ -145,33 +150,24 @@ impl SubscriberActor {
         transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         subscriber_status_kind: Vec<StatusKind>,
-        data_reader_list: Vec<DataReaderActor>,
+        subscriber_handle: SubscriberHandle,
     ) -> Self {
         let status_condition = StatusConditionActor::default();
         let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
-        let data_reader_list = data_reader_list
-            .into_iter()
-            .map(|dr| (dr.get_instance_handle(), dr))
-            .collect();
 
         SubscriberActor {
+            subscriber_handle,
             qos,
             rtps_group,
             transport,
-            data_reader_list,
+            data_reader_list: HashMap::new(),
             enabled: false,
-            user_defined_data_reader_counter: 0,
+            data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
             status_condition,
             subscriber_listener_thread,
             subscriber_status_kind,
         }
-    }
-
-    fn get_unique_reader_id(&mut self) -> u8 {
-        let counter = self.user_defined_data_reader_counter;
-        self.user_defined_data_reader_counter += 1;
-        counter
     }
 
     fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
@@ -238,11 +234,12 @@ impl SubscriberActor {
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
-    ) -> DdsResult<Guid> {
+        transport_reader: Option<Arc<Mutex<dyn TransportReader + Send + Sync>>>,
+    ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache {
             pub domain_participant_address: ActorAddress<DomainParticipantActor>,
-            pub subscriber_guid: Guid,
-            pub data_reader_guid: Guid,
+            pub subscriber_handle: InstanceHandle,
+            pub data_reader_handle: InstanceHandle,
         }
 
         impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
@@ -250,8 +247,8 @@ impl SubscriberActor {
                 self.domain_participant_address
                     .send_actor_mail(domain_participant_actor::AddCacheChange {
                         cache_change,
-                        subscriber_guid: self.subscriber_guid,
-                        data_reader_guid: self.data_reader_guid,
+                        subscriber_handle: self.subscriber_handle,
+                        data_reader_handle: self.data_reader_handle,
                     })
                     .ok();
             }
@@ -265,55 +262,33 @@ impl SubscriberActor {
             }
         };
 
-        let guid_prefix = self.rtps_group.guid().prefix();
         let topic_name = a_topic.get_name().to_string();
         let type_name = a_topic.get_type_name().to_string();
         let type_support = a_topic.get_type_support();
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..type_support.get_member_count() {
-                if type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
 
-        let subscriber_guid = self.rtps_group.guid();
-        let entity_kind = match has_key {
-            true => USER_DEFINED_READER_WITH_KEY,
-            false => USER_DEFINED_READER_NO_KEY,
-        };
-        let entity_key: [u8; 3] = [
-            subscriber_guid.entity_id().entity_key()[0],
-            self.get_unique_reader_id(),
-            0,
-        ];
-
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let data_reader_guid = Guid::new(subscriber_guid.prefix(), entity_id);
-
-        let user_defined_reader_history_cache = UserDefinedReaderHistoryCache {
-            domain_participant_address,
-            subscriber_guid,
-            data_reader_guid,
-        };
-
-        let rtps_reader = self.transport.lock().unwrap().create_reader(
-            data_reader_guid,
-            Box::new(user_defined_reader_history_cache),
+        let data_reader_counter = self.data_reader_counter;
+        self.data_reader_counter += 1;
+        let data_reader_handle = DataReaderHandle::new(
+            self.subscriber_handle,
+            a_topic.get_handle(),
+            data_reader_counter,
         );
+
+        let transport_reader =
+            transport_reader.unwrap_or(self.transport.lock().unwrap().create_reader(Box::new(
+                UserDefinedReaderHistoryCache {
+                    domain_participant_address,
+                    data_reader_handle: data_reader_handle.into(),
+                    subscriber_handle: self.subscriber_handle.into(),
+                },
+            )));
 
         let listener = None;
         let data_reader_status_kind = mask.to_vec();
+
         let data_reader = DataReaderActor::new(
-            data_reader_guid,
-            rtps_reader,
+            data_reader_handle,
+            transport_reader,
             topic_name,
             type_name,
             type_support.clone(),
@@ -323,9 +298,9 @@ impl SubscriberActor {
         );
 
         self.data_reader_list
-            .insert(InstanceHandle::new(data_reader_guid.into()), data_reader);
+            .insert(data_reader_handle.into(), data_reader);
 
-        Ok(data_reader_guid)
+        Ok(data_reader_handle.into())
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -346,16 +321,12 @@ impl SubscriberActor {
         }
     }
 
-    pub fn get_mut_datareader_by_guid(&mut self, datareader_guid: Guid) -> &mut DataReaderActor {
-        self.data_reader_list
-            .get_mut(&InstanceHandle::new(datareader_guid.into()))
-            .expect("Must exist")
+    pub fn get_mut_datareader(&mut self, handle: InstanceHandle) -> &mut DataReaderActor {
+        self.data_reader_list.get_mut(&handle).expect("Must exist")
     }
 
-    pub fn get_datareader_by_guid(&self, datareader_guid: Guid) -> &DataReaderActor {
-        self.data_reader_list
-            .get(&InstanceHandle::new(datareader_guid.into()))
-            .expect("Must exist")
+    pub fn get_datareader(&self, handle: InstanceHandle) -> &DataReaderActor {
+        self.data_reader_list.get(&handle).expect("Must exist")
     }
 
     pub fn delete_datareader(&mut self, handle: InstanceHandle) {

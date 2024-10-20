@@ -10,7 +10,6 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    rtps::types::Guid,
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;
@@ -18,7 +17,7 @@ use std::sync::Arc;
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]
 pub struct TopicAsync {
-    guid: Guid,
+    handle: InstanceHandle,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
@@ -26,13 +25,13 @@ pub struct TopicAsync {
 
 impl TopicAsync {
     pub(crate) fn new(
-        guid: Guid,
+        handle: InstanceHandle,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
-            guid,
+            handle,
             type_name,
             topic_name,
             participant,
@@ -103,7 +102,7 @@ impl TopicAsync {
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant.participant_address().clone(), self.guid)
+        StatusConditionAsync::new(self.participant.participant_address().clone(), self.handle)
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).
@@ -126,8 +125,8 @@ impl TopicAsync {
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!();
+    pub async fn get_instance_handle(&self) -> InstanceHandle {
+        self.handle
     }
 
     /// Async version of [`set_listener`](crate::topic_definition::topic::Topic::set_listener).

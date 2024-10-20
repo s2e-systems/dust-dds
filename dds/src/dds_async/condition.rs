@@ -1,27 +1,26 @@
 use crate::{
     implementation::{
         actor::ActorAddress,
-        actors::{domain_participant_actor, domain_participant_actor::DomainParticipantActor},
+        actors::domain_participant_actor::{self, DomainParticipantActor},
     },
-    infrastructure::{error::DdsResult, status::StatusKind},
-    rtps::types::Guid,
+    infrastructure::{error::DdsResult, instance::InstanceHandle, status::StatusKind},
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
 #[derive(Clone)]
 pub struct StatusConditionAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
-    guid: Guid,
+    handle: InstanceHandle,
 }
 
 impl StatusConditionAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
-        guid: Guid,
+        handle: InstanceHandle,
     ) -> Self {
         Self {
             participant_address,
-            guid,
+            handle,
         }
     }
 }
@@ -32,7 +31,9 @@ impl StatusConditionAsync {
     pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
         self.participant_address
             .send_actor_mail(
-                domain_participant_actor::GetStatusConditionEnabledStatuses { guid: self.guid },
+                domain_participant_actor::GetStatusConditionEnabledStatuses {
+                    handle: self.handle,
+                },
             )?
             .receive_reply()
             .await
@@ -44,7 +45,7 @@ impl StatusConditionAsync {
         self.participant_address
             .send_actor_mail(
                 domain_participant_actor::SetStatusConditionEnabledStatuses {
-                    guid: self.guid,
+                    handle: self.handle,
                     status_mask: mask.to_vec(),
                 },
             )?
@@ -65,7 +66,7 @@ impl StatusConditionAsync {
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         self.participant_address
             .send_actor_mail(domain_participant_actor::GetStatusConditionTriggerValue {
-                guid: self.guid,
+                handle: self.handle,
             })?
             .receive_reply()
             .await

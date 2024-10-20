@@ -1,4 +1,4 @@
-use super::status_condition_actor::StatusConditionActor;
+use super::{handle::TopicHandle, status_condition_actor::StatusConditionActor};
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dds_async::topic_listener::TopicListenerAsync,
@@ -11,6 +11,7 @@ use crate::{
     },
     infrastructure::{
         error::DdsResult,
+        instance::InstanceHandle,
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
@@ -79,6 +80,7 @@ pub struct TopicActor {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
+    topic_handle: TopicHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: StatusConditionActor,
@@ -96,6 +98,7 @@ impl TopicActor {
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
+        topic_handle: TopicHandle,
     ) -> Self {
         let topic_listener_thread = listener.map(TopicListenerThread::new);
 
@@ -104,6 +107,7 @@ impl TopicActor {
             qos,
             type_name,
             topic_name: topic_name.to_string(),
+            topic_handle,
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition: StatusConditionActor::default(),
@@ -154,8 +158,8 @@ impl TopicActor {
         &self.topic_name
     }
 
-    pub fn get_guid(&self) -> Guid {
-        self.guid
+    pub fn get_handle(&self) -> TopicHandle {
+        self.topic_handle
     }
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {

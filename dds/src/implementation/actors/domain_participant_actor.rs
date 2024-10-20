@@ -1,9 +1,7 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::DataWriterActor,
-    domain_participant_factory_actor::{sedp_data_reader_qos, sedp_data_writer_qos},
-    publisher_actor::PublisherActor,
+    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
+    handle::ParticipantHandle, publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
 };
 use crate::{
@@ -22,7 +20,9 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::{
-            data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
+            data_reader_actor::DataReaderActor,
+            handle::{SubscriberHandle, TopicHandle},
+            subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::{
@@ -383,6 +383,7 @@ impl ParticipantListenerThread {
 
 pub struct DomainParticipantActor {
     rtps_participant: Arc<Mutex<RtpsParticipant>>,
+    participant_handle: ParticipantHandle,
     guid: Guid,
     domain_id: DomainId,
     domain_tag: String,
@@ -396,7 +397,7 @@ pub struct DomainParticipantActor {
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: HashMap<String, TopicActor>,
-    user_defined_topic_counter: u8,
+    topic_counter: u8,
     default_topic_qos: TopicQos,
     lease_duration: Duration,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
@@ -416,6 +417,7 @@ pub struct DomainParticipantActor {
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        participant_handle: ParticipantHandle,
         guid: Guid,
         domain_id: DomainId,
         domain_tag: String,
@@ -428,8 +430,11 @@ impl DomainParticipantActor {
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = guid.prefix();
+        let mut topic_counter = 0;
 
         let mut topic_list = HashMap::new();
+        let spdp_topic_participant_handle = TopicHandle::new(participant_handle, topic_counter);
+        topic_counter += 1;
         let spdp_topic_participant = TopicActor::new(
             Guid::new(guid_prefix, EntityId::new([0, 0, 0], BUILT_IN_TOPIC)),
             TopicQos::default(),
@@ -438,9 +443,12 @@ impl DomainParticipantActor {
             None,
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
+            spdp_topic_participant_handle,
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
+        let sedp_topic_topics_handle = TopicHandle::new(participant_handle, topic_counter);
+        topic_counter += 1;
         let sedp_topic_topics = TopicActor::new(
             Guid::new(guid_prefix, EntityId::new([0, 0, 1], BUILT_IN_TOPIC)),
             TopicQos::default(),
@@ -449,9 +457,12 @@ impl DomainParticipantActor {
             None,
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
+            sedp_topic_topics_handle,
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
+        let sedp_topic_publications_handle = TopicHandle::new(participant_handle, topic_counter);
+        topic_counter += 1;
         let sedp_topic_publications = TopicActor::new(
             Guid::new(guid_prefix, EntityId::new([0, 0, 2], BUILT_IN_TOPIC)),
             TopicQos::default(),
@@ -460,9 +471,12 @@ impl DomainParticipantActor {
             None,
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
+            sedp_topic_publications_handle,
         );
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
+        let sedp_topic_subscriptions_handle = TopicHandle::new(participant_handle, topic_counter);
+        topic_counter += 1;
         let sedp_topic_subscriptions = TopicActor::new(
             Guid::new(guid_prefix, EntityId::new([0, 0, 3], BUILT_IN_TOPIC)),
             TopicQos::default(),
@@ -471,9 +485,11 @@ impl DomainParticipantActor {
             None,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
+            sedp_topic_subscriptions_handle,
         );
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
+        let builtin_subscriber_handle = SubscriberHandle::new(participant_handle, 0);
         let builtin_subscriber = SubscriberActor::new(
             SubscriberQos::default(),
             RtpsGroup::new(Guid::new(
@@ -483,7 +499,7 @@ impl DomainParticipantActor {
             rtps_participant.clone(),
             None,
             vec![],
-            vec![],
+            builtin_subscriber_handle,
         );
 
         let builtin_publisher = PublisherActor::new(
@@ -498,6 +514,7 @@ impl DomainParticipantActor {
         let participant_listener_thread = listener.map(ParticipantListenerThread::new);
 
         Self {
+            participant_handle,
             rtps_participant,
             guid,
             domain_id,
@@ -506,13 +523,13 @@ impl DomainParticipantActor {
             builtin_subscriber,
             builtin_publisher,
             user_defined_subscriber_list: HashMap::new(),
-            user_defined_subscriber_counter: 0,
+            user_defined_subscriber_counter: 1,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: HashMap::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list,
-            user_defined_topic_counter: 0,
+            topic_counter,
             default_topic_qos: TopicQos::default(),
             lease_duration,
             discovered_participant_list: HashMap::new(),
@@ -721,7 +738,6 @@ impl DomainParticipantActor {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: sedp_data_reader_qos().representation,
             };
             let discovered_reader_data =
@@ -738,8 +754,11 @@ impl DomainParticipantActor {
                 .unwrap()
                 .default_multicast_locator_list()
                 .to_vec();
-            self.builtin_publisher
-                .add_matched_reader(discovered_reader_data, vec![], vec![]);
+            self.builtin_publisher.add_matched_reader(
+                discovered_reader_data,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            );
         }
     }
 
@@ -853,7 +872,6 @@ impl DomainParticipantActor {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: sedp_data_reader_qos().representation,
             };
             let discovered_reader_data =
@@ -974,7 +992,6 @@ impl DomainParticipantActor {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: sedp_data_reader_qos().representation,
             };
             let discovered_reader_data =
@@ -1075,7 +1092,7 @@ pub struct CreateUserDefinedPublisher {
     pub mask: Vec<StatusKind>,
 }
 impl Mail for CreateUserDefinedPublisher {
-    type Result = DdsResult<Guid>;
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
     fn handle(
@@ -1107,12 +1124,13 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         self.user_defined_publisher_list
             .insert(InstanceHandle::new(guid.into()), publisher);
 
-        Ok(guid)
+        todo!()
+        // Ok(guid)
     }
 }
 
 pub struct DeleteUserDefinedPublisher {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedPublisher {
     type Result = DdsResult<()>;
@@ -1122,10 +1140,7 @@ impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedPublisher,
     ) -> <DeleteUserDefinedPublisher as Mail>::Result {
-        match self
-            .user_defined_publisher_list
-            .entry(InstanceHandle::new(message.guid.into()))
-        {
+        match self.user_defined_publisher_list.entry(message.handle) {
             Entry::Occupied(e) => {
                 if e.get().is_empty() {
                     e.remove();
@@ -1147,7 +1162,7 @@ pub struct CreateUserDefinedSubscriber {
     pub mask: Vec<StatusKind>,
 }
 impl Mail for CreateUserDefinedSubscriber {
-    type Result = DdsResult<Guid>;
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
     fn handle(
@@ -1160,6 +1175,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         };
         let subcriber_counter = self.user_defined_subscriber_counter;
         self.user_defined_subscriber_counter += 1;
+        let subscriber_handle = SubscriberHandle::new(self.participant_handle, subcriber_counter);
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.guid.prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
@@ -1171,7 +1187,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             self.rtps_participant.clone(),
             message.a_listener,
             subscriber_status_kind,
-            vec![],
+            subscriber_handle,
         );
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
@@ -1179,14 +1195,14 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         }
 
         self.user_defined_subscriber_list
-            .insert(InstanceHandle::new(guid.into()), subscriber);
+            .insert(subscriber_handle.into(), subscriber);
 
-        Ok(guid)
+        Ok(subscriber_handle.into())
     }
 }
 
 pub struct DeleteUserDefinedSubscriber {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedSubscriber {
     type Result = DdsResult<()>;
@@ -1196,10 +1212,7 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedSubscriber,
     ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
-        match self
-            .user_defined_publisher_list
-            .entry(InstanceHandle::new(message.guid.into()))
-        {
+        match self.user_defined_publisher_list.entry(message.handle) {
             Entry::Occupied(e) => {
                 if e.get().is_empty() {
                     e.remove();
@@ -1224,7 +1237,7 @@ pub struct CreateUserDefinedTopic {
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 impl Mail for CreateUserDefinedTopic {
-    type Result = DdsResult<Guid>;
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
     fn handle(
@@ -1239,11 +1252,11 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let topic_counter = self.user_defined_topic_counter;
-        self.user_defined_topic_counter += 1;
+        let topic_counter = self.topic_counter;
+        self.topic_counter += 1;
         let entity_id = EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC);
         let guid = Guid::new(self.guid.prefix(), entity_id);
-
+        let topic_handle = TopicHandle::new(self.participant_handle, topic_counter);
         let mut topic = TopicActor::new(
             guid,
             qos,
@@ -1252,6 +1265,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             message.a_listener,
             message.mask,
             message.type_support,
+            topic_handle,
         );
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
@@ -1262,7 +1276,8 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
 
         self.topic_list.insert(message.topic_name, topic);
 
-        Ok(guid)
+        todo!()
+        // Ok(guid)
     }
 }
 
@@ -1401,7 +1416,7 @@ pub struct LookupTopicdescription {
     pub topic_name: String,
 }
 impl Mail for LookupTopicdescription {
-    type Result = DdsResult<Option<(String, Guid)>>;
+    type Result = DdsResult<Option<(String, InstanceHandle)>>;
 }
 impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     fn handle(
@@ -1409,7 +1424,10 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
         message: LookupTopicdescription,
     ) -> <LookupTopicdescription as Mail>::Result {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
-            Ok(Some((topic.get_type_name().to_owned(), topic.get_guid())))
+            Ok(Some((
+                topic.get_type_name().to_owned(),
+                topic.get_handle().into(),
+            )))
         } else {
             Ok(None)
         }
@@ -1873,14 +1891,14 @@ impl MailHandler<GetTopicTypeSupport> for DomainParticipantActor {
 
 // ############################  Publisher messages
 pub struct CreateUserDefinedDataWriter {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
     pub topic_name: String,
     pub qos: QosKind<DataWriterQos>,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub mask: Vec<StatusKind>,
 }
 impl Mail for CreateUserDefinedDataWriter {
-    type Result = DdsResult<Guid>;
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
     fn handle(
@@ -1889,7 +1907,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
     ) -> <CreateUserDefinedDataWriter as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
-            .get_mut(&InstanceHandle::new(message.publisher_guid.into()))
+            .get_mut(&InstanceHandle::new(message.publisher_handle.into()))
             .ok_or(DdsError::AlreadyDeleted)?;
         let topic = self
             .topic_list
@@ -1923,12 +1941,13 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
             self.announce_created_or_modified_datawriter(discovered_writer_data)?;
         }
 
-        Ok(datawriter_guid)
+        todo!()
+        // Ok(datawriter_guid)
     }
 }
 
 pub struct DeleteUserDefinedDataWriter {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedDataWriter {
     type Result = DdsResult<()>;
@@ -1955,11 +1974,11 @@ impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
 }
 
 pub struct LookupDataWriter {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
     pub topic_name: String,
 }
 impl Mail for LookupDataWriter {
-    type Result = DdsResult<Option<Guid>>;
+    type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<LookupDataWriter> for DomainParticipantActor {
     fn handle(&mut self, message: LookupDataWriter) -> <LookupDataWriter as Mail>::Result {
@@ -2017,7 +2036,7 @@ impl MailHandler<LookupDataWriter> for DomainParticipantActor {
 }
 
 pub struct DeletePublisherContainedEntities {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
 }
 impl Mail for DeletePublisherContainedEntities {
     type Result = DdsResult<()>;
@@ -2045,7 +2064,7 @@ impl MailHandler<DeletePublisherContainedEntities> for DomainParticipantActor {
 }
 
 pub struct SetDefaultDataWriterQos {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
     pub qos: QosKind<DataWriterQos>,
 }
 impl Mail for SetDefaultDataWriterQos {
@@ -2080,7 +2099,7 @@ impl MailHandler<SetDefaultDataWriterQos> for DomainParticipantActor {
 }
 
 pub struct GetDefaultDataWriterQos {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
 }
 impl Mail for GetDefaultDataWriterQos {
     type Result = DdsResult<DataWriterQos>;
@@ -2114,7 +2133,7 @@ impl MailHandler<GetDefaultDataWriterQos> for DomainParticipantActor {
 }
 
 pub struct SetPublisherQos {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
     pub qos: QosKind<PublisherQos>,
 }
 impl Mail for SetPublisherQos {
@@ -2127,7 +2146,7 @@ impl MailHandler<SetPublisherQos> for DomainParticipantActor {
 }
 
 pub struct GetPublisherQos {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
 }
 impl Mail for GetPublisherQos {
     type Result = DdsResult<PublisherQos>;
@@ -2139,7 +2158,7 @@ impl MailHandler<GetPublisherQos> for DomainParticipantActor {
 }
 
 pub struct SetPublisherListener {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
 }
@@ -2153,7 +2172,7 @@ impl MailHandler<SetPublisherListener> for DomainParticipantActor {
 }
 
 pub struct EnablePublisher {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
 }
 impl Mail for EnablePublisher {
     type Result = DdsResult<()>;
@@ -2165,7 +2184,7 @@ impl MailHandler<EnablePublisher> for DomainParticipantActor {
 }
 
 pub struct GetPublisherInstanceHandle {
-    pub publisher_guid: Guid,
+    pub publisher_handle: InstanceHandle,
 }
 impl Mail for GetPublisherInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
@@ -2181,7 +2200,7 @@ impl MailHandler<GetPublisherInstanceHandle> for DomainParticipantActor {
 
 // ############################  Subscriber messages
 pub struct CreateUserDefinedDataReader {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
     pub topic_name: String,
     pub qos: QosKind<DataReaderQos>,
     pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
@@ -2189,7 +2208,7 @@ pub struct CreateUserDefinedDataReader {
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateUserDefinedDataReader {
-    type Result = DdsResult<Guid>;
+    type Result = DdsResult<InstanceHandle>;
 }
 impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
     fn handle(
@@ -2198,7 +2217,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
     ) -> <CreateUserDefinedDataReader as Mail>::Result {
         let subscriber = self
             .user_defined_subscriber_list
-            .get_mut(&InstanceHandle::new(message.subscriber_guid.into()))
+            .get_mut(&message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let topic = self
             .topic_list
@@ -2210,6 +2229,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             message.a_listener,
             message.mask,
             message.domain_participant_address,
+            None,
         )?;
         if subscriber.is_enabled()
             && subscriber
@@ -2217,22 +2237,11 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber
-                .get_mut_datareader_by_guid(datareader_guid)
-                .enable();
+            subscriber.get_mut_datareader(datareader_guid).enable();
 
-            let default_unicast_locator_list = vec![];
-            let default_multicast_locator_list = vec![];
-            let xml_type = String::new();
             let discovered_reader_data = subscriber
-                .get_datareader_by_guid(datareader_guid)
-                .as_discovered_reader_data(
-                    subscriber.get_qos(),
-                    topic.get_qos(),
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    xml_type,
-                );
+                .get_datareader(datareader_guid)
+                .as_discovered_reader_data(subscriber.get_qos(), topic.get_qos());
 
             self.announce_created_or_modified_datareader(discovered_reader_data)?;
         }
@@ -2242,7 +2251,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
 }
 
 pub struct DeleteUserDefinedDataReader {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedDataReader {
     type Result = DdsResult<()>;
@@ -2274,11 +2283,11 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
 }
 
 pub struct LookupDataReader {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
     pub topic_name: String,
 }
 impl Mail for LookupDataReader {
-    type Result = DdsResult<Option<Guid>>;
+    type Result = DdsResult<Option<InstanceHandle>>;
 }
 impl MailHandler<LookupDataReader> for DomainParticipantActor {
     fn handle(&mut self, message: LookupDataReader) -> <LookupDataReader as Mail>::Result {
@@ -2335,7 +2344,7 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
 }
 
 pub struct DeleteSubscriberContainedEntities {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
 }
 impl Mail for DeleteSubscriberContainedEntities {
     type Result = DdsResult<()>;
@@ -2364,7 +2373,7 @@ impl MailHandler<DeleteSubscriberContainedEntities> for DomainParticipantActor {
 }
 
 pub struct SetDefaultDataReaderQos {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
     pub qos: QosKind<DataReaderQos>,
 }
 impl Mail for SetDefaultDataReaderQos {
@@ -2399,7 +2408,7 @@ impl MailHandler<SetDefaultDataReaderQos> for DomainParticipantActor {
 }
 
 pub struct GetDefaultDataReaderQos {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
 }
 impl Mail for GetDefaultDataReaderQos {
     type Result = DdsResult<DataReaderQos>;
@@ -2433,7 +2442,7 @@ impl MailHandler<GetDefaultDataReaderQos> for DomainParticipantActor {
 }
 
 pub struct SetSubscriberQos {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
     pub qos: QosKind<SubscriberQos>,
 }
 impl Mail for SetSubscriberQos {
@@ -2446,7 +2455,7 @@ impl MailHandler<SetSubscriberQos> for DomainParticipantActor {
 }
 
 pub struct GetSubscriberQos {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
 }
 impl Mail for GetSubscriberQos {
     type Result = DdsResult<SubscriberQos>;
@@ -2458,7 +2467,7 @@ impl MailHandler<GetSubscriberQos> for DomainParticipantActor {
 }
 
 pub struct SetSubscriberListener {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
 }
@@ -2475,7 +2484,7 @@ impl MailHandler<SetSubscriberListener> for DomainParticipantActor {
 }
 
 pub struct EnableSubscriber {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
 }
 impl Mail for EnableSubscriber {
     type Result = DdsResult<()>;
@@ -2523,7 +2532,7 @@ impl MailHandler<EnableSubscriber> for DomainParticipantActor {
 }
 
 pub struct GetSubscriberInstanceHandle {
-    pub subscriber_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
 }
 impl Mail for GetSubscriberInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
@@ -2539,8 +2548,8 @@ impl MailHandler<GetSubscriberInstanceHandle> for DomainParticipantActor {
 
 // ############################  Data writer messages
 pub struct RegisterInstance {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for RegisterInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
@@ -2577,8 +2586,8 @@ impl MailHandler<RegisterInstance> for DomainParticipantActor {
 }
 
 pub struct UnregisterInstance {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for UnregisterInstance {
     type Result = DdsResult<()>;
@@ -2721,8 +2730,8 @@ impl MailHandler<UnregisterInstance> for DomainParticipantActor {
 }
 
 pub struct LookupInstance {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for LookupInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
@@ -2750,8 +2759,8 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
 }
 
 pub struct Write {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for Write {
     type Result = DdsResult<()>;
@@ -2884,8 +2893,8 @@ impl MailHandler<Write> for DomainParticipantActor {
 }
 
 pub struct Dispose {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for Dispose {
     type Result = DdsResult<()>;
@@ -3015,8 +3024,8 @@ impl MailHandler<Dispose> for DomainParticipantActor {
 }
 
 pub struct WaitForAcknowledgments {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for WaitForAcknowledgments {
     type Result = DdsResult<()>;
@@ -3051,8 +3060,8 @@ impl MailHandler<WaitForAcknowledgments> for DomainParticipantActor {
 }
 
 pub struct GetOfferedDeadlineMissedStatus {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for GetOfferedDeadlineMissedStatus {
     type Result = DdsResult<OfferedDeadlineMissedStatus>;
@@ -3067,8 +3076,8 @@ impl MailHandler<GetOfferedDeadlineMissedStatus> for DomainParticipantActor {
 }
 
 pub struct GetPublicationMatchedStatus {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for GetPublicationMatchedStatus {
     type Result = DdsResult<PublicationMatchedStatus>;
@@ -3083,8 +3092,8 @@ impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
 }
 
 pub struct GetMatchedSubscriptionData {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
     pub subscription_handle: InstanceHandle,
 }
 impl Mail for GetMatchedSubscriptionData {
@@ -3100,8 +3109,8 @@ impl MailHandler<GetMatchedSubscriptionData> for DomainParticipantActor {
 }
 
 pub struct GetMatchedSubscriptions {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for GetMatchedSubscriptions {
     type Result = DdsResult<Vec<InstanceHandle>>;
@@ -3116,8 +3125,8 @@ impl MailHandler<GetMatchedSubscriptions> for DomainParticipantActor {
 }
 
 pub struct SetDataWriterQos {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
     pub qos: QosKind<DataWriterQos>,
 }
 impl Mail for SetDataWriterQos {
@@ -3154,8 +3163,8 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
 }
 
 pub struct GetDataWriterQos {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for GetDataWriterQos {
     type Result = DdsResult<DataWriterQos>;
@@ -3191,8 +3200,8 @@ impl MailHandler<GetDataWriterQos> for DomainParticipantActor {
 }
 
 pub struct EnableDataWriter {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for EnableDataWriter {
     type Result = DdsResult<()>;
@@ -3230,8 +3239,8 @@ impl MailHandler<EnableDataWriter> for DomainParticipantActor {
 }
 
 pub struct GetDataWriterInstanceHandle {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
 }
 impl Mail for GetDataWriterInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
@@ -3272,8 +3281,8 @@ impl MailHandler<GetDataWriterInstanceHandle> for DomainParticipantActor {
 }
 
 pub struct SetDataWriterListener {
-    pub publisher_guid: Guid,
-    pub data_writer_guid: Guid,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub status_kind: Vec<StatusKind>,
 }
@@ -3317,8 +3326,8 @@ impl MailHandler<SetDataWriterListener> for DomainParticipantActor {
 
 // ############################  Data reader messages
 pub struct Read {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub max_samples: i32,
     pub sample_states: Vec<SampleStateKind>,
     pub view_states: Vec<ViewStateKind>,
@@ -3335,8 +3344,8 @@ impl MailHandler<Read> for DomainParticipantActor {
 }
 
 pub struct Take {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub max_samples: i32,
     pub sample_states: Vec<SampleStateKind>,
     pub view_states: Vec<ViewStateKind>,
@@ -3353,8 +3362,8 @@ impl MailHandler<Take> for DomainParticipantActor {
 }
 
 pub struct ReadNextInstance {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub max_samples: i32,
     pub previous_handle: Option<InstanceHandle>,
     pub sample_states: Vec<SampleStateKind>,
@@ -3371,8 +3380,8 @@ impl MailHandler<ReadNextInstance> for DomainParticipantActor {
 }
 
 pub struct TakeNextInstance {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub max_samples: i32,
     pub previous_handle: Option<InstanceHandle>,
     pub sample_states: Vec<SampleStateKind>,
@@ -3389,8 +3398,8 @@ impl MailHandler<TakeNextInstance> for DomainParticipantActor {
 }
 
 pub struct GetSubscriptionMatchedStatus {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for GetSubscriptionMatchedStatus {
     type Result = DdsResult<SubscriptionMatchedStatus>;
@@ -3405,8 +3414,8 @@ impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
 }
 
 pub struct WaitForHistoricalData {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for WaitForHistoricalData {
     type Result = DdsResult<()>;
@@ -3441,8 +3450,8 @@ impl MailHandler<WaitForHistoricalData> for DomainParticipantActor {
 }
 
 pub struct GetMatchedPublicationData {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub publication_handle: InstanceHandle,
 }
 impl Mail for GetMatchedPublicationData {
@@ -3458,8 +3467,8 @@ impl MailHandler<GetMatchedPublicationData> for DomainParticipantActor {
 }
 
 pub struct GetMatchedPublications {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for GetMatchedPublications {
     type Result = DdsResult<Vec<InstanceHandle>>;
@@ -3474,8 +3483,8 @@ impl MailHandler<GetMatchedPublications> for DomainParticipantActor {
 }
 
 pub struct SetDataReaderQos {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub qos: QosKind<DataReaderQos>,
 }
 impl Mail for SetDataReaderQos {
@@ -3512,8 +3521,8 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
 }
 
 pub struct GetDataReaderQos {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for GetDataReaderQos {
     type Result = DdsResult<DataReaderQos>;
@@ -3525,8 +3534,8 @@ impl MailHandler<GetDataReaderQos> for DomainParticipantActor {
 }
 
 pub struct EnableDataReader {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for EnableDataReader {
     type Result = DdsResult<()>;
@@ -3556,8 +3565,8 @@ impl MailHandler<EnableDataReader> for DomainParticipantActor {
 }
 
 pub struct GetDataReaderInstanceHandle {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for GetDataReaderInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
@@ -3572,8 +3581,8 @@ impl MailHandler<GetDataReaderInstanceHandle> for DomainParticipantActor {
 }
 
 pub struct SetDataReaderListener {
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
     pub status_kind: Vec<StatusKind>,
 }
@@ -3591,7 +3600,7 @@ impl MailHandler<SetDataReaderListener> for DomainParticipantActor {
 
 // ############################  Status Condition messages
 pub struct GetStatusConditionEnabledStatuses {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
 }
 impl Mail for GetStatusConditionEnabledStatuses {
     type Result = DdsResult<Vec<StatusKind>>;
@@ -3606,7 +3615,7 @@ impl MailHandler<GetStatusConditionEnabledStatuses> for DomainParticipantActor {
 }
 
 pub struct SetStatusConditionEnabledStatuses {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
     pub status_mask: Vec<StatusKind>,
 }
 impl Mail for SetStatusConditionEnabledStatuses {
@@ -3622,7 +3631,7 @@ impl MailHandler<SetStatusConditionEnabledStatuses> for DomainParticipantActor {
 }
 
 pub struct GetStatusConditionTriggerValue {
-    pub guid: Guid,
+    pub handle: InstanceHandle,
 }
 impl Mail for GetStatusConditionTriggerValue {
     type Result = DdsResult<bool>;
@@ -3647,50 +3656,10 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
     }
 }
 
-pub struct AddDiscoveredParticipant {
-    pub cache_change: ReaderCacheChange,
-}
-impl Mail for AddDiscoveredParticipant {
-    type Result = ();
-}
-impl MailHandler<AddDiscoveredParticipant> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: AddDiscoveredParticipant,
-    ) -> <AddDiscoveredParticipant as Mail>::Result {
-        if let Some(p) = message
-            .cache_change
-            .inline_qos
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
-            let status_info: StatusInfo =
-                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
-            if status_info == STATUS_INFO_DISPOSED
-                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
-            {
-                if let Ok(handle) =
-                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
-                {
-                    todo!()
-                }
-            }
-        } else {
-            if let Ok(discovered_participant_data) = SpdpDiscoveredParticipantData::deserialize_data(
-                message.cache_change.data_value.as_ref(),
-            ) {
-                todo!()
-            }
-        }
-    }
-}
-
 pub struct AddCacheChange {
     pub cache_change: ReaderCacheChange,
-    pub subscriber_guid: Guid,
-    pub data_reader_guid: Guid,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for AddCacheChange {
     type Result = ();
@@ -3727,17 +3696,57 @@ impl MailHandler<CreateBuiltinParticipantsDetector> for DomainParticipantActor {
         };
         let spdp_builtin_participant_reader_guid =
             Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        DataReaderActor::new(
-            spdp_builtin_participant_reader_guid,
-            message.transport_reader,
-            DCPS_PARTICIPANT.to_string(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            spdp_reader_qos,
-            None,
-            vec![],
-        );
+        // DataReaderActor::new(
+        //     spdp_builtin_participant_reader_guid,
+        //     message.transport_reader,
+        //     DCPS_PARTICIPANT.to_string(),
+        //     "SpdpDiscoveredParticipantData".to_string(),
+        //     Arc::new(SpdpDiscoveredParticipantData::get_type()),
+        //     spdp_reader_qos,
+        //     None,
+        //     vec![],
+        // );
         todo!()
+    }
+}
+
+pub struct AddBuiltinParticipantsDetectorCacheChange {
+    pub cache_change: ReaderCacheChange,
+}
+impl Mail for AddBuiltinParticipantsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AddBuiltinParticipantsDetectorCacheChange,
+    ) -> <AddBuiltinParticipantsDetectorCacheChange as Mail>::Result {
+        if let Some(p) = message
+            .cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    todo!()
+                }
+            }
+        } else {
+            if let Ok(discovered_participant_data) = SpdpDiscoveredParticipantData::deserialize_data(
+                message.cache_change.data_value.as_ref(),
+            ) {
+                todo!()
+            }
+        }
     }
 }
 
@@ -3752,17 +3761,56 @@ impl MailHandler<CreateBuiltinTopicsDetector> for DomainParticipantActor {
         &mut self,
         message: CreateBuiltinTopicsDetector,
     ) -> <CreateBuiltinTopicsDetector as Mail>::Result {
-        let sedp_builtin_topics_reader = DataReaderActor::new(
-            Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-            message.transport_reader,
-            DCPS_TOPIC.to_string(),
-            "DiscoveredTopicData".to_string(),
-            Arc::new(DiscoveredTopicData::get_type()),
-            sedp_data_reader_qos(),
+        self.builtin_subscriber.create_datareader(
+            &self.topic_list[DCPS_TOPIC],
+            QosKind::Specific(sedp_data_reader_qos()),
             None,
             vec![],
+            todo!(),
+            Some(message.transport_reader),
         );
+        // let sedp_builtin_topics_reader = DataReaderActor::new(
+        //     message.transport_reader,
+        //     DCPS_TOPIC.to_string(),
+        //     "DiscoveredTopicData".to_string(),
+        //     Arc::new(DiscoveredTopicData::get_type()),
+        //     sedp_data_reader_qos(),
+        //     None,
+        //     vec![],
+        // );
         todo!()
+    }
+}
+
+pub struct AddBuiltinTopicsDetectorCacheChange {
+    pub cache_change: ReaderCacheChange,
+}
+impl Mail for AddBuiltinTopicsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AddBuiltinTopicsDetectorCacheChange,
+    ) -> <AddBuiltinTopicsDetectorCacheChange as Mail>::Result {
+        if let Ok(discovered_topic_data) =
+            DiscoveredTopicData::deserialize_data(message.cache_change.data_value.as_ref())
+        {
+            todo!()
+            // self.participant_address
+            //     .send_actor_mail(domain_participant_actor::AddMatchedTopic {
+            //         discovered_topic_data,
+            //         // participant: participant.clone(),
+            //     })
+            //     .ok();
+        }
+        todo!()
+        // self.subscriber_address
+        //     .send_actor_mail(subscriber_actor::AddChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }
 
@@ -3777,20 +3825,74 @@ impl MailHandler<CreateBuiltinPublicationsDetector> for DomainParticipantActor {
         &mut self,
         message: CreateBuiltinPublicationsDetector,
     ) -> <CreateBuiltinPublicationsDetector as Mail>::Result {
-        let sedp_builtin_publications_reader = DataReaderActor::new(
-            Guid::new(
-                self.guid.prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            ),
-            message.transport_reader,
-            DCPS_PUBLICATION.to_string(),
-            "DiscoveredWriterData".to_string(),
-            Arc::new(DiscoveredWriterData::get_type()),
-            sedp_data_reader_qos(),
-            None,
-            vec![],
-        );
+        // let sedp_builtin_publications_reader = DataReaderActor::new(
+        //     message.transport_reader,
+        //     DCPS_PUBLICATION.to_string(),
+        //     "DiscoveredWriterData".to_string(),
+        //     Arc::new(DiscoveredWriterData::get_type()),
+        //     sedp_data_reader_qos(),
+        //     None,
+        //     vec![],
+        // );
         todo!()
+    }
+}
+
+pub struct AddBuiltinPublicationsDetectorCacheChange {
+    pub cache_change: ReaderCacheChange,
+}
+impl Mail for AddBuiltinPublicationsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AddBuiltinPublicationsDetectorCacheChange,
+    ) -> <AddBuiltinPublicationsDetectorCacheChange as Mail>::Result {
+        if let Some(p) = message
+            .cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(discovered_writer_handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    todo!()
+                    // self.participant_address
+                    //     .send_actor_mail(domain_participant_actor::RemoveMatchedWriter {
+                    //         discovered_writer_handle,
+                    //     })
+                    //     .ok();
+                }
+            }
+        } else {
+            if let Ok(discovered_writer_data) =
+                DiscoveredWriterData::deserialize_data(message.cache_change.data_value.as_ref())
+            {
+                todo!()
+                // self.participant_address
+                //     .send_actor_mail(domain_participant_actor::AddMatchedWriter {
+                //         discovered_writer_data,
+                //         // participant: participant.clone(),
+                //     })
+                //     .ok();
+            }
+        }
+        todo!()
+        // self.subscriber_address
+        //     .send_actor_mail(subscriber_actor::AddChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }
 
@@ -3805,19 +3907,74 @@ impl MailHandler<CreateBuiltinSubscriptionsDetector> for DomainParticipantActor 
         &mut self,
         message: CreateBuiltinSubscriptionsDetector,
     ) -> <CreateBuiltinSubscriptionsDetector as Mail>::Result {
-        let sedp_builtin_subscriptions_reader = DataReaderActor::new(
-            Guid::new(
-                self.guid.prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            ),
-            message.transport_reader,
-            DCPS_SUBSCRIPTION.to_string(),
-            "DiscoveredReaderData".to_string(),
-            Arc::new(DiscoveredReaderData::get_type()),
-            sedp_data_reader_qos(),
-            None,
-            vec![],
-        );
+        todo!()
+        // let sedp_builtin_subscriptions_reader = DataReaderActor::new(
+        //     message.transport_reader,
+        //     DCPS_SUBSCRIPTION.to_string(),
+        //     "DiscoveredReaderData".to_string(),
+        //     Arc::new(DiscoveredReaderData::get_type()),
+        //     sedp_data_reader_qos(),
+        //     None,
+        //     vec![],
+        // );
+    }
+}
+
+pub struct AddBuiltinSubscriptionsDetectorCacheChange {
+    pub cache_change: ReaderCacheChange,
+}
+impl Mail for AddBuiltinSubscriptionsDetectorCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AddBuiltinSubscriptionsDetectorCacheChange,
+    ) -> <AddBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
+        if let Some(p) = message
+            .cache_change
+            .inline_qos
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
+            let status_info: StatusInfo =
+                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
+            if status_info == STATUS_INFO_DISPOSED
+                || status_info == STATUS_INFO_DISPOSED_UNREGISTERED
+            {
+                if let Ok(discovered_reader_handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    todo!()
+                    // self.participant_address
+                    //     .send_actor_mail(domain_participant_actor::RemoveMatchedReader {
+                    //         discovered_reader_handle,
+                    //     })
+                    //     .ok();
+                }
+            }
+        } else {
+            if let Ok(discovered_reader_data) =
+                DiscoveredReaderData::deserialize_data(message.cache_change.data_value.as_ref())
+            {
+                todo!()
+                // self.participant_address
+                //     .send_actor_mail(domain_participant_actor::AddMatchedReader {
+                //         discovered_reader_data,
+                //         // participant: participant.clone(),
+                //     })
+                //     .ok();
+            }
+        }
+        todo!()
+        // self.subscriber_address
+        //     .send_actor_mail(subscriber_actor::AddChange {
+        //         cache_change,
+        //         reader_instance_handle: self.reader_instance_handle,
+        //     })
+        //     .ok();
     }
 }
 
@@ -4913,3 +5070,35 @@ impl MailHandler<DrainPublisherList> for DomainParticipantActor {
 //     }
 //     Ok(())
 // }
+
+fn sedp_data_reader_qos() -> DataReaderQos {
+    DataReaderQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+        },
+        ..Default::default()
+    }
+}
+
+fn sedp_data_writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+        },
+        ..Default::default()
+    }
+}

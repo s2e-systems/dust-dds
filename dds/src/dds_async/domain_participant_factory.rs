@@ -9,11 +9,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::Actor,
-        actors::{
-            domain_participant_actor,
-            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
-            subscriber_actor,
-        },
+        actors::domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
         runtime::executor::Executor,
     },
     infrastructure::{
@@ -42,7 +38,7 @@ impl DomainParticipantFactoryAsync {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let status_kind = mask.to_vec();
-        let participant_address = self
+        let (participant_address, participant_handle) = self
             .domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::CreateParticipant {
                 domain_id,
@@ -54,7 +50,7 @@ impl DomainParticipantFactoryAsync {
             .await?;
 
         let domain_participant =
-            DomainParticipantAsync::new(participant_address.clone(), domain_id);
+            DomainParticipantAsync::new(participant_address.clone(), domain_id, participant_handle);
 
         if self
             .get_qos()

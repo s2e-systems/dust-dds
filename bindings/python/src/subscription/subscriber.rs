@@ -177,7 +177,7 @@ impl Subscriber {
         self.0.enable().map_err(into_pyerr)
     }
 
-    pub fn get_instance_handle(&self) -> PyResult<InstanceHandle> {
-        Ok(self.0.get_instance_handle().map_err(into_pyerr)?.into())
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.0.get_instance_handle().into()
     }
 }

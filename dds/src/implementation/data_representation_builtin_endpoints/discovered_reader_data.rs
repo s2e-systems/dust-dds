@@ -4,8 +4,8 @@ use super::{
         PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA,
         PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR,
         PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-        PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME,
-        PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
+        PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
+        PID_USER_DATA,
     },
     payload_serializer_deserializer::{
         parameter_list_deserializer::ParameterListCdrDeserializer,
@@ -182,11 +182,6 @@ impl DdsSerialize for DiscoveredReaderData {
             &Default::default(),
         )?;
         serializer.write_with_default(
-            PID_TYPE_REPRESENTATION,
-            &self.subscription_builtin_topic_data.xml_type,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(
             PID_DATA_REPRESENTATION,
             &self.subscription_builtin_topic_data.representation,
             &Default::default(),
@@ -249,8 +244,6 @@ impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
             partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
             topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
             group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-            xml_type: pl_deserializer
-                .read_with_default(PID_TYPE_REPRESENTATION, Default::default())?,
             representation: pl_deserializer
                 .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
         })
@@ -333,7 +326,6 @@ mod tests {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: Default::default(),
             },
             reader_proxy: ReaderProxy {
@@ -411,7 +403,6 @@ mod tests {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: Default::default(),
             },
         };

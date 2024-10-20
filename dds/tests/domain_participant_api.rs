@@ -770,7 +770,7 @@ fn ignore_publication() {
     };
 
     participant
-        .ignore_publication(writer.get_instance_handle().unwrap())
+        .ignore_publication(writer.get_instance_handle())
         .unwrap();
 
     let reader = subscriber
@@ -819,7 +819,7 @@ fn ignore_subscription() {
         .unwrap();
 
     participant
-        .ignore_subscription(reader.get_instance_handle().unwrap())
+        .ignore_subscription(reader.get_instance_handle())
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -859,7 +859,7 @@ fn ignore_participant() {
         .unwrap();
 
     participant1
-        .ignore_participant(participant2.get_instance_handle().unwrap())
+        .ignore_participant(participant2.get_instance_handle())
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));

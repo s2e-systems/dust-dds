@@ -2,15 +2,16 @@ use tracing::debug;
 
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
+    handle::DataReaderHandle,
     status_condition_actor::StatusConditionActor,
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::{ActorAddress, Mail, MailHandler},
+        actor::ActorAddress,
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
         },
         data_representation_inline_qos::{
@@ -50,7 +51,7 @@ use crate::{
     rtps::{
         messages::submessage_elements::{Data, ParameterList},
         reader::{ReaderCacheChange, TransportReader},
-        types::{ChangeKind, DurabilityKind, Guid, Locator, ReliabilityKind, GUID_UNKNOWN},
+        types::{ChangeKind, DurabilityKind, Guid, ReliabilityKind},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     xtypes::{
@@ -311,8 +312,8 @@ pub struct DataReaderActorListener {
 }
 
 pub struct DataReaderActor {
-    guid: Guid,
-    rtps_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
+    data_reader_handle: DataReaderHandle,
+    transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
@@ -339,8 +340,8 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        guid: Guid,
-        rtps_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
+        data_reader_handle: DataReaderHandle,
+        transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -352,8 +353,8 @@ impl DataReaderActor {
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
 
         DataReaderActor {
-            guid,
-            rtps_reader,
+            data_reader_handle,
+            transport_reader,
             sample_list: Vec::new(),
             topic_name,
             type_name,
@@ -379,7 +380,7 @@ impl DataReaderActor {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.guid.into())
+        self.data_reader_handle.into()
     }
 
     pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
@@ -1522,29 +1523,16 @@ impl DataReaderActor {
         &self,
         subscriber_qos: &SubscriberQos,
         topic_qos: &TopicQos,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        xml_type: String,
     ) -> DiscoveredReaderData {
-        let guid = self.guid;
-        let type_name = self.type_name.clone();
-        let topic_name = self.topic_name.clone();
-
         DiscoveredReaderData::new(
-            ReaderProxy {
-                remote_reader_guid: guid,
-                remote_group_entity_id: guid.entity_id(),
-                unicast_locator_list: default_unicast_locator_list,
-                multicast_locator_list: default_multicast_locator_list,
-                expects_inline_qos: false,
-            },
+            self.transport_reader.lock().unwrap().reader_proxy(),
             SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey { value: guid.into() },
-                participant_key: BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
+                key: BuiltInTopicKey {
+                    value: InstanceHandle::from(self.data_reader_handle).into(),
                 },
-                topic_name,
-                type_name,
+                participant_key: BuiltInTopicKey { value: [0; 16] },
+                topic_name: self.topic_name.clone(),
+                type_name: self.type_name.clone(),
                 durability: self.qos.durability.clone(),
                 deadline: self.qos.deadline.clone(),
                 latency_budget: self.qos.latency_budget.clone(),
@@ -1558,7 +1546,6 @@ impl DataReaderActor {
                 partition: subscriber_qos.partition.clone(),
                 topic_data: topic_qos.topic_data.clone(),
                 group_data: subscriber_qos.group_data.clone(),
-                xml_type: xml_type,
                 representation: self.qos.representation.clone(),
             },
         )
@@ -1604,7 +1591,7 @@ impl DataReaderActor {
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                self.rtps_reader.lock().unwrap().add_matched_writer(
+                self.transport_reader.lock().unwrap().add_matched_writer(
                     discovered_writer_data.writer_proxy,
                     reliability_kind,
                     durability_kind,
@@ -1652,7 +1639,7 @@ impl DataReaderActor {
             .matched_publication_list
             .remove(&discovered_writer_handle);
         if let Some(w) = matched_publication {
-            self.rtps_reader
+            self.transport_reader
                 .lock()
                 .unwrap()
                 .delete_matched_writer(w.key().value.into());
@@ -1813,8 +1800,8 @@ impl DataReaderActor {
                 .ok();
             }
             Err(e) => debug!(
-                "Received invalid data on reader with GUID {guid:?}. Error: {err:?}.",
-                guid = self.guid,
+                "Received invalid data on reader with handle {handle:?}. Error: {err:?}.",
+                handle = self.data_reader_handle,
                 err = e,
             ),
         }

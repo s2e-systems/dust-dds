@@ -18,23 +18,21 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    rtps::types::Guid,
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 #[derive(Clone)]
 pub struct PublisherAsync {
-    guid: Guid,
+    handle: InstanceHandle,
     participant: DomainParticipantAsync,
 }
 
 impl PublisherAsync {
-    pub(crate) fn new(guid: Guid, participant: DomainParticipantAsync) -> Self {
-        Self { guid, participant }
-    }
-
-    pub(crate) fn guid(&self) -> Guid {
-        self.guid
+    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync) -> Self {
+        Self {
+            handle,
+            participant,
+        }
     }
 
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
@@ -60,7 +58,7 @@ impl PublisherAsync {
         let guid = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::CreateUserDefinedDataWriter {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
                 topic_name,
                 qos,
                 a_listener: listener,
@@ -80,7 +78,7 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedDataWriter {
-                guid: a_datawriter.guid(),
+                handle: a_datawriter.get_instance_handle().await,
             })?
             .receive_reply()
             .await
@@ -94,7 +92,7 @@ impl PublisherAsync {
     ) -> DdsResult<Option<DataWriterAsync<Foo>>> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::LookupDataWriter {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
                 topic_name: topic_name.to_string(),
             })?
             .receive_reply()
@@ -143,7 +141,7 @@ impl PublisherAsync {
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::DeletePublisherContainedEntities {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -154,7 +152,7 @@ impl PublisherAsync {
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetDefaultDataWriterQos {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
                 qos,
             })?
             .receive_reply()
@@ -166,7 +164,7 @@ impl PublisherAsync {
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetDefaultDataWriterQos {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -189,7 +187,7 @@ impl PublisherAsync {
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetPublisherQos {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
                 qos,
             })?
             .receive_reply()
@@ -201,7 +199,7 @@ impl PublisherAsync {
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetPublisherQos {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -216,7 +214,7 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetPublisherListener {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
                 a_listener,
                 mask: mask.to_vec(),
             })?
@@ -227,7 +225,7 @@ impl PublisherAsync {
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address().clone(), self.guid.clone())
+        StatusConditionAsync::new(self.participant_address().clone(), self.handle)
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).
@@ -241,7 +239,7 @@ impl PublisherAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::EnablePublisher {
-                publisher_guid: self.guid,
+                publisher_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -249,12 +247,7 @@ impl PublisherAsync {
 
     /// Async version of [`get_instance_handle`](crate::publication::publisher::Publisher::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetPublisherInstanceHandle {
-                publisher_guid: self.guid,
-            })?
-            .receive_reply()
-            .await
+    pub async fn get_instance_handle(&self) -> InstanceHandle {
+        self.handle
     }
 }

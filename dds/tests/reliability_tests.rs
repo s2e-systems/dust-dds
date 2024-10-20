@@ -133,7 +133,7 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -318,7 +318,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -524,7 +524,7 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -737,7 +737,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -922,7 +922,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -1113,7 +1113,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();

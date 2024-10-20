@@ -20,14 +20,13 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    rtps::types::Guid,
     topic_definition::type_support::DdsSerialize,
 };
 use std::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
-    guid: Guid,
+    handle: InstanceHandle,
     publisher: PublisherAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -36,7 +35,7 @@ pub struct DataWriterAsync<Foo> {
 impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
-            guid: self.guid,
+            handle: self.handle,
             publisher: self.publisher.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -45,17 +44,17 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 }
 
 impl<Foo> DataWriterAsync<Foo> {
-    pub(crate) fn new(guid: Guid, publisher: PublisherAsync, topic: TopicAsync) -> Self {
+    pub(crate) fn new(
+        handle: InstanceHandle,
+        publisher: PublisherAsync,
+        topic: TopicAsync,
+    ) -> Self {
         Self {
-            guid,
+            handle,
             publisher,
             topic,
             phantom: PhantomData,
         }
-    }
-
-    pub(crate) fn guid(&self) -> Guid {
-        self.guid
     }
 
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
@@ -88,8 +87,8 @@ where
     ) -> DdsResult<Option<InstanceHandle>> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::RegisterInstance {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -121,8 +120,8 @@ where
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::UnregisterInstance {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -143,8 +142,8 @@ where
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::LookupInstance {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -171,8 +170,8 @@ where
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::Write {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -199,8 +198,8 @@ where
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::Dispose {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -213,8 +212,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::WaitForAcknowledgments {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -233,8 +232,8 @@ impl<Foo> DataWriterAsync<Foo> {
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetOfferedDeadlineMissedStatus {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -253,8 +252,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetPublicationMatchedStatus {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -286,8 +285,8 @@ impl<Foo> DataWriterAsync<Foo> {
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetMatchedSubscriptionData {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
                 subscription_handle,
             })?
             .receive_reply()
@@ -299,8 +298,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetMatchedSubscriptions {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -313,8 +312,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetDataWriterQos {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
                 qos,
             })?
             .receive_reply()
@@ -326,8 +325,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::GetDataWriterQos {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -336,7 +335,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address().clone(), self.guid)
+        StatusConditionAsync::new(self.participant_address().clone(), self.handle)
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).
@@ -350,8 +349,8 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::EnableDataWriter {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
             })?
             .receive_reply()
             .await
@@ -359,14 +358,8 @@ impl<Foo> DataWriterAsync<Foo> {
 
     /// Async version of [`get_instance_handle`](crate::publication::data_writer::DataWriter::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetDataWriterInstanceHandle {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
-            })?
-            .receive_reply()
-            .await
+    pub async fn get_instance_handle(&self) -> InstanceHandle {
+        self.handle
     }
 }
 impl<'a, Foo> DataWriterAsync<Foo>
@@ -382,8 +375,8 @@ where
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::SetDataWriterListener {
-                publisher_guid: self.publisher.guid(),
-                data_writer_guid: self.guid,
+                publisher_handle: self.publisher.get_instance_handle().await,
+                data_writer_handle: self.handle,
                 a_listener: todo!(),
                 status_kind: mask.to_vec(),
             })?

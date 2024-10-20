@@ -460,10 +460,8 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_writer(
-        &mut self,
-        writer_guid: Guid,
-    ) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
+    pub fn create_writer(&mut self) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
+        let writer_guid = todo!();
         let socket = self
             .sender_socket
             .try_clone()
@@ -489,9 +487,19 @@ impl RtpsParticipant {
 
     pub fn create_reader(
         &mut self,
-        reader_guid: Guid,
         reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
     ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
+        // let subscriber_guid = self.rtps_group.guid();
+        // let entity_kind = match has_key {
+        //     true => USER_DEFINED_READER_WITH_KEY,
+        //     false => USER_DEFINED_READER_NO_KEY,
+        // };
+        // let entity_key: [u8; 3] = [
+        //     subscriber_guid.entity_id().entity_key()[0],
+        //     data_reader_counter,
+        //     0,
+        // ];
+        let reader_guid = todo!();
         let socket = self
             .sender_socket
             .try_clone()

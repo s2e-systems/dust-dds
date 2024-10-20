@@ -133,7 +133,7 @@ impl Topic {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         block_on(self.topic_async.get_instance_handle())
     }
 

@@ -299,7 +299,6 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) partition: PartitionQosPolicy,
     pub(crate) topic_data: TopicDataQosPolicy,
     pub(crate) group_data: GroupDataQosPolicy,
-    pub(crate) xml_type: String,
     pub(crate) representation: DataRepresentationQosPolicy,
 }
 
@@ -387,12 +386,6 @@ impl SubscriptionBuiltinTopicData {
     /// Get the group data QoS policy of the discovered reader.
     pub fn group_data(&self) -> &GroupDataQosPolicy {
         &self.group_data
-    }
-
-    /// Get the XML type representation of the discovered reader.
-    /// Note: This is only available if matched with a DustDDS writer which transmits this information as part of the discovery.
-    pub fn xml_type(&self) -> &str {
-        &self.xml_type
     }
 
     /// Get the data representation QoS policy of the discovered reader.

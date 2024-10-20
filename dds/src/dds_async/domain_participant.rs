@@ -28,16 +28,19 @@ use std::sync::Arc;
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
     domain_id: DomainId,
+    handle: InstanceHandle,
 }
 
 impl DomainParticipantAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
         domain_id: DomainId,
+        handle: InstanceHandle,
     ) -> Self {
         Self {
             participant_address,
             domain_id,
+            handle,
         }
     }
 
@@ -74,7 +77,7 @@ impl DomainParticipantAsync {
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         self.participant_address
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
-                guid: a_publisher.guid(),
+                handle: a_publisher.get_instance_handle().await,
             })?
             .receive_reply()
             .await
@@ -107,7 +110,7 @@ impl DomainParticipantAsync {
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         self.participant_address
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
-                guid: a_subscriber.guid(),
+                handle: a_subscriber.get_instance_handle().await,
             })?
             .receive_reply()
             .await
@@ -236,7 +239,7 @@ impl DomainParticipantAsync {
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        if let Some((type_name, guid)) = self
+        if let Some((type_name, topic_handle)) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
@@ -245,7 +248,7 @@ impl DomainParticipantAsync {
             .await?
         {
             Ok(Some(TopicAsync::new(
-                guid,
+                topic_handle,
                 type_name,
                 topic_name.to_owned(),
                 self.clone(),
@@ -468,7 +471,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address.clone(), todo!())
+        StatusConditionAsync::new(self.participant_address.clone(), self.handle)
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).
@@ -488,10 +491,7 @@ impl DomainParticipantAsync {
 
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).
     #[tracing::instrument(skip(self))]
-    pub async fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDomainParticipantInstanceHandle)?
-            .receive_reply()
-            .await
+    pub async fn get_instance_handle(&self) -> InstanceHandle {
+        self.handle
     }
 }
