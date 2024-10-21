@@ -1,4 +1,6 @@
-use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy;
+use crate::implementation::data_representation_builtin_endpoints::{
+    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+};
 
 use super::{
     behavior_types::Duration,
@@ -39,6 +41,8 @@ pub trait TransportWriter {
     fn delete_matched_reader(&mut self, reader_guid: Guid);
 
     fn are_all_changes_acknowledged(&self) -> bool;
+
+    fn writer_proxy(&self) -> WriterProxy;
 }
 
 pub struct RtpsStatefulWriter {
@@ -240,7 +244,6 @@ fn send_message_to_reader_proxy_best_effort(
                     };
                     let non_standard_payload_flag = false;
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    let writer_id = cache_change.writer_guid().entity_id();
                     let writer_sn = cache_change.sequence_number();
                     let fragment_starting_num = (frag_index + 1) as u32;
                     let fragments_in_submessage = 1;
@@ -288,9 +291,11 @@ fn send_message_to_reader_proxy_best_effort(
                     Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
                 };
 
-                let data_submessage = Box::new(
-                    cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
-                );
+                let data_submessage =
+                    Box::new(cache_change.as_data_submessage(
+                        reader_proxy.remote_reader_guid().entity_id(),
+                        writer_id,
+                    ));
 
                 message_sender.write_message(
                     &[info_dst, info_timestamp, data_submessage],
@@ -446,7 +451,6 @@ fn send_change_message_reader_proxy_reliable(
                     };
                     let non_standard_payload_flag = false;
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    let writer_id = cache_change.writer_guid().entity_id();
                     let writer_sn = cache_change.sequence_number();
                     let fragment_starting_num = (frag_index + 1) as u32;
                     let fragments_in_submessage = 1;
@@ -494,9 +498,11 @@ fn send_change_message_reader_proxy_reliable(
                     Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
                 };
 
-                let data_submessage = Box::new(
-                    cache_change.as_data_submessage(reader_proxy.remote_reader_guid().entity_id()),
-                );
+                let data_submessage =
+                    Box::new(cache_change.as_data_submessage(
+                        reader_proxy.remote_reader_guid().entity_id(),
+                        writer_id,
+                    ));
 
                 let first_sn = seq_num_min.unwrap_or(1);
                 let last_sn = seq_num_max.unwrap_or(0);
@@ -580,6 +586,16 @@ impl TransportWriter for RtpsStatefulWriter {
             .iter()
             .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
             .any(|rp| rp.unacked_changes(max_seq_num))
+    }
+
+    fn writer_proxy(&self) -> WriterProxy {
+        WriterProxy {
+            remote_writer_guid: self.guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            data_max_size_serialized: Default::default(),
+        }
     }
 }
 

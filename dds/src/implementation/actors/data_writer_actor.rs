@@ -1,5 +1,6 @@
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
+    handle::DataWriterHandle,
     status_condition_actor::StatusConditionActor,
 };
 use crate::{
@@ -237,7 +238,7 @@ impl DataWriterListenerThread {
 
 pub struct DataWriterActor {
     transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
-    guid: Guid,
+    data_writer_handle: DataWriterHandle,
     topic_name: String,
     type_name: String,
     matched_subscriptions: MatchedSubscriptions,
@@ -259,7 +260,7 @@ impl DataWriterActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
-        guid: Guid,
+        data_writer_handle: DataWriterHandle,
         topic_name: String,
         type_name: String,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
@@ -271,7 +272,7 @@ impl DataWriterActor {
 
         DataWriterActor {
             transport_writer,
-            guid,
+            data_writer_handle,
             topic_name,
             type_name,
             matched_subscriptions: MatchedSubscriptions::new(),
@@ -290,16 +291,12 @@ impl DataWriterActor {
         }
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.guid.into())
+    pub fn get_handle(&self) -> DataWriterHandle {
+        self.data_writer_handle
     }
 
     pub fn enable(&mut self) {
         self.enabled = true;
-    }
-
-    pub fn get_guid(&self) -> Guid {
-        self.guid
     }
 
     fn on_publication_matched(
@@ -642,6 +639,10 @@ impl DataWriterActor {
         timestamp: Time,
         type_support: &dyn DynamicType,
     ) -> DdsResult<()> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.last_change_sequence_number += 1;
 
         let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support)?;
@@ -651,7 +652,6 @@ impl DataWriterActor {
 
         let change = RtpsCacheChange {
             kind: ChangeKind::Alive,
-            writer_guid: self.guid,
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             data_value: serialized_data.into(),
@@ -663,9 +663,7 @@ impl DataWriterActor {
 
     pub fn add_matched_reader(
         &mut self,
-        discovered_reader_data: DiscoveredReaderData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
+        discovered_reader_data: &DiscoveredReaderData,
         publisher_qos: &PublisherQos,
     ) {
         let type_name = self.type_name.clone();
@@ -697,63 +695,6 @@ impl DataWriterActor {
                     .value,
             );
             if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list = if discovered_reader_data
-                    .reader_proxy()
-                    .unicast_locator_list
-                    .is_empty()
-                {
-                    default_unicast_locator_list
-                } else {
-                    discovered_reader_data
-                        .reader_proxy()
-                        .unicast_locator_list
-                        .to_vec()
-                };
-
-                let multicast_locator_list = if discovered_reader_data
-                    .reader_proxy()
-                    .multicast_locator_list
-                    .is_empty()
-                {
-                    default_multicast_locator_list
-                } else {
-                    discovered_reader_data
-                        .reader_proxy()
-                        .multicast_locator_list
-                        .to_vec()
-                };
-
-                let proxy_reliability = match discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .reliability()
-                    .kind
-                {
-                    ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                };
-
-                let first_relevant_sample_seq_num = match discovered_reader_data
-                    .subscription_builtin_topic_data()
-                    .durability()
-                    .kind
-                {
-                    DurabilityQosPolicyKind::Volatile => self.max_seq_num.unwrap_or(0),
-                    DurabilityQosPolicyKind::TransientLocal
-                    | DurabilityQosPolicyKind::Transient
-                    | DurabilityQosPolicyKind::Persistent => 0,
-                };
-
-                let reader_proxy = RtpsReaderProxy::new(
-                    discovered_reader_data.reader_proxy().remote_reader_guid,
-                    discovered_reader_data.reader_proxy().remote_group_entity_id,
-                    &unicast_locator_list,
-                    &multicast_locator_list,
-                    discovered_reader_data.reader_proxy().expects_inline_qos,
-                    true,
-                    proxy_reliability,
-                    first_relevant_sample_seq_num,
-                );
-
                 if !self
                     .matched_subscriptions
                     .get_matched_subscriptions()
@@ -816,22 +757,18 @@ impl DataWriterActor {
         &self,
         publisher_qos: &PublisherQos,
         topic_qos: &TopicQos,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        xml_type: String,
     ) -> DiscoveredWriterData {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let writer_qos = &self.qos;
+        let writer_proxy = self.transport_writer.lock().unwrap().writer_proxy();
 
         DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: self.guid.into(),
+                    value: writer_proxy.remote_writer_guid.into(),
                 },
-                participant_key: BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
-                },
+                participant_key: BuiltInTopicKey { value: [0; 16] },
                 topic_name,
                 type_name,
                 durability: writer_qos.durability.clone(),
@@ -848,16 +785,9 @@ impl DataWriterActor {
                 partition: publisher_qos.partition.clone(),
                 topic_data: topic_qos.topic_data.clone(),
                 group_data: publisher_qos.group_data.clone(),
-                xml_type: xml_type,
                 representation: writer_qos.representation.clone(),
             },
-            writer_proxy: WriterProxy {
-                remote_writer_guid: self.guid,
-                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
-                unicast_locator_list: default_unicast_locator_list,
-                multicast_locator_list: default_multicast_locator_list,
-                data_max_size_serialized: Default::default(),
-            },
+            writer_proxy,
         }
     }
 

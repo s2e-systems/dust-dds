@@ -25,7 +25,7 @@ use crate::{
         },
         participant::RtpsParticipant,
         reader::{ReaderCacheChange, ReaderHistoryCache},
-        types::{Guid, GuidPrefix, ENTITYID_PARTICIPANT},
+        types::{Guid, GuidPrefix},
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -143,7 +143,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let domain_participant = DomainParticipantActor::new(
             participant_handle,
-            Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             message.domain_id,
             self.configuration.domain_tag().to_string(),
             domain_participant_qos,
@@ -264,6 +263,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             InstanceHandle::new(participant_guid.into()),
             participant_actor,
         );
+
         Ok((participant_address, participant_handle.into()))
     }
 }

@@ -1,4 +1,6 @@
-use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy;
+use crate::implementation::data_representation_builtin_endpoints::{
+    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+};
 
 use super::{
     cache_change::RtpsCacheChange,
@@ -55,8 +57,10 @@ impl RtpsStatelessWriter {
                     if let Some(timestamp) = cache_change.source_timestamp() {
                         let info_ts_submessage =
                             Box::new(InfoTimestampSubmessage::new(false, timestamp));
-                        let data_submessage =
-                            Box::new(cache_change.as_data_submessage(ENTITYID_UNKNOWN));
+                        let data_submessage = Box::new(
+                            cache_change
+                                .as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id()),
+                        );
 
                         self.message_sender.write_message(
                             &[info_ts_submessage, data_submessage],
@@ -104,7 +108,17 @@ impl TransportWriter for RtpsStatelessWriter {
     }
 
     fn are_all_changes_acknowledged(&self) -> bool {
-        todo!()
+        true
+    }
+
+    fn writer_proxy(&self) -> WriterProxy {
+        WriterProxy {
+            remote_writer_guid: self.guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            data_max_size_serialized: Default::default(),
+        }
     }
 }
 

@@ -172,7 +172,6 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) partition: PartitionQosPolicy,
     pub(crate) topic_data: TopicDataQosPolicy,
     pub(crate) group_data: GroupDataQosPolicy,
-    pub(crate) xml_type: String,
     pub(crate) representation: DataRepresentationQosPolicy,
 }
 
@@ -265,12 +264,6 @@ impl PublicationBuiltinTopicData {
     /// Get the group data QoS policy of the discovered writer.
     pub fn group_data(&self) -> &GroupDataQosPolicy {
         &self.group_data
-    }
-
-    /// Get the XML type representation of the discovered writer.
-    /// Note: This is only available if matched with a Dust DDS reader which transmits this information as part of the discovery.
-    pub fn xml_type(&self) -> &str {
-        &self.xml_type
     }
 
     /// Get the data representation QoS policy of the discovered writer.

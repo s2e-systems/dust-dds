@@ -1,6 +1,9 @@
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
-    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
+    any_data_writer_listener::AnyDataWriterListener,
+    data_writer_actor::DataWriterActor,
+    handle::{DataWriterHandle, PublisherHandle},
+    status_condition_actor::StatusConditionActor,
+    topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -21,13 +24,7 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
     },
-    rtps::{
-        group::RtpsGroup,
-        participant::RtpsParticipant,
-        types::{
-            EntityId, Guid, Locator, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-        },
-    },
+    rtps::{participant::RtpsParticipant, stateful_writer::TransportWriter, types::TopicKind},
 };
 use fnmatch_regex::glob_to_regex;
 use std::{
@@ -110,11 +107,11 @@ impl PublisherListenerThread {
 
 pub struct PublisherActor {
     qos: PublisherQos,
-    guid: Guid,
+    publisher_handle: PublisherHandle,
     transport: Arc<Mutex<RtpsParticipant>>,
     data_writer_list: HashMap<InstanceHandle, DataWriterActor>,
     enabled: bool,
-    user_defined_data_writer_counter: u8,
+    data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
     publisher_listener_thread: Option<PublisherListenerThread>,
     status_kind: Vec<StatusKind>,
@@ -124,35 +121,24 @@ pub struct PublisherActor {
 impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
-        guid: Guid,
         transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
-        data_writer_list: Vec<DataWriterActor>,
+        publisher_handle: PublisherHandle,
     ) -> Self {
-        let data_writer_list = data_writer_list
-            .into_iter()
-            .map(|dw| (dw.get_instance_handle(), dw))
-            .collect();
         let publisher_listener_thread = listener.map(PublisherListenerThread::new);
         Self {
             qos,
             transport,
-            guid,
-            data_writer_list,
+            publisher_handle,
+            data_writer_list: HashMap::new(),
             enabled: false,
-            user_defined_data_writer_counter: 0,
+            data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
             publisher_listener_thread,
             status_kind,
             status_condition: StatusConditionActor::default(),
         }
-    }
-
-    fn get_unique_writer_id(&mut self) -> u8 {
-        let counter = self.user_defined_data_writer_counter;
-        self.user_defined_data_writer_counter += 1;
-        counter
     }
 
     fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
@@ -210,7 +196,8 @@ impl PublisherActor {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
-    ) -> DdsResult<Guid> {
+        transport_writer: Option<Arc<Mutex<dyn TransportWriter + Send + Sync>>>,
+    ) -> DdsResult<InstanceHandle> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -219,41 +206,35 @@ impl PublisherActor {
             }
         };
 
-        let guid_prefix = self.guid.prefix();
+        let counter = self.data_writer_counter;
+        self.data_writer_counter += 1;
+        let data_writer_handle =
+            DataWriterHandle::new(self.publisher_handle, a_topic.get_handle(), counter);
+
         let topic_name = a_topic.get_name().to_string();
         let type_name = a_topic.get_type_name().to_string();
         let type_support = a_topic.get_type_support();
-        let has_key = {
-            let mut has_key = false;
+        let topic_kind = {
+            let mut topic_kind = TopicKind::NoKey;
             for index in 0..type_support.get_member_count() {
                 if type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
                     .is_key
                 {
-                    has_key = true;
+                    topic_kind = TopicKind::WithKey;
                     break;
                 }
             }
-            has_key
+            topic_kind
         };
-        let entity_kind = match has_key {
-            true => USER_DEFINED_WRITER_WITH_KEY,
-            false => USER_DEFINED_WRITER_NO_KEY,
-        };
-        let entity_key = [
-            self.guid.entity_id().entity_key()[0],
-            self.get_unique_writer_id(),
-            0,
-        ];
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = Guid::new(guid_prefix, entity_id);
 
-        let rtps_writer_impl = self.transport.lock().unwrap().create_writer();
+        let transport_writer =
+            transport_writer.unwrap_or(self.transport.lock().unwrap().create_writer(topic_kind));
 
         let data_writer = DataWriterActor::new(
-            rtps_writer_impl,
-            guid,
+            transport_writer,
+            data_writer_handle,
             topic_name,
             type_name,
             a_listener,
@@ -262,21 +243,17 @@ impl PublisherActor {
         );
 
         self.data_writer_list
-            .insert(InstanceHandle::new(guid.into()), data_writer);
+            .insert(data_writer_handle.into(), data_writer);
 
-        Ok(guid)
+        Ok(data_writer_handle.into())
     }
 
-    pub fn get_datawriter_by_guid(&self, datawriter_guid: Guid) -> &DataWriterActor {
-        self.data_writer_list
-            .get(&InstanceHandle::new(datawriter_guid.into()))
-            .expect("Must exist")
+    pub fn get_datawriter(&self, handle: &InstanceHandle) -> &DataWriterActor {
+        self.data_writer_list.get(handle).expect("Must exist")
     }
 
-    pub fn get_mut_datawriter_by_guid(&mut self, datawriter_guid: Guid) -> &mut DataWriterActor {
-        self.data_writer_list
-            .get_mut(&InstanceHandle::new(datawriter_guid.into()))
-            .expect("Must exist")
+    pub fn get_mut_datawriter(&mut self, handle: &InstanceHandle) -> &mut DataWriterActor {
+        self.data_writer_list.get_mut(&handle).expect("Must exist")
     }
 
     pub fn lookup_datawriter_by_topic_name(
@@ -299,12 +276,7 @@ impl PublisherActor {
         &self.qos
     }
 
-    pub fn add_matched_reader(
-        &mut self,
-        discovered_reader_data: DiscoveredReaderData,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-    ) {
+    pub fn add_matched_reader(&mut self, discovered_reader_data: &DiscoveredReaderData) {
         if self.is_partition_matched(
             discovered_reader_data
                 .subscription_builtin_topic_data()
@@ -316,18 +288,9 @@ impl PublisherActor {
                         .subscription_builtin_topic_data()
                         .topic_name()
             }) {
-                dw.add_matched_reader(
-                    discovered_reader_data,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    &self.qos,
-                );
+                dw.add_matched_reader(discovered_reader_data, &self.qos);
             }
         }
-    }
-
-    pub fn get_guid(&self) -> Guid {
-        self.guid
     }
 
     pub fn is_empty(&self) -> bool {
@@ -369,8 +332,8 @@ impl PublisherActor {
         &self.default_datawriter_qos
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.guid.into())
+    pub fn get_handle(&self) -> PublisherHandle {
+        self.publisher_handle
     }
 
     pub fn get_status_kind(&self) -> Vec<StatusKind> {

@@ -24,8 +24,10 @@ use super::{
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
-        Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-        LOCATOR_KIND_UDP_V4, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
+        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, TopicKind, VendorId,
+        ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION_2_4, USER_DEFINED_READER_NO_KEY,
+        USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+        VENDOR_ID_S2E,
     },
 };
 
@@ -119,6 +121,7 @@ pub struct RtpsParticipant {
     user_defined_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
     user_defined_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulReader>>>>>,
     sender_socket: UdpSocket,
+    endpoint_counter: u8,
 }
 
 impl RtpsParticipant {
@@ -306,6 +309,7 @@ impl RtpsParticipant {
             user_defined_writer_list,
             user_defined_reader_list,
             sender_socket,
+            endpoint_counter: 0,
         })
     }
 
@@ -460,8 +464,20 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_writer(&mut self) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
-        let writer_guid = todo!();
+    pub fn create_writer(
+        &mut self,
+        topic_kind: TopicKind,
+    ) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
+            TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
+        };
+        self.endpoint_counter += 1;
+        let data_writer_counter = self.endpoint_counter;
+        let entity_key: [u8; 3] = [0, 0, data_writer_counter];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let writer_guid = Guid::new(self.guid().prefix(), entity_id);
+
         let socket = self
             .sender_socket
             .try_clone()
@@ -487,19 +503,19 @@ impl RtpsParticipant {
 
     pub fn create_reader(
         &mut self,
+        topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
     ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
         // let subscriber_guid = self.rtps_group.guid();
-        // let entity_kind = match has_key {
-        //     true => USER_DEFINED_READER_WITH_KEY,
-        //     false => USER_DEFINED_READER_NO_KEY,
-        // };
-        // let entity_key: [u8; 3] = [
-        //     subscriber_guid.entity_id().entity_key()[0],
-        //     data_reader_counter,
-        //     0,
-        // ];
-        let reader_guid = todo!();
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
+            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
+        };
+        self.endpoint_counter += 1;
+        let data_reader_counter = self.endpoint_counter;
+        let entity_key: [u8; 3] = [0, data_reader_counter, 0];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let reader_guid = Guid::new(self.guid().prefix(), entity_id);
         let socket = self
             .sender_socket
             .try_clone()

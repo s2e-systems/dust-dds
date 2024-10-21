@@ -7,7 +7,7 @@ use super::{
         submessages::{data::DataSubmessage, gap::GapSubmessage, heartbeat::HeartbeatSubmessage},
     },
     types::{
-        ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+        DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
         ENTITYID_UNKNOWN,
     },
     writer_proxy::RtpsWriterProxy,

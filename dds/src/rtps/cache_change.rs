@@ -4,13 +4,12 @@ use super::{
         submessage_elements::{Data, ParameterList},
         submessages::data::DataSubmessage,
     },
-    types::{ChangeKind, EntityId, Guid, SequenceNumber},
+    types::{ChangeKind, EntityId, SequenceNumber},
 };
 
 #[derive(Debug)]
 pub struct RtpsCacheChange {
     pub kind: ChangeKind,
-    pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
     pub source_timestamp: Option<messages::types::Time>,
     pub data_value: Data,
@@ -20,10 +19,6 @@ pub struct RtpsCacheChange {
 impl RtpsCacheChange {
     pub fn kind(&self) -> ChangeKind {
         self.kind
-    }
-
-    pub fn writer_guid(&self) -> Guid {
-        self.writer_guid
     }
 
     pub fn sequence_number(&self) -> SequenceNumber {
@@ -44,7 +39,7 @@ impl RtpsCacheChange {
 }
 
 impl RtpsCacheChange {
-    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessage {
+    pub fn as_data_submessage(&self, reader_id: EntityId, writer_id: EntityId) -> DataSubmessage {
         let (data_flag, key_flag) = match self.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
             ChangeKind::NotAliveDisposed
@@ -58,7 +53,7 @@ impl RtpsCacheChange {
             key_flag,
             false,
             reader_id,
-            self.writer_guid.entity_id(),
+            writer_id,
             self.sequence_number,
             self.inline_qos.clone(),
             self.data_value.clone(),

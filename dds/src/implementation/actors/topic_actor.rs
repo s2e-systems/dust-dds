@@ -15,7 +15,6 @@ use crate::{
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
-    rtps::types::Guid,
     xtypes::dynamic_type::DynamicType,
 };
 use std::{sync::Arc, thread::JoinHandle};
@@ -76,7 +75,6 @@ impl TopicListenerThread {
 }
 
 pub struct TopicActor {
-    guid: Guid,
     qos: TopicQos,
     type_name: String,
     topic_name: String,
@@ -91,7 +89,6 @@ pub struct TopicActor {
 
 impl TopicActor {
     pub fn new(
-        guid: Guid,
         qos: TopicQos,
         type_name: String,
         topic_name: &str,
@@ -103,7 +100,6 @@ impl TopicActor {
         let topic_listener_thread = listener.map(TopicListenerThread::new);
 
         Self {
-            guid,
             qos,
             type_name,
             topic_name: topic_name.to_string(),
@@ -167,7 +163,7 @@ impl TopicActor {
         DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: self.guid.into(),
+                    value: InstanceHandle::from(self.topic_handle).into(),
                 },
                 name: self.topic_name.to_string(),
                 type_name: self.type_name.to_string(),
@@ -188,7 +184,7 @@ impl TopicActor {
         }
     }
 
-    fn process_discovered_topic(&mut self, discovered_topic_data: DiscoveredTopicData) {
+    pub fn process_discovered_topic(&mut self, discovered_topic_data: &DiscoveredTopicData) {
         if discovered_topic_data
             .topic_builtin_topic_data
             .get_type_name()

@@ -31,7 +31,9 @@ use crate::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-        types::{EntityId, Guid, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY},
+        types::{
+            EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
+        },
     },
 };
 use fnmatch_regex::glob_to_regex;
@@ -132,7 +134,6 @@ impl SubscriberListenerThread {
 pub struct SubscriberActor {
     subscriber_handle: SubscriberHandle,
     qos: SubscriberQos,
-    rtps_group: RtpsGroup,
     transport: Arc<Mutex<RtpsParticipant>>,
     data_reader_list: HashMap<InstanceHandle, DataReaderActor>,
     enabled: bool,
@@ -146,7 +147,6 @@ pub struct SubscriberActor {
 impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
-        rtps_group: RtpsGroup,
         transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         subscriber_status_kind: Vec<StatusKind>,
@@ -158,7 +158,6 @@ impl SubscriberActor {
         SubscriberActor {
             subscriber_handle,
             qos,
-            rtps_group,
             transport,
             data_reader_list: HashMap::new(),
             enabled: false,
@@ -273,15 +272,30 @@ impl SubscriberActor {
             a_topic.get_handle(),
             data_reader_counter,
         );
+        let topic_kind = {
+            let mut topic_kind = TopicKind::NoKey;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    topic_kind = TopicKind::WithKey;
+                    break;
+                }
+            }
+            topic_kind
+        };
 
         let transport_reader =
-            transport_reader.unwrap_or(self.transport.lock().unwrap().create_reader(Box::new(
-                UserDefinedReaderHistoryCache {
+            transport_reader.unwrap_or(self.transport.lock().unwrap().create_reader(
+                topic_kind,
+                Box::new(UserDefinedReaderHistoryCache {
                     domain_participant_address,
                     data_reader_handle: data_reader_handle.into(),
                     subscriber_handle: self.subscriber_handle.into(),
-                },
-            )));
+                }),
+            ));
 
         let listener = None;
         let data_reader_status_kind = mask.to_vec();
@@ -311,12 +325,21 @@ impl SubscriberActor {
         &self.qos
     }
 
-    pub fn add_matched_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
+    pub fn lookup_datareader_by_topic_name(
+        &mut self,
+        topic_name: &str,
+    ) -> Option<&mut DataReaderActor> {
+        self.data_reader_list
+            .values_mut()
+            .find(|dw| dw.get_topic_name() == topic_name)
+    }
+
+    pub fn add_matched_writer(&mut self, discovered_writer_data: &DiscoveredWriterData) {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data.partition()) {
             if let Some(dr) = self.data_reader_list.values_mut().find(|dr| {
                 dr.get_topic_name() == discovered_writer_data.dds_publication_data.topic_name()
             }) {
-                dr.add_matched_writer(discovered_writer_data, &self.qos);
+                dr.add_matched_writer(&discovered_writer_data, &self.qos);
             }
         }
     }
@@ -338,10 +361,6 @@ impl SubscriberActor {
         //         "Data reader can only be deleted from its parent subscriber".to_string(),
         //     ))
         // }
-    }
-
-    pub fn get_guid(&self) -> Guid {
-        self.rtps_group.guid()
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -369,8 +388,8 @@ impl SubscriberActor {
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.rtps_group.guid().into())
+    pub fn get_handle(&self) -> SubscriberHandle {
+        self.subscriber_handle
     }
 
     pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
@@ -401,14 +420,12 @@ impl SubscriberActor {
         cache_change: ReaderCacheChange,
         reader_instance_handle: InstanceHandle,
     ) {
-        // if let Some(reader) = self.data_reader_list.get(&message.reader_instance_handle) {
-        //     reader.send_actor_mail(data_reader_actor::AddChange {
-        //         cache_change: message.cache_change,
-        //     });
-        // }
+        if let Some(reader) = self.data_reader_list.get_mut(&reader_instance_handle) {
+            reader.add_change(cache_change);
 
-        self.status_condition
-            .add_communication_state(StatusKind::DataOnReaders);
+            self.status_condition
+                .add_communication_state(StatusKind::DataOnReaders);
+        }
     }
 
     pub fn set_listener(

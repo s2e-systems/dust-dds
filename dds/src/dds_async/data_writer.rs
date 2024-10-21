@@ -168,10 +168,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let serialized_data = data.serialize_data()?;
         self.participant_address()
             .send_actor_mail(domain_participant_actor::Write {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                serialized_data,
+                timestamp,
             })?
             .receive_reply()
             .await

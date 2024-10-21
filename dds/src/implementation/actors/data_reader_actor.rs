@@ -398,9 +398,9 @@ impl DataReaderActor {
     pub fn read(
         &mut self,
         max_samples: i32,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
         specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
         if !self.enabled {
@@ -1557,7 +1557,7 @@ impl DataReaderActor {
 
     pub fn add_matched_writer(
         &mut self,
-        discovered_writer_data: DiscoveredWriterData,
+        discovered_writer_data: &DiscoveredWriterData,
         subscriber_qos: &SubscriberQos,
     ) {
         let type_name = self.type_name.clone();
@@ -1592,7 +1592,7 @@ impl DataReaderActor {
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
                 self.transport_reader.lock().unwrap().add_matched_writer(
-                    discovered_writer_data.writer_proxy,
+                    discovered_writer_data.writer_proxy.clone(),
                     reliability_kind,
                     durability_kind,
                 );
@@ -1741,9 +1741,9 @@ impl DataReaderActor {
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
-        sample_states: Vec<SampleStateKind>,
-        view_states: Vec<ViewStateKind>,
-        instance_states: Vec<InstanceStateKind>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
