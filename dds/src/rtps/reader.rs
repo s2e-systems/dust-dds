@@ -7,21 +7,85 @@ use super::{
         submessages::{data::DataSubmessage, gap::GapSubmessage, heartbeat::HeartbeatSubmessage},
     },
     types::{
-        DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+        ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
         ENTITYID_UNKNOWN,
     },
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::data_representation_builtin_endpoints::{
-    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+use crate::implementation::{
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+    },
+    data_representation_inline_qos::{
+        parameter_id_values::PID_STATUS_INFO,
+        types::{
+            StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
+            STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
+        },
+    },
 };
+use tracing::error;
 
 pub struct ReaderCacheChange {
+    pub kind: ChangeKind,
     pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
     pub source_timestamp: Option<messages::types::Time>,
     pub data_value: Data,
     pub inline_qos: ParameterList,
+}
+
+impl ReaderCacheChange {
+    pub fn try_from_data_submessage(
+        data_submessage: &DataSubmessage,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<messages::types::Time>,
+    ) -> Result<Self, ()> {
+        let kind = match data_submessage
+            .inline_qos()
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+        {
+            Some(p) => {
+                if p.length() == 4 {
+                    let status_info =
+                        StatusInfo([p.value()[0], p.value()[1], p.value()[2], p.value()[3]]);
+                    match status_info {
+                        STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                        STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                        STATUS_INFO_DISPOSED_UNREGISTERED => {
+                            Ok(ChangeKind::NotAliveDisposedUnregistered)
+                        }
+                        STATUS_INFO_FILTERED => Ok(ChangeKind::AliveFiltered),
+                        _ => {
+                            error!(
+                                "Received invalid status info parameter with value {:?}",
+                                status_info
+                            );
+                            Err(())
+                        }
+                    }
+                } else {
+                    error!(
+                        "Received invalid status info parameter length. Expected 4, got {:?}",
+                        p.length()
+                    );
+                    Err(())
+                }
+            }
+            None => Ok(ChangeKind::Alive),
+        }?;
+
+        Ok(ReaderCacheChange {
+            kind,
+            writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
+            source_timestamp: source_timestamp,
+            sequence_number: data_submessage.writer_sn(),
+            data_value: data_submessage.serialized_payload().clone(),
+            inline_qos: data_submessage.inline_qos().clone(),
+        })
+    }
 }
 
 pub trait ReaderHistoryCache {
@@ -92,15 +156,17 @@ impl RtpsStatelessReader {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
             || data_submessage.reader_id() == self.guid.entity_id()
         {
-            // Stateless reader behavior. We add the change if the data is correct. No error is printed
-            // because all readers would get changes marked with ENTITYID_UNKNOWN
-            self.history_cache.add_change(ReaderCacheChange {
-                writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
-                source_timestamp: source_timestamp,
-                sequence_number: data_submessage.writer_sn(),
-                data_value: data_submessage.serialized_payload().clone(),
-                inline_qos: data_submessage.inline_qos().clone(),
-            });
+            if let Ok(change) = ReaderCacheChange::try_from_data_submessage(
+                data_submessage,
+                source_guid_prefix,
+                source_timestamp,
+            ) {
+                // Stateless reader behavior. We add the change if the data is correct. No error is printed
+                // because all readers would get changes marked with ENTITYID_UNKNOWN
+                self.history_cache.add_change(change);
+            } else {
+                error!("Error converting data submessage to reader cache change. Discarding data")
+            }
         }
     }
 }
@@ -219,14 +285,15 @@ impl RtpsStatefulReader {
                             writer_proxy.lost_changes_update(sequence_number);
                         }
 
-                        let cache_change = ReaderCacheChange {
-                            writer_guid,
+                        if let Ok(change) = ReaderCacheChange::try_from_data_submessage(
+                            data_submessage,
+                            source_guid_prefix,
                             source_timestamp,
-                            sequence_number: data_submessage.writer_sn(),
-                            data_value: data_submessage.serialized_payload().clone(),
-                            inline_qos: data_submessage.inline_qos().clone(),
-                        };
-                        self.history_cache.add_change(cache_change);
+                        ) {
+                            self.history_cache.add_change(change);
+                        } else {
+                            error!("Error converting data submessage to reader cache change. Discarding data")
+                        }
                     }
                 }
                 ReliabilityKind::Reliable => {
@@ -234,14 +301,15 @@ impl RtpsStatefulReader {
                     if sequence_number == expected_seq_num {
                         writer_proxy.received_change_set(sequence_number);
 
-                        let cache_change = ReaderCacheChange {
-                            writer_guid,
+                        if let Ok(change) = ReaderCacheChange::try_from_data_submessage(
+                            data_submessage,
+                            source_guid_prefix,
                             source_timestamp,
-                            sequence_number: data_submessage.writer_sn(),
-                            data_value: data_submessage.serialized_payload().clone(),
-                            inline_qos: data_submessage.inline_qos().clone(),
-                        };
-                        self.history_cache.add_change(cache_change);
+                        ) {
+                            self.history_cache.add_change(change);
+                        } else {
+                            error!("Error converting data submessage to reader cache change. Discarding data")
+                        }
                     }
                 }
             }

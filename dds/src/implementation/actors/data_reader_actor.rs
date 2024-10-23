@@ -890,27 +890,8 @@ impl DataReaderActor {
         cache_change: ReaderCacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
-        let change_kind = if let Some(p) = cache_change
-            .inline_qos
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            let mut deserializer = Xcdr1LeDeserializer::new(p.value());
-            let status_info: StatusInfo =
-                XTypesDeserialize::deserialize(&mut deserializer).unwrap();
-            match status_info {
-                STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
-                _ => Err(DdsError::Error("Unknown status info value".to_string())),
-            }
-        } else {
-            Ok(ChangeKind::Alive)
-        }?;
-
         let instance_handle = {
-            match change_kind {
+            match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
                     get_instance_handle_from_serialized_foo(
                         cache_change.data_value.as_ref(),
@@ -945,12 +926,12 @@ impl DataReaderActor {
 
         // Update the state of the instance before creating since this has direct impact on
         // the information that is store on the sample
-        match change_kind {
+        match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 self.instances
                     .entry(instance_handle)
                     .or_insert_with(InstanceState::new)
-                    .update_state(change_kind);
+                    .update_state(cache_change.kind);
                 Ok(())
             }
             ChangeKind::NotAliveDisposed
@@ -958,7 +939,7 @@ impl DataReaderActor {
             | ChangeKind::NotAliveDisposedUnregistered => {
                 match self.instances.get_mut(&instance_handle) {
                     Some(instance) => {
-                        instance.update_state(change_kind);
+                        instance.update_state(cache_change.kind);
                         Ok(())
                     }
                     None => Err(DdsError::Error(
@@ -969,7 +950,7 @@ impl DataReaderActor {
         }?;
 
         Ok(ReaderSample {
-            kind: change_kind,
+            kind: cache_change.kind,
             writer_guid: cache_change.writer_guid,
             instance_handle: instance_handle.into(),
             source_timestamp: cache_change.source_timestamp.map(Into::into),
