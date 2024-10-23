@@ -24,7 +24,7 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
     },
-    rtps::{participant::RtpsParticipant, stateful_writer::TransportWriter, types::TopicKind},
+    rtps::{transport::Transport, stateful_writer::TransportWriter, types::TopicKind},
 };
 use fnmatch_regex::glob_to_regex;
 use std::{
@@ -108,7 +108,6 @@ impl PublisherListenerThread {
 pub struct PublisherActor {
     qos: PublisherQos,
     publisher_handle: PublisherHandle,
-    transport: Arc<Mutex<RtpsParticipant>>,
     data_writer_list: HashMap<InstanceHandle, DataWriterActor>,
     enabled: bool,
     data_writer_counter: u8,
@@ -121,7 +120,6 @@ pub struct PublisherActor {
 impl PublisherActor {
     pub fn new(
         qos: PublisherQos,
-        transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         publisher_handle: PublisherHandle,
@@ -129,7 +127,6 @@ impl PublisherActor {
         let publisher_listener_thread = listener.map(PublisherListenerThread::new);
         Self {
             qos,
-            transport,
             publisher_handle,
             data_writer_list: HashMap::new(),
             enabled: false,
@@ -197,6 +194,7 @@ impl PublisherActor {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
         transport_writer: Option<Arc<Mutex<dyn TransportWriter + Send + Sync>>>,
+        transport: &mut dyn Transport,
     ) -> DdsResult<InstanceHandle> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -230,7 +228,7 @@ impl PublisherActor {
         };
 
         let transport_writer =
-            transport_writer.unwrap_or(self.transport.lock().unwrap().create_writer(topic_kind));
+            transport_writer.unwrap_or(transport.create_user_defined_writer(topic_kind));
 
         let data_writer = DataWriterActor::new(
             transport_writer,
@@ -265,11 +263,8 @@ impl PublisherActor {
             .find(|dw| dw.get_topic_name() == topic_name)
     }
 
-    pub fn enable(&mut self) -> DdsResult<()> {
-        if !self.enabled {
-            self.enabled = true;
-        }
-        Ok(())
+    pub fn enable(&mut self) {
+        self.enabled = true;
     }
 
     pub fn get_qos(&self) -> &PublisherQos {

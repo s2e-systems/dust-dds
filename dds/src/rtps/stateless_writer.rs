@@ -1,8 +1,15 @@
-use crate::implementation::data_representation_builtin_endpoints::{
-    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+use crate::{
+    builtin_topics::ParticipantBuiltinTopicData,
+    implementation::data_representation_builtin_endpoints::{
+        discovered_reader_data::ReaderProxy,
+        discovered_writer_data::WriterProxy,
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+    },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
 };
 
 use super::{
+    behavior_types::Duration,
     cache_change::RtpsCacheChange,
     message_sender::MessageSender,
     messages::{
@@ -19,15 +26,21 @@ pub struct RtpsStatelessWriter {
     changes: Vec<RtpsCacheChange>,
     reader_locators: Vec<RtpsReaderLocator>,
     message_sender: MessageSender,
+    participant_proxy: ParticipantProxy,
 }
 
 impl RtpsStatelessWriter {
-    pub fn new(guid: Guid, message_sender: MessageSender) -> Self {
+    pub fn new(
+        guid: Guid,
+        message_sender: MessageSender,
+        participant_proxy: ParticipantProxy,
+    ) -> Self {
         Self {
             guid,
             changes: Vec::new(),
             reader_locators: Vec::new(),
             message_sender,
+            participant_proxy,
         }
     }
 
@@ -123,7 +136,21 @@ impl TransportWriter for RtpsStatelessWriter {
 }
 
 impl WriterHistoryCache for RtpsStatelessWriter {
-    fn add_change(&mut self, cache_change: RtpsCacheChange) {
+    fn add_change(&mut self, mut cache_change: RtpsCacheChange) {
+        let dds_participant_data =
+            ParticipantBuiltinTopicData::deserialize_data(cache_change.data_value.as_ref())
+                .unwrap();
+        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+            dds_participant_data,
+            participant_proxy: self.participant_proxy.clone(),
+            lease_duration: Duration::new(100, 0).into(),
+            discovered_participant_list: vec![],
+        };
+
+        cache_change.data_value = spdp_discovered_participant_data
+            .serialize_data()
+            .unwrap()
+            .into();
         self.changes.push(cache_change);
         self.send_message();
     }

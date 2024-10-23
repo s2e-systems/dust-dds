@@ -28,7 +28,7 @@ pub trait ReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange);
 }
 
-pub trait TransportReader {
+pub trait TransportReader: Send + Sync {
     fn add_matched_writer(
         &mut self,
         writer_proxy: WriterProxy,

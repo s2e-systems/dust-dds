@@ -28,7 +28,7 @@ pub trait WriterHistoryCache {
     fn remove_change(&mut self, sequence_number: SequenceNumber);
 }
 
-pub trait TransportWriter {
+pub trait TransportWriter: Send + Sync {
     fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache;
 
     fn add_matched_reader(

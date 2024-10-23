@@ -14,19 +14,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    rtps::{
-        discovery_types::{
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-        },
-        participant::RtpsParticipant,
-        reader::{ReaderCacheChange, ReaderHistoryCache},
-        types::{Guid, GuidPrefix},
-    },
+    rtps::{participant::RtpsParticipant, transport::RtpsTransport, types::GuidPrefix},
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
@@ -138,7 +126,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.udp_receive_buffer_size(),
         )?;
         let participant_guid = rtps_participant.guid();
-        let transport = Arc::new(Mutex::new(rtps_participant));
+        let transport = Box::new(RtpsTransport::new(Arc::new(Mutex::new(rtps_participant))));
         let participant_handle = ParticipantHandle::new(self.participant_counter);
 
         let domain_participant = DomainParticipantActor::new(
@@ -150,7 +138,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             message.status_kind,
             executor,
             timer_driver,
-            transport.clone(),
+            transport,
         );
 
         let participant_actor = Actor::spawn(domain_participant, &executor_handle);
@@ -158,83 +146,33 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         participant_actor.send_actor_mail(
             domain_participant_actor::CreateBuiltinParticipantsDetector {
-                transport_reader: transport.lock().unwrap().create_builtin_stateless_reader(
-                    Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
-                    Box::new(SpdpBuiltinReaderHistoryCache {
-                        participant_address: participant_address.clone(),
-                    }),
-                ),
                 domain_participant_address: participant_address.clone(),
             },
         );
 
         participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsDetector {
-            transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
-                Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-                Box::new(SedpBuiltinTopicsReaderHistoryCache {
-                    participant_address: participant_address.clone(),
-                }),
-            ),
             domain_participant_address: participant_address.clone(),
         });
 
         participant_actor.send_actor_mail(
             domain_participant_actor::CreateBuiltinPublicationsDetector {
-                transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
-                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-                    Box::new(SedpBuiltinPublicationsReaderHistoryCache {
-                        participant_address: participant_address.clone(),
-                    }),
-                ),
                 domain_participant_address: participant_address.clone(),
             },
         );
 
         participant_actor.send_actor_mail(
             domain_participant_actor::CreateBuiltinSubscriptionsDetector {
-                transport_reader: transport.lock().unwrap().create_builtin_stateful_reader(
-                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-                    Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
-                        participant_address: participant_address.clone(),
-                    }),
-                ),
                 domain_participant_address: participant_address.clone(),
             },
         );
 
-        participant_actor.send_actor_mail(
-            domain_participant_actor::CreateBuiltinParticipantsAnnouncer {
-                transport_writer: transport.lock().unwrap().create_builtin_stateless_writer(
-                    Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
-                ),
-            },
-        );
-
-        participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsAnnouncer {
-            transport_writer: transport
-                .lock()
-                .unwrap()
-                .create_builtin_stateful_writer(Guid::new(
-                    guid_prefix,
-                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-                )),
-        });
-
-        participant_actor.send_actor_mail(
-            domain_participant_actor::CreateBuiltinPublicationsAnnouncer {
-                transport_writer: transport.lock().unwrap().create_builtin_stateful_writer(
-                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-                ),
-            },
-        );
-
-        participant_actor.send_actor_mail(
-            domain_participant_actor::CreateBuiltinSubscriptionsAnnouncer {
-                transport_writer: transport.lock().unwrap().create_builtin_stateful_writer(
-                    Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-                ),
-            },
-        );
+        participant_actor
+            .send_actor_mail(domain_participant_actor::CreateBuiltinParticipantsAnnouncer);
+        participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsAnnouncer);
+        participant_actor
+            .send_actor_mail(domain_participant_actor::CreateBuiltinPublicationsAnnouncer);
+        participant_actor
+            .send_actor_mail(domain_participant_actor::CreateBuiltinSubscriptionsAnnouncer);
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -381,67 +319,5 @@ impl Mail for GetConfiguration {
 impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
         self.configuration.clone()
-    }
-}
-
-struct SpdpBuiltinReaderHistoryCache {
-    participant_address: ActorAddress<DomainParticipantActor>,
-}
-
-impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinParticipantsDetectorCacheChange {
-                    cache_change,
-                },
-            )
-            .ok();
-    }
-}
-
-struct SedpBuiltinTopicsReaderHistoryCache {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-
-impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinTopicsDetectorCacheChange { cache_change },
-            )
-            .ok();
-    }
-}
-
-struct SedpBuiltinPublicationsReaderHistoryCache {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-
-impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinPublicationsDetectorCacheChange {
-                    cache_change,
-                },
-            )
-            .ok();
-    }
-}
-
-struct SedpBuiltinSubscriptionsReaderHistoryCache {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-}
-
-impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinSubscriptionsDetectorCacheChange {
-                    cache_change,
-                },
-            )
-            .ok();
     }
 }

@@ -28,12 +28,9 @@ use crate::{
         },
     },
     rtps::{
-        group::RtpsGroup,
-        participant::RtpsParticipant,
         reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-        types::{
-            EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-        },
+        transport::Transport,
+        types::TopicKind,
     },
 };
 use fnmatch_regex::glob_to_regex;
@@ -134,7 +131,6 @@ impl SubscriberListenerThread {
 pub struct SubscriberActor {
     subscriber_handle: SubscriberHandle,
     qos: SubscriberQos,
-    transport: Arc<Mutex<RtpsParticipant>>,
     data_reader_list: HashMap<InstanceHandle, DataReaderActor>,
     enabled: bool,
     data_reader_counter: u8,
@@ -147,7 +143,6 @@ pub struct SubscriberActor {
 impl SubscriberActor {
     pub fn new(
         qos: SubscriberQos,
-        transport: Arc<Mutex<RtpsParticipant>>,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         subscriber_status_kind: Vec<StatusKind>,
         subscriber_handle: SubscriberHandle,
@@ -158,7 +153,6 @@ impl SubscriberActor {
         SubscriberActor {
             subscriber_handle,
             qos,
-            transport,
             data_reader_list: HashMap::new(),
             enabled: false,
             data_reader_counter: 0,
@@ -234,6 +228,7 @@ impl SubscriberActor {
         mask: Vec<StatusKind>,
         domain_participant_address: ActorAddress<DomainParticipantActor>,
         transport_reader: Option<Arc<Mutex<dyn TransportReader + Send + Sync>>>,
+        transport: &mut dyn Transport,
     ) -> DdsResult<InstanceHandle> {
         struct UserDefinedReaderHistoryCache {
             pub domain_participant_address: ActorAddress<DomainParticipantActor>,
@@ -287,15 +282,14 @@ impl SubscriberActor {
             topic_kind
         };
 
-        let transport_reader =
-            transport_reader.unwrap_or(self.transport.lock().unwrap().create_reader(
-                topic_kind,
-                Box::new(UserDefinedReaderHistoryCache {
-                    domain_participant_address,
-                    data_reader_handle: data_reader_handle.into(),
-                    subscriber_handle: self.subscriber_handle.into(),
-                }),
-            ));
+        let transport_reader = transport_reader.unwrap_or(transport.create_user_defined_reader(
+            topic_kind,
+            Box::new(UserDefinedReaderHistoryCache {
+                domain_participant_address,
+                data_reader_handle: data_reader_handle.into(),
+                subscriber_handle: self.subscriber_handle.into(),
+            }),
+        ));
 
         let listener = None;
         let data_reader_status_kind = mask.to_vec();

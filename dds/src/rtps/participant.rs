@@ -31,6 +31,7 @@ use super::{
     },
 };
 
+
 const MAX_DATAGRAM_SIZE: usize = 65507;
 
 type LocatorAddress = [u8; 16];
@@ -366,7 +367,8 @@ impl RtpsParticipant {
             .try_clone()
             .expect("Should always be clone");
         let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let mut stateless_writer = RtpsStatelessWriter::new(writer_guid, message_sender);
+        let mut stateless_writer =
+            RtpsStatelessWriter::new(writer_guid, message_sender, self.participant_proxy());
 
         let spdp_discovery_locator_list = [Locator::new(
             LOCATOR_KIND_UDP_V4,

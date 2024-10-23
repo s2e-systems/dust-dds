@@ -14,5 +14,6 @@ pub mod reader_locator;
 pub mod reader_proxy;
 pub mod stateful_writer;
 pub mod stateless_writer;
+pub mod transport;
 pub mod types;
 pub mod writer_proxy;
