@@ -1560,24 +1560,6 @@ impl DataReaderActor {
                     &subscriber_qos,
                 );
             if incompatible_qos_policy_list.is_empty() {
-                let reliability_kind =
-                    match discovered_writer_data.dds_publication_data.reliability.kind {
-                        ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                    };
-                let durability_kind =
-                    match discovered_writer_data.dds_publication_data.durability.kind {
-                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                        DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
-                        DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
-                    };
-                self.transport_reader.lock().unwrap().add_matched_writer(
-                    discovered_writer_data.writer_proxy.clone(),
-                    reliability_kind,
-                    durability_kind,
-                );
-
                 let insert_matched_publication_result = self
                     .matched_publication_list
                     .insert(instance_handle, publication_builtin_topic_data.clone());

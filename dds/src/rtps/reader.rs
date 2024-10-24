@@ -88,7 +88,7 @@ impl ReaderCacheChange {
     }
 }
 
-pub trait ReaderHistoryCache {
+pub trait ReaderHistoryCache: Send + Sync {
     fn add_change(&mut self, cache_change: ReaderCacheChange);
 }
 

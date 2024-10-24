@@ -4,7 +4,7 @@ use crate::{
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
+        actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         actors::domain_participant_actor::DomainParticipantActor,
         runtime::{executor::Executor, timer::TimerDriver},
     },
@@ -14,7 +14,12 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    rtps::{participant::RtpsParticipant, transport::RtpsTransport, types::GuidPrefix},
+    rtps::{
+        participant::RtpsParticipant,
+        reader::{ReaderCacheChange, ReaderHistoryCache},
+        transport::RtpsTransport,
+        types::GuidPrefix,
+    },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{
@@ -319,5 +324,67 @@ impl Mail for GetConfiguration {
 impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     fn handle(&mut self, _: GetConfiguration) -> <GetConfiguration as Mail>::Result {
         self.configuration.clone()
+    }
+}
+
+struct SpdpBuiltinReaderHistoryCache {
+    participant_address: ActorAddress<DomainParticipantActor>,
+}
+
+impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinParticipantsDetectorCacheChange {
+                    cache_change,
+                },
+            )
+            .ok();
+    }
+}
+
+struct SedpBuiltinTopicsReaderHistoryCache {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
+}
+
+impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinTopicsDetectorCacheChange { cache_change },
+            )
+            .ok();
+    }
+}
+
+struct SedpBuiltinSubscriptionsReaderHistoryCache {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
+}
+
+impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinSubscriptionsDetectorCacheChange {
+                    cache_change,
+                },
+            )
+            .ok();
+    }
+}
+
+struct SedpBuiltinPublicationsReaderHistoryCache {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
+}
+
+impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        self.participant_address
+            .send_actor_mail(
+                domain_participant_actor::AddBuiltinPublicationsDetectorCacheChange {
+                    cache_change,
+                },
+            )
+            .ok();
     }
 }

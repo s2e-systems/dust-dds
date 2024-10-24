@@ -14,8 +14,9 @@ use super::{
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     participant::RtpsParticipant,
-    reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
+    reader::{ReaderCacheChange, ReaderHistoryCache, RtpsStatelessReader, TransportReader},
     stateful_writer::TransportWriter,
+    stateless_writer::RtpsStatelessWriter,
     types::{Guid, TopicKind},
 };
 
@@ -67,6 +68,39 @@ pub struct RtpsTransport {
 impl RtpsTransport {
     pub fn new(rtps_participant: Arc<Mutex<RtpsParticipant>>) -> Self {
         Self { rtps_participant }
+    }
+}
+
+pub struct RtpsSepdDiscovery {}
+
+pub struct RtpsSpdpDiscovery {}
+
+impl RtpsSpdpDiscovery {
+    pub fn new() -> Self {
+        // let spdp_builtin_participant_writer = RtpsStatelessWriter::new(
+        //     Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+        //     message_sender,
+        //     self.participant_proxy(),
+        // );
+
+        // let spdp_discovery_locator_list = [Locator::new(
+        //     LOCATOR_KIND_UDP_V4,
+        //     port_builtin_multicast(self.domain_id) as u32,
+        //     DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        // )];
+
+        // for reader_locator in spdp_discovery_locator_list {
+        //     stateless_writer.reader_locator_add(reader_locator);
+        // }
+        // let spdp_builtin_participant_reader = RtpsStatelessReader::new(
+        //     Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+        //     spdp_builtin_participant_reader_history_cache,
+        // );
+        // Self {
+        //     spdp_builtin_participant_writer,
+        //     spdp_builtin_participant_reader,
+        // }
+        todo!()
     }
 }
 

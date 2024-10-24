@@ -805,3 +805,29 @@ impl RtpsParticipant {
             .retain(|x| x.lock().unwrap().guid() != reader_guid);
     }
 }
+
+// let spdp_builtin_participant_writer = todo!();
+// let spdp_builtin_participant_reader = RtpsStatelessReader::new(
+//     Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+//     spdp_builtin_participant_reader_history_cache,
+// );
+// let sedp_builtin_topics_writer = todo!();
+// let message_sender = todo!();
+// let sedp_builtin_topics_reader = RtpsStatefulReader::new(
+//     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
+//     sedp_builtin_topics_reader_history_cache,
+//     message_sender,
+// );
+// let sedp_builtin_publications_writer = todo!();
+// let message_sender = todo!();
+// let sedp_builtin_publications_reader = RtpsStatefulReader::new(
+//     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
+//     sedp_builtin_publications_reader_history_cache,
+//     message_sender,
+// );
+// let sedp_builtin_subscriptions_writer = todo!();
+// let sedp_builtin_subscriptions_reader = RtpsStatefulReader::new(
+//     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
+//     sedp_builtin_subscriptions_reader_history_cache,
+//     message_sender,
+// );
