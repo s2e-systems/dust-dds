@@ -1,21 +1,20 @@
 use std::sync::{Arc, Mutex};
 
-use crate::rtps::{
-    discovery_types::{
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-    },
-    reader::ReaderCacheChange,
+use crate::{
+    implementation::data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    rtps::types::ChangeKind, topic_definition::type_support::DdsDeserialize,
 };
 
 use super::{
     discovery_types::{
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     participant::RtpsParticipant,
-    reader::{ReaderHistoryCache, TransportReader},
+    reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
     stateful_writer::TransportWriter,
     types::{Guid, TopicKind},
 };
@@ -77,14 +76,34 @@ impl Transport for RtpsTransport {
         reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
     ) -> Arc<Mutex<dyn super::reader::TransportReader>> {
         struct SpdpDiscoveryReaderHistoryCache {
+            rtps_participant: Arc<Mutex<RtpsParticipant>>,
             reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
         }
         impl ReaderHistoryCache for SpdpDiscoveryReaderHistoryCache {
             fn add_change(&mut self, cache_change: ReaderCacheChange) {
+                match cache_change.kind {
+                    ChangeKind::Alive => {
+                        if let Ok(spdp_discovered_participant_data) =
+                            SpdpDiscoveredParticipantData::deserialize_data(
+                                cache_change.data_value.as_ref(),
+                            )
+                        {
+                            self.rtps_participant
+                                .lock()
+                                .unwrap()
+                                .add_discovered_participant(&spdp_discovered_participant_data);
+                        }
+                    }
+                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
+                        todo!()
+                    }
+                    _ => (),
+                }
                 self.reader_history_cache.add_change(cache_change);
             }
         }
         let history_cache = Box::new(SpdpDiscoveryReaderHistoryCache {
+            rtps_participant: self.rtps_participant.clone(),
             reader_history_cache,
         });
         let reader_guid = Guid::new(
