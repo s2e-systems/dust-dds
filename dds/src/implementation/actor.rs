@@ -2,7 +2,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 
 use super::runtime::{
     executor::ExecutorHandle,
-    mpsc::{mpsc_channel, MpscSender},
+    mpsc::{mpsc_channel, MpscReceiver, MpscSender},
     oneshot::{oneshot, OneshotReceiver, OneshotSender},
 };
 
@@ -141,6 +141,35 @@ where
             }))
             .expect("Message will always be sent when actor exists");
         ReplyReceiver { reply_receiver }
+    }
+}
+
+pub struct ActorBuilder<A> {
+    mail_sender: MpscSender<Box<dyn GenericHandler<A> + Send>>,
+    mailbox_recv: MpscReceiver<Box<dyn GenericHandler<A> + Send>>,
+}
+
+impl<A> ActorBuilder<A>
+where
+    A: Send + 'static,
+{
+    pub fn new() -> Self {
+        let (mail_sender, mailbox_recv) = mpsc_channel::<Box<dyn GenericHandler<A> + Send>>();
+
+        Self {
+            mail_sender,
+            mailbox_recv,
+        }
+    }
+
+    pub fn address(&self) -> ActorAddress<A> {
+        ActorAddress {
+            mail_sender: self.mail_sender.clone(),
+        }
+    }
+
+    pub fn build(self, actor: A, runtime: &ExecutorHandle) -> Actor<A> {
+        Actor::spawn(actor, runtime)
     }
 }
 
