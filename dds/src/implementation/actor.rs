@@ -168,8 +168,16 @@ where
         }
     }
 
-    pub fn build(self, actor: A, runtime: &ExecutorHandle) -> Actor<A> {
-        Actor::spawn(actor, runtime)
+    pub fn build(self, mut actor: A, runtime: &ExecutorHandle) -> Actor<A> {
+        let mailbox_recv = self.mailbox_recv;
+        runtime.spawn(async move {
+            while let Some(mut m) = mailbox_recv.recv().await {
+                m.handle(&mut actor);
+            }
+        });
+        Actor {
+            mail_sender: self.mail_sender,
+        }
     }
 }
 

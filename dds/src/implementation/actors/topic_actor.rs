@@ -158,29 +158,28 @@ impl TopicActor {
         self.topic_handle
     }
 
-    pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
+    pub fn as_topic_builtin_topic_data(&self) -> TopicBuiltinTopicData {
         let topic_qos = self.qos.clone();
-        DiscoveredTopicData {
-            topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: InstanceHandle::from(self.topic_handle).into(),
-                },
-                name: self.topic_name.to_string(),
-                type_name: self.type_name.to_string(),
-                durability: topic_qos.durability,
-                deadline: topic_qos.deadline,
-                latency_budget: topic_qos.latency_budget,
-                liveliness: topic_qos.liveliness,
-                reliability: topic_qos.reliability,
-                transport_priority: topic_qos.transport_priority,
-                lifespan: topic_qos.lifespan,
-                destination_order: topic_qos.destination_order,
-                history: topic_qos.history,
-                resource_limits: topic_qos.resource_limits,
-                ownership: topic_qos.ownership,
-                topic_data: topic_qos.topic_data,
-                representation: topic_qos.representation,
+
+        TopicBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: InstanceHandle::from(self.topic_handle).into(),
             },
+            name: self.topic_name.to_string(),
+            type_name: self.type_name.to_string(),
+            durability: topic_qos.durability,
+            deadline: topic_qos.deadline,
+            latency_budget: topic_qos.latency_budget,
+            liveliness: topic_qos.liveliness,
+            reliability: topic_qos.reliability,
+            transport_priority: topic_qos.transport_priority,
+            lifespan: topic_qos.lifespan,
+            destination_order: topic_qos.destination_order,
+            history: topic_qos.history,
+            resource_limits: topic_qos.resource_limits,
+            ownership: topic_qos.ownership,
+            topic_data: topic_qos.topic_data,
+            representation: topic_qos.representation,
         }
     }
 

@@ -15,9 +15,7 @@ use crate::{
         status::StatusKind,
     },
     rtps::{
-        participant::{self, RtpsParticipant},
         reader::{ReaderCacheChange, ReaderHistoryCache},
-        stateful_writer::{TransportWriter, WriterHistoryCache},
         transport::RtpsTransport,
         types::GuidPrefix,
     },
@@ -131,16 +129,16 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.domain_tag().to_string(),
             self.configuration.interface_name(),
             self.configuration.udp_receive_buffer_size(),
-            Box::new(SpdpBuiltinReaderHistoryCache {
+            Box::new(DcpsParticipantReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
-            Box::new(SedpBuiltinTopicsReaderHistoryCache {
+            Box::new(DcpsTopicsReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
-            Box::new(SedpBuiltinPublicationsReaderHistoryCache {
+            Box::new(DcpsPublicationsReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
-            Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
+            Box::new(DcpsSubscriptionsReaderHistoryCache {
                 participant_address: participant_actor_builder.address(),
             }),
         )?);
@@ -307,11 +305,11 @@ impl MailHandler<GetConfiguration> for DomainParticipantFactoryActor {
     }
 }
 
-struct SpdpBuiltinReaderHistoryCache {
+struct DcpsParticipantReaderHistoryCache {
     participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
+impl ReaderHistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
             .send_actor_mail(
@@ -323,11 +321,11 @@ impl ReaderHistoryCache for SpdpBuiltinReaderHistoryCache {
     }
 }
 
-struct SedpBuiltinTopicsReaderHistoryCache {
+struct DcpsTopicsReaderHistoryCache {
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
+impl ReaderHistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
             .send_actor_mail(
@@ -337,11 +335,11 @@ impl ReaderHistoryCache for SedpBuiltinTopicsReaderHistoryCache {
     }
 }
 
-struct SedpBuiltinSubscriptionsReaderHistoryCache {
+struct DcpsSubscriptionsReaderHistoryCache {
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
+impl ReaderHistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
             .send_actor_mail(
@@ -353,11 +351,11 @@ impl ReaderHistoryCache for SedpBuiltinSubscriptionsReaderHistoryCache {
     }
 }
 
-struct SedpBuiltinPublicationsReaderHistoryCache {
+struct DcpsPublicationsReaderHistoryCache {
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for SedpBuiltinPublicationsReaderHistoryCache {
+impl ReaderHistoryCache for DcpsPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
             .send_actor_mail(

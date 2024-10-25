@@ -526,13 +526,24 @@ impl DomainParticipantActor {
             builtin_publisher_handle,
         );
         builtin_publisher.enable();
-        builtin_publisher.create_datawriter(
-            &topic_list[DCPS_PARTICIPANT],
-            QosKind::Specific(spdp_writer_qos),
-            None,
-            vec![],
-            transport.get_participant_discovery_writer(),
-        );
+        builtin_publisher
+            .create_datawriter(
+                &topic_list[DCPS_PARTICIPANT],
+                QosKind::Specific(spdp_writer_qos),
+                None,
+                vec![],
+                transport.get_participant_discovery_writer(),
+            )
+            .unwrap();
+        builtin_publisher
+            .create_datawriter(
+                &topic_list[DCPS_TOPIC],
+                QosKind::Specific(sedp_data_writer_qos()),
+                None,
+                vec![],
+                transport.get_topics_discovery_writer(),
+            )
+            .unwrap();
 
         let participant_listener_thread = listener.map(ParticipantListenerThread::new);
 
@@ -1272,7 +1283,10 @@ impl DomainParticipantActor {
             .remove(&discovered_participant_handle);
     }
 
-    pub fn announce_topic(&mut self, discovered_topic_data: DiscoveredTopicData) -> DdsResult<()> {
+    pub fn announce_topic(
+        &mut self,
+        topic_builtin_topic_data: TopicBuiltinTopicData,
+    ) -> DdsResult<()> {
         if self.enabled {
             let timestamp = self.get_current_time();
             let dcps_topic_topic = self
@@ -1285,7 +1299,7 @@ impl DomainParticipantActor {
                 .lookup_datawriter_by_topic_name(DCPS_TOPIC)
             {
                 dw.write_w_timestamp(
-                    discovered_topic_data.serialize_data()?,
+                    topic_builtin_topic_data.serialize_data()?,
                     timestamp,
                     dcps_topic_topic.get_type_support().as_ref(),
                 )?
@@ -1467,7 +1481,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             topic.enable()?;
 
-            self.announce_topic(topic.as_discovered_topic_data())?;
+            self.announce_topic(topic.as_topic_builtin_topic_data())?;
         }
 
         self.topic_list.insert(message.topic_name, topic);
@@ -3939,45 +3953,45 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
         &mut self,
         message: AddBuiltinParticipantsDetectorCacheChange,
     ) -> <AddBuiltinParticipantsDetectorCacheChange as Mail>::Result {
-        // let dcps_participant_reader_handle = self
-        //     .builtin_subscriber
-        //     .lookup_datareader_by_topic_name(DCPS_PARTICIPANT)
-        //     .map(|dr| dr.get_instance_handle());
-        // if let Some(reader_handle) = dcps_participant_reader_handle {
-        //     self.builtin_subscriber
-        //         .add_change(message.cache_change, reader_handle);
-        //     if let Ok(samples) = self
-        //         .builtin_subscriber
-        //         .get_mut_datareader(reader_handle)
-        //         .read(
-        //             i32::MAX,
-        //             &[SampleStateKind::NotRead],
-        //             ANY_VIEW_STATE,
-        //             ANY_INSTANCE_STATE,
-        //             None,
-        //         )
-        //     {
-        //         for (sample_data, sample_info) in samples {
-        //             match sample_info.instance_state {
-        //                 InstanceStateKind::Alive => {
-        //                     if let Ok(discovered_participant_data) =
-        //                         SpdpDiscoveredParticipantData::deserialize_data(
-        //                             sample_data
-        //                                 .expect("Alive samples must contain data")
-        //                                 .as_ref(),
-        //                         )
-        //                     {
-        //                         self.add_discovered_participant(discovered_participant_data);
-        //                     }
-        //                 }
-        //                 InstanceStateKind::NotAliveDisposed => {
-        //                     self.remove_discovered_participant(sample_info.instance_handle)
-        //                 }
-        //                 InstanceStateKind::NotAliveNoWriters => (),
-        //             }
-        //         }
-        //     }
-        // }
+        let dcps_participant_reader_handle = self
+            .builtin_subscriber
+            .lookup_datareader_by_topic_name(DCPS_PARTICIPANT)
+            .map(|dr| dr.get_instance_handle());
+        if let Some(reader_handle) = dcps_participant_reader_handle {
+            self.builtin_subscriber
+                .add_change(message.cache_change, reader_handle);
+            //     if let Ok(samples) = self
+            //         .builtin_subscriber
+            //         .get_mut_datareader(reader_handle)
+            //         .read(
+            //             i32::MAX,
+            //             &[SampleStateKind::NotRead],
+            //             ANY_VIEW_STATE,
+            //             ANY_INSTANCE_STATE,
+            //             None,
+            //         )
+            //     {
+            //         for (sample_data, sample_info) in samples {
+            //             match sample_info.instance_state {
+            //                 InstanceStateKind::Alive => {
+            //                     if let Ok(discovered_participant_data) =
+            //                         SpdpDiscoveredParticipantData::deserialize_data(
+            //                             sample_data
+            //                                 .expect("Alive samples must contain data")
+            //                                 .as_ref(),
+            //                         )
+            //                     {
+            //                         self.add_discovered_participant(discovered_participant_data);
+            //                     }
+            //                 }
+            //                 InstanceStateKind::NotAliveDisposed => {
+            //                     self.remove_discovered_participant(sample_info.instance_handle)
+            //                 }
+            //                 InstanceStateKind::NotAliveNoWriters => (),
+            //             }
+            //         }
+            //     }
+        }
     }
 }
 

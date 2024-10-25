@@ -549,29 +549,35 @@ impl TransportWriter for RtpsStatefulWriter {
         reliability_kind: ReliabilityKind,
         durability_kind: DurabilityKind,
     ) {
-        let first_relevant_sample_seq_num = match durability_kind {
-            DurabilityKind::Volatile => self
-                .changes
-                .iter()
-                .map(|cc| cc.sequence_number)
-                .max()
-                .unwrap_or(0),
-            DurabilityKind::TransientLocal
-            | DurabilityKind::Transient
-            | DurabilityKind::Persistent => 0,
-        };
-        let rtps_reader_proxy = RtpsReaderProxy::new(
-            reader_proxy.remote_reader_guid,
-            reader_proxy.remote_group_entity_id,
-            &reader_proxy.unicast_locator_list,
-            &reader_proxy.multicast_locator_list,
-            reader_proxy.expects_inline_qos,
-            true,
-            reliability_kind,
-            first_relevant_sample_seq_num,
-        );
-        self.matched_readers.push(rtps_reader_proxy);
-        self.send_message();
+        if !self
+            .matched_readers
+            .iter()
+            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
+        {
+            let first_relevant_sample_seq_num = match durability_kind {
+                DurabilityKind::Volatile => self
+                    .changes
+                    .iter()
+                    .map(|cc| cc.sequence_number)
+                    .max()
+                    .unwrap_or(0),
+                DurabilityKind::TransientLocal
+                | DurabilityKind::Transient
+                | DurabilityKind::Persistent => 0,
+            };
+            let rtps_reader_proxy = RtpsReaderProxy::new(
+                reader_proxy.remote_reader_guid,
+                reader_proxy.remote_group_entity_id,
+                &reader_proxy.unicast_locator_list,
+                &reader_proxy.multicast_locator_list,
+                reader_proxy.expects_inline_qos,
+                true,
+                reliability_kind,
+                first_relevant_sample_seq_num,
+            );
+            self.matched_readers.push(rtps_reader_proxy);
+            self.send_message();
+        }
     }
 
     fn delete_matched_reader(&mut self, reader_guid: Guid) {

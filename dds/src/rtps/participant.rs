@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
@@ -40,10 +38,10 @@ use super::{
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
-        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, TopicKind, VendorId,
-        ENTITYID_PARTICIPANT, PROTOCOLVERSION_2_4, USER_DEFINED_READER_NO_KEY,
-        USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-        VENDOR_ID_S2E,
+        DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind,
+        SequenceNumber, TopicKind, VendorId, ENTITYID_PARTICIPANT, PROTOCOLVERSION_2_4,
+        USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY,
+        USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
     },
 };
 
@@ -251,7 +249,6 @@ impl RtpsParticipant {
     fn add_matched_publications_detector(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        // participant: DomainParticipantAsync,
     ) {
         if discovered_participant_data
             .participant_proxy
@@ -277,7 +274,17 @@ impl RtpsParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            todo!()
+            if let Some(w) = self
+                .builtin_stateful_writer_list
+                .iter_mut()
+                .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
+            {
+                w.add_matched_reader(
+                    reader_proxy,
+                    ReliabilityKind::Reliable,
+                    DurabilityKind::TransientLocal,
+                );
+            }
         }
     }
 
@@ -310,9 +317,17 @@ impl RtpsParticipant {
                     .to_vec(),
                 data_max_size_serialized,
             };
-            todo!()
-            // self.builtin_subscriber
-            //     .add_matched_writer(&discovered_writer_data);
+            if let Some(r) = self
+                .builtin_stateful_reader_list
+                .iter_mut()
+                .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
+            {
+                r.add_matched_writer(
+                    writer_proxy,
+                    ReliabilityKind::Reliable,
+                    DurabilityKind::TransientLocal,
+                );
+            }
         }
     }
 
@@ -344,17 +359,23 @@ impl RtpsParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-
-            // self.builtin_publisher
-            //     .add_matched_reader(&discovered_reader_data);
-            todo!()
+            if let Some(w) = self
+                .builtin_stateful_writer_list
+                .iter_mut()
+                .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)
+            {
+                w.add_matched_reader(
+                    reader_proxy,
+                    ReliabilityKind::Reliable,
+                    DurabilityKind::TransientLocal,
+                );
+            }
         }
     }
 
     fn add_matched_subscriptions_announcer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        // participant: DomainParticipantAsync,
     ) {
         if discovered_participant_data
             .participant_proxy
@@ -381,9 +402,17 @@ impl RtpsParticipant {
                     .to_vec(),
                 data_max_size_serialized,
             };
-            todo!()
-            // self.builtin_subscriber
-            //     .add_matched_writer(&discovered_writer_data);
+            if let Some(r) = self
+                .builtin_stateful_reader_list
+                .iter_mut()
+                .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR)
+            {
+                r.add_matched_writer(
+                    writer_proxy,
+                    ReliabilityKind::Reliable,
+                    DurabilityKind::TransientLocal,
+                );
+            }
         }
     }
 
@@ -415,9 +444,17 @@ impl RtpsParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            todo!()
-            // self.builtin_publisher
-            //     .add_matched_reader(&discovered_reader_data);
+            if let Some(w) = self
+                .builtin_stateful_writer_list
+                .iter_mut()
+                .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
+            {
+                w.add_matched_reader(
+                    reader_proxy,
+                    ReliabilityKind::Reliable,
+                    DurabilityKind::TransientLocal,
+                );
+            }
         }
     }
 
@@ -450,10 +487,17 @@ impl RtpsParticipant {
                     .to_vec(),
                 data_max_size_serialized,
             };
-            todo!()
-
-            // self.builtin_subscriber
-            //     .add_matched_writer(&discovered_writer_data);
+            if let Some(r) = self
+                .builtin_stateful_reader_list
+                .iter_mut()
+                .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)
+            {
+                r.add_matched_writer(
+                    writer_proxy,
+                    ReliabilityKind::Reliable,
+                    DurabilityKind::TransientLocal,
+                );
+            }
         }
     }
 
@@ -501,7 +545,6 @@ impl RtpsParticipant {
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) {
-        // let subscriber_guid = self.rtps_group.guid();
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
             TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
@@ -692,7 +735,6 @@ impl MailHandler<CreateReader> for RtpsParticipant {
 pub struct AddParticipantDiscoveryCacheChange {
     pub cache_change: RtpsCacheChange,
 }
-
 impl Mail for AddParticipantDiscoveryCacheChange {
     type Result = ();
 }
@@ -707,10 +749,11 @@ impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
         {
-            let dds_participant_data = ParticipantBuiltinTopicData::deserialize_data(
+            let mut dds_participant_data = ParticipantBuiltinTopicData::deserialize_data(
                 message.cache_change.data_value.as_ref(),
             )
             .unwrap();
+            dds_participant_data.key.value = self.entity.guid().into();
             let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
                 dds_participant_data,
                 participant_proxy,
@@ -731,7 +774,6 @@ impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
 pub struct RemoveParticipantDiscoveryCacheChange {
     pub sequence_number: SequenceNumber,
 }
-
 impl Mail for RemoveParticipantDiscoveryCacheChange {
     type Result = ();
 }
@@ -746,6 +788,27 @@ impl MailHandler<RemoveParticipantDiscoveryCacheChange> for RtpsParticipant {
             .find(|dw| dw.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
         {
             w.get_history_cache().remove_change(message.sequence_number);
+        }
+    }
+}
+
+pub struct AddTopicsDiscoveryCacheChange {
+    pub cache_change: RtpsCacheChange,
+}
+impl Mail for AddTopicsDiscoveryCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddTopicsDiscoveryCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddTopicsDiscoveryCacheChange,
+    ) -> <AddTopicsDiscoveryCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .builtin_stateful_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
+        {
+            w.get_history_cache().add_change(message.cache_change);
         }
     }
 }
@@ -769,5 +832,41 @@ impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
         {
             w.get_history_cache().add_change(message.cache_change);
         }
+    }
+}
+
+pub struct RemoveTopicsDiscoveryCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveTopicsDiscoveryCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveTopicsDiscoveryCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: RemoveTopicsDiscoveryCacheChange,
+    ) -> <RemoveTopicsDiscoveryCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .builtin_stateless_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
+        {
+            w.get_history_cache().remove_change(message.sequence_number);
+        }
+    }
+}
+
+pub struct AddDiscoveredParticipant {
+    pub discovered_participant_data: SpdpDiscoveredParticipantData,
+}
+impl Mail for AddDiscoveredParticipant {
+    type Result = ();
+}
+impl MailHandler<AddDiscoveredParticipant> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddDiscoveredParticipant,
+    ) -> <AddDiscoveredParticipant as Mail>::Result {
+        self.add_discovered_participant(&message.discovered_participant_data);
     }
 }

@@ -7,7 +7,7 @@ use tracing::info;
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
+        actor::{Actor, ActorAddress, ActorBuilder},
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         runtime::executor::{block_on, Executor, ExecutorHandle},
     },
@@ -33,6 +33,8 @@ use super::{
 
 pub trait Transport: Send + Sync {
     fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter>;
+
+    fn get_topics_discovery_writer(&self) -> Box<dyn TransportWriter>;
 
     fn create_user_defined_reader(
         &mut self,
@@ -128,7 +130,7 @@ impl RtpsTransport {
         domain_tag: String,
         interface_name: Option<&String>,
         udp_receive_buffer_size: Option<usize>,
-        spdp_builtin_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        dcps_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
         sedp_builtin_topics_reader_history_cache: Box<dyn ReaderHistoryCache>,
         sedp_builtin_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
         sedp_builtin_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
@@ -195,7 +197,14 @@ impl RtpsTransport {
             interface_address_list,
         )?;
 
-        let rtps_participant = Actor::spawn(
+        let rtps_participant_actor_builder = ActorBuilder::new();
+
+        let participant_discovery_reader_history_cache =
+            Box::new(ParticipantDiscoveryReaderHistoryCache {
+                rtps_participant_address: rtps_participant_actor_builder.address(),
+                dcps_participant_reader_history_cache,
+            });
+        let rtps_participant = rtps_participant_actor_builder.build(
             RtpsParticipant::new(
                 guid_prefix,
                 domain_id,
@@ -204,7 +213,7 @@ impl RtpsTransport {
                 default_multicast_locator_list,
                 metatraffic_unicast_locator_list,
                 metatraffic_multicast_locator_list,
-                spdp_builtin_participant_reader_history_cache,
+                participant_discovery_reader_history_cache,
                 sedp_builtin_topics_reader_history_cache,
                 sedp_builtin_publications_reader_history_cache,
                 sedp_builtin_subscriptions_reader_history_cache,
@@ -340,10 +349,10 @@ impl RtpsSpdpDiscovery {
 
 impl Transport for RtpsTransport {
     fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter> {
-        struct RtpsParticipantDiscoveryHistoryCache {
+        struct RtpsParticipantDiscoveryWriterHistoryCache {
             pub rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
-        impl TransportWriter for RtpsParticipantDiscoveryHistoryCache {
+        impl TransportWriter for RtpsParticipantDiscoveryWriterHistoryCache {
             fn get_history_cache(
                 &mut self,
             ) -> &mut dyn crate::rtps::stateful_writer::WriterHistoryCache {
@@ -371,7 +380,7 @@ impl Transport for RtpsTransport {
                 todo!()
             }
         }
-        impl WriterHistoryCache for RtpsParticipantDiscoveryHistoryCache {
+        impl WriterHistoryCache for RtpsParticipantDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddParticipantDiscoveryCacheChange {
@@ -389,7 +398,60 @@ impl Transport for RtpsTransport {
             }
         }
 
-        Box::new(RtpsParticipantDiscoveryHistoryCache {
+        Box::new(RtpsParticipantDiscoveryWriterHistoryCache {
+            rtps_participant_address: self.rtps_participant.address(),
+        })
+    }
+
+    fn get_topics_discovery_writer(&self) -> Box<dyn TransportWriter> {
+        struct RtpsTopicsDiscoveryWriterHistoryCache {
+            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+        }
+        impl TransportWriter for RtpsTopicsDiscoveryWriterHistoryCache {
+            fn get_history_cache(
+                &mut self,
+            ) -> &mut dyn crate::rtps::stateful_writer::WriterHistoryCache {
+                self
+            }
+
+            fn add_matched_reader(
+                &mut self,
+                reader_proxy: crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
+                reliability_kind: crate::rtps::types::ReliabilityKind,
+                durability_kind: crate::rtps::types::DurabilityKind,
+            ) {
+                todo!()
+            }
+
+            fn delete_matched_reader(&mut self, reader_guid: crate::rtps::types::Guid) {
+                todo!()
+            }
+
+            fn are_all_changes_acknowledged(&self) -> bool {
+                todo!()
+            }
+
+            fn writer_proxy(&self) -> crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy{
+                todo!()
+            }
+        }
+        impl WriterHistoryCache for RtpsTopicsDiscoveryWriterHistoryCache {
+            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+                self.rtps_participant_address
+                    .send_actor_mail(participant::AddTopicsDiscoveryCacheChange { cache_change })
+                    .ok();
+            }
+
+            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+                self.rtps_participant_address
+                    .send_actor_mail(participant::RemoveTopicsDiscoveryCacheChange {
+                        sequence_number,
+                    })
+                    .ok();
+            }
+        }
+
+        Box::new(RtpsTopicsDiscoveryWriterHistoryCache {
             rtps_participant_address: self.rtps_participant.address(),
         })
     }
@@ -532,5 +594,26 @@ impl Transport for RtpsTransport {
                 })
                 .receive_reply(),
         )
+    }
+}
+
+struct ParticipantDiscoveryReaderHistoryCache {
+    rtps_participant_address: ActorAddress<RtpsParticipant>,
+    dcps_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
+}
+
+impl ReaderHistoryCache for ParticipantDiscoveryReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        if let Ok(discovered_participant_data) =
+            SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
+        {
+            self.rtps_participant_address
+                .send_actor_mail(participant::AddDiscoveredParticipant {
+                    discovered_participant_data,
+                })
+                .unwrap();
+        }
+        self.dcps_participant_reader_history_cache
+            .add_change(cache_change);
     }
 }
