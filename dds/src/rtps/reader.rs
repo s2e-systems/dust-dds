@@ -92,19 +92,6 @@ pub trait ReaderHistoryCache: Send + Sync {
     fn add_change(&mut self, cache_change: ReaderCacheChange);
 }
 
-pub trait TransportReader: Send + Sync {
-    fn add_matched_writer(
-        &mut self,
-        writer_proxy: WriterProxy,
-        reliability_kind: ReliabilityKind,
-        durability_kind: DurabilityKind,
-    );
-
-    fn delete_matched_writer(&mut self, writer_guid: Guid);
-
-    fn reader_proxy(&self) -> ReaderProxy;
-}
-
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,
 }
@@ -168,31 +155,6 @@ impl RtpsStatelessReader {
     }
 }
 
-impl TransportReader for RtpsStatelessReader {
-    fn add_matched_writer(
-        &mut self,
-        _writer_proxy: WriterProxy,
-        _reliability_kind: ReliabilityKind,
-        _durability_kind: DurabilityKind,
-    ) {
-        // Do nothing
-    }
-
-    fn delete_matched_writer(&mut self, _writer_guid: Guid) {
-        // Do nothing
-    }
-
-    fn reader_proxy(&self) -> ReaderProxy {
-        ReaderProxy {
-            remote_reader_guid: self.guid,
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-            expects_inline_qos: false,
-        }
-    }
-}
-
 pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
@@ -200,8 +162,25 @@ pub struct RtpsStatefulReader {
     message_sender: MessageSender,
 }
 
-impl TransportReader for RtpsStatefulReader {
-    fn add_matched_writer(
+impl RtpsStatefulReader {
+    pub fn new(
+        guid: Guid,
+        history_cache: Box<dyn ReaderHistoryCache>,
+        message_sender: MessageSender,
+    ) -> Self {
+        Self {
+            guid,
+            matched_writers: Vec::new(),
+            history_cache,
+            message_sender,
+        }
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.guid
+    }
+
+    pub fn add_matched_writer(
         &mut self,
         writer_proxy: WriterProxy,
         reliability_kind: ReliabilityKind,
@@ -224,12 +203,12 @@ impl TransportReader for RtpsStatefulReader {
         }
     }
 
-    fn delete_matched_writer(&mut self, writer_guid: Guid) {
+    pub fn delete_matched_writer(&mut self, writer_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != writer_guid)
     }
 
-    fn reader_proxy(&self) -> ReaderProxy {
+    pub fn reader_proxy(&self) -> ReaderProxy {
         ReaderProxy {
             remote_reader_guid: self.guid,
             remote_group_entity_id: ENTITYID_UNKNOWN,
@@ -237,25 +216,6 @@ impl TransportReader for RtpsStatefulReader {
             multicast_locator_list: vec![],
             expects_inline_qos: false,
         }
-    }
-}
-
-impl RtpsStatefulReader {
-    pub fn new(
-        guid: Guid,
-        history_cache: Box<dyn ReaderHistoryCache>,
-        message_sender: MessageSender,
-    ) -> Self {
-        Self {
-            guid,
-            matched_writers: Vec::new(),
-            history_cache,
-            message_sender,
-        }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.guid
     }
 
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {

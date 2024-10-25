@@ -147,7 +147,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let domain_participant = DomainParticipantActor::new(
             participant_handle,
             message.domain_id,
-            self.configuration.domain_tag().to_string(),
             domain_participant_qos,
             message.listener,
             message.status_kind,

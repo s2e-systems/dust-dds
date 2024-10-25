@@ -22,27 +22,12 @@ use super::{
     },
 };
 
-pub trait WriterHistoryCache {
+pub trait WriterHistoryCache: Send + Sync {
     fn add_change(&mut self, cache_change: RtpsCacheChange);
 
     fn remove_change(&mut self, sequence_number: SequenceNumber);
-}
-
-pub trait TransportWriter: Send + Sync {
-    fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache;
-
-    fn add_matched_reader(
-        &mut self,
-        reader_proxy: ReaderProxy,
-        reliability_kind: ReliabilityKind,
-        durability_kind: DurabilityKind,
-    );
-
-    fn delete_matched_reader(&mut self, reader_guid: Guid);
 
     fn are_all_changes_acknowledged(&self) -> bool;
-
-    fn writer_proxy(&self) -> WriterProxy;
 }
 
 pub struct RtpsStatefulWriter {
@@ -68,6 +53,58 @@ impl RtpsStatefulWriter {
 
     pub fn guid(&self) -> Guid {
         self.guid
+    }
+
+    pub fn add_matched_reader(
+        &mut self,
+        reader_proxy: ReaderProxy,
+        reliability_kind: ReliabilityKind,
+        durability_kind: DurabilityKind,
+    ) {
+        if !self
+            .matched_readers
+            .iter()
+            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
+        {
+            let first_relevant_sample_seq_num = match durability_kind {
+                DurabilityKind::Volatile => self
+                    .changes
+                    .iter()
+                    .map(|cc| cc.sequence_number)
+                    .max()
+                    .unwrap_or(0),
+                DurabilityKind::TransientLocal
+                | DurabilityKind::Transient
+                | DurabilityKind::Persistent => 0,
+            };
+            let rtps_reader_proxy = RtpsReaderProxy::new(
+                reader_proxy.remote_reader_guid,
+                reader_proxy.remote_group_entity_id,
+                &reader_proxy.unicast_locator_list,
+                &reader_proxy.multicast_locator_list,
+                reader_proxy.expects_inline_qos,
+                true,
+                reliability_kind,
+                first_relevant_sample_seq_num,
+            );
+            self.matched_readers.push(rtps_reader_proxy);
+            self.send_message();
+        }
+    }
+
+    pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
+        self.matched_readers
+            .retain(|rp| rp.remote_reader_guid() != reader_guid);
+    }
+
+    pub fn writer_proxy(&self) -> WriterProxy {
+        WriterProxy {
+            remote_writer_guid: self.guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            data_max_size_serialized: Default::default(),
+        }
     }
 
     pub fn send_message(&mut self) {
@@ -538,73 +575,6 @@ fn send_change_message_reader_proxy_reliable(
     }
 }
 
-impl TransportWriter for RtpsStatefulWriter {
-    fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache {
-        self
-    }
-
-    fn add_matched_reader(
-        &mut self,
-        reader_proxy: ReaderProxy,
-        reliability_kind: ReliabilityKind,
-        durability_kind: DurabilityKind,
-    ) {
-        if !self
-            .matched_readers
-            .iter()
-            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
-        {
-            let first_relevant_sample_seq_num = match durability_kind {
-                DurabilityKind::Volatile => self
-                    .changes
-                    .iter()
-                    .map(|cc| cc.sequence_number)
-                    .max()
-                    .unwrap_or(0),
-                DurabilityKind::TransientLocal
-                | DurabilityKind::Transient
-                | DurabilityKind::Persistent => 0,
-            };
-            let rtps_reader_proxy = RtpsReaderProxy::new(
-                reader_proxy.remote_reader_guid,
-                reader_proxy.remote_group_entity_id,
-                &reader_proxy.unicast_locator_list,
-                &reader_proxy.multicast_locator_list,
-                reader_proxy.expects_inline_qos,
-                true,
-                reliability_kind,
-                first_relevant_sample_seq_num,
-            );
-            self.matched_readers.push(rtps_reader_proxy);
-            self.send_message();
-        }
-    }
-
-    fn delete_matched_reader(&mut self, reader_guid: Guid) {
-        self.matched_readers
-            .retain(|rp| rp.remote_reader_guid() != reader_guid);
-    }
-
-    fn are_all_changes_acknowledged(&self) -> bool {
-        let max_seq_num = self.changes.iter().map(|cc| cc.sequence_number).max();
-        !self
-            .matched_readers
-            .iter()
-            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
-            .any(|rp| rp.unacked_changes(max_seq_num))
-    }
-
-    fn writer_proxy(&self) -> WriterProxy {
-        WriterProxy {
-            remote_writer_guid: self.guid,
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-            data_max_size_serialized: Default::default(),
-        }
-    }
-}
-
 impl WriterHistoryCache for RtpsStatefulWriter {
     fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
@@ -614,5 +584,14 @@ impl WriterHistoryCache for RtpsStatefulWriter {
     fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
             .retain(|cc| cc.sequence_number() != sequence_number);
+    }
+
+    fn are_all_changes_acknowledged(&self) -> bool {
+        let max_seq_num = self.changes.iter().map(|cc| cc.sequence_number).max();
+        !self
+            .matched_readers
+            .iter()
+            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
+            .any(|rp| rp.unacked_changes(max_seq_num))
     }
 }

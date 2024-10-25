@@ -28,7 +28,7 @@ use crate::{
         },
     },
     rtps::{
-        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
+        reader::{ReaderCacheChange, ReaderHistoryCache},
         transport::Transport,
         types::TopicKind,
     },

@@ -9,40 +9,33 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, ActorBuilder},
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        runtime::executor::{block_on, Executor, ExecutorHandle},
+        runtime::executor::{block_on, Executor},
     },
-    rtps::{participant, types::ChangeKind},
+    rtps::participant,
     topic_definition::type_support::DdsDeserialize,
 };
 
 use super::{
-    discovery_types::{
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-        ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-    },
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     messages::overall_structure::RtpsMessageRead,
     participant::RtpsParticipant,
-    reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-    stateful_writer::{TransportWriter, WriterHistoryCache},
-    types::{Guid, GuidPrefix, Locator, TopicKind, LOCATOR_KIND_UDP_V4},
+    reader::{ReaderCacheChange, ReaderHistoryCache},
+    stateful_writer::WriterHistoryCache,
+    types::{GuidPrefix, Locator, TopicKind, LOCATOR_KIND_UDP_V4},
 };
 
 pub trait Transport: Send + Sync {
-    fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter>;
+    fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
-    fn get_topics_discovery_writer(&self) -> Box<dyn TransportWriter>;
+    fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
     fn create_user_defined_reader(
         &mut self,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
-    ) -> Box<dyn TransportReader>;
+    );
 
-    fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn TransportWriter>;
+    fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn WriterHistoryCache>;
 }
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
@@ -120,7 +113,7 @@ pub fn read_message(
 
 pub struct RtpsTransport {
     rtps_participant: Actor<RtpsParticipant>,
-    executor: Executor,
+    _executor: Executor,
 }
 
 impl RtpsTransport {
@@ -309,7 +302,7 @@ impl RtpsTransport {
 
         Ok(Self {
             rtps_participant,
-            executor,
+            _executor: executor,
         })
     }
 }
@@ -348,37 +341,9 @@ impl RtpsSpdpDiscovery {
 }
 
 impl Transport for RtpsTransport {
-    fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter> {
+    fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
         struct RtpsParticipantDiscoveryWriterHistoryCache {
             pub rtps_participant_address: ActorAddress<RtpsParticipant>,
-        }
-        impl TransportWriter for RtpsParticipantDiscoveryWriterHistoryCache {
-            fn get_history_cache(
-                &mut self,
-            ) -> &mut dyn crate::rtps::stateful_writer::WriterHistoryCache {
-                self
-            }
-
-            fn add_matched_reader(
-                &mut self,
-                reader_proxy: crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
-                reliability_kind: crate::rtps::types::ReliabilityKind,
-                durability_kind: crate::rtps::types::DurabilityKind,
-            ) {
-                todo!()
-            }
-
-            fn delete_matched_reader(&mut self, reader_guid: crate::rtps::types::Guid) {
-                todo!()
-            }
-
-            fn are_all_changes_acknowledged(&self) -> bool {
-                todo!()
-            }
-
-            fn writer_proxy(&self) -> crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy{
-                todo!()
-            }
         }
         impl WriterHistoryCache for RtpsParticipantDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
@@ -396,6 +361,10 @@ impl Transport for RtpsTransport {
                     })
                     .ok();
             }
+
+            fn are_all_changes_acknowledged(&self) -> bool {
+                todo!()
+            }
         }
 
         Box::new(RtpsParticipantDiscoveryWriterHistoryCache {
@@ -403,38 +372,11 @@ impl Transport for RtpsTransport {
         })
     }
 
-    fn get_topics_discovery_writer(&self) -> Box<dyn TransportWriter> {
+    fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
         struct RtpsTopicsDiscoveryWriterHistoryCache {
             pub rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
-        impl TransportWriter for RtpsTopicsDiscoveryWriterHistoryCache {
-            fn get_history_cache(
-                &mut self,
-            ) -> &mut dyn crate::rtps::stateful_writer::WriterHistoryCache {
-                self
-            }
 
-            fn add_matched_reader(
-                &mut self,
-                reader_proxy: crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
-                reliability_kind: crate::rtps::types::ReliabilityKind,
-                durability_kind: crate::rtps::types::DurabilityKind,
-            ) {
-                todo!()
-            }
-
-            fn delete_matched_reader(&mut self, reader_guid: crate::rtps::types::Guid) {
-                todo!()
-            }
-
-            fn are_all_changes_acknowledged(&self) -> bool {
-                todo!()
-            }
-
-            fn writer_proxy(&self) -> crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy{
-                todo!()
-            }
-        }
         impl WriterHistoryCache for RtpsTopicsDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
                 self.rtps_participant_address
@@ -448,6 +390,10 @@ impl Transport for RtpsTransport {
                         sequence_number,
                     })
                     .ok();
+            }
+
+            fn are_all_changes_acknowledged(&self) -> bool {
+                todo!()
             }
         }
 
@@ -574,18 +520,15 @@ impl Transport for RtpsTransport {
         &mut self,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
-    ) -> Box<dyn TransportReader> {
-        block_on(
-            self.rtps_participant
-                .send_actor_mail(participant::CreateReader {
-                    topic_kind,
-                    reader_history_cache,
-                })
-                .receive_reply(),
-        )
+    ) {
+        self.rtps_participant
+            .send_actor_mail(participant::CreateReader {
+                topic_kind,
+                reader_history_cache,
+            });
     }
 
-    fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn TransportWriter> {
+    fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn WriterHistoryCache> {
         block_on(
             self.rtps_participant
                 .send_actor_mail(participant::CreateWriter {

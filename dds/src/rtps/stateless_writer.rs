@@ -1,7 +1,3 @@
-use crate::implementation::data_representation_builtin_endpoints::{
-    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
-};
-
 use super::{
     cache_change::RtpsCacheChange,
     message_sender::MessageSender,
@@ -10,8 +6,8 @@ use super::{
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
     },
     reader_locator::RtpsReaderLocator,
-    stateful_writer::{TransportWriter, WriterHistoryCache},
-    types::{DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
+    stateful_writer::WriterHistoryCache,
+    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 pub struct RtpsStatelessWriter {
@@ -84,44 +80,6 @@ impl RtpsStatelessWriter {
     }
 }
 
-impl TransportWriter for RtpsStatelessWriter {
-    fn get_history_cache(&mut self) -> &mut dyn WriterHistoryCache {
-        self
-    }
-
-    fn add_matched_reader(
-        &mut self,
-        reader_proxy: ReaderProxy,
-        _reliability_kind: ReliabilityKind,
-        _durability_kind: DurabilityKind,
-    ) {
-        for unicast_locator in reader_proxy.unicast_locator_list {
-            self.reader_locator_add(unicast_locator);
-        }
-        for multicast_locator in reader_proxy.multicast_locator_list {
-            self.reader_locator_add(multicast_locator);
-        }
-    }
-
-    fn delete_matched_reader(&mut self, _reader_guid: Guid) {
-        // Do nothing
-    }
-
-    fn are_all_changes_acknowledged(&self) -> bool {
-        true
-    }
-
-    fn writer_proxy(&self) -> WriterProxy {
-        WriterProxy {
-            remote_writer_guid: self.guid,
-            remote_group_entity_id: ENTITYID_UNKNOWN,
-            unicast_locator_list: vec![],
-            multicast_locator_list: vec![],
-            data_max_size_serialized: Default::default(),
-        }
-    }
-}
-
 impl WriterHistoryCache for RtpsStatelessWriter {
     fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
@@ -131,5 +89,9 @@ impl WriterHistoryCache for RtpsStatelessWriter {
     fn remove_change(&mut self, sequence_number: SequenceNumber) {
         self.changes
             .retain(|cc| cc.sequence_number() != sequence_number);
+    }
+
+    fn are_all_changes_acknowledged(&self) -> bool {
+        true
     }
 }

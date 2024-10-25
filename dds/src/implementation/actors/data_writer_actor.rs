@@ -40,7 +40,7 @@ use crate::{
         cache_change::RtpsCacheChange,
         messages::submessage_elements::{Parameter, ParameterList},
         reader_proxy::RtpsReaderProxy,
-        stateful_writer::TransportWriter,
+        stateful_writer::WriterHistoryCache,
         types::{
             ChangeKind, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
             GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
@@ -237,7 +237,7 @@ impl DataWriterListenerThread {
 }
 
 pub struct DataWriterActor {
-    transport_writer: Box<dyn TransportWriter>,
+    transport_writer: Box<dyn WriterHistoryCache>,
     data_writer_handle: DataWriterHandle,
     topic_name: String,
     type_name: String,
@@ -259,7 +259,7 @@ pub struct DataWriterActor {
 impl DataWriterActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        transport_writer: Box<dyn TransportWriter>,
+        transport_writer: Box<dyn WriterHistoryCache>,
         data_writer_handle: DataWriterHandle,
         topic_name: String,
         type_name: String,
@@ -452,7 +452,6 @@ impl DataWriterActor {
                 if s.len() == depth as usize {
                     if let Some(smallest_seq_num_instance) = s.pop_front() {
                         self.transport_writer
-                            .get_history_cache()
                             .remove_change(smallest_seq_num_instance);
                     }
                 }
@@ -623,7 +622,7 @@ impl DataWriterActor {
             .entry(instance_handle)
             .or_insert(VecDeque::new())
             .push_back(change.sequence_number);
-        self.transport_writer.get_history_cache().add_change(change);
+        self.transport_writer.add_change(change);
         // }
     }
 
@@ -909,9 +908,7 @@ impl DataWriterActor {
     }
 
     pub fn remove_change(&mut self, seq_num: SequenceNumber) {
-        self.transport_writer
-            .get_history_cache()
-            .remove_change(seq_num);
+        self.transport_writer.remove_change(seq_num);
     }
 
     pub fn is_resources_limit_reached(&self, instance_handle: InstanceHandle) -> bool {

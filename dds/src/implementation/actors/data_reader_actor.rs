@@ -50,7 +50,7 @@ use crate::{
     },
     rtps::{
         messages::submessage_elements::{Data, ParameterList},
-        reader::{ReaderCacheChange, TransportReader},
+        reader::ReaderCacheChange,
         types::{ChangeKind, DurabilityKind, Guid, ReliabilityKind},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},

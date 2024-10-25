@@ -24,7 +24,7 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
     },
-    rtps::{stateful_writer::TransportWriter, transport::Transport, types::TopicKind},
+    rtps::{stateful_writer::WriterHistoryCache, transport::Transport, types::TopicKind},
 };
 use fnmatch_regex::glob_to_regex;
 use std::{
@@ -193,7 +193,7 @@ impl PublisherActor {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
-        transport_writer: Box<dyn TransportWriter>,
+        transport_writer: Box<dyn WriterHistoryCache>,
     ) -> DdsResult<InstanceHandle> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),

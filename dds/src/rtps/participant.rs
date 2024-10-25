@@ -31,11 +31,10 @@ use super::{
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     entity::RtpsEntity,
-    error::{RtpsError, RtpsErrorKind, RtpsResult},
+    error::RtpsResult,
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
-    reader::{ReaderHistoryCache, RtpsStatefulReader, RtpsStatelessReader, TransportReader},
-    stateful_writer::TransportWriter,
+    reader::{ReaderHistoryCache, RtpsStatefulReader, RtpsStatelessReader},
     stateless_writer::RtpsStatelessWriter,
     types::{
         DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind,
@@ -635,7 +634,7 @@ pub struct CreateWriter {
 }
 
 impl Mail for CreateWriter {
-    type Result = Box<dyn TransportWriter>;
+    type Result = Box<dyn WriterHistoryCache>;
 }
 impl MailHandler<CreateWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
@@ -644,34 +643,6 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
         struct RtpsUserDefinedWriterHistoryCache {
             pub rtps_participant_address: ActorAddress<RtpsParticipant>,
             pub guid: Guid,
-        }
-        impl TransportWriter for RtpsUserDefinedWriterHistoryCache {
-            fn get_history_cache(
-                &mut self,
-            ) -> &mut dyn crate::rtps::stateful_writer::WriterHistoryCache {
-                self
-            }
-
-            fn add_matched_reader(
-                &mut self,
-                reader_proxy: crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
-                reliability_kind: crate::rtps::types::ReliabilityKind,
-                durability_kind: crate::rtps::types::DurabilityKind,
-            ) {
-                todo!()
-            }
-
-            fn delete_matched_reader(&mut self, reader_guid: crate::rtps::types::Guid) {
-                todo!()
-            }
-
-            fn are_all_changes_acknowledged(&self) -> bool {
-                todo!()
-            }
-
-            fn writer_proxy(&self) -> crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy{
-                todo!()
-            }
         }
         impl WriterHistoryCache for RtpsUserDefinedWriterHistoryCache {
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
@@ -684,6 +655,10 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
             }
 
             fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+                todo!()
+            }
+
+            fn are_all_changes_acknowledged(&self) -> bool {
                 todo!()
             }
         }
@@ -701,34 +676,11 @@ pub struct CreateReader {
 }
 
 impl Mail for CreateReader {
-    type Result = Box<dyn TransportReader>;
+    type Result = ();
 }
 impl MailHandler<CreateReader> for RtpsParticipant {
     fn handle(&mut self, message: CreateReader) -> <CreateReader as Mail>::Result {
-        self.create_reader(message.topic_kind, message.reader_history_cache);
-
-        struct RtpsUserDefinedReaderHistoryCache;
-
-        impl TransportReader for RtpsUserDefinedReaderHistoryCache {
-            fn add_matched_writer(
-                &mut self,
-                writer_proxy: WriterProxy,
-                reliability_kind: super::types::ReliabilityKind,
-                durability_kind: super::types::DurabilityKind,
-            ) {
-                todo!()
-            }
-
-            fn delete_matched_writer(&mut self, writer_guid: Guid) {
-                todo!()
-            }
-
-            fn reader_proxy(&self) -> ReaderProxy {
-                todo!()
-            }
-        }
-
-        Box::new(RtpsUserDefinedReaderHistoryCache)
+        self.create_reader(message.topic_kind, message.reader_history_cache)
     }
 }
 
@@ -766,7 +718,7 @@ impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
                 .serialize_data()
                 .unwrap()
                 .into();
-            w.get_history_cache().add_change(cache_change);
+            w.add_change(cache_change);
         }
     }
 }
@@ -787,7 +739,7 @@ impl MailHandler<RemoveParticipantDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
         {
-            w.get_history_cache().remove_change(message.sequence_number);
+            w.remove_change(message.sequence_number);
         }
     }
 }
@@ -808,7 +760,7 @@ impl MailHandler<AddTopicsDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
         {
-            w.get_history_cache().add_change(message.cache_change);
+            w.add_change(message.cache_change);
         }
     }
 }
@@ -830,7 +782,7 @@ impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {
-            w.get_history_cache().add_change(message.cache_change);
+            w.add_change(message.cache_change);
         }
     }
 }
@@ -851,7 +803,7 @@ impl MailHandler<RemoveTopicsDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
         {
-            w.get_history_cache().remove_change(message.sequence_number);
+            w.remove_change(message.sequence_number);
         }
     }
 }

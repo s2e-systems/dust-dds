@@ -26,9 +26,9 @@ use crate::{
             topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
@@ -63,7 +63,6 @@ use crate::{
         },
         messages::submessage_elements::Data,
         reader::{ReaderCacheChange, ReaderHistoryCache},
-        stateful_writer::TransportWriter,
         transport::Transport,
         types::{Guid, TopicKind, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN},
     },
@@ -377,7 +376,6 @@ pub struct DomainParticipantActor {
     transport: Box<dyn Transport>,
     participant_handle: ParticipantHandle,
     domain_id: DomainId,
-    domain_tag: String,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberActor,
     builtin_publisher: PublisherActor,
@@ -410,7 +408,6 @@ impl DomainParticipantActor {
     pub fn new(
         participant_handle: ParticipantHandle,
         domain_id: DomainId,
-        domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
@@ -551,7 +548,6 @@ impl DomainParticipantActor {
             participant_handle,
             transport,
             domain_id,
-            domain_tag,
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
@@ -879,403 +875,10 @@ impl DomainParticipantActor {
         &mut self,
         discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
-        // Check that the domainId of the discovered participant equals the local one.
-        // If it is not equal then there the local endpoints are not configured to
-        // communicate with the discovered participant.
-        // AND
-        // Check that the domainTag of the discovered participant equals the local one.
-        // If it is not equal then there the local endpoints are not configured to
-        // communicate with the discovered participant.
-        // IN CASE no domain id was transmitted the a local domain id is assumed
-        // (as specified in Table 9.19 - ParameterId mapping and default values)
-        let is_domain_id_matching = discovered_participant_data
-            .participant_proxy
-            .domain_id
-            .unwrap_or(self.domain_id)
-            == self.domain_id;
-        let is_domain_tag_matching =
-            discovered_participant_data.participant_proxy.domain_tag == self.domain_tag;
-        let discovered_participant_handle =
-            InstanceHandle::new(discovered_participant_data.dds_participant_data.key().value);
-        let is_participant_ignored = self
-            .ignored_participants
-            .contains(&discovered_participant_handle);
-        let is_participant_discovered = self
-            .discovered_participant_list
-            .contains_key(&discovered_participant_handle);
-        if is_domain_id_matching
-            && is_domain_tag_matching
-            && !is_participant_ignored
-            && !is_participant_discovered
-        {
-            self.add_matched_publications_detector(&discovered_participant_data);
-            self.add_matched_publications_announcer(&discovered_participant_data);
-            self.add_matched_subscriptions_detector(&discovered_participant_data);
-            self.add_matched_subscriptions_announcer(&discovered_participant_data);
-            self.add_matched_topics_detector(&discovered_participant_data);
-            self.add_matched_topics_announcer(&discovered_participant_data);
-
-            self.discovered_participant_list.insert(
-                InstanceHandle::new(discovered_participant_data.dds_participant_data.key().value),
-                discovered_participant_data,
-            );
-        }
-    }
-
-    fn add_matched_publications_detector(
-        &mut self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-        // participant: DomainParticipantAsync,
-    ) {
-        if discovered_participant_data
-            .participant_proxy
-            .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
-        {
-            let remote_reader_guid = Guid::new(
-                discovered_participant_data.participant_proxy.guid_prefix,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy {
-                remote_reader_guid,
-                remote_group_entity_id,
-                unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_unicast_locator_list
-                    .to_vec(),
-                multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_multicast_locator_list
-                    .to_vec(),
-                expects_inline_qos,
-            };
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: remote_reader_guid.into(),
-                },
-                participant_key: BuiltInTopicKey::default(),
-                topic_name: DCPS_PUBLICATION.to_owned(),
-                type_name: "DiscoveredWriterData".to_owned(),
-                durability: sedp_data_reader_qos().durability,
-                deadline: sedp_data_reader_qos().deadline,
-                latency_budget: sedp_data_reader_qos().latency_budget,
-                liveliness: sedp_data_reader_qos().liveliness,
-                reliability: sedp_data_reader_qos().reliability,
-                ownership: sedp_data_reader_qos().ownership,
-                destination_order: sedp_data_reader_qos().destination_order,
-                user_data: sedp_data_reader_qos().user_data,
-                time_based_filter: sedp_data_reader_qos().time_based_filter,
-                presentation: Default::default(),
-                partition: Default::default(),
-                topic_data: Default::default(),
-                group_data: Default::default(),
-                representation: sedp_data_reader_qos().representation,
-            };
-            let discovered_reader_data =
-                DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-            self.builtin_publisher
-                .add_matched_reader(&discovered_reader_data);
-        }
-    }
-
-    fn add_matched_publications_announcer(
-        &mut self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-    ) {
-        if discovered_participant_data
-            .participant_proxy
-            .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
-        {
-            let remote_writer_guid = Guid::new(
-                discovered_participant_data.participant_proxy.guid_prefix,
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = Default::default();
-
-            let dds_publication_data = PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: remote_writer_guid.into(),
-                },
-                participant_key: BuiltInTopicKey::default(),
-                topic_name: DCPS_PUBLICATION.to_owned(),
-                type_name: "DiscoveredWriterData".to_owned(),
-                durability: sedp_data_writer_qos().durability,
-                deadline: sedp_data_writer_qos().deadline,
-                latency_budget: sedp_data_writer_qos().latency_budget,
-                liveliness: sedp_data_writer_qos().liveliness,
-                reliability: sedp_data_writer_qos().reliability,
-                lifespan: sedp_data_writer_qos().lifespan,
-                user_data: sedp_data_writer_qos().user_data,
-                ownership: sedp_data_writer_qos().ownership,
-                ownership_strength: sedp_data_writer_qos().ownership_strength,
-                destination_order: sedp_data_writer_qos().destination_order,
-                presentation: Default::default(),
-                partition: Default::default(),
-                topic_data: Default::default(),
-                group_data: Default::default(),
-                representation: sedp_data_writer_qos().representation,
-            };
-            let writer_proxy = WriterProxy {
-                remote_writer_guid,
-                remote_group_entity_id,
-                unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_unicast_locator_list
-                    .to_vec(),
-                multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_multicast_locator_list
-                    .to_vec(),
-                data_max_size_serialized,
-            };
-            let discovered_writer_data = DiscoveredWriterData {
-                dds_publication_data,
-                writer_proxy,
-            };
-            self.builtin_subscriber
-                .add_matched_writer(&discovered_writer_data);
-        }
-    }
-
-    fn add_matched_subscriptions_detector(
-        &mut self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-    ) {
-        if discovered_participant_data
-            .participant_proxy
-            .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
-        {
-            let remote_reader_guid = Guid::new(
-                discovered_participant_data.participant_proxy.guid_prefix,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy {
-                remote_reader_guid,
-                remote_group_entity_id,
-                unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_unicast_locator_list
-                    .to_vec(),
-                multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_multicast_locator_list
-                    .to_vec(),
-                expects_inline_qos,
-            };
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: remote_reader_guid.into(),
-                },
-                participant_key: BuiltInTopicKey::default(),
-                topic_name: DCPS_SUBSCRIPTION.to_owned(),
-                type_name: "DiscoveredReaderData".to_owned(),
-                durability: sedp_data_reader_qos().durability,
-                deadline: sedp_data_reader_qos().deadline,
-                latency_budget: sedp_data_reader_qos().latency_budget,
-                liveliness: sedp_data_reader_qos().liveliness,
-                reliability: sedp_data_reader_qos().reliability,
-                ownership: sedp_data_reader_qos().ownership,
-                destination_order: sedp_data_reader_qos().destination_order,
-                user_data: sedp_data_reader_qos().user_data,
-                time_based_filter: sedp_data_reader_qos().time_based_filter,
-                presentation: Default::default(),
-                partition: Default::default(),
-                topic_data: Default::default(),
-                group_data: Default::default(),
-                representation: sedp_data_reader_qos().representation,
-            };
-            let discovered_reader_data =
-                DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-            self.builtin_publisher
-                .add_matched_reader(&discovered_reader_data);
-        }
-    }
-
-    fn add_matched_subscriptions_announcer(
-        &mut self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-        // participant: DomainParticipantAsync,
-    ) {
-        if discovered_participant_data
-            .participant_proxy
-            .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
-        {
-            let remote_writer_guid = Guid::new(
-                discovered_participant_data.participant_proxy.guid_prefix,
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = Default::default();
-
-            let writer_proxy = WriterProxy {
-                remote_writer_guid,
-                remote_group_entity_id,
-                unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_unicast_locator_list
-                    .to_vec(),
-                multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_multicast_locator_list
-                    .to_vec(),
-                data_max_size_serialized,
-            };
-            let dds_publication_data = PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: remote_writer_guid.into(),
-                },
-                participant_key: BuiltInTopicKey::default(),
-                topic_name: DCPS_SUBSCRIPTION.to_owned(),
-                type_name: "DiscoveredReaderData".to_owned(),
-                durability: sedp_data_writer_qos().durability,
-                deadline: sedp_data_writer_qos().deadline,
-                latency_budget: sedp_data_writer_qos().latency_budget,
-                liveliness: sedp_data_writer_qos().liveliness,
-                reliability: sedp_data_writer_qos().reliability,
-                lifespan: sedp_data_writer_qos().lifespan,
-                user_data: sedp_data_writer_qos().user_data,
-                ownership: sedp_data_writer_qos().ownership,
-                ownership_strength: sedp_data_writer_qos().ownership_strength,
-                destination_order: sedp_data_writer_qos().destination_order,
-                presentation: Default::default(),
-                partition: Default::default(),
-                topic_data: Default::default(),
-                group_data: Default::default(),
-                representation: sedp_data_writer_qos().representation,
-            };
-            let discovered_writer_data = DiscoveredWriterData {
-                dds_publication_data,
-                writer_proxy,
-            };
-            self.builtin_subscriber
-                .add_matched_writer(&discovered_writer_data);
-        }
-    }
-
-    fn add_matched_topics_detector(
-        &mut self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-    ) {
-        if discovered_participant_data
-            .participant_proxy
-            .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
-        {
-            let remote_reader_guid = Guid::new(
-                discovered_participant_data.participant_proxy.guid_prefix,
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let expects_inline_qos = false;
-            let reader_proxy = ReaderProxy {
-                remote_reader_guid,
-                remote_group_entity_id,
-                unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_unicast_locator_list
-                    .to_vec(),
-                multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_multicast_locator_list
-                    .to_vec(),
-                expects_inline_qos,
-            };
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: remote_reader_guid.into(),
-                },
-                participant_key: BuiltInTopicKey::default(),
-                topic_name: DCPS_TOPIC.to_owned(),
-                type_name: "DiscoveredTopicData".to_owned(),
-                durability: sedp_data_reader_qos().durability,
-                deadline: sedp_data_reader_qos().deadline,
-                latency_budget: sedp_data_reader_qos().latency_budget,
-                liveliness: sedp_data_reader_qos().liveliness,
-                reliability: sedp_data_reader_qos().reliability,
-                ownership: sedp_data_reader_qos().ownership,
-                destination_order: sedp_data_reader_qos().destination_order,
-                user_data: sedp_data_reader_qos().user_data,
-                time_based_filter: sedp_data_reader_qos().time_based_filter,
-                presentation: Default::default(),
-                partition: Default::default(),
-                topic_data: Default::default(),
-                group_data: Default::default(),
-                representation: sedp_data_reader_qos().representation,
-            };
-            let discovered_reader_data =
-                DiscoveredReaderData::new(reader_proxy, subscription_builtin_topic_data);
-            self.builtin_publisher
-                .add_matched_reader(&discovered_reader_data);
-        }
-    }
-
-    fn add_matched_topics_announcer(
-        &mut self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-    ) {
-        if discovered_participant_data
-            .participant_proxy
-            .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
-        {
-            let remote_writer_guid = Guid::new(
-                discovered_participant_data.participant_proxy.guid_prefix,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let data_max_size_serialized = Default::default();
-
-            let writer_proxy = WriterProxy {
-                remote_writer_guid,
-                remote_group_entity_id,
-                unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_unicast_locator_list
-                    .to_vec(),
-                multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .metatraffic_multicast_locator_list
-                    .to_vec(),
-                data_max_size_serialized,
-            };
-            let dds_publication_data = PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: remote_writer_guid.into(),
-                },
-                participant_key: BuiltInTopicKey::default(),
-                topic_name: DCPS_TOPIC.to_owned(),
-                type_name: "DiscoveredTopicData".to_owned(),
-                durability: sedp_data_writer_qos().durability,
-                deadline: sedp_data_writer_qos().deadline,
-                latency_budget: sedp_data_writer_qos().latency_budget,
-                liveliness: sedp_data_writer_qos().liveliness,
-                reliability: sedp_data_writer_qos().reliability,
-                lifespan: sedp_data_writer_qos().lifespan,
-                user_data: sedp_data_writer_qos().user_data,
-                ownership: sedp_data_writer_qos().ownership,
-                ownership_strength: sedp_data_writer_qos().ownership_strength,
-                destination_order: sedp_data_writer_qos().destination_order,
-                presentation: Default::default(),
-                partition: Default::default(),
-                topic_data: Default::default(),
-                group_data: Default::default(),
-                representation: sedp_data_writer_qos().representation,
-            };
-            let discovered_writer_data = DiscoveredWriterData {
-                dds_publication_data,
-                writer_proxy,
-            };
-            self.builtin_subscriber
-                .add_matched_writer(&discovered_writer_data);
-        }
+        self.discovered_participant_list.insert(
+            InstanceHandle::new(discovered_participant_data.dds_participant_data.key().value),
+            discovered_participant_data,
+        );
     }
 
     pub fn remove_discovered_participant(&mut self, discovered_participant_handle: InstanceHandle) {
