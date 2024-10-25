@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use super::{
     messages::{
         self,
@@ -80,54 +78,43 @@ impl MessageReceiver {
 
     pub fn process_message(
         mut self,
-        stateless_reader_list: &[Arc<Mutex<RtpsStatelessReader>>],
-        stateful_reader_list: &[Arc<Mutex<RtpsStatefulReader>>],
-        stateful_writer_list: &[Arc<Mutex<RtpsStatefulWriter>>],
+        stateless_reader_list: &mut [RtpsStatelessReader],
+        stateful_reader_list: &mut [RtpsStatefulReader],
+        stateful_writer_list: &mut [RtpsStatefulWriter],
     ) {
         for submessage in self.submessages {
             match &submessage {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
-                    for stateful_writer in stateful_writer_list {
-                        stateful_writer
-                            .lock()
-                            .unwrap()
-                            .on_acknack_submessage_received(
-                                &acknack_submessage,
-                                self.source_guid_prefix,
-                            );
+                    for stateful_writer in stateful_writer_list.iter_mut() {
+                        stateful_writer.on_acknack_submessage_received(
+                            &acknack_submessage,
+                            self.source_guid_prefix,
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::DataFrag(_) | RtpsSubmessageReadKind::HeartbeatFrag(_) => {
                     todo!()
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
-                    for stateful_reader in stateful_reader_list {
+                    for stateful_reader in stateful_reader_list.iter_mut() {
                         stateful_reader
-                            .lock()
-                            .unwrap()
                             .on_gap_submessage_received(gap_submessage, self.source_guid_prefix);
                     }
                 }
                 RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                    for stateful_reader in stateful_reader_list {
-                        stateful_reader
-                            .lock()
-                            .unwrap()
-                            .on_heartbeat_submessage_received(
-                                heartbeat_submessage,
-                                self.source_guid_prefix,
-                            );
+                    for stateful_reader in stateful_reader_list.iter_mut() {
+                        stateful_reader.on_heartbeat_submessage_received(
+                            heartbeat_submessage,
+                            self.source_guid_prefix,
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
-                    for stateful_writer in stateful_writer_list {
-                        stateful_writer
-                            .lock()
-                            .unwrap()
-                            .on_nack_frag_submessage_received(
-                                &nackfrag_submessage,
-                                self.source_guid_prefix,
-                            );
+                    for stateful_writer in stateful_writer_list.iter_mut() {
+                        stateful_writer.on_nack_frag_submessage_received(
+                            &nackfrag_submessage,
+                            self.source_guid_prefix,
+                        );
                     }
                 }
                 RtpsSubmessageReadKind::Data(data_submessage) => {
@@ -136,18 +123,15 @@ impl MessageReceiver {
                     } else {
                         None
                     };
-                    for stateless_reader in stateless_reader_list {
-                        stateless_reader
-                            .lock()
-                            .unwrap()
-                            .on_data_submessage_received(
-                                &data_submessage,
-                                self.source_guid_prefix,
-                                source_timestamp,
-                            );
+                    for stateless_reader in stateless_reader_list.iter_mut() {
+                        stateless_reader.on_data_submessage_received(
+                            &data_submessage,
+                            self.source_guid_prefix,
+                            source_timestamp,
+                        );
                     }
-                    for stateful_reader in stateful_reader_list {
-                        stateful_reader.lock().unwrap().on_data_submessage_received(
+                    for stateful_reader in stateful_reader_list.iter_mut() {
+                        stateful_reader.on_data_submessage_received(
                             data_submessage,
                             self.source_guid_prefix,
                             source_timestamp,

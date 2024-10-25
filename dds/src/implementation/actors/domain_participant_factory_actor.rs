@@ -15,8 +15,9 @@ use crate::{
         status::StatusKind,
     },
     rtps::{
-        participant::RtpsParticipant,
+        participant::{self, RtpsParticipant},
         reader::{ReaderCacheChange, ReaderHistoryCache},
+        stateful_writer::{TransportWriter, WriterHistoryCache},
         transport::RtpsTransport,
         types::GuidPrefix,
     },
@@ -27,7 +28,7 @@ use std::{
     net::IpAddr,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex, OnceLock,
+        OnceLock,
     },
 };
 use tracing::{error, warn};
@@ -122,16 +123,27 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         };
 
         let guid_prefix = self.create_new_guid_prefix();
+        let participant_actor_builder = ActorBuilder::new();
 
-        let rtps_participant = RtpsParticipant::new(
+        let transport = Box::new(RtpsTransport::new(
             guid_prefix,
             message.domain_id,
             self.configuration.domain_tag().to_string(),
             self.configuration.interface_name(),
             self.configuration.udp_receive_buffer_size(),
-        )?;
-        let participant_guid = rtps_participant.guid();
-        let transport = Box::new(RtpsTransport::new(Arc::new(Mutex::new(rtps_participant))));
+            Box::new(SpdpBuiltinReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+            Box::new(SedpBuiltinTopicsReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+            Box::new(SedpBuiltinPublicationsReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+            Box::new(SedpBuiltinSubscriptionsReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+        )?);
         let participant_handle = ParticipantHandle::new(self.participant_counter);
 
         let domain_participant = DomainParticipantActor::new(
@@ -146,38 +158,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             transport,
         );
 
-        let participant_actor = Actor::spawn(domain_participant, &executor_handle);
-        let participant_address = participant_actor.address();
-
-        participant_actor.send_actor_mail(
-            domain_participant_actor::CreateBuiltinParticipantsDetector {
-                domain_participant_address: participant_address.clone(),
-            },
-        );
-
-        participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsDetector {
-            domain_participant_address: participant_address.clone(),
-        });
-
-        participant_actor.send_actor_mail(
-            domain_participant_actor::CreateBuiltinPublicationsDetector {
-                domain_participant_address: participant_address.clone(),
-            },
-        );
-
-        participant_actor.send_actor_mail(
-            domain_participant_actor::CreateBuiltinSubscriptionsDetector {
-                domain_participant_address: participant_address.clone(),
-            },
-        );
-
-        participant_actor
-            .send_actor_mail(domain_participant_actor::CreateBuiltinParticipantsAnnouncer);
-        participant_actor.send_actor_mail(domain_participant_actor::CreateBuiltinTopicsAnnouncer);
-        participant_actor
-            .send_actor_mail(domain_participant_actor::CreateBuiltinPublicationsAnnouncer);
-        participant_actor
-            .send_actor_mail(domain_participant_actor::CreateBuiltinSubscriptionsAnnouncer);
+        let participant_actor =
+            participant_actor_builder.build(domain_participant, &executor_handle);
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -202,10 +184,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         });
 
         let participant_address = participant_actor.address();
-        self.domain_participant_list.insert(
-            InstanceHandle::new(participant_guid.into()),
-            participant_actor,
-        );
+        self.domain_participant_list
+            .insert(participant_handle.into(), participant_actor);
 
         Ok((participant_address, participant_handle.into()))
     }

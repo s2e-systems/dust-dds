@@ -237,7 +237,7 @@ impl DataWriterListenerThread {
 }
 
 pub struct DataWriterActor {
-    transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
+    transport_writer: Box<dyn TransportWriter>,
     data_writer_handle: DataWriterHandle,
     topic_name: String,
     type_name: String,
@@ -259,7 +259,7 @@ pub struct DataWriterActor {
 impl DataWriterActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        transport_writer: Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>>,
+        transport_writer: Box<dyn TransportWriter>,
         data_writer_handle: DataWriterHandle,
         topic_name: String,
         type_name: String,
@@ -452,8 +452,6 @@ impl DataWriterActor {
                 if s.len() == depth as usize {
                     if let Some(smallest_seq_num_instance) = s.pop_front() {
                         self.transport_writer
-                            .lock()
-                            .unwrap()
                             .get_history_cache()
                             .remove_change(smallest_seq_num_instance);
                     }
@@ -625,11 +623,7 @@ impl DataWriterActor {
             .entry(instance_handle)
             .or_insert(VecDeque::new())
             .push_back(change.sequence_number);
-        self.transport_writer
-            .lock()
-            .unwrap()
-            .get_history_cache()
-            .add_change(change);
+        self.transport_writer.get_history_cache().add_change(change);
         // }
     }
 
@@ -722,11 +716,7 @@ impl DataWriterActor {
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                    self.transport_writer.lock().unwrap().add_matched_reader(
-                        discovered_reader_data.reader_proxy().clone(),
-                        reliability_kind,
-                        durability_kind,
-                    );
+
                     self.matched_subscriptions.add_matched_subscription(
                         instance_handle,
                         discovered_reader_data
@@ -753,41 +743,35 @@ impl DataWriterActor {
         }
     }
 
-    pub fn as_discovered_writer_data(
+    pub fn as_publication_builtin_topic_data(
         &self,
         publisher_qos: &PublisherQos,
         topic_qos: &TopicQos,
-    ) -> DiscoveredWriterData {
+    ) -> PublicationBuiltinTopicData {
         let type_name = self.type_name.clone();
         let topic_name = self.topic_name.clone();
         let writer_qos = &self.qos;
-        let writer_proxy = self.transport_writer.lock().unwrap().writer_proxy();
 
-        DiscoveredWriterData {
-            dds_publication_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: writer_proxy.remote_writer_guid.into(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name,
-                type_name,
-                durability: writer_qos.durability.clone(),
-                deadline: writer_qos.deadline.clone(),
-                latency_budget: writer_qos.latency_budget.clone(),
-                liveliness: writer_qos.liveliness.clone(),
-                reliability: writer_qos.reliability.clone(),
-                lifespan: writer_qos.lifespan.clone(),
-                user_data: writer_qos.user_data.clone(),
-                ownership: writer_qos.ownership.clone(),
-                ownership_strength: writer_qos.ownership_strength.clone(),
-                destination_order: writer_qos.destination_order.clone(),
-                presentation: publisher_qos.presentation.clone(),
-                partition: publisher_qos.partition.clone(),
-                topic_data: topic_qos.topic_data.clone(),
-                group_data: publisher_qos.group_data.clone(),
-                representation: writer_qos.representation.clone(),
-            },
-            writer_proxy,
+        PublicationBuiltinTopicData {
+            key: BuiltInTopicKey { value: [0; 16] },
+            participant_key: BuiltInTopicKey { value: [0; 16] },
+            topic_name,
+            type_name,
+            durability: writer_qos.durability.clone(),
+            deadline: writer_qos.deadline.clone(),
+            latency_budget: writer_qos.latency_budget.clone(),
+            liveliness: writer_qos.liveliness.clone(),
+            reliability: writer_qos.reliability.clone(),
+            lifespan: writer_qos.lifespan.clone(),
+            user_data: writer_qos.user_data.clone(),
+            ownership: writer_qos.ownership.clone(),
+            ownership_strength: writer_qos.ownership_strength.clone(),
+            destination_order: writer_qos.destination_order.clone(),
+            presentation: publisher_qos.presentation.clone(),
+            partition: publisher_qos.partition.clone(),
+            topic_data: topic_qos.topic_data.clone(),
+            group_data: publisher_qos.group_data.clone(),
+            representation: writer_qos.representation.clone(),
         }
     }
 
@@ -796,13 +780,9 @@ impl DataWriterActor {
             .matched_subscriptions
             .get_matched_subscription_data(discovered_reader_handle)
         {
-            let handle = r.key().value.into();
-            self.transport_writer
-                .lock()
-                .unwrap()
-                .delete_matched_reader(handle);
+            // let handle = r.key().value.into();
             self.matched_subscriptions
-                .remove_matched_subscription(InstanceHandle::new(handle.into()));
+                .remove_matched_subscription(InstanceHandle::new(todo!()));
 
             self.on_publication_matched(
             // message.data_writer_address,
@@ -900,10 +880,7 @@ impl DataWriterActor {
     }
 
     pub fn are_all_changes_acknowledged(&mut self) -> bool {
-        self.transport_writer
-            .lock()
-            .unwrap()
-            .are_all_changes_acknowledged()
+        self.transport_writer.are_all_changes_acknowledged()
     }
 
     pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
@@ -933,14 +910,11 @@ impl DataWriterActor {
 
     pub fn remove_change(&mut self, seq_num: SequenceNumber) {
         self.transport_writer
-            .lock()
-            .unwrap()
             .get_history_cache()
             .remove_change(seq_num);
     }
 
     pub fn is_resources_limit_reached(&self, instance_handle: InstanceHandle) -> bool {
-        let mut rtps_writer = self.transport_writer.lock().unwrap();
         if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
             if !self.instance_samples.contains_key(&instance_handle)
                 && self.instance_samples.len() == max_instances as usize
@@ -985,12 +959,7 @@ impl DataWriterActor {
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if let Some(s) = self.instance_samples.get(&instance_handle) {
                 if s.len() == depth as usize {
-                    if !self
-                        .transport_writer
-                        .lock()
-                        .unwrap()
-                        .are_all_changes_acknowledged()
-                    {
+                    if !self.transport_writer.are_all_changes_acknowledged() {
                         return true;
                     }
                 }

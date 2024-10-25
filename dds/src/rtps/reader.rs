@@ -129,14 +129,11 @@ impl RtpsReader {
 
 pub struct RtpsStatelessReader {
     guid: Guid,
-    history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    history_cache: Box<dyn ReaderHistoryCache>,
 }
 
 impl RtpsStatelessReader {
-    pub fn new(
-        guid: Guid,
-        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    ) -> Self {
+    pub fn new(guid: Guid, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
         Self {
             guid,
             history_cache,
@@ -199,7 +196,7 @@ impl TransportReader for RtpsStatelessReader {
 pub struct RtpsStatefulReader {
     guid: Guid,
     matched_writers: Vec<RtpsWriterProxy>,
-    history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+    history_cache: Box<dyn ReaderHistoryCache>,
     message_sender: MessageSender,
 }
 
@@ -246,7 +243,7 @@ impl TransportReader for RtpsStatefulReader {
 impl RtpsStatefulReader {
     pub fn new(
         guid: Guid,
-        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
+        history_cache: Box<dyn ReaderHistoryCache>,
         message_sender: MessageSender,
     ) -> Self {
         Self {

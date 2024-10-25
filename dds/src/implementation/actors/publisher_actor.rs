@@ -24,7 +24,7 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
     },
-    rtps::{transport::Transport, stateful_writer::TransportWriter, types::TopicKind},
+    rtps::{stateful_writer::TransportWriter, transport::Transport, types::TopicKind},
 };
 use fnmatch_regex::glob_to_regex;
 use std::{
@@ -193,8 +193,7 @@ impl PublisherActor {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
-        transport_writer: Option<Arc<Mutex<dyn TransportWriter + Send + Sync>>>,
-        transport: &mut dyn Transport,
+        transport_writer: Box<dyn TransportWriter>,
     ) -> DdsResult<InstanceHandle> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
@@ -210,27 +209,9 @@ impl PublisherActor {
             DataWriterHandle::new(self.publisher_handle, a_topic.get_handle(), counter);
 
         let topic_name = a_topic.get_name().to_string();
+
         let type_name = a_topic.get_type_name().to_string();
-        let type_support = a_topic.get_type_support();
-        let topic_kind = {
-            let mut topic_kind = TopicKind::NoKey;
-            for index in 0..type_support.get_member_count() {
-                if type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    topic_kind = TopicKind::WithKey;
-                    break;
-                }
-            }
-            topic_kind
-        };
-
-        let transport_writer =
-            transport_writer.unwrap_or(transport.create_user_defined_writer(topic_kind));
-
-        let data_writer = DataWriterActor::new(
+        let mut data_writer = DataWriterActor::new(
             transport_writer,
             data_writer_handle,
             topic_name,
@@ -239,6 +220,10 @@ impl PublisherActor {
             mask,
             qos,
         );
+
+        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
+            data_writer.enable();
+        }
 
         self.data_writer_list
             .insert(data_writer_handle.into(), data_writer);

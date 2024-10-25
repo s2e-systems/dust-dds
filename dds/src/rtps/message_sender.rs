@@ -18,6 +18,17 @@ pub struct MessageSender {
     socket: UdpSocket,
 }
 
+impl Clone for MessageSender {
+    fn clone(&self) -> Self {
+        Self {
+            protocol_version: self.protocol_version.clone(),
+            vendor_id: self.vendor_id.clone(),
+            guid_prefix: self.guid_prefix.clone(),
+            socket: self.socket.try_clone().expect("Should always be clone"),
+        }
+    }
+}
+
 impl MessageSender {
     pub fn new(guid_prefix: GuidPrefix, socket: UdpSocket) -> Self {
         Self {

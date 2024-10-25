@@ -226,28 +226,7 @@ impl SubscriberActor {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
-        domain_participant_address: ActorAddress<DomainParticipantActor>,
-        transport_reader: Option<Arc<Mutex<dyn TransportReader + Send + Sync>>>,
-        transport: &mut dyn Transport,
     ) -> DdsResult<InstanceHandle> {
-        struct UserDefinedReaderHistoryCache {
-            pub domain_participant_address: ActorAddress<DomainParticipantActor>,
-            pub subscriber_handle: InstanceHandle,
-            pub data_reader_handle: InstanceHandle,
-        }
-
-        impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
-            fn add_change(&mut self, cache_change: ReaderCacheChange) {
-                self.domain_participant_address
-                    .send_actor_mail(domain_participant_actor::AddCacheChange {
-                        cache_change,
-                        subscriber_handle: self.subscriber_handle,
-                        data_reader_handle: self.data_reader_handle,
-                    })
-                    .ok();
-            }
-        }
-
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
             QosKind::Specific(q) => {
@@ -258,6 +237,7 @@ impl SubscriberActor {
 
         let topic_name = a_topic.get_name().to_string();
         let type_name = a_topic.get_type_name().to_string();
+
         let type_support = a_topic.get_type_support();
 
         let data_reader_counter = self.data_reader_counter;
@@ -267,36 +247,12 @@ impl SubscriberActor {
             a_topic.get_handle(),
             data_reader_counter,
         );
-        let topic_kind = {
-            let mut topic_kind = TopicKind::NoKey;
-            for index in 0..type_support.get_member_count() {
-                if type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    topic_kind = TopicKind::WithKey;
-                    break;
-                }
-            }
-            topic_kind
-        };
-
-        let transport_reader = transport_reader.unwrap_or(transport.create_user_defined_reader(
-            topic_kind,
-            Box::new(UserDefinedReaderHistoryCache {
-                domain_participant_address,
-                data_reader_handle: data_reader_handle.into(),
-                subscriber_handle: self.subscriber_handle.into(),
-            }),
-        ));
 
         let listener = None;
         let data_reader_status_kind = mask.to_vec();
 
         let data_reader = DataReaderActor::new(
             data_reader_handle,
-            transport_reader,
             topic_name,
             type_name,
             type_support.clone(),

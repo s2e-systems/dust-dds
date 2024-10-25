@@ -1,19 +1,15 @@
-use core::net::{Ipv4Addr, SocketAddr};
-use std::{
-    net::UdpSocket,
-    sync::{Arc, Mutex},
-};
-
-use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-use socket2::Socket;
-use tracing::info;
+use std::sync::{Arc, Mutex};
 
 use crate::{
+    builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
-    implementation::data_representation_builtin_endpoints::{
-        discovered_reader_data::ReaderProxy,
-        discovered_writer_data::WriterProxy,
-        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+    implementation::{
+        actor::{ActorAddress, Mail, MailHandler},
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::ReaderProxy,
+            discovered_writer_data::WriterProxy,
+            spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+        },
     },
     rtps::{
         discovery_types::{
@@ -21,17 +17,20 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         },
         message_receiver::MessageReceiver,
-        stateful_writer::RtpsStatefulWriter,
+        stateful_writer::{RtpsStatefulWriter, WriterHistoryCache},
         types::ENTITYID_UNKNOWN,
     },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
 };
 
 use super::{
-    behavior_types::InstanceHandle,
+    behavior_types::{Duration, InstanceHandle},
+    cache_change::RtpsCacheChange,
     discovery_types::{
         BuiltinEndpointQos, BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     entity::RtpsEntity,
     error::{RtpsError, RtpsErrorKind, RtpsResult},
@@ -41,85 +40,12 @@ use super::{
     stateful_writer::TransportWriter,
     stateless_writer::RtpsStatelessWriter,
     types::{
-        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, TopicKind, VendorId,
-        ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4, PROTOCOLVERSION_2_4, USER_DEFINED_READER_NO_KEY,
+        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, TopicKind, VendorId,
+        ENTITYID_PARTICIPANT, PROTOCOLVERSION_2_4, USER_DEFINED_READER_NO_KEY,
         USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         VENDOR_ID_S2E,
     },
 };
-
-const MAX_DATAGRAM_SIZE: usize = 65507;
-
-type LocatorAddress = [u8; 16];
-// As of 9.6.1.4.1  Default multicast address
-const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
-
-const PB: i32 = 7400;
-const DG: i32 = 250;
-#[allow(non_upper_case_globals)]
-const d0: i32 = 0;
-fn port_builtin_multicast(domain_id: DomainId) -> u16 {
-    (PB + DG * domain_id + d0) as u16
-}
-
-fn get_multicast_socket(
-    multicast_address: LocatorAddress,
-    port: u16,
-    interface_address_list: impl IntoIterator<Item = Addr>,
-) -> std::io::Result<std::net::UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
-
-    let socket = Socket::new(
-        socket2::Domain::IPV4,
-        socket2::Type::DGRAM,
-        Some(socket2::Protocol::UDP),
-    )?;
-
-    socket.set_reuse_address(true)?;
-    #[cfg(target_family = "unix")]
-    socket.set_reuse_port(true)?;
-    socket.set_nonblocking(false)?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
-
-    socket.bind(&socket_addr.into())?;
-    let addr = Ipv4Addr::new(
-        multicast_address[12],
-        multicast_address[13],
-        multicast_address[14],
-        multicast_address[15],
-    );
-    for interface_addr in interface_address_list {
-        match interface_addr {
-            Addr::V4(a) => {
-                let r = socket.join_multicast_v4(&addr, &a.ip);
-                if let Err(e) = r {
-                    info!(
-                        "Failed to join multicast group on address {} with error {}",
-                        a.ip, e
-                    )
-                }
-            }
-            Addr::V6(_) => (),
-        }
-    }
-
-    socket.set_multicast_loop_v4(true)?;
-
-    Ok(socket.into())
-}
-
-pub fn read_message(
-    socket: &mut std::net::UdpSocket,
-    buf: &mut [u8],
-) -> RtpsResult<RtpsMessageRead> {
-    let (bytes, _) = socket.recv_from(buf)?;
-    if bytes > 0 {
-        Ok(RtpsMessageRead::try_from(&buf[0..bytes])?)
-    } else {
-        Err(RtpsError::new(RtpsErrorKind::NotEnoughData, ""))
-    }
-}
 
 pub struct RtpsParticipant {
     entity: RtpsEntity,
@@ -131,13 +57,13 @@ pub struct RtpsParticipant {
     default_multicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
-    builtin_stateless_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessWriter>>>>>,
-    builtin_stateful_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
-    builtin_stateless_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatelessReader>>>>>,
-    builtin_stateful_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulReader>>>>>,
-    user_defined_writer_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulWriter>>>>>,
-    user_defined_reader_list: Arc<Mutex<Vec<Arc<Mutex<RtpsStatefulReader>>>>>,
-    sender_socket: UdpSocket,
+    builtin_stateless_writer_list: Vec<RtpsStatelessWriter>,
+    builtin_stateful_writer_list: Vec<RtpsStatefulWriter>,
+    builtin_stateless_reader_list: Vec<RtpsStatelessReader>,
+    builtin_stateful_reader_list: Vec<RtpsStatefulReader>,
+    user_defined_writer_list: Vec<RtpsStatefulWriter>,
+    user_defined_reader_list: Vec<RtpsStatefulReader>,
+    message_sender: MessageSender,
     endpoint_counter: u8,
     discovered_participant_list: Vec<InstanceHandle>,
 }
@@ -147,169 +73,79 @@ impl RtpsParticipant {
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
         domain_tag: String,
-        interface_name: Option<&String>,
-        udp_receive_buffer_size: Option<usize>,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
+        spdp_builtin_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        sedp_builtin_topics_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        sedp_builtin_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        sedp_builtin_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) -> RtpsResult<Self> {
-        let builtin_stateless_writer_list = Arc::new(Mutex::new(Vec::new()));
-        let builtin_stateless_reader_list =
-            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatelessReader>>>::new()));
-        let builtin_stateful_writer_list =
-            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulWriter>>>::new()));
-        let builtin_stateful_reader_list =
-            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulReader>>>::new()));
-        let user_defined_writer_list =
-            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulWriter>>>::new()));
-        let user_defined_reader_list =
-            Arc::new(Mutex::new(Vec::<Arc<Mutex<RtpsStatefulReader>>>::new()));
+        let message_sender =
+            MessageSender::new(guid_prefix, std::net::UdpSocket::bind("0.0.0.0:0000")?);
 
-        // Open socket for unicast user-defined data
-        let interface_address_list = NetworkInterface::show()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter(|x| {
-                if let Some(if_name) = interface_name {
-                    &x.name == if_name
-                } else {
-                    true
-                }
-            })
-            .flat_map(|i| {
-                i.addr.into_iter().filter(|a| match a {
-                    #[rustfmt::skip]
-                    Addr::V4(_) => true,
-                    _ => false,
-                })
-            });
-
-        let default_unicast_socket =
-            socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-        default_unicast_socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
-        default_unicast_socket.set_nonblocking(false)?;
-        if let Some(buffer_size) = udp_receive_buffer_size {
-            default_unicast_socket.set_recv_buffer_size(buffer_size)?;
+        let mut spdp_builtin_participant_writer = RtpsStatelessWriter::new(
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
+            message_sender.clone(),
+        );
+        for locator in &metatraffic_multicast_locator_list {
+            spdp_builtin_participant_writer.reader_locator_add(locator.clone());
         }
-        let mut default_unicast_socket = std::net::UdpSocket::from(default_unicast_socket);
-        let user_defined_unicast_port = default_unicast_socket.local_addr()?.port().into();
-        let default_unicast_locator_list = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, user_defined_unicast_port))
-            .collect();
 
-        // Open socket for unicast metatraffic data
-        let mut metatraffic_unicast_socket =
-            std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
-        metatraffic_unicast_socket.set_nonblocking(false)?;
-        let metattrafic_unicast_locator_port =
-            metatraffic_unicast_socket.local_addr()?.port().into();
-        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
-            .clone()
-            .map(|a| Locator::from_ip_and_port(&a, metattrafic_unicast_locator_port))
-            .collect();
+        let spdp_builtin_participant_reader = RtpsStatelessReader::new(
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+            spdp_builtin_participant_reader_history_cache,
+        );
 
-        // Open socket for multicast metatraffic data
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
+        let sedp_builtin_topics_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
+            message_sender.clone(),
+        );
 
-        let mut metatraffic_multicast_socket = get_multicast_socket(
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            port_builtin_multicast(domain_id),
-            interface_address_list,
-        )?;
-        let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
-        let builtin_stateful_reader_list_clone = builtin_stateful_reader_list.clone();
-        let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
-        std::thread::Builder::new()
-            .name("RTPS metatraffic multicast discovery".to_string())
-            .spawn(move || {
-                let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-                loop {
-                    if let Ok(rtps_message) =
-                        read_message(&mut metatraffic_multicast_socket, buf.as_mut_slice())
-                    {
-                        tracing::trace!(
-                            rtps_message = ?rtps_message,
-                            "Received metatraffic multicast RTPS message"
-                        );
-                        MessageReceiver::new(rtps_message).process_message(
-                            builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
-                            builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
-                            builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
-                        );
-                    }
-                }
-            })
-            .expect("failed to spawn thread");
+        let sedp_builtin_topics_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+            sedp_builtin_topics_reader_history_cache,
+            message_sender.clone(),
+        );
 
-        let builtin_stateless_reader_list_clone = builtin_stateless_reader_list.clone();
-        let builtin_stateful_reader_list_clone = builtin_stateful_reader_list.clone();
-        let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
-        std::thread::Builder::new()
-            .name("RTPS metatraffic unicast discovery".to_string())
-            .spawn(move || {
-                let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-                loop {
-                    if let Ok(rtps_message) =
-                        read_message(&mut metatraffic_unicast_socket, buf.as_mut_slice())
-                    {
-                        tracing::trace!(
-                            rtps_message = ?rtps_message,
-                            "Received metatraffic unicast RTPS message"
-                        );
+        let sedp_builtin_publications_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
+            message_sender.clone(),
+        );
 
-                        MessageReceiver::new(rtps_message).process_message(
-                            builtin_stateless_reader_list_clone.lock().unwrap().as_ref(),
-                            builtin_stateful_reader_list_clone.lock().unwrap().as_ref(),
-                            builtin_stateful_writer_list_clone.lock().unwrap().as_ref(),
-                        );
-                    }
-                }
-            })
-            .expect("failed to spawn thread");
+        let sedp_builtin_publications_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
+            sedp_builtin_publications_reader_history_cache,
+            message_sender.clone(),
+        );
 
-        let user_defined_reader_list_clone = user_defined_reader_list.clone();
-        let user_defined_writer_list_clone = user_defined_writer_list.clone();
-        std::thread::Builder::new()
-            .name("RTPS user defined traffic".to_string())
-            .spawn(move || {
-                let mut buf = Box::new([0; MAX_DATAGRAM_SIZE]);
-                loop {
-                    if let Ok(rtps_message) =
-                        read_message(&mut default_unicast_socket, buf.as_mut_slice())
-                    {
-                        tracing::trace!(
-                            rtps_message = ?rtps_message,
-                            "Received user defined data unicast RTPS message"
-                        );
-                        MessageReceiver::new(rtps_message).process_message(
-                            &[],
-                            user_defined_reader_list_clone.lock().unwrap().as_ref(),
-                            user_defined_writer_list_clone.lock().unwrap().as_ref(),
-                        );
-                    }
-                }
-            })
-            .expect("failed to spawn thread");
+        let sedp_builtin_subscriptions_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
+            message_sender.clone(),
+        );
 
-        // Heartbeat thread
-        let builtin_stateful_writer_list_clone = builtin_stateful_writer_list.clone();
-        let user_defined_writer_list_clone = user_defined_writer_list.clone();
-        std::thread::Builder::new()
-            .name("RTPS user defined heartbeat".to_string())
-            .spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(50));
-                for builtin_writer in builtin_stateful_writer_list_clone.lock().unwrap().iter() {
-                    builtin_writer.lock().unwrap().send_message();
-                }
-                for user_defined_writer in user_defined_writer_list_clone.lock().unwrap().iter() {
-                    user_defined_writer.lock().unwrap().send_message();
-                }
-            })
-            .expect("failed to spawn thread");
+        let sedp_builtin_subscriptions_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
+            sedp_builtin_subscriptions_reader_history_cache,
+            message_sender.clone(),
+        );
 
-        let sender_socket = std::net::UdpSocket::bind("0.0.0.0:0000")?;
+        let builtin_stateless_writer_list = vec![spdp_builtin_participant_writer];
+        let builtin_stateless_reader_list = vec![spdp_builtin_participant_reader];
+        let builtin_stateful_writer_list = vec![
+            sedp_builtin_topics_writer,
+            sedp_builtin_publications_writer,
+            sedp_builtin_subscriptions_writer,
+        ];
+        let builtin_stateful_reader_list = vec![
+            sedp_builtin_topics_reader,
+            sedp_builtin_publications_reader,
+            sedp_builtin_subscriptions_reader,
+        ];
+        let user_defined_writer_list = Vec::new();
+        let user_defined_reader_list = Vec::new();
+
         Ok(Self {
             entity: RtpsEntity::new(Guid::new(guid_prefix, ENTITYID_PARTICIPANT)),
             domain_id,
@@ -317,7 +153,7 @@ impl RtpsParticipant {
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: VENDOR_ID_S2E,
             default_unicast_locator_list,
-            default_multicast_locator_list: Vec::new(),
+            default_multicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             builtin_stateless_writer_list,
@@ -326,7 +162,7 @@ impl RtpsParticipant {
             builtin_stateful_reader_list,
             user_defined_writer_list,
             user_defined_reader_list,
-            sender_socket,
+            message_sender,
             endpoint_counter: 0,
             discovered_participant_list: Vec::new(),
         })
@@ -374,94 +210,6 @@ impl RtpsParticipant {
 
     pub fn set_metatraffic_multicast_locator_list(&mut self, list: Vec<Locator>) {
         self.metatraffic_multicast_locator_list = list;
-    }
-
-    pub fn create_builtin_stateless_writer(
-        &mut self,
-        writer_guid: Guid,
-    ) -> Arc<Mutex<RtpsStatelessWriter>> {
-        let socket = self
-            .sender_socket
-            .try_clone()
-            .expect("Should always be clone");
-        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let mut stateless_writer =
-            RtpsStatelessWriter::new(writer_guid, message_sender, self.participant_proxy());
-
-        let spdp_discovery_locator_list = [Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(self.domain_id) as u32,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
-
-        for reader_locator in spdp_discovery_locator_list {
-            stateless_writer.reader_locator_add(reader_locator);
-        }
-
-        let writer = Arc::new(Mutex::new(stateless_writer));
-        self.builtin_stateless_writer_list
-            .lock()
-            .unwrap()
-            .push(writer.clone());
-        writer
-    }
-
-    pub fn create_builtin_stateful_writer(
-        &mut self,
-        writer_guid: Guid,
-    ) -> Arc<Mutex<RtpsStatefulWriter>> {
-        let socket = self
-            .sender_socket
-            .try_clone()
-            .expect("Should always be clone");
-        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let writer = Arc::new(Mutex::new(RtpsStatefulWriter::new(
-            writer_guid,
-            message_sender,
-        )));
-        self.builtin_stateful_writer_list
-            .lock()
-            .unwrap()
-            .push(writer.clone());
-        writer
-    }
-
-    pub fn create_builtin_stateless_reader(
-        &mut self,
-        reader_guid: Guid,
-        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    ) -> Arc<Mutex<RtpsStatelessReader>> {
-        let reader = Arc::new(Mutex::new(RtpsStatelessReader::new(
-            reader_guid,
-            history_cache,
-        )));
-        self.builtin_stateless_reader_list
-            .lock()
-            .unwrap()
-            .push(reader.clone());
-        reader
-    }
-
-    pub fn create_builtin_stateful_reader(
-        &mut self,
-        reader_guid: Guid,
-        history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    ) -> Arc<Mutex<RtpsStatefulReader>> {
-        let socket = self
-            .sender_socket
-            .try_clone()
-            .expect("Should always be clone");
-        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
-            reader_guid,
-            history_cache,
-            message_sender,
-        )));
-        self.builtin_stateful_reader_list
-            .lock()
-            .unwrap()
-            .push(reader.clone());
-        reader
     }
 
     pub fn add_discovered_participant(
@@ -708,9 +456,7 @@ impl RtpsParticipant {
             //     .add_matched_writer(&discovered_writer_data);
         }
     }
-}
 
-impl RtpsParticipant {
     pub fn participant_proxy(&self) -> ParticipantProxy {
         ParticipantProxy {
             domain_id: Some(self.domain_id),
@@ -729,10 +475,7 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_writer(
-        &mut self,
-        topic_kind: TopicKind,
-    ) -> Arc<Mutex<dyn TransportWriter + Send + Sync + 'static>> {
+    pub fn create_writer(&mut self, topic_kind: TopicKind) -> Guid {
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
             TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
@@ -743,34 +486,21 @@ impl RtpsParticipant {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let writer_guid = Guid::new(self.guid().prefix(), entity_id);
 
-        let socket = self
-            .sender_socket
-            .try_clone()
-            .expect("Should always be clone");
-        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let writer: Arc<Mutex<RtpsStatefulWriter>> = Arc::new(Mutex::new(RtpsStatefulWriter::new(
-            writer_guid,
-            message_sender,
-        )));
-        self.user_defined_writer_list
-            .lock()
-            .unwrap()
-            .push(writer.clone());
-        writer
+        let writer = RtpsStatefulWriter::new(writer_guid, self.message_sender.clone());
+        self.user_defined_writer_list.push(writer);
+        writer_guid
     }
 
     pub fn delete_writer(&mut self, writer_guid: Guid) {
         self.user_defined_writer_list
-            .lock()
-            .unwrap()
-            .retain(|x| x.lock().unwrap().guid() != writer_guid);
+            .retain(|x| x.guid() != writer_guid);
     }
 
     pub fn create_reader(
         &mut self,
         topic_kind: TopicKind,
-        reader_history_cache: Box<dyn ReaderHistoryCache + Send + Sync + 'static>,
-    ) -> Arc<Mutex<dyn TransportReader + Send + Sync + 'static>> {
+        reader_history_cache: Box<dyn ReaderHistoryCache>,
+    ) {
         // let subscriber_guid = self.rtps_group.guid();
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
@@ -781,53 +511,263 @@ impl RtpsParticipant {
         let entity_key: [u8; 3] = [0, data_reader_counter, 0];
         let entity_id = EntityId::new(entity_key, entity_kind);
         let reader_guid = Guid::new(self.guid().prefix(), entity_id);
-        let socket = self
-            .sender_socket
-            .try_clone()
-            .expect("Should always be clone");
-        let message_sender = MessageSender::new(self.entity.guid().prefix(), socket);
-        let reader = Arc::new(Mutex::new(RtpsStatefulReader::new(
+        let reader = RtpsStatefulReader::new(
             reader_guid,
             reader_history_cache,
-            message_sender,
-        )));
-        self.user_defined_reader_list
-            .lock()
-            .unwrap()
-            .push(reader.clone());
-        reader
+            self.message_sender.clone(),
+        );
+        self.user_defined_reader_list.push(reader);
     }
 
     pub fn delete_reader(&mut self, reader_guid: Guid) {
         self.user_defined_reader_list
-            .lock()
-            .unwrap()
-            .retain(|x| x.lock().unwrap().guid() != reader_guid);
+            .retain(|x| x.guid() != reader_guid);
+    }
+
+    pub fn process_builtin_rtps_message(&mut self, message: RtpsMessageRead) {
+        MessageReceiver::new(message).process_message(
+            &mut self.builtin_stateless_reader_list,
+            &mut self.builtin_stateful_reader_list,
+            &mut self.builtin_stateful_writer_list,
+        );
+    }
+
+    pub fn process_user_defined_rtps_message(&mut self, message: RtpsMessageRead) {
+        MessageReceiver::new(message).process_message(
+            &mut [],
+            &mut self.user_defined_reader_list,
+            &mut self.user_defined_writer_list,
+        );
     }
 }
 
-// let spdp_builtin_participant_writer = todo!();
-// let spdp_builtin_participant_reader = RtpsStatelessReader::new(
-//     Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
-//     spdp_builtin_participant_reader_history_cache,
-// );
-// let sedp_builtin_topics_writer = todo!();
-// let message_sender = todo!();
-// let sedp_builtin_topics_reader = RtpsStatefulReader::new(
-//     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
-//     sedp_builtin_topics_reader_history_cache,
-//     message_sender,
-// );
-// let sedp_builtin_publications_writer = todo!();
-// let message_sender = todo!();
-// let sedp_builtin_publications_reader = RtpsStatefulReader::new(
-//     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-//     sedp_builtin_publications_reader_history_cache,
-//     message_sender,
-// );
-// let sedp_builtin_subscriptions_writer = todo!();
-// let sedp_builtin_subscriptions_reader = RtpsStatefulReader::new(
-//     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-//     sedp_builtin_subscriptions_reader_history_cache,
-//     message_sender,
-// );
+pub struct ProcessBuiltinRtpsMessage {
+    pub rtps_message: RtpsMessageRead,
+}
+impl Mail for ProcessBuiltinRtpsMessage {
+    type Result = ();
+}
+impl MailHandler<ProcessBuiltinRtpsMessage> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: ProcessBuiltinRtpsMessage,
+    ) -> <ProcessBuiltinRtpsMessage as Mail>::Result {
+        self.process_builtin_rtps_message(message.rtps_message);
+    }
+}
+
+pub struct ProcessUserDefinedRtpsMessage {
+    pub rtps_message: RtpsMessageRead,
+}
+impl Mail for ProcessUserDefinedRtpsMessage {
+    type Result = ();
+}
+impl MailHandler<ProcessUserDefinedRtpsMessage> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: ProcessUserDefinedRtpsMessage,
+    ) -> <ProcessUserDefinedRtpsMessage as Mail>::Result {
+        self.process_user_defined_rtps_message(message.rtps_message);
+    }
+}
+
+pub struct SendHeartbeat;
+impl Mail for SendHeartbeat {
+    type Result = ();
+}
+impl MailHandler<SendHeartbeat> for RtpsParticipant {
+    fn handle(&mut self, _: SendHeartbeat) -> <SendHeartbeat as Mail>::Result {
+        for builtin_writer in self.builtin_stateful_writer_list.iter_mut() {
+            builtin_writer.send_message();
+        }
+        for user_defined_writer in self.user_defined_writer_list.iter_mut() {
+            user_defined_writer.send_message();
+        }
+    }
+}
+
+pub struct CreateWriter {
+    pub topic_kind: TopicKind,
+    pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+}
+
+impl Mail for CreateWriter {
+    type Result = Box<dyn TransportWriter>;
+}
+impl MailHandler<CreateWriter> for RtpsParticipant {
+    fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
+        let guid = self.create_writer(message.topic_kind);
+
+        struct RtpsUserDefinedWriterHistoryCache {
+            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+            pub guid: Guid,
+        }
+        impl TransportWriter for RtpsUserDefinedWriterHistoryCache {
+            fn get_history_cache(
+                &mut self,
+            ) -> &mut dyn crate::rtps::stateful_writer::WriterHistoryCache {
+                self
+            }
+
+            fn add_matched_reader(
+                &mut self,
+                reader_proxy: crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
+                reliability_kind: crate::rtps::types::ReliabilityKind,
+                durability_kind: crate::rtps::types::DurabilityKind,
+            ) {
+                todo!()
+            }
+
+            fn delete_matched_reader(&mut self, reader_guid: crate::rtps::types::Guid) {
+                todo!()
+            }
+
+            fn are_all_changes_acknowledged(&self) -> bool {
+                todo!()
+            }
+
+            fn writer_proxy(&self) -> crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::WriterProxy{
+                todo!()
+            }
+        }
+        impl WriterHistoryCache for RtpsUserDefinedWriterHistoryCache {
+            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+                self.rtps_participant_address
+                    .send_actor_mail(AddUserDefinedCacheChange {
+                        guid: self.guid,
+                        cache_change,
+                    })
+                    .ok();
+            }
+
+            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+                todo!()
+            }
+        }
+
+        Box::new(RtpsUserDefinedWriterHistoryCache {
+            rtps_participant_address: message.rtps_participant_address,
+            guid,
+        })
+    }
+}
+
+pub struct CreateReader {
+    pub topic_kind: TopicKind,
+    pub reader_history_cache: Box<dyn ReaderHistoryCache>,
+}
+
+impl Mail for CreateReader {
+    type Result = Box<dyn TransportReader>;
+}
+impl MailHandler<CreateReader> for RtpsParticipant {
+    fn handle(&mut self, message: CreateReader) -> <CreateReader as Mail>::Result {
+        self.create_reader(message.topic_kind, message.reader_history_cache);
+
+        struct RtpsUserDefinedReaderHistoryCache;
+
+        impl TransportReader for RtpsUserDefinedReaderHistoryCache {
+            fn add_matched_writer(
+                &mut self,
+                writer_proxy: WriterProxy,
+                reliability_kind: super::types::ReliabilityKind,
+                durability_kind: super::types::DurabilityKind,
+            ) {
+                todo!()
+            }
+
+            fn delete_matched_writer(&mut self, writer_guid: Guid) {
+                todo!()
+            }
+
+            fn reader_proxy(&self) -> ReaderProxy {
+                todo!()
+            }
+        }
+
+        Box::new(RtpsUserDefinedReaderHistoryCache)
+    }
+}
+
+pub struct AddParticipantDiscoveryCacheChange {
+    pub cache_change: RtpsCacheChange,
+}
+
+impl Mail for AddParticipantDiscoveryCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddParticipantDiscoveryCacheChange,
+    ) -> <AddParticipantDiscoveryCacheChange as Mail>::Result {
+        let participant_proxy = self.participant_proxy();
+        if let Some(w) = self
+            .builtin_stateless_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+        {
+            let dds_participant_data = ParticipantBuiltinTopicData::deserialize_data(
+                message.cache_change.data_value.as_ref(),
+            )
+            .unwrap();
+            let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+                dds_participant_data,
+                participant_proxy,
+                lease_duration: Duration::new(100, 0).into(),
+                discovered_participant_list: vec![],
+            };
+
+            let mut cache_change = message.cache_change;
+            cache_change.data_value = spdp_discovered_participant_data
+                .serialize_data()
+                .unwrap()
+                .into();
+            w.get_history_cache().add_change(cache_change);
+        }
+    }
+}
+
+pub struct RemoveParticipantDiscoveryCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+
+impl Mail for RemoveParticipantDiscoveryCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveParticipantDiscoveryCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: RemoveParticipantDiscoveryCacheChange,
+    ) -> <RemoveParticipantDiscoveryCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .builtin_stateless_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+        {
+            w.get_history_cache().remove_change(message.sequence_number);
+        }
+    }
+}
+
+pub struct AddUserDefinedCacheChange {
+    pub guid: Guid,
+    pub cache_change: RtpsCacheChange,
+}
+impl Mail for AddUserDefinedCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddUserDefinedCacheChange,
+    ) -> <AddUserDefinedCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .user_defined_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid() == message.guid)
+        {
+            w.get_history_cache().add_change(message.cache_change);
+        }
+    }
+}

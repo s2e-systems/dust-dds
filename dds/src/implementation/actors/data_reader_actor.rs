@@ -313,7 +313,6 @@ pub struct DataReaderActorListener {
 
 pub struct DataReaderActor {
     data_reader_handle: DataReaderHandle,
-    transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
@@ -341,7 +340,6 @@ impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         data_reader_handle: DataReaderHandle,
-        transport_reader: Arc<Mutex<dyn TransportReader + Send + Sync + 'static>>,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -354,7 +352,6 @@ impl DataReaderActor {
 
         DataReaderActor {
             data_reader_handle,
-            transport_reader,
             sample_list: Vec::new(),
             topic_name,
             type_name,
@@ -1500,36 +1497,33 @@ impl DataReaderActor {
         Ok(())
     }
 
-    pub fn as_discovered_reader_data(
+    pub fn as_subscription_builtin_topic_data(
         &self,
         subscriber_qos: &SubscriberQos,
         topic_qos: &TopicQos,
-    ) -> DiscoveredReaderData {
-        DiscoveredReaderData::new(
-            self.transport_reader.lock().unwrap().reader_proxy(),
-            SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: InstanceHandle::from(self.data_reader_handle).into(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: self.topic_name.clone(),
-                type_name: self.type_name.clone(),
-                durability: self.qos.durability.clone(),
-                deadline: self.qos.deadline.clone(),
-                latency_budget: self.qos.latency_budget.clone(),
-                liveliness: self.qos.liveliness.clone(),
-                reliability: self.qos.reliability.clone(),
-                ownership: self.qos.ownership.clone(),
-                destination_order: self.qos.destination_order.clone(),
-                user_data: self.qos.user_data.clone(),
-                time_based_filter: self.qos.time_based_filter.clone(),
-                presentation: subscriber_qos.presentation.clone(),
-                partition: subscriber_qos.partition.clone(),
-                topic_data: topic_qos.topic_data.clone(),
-                group_data: subscriber_qos.group_data.clone(),
-                representation: self.qos.representation.clone(),
+    ) -> SubscriptionBuiltinTopicData {
+        SubscriptionBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: InstanceHandle::from(self.data_reader_handle).into(),
             },
-        )
+            participant_key: BuiltInTopicKey { value: [0; 16] },
+            topic_name: self.topic_name.clone(),
+            type_name: self.type_name.clone(),
+            durability: self.qos.durability.clone(),
+            deadline: self.qos.deadline.clone(),
+            latency_budget: self.qos.latency_budget.clone(),
+            liveliness: self.qos.liveliness.clone(),
+            reliability: self.qos.reliability.clone(),
+            ownership: self.qos.ownership.clone(),
+            destination_order: self.qos.destination_order.clone(),
+            user_data: self.qos.user_data.clone(),
+            time_based_filter: self.qos.time_based_filter.clone(),
+            presentation: subscriber_qos.presentation.clone(),
+            partition: subscriber_qos.partition.clone(),
+            topic_data: topic_qos.topic_data.clone(),
+            group_data: subscriber_qos.group_data.clone(),
+            representation: self.qos.representation.clone(),
+        }
     }
 
     pub fn get_topic_name(&self) -> &str {
@@ -1602,11 +1596,6 @@ impl DataReaderActor {
             .matched_publication_list
             .remove(&discovered_writer_handle);
         if let Some(w) = matched_publication {
-            self.transport_reader
-                .lock()
-                .unwrap()
-                .delete_matched_writer(w.key().value.into());
-
             self.on_subscription_matched(
                 discovered_writer_handle,
                 // message.data_reader_address,
