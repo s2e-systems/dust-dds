@@ -81,6 +81,10 @@ impl RtpsStatelessWriter {
 }
 
 impl WriterHistoryCache for RtpsStatelessWriter {
+    fn guid(&self) -> [u8; 16] {
+        self.guid.into()
+    }
+
     fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
         self.send_message();

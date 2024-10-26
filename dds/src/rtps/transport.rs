@@ -11,11 +11,19 @@ use crate::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         runtime::executor::{block_on, Executor},
     },
-    rtps::participant,
+    rtps::{
+        discovery_types::{
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        },
+        participant,
+    },
     topic_definition::type_support::DdsDeserialize,
 };
 
 use super::{
+    discovery_types::ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     messages::overall_structure::RtpsMessageRead,
     participant::RtpsParticipant,
@@ -30,6 +38,8 @@ pub trait Transport: Send + Sync {
     fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
     fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
+
+    fn get_topics_discovery_reader(&self) -> [u8; 16];
 
     fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
@@ -316,39 +326,6 @@ impl RtpsTransport {
     }
 }
 
-pub struct RtpsSepdDiscovery {}
-
-pub struct RtpsSpdpDiscovery {}
-
-impl RtpsSpdpDiscovery {
-    pub fn new() -> Self {
-        // let spdp_builtin_participant_writer = RtpsStatelessWriter::new(
-        //     Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
-        //     message_sender,
-        //     self.participant_proxy(),
-        // );
-
-        // let spdp_discovery_locator_list = [Locator::new(
-        //     LOCATOR_KIND_UDP_V4,
-        //     port_builtin_multicast(self.domain_id) as u32,
-        //     DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        // )];
-
-        // for reader_locator in spdp_discovery_locator_list {
-        //     stateless_writer.reader_locator_add(reader_locator);
-        // }
-        // let spdp_builtin_participant_reader = RtpsStatelessReader::new(
-        //     Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
-        //     spdp_builtin_participant_reader_history_cache,
-        // );
-        // Self {
-        //     spdp_builtin_participant_writer,
-        //     spdp_builtin_participant_reader,
-        // }
-        todo!()
-    }
-}
-
 impl Transport for RtpsTransport {
     fn guid(&self) -> [u8; 16] {
         self.guid.into()
@@ -356,9 +333,14 @@ impl Transport for RtpsTransport {
 
     fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
         struct RtpsParticipantDiscoveryWriterHistoryCache {
-            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+            guid: Guid,
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
         impl WriterHistoryCache for RtpsParticipantDiscoveryWriterHistoryCache {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddParticipantDiscoveryCacheChange {
@@ -381,16 +363,22 @@ impl Transport for RtpsTransport {
         }
 
         Box::new(RtpsParticipantDiscoveryWriterHistoryCache {
+            guid: Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
             rtps_participant_address: self.rtps_participant.address(),
         })
     }
 
     fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
         struct RtpsTopicsDiscoveryWriterHistoryCache {
-            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+            guid: Guid,
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
 
         impl WriterHistoryCache for RtpsTopicsDiscoveryWriterHistoryCache {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddTopicsDiscoveryCacheChange { cache_change })
@@ -411,16 +399,26 @@ impl Transport for RtpsTransport {
         }
 
         Box::new(RtpsTopicsDiscoveryWriterHistoryCache {
+            guid: Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
             rtps_participant_address: self.rtps_participant.address(),
         })
     }
 
+    fn get_topics_discovery_reader(&self) -> [u8; 16] {
+        Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR).into()
+    }
+
     fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
         struct RtpsPublicationsDiscoveryWriterHistoryCache {
-            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+            guid: Guid,
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
 
         impl WriterHistoryCache for RtpsPublicationsDiscoveryWriterHistoryCache {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddPublicationsDiscoveryCacheChange {
@@ -443,12 +441,53 @@ impl Transport for RtpsTransport {
         }
 
         Box::new(RtpsPublicationsDiscoveryWriterHistoryCache {
+            guid: Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ),
             rtps_participant_address: self.rtps_participant.address(),
         })
     }
 
     fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
-        todo!()
+        struct RtpsSubscriptionsDiscoveryWriterHistoryCache {
+            guid: Guid,
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
+        }
+
+        impl WriterHistoryCache for RtpsSubscriptionsDiscoveryWriterHistoryCache {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+
+            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+                self.rtps_participant_address
+                    .send_actor_mail(participant::AddSubscriptionsDiscoveryCacheChange {
+                        cache_change,
+                    })
+                    .ok();
+            }
+
+            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+                self.rtps_participant_address
+                    .send_actor_mail(participant::RemoveSubscriptionsDiscoveryCacheChange {
+                        sequence_number,
+                    })
+                    .ok();
+            }
+
+            fn are_all_changes_acknowledged(&self) -> bool {
+                todo!()
+            }
+        }
+
+        Box::new(RtpsSubscriptionsDiscoveryWriterHistoryCache {
+            guid: Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            ),
+            rtps_participant_address: self.rtps_participant.address(),
+        })
     }
 
     fn create_user_defined_reader(

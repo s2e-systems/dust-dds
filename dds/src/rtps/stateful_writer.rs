@@ -23,6 +23,8 @@ use super::{
 };
 
 pub trait WriterHistoryCache: Send + Sync {
+    fn guid(&self) -> [u8; 16];
+
     fn add_change(&mut self, cache_change: RtpsCacheChange);
 
     fn remove_change(&mut self, sequence_number: SequenceNumber);
@@ -576,6 +578,10 @@ fn send_change_message_reader_proxy_reliable(
 }
 
 impl WriterHistoryCache for RtpsStatefulWriter {
+    fn guid(&self) -> [u8; 16] {
+        self.guid.into()
+    }
+
     fn add_change(&mut self, cache_change: RtpsCacheChange) {
         self.changes.push(cache_change);
         self.send_message();

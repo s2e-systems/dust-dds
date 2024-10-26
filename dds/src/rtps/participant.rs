@@ -1,10 +1,12 @@
 use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
+    builtin_topics::{
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+    },
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{ActorAddress, Mail, MailHandler},
         data_representation_builtin_endpoints::{
-            discovered_reader_data::ReaderProxy,
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
             spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
         },
@@ -642,10 +644,14 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
         let guid = self.create_writer(message.topic_kind);
 
         struct RtpsUserDefinedWriterHistoryCache {
-            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
-            pub guid: Guid,
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
+            guid: Guid,
         }
         impl WriterHistoryCache for RtpsUserDefinedWriterHistoryCache {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+
             fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(AddUserDefinedCacheChange {
@@ -805,12 +811,21 @@ impl MailHandler<AddPublicationsDiscoveryCacheChange> for RtpsParticipant {
             if let Ok(dds_publication_data) = PublicationBuiltinTopicData::deserialize_data(
                 message.cache_change.data_value.as_ref(),
             ) {
-                dds_publication_data.key;
-                DiscoveredWriterData {
-                    dds_publication_data: todo!(),
-                    writer_proxy: todo!(),
-                };
-                w.add_change(message.cache_change);
+                if let Some(writer_proxy) = self
+                    .user_defined_writer_list
+                    .iter()
+                    .find(|w| w.guid() == dds_publication_data.key.value.into())
+                    .map(|w| w.writer_proxy())
+                {
+                    let mut cache_change = message.cache_change;
+                    let discovered_writer_data = DiscoveredWriterData {
+                        dds_publication_data,
+                        writer_proxy,
+                    };
+                    cache_change.data_value =
+                        discovered_writer_data.serialize_data().unwrap().into();
+                    w.add_change(cache_change);
+                }
             }
         }
     }
@@ -828,9 +843,69 @@ impl MailHandler<RemovePublicationsDiscoveryCacheChange> for RtpsParticipant {
         message: RemovePublicationsDiscoveryCacheChange,
     ) -> <RemovePublicationsDiscoveryCacheChange as Mail>::Result {
         if let Some(w) = self
-            .builtin_stateless_writer_list
+            .builtin_stateful_writer_list
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
+        {
+            w.remove_change(message.sequence_number);
+        }
+    }
+}
+
+pub struct AddSubscriptionsDiscoveryCacheChange {
+    pub cache_change: RtpsCacheChange,
+}
+impl Mail for AddSubscriptionsDiscoveryCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddSubscriptionsDiscoveryCacheChange,
+    ) -> <AddSubscriptionsDiscoveryCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .builtin_stateful_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)
+        {
+            if let Ok(dds_subscription_data) = SubscriptionBuiltinTopicData::deserialize_data(
+                message.cache_change.data_value.as_ref(),
+            ) {
+                if let Some(reader_proxy) = self
+                    .user_defined_reader_list
+                    .iter()
+                    .find(|r| r.guid() == dds_subscription_data.key.value.into())
+                    .map(|r| r.reader_proxy())
+                {
+                    let mut cache_change = message.cache_change;
+                    let discovered_reader_data = DiscoveredReaderData {
+                        dds_subscription_data,
+                        reader_proxy,
+                    };
+                    cache_change.data_value =
+                        discovered_reader_data.serialize_data().unwrap().into();
+                    w.add_change(cache_change);
+                }
+            }
+        }
+    }
+}
+
+pub struct RemoveSubscriptionsDiscoveryCacheChange {
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveSubscriptionsDiscoveryCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: RemoveSubscriptionsDiscoveryCacheChange,
+    ) -> <RemoveSubscriptionsDiscoveryCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .builtin_stateful_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)
         {
             w.remove_change(message.sequence_number);
         }

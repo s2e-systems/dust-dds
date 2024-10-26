@@ -541,6 +541,24 @@ impl DomainParticipantActor {
                 transport.get_topics_discovery_writer(),
             )
             .unwrap();
+        builtin_publisher
+            .create_datawriter(
+                &topic_list[DCPS_PUBLICATION],
+                QosKind::Specific(sedp_data_writer_qos()),
+                None,
+                vec![],
+                transport.get_publications_discovery_writer(),
+            )
+            .unwrap();
+        builtin_publisher
+            .create_datawriter(
+                &topic_list[DCPS_SUBSCRIPTION],
+                QosKind::Specific(sedp_data_writer_qos()),
+                None,
+                vec![],
+                transport.get_subscriptions_discovery_writer(),
+            )
+            .unwrap();
 
         let participant_listener_thread = listener.map(ParticipantListenerThread::new);
 

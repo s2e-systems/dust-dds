@@ -1503,9 +1503,7 @@ impl DataReaderActor {
         topic_qos: &TopicQos,
     ) -> SubscriptionBuiltinTopicData {
         SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: InstanceHandle::from(self.data_reader_handle).into(),
-            },
+            key: BuiltInTopicKey { value: todo!() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: self.topic_name.clone(),
             type_name: self.type_name.clone(),

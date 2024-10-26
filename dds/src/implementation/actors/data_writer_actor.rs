@@ -752,7 +752,9 @@ impl DataWriterActor {
         let writer_qos = &self.qos;
 
         PublicationBuiltinTopicData {
-            key: BuiltInTopicKey { value: [0; 16] },
+            key: BuiltInTopicKey {
+                value: self.transport_writer.guid(),
+            },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name,
             type_name,
