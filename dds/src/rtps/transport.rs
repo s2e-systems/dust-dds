@@ -21,13 +21,19 @@ use super::{
     participant::RtpsParticipant,
     reader::{ReaderCacheChange, ReaderHistoryCache},
     stateful_writer::WriterHistoryCache,
-    types::{GuidPrefix, Locator, TopicKind, LOCATOR_KIND_UDP_V4},
+    types::{Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4},
 };
 
 pub trait Transport: Send + Sync {
+    fn guid(&self) -> [u8; 16];
+
     fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
     fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
+
+    fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
+
+    fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
     fn create_user_defined_reader(
         &mut self,
@@ -112,6 +118,7 @@ pub fn read_message(
 }
 
 pub struct RtpsTransport {
+    guid: Guid,
     rtps_participant: Actor<RtpsParticipant>,
     _executor: Executor,
 }
@@ -197,9 +204,10 @@ impl RtpsTransport {
                 rtps_participant_address: rtps_participant_actor_builder.address(),
                 dcps_participant_reader_history_cache,
             });
+        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
         let rtps_participant = rtps_participant_actor_builder.build(
             RtpsParticipant::new(
-                guid_prefix,
+                guid,
                 domain_id,
                 domain_tag,
                 default_unicast_locator_list,
@@ -301,6 +309,7 @@ impl RtpsTransport {
             .expect("failed to spawn thread");
 
         Ok(Self {
+            guid,
             rtps_participant,
             _executor: executor,
         })
@@ -341,6 +350,10 @@ impl RtpsSpdpDiscovery {
 }
 
 impl Transport for RtpsTransport {
+    fn guid(&self) -> [u8; 16] {
+        self.guid.into()
+    }
+
     fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
         struct RtpsParticipantDiscoveryWriterHistoryCache {
             pub rtps_participant_address: ActorAddress<RtpsParticipant>,
@@ -402,119 +415,41 @@ impl Transport for RtpsTransport {
         })
     }
 
-    // fn create_topics_discovery_reader(
-    //     &mut self,
-    //     reader_history_cache: Box<dyn ReaderHistoryCache>,
-    // ) -> Box<dyn TransportReader> {
-    //     todo!()
-    //     // struct SedpTopicsDiscoveryReaderHistoryCache {
-    //     //     reader_history_cache: Box<dyn ReaderHistoryCache>,
-    //     // }
-    //     // impl ReaderHistoryCache for SedpTopicsDiscoveryReaderHistoryCache {
-    //     //     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-    //     //         self.reader_history_cache.add_change(cache_change);
-    //     //     }
-    //     // }
-    //     // let reader_guid = Guid::new(
-    //     //     self.rtps_participant.lock().unwrap().guid().prefix(),
-    //     //     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-    //     // );
-    //     // let history_cache = Box::new(SedpTopicsDiscoveryReaderHistoryCache {
-    //     //     reader_history_cache,
-    //     // });
-    //     // self.rtps_participant
-    //     //     .lock()
-    //     //     .unwrap()
-    //     //     .create_builtin_stateless_reader(reader_guid, history_cache)
-    // }
+    fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
+        struct RtpsPublicationsDiscoveryWriterHistoryCache {
+            pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+        }
 
-    // fn create_topics_discovery_writer(&mut self) -> Box<dyn TransportWriter> {
-    //     todo!()
-    //     // let writer_guid = Guid::new(
-    //     //     self.rtps_participant.lock().unwrap().guid().prefix(),
-    //     //     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-    //     // );
-    //     // self.rtps_participant
-    //     //     .lock()
-    //     //     .unwrap()
-    //     //     .create_builtin_stateful_writer(writer_guid)
-    // }
+        impl WriterHistoryCache for RtpsPublicationsDiscoveryWriterHistoryCache {
+            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+                self.rtps_participant_address
+                    .send_actor_mail(participant::AddPublicationsDiscoveryCacheChange {
+                        cache_change,
+                    })
+                    .ok();
+            }
 
-    // fn create_publications_discovery_reader(
-    //     &mut self,
-    //     reader_history_cache: Box<dyn ReaderHistoryCache>,
-    // ) -> Box<dyn TransportReader> {
-    //     todo!()
-    //     // struct SedpPublicationsDiscoveryReaderHistoryCache {
-    //     //     reader_history_cache: Box<dyn ReaderHistoryCache >,
-    //     // }
-    //     // impl ReaderHistoryCache for SedpPublicationsDiscoveryReaderHistoryCache {
-    //     //     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-    //     //         self.reader_history_cache.add_change(cache_change);
-    //     //     }
-    //     // }
-    //     // let reader_guid = Guid::new(
-    //     //     self.rtps_participant.lock().unwrap().guid().prefix(),
-    //     //     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    //     // );
-    //     // let history_cache = Box::new(SedpPublicationsDiscoveryReaderHistoryCache {
-    //     //     reader_history_cache,
-    //     // });
-    //     // self.rtps_participant
-    //     //     .lock()
-    //     //     .unwrap()
-    //     //     .create_builtin_stateless_reader(reader_guid, history_cache)
-    // }
+            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+                self.rtps_participant_address
+                    .send_actor_mail(participant::RemovePublicationsDiscoveryCacheChange {
+                        sequence_number,
+                    })
+                    .ok();
+            }
 
-    // fn create_publications_discovery_writer(&mut self) -> Box<dyn TransportWriter> {
-    //     todo!()
-    //     // let writer_guid = Guid::new(
-    //     //     self.rtps_participant.lock().unwrap().guid().prefix(),
-    //     //     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    //     // );
-    //     // self.rtps_participant
-    //     //     .lock()
-    //     //     .unwrap()
-    //     //     .create_builtin_stateful_writer(writer_guid)
-    // }
+            fn are_all_changes_acknowledged(&self) -> bool {
+                todo!()
+            }
+        }
 
-    // fn create_subscriptions_discovery_reader(
-    //     &mut self,
-    //     reader_history_cache: Box<dyn ReaderHistoryCache>,
-    // ) -> Box<dyn TransportReader> {
-    //     todo!()
-    //     // struct SedpSubscriptionsDiscoveryReaderHistoryCache {
-    //     //     reader_history_cache: Box<dyn ReaderHistoryCache>,
-    //     // }
-    //     // impl ReaderHistoryCache for SedpSubscriptionsDiscoveryReaderHistoryCache {
-    //     //     fn add_change(&mut self, cache_change: ReaderCacheChange) {
-    //     //         self.reader_history_cache.add_change(cache_change);
-    //     //     }
-    //     // }
-    //     // let reader_guid = Guid::new(
-    //     //     self.rtps_participant.lock().unwrap().guid().prefix(),
-    //     //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    //     // );
-    //     // let history_cache = Box::new(SedpSubscriptionsDiscoveryReaderHistoryCache {
-    //     //     reader_history_cache,
-    //     // });
-    //     // self.rtps_participant
-    //     //     .lock()
-    //     //     .unwrap()
-    //     //     .create_builtin_stateless_reader(reader_guid, history_cache)
-    // }
+        Box::new(RtpsPublicationsDiscoveryWriterHistoryCache {
+            rtps_participant_address: self.rtps_participant.address(),
+        })
+    }
 
-    // fn create_subscriptions_discovery_writer(&mut self) -> Box<dyn TransportWriter> {
-    //     todo!()
-    //     // let writer_guid = Guid::new(
-    //     //     self.rtps_participant.lock().unwrap().guid().prefix(),
-    //     //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    //     // );
-    //     // self.rtps_participant
-    //     //     .lock()
-    //     //     .unwrap()
-    //     //     .create_builtin_stateful_writer(writer_guid)
-    // }
+    fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
+        todo!()
+    }
 
     fn create_user_defined_reader(
         &mut self,

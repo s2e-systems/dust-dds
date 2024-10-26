@@ -583,7 +583,9 @@ impl DomainParticipantActor {
     pub fn announce_participant(&mut self) -> DdsResult<()> {
         if self.enabled {
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: [0; 16] },
+                key: BuiltInTopicKey {
+                    value: self.transport.guid(),
+                },
                 user_data: self.qos.user_data.clone(),
             };
             let timestamp = self.get_current_time();
