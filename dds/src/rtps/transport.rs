@@ -15,7 +15,7 @@ use crate::{
         discovery_types::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         participant,
     },
@@ -27,15 +27,21 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     messages::overall_structure::RtpsMessageRead,
     participant::RtpsParticipant,
-    reader::{ReaderCacheChange, ReaderHistoryCache},
+    reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
     stateful_writer::WriterHistoryCache,
-    types::{Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4},
+    types::{
+        EntityId, Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
+        USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY,
+        USER_DEFINED_WRITER_WITH_KEY,
+    },
 };
 
 pub trait Transport: Send + Sync {
     fn guid(&self) -> [u8; 16];
 
     fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
+
+    fn get_participant_discovery_reader(&self) -> Box<dyn TransportReader>;
 
     fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
@@ -49,7 +55,7 @@ pub trait Transport: Send + Sync {
         &mut self,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
-    );
+    ) -> Box<dyn TransportReader>;
 
     fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn WriterHistoryCache>;
 }
@@ -131,6 +137,7 @@ pub struct RtpsTransport {
     guid: Guid,
     rtps_participant: Actor<RtpsParticipant>,
     _executor: Executor,
+    endpoint_counter: u8,
 }
 
 impl RtpsTransport {
@@ -322,6 +329,7 @@ impl RtpsTransport {
             guid,
             rtps_participant,
             _executor: executor,
+            endpoint_counter: 0,
         })
     }
 }
@@ -365,6 +373,22 @@ impl Transport for RtpsTransport {
         Box::new(RtpsParticipantDiscoveryWriterHistoryCache {
             guid: Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
             rtps_participant_address: self.rtps_participant.address(),
+        })
+    }
+
+    fn get_participant_discovery_reader(&self) -> Box<dyn TransportReader> {
+        pub struct RtpsParticipantDiscoveryReader {
+            guid: Guid,
+        }
+
+        impl TransportReader for RtpsParticipantDiscoveryReader {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+        }
+
+        Box::new(RtpsParticipantDiscoveryReader {
+            guid: Guid::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
         })
     }
 
@@ -494,20 +518,53 @@ impl Transport for RtpsTransport {
         &mut self,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
-    ) {
+    ) -> Box<dyn TransportReader> {
+        struct UserDefinedTransportReader {
+            guid: Guid,
+        }
+
+        impl TransportReader for UserDefinedTransportReader {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+        }
+
+        self.endpoint_counter += 1;
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
+            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
+        };
+
+        let data_reader_counter = self.endpoint_counter;
+        let entity_key: [u8; 3] = [0, data_reader_counter, 0];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let reader_guid = Guid::new(self.guid.prefix(), entity_id);
+
         self.rtps_participant
             .send_actor_mail(participant::CreateReader {
-                topic_kind,
+                reader_guid,
                 reader_history_cache,
             });
+
+        Box::new(UserDefinedTransportReader { guid: reader_guid })
     }
 
     fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn WriterHistoryCache> {
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
+            TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
+        };
+        self.endpoint_counter += 1;
+        let data_writer_counter = self.endpoint_counter;
+        let entity_key: [u8; 3] = [0, 0, data_writer_counter];
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let writer_guid = Guid::new(self.guid.prefix(), entity_id);
+
         block_on(
             self.rtps_participant
                 .send_actor_mail(participant::CreateWriter {
-                    topic_kind,
                     rtps_participant_address: self.rtps_participant.address(),
+                    writer_guid,
                 })
                 .receive_reply(),
         )

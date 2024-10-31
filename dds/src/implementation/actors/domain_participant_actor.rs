@@ -54,17 +54,10 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::{
-        discovery_types::{
-            BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-        },
         messages::submessage_elements::Data,
         reader::{ReaderCacheChange, ReaderHistoryCache},
         transport::Transport,
-        types::{Guid, TopicKind, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN},
+        types::{Guid, TopicKind, ENTITYID_PARTICIPANT},
     },
     subscription::sample_info::{
         InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
@@ -512,6 +505,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(spdp_reader_qos),
                 None,
                 vec![],
+                transport.get_participant_discovery_reader(),
             )
             .unwrap();
 
@@ -2106,15 +2100,20 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             }
             topic_kind
         };
-        let _transport_reader = self.transport.create_user_defined_reader(
+        let transport_reader = self.transport.create_user_defined_reader(
             topic_kind,
             Box::new(UserDefinedReaderHistoryCache {
                 domain_participant_address: message.domain_participant_address,
                 subscriber_handle: subscriber.get_handle().into(),
             }),
         );
-        let datareader_guid =
-            subscriber.create_datareader(topic, message.qos, message.a_listener, message.mask)?;
+        let datareader_guid = subscriber.create_datareader(
+            topic,
+            message.qos,
+            message.a_listener,
+            message.mask,
+            transport_reader,
+        )?;
         if subscriber.is_enabled()
             && subscriber
                 .get_qos()

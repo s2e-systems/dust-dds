@@ -28,7 +28,7 @@ use crate::{
         },
     },
     rtps::{
-        reader::{ReaderCacheChange, ReaderHistoryCache},
+        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
         transport::Transport,
         types::TopicKind,
     },
@@ -226,6 +226,7 @@ impl SubscriberActor {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
+        transport_reader: Box<dyn TransportReader>,
     ) -> DdsResult<InstanceHandle> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
@@ -259,6 +260,7 @@ impl SubscriberActor {
             qos,
             listener,
             data_reader_status_kind,
+            transport_reader,
         );
 
         self.data_reader_list

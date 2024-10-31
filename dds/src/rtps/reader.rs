@@ -88,6 +88,10 @@ impl ReaderCacheChange {
     }
 }
 
+pub trait TransportReader: Send + Sync {
+    fn guid(&self) -> [u8; 16];
+}
+
 pub trait ReaderHistoryCache: Send + Sync {
     fn add_change(&mut self, cache_change: ReaderCacheChange);
 }

@@ -50,7 +50,7 @@ use crate::{
     },
     rtps::{
         messages::submessage_elements::{Data, ParameterList},
-        reader::ReaderCacheChange,
+        reader::{ReaderCacheChange, TransportReader},
         types::{ChangeKind, DurabilityKind, Guid, ReliabilityKind},
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -334,6 +334,7 @@ pub struct DataReaderActor {
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, Guid>,
+    transport_reader: Box<dyn TransportReader>,
 }
 
 impl DataReaderActor {
@@ -346,6 +347,7 @@ impl DataReaderActor {
         qos: DataReaderQos,
         listener: Option<DataReaderActorListener>,
         data_reader_status_kind: Vec<StatusKind>,
+        transport_reader: Box<dyn TransportReader>,
     ) -> Self {
         let data_reader_listener_thread = listener
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
@@ -373,6 +375,7 @@ impl DataReaderActor {
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
             instance_ownership: HashMap::new(),
+            transport_reader,
         }
     }
 
@@ -1503,7 +1506,9 @@ impl DataReaderActor {
         topic_qos: &TopicQos,
     ) -> SubscriptionBuiltinTopicData {
         SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey { value: todo!() },
+            key: BuiltInTopicKey {
+                value: self.transport_reader.guid(),
+            },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: self.topic_name.clone(),
             type_name: self.type_name.clone(),

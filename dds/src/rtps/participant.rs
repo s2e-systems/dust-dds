@@ -12,20 +12,20 @@ use crate::{
         },
     },
     rtps::{
+        cache_change::RtpsCacheChange,
         discovery_types::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         },
         message_receiver::MessageReceiver,
         stateful_writer::{RtpsStatefulWriter, WriterHistoryCache},
-        types::ENTITYID_UNKNOWN,
+        types::{SequenceNumber, ENTITYID_UNKNOWN},
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
 };
 
 use super::{
     behavior_types::{Duration, InstanceHandle},
-    cache_change::RtpsCacheChange,
     discovery_types::{
         BuiltinEndpointQos, BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -39,10 +39,8 @@ use super::{
     reader::{ReaderHistoryCache, RtpsStatefulReader, RtpsStatelessReader},
     stateless_writer::RtpsStatelessWriter,
     types::{
-        DurabilityKind, EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber,
-        TopicKind, VendorId, PROTOCOLVERSION_2_4, USER_DEFINED_READER_NO_KEY,
-        USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-        VENDOR_ID_S2E,
+        DurabilityKind, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+        PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
     },
 };
 
@@ -63,7 +61,6 @@ pub struct RtpsParticipant {
     user_defined_writer_list: Vec<RtpsStatefulWriter>,
     user_defined_reader_list: Vec<RtpsStatefulReader>,
     message_sender: MessageSender,
-    endpoint_counter: u8,
     discovered_participant_list: Vec<InstanceHandle>,
 }
 
@@ -163,7 +160,6 @@ impl RtpsParticipant {
             user_defined_writer_list,
             user_defined_reader_list,
             message_sender,
-            endpoint_counter: 0,
             discovered_participant_list: Vec::new(),
         })
     }
@@ -521,17 +517,7 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_writer(&mut self, topic_kind: TopicKind) -> Guid {
-        let entity_kind = match topic_kind {
-            TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
-            TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
-        };
-        self.endpoint_counter += 1;
-        let data_writer_counter = self.endpoint_counter;
-        let entity_key: [u8; 3] = [0, 0, data_writer_counter];
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let writer_guid = Guid::new(self.guid().prefix(), entity_id);
-
+    pub fn create_writer(&mut self, writer_guid: Guid) -> Guid {
         let writer = RtpsStatefulWriter::new(writer_guid, self.message_sender.clone());
         self.user_defined_writer_list.push(writer);
         writer_guid
@@ -544,18 +530,9 @@ impl RtpsParticipant {
 
     pub fn create_reader(
         &mut self,
-        topic_kind: TopicKind,
+        reader_guid: Guid,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) {
-        let entity_kind = match topic_kind {
-            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
-            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
-        };
-        self.endpoint_counter += 1;
-        let data_reader_counter = self.endpoint_counter;
-        let entity_key: [u8; 3] = [0, data_reader_counter, 0];
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let reader_guid = Guid::new(self.guid().prefix(), entity_id);
         let reader = RtpsStatefulReader::new(
             reader_guid,
             reader_history_cache,
@@ -632,7 +609,7 @@ impl MailHandler<SendHeartbeat> for RtpsParticipant {
 }
 
 pub struct CreateWriter {
-    pub topic_kind: TopicKind,
+    pub writer_guid: Guid,
     pub rtps_participant_address: ActorAddress<RtpsParticipant>,
 }
 
@@ -641,7 +618,7 @@ impl Mail for CreateWriter {
 }
 impl MailHandler<CreateWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
-        let guid = self.create_writer(message.topic_kind);
+        let guid = self.create_writer(message.writer_guid);
 
         struct RtpsUserDefinedWriterHistoryCache {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
@@ -652,7 +629,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(AddUserDefinedCacheChange {
                         guid: self.guid,
@@ -661,8 +638,13 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
-                todo!()
+            fn remove_change(&mut self, sequence_number: SequenceNumber) {
+                self.rtps_participant_address
+                    .send_actor_mail(RemoveUserDefinedCacheChange {
+                        guid: self.guid,
+                        sequence_number,
+                    })
+                    .ok();
             }
 
             fn are_all_changes_acknowledged(&self) -> bool {
@@ -678,7 +660,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
 }
 
 pub struct CreateReader {
-    pub topic_kind: TopicKind,
+    pub reader_guid: Guid,
     pub reader_history_cache: Box<dyn ReaderHistoryCache>,
 }
 
@@ -687,7 +669,7 @@ impl Mail for CreateReader {
 }
 impl MailHandler<CreateReader> for RtpsParticipant {
     fn handle(&mut self, message: CreateReader) -> <CreateReader as Mail>::Result {
-        self.create_reader(message.topic_kind, message.reader_history_cache)
+        self.create_reader(message.reader_guid, message.reader_history_cache)
     }
 }
 
@@ -930,6 +912,28 @@ impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
             .find(|dw| dw.guid() == message.guid)
         {
             w.add_change(message.cache_change);
+        }
+    }
+}
+
+pub struct RemoveUserDefinedCacheChange {
+    pub guid: Guid,
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveUserDefinedCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveUserDefinedCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: RemoveUserDefinedCacheChange,
+    ) -> <RemoveUserDefinedCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .user_defined_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid() == message.guid)
+        {
+            w.remove_change(message.sequence_number);
         }
     }
 }
