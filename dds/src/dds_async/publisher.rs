@@ -7,8 +7,9 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_writer_listener::AnyDataWriterListener, domain_participant_actor,
-            domain_participant_actor::DomainParticipantActor,
+            any_data_writer_listener::AnyDataWriterListener,
+            domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
         },
     },
     infrastructure::{
@@ -24,13 +25,19 @@ use crate::{
 #[derive(Clone)]
 pub struct PublisherAsync {
     handle: InstanceHandle,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     participant: DomainParticipantAsync,
 }
 
 impl PublisherAsync {
-    pub(crate) fn new(handle: InstanceHandle, participant: DomainParticipantAsync) -> Self {
+    pub(crate) fn new(
+        handle: InstanceHandle,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        participant: DomainParticipantAsync,
+    ) -> Self {
         Self {
             handle,
+            status_condition_address,
             participant,
         }
     }
@@ -55,7 +62,7 @@ impl PublisherAsync {
     {
         let topic_name = a_topic.get_name();
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
-        let guid = self
+        let (guid, writer_status_condition_address) = self
             .participant_address()
             .send_actor_mail(domain_participant_actor::CreateUserDefinedDataWriter {
                 publisher_handle: self.handle,
@@ -67,7 +74,12 @@ impl PublisherAsync {
             .receive_reply()
             .await?;
 
-        Ok(DataWriterAsync::new(guid, self.clone(), a_topic.clone()))
+        Ok(DataWriterAsync::new(
+            guid,
+            writer_status_condition_address,
+            self.clone(),
+            a_topic.clone(),
+        ))
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::delete_datawriter).
@@ -225,7 +237,7 @@ impl PublisherAsync {
     /// Async version of [`get_statuscondition`](crate::publication::publisher::Publisher::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address().clone(), self.handle)
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).

@@ -8,7 +8,10 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actor::ActorAddress,
-        actors::{domain_participant_actor, domain_participant_actor::DomainParticipantActor},
+        actors::{
+            domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -27,6 +30,7 @@ use std::marker::PhantomData;
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
 pub struct DataWriterAsync<Foo> {
     handle: InstanceHandle,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     publisher: PublisherAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -36,6 +40,7 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
+            status_condition_address: self.status_condition_address.clone(),
             publisher: self.publisher.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -46,11 +51,13 @@ impl<Foo> Clone for DataWriterAsync<Foo> {
 impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
     ) -> Self {
         Self {
             handle,
+            status_condition_address,
             publisher,
             topic,
             phantom: PhantomData,
@@ -338,7 +345,7 @@ impl<Foo> DataWriterAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::publication::data_writer::DataWriter::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address().clone(), self.handle)
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::publication::data_writer::DataWriter::get_status_changes).

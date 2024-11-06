@@ -3,7 +3,13 @@ use super::{
     topic_listener::TopicListenerAsync,
 };
 use crate::{
-    implementation::actors::domain_participant_actor::{self},
+    implementation::{
+        actor::ActorAddress,
+        actors::{
+            domain_participant_actor::{self},
+            status_condition_actor::StatusConditionActor,
+        },
+    },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -18,6 +24,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct TopicAsync {
     handle: InstanceHandle,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
@@ -26,12 +33,14 @@ pub struct TopicAsync {
 impl TopicAsync {
     pub(crate) fn new(
         handle: InstanceHandle,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         type_name: String,
         topic_name: String,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
             handle,
+            status_condition_address,
             type_name,
             topic_name,
             participant,
@@ -102,7 +111,7 @@ impl TopicAsync {
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant.participant_address().clone(), self.handle)
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::topic_definition::topic::Topic::get_status_changes).

@@ -1,4 +1,7 @@
-use crate::infrastructure::{error::DdsResult, time::Duration};
+use crate::infrastructure::{
+    error::{DdsError, DdsResult},
+    time::Duration,
+};
 
 use super::condition::StatusConditionAsync;
 
@@ -35,34 +38,33 @@ impl WaitSetAsync {
     /// Async version of [`wait`](crate::infrastructure::wait_set::WaitSet::wait).
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, timeout: Duration) -> DdsResult<Vec<ConditionAsync>> {
-        todo!()
-        // if self.conditions.is_empty() {
-        //     return Err(DdsError::PreconditionNotMet(
-        //         "WaitSet has no attached conditions".to_string(),
-        //     ));
-        // };
+        if self.conditions.is_empty() {
+            return Err(DdsError::PreconditionNotMet(
+                "WaitSet has no attached conditions".to_string(),
+            ));
+        };
 
         // let timer_handle = self.conditions[0].timer_handle().clone();
-        // let start = std::time::Instant::now();
-        // while std::time::Instant::now().duration_since(start) < timeout.into() {
-        //     let mut finished = false;
-        //     let mut trigger_conditions = Vec::new();
-        //     for condition in &self.conditions {
-        //         if condition.get_trigger_value().await? {
-        //             trigger_conditions.push(condition.clone());
-        //             finished = true;
-        //         }
-        //     }
+        let start = std::time::Instant::now();
+        while std::time::Instant::now().duration_since(start) < timeout.into() {
+            let mut finished = false;
+            let mut trigger_conditions = Vec::new();
+            for condition in &self.conditions {
+                if condition.get_trigger_value().await? {
+                    trigger_conditions.push(condition.clone());
+                    finished = true;
+                }
+            }
 
-        //     if finished {
-        //         return Ok(trigger_conditions);
-        //     }
-        //     timer_handle
-        //         .sleep(std::time::Duration::from_millis(20))
-        //         .await;
-        // }
+            if finished {
+                return Ok(trigger_conditions);
+            }
+            // timer_handle
+            //     .sleep(std::time::Duration::from_millis(20))
+            //     .await;
+        }
 
-        // Err(DdsError::Timeout)
+        Err(DdsError::Timeout)
     }
 
     /// Async version of [`attach_condition`](crate::infrastructure::wait_set::WaitSet::attach_condition).

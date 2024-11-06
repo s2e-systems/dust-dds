@@ -1,4 +1,7 @@
-use crate::infrastructure::status::StatusKind;
+use crate::{
+    implementation::actor::{Mail, MailHandler},
+    infrastructure::status::StatusKind,
+};
 
 #[derive(Debug)]
 pub struct StatusConditionActor {
@@ -53,5 +56,76 @@ impl StatusConditionActor {
             }
         }
         false
+    }
+}
+
+pub struct GetStatusConditionEnabledStatuses;
+impl Mail for GetStatusConditionEnabledStatuses {
+    type Result = Vec<StatusKind>;
+}
+impl MailHandler<GetStatusConditionEnabledStatuses> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        _: GetStatusConditionEnabledStatuses,
+    ) -> <GetStatusConditionEnabledStatuses as Mail>::Result {
+        self.enabled_statuses.clone()
+    }
+}
+
+pub struct SetStatusConditionEnabledStatuses {
+    pub status_mask: Vec<StatusKind>,
+}
+impl Mail for SetStatusConditionEnabledStatuses {
+    type Result = ();
+}
+impl MailHandler<SetStatusConditionEnabledStatuses> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        message: SetStatusConditionEnabledStatuses,
+    ) -> <SetStatusConditionEnabledStatuses as Mail>::Result {
+        self.enabled_statuses = message.status_mask;
+    }
+}
+
+pub struct GetStatusConditionTriggerValue;
+impl Mail for GetStatusConditionTriggerValue {
+    type Result = bool;
+}
+impl MailHandler<GetStatusConditionTriggerValue> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        _: GetStatusConditionTriggerValue,
+    ) -> <GetStatusConditionTriggerValue as Mail>::Result {
+        self.get_trigger_value()
+    }
+}
+
+pub struct AddCommunicationState {
+    pub state: StatusKind,
+}
+impl Mail for AddCommunicationState {
+    type Result = ();
+}
+impl MailHandler<AddCommunicationState> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        message: AddCommunicationState,
+    ) -> <AddCommunicationState as Mail>::Result {
+        self.add_communication_state(message.state);
+    }
+}
+
+pub struct RemoveCommunicationState {
+    pub state: StatusKind,
+}
+impl Mail for RemoveCommunicationState {
+    type Result = ();
+}
+impl MailHandler<RemoveCommunicationState> for StatusConditionActor {
+    fn handle(
+        &mut self,
+        message: RemoveCommunicationState,
+    ) -> <RemoveCommunicationState as Mail>::Result {
+        self.remove_communication_state(message.state);
     }
 }

@@ -1,11 +1,15 @@
-use super::{handle::TopicHandle, status_condition_actor::StatusConditionActor};
+use super::{
+    handle::TopicHandle,
+    status_condition_actor::{self, StatusConditionActor},
+};
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dds_async::topic_listener::TopicListenerAsync,
     implementation::{
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         runtime::{
-            executor::block_on,
+            executor::{block_on, ExecutorHandle},
             mpsc::{mpsc_channel, MpscSender},
         },
     },
@@ -81,7 +85,7 @@ pub struct TopicActor {
     topic_handle: TopicHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
-    status_condition: StatusConditionActor,
+    status_condition: Actor<StatusConditionActor>,
     _topic_listener_thread: Option<TopicListenerThread>,
     status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -96,7 +100,9 @@ impl TopicActor {
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         topic_handle: TopicHandle,
+        executor_handle: &ExecutorHandle,
     ) -> Self {
+        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         let topic_listener_thread = listener.map(TopicListenerThread::new);
 
         Self {
@@ -106,7 +112,7 @@ impl TopicActor {
             topic_handle,
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: StatusConditionActor::default(),
+            status_condition,
             _topic_listener_thread: topic_listener_thread,
             status_kind,
             type_support,
@@ -116,7 +122,9 @@ impl TopicActor {
     pub fn get_inconsistent_topic_status(&mut self) -> DdsResult<InconsistentTopicStatus> {
         let status = self.inconsistent_topic_status.read_and_reset();
         self.status_condition
-            .remove_communication_state(StatusKind::InconsistentTopic);
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            });
 
         Ok(status)
     }
@@ -158,6 +166,10 @@ impl TopicActor {
         self.topic_handle
     }
 
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
+    }
+
     pub fn as_topic_builtin_topic_data(&self) -> TopicBuiltinTopicData {
         let topic_qos = self.qos.clone();
 
@@ -193,7 +205,9 @@ impl TopicActor {
         {
             self.inconsistent_topic_status.increment();
             self.status_condition
-                .add_communication_state(StatusKind::InconsistentTopic);
+                .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    state: StatusKind::InconsistentTopic,
+                });
         }
     }
 }

@@ -43,18 +43,17 @@ fn writer_discovers_reader_in_same_participant() {
     let _data_reader = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
-    // let cond = data_writer.get_statuscondition();
-    // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-    //     .unwrap();
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
 
-    // let mut wait_set = WaitSet::new();
-    // wait_set
-    //     .attach_condition(Condition::StatusCondition(cond))
-    //     .unwrap();
-    // wait_set.wait(Duration::new(5, 0)).unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
-    // assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
 }
 
 #[test]

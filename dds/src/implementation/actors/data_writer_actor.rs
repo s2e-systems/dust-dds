@@ -1,20 +1,17 @@
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
     handle::DataWriterHandle,
-    status_condition_actor::StatusConditionActor,
+    status_condition_actor::{self, StatusConditionActor},
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
-        actor::ActorAddress,
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-        },
+        actor::{Actor, ActorAddress},
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
         runtime::{
-            executor::{block_on, TaskHandle},
+            executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
         },
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
@@ -39,18 +36,14 @@ use crate::{
     rtps::{
         cache_change::RtpsCacheChange,
         messages::submessage_elements::{Parameter, ParameterList},
-        reader_proxy::RtpsReaderProxy,
         stateful_writer::WriterHistoryCache,
-        types::{
-            ChangeKind, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
-            GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
-        },
+        types::{ChangeKind, DurabilityKind, ReliabilityKind, SequenceNumber},
     },
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    sync::{Arc, Mutex},
+    sync::Arc,
     thread::JoinHandle,
 };
 
@@ -244,7 +237,7 @@ pub struct DataWriterActor {
     matched_subscriptions: MatchedSubscriptions,
     incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
-    status_condition: StatusConditionActor,
+    status_condition: Actor<StatusConditionActor>,
     data_writer_listener_thread: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
     max_seq_num: Option<SequenceNumber>,
@@ -266,8 +259,9 @@ impl DataWriterActor {
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
+        executor_handle: &ExecutorHandle,
     ) -> Self {
-        let status_condition = StatusConditionActor::default();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
 
         DataWriterActor {
@@ -293,6 +287,10 @@ impl DataWriterActor {
 
     pub fn get_handle(&self) -> DataWriterHandle {
         self.data_writer_handle
+    }
+
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     pub fn enable(&mut self) {
@@ -361,7 +359,9 @@ impl DataWriterActor {
         //     }
         // }
         self.status_condition
-            .add_communication_state(StatusKind::PublicationMatched);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::PublicationMatched,
+            });
     }
 
     fn on_offered_incompatible_qos(
@@ -439,7 +439,9 @@ impl DataWriterActor {
         //     }
         // }
         self.status_condition
-            .add_communication_state(StatusKind::OfferedIncompatibleQos);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::OfferedIncompatibleQos,
+            });
     }
 
     pub fn get_topic_name(&self) -> &str {
@@ -886,7 +888,9 @@ impl DataWriterActor {
 
     pub fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         self.status_condition
-            .remove_communication_state(StatusKind::PublicationMatched);
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::PublicationMatched,
+            });
 
         self.matched_subscriptions.get_publication_matched_status()
     }

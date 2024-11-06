@@ -38,7 +38,12 @@ impl DomainParticipantFactoryAsync {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let status_kind = mask.to_vec();
-        let (participant_address, participant_handle) = self
+        let (
+            participant_address,
+            participant_handle,
+            participant_status_condition_address,
+            builtin_subscriber_status_condition_address,
+        ) = self
             .domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::CreateParticipant {
                 domain_id,
@@ -49,8 +54,13 @@ impl DomainParticipantFactoryAsync {
             .receive_reply()
             .await?;
 
-        let domain_participant =
-            DomainParticipantAsync::new(participant_address.clone(), domain_id, participant_handle);
+        let domain_participant = DomainParticipantAsync::new(
+            participant_address.clone(),
+            participant_status_condition_address,
+            builtin_subscriber_status_condition_address,
+            domain_id,
+            participant_handle,
+        );
 
         if self
             .get_qos()

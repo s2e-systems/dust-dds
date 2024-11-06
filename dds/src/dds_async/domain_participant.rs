@@ -9,7 +9,10 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::ActorAddress,
-        actors::{domain_participant_actor, domain_participant_actor::DomainParticipantActor},
+        actors::{
+            domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -27,6 +30,8 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct DomainParticipantAsync {
     participant_address: ActorAddress<DomainParticipantActor>,
+    status_condition_address: ActorAddress<StatusConditionActor>,
+    builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
     handle: InstanceHandle,
 }
@@ -34,11 +39,15 @@ pub struct DomainParticipantAsync {
 impl DomainParticipantAsync {
     pub(crate) fn new(
         participant_address: ActorAddress<DomainParticipantActor>,
+        status_condition_address: ActorAddress<StatusConditionActor>,
+        builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
         handle: InstanceHandle,
     ) -> Self {
         Self {
             participant_address,
+            status_condition_address,
+            builtin_subscriber_status_condition_address,
             domain_id,
             handle,
         }
@@ -58,7 +67,7 @@ impl DomainParticipantAsync {
         a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
-        let guid = self
+        let (guid, publisher_status_condition_address) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedPublisher {
                 qos,
@@ -67,7 +76,7 @@ impl DomainParticipantAsync {
             })?
             .receive_reply()
             .await?;
-        let publisher = PublisherAsync::new(guid, self.clone());
+        let publisher = PublisherAsync::new(guid, publisher_status_condition_address, self.clone());
 
         Ok(publisher)
     }
@@ -91,7 +100,7 @@ impl DomainParticipantAsync {
         a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
-        let guid = self
+        let (guid, subscriber_status_condition_address) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedSubscriber {
                 qos,
@@ -100,7 +109,8 @@ impl DomainParticipantAsync {
             })?
             .receive_reply()
             .await?;
-        let subscriber = SubscriberAsync::new(guid, self.clone());
+        let subscriber =
+            SubscriberAsync::new(guid, subscriber_status_condition_address, self.clone());
 
         Ok(subscriber)
     }
@@ -146,7 +156,7 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
         dynamic_type_representation: Arc<dyn DynamicType + Send + Sync>,
     ) -> DdsResult<TopicAsync> {
-        let guid = self
+        let (guid, topic_status_condition_address) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::CreateUserDefinedTopic {
                 topic_name: topic_name.to_string(),
@@ -161,6 +171,7 @@ impl DomainParticipantAsync {
 
         Ok(TopicAsync::new(
             guid,
+            topic_status_condition_address,
             type_name.to_string(),
             topic_name.to_string(),
             self.clone(),
@@ -239,7 +250,7 @@ impl DomainParticipantAsync {
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
     #[tracing::instrument(skip(self))]
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
-        if let Some((type_name, topic_handle)) = self
+        if let Some((type_name, topic_handle, topic_status_condition_address)) = self
             .participant_address
             .send_actor_mail(domain_participant_actor::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
@@ -249,6 +260,7 @@ impl DomainParticipantAsync {
         {
             Ok(Some(TopicAsync::new(
                 topic_handle,
+                topic_status_condition_address,
                 type_name,
                 topic_name.to_owned(),
                 self.clone(),
@@ -261,7 +273,11 @@ impl DomainParticipantAsync {
     /// Async version of [`get_builtin_subscriber`](crate::domain::domain_participant::DomainParticipant::get_builtin_subscriber).
     #[tracing::instrument(skip(self))]
     pub fn get_builtin_subscriber(&self) -> SubscriberAsync {
-        SubscriberAsync::new(self.handle, self.clone())
+        SubscriberAsync::new(
+            self.handle,
+            self.builtin_subscriber_status_condition_address.clone(),
+            self.clone(),
+        )
     }
 
     /// Async version of [`ignore_participant`](crate::domain::domain_participant::DomainParticipant::ignore_participant).
@@ -471,7 +487,7 @@ impl DomainParticipantAsync {
     /// Async version of [`get_statuscondition`](crate::domain::domain_participant::DomainParticipant::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address.clone(), self.handle)
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).

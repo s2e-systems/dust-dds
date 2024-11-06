@@ -3,13 +3,13 @@ use tracing::debug;
 use super::{
     any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
     handle::DataReaderHandle,
-    status_condition_actor::StatusConditionActor,
+    status_condition_actor::{self, StatusConditionActor},
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::ActorAddress,
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
@@ -22,7 +22,7 @@ use crate::{
             },
         },
         runtime::{
-            executor::{block_on, TaskHandle},
+            executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
         },
         xtypes_glue::key_and_instance_handle::{
@@ -328,7 +328,7 @@ pub struct DataReaderActor {
     enabled: bool,
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
-    status_condition: StatusConditionActor,
+    status_condition: Actor<StatusConditionActor>,
     data_reader_listener_thread: Option<DataReaderListenerThread>,
     data_reader_status_kind: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
@@ -348,7 +348,9 @@ impl DataReaderActor {
         listener: Option<DataReaderActorListener>,
         data_reader_status_kind: Vec<StatusKind>,
         transport_reader: Box<dyn TransportReader>,
+        executor_handle: &ExecutorHandle,
     ) -> Self {
+        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         let data_reader_listener_thread = listener
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
 
@@ -368,7 +370,7 @@ impl DataReaderActor {
             enabled: false,
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
-            status_condition: StatusConditionActor::default(),
+            status_condition,
             data_reader_status_kind,
             data_reader_listener_thread,
             qos,
@@ -381,6 +383,9 @@ impl DataReaderActor {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.data_reader_handle.into()
+    }
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
@@ -408,7 +413,9 @@ impl DataReaderActor {
         }
 
         self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            });
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
@@ -454,7 +461,9 @@ impl DataReaderActor {
         )?;
 
         self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            });
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -480,9 +489,6 @@ impl DataReaderActor {
         //     Vec<StatusKind>,
         // ),
     ) -> DdsResult<()> {
-        self.status_condition
-            .add_communication_state(StatusKind::DataAvailable);
-
         // let topic_status_condition_address = self.topic_status_condition.clone();
         // let type_name = self.type_name.clone();
         // let topic_name = self.topic_name.clone();
@@ -524,7 +530,9 @@ impl DataReaderActor {
         // }
 
         self.status_condition
-            .add_communication_state(StatusKind::DataAvailable);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::DataAvailable,
+            });
         Ok(())
     }
 
@@ -645,7 +653,9 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .add_communication_state(StatusKind::SampleLost);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::SampleLost,
+            });
 
         Ok(())
     }
@@ -727,7 +737,9 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .add_communication_state(StatusKind::SubscriptionMatched);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            });
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -803,7 +815,9 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .add_communication_state(StatusKind::SampleRejected);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::SampleRejected,
+            });
     }
 
     fn on_requested_incompatible_qos(
@@ -882,7 +896,9 @@ impl DataReaderActor {
         //     }
         // }
         self.status_condition
-            .add_communication_state(StatusKind::RequestedIncompatibleQos);
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::RequestedIncompatibleQos,
+            });
     }
 
     fn convert_cache_change_to_sample(
@@ -1718,7 +1734,9 @@ impl DataReaderActor {
 
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         self.status_condition
-            .remove_communication_state(StatusKind::SubscriptionMatched);
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            });
 
         self.subscription_matched_status
             .read_and_reset(self.matched_publication_list.len() as i32)

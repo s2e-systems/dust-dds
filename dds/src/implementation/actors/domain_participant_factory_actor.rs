@@ -1,4 +1,7 @@
-use super::{domain_participant_actor, handle::ParticipantHandle};
+use super::{
+    domain_participant_actor, handle::ParticipantHandle,
+    status_condition_actor::StatusConditionActor,
+};
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
@@ -105,7 +108,12 @@ pub struct CreateParticipant {
     pub status_kind: Vec<StatusKind>,
 }
 impl Mail for CreateParticipant {
-    type Result = DdsResult<(ActorAddress<DomainParticipantActor>, InstanceHandle)>;
+    type Result = DdsResult<(
+        ActorAddress<DomainParticipantActor>,
+        InstanceHandle,
+        ActorAddress<StatusConditionActor>,
+        ActorAddress<StatusConditionActor>,
+    )>;
 }
 impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
     fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
@@ -155,6 +163,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             transport,
         );
 
+        let participant_status_condition_address = domain_participant.get_statuscondition();
+        let builtin_subscriber_status_condition_address = domain_participant
+            .get_builtin_subscriber()
+            .get_statuscondition();
+
         let participant_actor =
             participant_actor_builder.build(domain_participant, &executor_handle);
 
@@ -184,7 +197,12 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         self.domain_participant_list
             .insert(participant_handle.into(), participant_actor);
 
-        Ok((participant_address, participant_handle.into()))
+        Ok((
+            participant_address,
+            participant_handle.into(),
+            participant_status_condition_address,
+            builtin_subscriber_status_condition_address,
+        ))
     }
 }
 

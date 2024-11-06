@@ -1,7 +1,7 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
     domain_participant_actor::DomainParticipantActor, handle::SubscriberHandle,
-    topic_actor::TopicActor,
+    status_condition_actor, topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -9,13 +9,13 @@ use crate::{
         topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress,
+        actor::{Actor, ActorAddress},
         actors::{
             domain_participant_actor, handle::DataReaderHandle,
             status_condition_actor::StatusConditionActor,
         },
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        runtime::mpsc::MpscSender,
+        runtime::{executor::ExecutorHandle, mpsc::MpscSender},
     },
     infrastructure::{
         error::DdsResult,
@@ -135,7 +135,7 @@ pub struct SubscriberActor {
     enabled: bool,
     data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
-    status_condition: StatusConditionActor,
+    status_condition: Actor<StatusConditionActor>,
     subscriber_listener_thread: Option<SubscriberListenerThread>,
     subscriber_status_kind: Vec<StatusKind>,
 }
@@ -146,8 +146,9 @@ impl SubscriberActor {
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         subscriber_status_kind: Vec<StatusKind>,
         subscriber_handle: SubscriberHandle,
+        executor_handle: &ExecutorHandle,
     ) -> Self {
-        let status_condition = StatusConditionActor::default();
+        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
 
         SubscriberActor {
@@ -161,6 +162,10 @@ impl SubscriberActor {
             subscriber_listener_thread,
             subscriber_status_kind,
         }
+    }
+
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
@@ -227,7 +232,8 @@ impl SubscriberActor {
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
         transport_reader: Box<dyn TransportReader>,
-    ) -> DdsResult<InstanceHandle> {
+        executor_handle: &ExecutorHandle,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
         let qos = match qos {
             QosKind::Default => self.default_data_reader_qos.clone(),
             QosKind::Specific(q) => {
@@ -261,7 +267,9 @@ impl SubscriberActor {
             listener,
             data_reader_status_kind,
             transport_reader,
+            executor_handle,
         );
+        let reader_status_condition_address = data_reader.get_statuscondition();
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             data_reader.enable();
@@ -270,7 +278,7 @@ impl SubscriberActor {
         self.data_reader_list
             .insert(data_reader_handle.into(), data_reader);
 
-        Ok(data_reader_handle.into())
+        Ok((data_reader_handle.into(), reader_status_condition_address))
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -380,7 +388,9 @@ impl SubscriberActor {
             reader.add_change(cache_change);
 
             self.status_condition
-                .add_communication_state(StatusKind::DataOnReaders);
+                .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    state: StatusKind::DataOnReaders,
+                });
         }
     }
 
@@ -393,8 +403,11 @@ impl SubscriberActor {
             {
                 reader.add_change(cache_change.clone());
 
-                self.status_condition
-                    .add_communication_state(StatusKind::DataOnReaders);
+                self.status_condition.send_actor_mail(
+                    status_condition_actor::AddCommunicationState {
+                        state: StatusKind::DataOnReaders,
+                    },
+                );
             }
         }
     }

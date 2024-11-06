@@ -10,9 +10,9 @@ use crate::{
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress,
+        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        runtime::mpsc::MpscSender,
+        runtime::{executor::ExecutorHandle, mpsc::MpscSender},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -24,14 +24,10 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
     },
-    rtps::{stateful_writer::WriterHistoryCache, transport::Transport, types::TopicKind},
+    rtps::stateful_writer::WriterHistoryCache,
 };
 use fnmatch_regex::glob_to_regex;
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-    thread::JoinHandle,
-};
+use std::{collections::HashMap, thread::JoinHandle};
 use tracing::warn;
 
 pub enum PublisherListenerOperation {
@@ -114,7 +110,7 @@ pub struct PublisherActor {
     default_datawriter_qos: DataWriterQos,
     publisher_listener_thread: Option<PublisherListenerThread>,
     status_kind: Vec<StatusKind>,
-    status_condition: StatusConditionActor,
+    status_condition: Actor<StatusConditionActor>,
 }
 
 impl PublisherActor {
@@ -123,8 +119,10 @@ impl PublisherActor {
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         publisher_handle: PublisherHandle,
+        executor_handle: &ExecutorHandle,
     ) -> Self {
         let publisher_listener_thread = listener.map(PublisherListenerThread::new);
+        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         Self {
             qos,
             publisher_handle,
@@ -134,8 +132,12 @@ impl PublisherActor {
             default_datawriter_qos: DataWriterQos::default(),
             publisher_listener_thread,
             status_kind,
-            status_condition: StatusConditionActor::default(),
+            status_condition,
         }
+    }
+
+    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
+        self.status_condition.address()
     }
 
     fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
@@ -194,7 +196,8 @@ impl PublisherActor {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
         transport_writer: Box<dyn WriterHistoryCache>,
-    ) -> DdsResult<InstanceHandle> {
+        executor_handle: &ExecutorHandle,
+    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
             QosKind::Specific(q) => {
@@ -219,8 +222,9 @@ impl PublisherActor {
             a_listener,
             mask,
             qos,
+            executor_handle,
         );
-
+        let writer_status_condition_address = data_writer.get_statuscondition();
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             data_writer.enable();
         }
@@ -228,7 +232,7 @@ impl PublisherActor {
         self.data_writer_list
             .insert(data_writer_handle.into(), data_writer);
 
-        Ok(data_writer_handle.into())
+        Ok((data_writer_handle.into(), writer_status_condition_address))
     }
 
     pub fn get_datawriter(&self, handle: &InstanceHandle) -> &DataWriterActor {

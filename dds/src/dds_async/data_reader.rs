@@ -8,7 +8,10 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actor::ActorAddress,
-        actors::{domain_participant_actor, domain_participant_actor::DomainParticipantActor},
+        actors::{
+            domain_participant_actor::{self, DomainParticipantActor},
+            status_condition_actor::StatusConditionActor,
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -32,6 +35,7 @@ use std::marker::PhantomData;
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<Foo> {
     handle: InstanceHandle,
+    status_condition_address: ActorAddress<StatusConditionActor>,
     subscriber: SubscriberAsync,
     topic: TopicAsync,
     phantom: PhantomData<Foo>,
@@ -40,11 +44,13 @@ pub struct DataReaderAsync<Foo> {
 impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
+        status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     ) -> Self {
         Self {
             handle,
+            status_condition_address,
             subscriber,
             topic,
             phantom: PhantomData,
@@ -60,6 +66,7 @@ impl<Foo> Clone for DataReaderAsync<Foo> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle,
+            status_condition_address: self.status_condition_address.clone(),
             subscriber: self.subscriber.clone(),
             topic: self.topic.clone(),
             phantom: self.phantom,
@@ -428,7 +435,7 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
-        StatusConditionAsync::new(self.participant_address().clone(), self.handle)
+        StatusConditionAsync::new(self.status_condition_address.clone())
     }
 
     /// Async version of [`get_status_changes`](crate::subscription::data_reader::DataReader::get_status_changes).
