@@ -252,7 +252,7 @@ impl SubscriberActor {
         let listener = None;
         let data_reader_status_kind = mask.to_vec();
 
-        let data_reader = DataReaderActor::new(
+        let mut data_reader = DataReaderActor::new(
             data_reader_handle,
             topic_name,
             type_name,
@@ -262,6 +262,10 @@ impl SubscriberActor {
             data_reader_status_kind,
             transport_reader,
         );
+
+        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
+            data_reader.enable();
+        }
 
         self.data_reader_list
             .insert(data_reader_handle.into(), data_reader);
@@ -367,7 +371,7 @@ impl SubscriberActor {
         }
     }
 
-    pub fn add_change(
+    pub fn add_builtin_change(
         &mut self,
         cache_change: ReaderCacheChange,
         reader_instance_handle: InstanceHandle,
@@ -377,6 +381,21 @@ impl SubscriberActor {
 
             self.status_condition
                 .add_communication_state(StatusKind::DataOnReaders);
+        }
+    }
+
+    pub fn add_user_defined_change(&mut self, cache_change: ReaderCacheChange) {
+        let writer_instance_handle = InstanceHandle::new(cache_change.writer_guid.into());
+        for reader in self.data_reader_list.values_mut() {
+            if reader
+                .get_matched_publications()
+                .contains(&writer_instance_handle)
+            {
+                reader.add_change(cache_change.clone());
+
+                self.status_condition
+                    .add_communication_state(StatusKind::DataOnReaders);
+            }
         }
     }
 

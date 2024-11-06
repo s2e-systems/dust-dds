@@ -26,6 +26,7 @@ use crate::implementation::{
 };
 use tracing::error;
 
+#[derive(Clone)]
 pub struct ReaderCacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,

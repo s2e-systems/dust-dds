@@ -3528,7 +3528,12 @@ impl Mail for AddCacheChange {
 }
 impl MailHandler<AddCacheChange> for DomainParticipantActor {
     fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
-        todo!()
+        if let Some(subscriber) = self
+            .user_defined_subscriber_list
+            .get_mut(&message.subscriber_handle)
+        {
+            subscriber.add_user_defined_change(message.cache_change);
+        }
     }
 }
 
@@ -3611,38 +3616,38 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
             .map(|dr| dr.get_instance_handle());
         if let Some(reader_handle) = dcps_participant_reader_handle {
             self.builtin_subscriber
-                .add_change(message.cache_change, reader_handle);
-            //     if let Ok(samples) = self
-            //         .builtin_subscriber
-            //         .get_mut_datareader(reader_handle)
-            //         .read(
-            //             i32::MAX,
-            //             &[SampleStateKind::NotRead],
-            //             ANY_VIEW_STATE,
-            //             ANY_INSTANCE_STATE,
-            //             None,
-            //         )
-            //     {
-            //         for (sample_data, sample_info) in samples {
-            //             match sample_info.instance_state {
-            //                 InstanceStateKind::Alive => {
-            //                     if let Ok(discovered_participant_data) =
-            //                         SpdpDiscoveredParticipantData::deserialize_data(
-            //                             sample_data
-            //                                 .expect("Alive samples must contain data")
-            //                                 .as_ref(),
-            //                         )
-            //                     {
-            //                         self.add_discovered_participant(discovered_participant_data);
-            //                     }
-            //                 }
-            //                 InstanceStateKind::NotAliveDisposed => {
-            //                     self.remove_discovered_participant(sample_info.instance_handle)
-            //                 }
-            //                 InstanceStateKind::NotAliveNoWriters => (),
-            //             }
-            //         }
-            //     }
+                .add_builtin_change(message.cache_change, reader_handle);
+            if let Ok(samples) = self
+                .builtin_subscriber
+                .get_mut_datareader(reader_handle)
+                .read(
+                    i32::MAX,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                )
+            {
+                for (sample_data, sample_info) in samples {
+                    match sample_info.instance_state {
+                        InstanceStateKind::Alive => {
+                            if let Ok(discovered_participant_data) =
+                                SpdpDiscoveredParticipantData::deserialize_data(
+                                    sample_data
+                                        .expect("Alive samples must contain data")
+                                        .as_ref(),
+                                )
+                            {
+                                self.add_discovered_participant(discovered_participant_data);
+                            }
+                        }
+                        InstanceStateKind::NotAliveDisposed => {
+                            self.remove_discovered_participant(sample_info.instance_handle)
+                        }
+                        InstanceStateKind::NotAliveNoWriters => (),
+                    }
+                }
+            }
         }
     }
 }
@@ -3711,7 +3716,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
             .map(|dr| dr.get_instance_handle());
         if let Some(reader_handle) = dcps_topic_reader_handle {
             self.builtin_subscriber
-                .add_change(message.cache_change, reader_handle);
+                .add_builtin_change(message.cache_change, reader_handle);
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
@@ -3810,7 +3815,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             .map(|dr| dr.get_instance_handle());
         if let Some(reader_handle) = dcps_publications_reader_handle {
             self.builtin_subscriber
-                .add_change(message.cache_change, reader_handle);
+                .add_builtin_change(message.cache_change, reader_handle);
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
@@ -3905,7 +3910,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
             .map(|dr| dr.get_instance_handle());
         if let Some(reader_handle) = dcps_subscriptions_reader_handle {
             self.builtin_subscriber
-                .add_change(message.cache_change, reader_handle);
+                .add_builtin_change(message.cache_change, reader_handle);
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
