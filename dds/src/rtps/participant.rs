@@ -1,6 +1,7 @@
 use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     domain::domain_participant_factory::DomainId,
     implementation::{
@@ -84,6 +85,7 @@ impl RtpsParticipant {
 
         let mut spdp_builtin_participant_writer = RtpsStatelessWriter::new(
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
+            DCPS_PARTICIPANT.to_owned(),
             message_sender.clone(),
         );
         for locator in &metatraffic_multicast_locator_list {
@@ -92,38 +94,45 @@ impl RtpsParticipant {
 
         let spdp_builtin_participant_reader = RtpsStatelessReader::new(
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER),
+            DCPS_PARTICIPANT.to_owned(),
             spdp_builtin_participant_reader_history_cache,
         );
 
         let sedp_builtin_topics_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
+            DCPS_TOPIC.to_owned(),
             message_sender.clone(),
         );
 
         let sedp_builtin_topics_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+            DCPS_TOPIC.to_owned(),
             sedp_builtin_topics_reader_history_cache,
             message_sender.clone(),
         );
 
         let sedp_builtin_publications_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
+            DCPS_PUBLICATION.to_owned(),
             message_sender.clone(),
         );
 
         let sedp_builtin_publications_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
+            DCPS_PUBLICATION.to_owned(),
             sedp_builtin_publications_reader_history_cache,
             message_sender.clone(),
         );
 
         let sedp_builtin_subscriptions_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
+            DCPS_SUBSCRIPTION.to_owned(),
             message_sender.clone(),
         );
 
         let sedp_builtin_subscriptions_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
+            DCPS_SUBSCRIPTION.to_owned(),
             sedp_builtin_subscriptions_reader_history_cache,
             message_sender.clone(),
         );
@@ -278,9 +287,11 @@ impl RtpsParticipant {
                 .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
             {
                 w.add_matched_reader(
-                    reader_proxy,
+                    &reader_proxy,
                     ReliabilityKind::Reliable,
                     DurabilityKind::TransientLocal,
+                    &[],
+                    &[],
                 );
             }
         }
@@ -321,9 +332,11 @@ impl RtpsParticipant {
                 .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
             {
                 r.add_matched_writer(
-                    writer_proxy,
+                    &writer_proxy,
                     ReliabilityKind::Reliable,
                     DurabilityKind::TransientLocal,
+                    &[],
+                    &[],
                 );
             }
         }
@@ -363,9 +376,11 @@ impl RtpsParticipant {
                 .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)
             {
                 w.add_matched_reader(
-                    reader_proxy,
+                    &reader_proxy,
                     ReliabilityKind::Reliable,
                     DurabilityKind::TransientLocal,
+                    &[],
+                    &[],
                 );
             }
         }
@@ -406,9 +421,11 @@ impl RtpsParticipant {
                 .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR)
             {
                 r.add_matched_writer(
-                    writer_proxy,
+                    &writer_proxy,
                     ReliabilityKind::Reliable,
                     DurabilityKind::TransientLocal,
+                    &[],
+                    &[],
                 );
             }
         }
@@ -448,9 +465,11 @@ impl RtpsParticipant {
                 .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
             {
                 w.add_matched_reader(
-                    reader_proxy,
+                    &reader_proxy,
                     ReliabilityKind::Reliable,
                     DurabilityKind::TransientLocal,
+                    &[],
+                    &[],
                 );
             }
         }
@@ -491,9 +510,55 @@ impl RtpsParticipant {
                 .find(|w| w.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)
             {
                 r.add_matched_writer(
-                    writer_proxy,
+                    &writer_proxy,
                     ReliabilityKind::Reliable,
                     DurabilityKind::TransientLocal,
+                    &[],
+                    &[],
+                );
+            }
+        }
+    }
+
+    pub fn add_discovered_writer(&mut self, discovered_writer_data: &DiscoveredWriterData) {
+        for reader in &mut self.user_defined_reader_list {
+            if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
+                let reliability_kind = discovered_writer_data
+                    .dds_publication_data
+                    .reliability()
+                    .into();
+                let durability_kind = discovered_writer_data
+                    .dds_publication_data
+                    .durability()
+                    .into();
+                reader.add_matched_writer(
+                    &discovered_writer_data.writer_proxy,
+                    reliability_kind,
+                    durability_kind,
+                    &self.default_unicast_locator_list,
+                    &self.default_multicast_locator_list,
+                );
+            }
+        }
+    }
+
+    pub fn add_discovered_reader(&mut self, discovered_reader_data: &DiscoveredReaderData) {
+        for writer in &mut self.user_defined_writer_list {
+            if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name() {
+                let reliability_kind = discovered_reader_data
+                    .dds_subscription_data
+                    .reliability()
+                    .into();
+                let durability_kind = discovered_reader_data
+                    .dds_subscription_data
+                    .durability()
+                    .into();
+                writer.add_matched_reader(
+                    &discovered_reader_data.reader_proxy,
+                    reliability_kind,
+                    durability_kind,
+                    &self.default_unicast_locator_list,
+                    &self.default_multicast_locator_list,
                 );
             }
         }
@@ -517,8 +582,8 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_writer(&mut self, writer_guid: Guid) -> Guid {
-        let writer = RtpsStatefulWriter::new(writer_guid, self.message_sender.clone());
+    pub fn create_writer(&mut self, writer_guid: Guid, topic_name: String) -> Guid {
+        let writer = RtpsStatefulWriter::new(writer_guid, topic_name, self.message_sender.clone());
         self.user_defined_writer_list.push(writer);
         writer_guid
     }
@@ -531,10 +596,12 @@ impl RtpsParticipant {
     pub fn create_reader(
         &mut self,
         reader_guid: Guid,
+        topic_name: String,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) {
         let reader = RtpsStatefulReader::new(
             reader_guid,
+            topic_name,
             reader_history_cache,
             self.message_sender.clone(),
         );
@@ -610,6 +677,7 @@ impl MailHandler<SendHeartbeat> for RtpsParticipant {
 
 pub struct CreateWriter {
     pub writer_guid: Guid,
+    pub topic_name: String,
     pub rtps_participant_address: ActorAddress<RtpsParticipant>,
 }
 
@@ -618,7 +686,7 @@ impl Mail for CreateWriter {
 }
 impl MailHandler<CreateWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
-        let guid = self.create_writer(message.writer_guid);
+        let guid = self.create_writer(message.writer_guid, message.topic_name);
 
         struct RtpsUserDefinedWriterHistoryCache {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
@@ -661,6 +729,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
 
 pub struct CreateReader {
     pub reader_guid: Guid,
+    pub topic_name: String,
     pub reader_history_cache: Box<dyn ReaderHistoryCache>,
 }
 
@@ -669,7 +738,11 @@ impl Mail for CreateReader {
 }
 impl MailHandler<CreateReader> for RtpsParticipant {
     fn handle(&mut self, message: CreateReader) -> <CreateReader as Mail>::Result {
-        self.create_reader(message.reader_guid, message.reader_history_cache)
+        self.create_reader(
+            message.reader_guid,
+            message.topic_name,
+            message.reader_history_cache,
+        )
     }
 }
 
@@ -950,5 +1023,29 @@ impl MailHandler<AddDiscoveredParticipant> for RtpsParticipant {
         message: AddDiscoveredParticipant,
     ) -> <AddDiscoveredParticipant as Mail>::Result {
         self.add_discovered_participant(&message.discovered_participant_data);
+    }
+}
+
+pub struct AddDiscoveredWriter {
+    pub discovered_writer_data: DiscoveredWriterData,
+}
+impl Mail for AddDiscoveredWriter {
+    type Result = ();
+}
+impl MailHandler<AddDiscoveredWriter> for RtpsParticipant {
+    fn handle(&mut self, message: AddDiscoveredWriter) -> <AddDiscoveredWriter as Mail>::Result {
+        self.add_discovered_writer(&message.discovered_writer_data);
+    }
+}
+
+pub struct AddDiscoveredReader {
+    pub discovered_reader_data: DiscoveredReaderData,
+}
+impl Mail for AddDiscoveredReader {
+    type Result = ();
+}
+impl MailHandler<AddDiscoveredReader> for RtpsParticipant {
+    fn handle(&mut self, message: AddDiscoveredReader) -> <AddDiscoveredReader as Mail>::Result {
+        self.add_discovered_reader(&message.discovered_reader_data);
     }
 }

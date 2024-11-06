@@ -12,15 +12,17 @@ use super::{
 
 pub struct RtpsStatelessWriter {
     guid: Guid,
+    topic_name: String,
     changes: Vec<RtpsCacheChange>,
     reader_locators: Vec<RtpsReaderLocator>,
     message_sender: MessageSender,
 }
 
 impl RtpsStatelessWriter {
-    pub fn new(guid: Guid, message_sender: MessageSender) -> Self {
+    pub fn new(guid: Guid, topic_name: String, message_sender: MessageSender) -> Self {
         Self {
             guid,
+            topic_name,
             changes: Vec::new(),
             reader_locators: Vec::new(),
             message_sender,
@@ -29,6 +31,10 @@ impl RtpsStatelessWriter {
 
     pub fn guid(&self) -> Guid {
         self.guid
+    }
+
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name
     }
 
     pub fn reader_locator_add(&mut self, locator: Locator) {

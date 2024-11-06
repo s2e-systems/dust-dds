@@ -508,6 +508,33 @@ impl DomainParticipantActor {
                 transport.get_participant_discovery_reader(),
             )
             .unwrap();
+        builtin_subscriber
+            .create_datareader(
+                &topic_list[DCPS_TOPIC],
+                QosKind::Specific(sedp_data_reader_qos()),
+                None,
+                vec![],
+                transport.get_topics_discovery_reader(),
+            )
+            .unwrap();
+        builtin_subscriber
+            .create_datareader(
+                &topic_list[DCPS_PUBLICATION],
+                QosKind::Specific(sedp_data_reader_qos()),
+                None,
+                vec![],
+                transport.get_publications_discovery_reader(),
+            )
+            .unwrap();
+        builtin_subscriber
+            .create_datareader(
+                &topic_list[DCPS_SUBSCRIPTION],
+                QosKind::Specific(sedp_data_reader_qos()),
+                None,
+                vec![],
+                transport.get_subscriptions_discovery_reader(),
+            )
+            .unwrap();
 
         let builtin_publisher_handle = PublisherHandle::new(participant_handle, 0);
         let mut builtin_publisher = PublisherActor::new(
@@ -1741,7 +1768,9 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
             topic_kind
         };
 
-        let transport_writer = self.transport.create_user_defined_writer(topic_kind);
+        let transport_writer = self
+            .transport
+            .create_user_defined_writer(&message.topic_name, topic_kind);
         let datawriter_handle = publisher.create_datawriter(
             topic,
             message.qos,
@@ -2101,6 +2130,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             topic_kind
         };
         let transport_reader = self.transport.create_user_defined_reader(
+            &message.topic_name,
             topic_kind,
             Box::new(UserDefinedReaderHistoryCache {
                 domain_participant_address: message.domain_participant_address,

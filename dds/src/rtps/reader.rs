@@ -120,19 +120,25 @@ impl RtpsReader {
 
 pub struct RtpsStatelessReader {
     guid: Guid,
+    topic_name: String,
     history_cache: Box<dyn ReaderHistoryCache>,
 }
 
 impl RtpsStatelessReader {
-    pub fn new(guid: Guid, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
+    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
         Self {
             guid,
+            topic_name,
             history_cache,
         }
     }
 
     pub fn guid(&self) -> Guid {
         self.guid
+    }
+
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name
     }
 
     pub fn on_data_submessage_received(
@@ -161,6 +167,7 @@ impl RtpsStatelessReader {
 
 pub struct RtpsStatefulReader {
     guid: Guid,
+    topic_name: String,
     matched_writers: Vec<RtpsWriterProxy>,
     history_cache: Box<dyn ReaderHistoryCache>,
     message_sender: MessageSender,
@@ -169,11 +176,13 @@ pub struct RtpsStatefulReader {
 impl RtpsStatefulReader {
     pub fn new(
         guid: Guid,
+        topic_name: String,
         history_cache: Box<dyn ReaderHistoryCache>,
         message_sender: MessageSender,
     ) -> Self {
         Self {
             guid,
+            topic_name,
             matched_writers: Vec::new(),
             history_cache,
             message_sender,
@@ -184,12 +193,30 @@ impl RtpsStatefulReader {
         self.guid
     }
 
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
     pub fn add_matched_writer(
         &mut self,
-        writer_proxy: WriterProxy,
+        writer_proxy: &WriterProxy,
         reliability_kind: ReliabilityKind,
         _durability_kind: DurabilityKind,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
     ) {
+        let unicast_locator_list = if writer_proxy.unicast_locator_list.is_empty() {
+            default_unicast_locator_list
+        } else {
+            &writer_proxy.unicast_locator_list
+        };
+
+        let multicast_locator_list = if writer_proxy.unicast_locator_list.is_empty() {
+            default_multicast_locator_list
+        } else {
+            &writer_proxy.multicast_locator_list
+        };
+
         if !self
             .matched_writers
             .iter()
@@ -197,8 +224,8 @@ impl RtpsStatefulReader {
         {
             let rtps_writer_proxy = RtpsWriterProxy::new(
                 writer_proxy.remote_writer_guid,
-                &writer_proxy.unicast_locator_list,
-                &writer_proxy.multicast_locator_list,
+                unicast_locator_list,
+                multicast_locator_list,
                 Some(writer_proxy.data_max_size_serialized),
                 writer_proxy.remote_group_entity_id,
                 reliability_kind,

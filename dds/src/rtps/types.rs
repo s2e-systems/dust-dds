@@ -2,7 +2,13 @@ use super::{
     error::RtpsResult,
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
+use crate::{
+    infrastructure::qos_policy::{
+        DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
+        ReliabilityQosPolicyKind,
+    },
+    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+};
 use network_interface::Addr;
 use std::{
     io::{Read, Write},
@@ -383,6 +389,15 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
+impl From<&ReliabilityQosPolicy> for ReliabilityKind {
+    fn from(value: &ReliabilityQosPolicy) -> Self {
+        match value.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        }
+    }
+}
+
 /// DurabilityKind_t
 /// Enumeration used to indicate the level of the durability used for communications.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -391,6 +406,17 @@ pub enum DurabilityKind {
     TransientLocal,
     Transient,
     Persistent,
+}
+
+impl From<&DurabilityQosPolicy> for DurabilityKind {
+    fn from(value: &DurabilityQosPolicy) -> Self {
+        match value.kind {
+            DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+            DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+            DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+            DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
+        }
+    }
 }
 
 /// InstanceHandle_t

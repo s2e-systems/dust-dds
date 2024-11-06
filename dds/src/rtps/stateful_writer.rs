@@ -17,8 +17,8 @@ use super::{
     },
     reader_proxy::RtpsReaderProxy,
     types::{
-        ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber,
-        ENTITYID_UNKNOWN,
+        ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
+        SequenceNumber, ENTITYID_UNKNOWN,
     },
 };
 
@@ -34,6 +34,7 @@ pub trait WriterHistoryCache: Send + Sync {
 
 pub struct RtpsStatefulWriter {
     guid: Guid,
+    topic_name: String,
     changes: Vec<RtpsCacheChange>,
     matched_readers: Vec<RtpsReaderProxy>,
     message_sender: MessageSender,
@@ -42,9 +43,10 @@ pub struct RtpsStatefulWriter {
 }
 
 impl RtpsStatefulWriter {
-    pub fn new(guid: Guid, message_sender: MessageSender) -> Self {
+    pub fn new(guid: Guid, topic_name: String, message_sender: MessageSender) -> Self {
         Self {
             guid,
+            topic_name,
             changes: Vec::new(),
             matched_readers: Vec::new(),
             message_sender,
@@ -57,12 +59,30 @@ impl RtpsStatefulWriter {
         self.guid
     }
 
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
     pub fn add_matched_reader(
         &mut self,
-        reader_proxy: ReaderProxy,
+        reader_proxy: &ReaderProxy,
         reliability_kind: ReliabilityKind,
         durability_kind: DurabilityKind,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
     ) {
+        let unicast_locator_list = if reader_proxy.unicast_locator_list.is_empty() {
+            default_unicast_locator_list
+        } else {
+            &reader_proxy.unicast_locator_list
+        };
+
+        let multicast_locator_list = if reader_proxy.unicast_locator_list.is_empty() {
+            default_multicast_locator_list
+        } else {
+            &reader_proxy.multicast_locator_list
+        };
+
         if !self
             .matched_readers
             .iter()
@@ -82,8 +102,8 @@ impl RtpsStatefulWriter {
             let rtps_reader_proxy = RtpsReaderProxy::new(
                 reader_proxy.remote_reader_guid,
                 reader_proxy.remote_group_entity_id,
-                &reader_proxy.unicast_locator_list,
-                &reader_proxy.multicast_locator_list,
+                unicast_locator_list,
+                multicast_locator_list,
                 reader_proxy.expects_inline_qos,
                 true,
                 reliability_kind,

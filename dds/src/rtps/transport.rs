@@ -8,13 +8,19 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, ActorBuilder},
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         runtime::executor::{block_on, Executor},
     },
     rtps::{
         discovery_types::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         participant,
@@ -45,19 +51,28 @@ pub trait Transport: Send + Sync {
 
     fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
-    fn get_topics_discovery_reader(&self) -> [u8; 16];
+    fn get_topics_discovery_reader(&self) -> Box<dyn TransportReader>;
 
     fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
 
+    fn get_publications_discovery_reader(&self) -> Box<dyn TransportReader>;
+
     fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
+
+    fn get_subscriptions_discovery_reader(&self) -> Box<dyn TransportReader>;
 
     fn create_user_defined_reader(
         &mut self,
+        topic_name: &str,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) -> Box<dyn TransportReader>;
 
-    fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn WriterHistoryCache>;
+    fn create_user_defined_writer(
+        &mut self,
+        topic_name: &str,
+        topic_kind: TopicKind,
+    ) -> Box<dyn WriterHistoryCache>;
 }
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
@@ -148,9 +163,9 @@ impl RtpsTransport {
         interface_name: Option<&String>,
         udp_receive_buffer_size: Option<usize>,
         dcps_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        sedp_builtin_topics_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        sedp_builtin_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        sedp_builtin_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        dcps_topics_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        dcps_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        dcps_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) -> RtpsResult<Self> {
         let executor = Executor::new();
 
@@ -221,6 +236,18 @@ impl RtpsTransport {
                 rtps_participant_address: rtps_participant_actor_builder.address(),
                 dcps_participant_reader_history_cache,
             });
+
+        let publications_discovery_reader_history_cache =
+            Box::new(PublicationsDiscoveryReaderHistoryCache {
+                rtps_participant_address: rtps_participant_actor_builder.address(),
+                dcps_publications_reader_history_cache,
+            });
+
+        let subscriptions_discovery_reader_history_cache =
+            Box::new(SubscriptionsDiscoveryReaderHistoryCache {
+                rtps_participant_address: rtps_participant_actor_builder.address(),
+                dcps_subscriptions_reader_history_cache,
+            });
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
         let rtps_participant = rtps_participant_actor_builder.build(
             RtpsParticipant::new(
@@ -232,9 +259,9 @@ impl RtpsTransport {
                 metatraffic_unicast_locator_list,
                 metatraffic_multicast_locator_list,
                 participant_discovery_reader_history_cache,
-                sedp_builtin_topics_reader_history_cache,
-                sedp_builtin_publications_reader_history_cache,
-                sedp_builtin_subscriptions_reader_history_cache,
+                dcps_topics_reader_history_cache,
+                publications_discovery_reader_history_cache,
+                subscriptions_discovery_reader_history_cache,
             )?,
             &executor.handle(),
         );
@@ -428,8 +455,20 @@ impl Transport for RtpsTransport {
         })
     }
 
-    fn get_topics_discovery_reader(&self) -> [u8; 16] {
-        Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR).into()
+    fn get_topics_discovery_reader(&self) -> Box<dyn TransportReader> {
+        pub struct RtpsTopicsDiscoveryReader {
+            guid: Guid,
+        }
+
+        impl TransportReader for RtpsTopicsDiscoveryReader {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+        }
+
+        Box::new(RtpsTopicsDiscoveryReader {
+            guid: Guid::new(self.guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+        })
     }
 
     fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
@@ -470,6 +509,25 @@ impl Transport for RtpsTransport {
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ),
             rtps_participant_address: self.rtps_participant.address(),
+        })
+    }
+
+    fn get_publications_discovery_reader(&self) -> Box<dyn TransportReader> {
+        pub struct RtpsPublicationsDiscoveryReader {
+            guid: Guid,
+        }
+
+        impl TransportReader for RtpsPublicationsDiscoveryReader {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+        }
+
+        Box::new(RtpsPublicationsDiscoveryReader {
+            guid: Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ),
         })
     }
 
@@ -514,8 +572,28 @@ impl Transport for RtpsTransport {
         })
     }
 
+    fn get_subscriptions_discovery_reader(&self) -> Box<dyn TransportReader> {
+        pub struct RtpsSubscriptionsDiscoveryReader {
+            guid: Guid,
+        }
+
+        impl TransportReader for RtpsSubscriptionsDiscoveryReader {
+            fn guid(&self) -> [u8; 16] {
+                self.guid.into()
+            }
+        }
+
+        Box::new(RtpsSubscriptionsDiscoveryReader {
+            guid: Guid::new(
+                self.guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            ),
+        })
+    }
+
     fn create_user_defined_reader(
         &mut self,
+        topic_name: &str,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) -> Box<dyn TransportReader> {
@@ -543,13 +621,18 @@ impl Transport for RtpsTransport {
         self.rtps_participant
             .send_actor_mail(participant::CreateReader {
                 reader_guid,
+                topic_name: topic_name.to_owned(),
                 reader_history_cache,
             });
 
         Box::new(UserDefinedTransportReader { guid: reader_guid })
     }
 
-    fn create_user_defined_writer(&mut self, topic_kind: TopicKind) -> Box<dyn WriterHistoryCache> {
+    fn create_user_defined_writer(
+        &mut self,
+        topic_name: &str,
+        topic_kind: TopicKind,
+    ) -> Box<dyn WriterHistoryCache> {
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
             TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
@@ -563,8 +646,9 @@ impl Transport for RtpsTransport {
         block_on(
             self.rtps_participant
                 .send_actor_mail(participant::CreateWriter {
-                    rtps_participant_address: self.rtps_participant.address(),
                     writer_guid,
+                    topic_name: topic_name.to_owned(),
+                    rtps_participant_address: self.rtps_participant.address(),
                 })
                 .receive_reply(),
         )
@@ -588,6 +672,48 @@ impl ReaderHistoryCache for ParticipantDiscoveryReaderHistoryCache {
                 .unwrap();
         }
         self.dcps_participant_reader_history_cache
+            .add_change(cache_change);
+    }
+}
+
+struct PublicationsDiscoveryReaderHistoryCache {
+    rtps_participant_address: ActorAddress<RtpsParticipant>,
+    dcps_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
+}
+
+impl ReaderHistoryCache for PublicationsDiscoveryReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        if let Ok(discovered_writer_data) =
+            DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
+        {
+            self.rtps_participant_address
+                .send_actor_mail(participant::AddDiscoveredWriter {
+                    discovered_writer_data,
+                })
+                .unwrap();
+        }
+        self.dcps_publications_reader_history_cache
+            .add_change(cache_change);
+    }
+}
+
+struct SubscriptionsDiscoveryReaderHistoryCache {
+    rtps_participant_address: ActorAddress<RtpsParticipant>,
+    dcps_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
+}
+
+impl ReaderHistoryCache for SubscriptionsDiscoveryReaderHistoryCache {
+    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+        if let Ok(discovered_reader_data) =
+            DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
+        {
+            self.rtps_participant_address
+                .send_actor_mail(participant::AddDiscoveredReader {
+                    discovered_reader_data,
+                })
+                .unwrap();
+        }
+        self.dcps_subscriptions_reader_history_cache
             .add_change(cache_change);
     }
 }
