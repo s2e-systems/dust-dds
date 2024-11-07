@@ -2971,31 +2971,28 @@ impl Mail for SetDataWriterQos {
 }
 impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetDataWriterQos) -> <SetDataWriterQos as Mail>::Result {
-        todo!()
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.publisher_address()
-        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => q,
-        // };
+        let publisher = self
+            .user_defined_publisher_list
+            .get_mut(&message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let qos = match message.qos {
+            QosKind::Default => publisher.get_default_datawriter_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
 
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::SetQos { qos })?
-        //     .receive_reply()
-        //     .await?;
-        // if self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.announce_writer().await?;
-        // }
+        let publisher_qos = publisher.get_qos().clone();
+        let data_writer = publisher.get_mut_datawriter(&message.data_writer_handle);
+        data_writer.set_qos(qos)?;
+        if data_writer.is_enabled() {
+            let publication_builtin_topic_data = data_writer.as_publication_builtin_topic_data(
+                &publisher_qos,
+                self.topic_list[data_writer.get_topic_name()].get_qos(),
+            );
 
-        // Ok(())
+            self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -3315,7 +3312,11 @@ impl MailHandler<GetMatchedPublicationData> for DomainParticipantActor {
         &mut self,
         message: GetMatchedPublicationData,
     ) -> <GetMatchedPublicationData as Mail>::Result {
-        todo!()
+        self.user_defined_subscriber_list
+            .get(&message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_datareader(message.data_reader_handle)
+            .get_matched_publication_data(message.publication_handle)
     }
 }
 
