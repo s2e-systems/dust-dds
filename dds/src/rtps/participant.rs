@@ -763,22 +763,30 @@ impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
         {
-            if let Ok(dds_participant_data) = ParticipantBuiltinTopicData::deserialize_data(
-                message.cache_change.data_value.as_ref(),
-            ) {
-                let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-                    dds_participant_data,
-                    participant_proxy,
-                    lease_duration: Duration::new(100, 0).into(),
-                    discovered_participant_list: vec![],
-                };
+            match message.cache_change.kind {
+                ChangeKind::Alive => {
+                    if let Ok(dds_participant_data) = ParticipantBuiltinTopicData::deserialize_data(
+                        message.cache_change.data_value.as_ref(),
+                    ) {
+                        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+                            dds_participant_data,
+                            participant_proxy,
+                            lease_duration: Duration::new(100, 0).into(),
+                            discovered_participant_list: vec![],
+                        };
 
-                let mut cache_change = message.cache_change;
-                cache_change.data_value = spdp_discovered_participant_data
-                    .serialize_data()
-                    .unwrap()
-                    .into();
-                w.add_change(cache_change);
+                        let mut cache_change = message.cache_change;
+                        cache_change.data_value = spdp_discovered_participant_data
+                            .serialize_data()
+                            .unwrap()
+                            .into();
+                        w.add_change(cache_change);
+                    }
+                }
+                ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
+                ChangeKind::AliveFiltered
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => unimplemented!(),
             }
         }
     }

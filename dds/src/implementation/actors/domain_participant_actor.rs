@@ -678,6 +678,34 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    pub fn announce_deleted_participant(&mut self) -> DdsResult<()> {
+        if self.enabled {
+            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.transport.guid(),
+                },
+                user_data: self.qos.user_data.clone(),
+            };
+            let timestamp = self.get_current_time();
+            let dcps_participant_topic = self
+                .topic_list
+                .get_mut(DCPS_PARTICIPANT)
+                .expect("DCPS Participant topic must exist");
+
+            if let Some(dw) = self
+                .builtin_publisher
+                .lookup_datawriter_by_topic_name(DCPS_PARTICIPANT)
+            {
+                dw.dispose_w_timestamp(
+                    participant_builtin_topic_data.serialize_data()?,
+                    timestamp,
+                    dcps_participant_topic.get_type_support().as_ref(),
+                )?
+            }
+        }
+        Ok(())
+    }
+
     pub fn announce_created_or_modified_datawriter(
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
@@ -3703,6 +3731,38 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                 }
             }
         }
+    }
+}
+
+pub struct IsEmpty;
+impl Mail for IsEmpty {
+    type Result = bool;
+}
+impl MailHandler<IsEmpty> for DomainParticipantActor {
+    fn handle(&mut self, _: IsEmpty) -> <IsEmpty as Mail>::Result {
+        let no_user_defined_topics = self
+            .topic_list
+            .keys()
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.as_ref()))
+            .count()
+            == 0;
+
+        self.user_defined_publisher_list.is_empty()
+            && self.user_defined_subscriber_list.is_empty()
+            && no_user_defined_topics
+    }
+}
+
+pub struct AnnounceDeletedParticipant;
+impl Mail for AnnounceDeletedParticipant {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _: AnnounceDeletedParticipant,
+    ) -> <AnnounceDeletedParticipant as Mail>::Result {
+        self.announce_deleted_participant()
     }
 }
 

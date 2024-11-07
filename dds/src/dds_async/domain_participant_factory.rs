@@ -9,11 +9,14 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::Actor,
-        actors::domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+        actors::{
+            domain_participant_actor,
+            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+        },
         runtime::{executor::Executor, timer::TimerDriver},
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -69,38 +72,30 @@ impl DomainParticipantFactoryAsync {
 
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
-        todo!()
-        // let is_participant_empty = participant
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::IsEmpty)?
-        //     .receive_reply()
-        //     .await;
-        // if is_participant_empty {
-        //     let handle = participant.get_instance_handle().await?;
+        let is_participant_empty = participant
+            .participant_address()
+            .send_actor_mail(domain_participant_actor::IsEmpty)?
+            .receive_reply()
+            .await;
+        if is_participant_empty {
+            let handle = participant.get_instance_handle().await;
 
-        //     let deleted_participant = self
-        //         .domain_participant_factory_actor
-        //         .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
-        //         .receive_reply()
-        //         .await?;
-        //     let builtin_publisher = participant.get_builtin_publisher().await?;
-        //     if let Some(spdp_participant_writer) = builtin_publisher
-        //         .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-        //         .await?
-        //     {
-        //         let data = deleted_participant
-        //             .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
-        //             .receive_reply()
-        //             .await;
-        //         spdp_participant_writer.dispose(&data, None).await?;
-        //     }
-        //     deleted_participant.stop().await;
-        //     Ok(())
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Domain participant still contains other entities".to_string(),
-        //     ))
-        // }
+            let deleted_participant = self
+                .domain_participant_factory_actor
+                .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
+                .receive_reply()
+                .await?;
+            deleted_participant
+                .send_actor_mail(domain_participant_actor::AnnounceDeletedParticipant)
+                .receive_reply()
+                .await?;
+            deleted_participant.stop().await;
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Domain participant still contains other entities".to_string(),
+            ))
+        }
     }
 
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
