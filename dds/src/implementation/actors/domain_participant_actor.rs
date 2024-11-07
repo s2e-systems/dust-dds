@@ -2932,7 +2932,11 @@ impl MailHandler<GetMatchedSubscriptionData> for DomainParticipantActor {
         &mut self,
         message: GetMatchedSubscriptionData,
     ) -> <GetMatchedSubscriptionData as Mail>::Result {
-        todo!()
+        self.user_defined_publisher_list
+            .get(&message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_datawriter(&message.data_writer_handle)
+            .get_matched_subscription_data(message.subscription_handle)
     }
 }
 
@@ -3346,31 +3350,28 @@ impl Mail for SetDataReaderQos {
 }
 impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetDataReaderQos) -> <SetDataReaderQos as Mail>::Result {
-        todo!()
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.subscriber_address()
-        //             .send_actor_mail(subscriber_actor::GetDefaultDatareaderQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => q,
-        // };
+        let subscriber = self
+            .user_defined_subscriber_list
+            .get_mut(&message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let qos = match message.qos {
+            QosKind::Default => subscriber.get_default_datareader_qos().clone(),
+            QosKind::Specific(q) => q,
+        };
 
-        // self.reader_address
-        //     .send_actor_mail(data_reader_actor::SetQos { qos })?
-        //     .receive_reply()
-        //     .await?;
-        // if self
-        //     .reader_address
-        //     .send_actor_mail(data_reader_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.announce_reader().await?;
-        // }
+        let subscriber_qos = subscriber.get_qos().clone();
+        let data_reader = subscriber.get_mut_datareader(message.data_reader_handle);
+        data_reader.set_qos(qos)?;
+        if data_reader.is_enabled() {
+            let subscription_builtin_topic_data = data_reader.as_subscription_builtin_topic_data(
+                &subscriber_qos,
+                self.topic_list[data_reader.get_topic_name()].get_qos(),
+            );
 
-        // Ok(())
+            self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
+        }
+
+        Ok(())
     }
 }
 
