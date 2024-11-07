@@ -1,7 +1,6 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    domain_participant_actor::DomainParticipantActor, handle::SubscriberHandle,
-    status_condition_actor, topic_actor::TopicActor,
+    handle::SubscriberHandle, status_condition_actor, topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -10,10 +9,7 @@ use crate::{
     },
     implementation::{
         actor::{Actor, ActorAddress},
-        actors::{
-            domain_participant_actor, handle::DataReaderHandle,
-            status_condition_actor::StatusConditionActor,
-        },
+        actors::status_condition_actor::StatusConditionActor,
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         runtime::{executor::ExecutorHandle, mpsc::MpscSender},
     },
@@ -27,18 +23,10 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
     },
-    rtps::{
-        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-        transport::Transport,
-        types::TopicKind,
-    },
+    rtps::reader::{ReaderCacheChange, TransportReader},
 };
 use fnmatch_regex::glob_to_regex;
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-    thread::JoinHandle,
-};
+use std::thread::JoinHandle;
 use tracing::warn;
 
 pub enum SubscriberListenerOperation {
@@ -131,7 +119,7 @@ impl SubscriberListenerThread {
 pub struct SubscriberActor {
     subscriber_handle: SubscriberHandle,
     qos: SubscriberQos,
-    data_reader_list: HashMap<InstanceHandle, DataReaderActor>,
+    data_reader_list: Vec<DataReaderActor>,
     enabled: bool,
     data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
@@ -154,7 +142,7 @@ impl SubscriberActor {
         SubscriberActor {
             subscriber_handle,
             qos,
-            data_reader_list: HashMap::new(),
+            data_reader_list: Vec::new(),
             enabled: false,
             data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
@@ -247,19 +235,10 @@ impl SubscriberActor {
 
         let type_support = a_topic.get_type_support();
 
-        let data_reader_counter = self.data_reader_counter;
-        self.data_reader_counter += 1;
-        let data_reader_handle = DataReaderHandle::new(
-            self.subscriber_handle,
-            a_topic.get_handle(),
-            data_reader_counter,
-        );
-
         let listener = None;
         let data_reader_status_kind = mask.to_vec();
 
         let mut data_reader = DataReaderActor::new(
-            data_reader_handle,
             topic_name,
             type_name,
             type_support.clone(),
@@ -269,16 +248,16 @@ impl SubscriberActor {
             transport_reader,
             executor_handle,
         );
+        let data_reader_handle = data_reader.get_instance_handle();
         let reader_status_condition_address = data_reader.get_statuscondition();
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             data_reader.enable();
         }
 
-        self.data_reader_list
-            .insert(data_reader_handle.into(), data_reader);
+        self.data_reader_list.push(data_reader);
 
-        Ok((data_reader_handle.into(), reader_status_condition_address))
+        Ok((data_reader_handle, reader_status_condition_address))
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -294,13 +273,13 @@ impl SubscriberActor {
         topic_name: &str,
     ) -> Option<&mut DataReaderActor> {
         self.data_reader_list
-            .values_mut()
+            .iter_mut()
             .find(|dw| dw.get_topic_name() == topic_name)
     }
 
     pub fn add_matched_writer(&mut self, discovered_writer_data: &DiscoveredWriterData) {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data.partition()) {
-            if let Some(dr) = self.data_reader_list.values_mut().find(|dr| {
+            if let Some(dr) = self.data_reader_list.iter_mut().find(|dr| {
                 dr.get_topic_name() == discovered_writer_data.dds_publication_data.topic_name()
             }) {
                 dr.add_matched_writer(&discovered_writer_data, &self.qos);
@@ -308,16 +287,24 @@ impl SubscriberActor {
         }
     }
 
-    pub fn get_mut_datareader(&mut self, handle: InstanceHandle) -> &mut DataReaderActor {
-        self.data_reader_list.get_mut(&handle).expect("Must exist")
+    pub fn get_mut_datareader(&mut self, handle: InstanceHandle) -> Option<&mut DataReaderActor> {
+        self.data_reader_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == handle)
     }
 
-    pub fn get_datareader(&self, handle: InstanceHandle) -> &DataReaderActor {
-        self.data_reader_list.get(&handle).expect("Must exist")
+    pub fn get_datareader(&self, handle: InstanceHandle) -> Option<&DataReaderActor> {
+        self.data_reader_list
+            .iter()
+            .find(|x| x.get_instance_handle() == handle)
     }
 
     pub fn delete_datareader(&mut self, handle: &InstanceHandle) -> Option<DataReaderActor> {
-        self.data_reader_list.remove(handle)
+        let data_reader_index = self
+            .data_reader_list
+            .iter()
+            .position(|x| &x.get_instance_handle() == handle)?;
+        Some(self.data_reader_list.remove(data_reader_index))
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -349,8 +336,12 @@ impl SubscriberActor {
         self.subscriber_handle
     }
 
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.subscriber_handle.into()
+    }
+
     pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
-        for data_reader in self.data_reader_list.values_mut() {
+        for data_reader in self.data_reader_list.iter_mut() {
             data_reader.remove_matched_writer(discovered_writer_handle);
         }
     }
@@ -360,7 +351,11 @@ impl SubscriberActor {
         cache_change: ReaderCacheChange,
         reader_instance_handle: InstanceHandle,
     ) {
-        if let Some(reader) = self.data_reader_list.get_mut(&reader_instance_handle) {
+        if let Some(reader) = self
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == reader_instance_handle)
+        {
             reader.add_change(cache_change);
 
             self.status_condition
@@ -372,7 +367,7 @@ impl SubscriberActor {
 
     pub fn add_user_defined_change(&mut self, cache_change: ReaderCacheChange) {
         let writer_instance_handle = InstanceHandle::new(cache_change.writer_guid.into());
-        for reader in self.data_reader_list.values_mut() {
+        for reader in self.data_reader_list.iter_mut() {
             if reader
                 .get_matched_publications()
                 .contains(&writer_instance_handle)
@@ -386,6 +381,10 @@ impl SubscriberActor {
                 );
             }
         }
+    }
+
+    pub fn delete_contained_entities(&mut self) -> Vec<DataReaderActor> {
+        self.data_reader_list.drain(..).collect()
     }
 
     pub fn set_listener(

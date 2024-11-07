@@ -13,7 +13,7 @@ use crate::{
         },
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
@@ -103,14 +103,28 @@ impl SubscriberAsync {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
-        self.participant_address()
-            .send_actor_mail(domain_participant_actor::LookupDataReader {
-                subscriber_handle: self.handle,
-                topic_name: topic_name.to_string(),
-            })?
-            .receive_reply()
-            .await?;
-        todo!()
+        if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
+            if let Some((reader_handle, reader_status_condition_address)) = self
+                .participant_address()
+                .send_actor_mail(domain_participant_actor::LookupDataReader {
+                    subscriber_handle: self.handle,
+                    topic_name: topic_name.to_string(),
+                })?
+                .receive_reply()
+                .await?
+            {
+                Ok(Some(DataReaderAsync::new(
+                    reader_handle,
+                    reader_status_condition_address,
+                    self.clone(),
+                    topic,
+                )))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(DdsError::BadParameter)
+        }
     }
 
     /// Async version of [`notify_datareaders`](crate::subscription::subscriber::Subscriber::notify_datareaders).

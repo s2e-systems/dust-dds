@@ -53,6 +53,7 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
+    publication::publisher,
     rtps::{
         messages::submessage_elements::Data,
         reader::{ReaderCacheChange, ReaderHistoryCache},
@@ -367,15 +368,14 @@ impl ParticipantListenerThread {
 
 pub struct DomainParticipantActor {
     transport: Box<dyn Transport>,
-    participant_handle: ParticipantHandle,
     domain_id: DomainId,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberActor,
     builtin_publisher: PublisherActor,
-    user_defined_subscriber_list: HashMap<InstanceHandle, SubscriberActor>,
+    user_defined_subscriber_list: Vec<SubscriberActor>,
     subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: HashMap<InstanceHandle, PublisherActor>,
+    user_defined_publisher_list: Vec<PublisherActor>,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: HashMap<String, TopicActor>,
@@ -399,7 +399,6 @@ pub struct DomainParticipantActor {
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        participant_handle: ParticipantHandle,
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
@@ -412,7 +411,8 @@ impl DomainParticipantActor {
         let mut topic_counter = 0;
 
         let mut topic_list = HashMap::new();
-        let spdp_topic_participant_handle = TopicHandle::new(participant_handle, topic_counter);
+        let spdp_topic_participant_handle =
+            TopicHandle::new(ParticipantHandle::new(0), topic_counter);
         topic_counter += 1;
         let spdp_topic_participant = TopicActor::new(
             TopicQos::default(),
@@ -426,7 +426,7 @@ impl DomainParticipantActor {
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
-        let sedp_topic_topics_handle = TopicHandle::new(participant_handle, topic_counter);
+        let sedp_topic_topics_handle = TopicHandle::new(ParticipantHandle::new(0), topic_counter);
         topic_counter += 1;
         let sedp_topic_topics = TopicActor::new(
             TopicQos::default(),
@@ -440,7 +440,8 @@ impl DomainParticipantActor {
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
-        let sedp_topic_publications_handle = TopicHandle::new(participant_handle, topic_counter);
+        let sedp_topic_publications_handle =
+            TopicHandle::new(ParticipantHandle::new(0), topic_counter);
         topic_counter += 1;
         let sedp_topic_publications = TopicActor::new(
             TopicQos::default(),
@@ -454,7 +455,8 @@ impl DomainParticipantActor {
         );
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
-        let sedp_topic_subscriptions_handle = TopicHandle::new(participant_handle, topic_counter);
+        let sedp_topic_subscriptions_handle =
+            TopicHandle::new(ParticipantHandle::new(0), topic_counter);
         topic_counter += 1;
         let sedp_topic_subscriptions = TopicActor::new(
             TopicQos::default(),
@@ -482,7 +484,7 @@ impl DomainParticipantActor {
             ..Default::default()
         };
 
-        let builtin_subscriber_handle = SubscriberHandle::new(participant_handle, 0);
+        let builtin_subscriber_handle = SubscriberHandle::new(ParticipantHandle::new(0), 0);
         let mut builtin_subscriber = SubscriberActor::new(
             SubscriberQos::default(),
             None,
@@ -545,7 +547,7 @@ impl DomainParticipantActor {
             )
             .unwrap();
 
-        let builtin_publisher_handle = PublisherHandle::new(participant_handle, 0);
+        let builtin_publisher_handle = PublisherHandle::new(ParticipantHandle::new(0), 0);
         let mut builtin_publisher = PublisherActor::new(
             PublisherQos::default(),
             None,
@@ -599,16 +601,15 @@ impl DomainParticipantActor {
         let status_condition = Actor::spawn(StatusConditionActor::default(), &executor.handle());
 
         Self {
-            participant_handle,
             transport,
             domain_id,
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
-            user_defined_subscriber_list: HashMap::new(),
+            user_defined_subscriber_list: Vec::new(),
             subscriber_counter: 1,
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: HashMap::new(),
+            user_defined_publisher_list: Vec::new(),
             publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list,
@@ -833,7 +834,7 @@ impl DomainParticipantActor {
             if let Some(_) = self.discovered_participant_list.get(&InstanceHandle::new(
                 discovered_writer_participant_guid.into(),
             )) {
-                for subscriber in self.user_defined_subscriber_list.values_mut() {
+                for subscriber in self.user_defined_subscriber_list.iter_mut() {
                     subscriber.add_matched_writer(&discovered_writer_data);
                 }
 
@@ -922,7 +923,7 @@ impl DomainParticipantActor {
             if let Some(_) = self.discovered_participant_list.get(&InstanceHandle::new(
                 discovered_reader_participant_guid.into(),
             )) {
-                for publisher in self.user_defined_publisher_list.values_mut() {
+                for publisher in self.user_defined_publisher_list.iter_mut() {
                     publisher.add_matched_reader(&discovered_reader_data);
                 }
 
@@ -992,13 +993,13 @@ impl DomainParticipantActor {
     }
 
     pub fn remove_discovered_writer(&mut self, discovered_writer_handle: InstanceHandle) {
-        for subscriber in self.user_defined_subscriber_list.values_mut() {
+        for subscriber in self.user_defined_subscriber_list.iter_mut() {
             subscriber.remove_matched_writer(discovered_writer_handle);
         }
     }
 
     pub fn remove_discovered_reader(&mut self, discovered_reader_handle: InstanceHandle) {
-        for publisher in self.user_defined_publisher_list.values_mut() {
+        for publisher in self.user_defined_publisher_list.iter_mut() {
             publisher.remove_matched_reader(discovered_reader_handle);
         }
     }
@@ -1063,7 +1064,7 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         };
         let publisher_counter = self.publisher_counter;
         self.publisher_counter += 1;
-        let publisher_handle = PublisherHandle::new(self.participant_handle, publisher_counter);
+        let publisher_handle = PublisherHandle::new(ParticipantHandle::new(0), publisher_counter);
         let mut publisher = PublisherActor::new(
             publisher_qos,
             message.a_listener,
@@ -1077,15 +1078,15 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             publisher.enable();
         }
 
-        self.user_defined_publisher_list
-            .insert(publisher_handle.into(), publisher);
+        self.user_defined_publisher_list.push(publisher);
 
         Ok((publisher_handle.into(), publisher_status_condition_address))
     }
 }
 
 pub struct DeleteUserDefinedPublisher {
-    pub handle: InstanceHandle,
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedPublisher {
     type Result = DdsResult<()>;
@@ -1095,18 +1096,27 @@ impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedPublisher,
     ) -> <DeleteUserDefinedPublisher as Mail>::Result {
-        match self.user_defined_publisher_list.entry(message.handle) {
-            Entry::Occupied(e) => {
-                if e.get().is_empty() {
-                    e.remove();
-                    Ok(())
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Publisher still contains data writers".to_string(),
-                    ))
-                }
+        if message.participant_handle != self.get_instance_handle() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        if let Some(i) = self
+            .user_defined_publisher_list
+            .iter()
+            .position(|p| p.get_instance_handle() == message.publisher_handle)
+        {
+            if self.user_defined_publisher_list[i].is_empty() {
+                self.user_defined_publisher_list.remove(i);
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Publisher still contains data writers".to_string(),
+                ))
             }
-            Entry::Vacant(_) => Err(DdsError::AlreadyDeleted),
+        } else {
+            Err(DdsError::AlreadyDeleted)
         }
     }
 }
@@ -1130,7 +1140,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         };
         let subcriber_counter = self.subscriber_counter;
         self.subscriber_counter += 1;
-        let subscriber_handle = SubscriberHandle::new(self.participant_handle, subcriber_counter);
+        let subscriber_handle = SubscriberHandle::new(ParticipantHandle::new(0), subcriber_counter);
         let subscriber_status_kind = message.mask.to_vec();
 
         let mut subscriber = SubscriberActor::new(
@@ -1147,8 +1157,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             subscriber.enable();
         }
 
-        self.user_defined_subscriber_list
-            .insert(subscriber_handle.into(), subscriber);
+        self.user_defined_subscriber_list.push(subscriber);
 
         Ok((
             subscriber_handle.into(),
@@ -1158,7 +1167,8 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
 }
 
 pub struct DeleteUserDefinedSubscriber {
-    pub handle: InstanceHandle,
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedSubscriber {
     type Result = DdsResult<()>;
@@ -1168,18 +1178,27 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedSubscriber,
     ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
-        match self.user_defined_publisher_list.entry(message.handle) {
-            Entry::Occupied(e) => {
-                if e.get().is_empty() {
-                    e.remove();
-                    Ok(())
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Subscriber still contains data readers".to_string(),
-                    ))
-                }
+        if self.get_instance_handle() != message.participant_handle {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        if let Some(i) = self
+            .user_defined_subscriber_list
+            .iter()
+            .position(|s| s.get_instance_handle() == message.subscriber_handle)
+        {
+            if self.user_defined_subscriber_list[i].is_empty() {
+                self.user_defined_subscriber_list.remove(i);
+                Ok(())
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Subscriber still contains data readers".to_string(),
+                ))
             }
-            Entry::Vacant(_) => Err(DdsError::AlreadyDeleted),
+        } else {
+            Err(DdsError::AlreadyDeleted)
         }
     }
 }
@@ -1210,7 +1229,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         };
         let topic_counter = self.topic_counter;
         self.topic_counter += 1;
-        let topic_handle = TopicHandle::new(self.participant_handle, topic_counter);
+        let topic_handle = TopicHandle::new(ParticipantHandle::new(0), topic_counter);
         let mut topic = TopicActor::new(
             qos,
             message.type_name,
@@ -1236,6 +1255,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
 }
 
 pub struct DeleteUserDefinedTopic {
+    pub participant_handle: InstanceHandle,
     pub topic_name: String,
 }
 impl Mail for DeleteUserDefinedTopic {
@@ -1246,75 +1266,43 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
-        // let topic_name = a_topic.get_name();
-        // if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
-        //     return Ok(());
-        // }
-        // let publisher_list = self
-        //     .participant_address
-        //     .send_actor_mail(domain_participant_actor::GetPublisherList)?
-        //     .receive_reply()
-        //     .await;
-        // for publisher in publisher_list {
-        //     let data_writer_list = publisher
-        //         .send_actor_mail(publisher_actor::GetDataWriterList)?
-        //         .receive_reply()
-        //         .await;
-        //     for dw in data_writer_list {
-        //         if dw
-        //             .send_actor_mail(data_writer_actor::GetTopicName)?
-        //             .receive_reply()
-        //             .await?
-        //             == topic_name
-        //         {
-        //             return Err(DdsError::PreconditionNotMet(
-        //                 "Topic still attached to some data writer".to_string(),
-        //             ));
-        //         }
-        //     }
-        // }
+        if self.get_instance_handle() != message.participant_handle {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ));
+        }
 
-        // let subscriber_list = self
-        //     .participant_address
-        //     .send_actor_mail(domain_participant_actor::GetSubscriberList)?
-        //     .receive_reply()
-        //     .await;
-        // for subscriber in subscriber_list {
-        //     let data_reader_list = subscriber
-        //         .send_actor_mail(subscriber_actor::GetDataReaderList)?
-        //         .receive_reply()
-        //         .await;
-        //     for dr in data_reader_list {
-        //         if dr
-        //             .send_actor_mail(data_reader_actor::GetTopicName)?
-        //             .receive_reply()
-        //             .await?
-        //             == topic_name
-        //         {
-        //             return Err(DdsError::PreconditionNotMet(
-        //                 "Topic still attached to some data reader".to_string(),
-        //             ));
-        //         }
-        //     }
-        // }
-        // if let Some(deleted_topic) = self
-        //     .participant_address
-        //     .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
-        //         topic_name: a_topic.get_name(),
-        //     })?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     Ok(())
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Topic can only be deleted from its parent participant".to_string(),
-        //     ))
-        // }
+        if BUILT_IN_TOPIC_NAME_LIST.contains(&message.topic_name.as_str()) {
+            return Ok(());
+        }
 
-        // self.topic_list.remove(&message.topic_name)
+        for publisher in self.user_defined_publisher_list.iter_mut() {
+            if publisher
+                .lookup_datawriter_by_topic_name(&message.topic_name)
+                .is_some()
+            {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data writer".to_string(),
+                ));
+            }
+        }
 
-        todo!()
+        for subscriber in self.user_defined_subscriber_list.iter_mut() {
+            if subscriber
+                .lookup_datareader_by_topic_name(&message.topic_name)
+                .is_some()
+            {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data reader".to_string(),
+                ));
+            }
+        }
+
+        self.topic_list
+            .remove(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        Ok(())
     }
 }
 
@@ -1354,7 +1342,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                     let type_name = discovered_topic_data.get_type_name().to_owned();
                     let topic_counter = self.topic_counter;
                     self.topic_counter += 1;
-                    let topic_handle = TopicHandle::new(self.participant_handle, topic_counter);
+                    let topic_handle = TopicHandle::new(ParticipantHandle::new(0), topic_counter);
                     let mut topic = TopicActor::new(
                         qos,
                         type_name.clone(),
@@ -1464,57 +1452,36 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
         &mut self,
         message: DeleteParticipantContainedEntities,
     ) -> <DeleteParticipantContainedEntities as Mail>::Result {
-        // for deleted_publisher in self
-        //             .participant_address
-        //             .send_actor_mail(domain_participant_actor::DrainPublisherList)?
-        //             .receive_reply()
-        //             .await
-        //         {
-        //             PublisherAsync::new(
-        //                 deleted_publisher
-        //                     .send_actor_mail(publisher_actor::GetGuid)
-        //                     .receive_reply()
-        //                     .await,
-        //                 deleted_publisher.address(),
-        //                 deleted_publisher
-        //                     .send_actor_mail(publisher_actor::GetStatuscondition)
-        //                     .receive_reply()
-        //                     .await,
-        //                 self.clone(),
-        //             )
-        //             .delete_contained_entities()
-        //             .await?;
-        //         }
+        let deleted_publisher_list: Vec<PublisherActor> =
+            self.user_defined_publisher_list.drain(..).collect();
+        for mut publisher in deleted_publisher_list {
+            for data_writer in publisher.delete_contained_entities() {
+                let topic_qos = self.topic_list[data_writer.get_topic_name()]
+                    .get_qos()
+                    .clone();
+                let publication_builtin_topic_data =
+                    data_writer.as_publication_builtin_topic_data(publisher.get_qos(), &topic_qos);
+                self.announce_deleted_data_writer(publication_builtin_topic_data)?;
+            }
+        }
 
-        //         for deleted_subscriber in self
-        //             .participant_address
-        //             .send_actor_mail(domain_participant_actor::DrainSubscriberList)?
-        //             .receive_reply()
-        //             .await
-        //         {
-        //             SubscriberAsync::new(
-        //                 deleted_subscriber.address(),
-        //                 deleted_subscriber
-        //                     .send_actor_mail(subscriber_actor::GetStatuscondition)
-        //                     .receive_reply()
-        //                     .await,
-        //                 self.clone(),
-        //             )
-        //             .delete_contained_entities()
-        //             .await?;
-        //         }
+        let deleted_subscriber_list: Vec<SubscriberActor> =
+            self.user_defined_subscriber_list.drain(..).collect();
+        for mut subscriber in deleted_subscriber_list {
+            for data_reader in subscriber.delete_contained_entities() {
+                let topic_qos = self.topic_list[data_reader.get_topic_name()]
+                    .get_qos()
+                    .clone();
+                let subscription_builtin_topic_data = data_reader
+                    .as_subscription_builtin_topic_data(subscriber.get_qos(), &topic_qos);
+                self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
+            }
+        }
 
-        //         for deleted_topic in self
-        //             .participant_address
-        //             .send_actor_mail(domain_participant_actor::DrainTopicList)?
-        //             .receive_reply()
-        //             .await
-        //         {
-        //             self.announce_deleted_topic(deleted_topic).await?;
-        //         }
+        self.topic_list
+            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.get_name()));
 
-        //         Ok(())
-        todo!()
+        Ok(())
     }
 }
 
@@ -1862,7 +1829,8 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
     ) -> <CreateUserDefinedDataWriter as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
-            .get_mut(&InstanceHandle::new(message.publisher_handle.into()))
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         let topic = self
@@ -1902,7 +1870,10 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher.get_mut_datawriter(&datawriter_handle).enable();
+            publisher
+                .get_mut_datawriter(&datawriter_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .enable();
 
             if let Some(dcps_subscription_reader) = self
                 .builtin_subscriber
@@ -1929,6 +1900,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
 
             let publication_builtin_topic_data = publisher
                 .get_datawriter(&datawriter_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
                 .as_publication_builtin_topic_data(publisher.get_qos(), topic.get_qos());
 
             self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
@@ -1952,7 +1924,8 @@ impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
     ) -> <DeleteUserDefinedDataWriter as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
-            .get_mut(&message.publisher_handle)
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let dw = publisher
             .delete_datawriter(&message.datawriter_handle)
@@ -2145,7 +2118,13 @@ impl Mail for GetPublisherQos {
 }
 impl MailHandler<GetPublisherQos> for DomainParticipantActor {
     fn handle(&mut self, message: GetPublisherQos) -> <GetPublisherQos as Mail>::Result {
-        todo!()
+        Ok(self
+            .user_defined_publisher_list
+            .iter()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos()
+            .clone())
     }
 }
 
@@ -2225,7 +2204,8 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
 
         let subscriber = self
             .user_defined_subscriber_list
-            .get_mut(&message.subscriber_handle)
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let topic = self
             .topic_list
@@ -2270,7 +2250,10 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber.get_mut_datareader(datareader_guid).enable();
+            subscriber
+                .get_mut_datareader(datareader_guid)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .enable();
 
             if let Some(dcps_publication_reader) = self
                 .builtin_subscriber
@@ -2297,6 +2280,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
 
             let subscription_builtin_topic_data = subscriber
                 .get_datareader(datareader_guid)
+                .ok_or(DdsError::AlreadyDeleted)?
                 .as_subscription_builtin_topic_data(subscriber.get_qos(), topic.get_qos());
 
             self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
@@ -2320,7 +2304,8 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
     ) -> <DeleteUserDefinedDataReader as Mail>::Result {
         let subscriber = self
             .user_defined_subscriber_list
-            .get_mut(&message.subscriber_handle)
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let dr = subscriber
             .delete_datareader(&message.datareader_handle)
@@ -2338,59 +2323,29 @@ pub struct LookupDataReader {
     pub topic_name: String,
 }
 impl Mail for LookupDataReader {
-    type Result = DdsResult<Option<InstanceHandle>>;
+    type Result = DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>)>>;
 }
 impl MailHandler<LookupDataReader> for DomainParticipantActor {
     fn handle(&mut self, message: LookupDataReader) -> <LookupDataReader as Mail>::Result {
-        todo!()
-        //     if let Some(()) = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::LookupTopicdescription {
-        //         topic_name: topic_name.to_string(),
-        //     })?
-        //     .receive_reply()
-        //     .await?
-        // {
-        //     let data_reader_list = self
-        //         .subscriber_address
-        //         .send_actor_mail(subscriber_actor::GetDataReaderList)?
-        //         .receive_reply()
-        //         .await;
-        //     for dr in data_reader_list {
-        //         if dr
-        //             .send_actor_mail(data_reader_actor::GetTopicName)?
-        //             .receive_reply()
-        //             .await?
-        //             == topic_name
-        //         {
-        //             let type_name = self
-        //                 .participant_address()
-        //                 .send_actor_mail(domain_participant_actor::GetTopicTypeName {
-        //                     topic_name: topic_name.to_string(),
-        //                 })?
-        //                 .receive_reply()
-        //                 .await?;
-        //             let topic = TopicAsync::new(
-        //                 type_name,
-        //                 topic_name.to_string(),
-        //                 self.participant.clone(),
-        //             );
-        //             let status_condition = dr
-        //                 .send_actor_mail(data_reader_actor::GetStatuscondition)?
-        //                 .receive_reply()
-        //                 .await;
-        //             return Ok(Some(DataReaderAsync::new(
-        //                 dr,
-        //                 status_condition,
-        //                 self.clone(),
-        //                 topic,
-        //             )));
-        //         }
-        //     }
-        //     Ok(None)
-        // } else {
-        //     Err(DdsError::BadParameter)
-        // }
+        if !self.topic_list.contains_key(&message.topic_name) {
+            return Err(DdsError::BadParameter);
+        }
+
+        // Built-in subscriber is identified by the handle of the participant itself
+        if self.get_instance_handle() == message.subscriber_handle {
+            Ok(self
+                .builtin_subscriber
+                .lookup_datareader_by_topic_name(&message.topic_name)
+                .map(|x: &mut DataReaderActor| (x.get_instance_handle(), x.get_statuscondition())))
+        } else {
+            let s = self
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.get_instance_handle() == message.subscriber_handle)
+                .ok_or(DdsError::AlreadyDeleted)?;
+            Ok(s.lookup_datareader_by_topic_name(&message.topic_name)
+                .map(|x| (x.get_instance_handle(), x.get_statuscondition())))
+        }
     }
 }
 
@@ -2513,7 +2468,13 @@ impl Mail for GetSubscriberQos {
 }
 impl MailHandler<GetSubscriberQos> for DomainParticipantActor {
     fn handle(&mut self, message: GetSubscriberQos) -> <GetSubscriberQos as Mail>::Result {
-        todo!()
+        Ok(self
+            .user_defined_subscriber_list
+            .iter()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos()
+            .clone())
     }
 }
 
@@ -2827,9 +2788,12 @@ impl MailHandler<Write> for DomainParticipantActor {
     fn handle(&mut self, message: Write) -> <Write as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
-            .get_mut(&message.publisher_handle)
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher.get_mut_datawriter(&message.data_writer_handle);
+        let data_writer = publisher
+            .get_mut_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
         data_writer.write_w_timestamp(
             message.serialized_data,
@@ -2877,9 +2841,12 @@ impl MailHandler<Dispose> for DomainParticipantActor {
     fn handle(&mut self, message: Dispose) -> <Dispose as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
-            .get_mut(&message.publisher_handle)
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher.get_mut_datawriter(&message.data_writer_handle);
+        let data_writer = publisher
+            .get_mut_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
         data_writer.dispose_w_timestamp(
             message.serialized_data,
@@ -2955,9 +2922,11 @@ impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
         Ok(self
             .user_defined_publisher_list
-            .get_mut(&message.publisher_handle)
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_mut_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_publication_matched_status())
     }
 }
@@ -2976,9 +2945,11 @@ impl MailHandler<GetMatchedSubscriptionData> for DomainParticipantActor {
         message: GetMatchedSubscriptionData,
     ) -> <GetMatchedSubscriptionData as Mail>::Result {
         self.user_defined_publisher_list
-            .get(&message.publisher_handle)
+            .iter()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_matched_subscription_data(message.subscription_handle)
     }
 }
@@ -2997,9 +2968,11 @@ impl MailHandler<GetMatchedSubscriptions> for DomainParticipantActor {
     ) -> <GetMatchedSubscriptions as Mail>::Result {
         Ok(self
             .user_defined_publisher_list
-            .get(&message.publisher_handle)
+            .iter()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_matched_subscriptions())
     }
 }
@@ -3016,7 +2989,8 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetDataWriterQos) -> <SetDataWriterQos as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
-            .get_mut(&message.publisher_handle)
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let qos = match message.qos {
             QosKind::Default => publisher.get_default_datawriter_qos().clone(),
@@ -3024,7 +2998,9 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
         };
 
         let publisher_qos = publisher.get_qos().clone();
-        let data_writer = publisher.get_mut_datawriter(&message.data_writer_handle);
+        let data_writer = publisher
+            .get_mut_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         data_writer.set_qos(qos)?;
         if data_writer.is_enabled() {
             let publication_builtin_topic_data = data_writer.as_publication_builtin_topic_data(
@@ -3216,7 +3192,25 @@ impl Mail for Read {
 }
 impl MailHandler<Read> for DomainParticipantActor {
     fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
-        todo!()
+        let subscriber = if message.subscriber_handle == self.get_instance_handle() {
+            Some(&mut self.builtin_subscriber)
+        } else {
+            self.user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| x.get_instance_handle() == message.subscriber_handle)
+        }
+        .ok_or(DdsError::AlreadyDeleted)?;
+
+        subscriber
+            .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .read(
+                message.max_samples,
+                &message.sample_states,
+                &message.view_states,
+                &message.instance_states,
+                message.specific_instance_handle,
+            )
     }
 }
 
@@ -3236,9 +3230,12 @@ impl MailHandler<Take> for DomainParticipantActor {
     fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
         let subscriber = self
             .user_defined_subscriber_list
-            .get_mut(&message.subscriber_handle)
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber.get_mut_datareader(message.data_reader_handle);
+        let data_reader = subscriber
+            .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         data_reader.take(
             message.max_samples,
             message.sample_states,
@@ -3299,9 +3296,11 @@ impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
     ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
         Ok(self
             .user_defined_subscriber_list
-            .get_mut(&message.subscriber_handle)
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_subscription_matched_status())
     }
 }
@@ -3356,9 +3355,11 @@ impl MailHandler<GetMatchedPublicationData> for DomainParticipantActor {
         message: GetMatchedPublicationData,
     ) -> <GetMatchedPublicationData as Mail>::Result {
         self.user_defined_subscriber_list
-            .get(&message.subscriber_handle)
+            .iter()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_matched_publication_data(message.publication_handle)
     }
 }
@@ -3377,9 +3378,11 @@ impl MailHandler<GetMatchedPublications> for DomainParticipantActor {
     ) -> <GetMatchedPublications as Mail>::Result {
         Ok(self
             .user_defined_subscriber_list
-            .get(&message.subscriber_handle)
+            .iter()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_matched_publications())
     }
 }
@@ -3396,7 +3399,8 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetDataReaderQos) -> <SetDataReaderQos as Mail>::Result {
         let subscriber = self
             .user_defined_subscriber_list
-            .get_mut(&message.subscriber_handle)
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let qos = match message.qos {
             QosKind::Default => subscriber.get_default_datareader_qos().clone(),
@@ -3404,7 +3408,9 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
         };
 
         let subscriber_qos = subscriber.get_qos().clone();
-        let data_reader = subscriber.get_mut_datareader(message.data_reader_handle);
+        let data_reader = subscriber
+            .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         data_reader.set_qos(qos)?;
         if data_reader.is_enabled() {
             let subscription_builtin_topic_data = data_reader.as_subscription_builtin_topic_data(
@@ -3519,7 +3525,8 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
     fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
         if let Some(subscriber) = self
             .user_defined_subscriber_list
-            .get_mut(&message.subscriber_handle)
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
         {
             subscriber.add_user_defined_change(message.cache_change);
         }
@@ -3547,6 +3554,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
+                .expect("Must exist")
                 .read(
                     i32::MAX,
                     &[SampleStateKind::NotRead],
@@ -3600,6 +3608,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
+                .expect("Must exist")
                 .read(
                     i32::MAX,
                     &[SampleStateKind::NotRead],
@@ -3649,6 +3658,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
+                .expect("Must exist")
                 .read(
                     i32::MAX,
                     &[SampleStateKind::NotRead],
@@ -3702,6 +3712,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
             if let Ok(samples) = self
                 .builtin_subscriber
                 .get_mut_datareader(reader_handle)
+                .expect("Must exist")
                 .read(
                     i32::MAX,
                     &[SampleStateKind::NotRead],

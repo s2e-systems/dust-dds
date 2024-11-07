@@ -90,7 +90,8 @@ impl DomainParticipantAsync {
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         self.participant_address
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
-                handle: a_publisher.get_instance_handle().await,
+                participant_handle: a_publisher.get_participant().handle,
+                publisher_handle: a_publisher.get_instance_handle().await,
             })?
             .receive_reply()
             .await
@@ -124,7 +125,8 @@ impl DomainParticipantAsync {
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         self.participant_address
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
-                handle: a_subscriber.get_instance_handle().await,
+                participant_handle: a_subscriber.get_participant().handle,
+                subscriber_handle: a_subscriber.get_instance_handle().await,
             })?
             .receive_reply()
             .await
@@ -187,6 +189,7 @@ impl DomainParticipantAsync {
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         self.participant_address
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
+                participant_handle: a_topic.get_participant().handle,
                 topic_name: a_topic.get_name(),
             })?
             .receive_reply()

@@ -312,7 +312,6 @@ pub struct DataReaderActorListener {
 }
 
 pub struct DataReaderActor {
-    data_reader_handle: DataReaderHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
@@ -340,7 +339,6 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        data_reader_handle: DataReaderHandle,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -355,7 +353,6 @@ impl DataReaderActor {
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
 
         DataReaderActor {
-            data_reader_handle,
             sample_list: Vec::new(),
             topic_name,
             type_name,
@@ -382,8 +379,9 @@ impl DataReaderActor {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.data_reader_handle.into()
+        InstanceHandle::new(self.transport_reader.guid().into())
     }
+
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
         self.status_condition.address()
     }
@@ -1774,7 +1772,7 @@ impl DataReaderActor {
             }
             Err(e) => debug!(
                 "Received invalid data on reader with handle {handle:?}. Error: {err:?}.",
-                handle = self.data_reader_handle,
+                handle = self.get_instance_handle(),
                 err = e,
             ),
         }

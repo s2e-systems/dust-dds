@@ -239,7 +239,6 @@ impl DataWriterListenerThread {
 
 pub struct DataWriterActor {
     transport_writer: Box<dyn WriterHistoryCache>,
-    data_writer_handle: DataWriterHandle,
     topic_name: String,
     type_name: String,
     matched_subscriptions: MatchedSubscriptions,
@@ -261,7 +260,6 @@ impl DataWriterActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         transport_writer: Box<dyn WriterHistoryCache>,
-        data_writer_handle: DataWriterHandle,
         topic_name: String,
         type_name: String,
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
@@ -274,7 +272,6 @@ impl DataWriterActor {
 
         DataWriterActor {
             transport_writer,
-            data_writer_handle,
             topic_name,
             type_name,
             matched_subscriptions: MatchedSubscriptions::new(),
@@ -293,8 +290,8 @@ impl DataWriterActor {
         }
     }
 
-    pub fn get_handle(&self) -> DataWriterHandle {
-        self.data_writer_handle
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        InstanceHandle::new(self.transport_writer.guid().into())
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {

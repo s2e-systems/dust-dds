@@ -1,7 +1,4 @@
-use super::{
-    domain_participant_actor, handle::ParticipantHandle,
-    status_condition_actor::StatusConditionActor,
-};
+use super::{domain_participant_actor, status_condition_actor::StatusConditionActor};
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
@@ -40,7 +37,6 @@ pub struct DomainParticipantFactoryActor {
     qos: DomainParticipantFactoryQos,
     default_participant_qos: DomainParticipantQos,
     configuration: DustDdsConfiguration,
-    participant_counter: u8,
 }
 
 impl DomainParticipantFactoryActor {
@@ -150,10 +146,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 participant_address: participant_actor_builder.address(),
             }),
         )?);
-        let participant_handle = ParticipantHandle::new(self.participant_counter);
 
         let mut domain_participant = DomainParticipantActor::new(
-            participant_handle,
             message.domain_id,
             domain_participant_qos,
             message.listener,
@@ -162,6 +156,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             timer_driver,
             transport,
         );
+        let participant_handle = domain_participant.get_instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
             domain_participant.enable();

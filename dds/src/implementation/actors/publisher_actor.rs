@@ -104,7 +104,7 @@ impl PublisherListenerThread {
 pub struct PublisherActor {
     qos: PublisherQos,
     publisher_handle: PublisherHandle,
-    data_writer_list: HashMap<InstanceHandle, DataWriterActor>,
+    data_writer_list: Vec<DataWriterActor>,
     enabled: bool,
     data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
@@ -126,7 +126,7 @@ impl PublisherActor {
         Self {
             qos,
             publisher_handle,
-            data_writer_list: HashMap::new(),
+            data_writer_list: Vec::new(),
             enabled: false,
             data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
@@ -206,17 +206,11 @@ impl PublisherActor {
             }
         };
 
-        let counter = self.data_writer_counter;
-        self.data_writer_counter += 1;
-        let data_writer_handle =
-            DataWriterHandle::new(self.publisher_handle, a_topic.get_handle(), counter);
-
         let topic_name = a_topic.get_name().to_string();
 
         let type_name = a_topic.get_type_name().to_string();
         let mut data_writer = DataWriterActor::new(
             transport_writer,
-            data_writer_handle,
             topic_name,
             type_name,
             a_listener,
@@ -224,27 +218,35 @@ impl PublisherActor {
             qos,
             executor_handle,
         );
+        let data_writer_handle = data_writer.get_instance_handle();
         let writer_status_condition_address = data_writer.get_statuscondition();
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             data_writer.enable();
         }
 
-        self.data_writer_list
-            .insert(data_writer_handle.into(), data_writer);
+        self.data_writer_list.push(data_writer);
 
-        Ok((data_writer_handle.into(), writer_status_condition_address))
+        Ok((data_writer_handle, writer_status_condition_address))
     }
 
     pub fn delete_datawriter(&mut self, handle: &InstanceHandle) -> Option<DataWriterActor> {
-        self.data_writer_list.remove(handle)
+        let data_writer_index = self
+            .data_writer_list
+            .iter()
+            .position(|x| &x.get_instance_handle() == handle)?;
+        Some(self.data_writer_list.remove(data_writer_index))
     }
 
-    pub fn get_datawriter(&self, handle: &InstanceHandle) -> &DataWriterActor {
-        self.data_writer_list.get(handle).expect("Must exist")
+    pub fn get_datawriter(&self, handle: &InstanceHandle) -> Option<&DataWriterActor> {
+        self.data_writer_list
+            .iter()
+            .find(|x| &x.get_instance_handle() == handle)
     }
 
-    pub fn get_mut_datawriter(&mut self, handle: &InstanceHandle) -> &mut DataWriterActor {
-        self.data_writer_list.get_mut(&handle).expect("Must exist")
+    pub fn get_mut_datawriter(&mut self, handle: &InstanceHandle) -> Option<&mut DataWriterActor> {
+        self.data_writer_list
+            .iter_mut()
+            .find(|x| &x.get_instance_handle() == handle)
     }
 
     pub fn lookup_datawriter_by_topic_name(
@@ -252,7 +254,7 @@ impl PublisherActor {
         topic_name: &str,
     ) -> Option<&mut DataWriterActor> {
         self.data_writer_list
-            .values_mut()
+            .iter_mut()
             .find(|dw| dw.get_topic_name() == topic_name)
     }
 
@@ -270,7 +272,7 @@ impl PublisherActor {
                 .subscription_builtin_topic_data()
                 .partition(),
         ) {
-            if let Some(dw) = self.data_writer_list.values_mut().find(|dw| {
+            if let Some(dw) = self.data_writer_list.iter_mut().find(|dw| {
                 dw.get_topic_name()
                     == discovered_reader_data
                         .subscription_builtin_topic_data()
@@ -320,8 +322,8 @@ impl PublisherActor {
         &self.default_datawriter_qos
     }
 
-    pub fn get_handle(&self) -> PublisherHandle {
-        self.publisher_handle
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.publisher_handle.into()
     }
 
     pub fn get_status_kind(&self) -> Vec<StatusKind> {
@@ -329,9 +331,13 @@ impl PublisherActor {
     }
 
     pub fn remove_matched_reader(&mut self, discovered_reader_handle: InstanceHandle) {
-        for data_writer in self.data_writer_list.values_mut() {
+        for data_writer in self.data_writer_list.iter_mut() {
             data_writer.remove_matched_reader(discovered_reader_handle);
         }
+    }
+
+    pub fn delete_contained_entities(&mut self) -> Vec<DataWriterActor> {
+        self.data_writer_list.drain(..).collect()
     }
 
     pub fn set_listener(
