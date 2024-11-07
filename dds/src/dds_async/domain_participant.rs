@@ -13,9 +13,10 @@ use crate::{
             domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
         },
+        runtime::timer::TimerHandle,
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
@@ -34,6 +35,7 @@ pub struct DomainParticipantAsync {
     builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
     domain_id: DomainId,
     handle: InstanceHandle,
+    timer_handle: TimerHandle,
 }
 
 impl DomainParticipantAsync {
@@ -43,6 +45,7 @@ impl DomainParticipantAsync {
         builtin_subscriber_status_condition_address: ActorAddress<StatusConditionActor>,
         domain_id: DomainId,
         handle: InstanceHandle,
+        timer_handle: TimerHandle,
     ) -> Self {
         Self {
             participant_address,
@@ -50,6 +53,7 @@ impl DomainParticipantAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             handle,
+            timer_handle,
         }
     }
 
@@ -200,51 +204,36 @@ impl DomainParticipantAsync {
         Foo: TypeSupport,
     {
         let type_support = Arc::new(Foo::get_type());
-        self.participant_address
-            .send_actor_mail(domain_participant_actor::FindTopic {
-                topic_name: topic_name.to_string(),
-                type_support,
-            })?
-            .receive_reply()
-            .await?;
-        todo!()
-        // let participant_address = self.participant_address.clone();
-        // let runtime_handle = self.executor_handle.clone();
-        // let type_support = Arc::new(Foo::get_type());
-        // let topic_name = topic_name.to_owned();
-        // let type_name = self
-        //     .participant_address
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeName {
-        //         topic_name: topic_name.to_string(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-        // let participant = self.clone();
-        // self.timer_handle
-        //     .timeout(
-        //         timeout.into(),
-        //         Box::pin(async move {
-        //             loop {
-        //                 if let Some(_) = participant_address
-        //                     .send_actor_mail(domain_participant_actor::FindTopic {
-        //                         topic_name: topic_name.clone(),
-        //                         type_support: type_support.clone(),
-        //                         executor_handle: runtime_handle.clone(),
-        //                     })?
-        //                     .receive_reply()
-        //                     .await?
-        //                 {
-        //                     return Ok(TopicAsync::new(
-        //                         type_name,
-        //                         topic_name.to_owned(),
-        //                         participant,
-        //                     ));
-        //                 }
-        //             }
-        //         }),
-        //     )
-        //     .await
-        //     .map_err(|_| DdsError::Timeout)?
+        let topic_name = topic_name.to_owned();
+        let participant_address = self.participant_address.clone();
+        let participant_async = self.clone();
+        self.timer_handle
+            .timeout(
+                timeout.into(),
+                Box::pin(async move {
+                    loop {
+                        if let Some((guid, topic_status_condition_address, type_name)) =
+                            participant_address
+                                .send_actor_mail(domain_participant_actor::FindTopic {
+                                    topic_name: topic_name.clone(),
+                                    type_support: type_support.clone(),
+                                })?
+                                .receive_reply()
+                                .await?
+                        {
+                            return Ok(TopicAsync::new(
+                                guid,
+                                topic_status_condition_address,
+                                type_name.to_string(),
+                                topic_name.to_string(),
+                                participant_async,
+                            ));
+                        }
+                    }
+                }),
+            )
+            .await
+            .map_err(|_| DdsError::Timeout)?
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).

@@ -10,7 +10,7 @@ use crate::{
     implementation::{
         actor::Actor,
         actors::domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
-        runtime::executor::Executor,
+        runtime::{executor::Executor, timer::TimerDriver},
     },
     infrastructure::{
         error::DdsResult,
@@ -25,6 +25,7 @@ use crate::{
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
     _executor: Executor,
+    timer_driver: TimerDriver,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
 
@@ -60,6 +61,7 @@ impl DomainParticipantFactoryAsync {
             builtin_subscriber_status_condition_address,
             domain_id,
             participant_handle,
+            self.timer_driver.handle(),
         );
 
         Ok(domain_participant)
@@ -108,12 +110,13 @@ impl DomainParticipantFactoryAsync {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let executor = Executor::new();
+            let timer_driver = TimerDriver::new();
             let domain_participant_factory_actor =
                 Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
-
             Self {
                 _executor: executor,
                 domain_participant_factory_actor,
+                timer_driver,
             }
         })
     }

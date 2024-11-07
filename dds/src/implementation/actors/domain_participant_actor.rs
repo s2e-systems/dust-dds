@@ -1295,46 +1295,61 @@ pub struct FindTopic {
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 impl Mail for FindTopic {
-    type Result = DdsResult<Option<()>>;
+    type Result = DdsResult<Option<(InstanceHandle, ActorAddress<StatusConditionActor>, String)>>;
 }
 impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
-        // if let Some(r) = self.lookup_topicdescription(message.topic_name.clone())? {
-        //     Ok(Some(()))
-        // } else {
-        // for discovered_topic_data in self.discovered_topic_list.values() {
-        //     if discovered_topic_data.name() == message.topic_name {
-        //         let qos = TopicQos {
-        //             topic_data: discovered_topic_data.topic_data().clone(),
-        //             durability: discovered_topic_data.durability().clone(),
-        //             deadline: discovered_topic_data.deadline().clone(),
-        //             latency_budget: discovered_topic_data.latency_budget().clone(),
-        //             liveliness: discovered_topic_data.liveliness().clone(),
-        //             reliability: discovered_topic_data.reliability().clone(),
-        //             destination_order: discovered_topic_data.destination_order().clone(),
-        //             history: discovered_topic_data.history().clone(),
-        //             resource_limits: discovered_topic_data.resource_limits().clone(),
-        //             transport_priority: discovered_topic_data.transport_priority().clone(),
-        //             lifespan: discovered_topic_data.lifespan().clone(),
-        //             ownership: discovered_topic_data.ownership().clone(),
-        //             representation: discovered_topic_data.representation().clone(),
-        //         };
-        //         let type_name = discovered_topic_data.get_type_name().to_owned();
-        //         self.create_user_defined_topic(
-        //             topic_name,
-        //             type_name.clone(),
-        //             QosKind::Specific(qos),
-        //             None,
-        //             vec![],
-        //             type_support,
-        //         )?;
-        //         return Ok(Some(()));
-        //     }
-        // }
-        // Ok(None)
-        //     )
-        // }
-        todo!()
+        if let Some(topic) = self.topic_list.get(&message.topic_name) {
+            Ok(Some((
+                topic.get_handle().into(),
+                topic.get_statuscondition(),
+                topic.get_type_name().to_owned(),
+            )))
+        } else {
+            for discovered_topic_data in self.discovered_topic_list.values() {
+                if discovered_topic_data.name() == message.topic_name {
+                    let qos = TopicQos {
+                        topic_data: discovered_topic_data.topic_data().clone(),
+                        durability: discovered_topic_data.durability().clone(),
+                        deadline: discovered_topic_data.deadline().clone(),
+                        latency_budget: discovered_topic_data.latency_budget().clone(),
+                        liveliness: discovered_topic_data.liveliness().clone(),
+                        reliability: discovered_topic_data.reliability().clone(),
+                        destination_order: discovered_topic_data.destination_order().clone(),
+                        history: discovered_topic_data.history().clone(),
+                        resource_limits: discovered_topic_data.resource_limits().clone(),
+                        transport_priority: discovered_topic_data.transport_priority().clone(),
+                        lifespan: discovered_topic_data.lifespan().clone(),
+                        ownership: discovered_topic_data.ownership().clone(),
+                        representation: discovered_topic_data.representation().clone(),
+                    };
+                    let type_name = discovered_topic_data.get_type_name().to_owned();
+                    let topic_counter = self.topic_counter;
+                    self.topic_counter += 1;
+                    let topic_handle = TopicHandle::new(self.participant_handle, topic_counter);
+                    let mut topic = TopicActor::new(
+                        qos,
+                        type_name.clone(),
+                        &message.topic_name,
+                        None,
+                        vec![],
+                        message.type_support.clone(),
+                        topic_handle,
+                        &self.executor.handle(),
+                    );
+                    let topic_status_condition_address = topic.get_statuscondition();
+                    topic.enable()?;
+
+                    self.topic_list.insert(message.topic_name, topic);
+                    return Ok(Some((
+                        topic_handle.into(),
+                        topic_status_condition_address,
+                        type_name,
+                    )));
+                }
+            }
+            Ok(None)
+        }
     }
 }
 
