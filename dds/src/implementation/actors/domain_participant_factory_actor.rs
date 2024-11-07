@@ -152,7 +152,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         )?);
         let participant_handle = ParticipantHandle::new(self.participant_counter);
 
-        let domain_participant = DomainParticipantActor::new(
+        let mut domain_participant = DomainParticipantActor::new(
             participant_handle,
             message.domain_id,
             domain_participant_qos,
@@ -162,6 +162,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             timer_driver,
             transport,
         );
+
+        if self.qos.entity_factory.autoenable_created_entities {
+            domain_participant.enable();
+            domain_participant.announce_participant()?;
+        }
 
         let participant_status_condition_address = domain_participant.get_statuscondition();
         let builtin_subscriber_status_condition_address = domain_participant

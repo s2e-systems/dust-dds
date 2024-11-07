@@ -90,12 +90,15 @@ where
     pub async fn register_instance_w_timestamp(
         &self,
         instance: &Foo,
-        _timestamp: Time,
+        timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
+        let serialized_data = instance.serialize_data()?;
         self.participant_address()
             .send_actor_mail(domain_participant_actor::RegisterInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                serialized_data,
+                timestamp,
             })?
             .receive_reply()
             .await
@@ -125,10 +128,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let serialized_data = instance.serialize_data()?;
         self.participant_address()
             .send_actor_mail(domain_participant_actor::UnregisterInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                serialized_data,
+                timestamp,
             })?
             .receive_reply()
             .await
@@ -147,10 +153,12 @@ where
     /// Async version of [`lookup_instance`](crate::publication::data_writer::DataWriter::lookup_instance).
     #[tracing::instrument(skip(self, instance))]
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        let serialized_data = instance.serialize_data()?;
         self.participant_address()
             .send_actor_mail(domain_participant_actor::LookupInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                serialized_data,
             })?
             .receive_reply()
             .await
@@ -206,10 +214,13 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let serialized_data = data.serialize_data()?;
         self.participant_address()
             .send_actor_mail(domain_participant_actor::Dispose {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                serialized_data,
+                timestamp,
             })?
             .receive_reply()
             .await

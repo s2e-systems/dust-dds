@@ -40,7 +40,7 @@ use super::{
     reader::{ReaderHistoryCache, RtpsStatefulReader, RtpsStatelessReader},
     stateless_writer::RtpsStatelessWriter,
     types::{
-        DurabilityKind, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+        ChangeKind, DurabilityKind, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId,
         PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
     },
 };
@@ -923,24 +923,34 @@ impl MailHandler<AddSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)
         {
-            if let Ok(dds_subscription_data) = SubscriptionBuiltinTopicData::deserialize_data(
-                message.cache_change.data_value.as_ref(),
-            ) {
-                if let Some(reader_proxy) = self
-                    .user_defined_reader_list
-                    .iter()
-                    .find(|r| r.guid() == dds_subscription_data.key.value.into())
-                    .map(|r| r.reader_proxy())
-                {
-                    let mut cache_change = message.cache_change;
-                    let discovered_reader_data = DiscoveredReaderData {
-                        dds_subscription_data,
-                        reader_proxy,
-                    };
-                    cache_change.data_value =
-                        discovered_reader_data.serialize_data().unwrap().into();
-                    w.add_change(cache_change);
+            match message.cache_change.kind {
+                ChangeKind::Alive => {
+                    if let Ok(dds_subscription_data) =
+                        SubscriptionBuiltinTopicData::deserialize_data(
+                            message.cache_change.data_value.as_ref(),
+                        )
+                    {
+                        if let Some(reader_proxy) = self
+                            .user_defined_reader_list
+                            .iter()
+                            .find(|r| r.guid() == dds_subscription_data.key.value.into())
+                            .map(|r| r.reader_proxy())
+                        {
+                            let mut cache_change = message.cache_change;
+                            let discovered_reader_data = DiscoveredReaderData {
+                                dds_subscription_data,
+                                reader_proxy,
+                            };
+                            cache_change.data_value =
+                                discovered_reader_data.serialize_data().unwrap().into();
+                            w.add_change(cache_change);
+                        }
+                    }
                 }
+                ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
+                ChangeKind::AliveFiltered
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => unimplemented!(),
             }
         }
     }

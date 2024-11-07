@@ -9,12 +9,18 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
+        data_representation_inline_qos::{
+            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
+            types::STATUS_INFO_DISPOSED,
+        },
         runtime::{
             executor::{block_on, ExecutorHandle, TaskHandle},
             mpsc::{mpsc_channel, MpscSender},
         },
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+            get_serialized_key_from_serialized_foo,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -39,7 +45,9 @@ use crate::{
         stateful_writer::WriterHistoryCache,
         types::{ChangeKind, DurabilityKind, ReliabilityKind, SequenceNumber},
     },
-    xtypes::dynamic_type::DynamicType,
+    xtypes::{
+        dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
+    },
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -640,9 +648,22 @@ impl DataWriterActor {
 
         self.last_change_sequence_number += 1;
 
-        let key = get_instance_handle_from_serialized_foo(&serialized_data, type_support)?;
+        let instance_handle =
+            get_instance_handle_from_serialized_foo(&serialized_data, type_support)?;
 
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*key.as_ref()));
+        if !self.registered_instance_list.contains(&instance_handle) {
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_list.insert(instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if self.is_resources_limit_reached(instance_handle) {
+            return Err(DdsError::OutOfResources);
+        }
+
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
         let parameter_list = ParameterList::new(vec![pid_key_hash]);
 
         let change = RtpsCacheChange {
@@ -652,7 +673,70 @@ impl DataWriterActor {
             data_value: serialized_data.into(),
             inline_qos: parameter_list,
         };
-        self.add_sample(key, change);
+        self.add_sample(instance_handle, change);
+        Ok(())
+    }
+
+    pub fn dispose_w_timestamp(
+        &mut self,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        type_support: &dyn DynamicType,
+    ) -> DdsResult<()> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
+        if !has_key {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let serialized_key =
+            get_serialized_key_from_serialized_foo(&serialized_data, type_support)?;
+
+        let instance_handle =
+            get_instance_handle_from_serialized_key(&serialized_key, type_support)?;
+        if !self.registered_instance_list.contains(&instance_handle) {
+            return Err(DdsError::BadParameter);
+        }
+
+        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
+            t.abort();
+        }
+
+        self.last_change_sequence_number += 1;
+
+        let mut serialized_status_info = Vec::new();
+        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
+        XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
+        let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
+
+        let cache_change = RtpsCacheChange {
+            kind: ChangeKind::NotAliveDisposed,
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(timestamp.into()),
+            data_value: serialized_key.into(),
+            inline_qos: parameter_list,
+        };
+        self.transport_writer.add_change(cache_change);
+
         Ok(())
     }
 
@@ -699,25 +783,6 @@ impl DataWriterActor {
                         .get_matched_subscription_data(instance_handle)
                         != Some(discovered_reader_data.subscription_builtin_topic_data())
                 {
-                    let reliability_kind = match discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .reliability()
-                        .kind
-                    {
-                        ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                    };
-                    let durability_kind = match discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .durability()
-                        .kind
-                    {
-                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                        DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
-                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
-                        DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
-                    };
-
                     self.matched_subscriptions.add_matched_subscription(
                         instance_handle,
                         discovered_reader_data

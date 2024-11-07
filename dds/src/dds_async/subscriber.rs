@@ -90,7 +90,8 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedDataReader {
-                handle: a_datareader.get_instance_handle().await,
+                subscriber_handle: self.handle,
+                datareader_handle: a_datareader.get_instance_handle().await,
             })?
             .receive_reply()
             .await

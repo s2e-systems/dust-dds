@@ -62,15 +62,6 @@ impl DomainParticipantFactoryAsync {
             participant_handle,
         );
 
-        if self
-            .get_qos()
-            .await?
-            .entity_factory
-            .autoenable_created_entities
-        {
-            domain_participant.enable().await?;
-        }
-
         Ok(domain_participant)
     }
 

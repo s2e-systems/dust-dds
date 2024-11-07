@@ -316,8 +316,9 @@ impl SubscriberActor {
         self.data_reader_list.get(&handle).expect("Must exist")
     }
 
-    pub fn delete_datareader(&mut self, handle: InstanceHandle) {
-        todo!()
+    pub fn delete_datareader(&mut self, handle: &InstanceHandle) -> Option<DataReaderActor> {
+        self.data_reader_list.remove(handle)
+
         // if let Some(removed_reader) = self.data_reader_list.remove(&message.handle) {
         //     Ok(removed_reader)
         // } else {

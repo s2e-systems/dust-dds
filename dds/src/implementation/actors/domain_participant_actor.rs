@@ -634,6 +634,10 @@ impl DomainParticipantActor {
         Time::now()
     }
 
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
     pub fn get_instance_handle(&self) -> InstanceHandle {
         InstanceHandle::new(self.transport.guid().into())
     }
@@ -698,6 +702,55 @@ impl DomainParticipantActor {
         Ok(())
     }
 
+    pub fn announce_deleted_data_writer(
+        &mut self,
+        publication_builtin_topic_data: PublicationBuiltinTopicData,
+        //     writer: &Actor<DataWriterActor>,
+        //     topic_name: String,
+    ) -> DdsResult<()> {
+        todo!()
+        //     let builtin_publisher = self.participant.get_builtin_publisher().await?;
+        //     if let Some(sedp_publications_announcer) = builtin_publisher
+        //         .lookup_datawriter(DCPS_PUBLICATION)
+        //         .await?
+        //     {
+        //         let publisher_qos = self.get_qos().await?;
+        //         let default_unicast_locator_list = self
+        //             .participant_address()
+        //             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
+        //             .receive_reply()
+        //             .await;
+        //         let default_multicast_locator_list = self
+        //             .participant_address()
+        //             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
+        //             .receive_reply()
+        //             .await;
+        //         let topic_data = self
+        //             .participant_address()
+        //             .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
+        //             .receive_reply()
+        //             .await?
+        //             .topic_data;
+        //         let xml_type = "".to_string(); //topic
+        //                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
+        //                                        // .receive_reply()
+        //                                        // .await
+        //                                        // .xml_type();
+        //         let data = writer
+        //             .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
+        //                 publisher_qos,
+        //                 default_unicast_locator_list,
+        //                 default_multicast_locator_list,
+        //                 topic_data,
+        //                 xml_type,
+        //             })
+        //             .receive_reply()
+        //             .await?;
+        //         sedp_publications_announcer.dispose(&data, None).await?;
+        //     }
+        //     Ok(())
+    }
+
     pub fn announce_created_or_modified_datareader(
         &mut self,
         subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
@@ -713,6 +766,30 @@ impl DomainParticipantActor {
                 .lookup_datawriter_by_topic_name(DCPS_SUBSCRIPTION)
             {
                 dw.write_w_timestamp(
+                    subscription_builtin_topic_data.serialize_data()?,
+                    timestamp,
+                    dcps_subscription_topic.get_type_support().as_ref(),
+                )?
+            }
+        }
+        Ok(())
+    }
+
+    pub fn announce_deleted_data_reader(
+        &mut self,
+        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    ) -> DdsResult<()> {
+        if self.enabled {
+            let timestamp = self.get_current_time();
+            let dcps_subscription_topic = self
+                .topic_list
+                .get(DCPS_SUBSCRIPTION)
+                .expect("DCPS Subscription topic must exist");
+            if let Some(dw) = self
+                .builtin_publisher
+                .lookup_datawriter_by_topic_name(DCPS_SUBSCRIPTION)
+            {
+                dw.dispose_w_timestamp(
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
                     dcps_subscription_topic.get_type_support().as_ref(),
@@ -2212,7 +2289,8 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
 }
 
 pub struct DeleteUserDefinedDataReader {
-    pub handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub datareader_handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedDataReader {
     type Result = DdsResult<()>;
@@ -2222,24 +2300,18 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedDataReader,
     ) -> <DeleteUserDefinedDataReader as Mail>::Result {
-        // let reader_handle = a_datareader.get_instance_handle().await?;
-
-        // let deleted_reader = self
-        //     .subscriber_address
-        //     .send_actor_mail(subscriber_actor::DeleteDatareader {
-        //         handle: reader_handle,
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-
-        // self.announce_deleted_data_reader(
-        //     &deleted_reader,
-        //     a_datareader.get_topicdescription().get_name(),
-        // )
-        // .await?;
-        // deleted_reader.stop().await;
-        // Ok(())
-        todo!()
+        let subscriber = self
+            .user_defined_subscriber_list
+            .get_mut(&message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let dr = subscriber
+            .delete_datareader(&message.datareader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let topic = &self.topic_list[dr.get_topic_name()];
+        let subscription_builtin_topic_data =
+            dr.as_subscription_builtin_topic_data(subscriber.get_qos(), topic.get_qos());
+        self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
+        Ok(())
     }
 }
 
@@ -2511,6 +2583,8 @@ impl MailHandler<GetSubscriberInstanceHandle> for DomainParticipantActor {
 pub struct RegisterInstance {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub serialized_data: Vec<u8>,
+    pub timestamp: Time,
 }
 impl Mail for RegisterInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
@@ -2549,6 +2623,8 @@ impl MailHandler<RegisterInstance> for DomainParticipantActor {
 pub struct UnregisterInstance {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub serialized_data: Vec<u8>,
+    pub timestamp: Time,
 }
 impl Mail for UnregisterInstance {
     type Result = DdsResult<()>;
@@ -2693,6 +2769,7 @@ impl MailHandler<UnregisterInstance> for DomainParticipantActor {
 pub struct LookupInstance {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub serialized_data: Vec<u8>,
 }
 impl Mail for LookupInstance {
     type Result = DdsResult<Option<InstanceHandle>>;
@@ -2772,131 +2849,25 @@ impl MailHandler<Write> for DomainParticipantActor {
 pub struct Dispose {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub serialized_data: Vec<u8>,
+    pub timestamp: Time,
 }
 impl Mail for Dispose {
     type Result = DdsResult<()>;
 }
 impl MailHandler<Dispose> for DomainParticipantActor {
     fn handle(&mut self, message: Dispose) -> <Dispose as Mail>::Result {
-        todo!()
-        //     if !self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     return Err(DdsError::NotEnabled);
-        // }
-
-        // let instance_handle = match handle {
-        //     Some(h) => {
-        //         if let Some(stored_handle) = self.lookup_instance(data).await? {
-        //             if stored_handle == h {
-        //                 Ok(h)
-        //             } else {
-        //                 Err(DdsError::PreconditionNotMet(
-        //                     "Handle does not match instance".to_string(),
-        //                 ))
-        //             }
-        //         } else {
-        //             Err(DdsError::BadParameter)
-        //         }
-        //     }
-        //     None => {
-        //         if let Some(stored_handle) = self.lookup_instance(data).await? {
-        //             Ok(stored_handle)
-        //         } else {
-        //             Err(DdsError::PreconditionNotMet(
-        //                 "Instance not registered with this DataWriter".to_string(),
-        //             ))
-        //         }
-        //     }
-        // }?;
-
-        // let type_support = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
-        //         topic_name: self.topic.get_name(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-
-        // let has_key = {
-        //     let mut has_key = false;
-        //     for index in 0..type_support.get_member_count() {
-        //         if type_support
-        //             .get_member_by_index(index)?
-        //             .get_descriptor()?
-        //             .is_key
-        //         {
-        //             has_key = true;
-        //             break;
-        //         }
-        //     }
-        //     has_key
-        // };
-        // if !has_key {
-        //     return Err(DdsError::IllegalOperation);
-        // }
-
-        // let serialized_foo = data.serialize_data()?;
-        // let key = get_serialized_key_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
-        // let message_sender_actor = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //     .receive_reply()
-        //     .await;
-        // let now = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetCurrentTime)?
-        //     .receive_reply()
-        //     .await;
-        // let mut serialized_status_info = Vec::new();
-        // let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-        // XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
-
-        // let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        // let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        // let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        // let change = self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::NewChange {
-        //         kind: ChangeKind::NotAliveDisposed,
-        //         data: key.into(),
-        //         inline_qos,
-        //         handle: instance_handle,
-        //         timestamp,
-        //     })?
-        //     .receive_reply()
-        //     .await;
-
-        // let publisher_mask_listener = self
-        //     .publisher_address()
-        //     .send_actor_mail(publisher_actor::GetListener)?
-        //     .receive_reply()
-        //     .await;
-        // let participant_mask_listener = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetListener)?
-        //     .receive_reply()
-        //     .await;
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::AddChange {
-        //         change,
-        //         now,
-        //         message_sender_actor,
-        //         writer_address: self.writer_address.clone(),
-        //         publisher_mask_listener,
-        //         participant_mask_listener,
-        //         publisher: self.publisher.clone(),
-        //         executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //         timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //     })?
-        //     .receive_reply()
-        //     .await;
-
-        // Ok(())
+        let publisher = self
+            .user_defined_publisher_list
+            .get_mut(&message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_writer = publisher.get_mut_datawriter(&message.data_writer_handle);
+        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
+        data_writer.dispose_w_timestamp(
+            message.serialized_data,
+            message.timestamp,
+            type_support.as_ref(),
+        )
     }
 }
 
@@ -2964,7 +2935,12 @@ impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
         &mut self,
         message: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
-        todo!()
+        Ok(self
+            .user_defined_publisher_list
+            .get_mut(&message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_datawriter(&message.data_writer_handle)
+            .get_publication_matched_status())
     }
 }
 
@@ -3727,335 +3703,6 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
         }
     }
 }
-
-// async fn announce_deleted_topic(&self, topic: TopicActor) -> DdsResult<()> {
-//     todo!()
-//     // let builtin_publisher = self.get_builtin_publisher().await?;
-
-//     // if let Some(sedp_topics_announcer) = builtin_publisher.lookup_datawriter(DCPS_TOPIC).await?
-//     // {
-//     //     let data = topic
-//     //         .send_actor_mail(topic_actor::AsDiscoveredTopicData)
-//     //         .receive_reply()
-//     //         .await;
-//     //     sedp_topics_announcer.dispose(&data, None).await?;
-//     // }
-
-//     // Ok(())
-// }
-
-// async fn announce_deleted_data_writer(
-//     &self,
-//     writer: &Actor<DataWriterActor>,
-//     topic_name: String,
-// ) -> DdsResult<()> {
-//     let builtin_publisher = self.participant.get_builtin_publisher().await?;
-//     if let Some(sedp_publications_announcer) = builtin_publisher
-//         .lookup_datawriter(DCPS_PUBLICATION)
-//         .await?
-//     {
-//         let publisher_qos = self.get_qos().await?;
-//         let default_unicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let default_multicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let topic_data = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
-//             .receive_reply()
-//             .await?
-//             .topic_data;
-//         let xml_type = "".to_string(); //topic
-//                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
-//                                        // .receive_reply()
-//                                        // .await
-//                                        // .xml_type();
-//         let data = writer
-//             .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
-//                 publisher_qos,
-//                 default_unicast_locator_list,
-//                 default_multicast_locator_list,
-//                 topic_data,
-//                 xml_type,
-//             })
-//             .receive_reply()
-//             .await?;
-//         sedp_publications_announcer.dispose(&data, None).await?;
-//     }
-//     Ok(())
-// }
-
-// async fn announce_deleted_data_reader(
-//     &self,
-//     reader: &Actor<DataReaderActor>,
-//     topic_name: String,
-// ) -> DdsResult<()> {
-//     let builtin_publisher = self.participant.get_builtin_publisher().await?;
-//     if let Some(sedp_subscriptions_announcer) = builtin_publisher
-//         .lookup_datawriter(DCPS_SUBSCRIPTION)
-//         .await?
-//     {
-//         let subscriber_qos = self.get_qos().await?;
-//         let default_unicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let default_multicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let topic_data = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
-//             .receive_reply()
-//             .await?
-//             .topic_data;
-//         let xml_type = "".to_string(); //topic
-//                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
-//                                        // .receive_reply()
-//                                        // .await
-//                                        // .xml_type();
-//         let data = reader
-//             .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
-//                 subscriber_qos,
-//                 default_unicast_locator_list,
-//                 default_multicast_locator_list,
-//                 topic_data,
-//                 xml_type,
-//             })
-//             .receive_reply()
-//             .await?;
-//         sedp_subscriptions_announcer.dispose(&data, None).await?;
-//     }
-//     Ok(())
-// }
-
-// async fn announce_reader(&self) -> DdsResult<()> {
-//     let builtin_publisher = self
-//         .get_subscriber()
-//         .get_participant()
-//         .get_builtin_publisher()
-//         .await?;
-//     if let Some(sedp_subscriptions_announcer) = builtin_publisher
-//         .lookup_datawriter::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-//         .await?
-//     {
-//         let subscriber_qos = self
-//             .subscriber_address()
-//             .send_actor_mail(subscriber_actor::GetQos)?
-//             .receive_reply()
-//             .await;
-//         let default_unicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let default_multicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let topic_data = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetTopicQos {
-//                 topic_name: self.topic.get_name(),
-//             })?
-//             .receive_reply()
-//             .await?
-//             .topic_data;
-//         let xml_type = "".to_string(); //self
-//                                        // .topic
-//                                        // .topic_address()
-//                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
-//                                        // .receive_reply()
-//                                        // .await
-//                                        // .xml_type();
-//         let discovered_reader_data = self
-//             .reader_address
-//             .send_actor_mail(data_reader_actor::AsDiscoveredReaderData {
-//                 subscriber_qos,
-//                 default_unicast_locator_list,
-//                 default_multicast_locator_list,
-//                 topic_data,
-//                 xml_type,
-//             })?
-//             .receive_reply()
-//             .await?;
-
-//         sedp_subscriptions_announcer
-//             .write(&discovered_reader_data, None)
-//             .await?;
-//     }
-//     Ok(())
-// }
-
-// async fn process_sedp_publications_discovery(&self) -> DdsResult<()> {
-//     let participant = self.subscriber.get_participant();
-//     let builtin_subscriber = participant.get_builtin_subscriber();
-
-//     if let Some(sedp_publications_detector) = builtin_subscriber
-//         .lookup_datareader::<DiscoveredWriterData>(DCPS_PUBLICATION)
-//         .await?
-//     {
-//         if let Ok(mut discovered_writer_sample_list) = sedp_publications_detector
-//             .read(
-//                 i32::MAX,
-//                 ANY_SAMPLE_STATE,
-//                 ANY_VIEW_STATE,
-//                 ANY_INSTANCE_STATE,
-//             )
-//             .await
-//         {
-//             for discovered_writer_sample in discovered_writer_sample_list.drain(..) {
-//                 match discovered_writer_sample.sample_info().instance_state {
-//                     InstanceStateKind::Alive => match discovered_writer_sample.data() {
-//                         Ok(discovered_writer_data) => {
-//                             participant.participant_address().send_actor_mail(
-//                                 domain_participant_actor::AddMatchedWriter {
-//                                     discovered_writer_data,
-//                                     // participant: participant.clone(),
-//                                 },
-//                             )?;
-//                         }
-//                         Err(e) => warn!(
-//                             "Received invalid DiscoveredWriterData sample. Error {:?}",
-//                             e
-//                         ),
-//                     },
-//                     InstanceStateKind::NotAliveDisposed => {
-//                         participant.participant_address().send_actor_mail(
-//                             domain_participant_actor::RemoveMatchedWriter {
-//                                 discovered_writer_handle: discovered_writer_sample
-//                                     .sample_info()
-//                                     .instance_handle,
-//                                 // participant: participant.clone(),
-//                             },
-//                         )?;
-//                     }
-//                     InstanceStateKind::NotAliveNoWriters => {
-//                         todo!()
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     Ok(())
-// }
-
-// async fn announce_writer(&self) -> DdsResult<()> {
-//     let builtin_publisher = self
-//         .get_publisher()
-//         .get_participant()
-//         .get_builtin_publisher()
-//         .await?;
-//     if let Some(sedp_publications_announcer) = builtin_publisher
-//         .lookup_datawriter::<DiscoveredWriterData>(DCPS_PUBLICATION)
-//         .await?
-//     {
-//         let publisher_qos = self.get_publisher().get_qos().await?;
-//         let default_unicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let default_multicast_locator_list = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-//             .receive_reply()
-//             .await;
-//         let topic_data = self
-//             .participant_address()
-//             .send_actor_mail(domain_participant_actor::GetTopicQos {
-//                 topic_name: self.topic.get_name(),
-//             })?
-//             .receive_reply()
-//             .await?
-//             .topic_data;
-//         let xml_type = "".to_string(); //self
-//                                        //     .topic
-//                                        //     .topic_address()
-//                                        //     .send_actor_mail(topic_actor::GetTypeSupport)?
-//                                        //     .receive_reply()
-//                                        //     .await
-//                                        //     .xml_type();
-//         let discovered_writer_data = self
-//             .writer_address
-//             .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
-//                 publisher_qos,
-//                 default_unicast_locator_list,
-//                 default_multicast_locator_list,
-//                 topic_data,
-//                 xml_type,
-//             })?
-//             .receive_reply()
-//             .await?;
-//         sedp_publications_announcer
-//             .write(&discovered_writer_data, None)
-//             .await?;
-//     }
-//     Ok(())
-// }
-
-// async fn process_sedp_subscriptions_discovery(&self) -> DdsResult<()> {
-//     let participant = self.publisher.get_participant();
-//     let builtin_subscriber = participant.get_builtin_subscriber();
-
-//     if let Some(sedp_subscriptions_detector) = builtin_subscriber
-//         .lookup_datareader::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-//         .await?
-//     {
-//         if let Ok(mut discovered_reader_sample_list) = sedp_subscriptions_detector
-//             .read(
-//                 i32::MAX,
-//                 ANY_SAMPLE_STATE,
-//                 ANY_VIEW_STATE,
-//                 ANY_INSTANCE_STATE,
-//             )
-//             .await
-//         {
-//             for discovered_reader_sample in discovered_reader_sample_list.drain(..) {
-//                 match discovered_reader_sample.sample_info().instance_state {
-//                     InstanceStateKind::Alive => match discovered_reader_sample.data() {
-//                         Ok(discovered_reader_data) => {
-//                             participant.participant_address().send_actor_mail(
-//                                 domain_participant_actor::AddMatchedReader {
-//                                     discovered_reader_data,
-//                                     // participant: participant.clone(),
-//                                 },
-//                             )?;
-//                         }
-//                         Err(e) => warn!(
-//                             "Received invalid DiscoveredReaderData sample. Error {:?}",
-//                             e
-//                         ),
-//                     },
-//                     InstanceStateKind::NotAliveDisposed => {
-//                         participant.participant_address().send_actor_mail(
-//                             domain_participant_actor::RemoveMatchedReader {
-//                                 discovered_reader_handle: discovered_reader_sample
-//                                     .sample_info()
-//                                     .instance_handle,
-//                                 // participant: participant.clone(),
-//                             },
-//                         )?;
-//                     }
-//                     InstanceStateKind::NotAliveNoWriters => {
-//                         todo!()
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     Ok(())
-// }
 
 fn sedp_data_reader_qos() -> DataReaderQos {
     DataReaderQos {
