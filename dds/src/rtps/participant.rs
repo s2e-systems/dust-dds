@@ -11,6 +11,7 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
             spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
         },
+        runtime::executor::block_on,
     },
     rtps::{
         cache_change::RtpsCacheChange,
@@ -716,7 +717,12 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
             }
 
             fn are_all_changes_acknowledged(&self) -> bool {
-                todo!()
+                block_on(
+                    self.rtps_participant_address
+                        .send_actor_mail(AreAllChangesAcknowledged { guid: self.guid })
+                        .expect("Actor must exist")
+                        .receive_reply(),
+                )
             }
         }
 
@@ -1073,5 +1079,28 @@ impl Mail for AddDiscoveredReader {
 impl MailHandler<AddDiscoveredReader> for RtpsParticipant {
     fn handle(&mut self, message: AddDiscoveredReader) -> <AddDiscoveredReader as Mail>::Result {
         self.add_discovered_reader(&message.discovered_reader_data);
+    }
+}
+
+pub struct AreAllChangesAcknowledged {
+    pub guid: Guid,
+}
+impl Mail for AreAllChangesAcknowledged {
+    type Result = bool;
+}
+impl MailHandler<AreAllChangesAcknowledged> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AreAllChangesAcknowledged,
+    ) -> <AreAllChangesAcknowledged as Mail>::Result {
+        if let Some(w) = self
+            .user_defined_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid() == message.guid)
+        {
+            w.are_all_changes_acknowledged()
+        } else {
+            false
+        }
     }
 }

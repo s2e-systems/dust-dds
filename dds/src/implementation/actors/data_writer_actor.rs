@@ -944,7 +944,7 @@ impl DataWriterActor {
         )
     }
 
-    pub fn are_all_changes_acknowledged(&mut self) -> bool {
+    pub fn are_all_changes_acknowledged(&self) -> bool {
         self.transport_writer.are_all_changes_acknowledged()
     }
 

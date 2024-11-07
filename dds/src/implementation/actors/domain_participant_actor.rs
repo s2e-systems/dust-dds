@@ -32,6 +32,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -67,7 +68,7 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
     xtypes::dynamic_type::DynamicType,
 };
-use core::i32;
+use core::{future::Future, i32, pin::Pin};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
@@ -2755,23 +2756,19 @@ impl Mail for LookupInstance {
 }
 impl MailHandler<LookupInstance> for DomainParticipantActor {
     fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
-        todo!()
-        //     let type_support = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
-        //         topic_name: self.topic.get_name(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-
-        // let serialized_foo = instance.serialize_data()?;
-        // let instance_handle =
-        //     get_instance_handle_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
-
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::LookupInstance { instance_handle })?
-        //     .receive_reply()
-        //     .await
+        let data_writer = self
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
+        let instance_handle = get_instance_handle_from_serialized_foo(
+            &message.serialized_data,
+            type_support.as_ref(),
+        )?;
+        data_writer.lookup_instance(instance_handle)
     }
 }
 
@@ -2857,38 +2854,43 @@ impl MailHandler<Dispose> for DomainParticipantActor {
 }
 
 pub struct WaitForAcknowledgments {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub timeout: Duration,
 }
 impl Mail for WaitForAcknowledgments {
-    type Result = DdsResult<()>;
+    type Result = Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>;
 }
 impl MailHandler<WaitForAcknowledgments> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: WaitForAcknowledgments,
     ) -> <WaitForAcknowledgments as Mail>::Result {
-        todo!()
-        // let writer_address = self.writer_address.clone();
-        // self.publisher
-        //     .get_participant()
-        //     .timer_handle()
-        //     .timeout(
-        //         max_wait.into(),
-        //         Box::pin(async move {
-        //             loop {
-        //                 if writer_address
-        //                     .send_actor_mail(data_writer_actor::AreAllChangesAcknowledge)?
-        //                     .receive_reply()
-        //                     .await
-        //                 {
-        //                     return Ok(());
-        //                 }
-        //             }
-        //         }),
-        //     )
-        //     .await
-        //     .map_err(|_| DdsError::Timeout)?
+        let timer_handle = self.timer_driver.handle();
+        Box::pin(async move {
+            timer_handle
+                .timeout(
+                    message.timeout.into(),
+                    Box::pin(async move {
+                        loop {
+                            let all_changes_ack = message
+                                .participant_address
+                                .send_actor_mail(AreAllChangesAcknowledged {
+                                    publisher_handle: message.publisher_handle,
+                                    data_writer_handle: message.data_writer_handle,
+                                })?
+                                .receive_reply()
+                                .await?;
+                            if all_changes_ack {
+                                return Ok(());
+                            }
+                        }
+                    }),
+                )
+                .await
+                .map_err(|_| DdsError::Timeout)?
+        })
     }
 }
 
@@ -3260,7 +3262,21 @@ impl Mail for ReadNextInstance {
 }
 impl MailHandler<ReadNextInstance> for DomainParticipantActor {
     fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
-        todo!()
+        let subscriber = self
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_reader = subscriber
+            .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        data_reader.read_next_instance(
+            message.max_samples,
+            message.previous_handle,
+            &message.sample_states,
+            &message.view_states,
+            &message.instance_states,
+        )
     }
 }
 
@@ -3278,7 +3294,21 @@ impl Mail for TakeNextInstance {
 }
 impl MailHandler<TakeNextInstance> for DomainParticipantActor {
     fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
-        todo!()
+        let subscriber = self
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|s| s.get_instance_handle() == message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_reader = subscriber
+            .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        data_reader.take_next_instance(
+            message.max_samples,
+            message.previous_handle,
+            message.sample_states,
+            message.view_states,
+            message.instance_states,
+        )
     }
 }
 
@@ -3774,6 +3804,29 @@ impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
         _: AnnounceDeletedParticipant,
     ) -> <AnnounceDeletedParticipant as Mail>::Result {
         self.announce_deleted_participant()
+    }
+}
+
+pub struct AreAllChangesAcknowledged {
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+impl Mail for AreAllChangesAcknowledged {
+    type Result = DdsResult<bool>;
+}
+impl MailHandler<AreAllChangesAcknowledged> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AreAllChangesAcknowledged,
+    ) -> <AreAllChangesAcknowledged as Mail>::Result {
+        Ok(self
+            .user_defined_publisher_list
+            .iter()
+            .find(|x| x.get_instance_handle() == message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .are_all_changes_acknowledged())
     }
 }
 

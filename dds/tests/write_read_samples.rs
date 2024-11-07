@@ -442,16 +442,15 @@ fn samples_are_taken() {
         .create_datareader::<KeyedData>(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
-    // let cond = writer.get_statuscondition();
-    // cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-    //     .unwrap();
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
 
-    // let mut wait_set = WaitSet::new();
-    // wait_set
-    //     .attach_condition(Condition::StatusCondition(cond))
-    //     .unwrap();
-    // wait_set.wait(Duration::new(10, 0)).unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -465,11 +464,9 @@ fn samples_are_taken() {
     writer.write(&data4, None).unwrap();
     writer.write(&data5, None).unwrap();
 
-    // writer
-    //     .wait_for_acknowledgments(Duration::new(10, 0))
-    //     .unwrap();
-
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
 
     let samples1 = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

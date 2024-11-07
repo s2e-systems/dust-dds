@@ -233,10 +233,13 @@ impl<Foo> DataWriterAsync<Foo> {
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::WaitForAcknowledgments {
+                participant_address: self.participant_address().clone(),
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                timeout: max_wait,
             })?
             .receive_reply()
+            .await
             .await
     }
 
