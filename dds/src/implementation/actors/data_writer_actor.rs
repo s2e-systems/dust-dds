@@ -848,9 +848,9 @@ impl DataWriterActor {
             .matched_subscriptions
             .get_matched_subscription_data(discovered_reader_handle)
         {
-            // let handle = r.key().value.into();
+            let handle = InstanceHandle::new(r.key().value);
             self.matched_subscriptions
-                .remove_matched_subscription(InstanceHandle::new(todo!()));
+                .remove_matched_subscription(handle);
 
             self.on_publication_matched(
             // message.data_writer_address,

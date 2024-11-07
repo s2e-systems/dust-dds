@@ -318,14 +318,6 @@ impl SubscriberActor {
 
     pub fn delete_datareader(&mut self, handle: &InstanceHandle) -> Option<DataReaderActor> {
         self.data_reader_list.remove(handle)
-
-        // if let Some(removed_reader) = self.data_reader_list.remove(&message.handle) {
-        //     Ok(removed_reader)
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Data reader can only be deleted from its parent subscriber".to_string(),
-        //     ))
-        // }
     }
 
     pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -358,25 +350,8 @@ impl SubscriberActor {
     }
 
     pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
-        for data_reader in self.data_reader_list.values() {
-            // let data_reader_address = data_reader.address();
-            // let subscriber_mask_listener = (
-            //     self.subscriber_listener_thread
-            //         .as_ref()
-            //         .map(|l| l.sender().clone()),
-            //     self.subscriber_status_kind.clone(),
-            // );
-            // data_reader.send_actor_mail(data_reader_actor::RemoveMatchedWriter {
-            //     discovered_writer_handle: message.discovered_writer_handle,
-            //     // data_reader_address,
-            //     // subscriber: SubscriberAsync::new(
-            //     //     message.subscriber_address.clone(),
-            //     //     self.status_condition.address(),
-            //     //     message.participant.clone(),
-            //     // ),
-            //     // subscriber_mask_listener,
-            //     // participant_mask_listener: message.participant_mask_listener.clone(),
-            // });
+        for data_reader in self.data_reader_list.values_mut() {
+            data_reader.remove_matched_writer(discovered_writer_handle);
         }
     }
 

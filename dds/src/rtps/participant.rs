@@ -863,24 +863,32 @@ impl MailHandler<AddPublicationsDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
         {
-            if let Ok(dds_publication_data) = PublicationBuiltinTopicData::deserialize_data(
-                message.cache_change.data_value.as_ref(),
-            ) {
-                if let Some(writer_proxy) = self
-                    .user_defined_writer_list
-                    .iter()
-                    .find(|w| w.guid() == dds_publication_data.key.value.into())
-                    .map(|w| w.writer_proxy())
-                {
-                    let mut cache_change = message.cache_change;
-                    let discovered_writer_data = DiscoveredWriterData {
-                        dds_publication_data,
-                        writer_proxy,
-                    };
-                    cache_change.data_value =
-                        discovered_writer_data.serialize_data().unwrap().into();
-                    w.add_change(cache_change);
+            match message.cache_change.kind {
+                ChangeKind::Alive => {
+                    if let Ok(dds_publication_data) = PublicationBuiltinTopicData::deserialize_data(
+                        message.cache_change.data_value.as_ref(),
+                    ) {
+                        if let Some(writer_proxy) = self
+                            .user_defined_writer_list
+                            .iter()
+                            .find(|w| w.guid() == dds_publication_data.key.value.into())
+                            .map(|w| w.writer_proxy())
+                        {
+                            let mut cache_change = message.cache_change;
+                            let discovered_writer_data = DiscoveredWriterData {
+                                dds_publication_data,
+                                writer_proxy,
+                            };
+                            cache_change.data_value =
+                                discovered_writer_data.serialize_data().unwrap().into();
+                            w.add_change(cache_change);
+                        }
+                    }
                 }
+                ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
+                ChangeKind::AliveFiltered
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => unimplemented!(),
             }
         }
     }

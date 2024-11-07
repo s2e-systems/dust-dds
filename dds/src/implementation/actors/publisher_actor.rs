@@ -235,6 +235,10 @@ impl PublisherActor {
         Ok((data_writer_handle.into(), writer_status_condition_address))
     }
 
+    pub fn delete_datawriter(&mut self, handle: &InstanceHandle) -> Option<DataWriterActor> {
+        self.data_writer_list.remove(handle)
+    }
+
     pub fn get_datawriter(&self, handle: &InstanceHandle) -> &DataWriterActor {
         self.data_writer_list.get(handle).expect("Must exist")
     }
@@ -325,8 +329,8 @@ impl PublisherActor {
     }
 
     pub fn remove_matched_reader(&mut self, discovered_reader_handle: InstanceHandle) {
-        for data_writer in self.data_writer_list.values() {
-            todo!()
+        for data_writer in self.data_writer_list.values_mut() {
+            data_writer.remove_matched_reader(discovered_reader_handle);
         }
     }
 

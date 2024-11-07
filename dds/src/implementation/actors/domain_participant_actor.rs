@@ -705,50 +705,25 @@ impl DomainParticipantActor {
     pub fn announce_deleted_data_writer(
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
-        //     writer: &Actor<DataWriterActor>,
-        //     topic_name: String,
     ) -> DdsResult<()> {
-        todo!()
-        //     let builtin_publisher = self.participant.get_builtin_publisher().await?;
-        //     if let Some(sedp_publications_announcer) = builtin_publisher
-        //         .lookup_datawriter(DCPS_PUBLICATION)
-        //         .await?
-        //     {
-        //         let publisher_qos = self.get_qos().await?;
-        //         let default_unicast_locator_list = self
-        //             .participant_address()
-        //             .send_actor_mail(domain_participant_actor::GetDefaultUnicastLocatorList)?
-        //             .receive_reply()
-        //             .await;
-        //         let default_multicast_locator_list = self
-        //             .participant_address()
-        //             .send_actor_mail(domain_participant_actor::GetDefaultMulticastLocatorList)?
-        //             .receive_reply()
-        //             .await;
-        //         let topic_data = self
-        //             .participant_address()
-        //             .send_actor_mail(domain_participant_actor::GetTopicQos { topic_name })?
-        //             .receive_reply()
-        //             .await?
-        //             .topic_data;
-        //         let xml_type = "".to_string(); //topic
-        //                                        // .send_actor_mail(topic_actor::GetTypeSupport)?
-        //                                        // .receive_reply()
-        //                                        // .await
-        //                                        // .xml_type();
-        //         let data = writer
-        //             .send_actor_mail(data_writer_actor::AsDiscoveredWriterData {
-        //                 publisher_qos,
-        //                 default_unicast_locator_list,
-        //                 default_multicast_locator_list,
-        //                 topic_data,
-        //                 xml_type,
-        //             })
-        //             .receive_reply()
-        //             .await?;
-        //         sedp_publications_announcer.dispose(&data, None).await?;
-        //     }
-        //     Ok(())
+        if self.enabled {
+            let timestamp = self.get_current_time();
+            let dcps_publication_topic = self
+                .topic_list
+                .get(DCPS_PUBLICATION)
+                .expect("DCPS Publication topic must exist");
+            if let Some(dw) = self
+                .builtin_publisher
+                .lookup_datawriter_by_topic_name(DCPS_PUBLICATION)
+            {
+                dw.dispose_w_timestamp(
+                    publication_builtin_topic_data.serialize_data()?,
+                    timestamp,
+                    dcps_publication_topic.get_type_support().as_ref(),
+                )?
+            }
+        }
+        Ok(())
     }
 
     pub fn announce_created_or_modified_datareader(
@@ -1921,7 +1896,8 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
 }
 
 pub struct DeleteUserDefinedDataWriter {
-    pub handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub datawriter_handle: InstanceHandle,
 }
 impl Mail for DeleteUserDefinedDataWriter {
     type Result = DdsResult<()>;
@@ -1931,19 +1907,18 @@ impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedDataWriter,
     ) -> <DeleteUserDefinedDataWriter as Mail>::Result {
-        // if let Some(removed_writer) = self.data_writer_list.remove(&message.handle) {
-        //     Ok(removed_writer)
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Data writer can only be deleted from its parent publisher".to_string(),
-        //     ))
-        // }
-
-        // self.announce_deleted_data_writer(&deleted_writer, topic.get_name())
-        //     .await?;
-        // deleted_writer.stop().await;
-        // Ok(())
-        todo!()
+        let publisher = self
+            .user_defined_publisher_list
+            .get_mut(&message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let dw = publisher
+            .delete_datawriter(&message.datawriter_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let topic = &self.topic_list[dw.get_topic_name()];
+        let publication_builtin_topic_data =
+            dw.as_publication_builtin_topic_data(publisher.get_qos(), topic.get_qos());
+        self.announce_deleted_data_writer(publication_builtin_topic_data)?;
+        Ok(())
     }
 }
 
@@ -3278,7 +3253,12 @@ impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
         &mut self,
         message: GetSubscriptionMatchedStatus,
     ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
-        todo!()
+        Ok(self
+            .user_defined_subscriber_list
+            .get_mut(&message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_datareader(message.data_reader_handle)
+            .get_subscription_matched_status())
     }
 }
 
@@ -3347,7 +3327,12 @@ impl MailHandler<GetMatchedPublications> for DomainParticipantActor {
         &mut self,
         message: GetMatchedPublications,
     ) -> <GetMatchedPublications as Mail>::Result {
-        todo!()
+        Ok(self
+            .user_defined_subscriber_list
+            .get(&message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_datareader(message.data_reader_handle)
+            .get_matched_publications())
     }
 }
 

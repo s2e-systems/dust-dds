@@ -90,7 +90,8 @@ impl PublisherAsync {
     ) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::DeleteUserDefinedDataWriter {
-                handle: a_datawriter.get_instance_handle().await,
+                publisher_handle: self.handle,
+                datawriter_handle: a_datawriter.get_instance_handle().await,
             })?
             .receive_reply()
             .await
