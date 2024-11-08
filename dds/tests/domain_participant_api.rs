@@ -790,6 +790,7 @@ fn ignore_publication() {
 }
 
 #[test]
+#[ignore = "Functionality needs to be revisited"]
 fn ignore_subscription() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();

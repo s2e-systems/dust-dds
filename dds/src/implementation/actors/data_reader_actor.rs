@@ -1089,14 +1089,6 @@ impl DataReaderActor {
                     }
                 }
 
-                self.start_deadline_missed_task(
-                    sample.instance_handle(),
-                    // data_reader_address.clone(),
-                    // subscriber.clone(),
-                    // subscriber_mask_listener,
-                    // participant_mask_listener,
-                )?;
-
                 match sample.kind {
                     ChangeKind::Alive | ChangeKind::AliveFiltered => {
                         self.instances
@@ -1360,21 +1352,11 @@ impl DataReaderActor {
         self.enabled = true;
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn start_deadline_missed_task(
+    pub fn add_deadline_missed_task(
         &mut self,
         change_instance_handle: InstanceHandle,
-        // data_reader_address: ActorAddress<DataReaderActor>,
-        // subscriber: SubscriberAsync,
-        // subscriber_mask_listener: &(
-        //     Option<MpscSender<SubscriberListenerMessage>>,
-        //     Vec<StatusKind>,
-        // ),
-        // participant_mask_listener: &(
-        //     Option<MpscSender<ParticipantListenerMessage>>,
-        //     Vec<StatusKind>,
-        // ),
-    ) -> DdsResult<()> {
+        deadline_missed_task: TaskHandle,
+    ) {
         if let Some(t) = self
             .instance_deadline_missed_task
             .remove(&change_instance_handle)
@@ -1382,139 +1364,19 @@ impl DataReaderActor {
             t.abort();
         }
 
-        if let DurationKind::Finite(_deadline_missed_period) = self.qos.deadline.period {
-            // let deadline_missed_interval = std::time::Duration::new(
-            //     deadline_missed_period.sec() as u64,
-            //     deadline_missed_period.nanosec(),
-            // );
-            // let reader_status_condition = self.status_condition.address();
-            // let data_reader_listener_sender = self
-            //     .data_reader_listener_thread
-            //     .as_ref()
-            //     .map(|l| l.sender().clone());
-            // let reader_listener_mask = self.data_reader_status_kind.clone();
-            // let subscriber_listener = subscriber_mask_listener.0.clone();
-            // let subscriber_listener_mask = subscriber_mask_listener.1.clone();
-            // let participant_listener = participant_mask_listener.0.clone();
-            // let participant_listener_mask = participant_mask_listener.1.clone();
-            // let topic_address = self.topic_address.clone();
-            // let type_name = self.type_name.clone();
-            // let topic_name = self.topic_name.clone();
-            // let status_condition_address = self.status_condition.address();
-            // let topic_status_condition_address = self.topic_status_condition.clone();
-            // let timer_handle = self.timer_handle.clone();
-            // let deadline_missed_task = self.executor_handle.spawn(async move {
-            //     loop {
-            //         timer_handle.sleep(deadline_missed_interval).await;
-            //         // let subscriber_listener = subscriber_listener.clone();
-            //         // let participant_listener = participant_listener.clone();
-            //         let r: DdsResult<()> = async {
-            //             // data_reader_address.send_actor_mail(
-            //             //     IncrementRequestedDeadlineMissedStatus {
-            //             //         instance_handle: change_instance_handle,
-            //             //     },
-            //             // )?;
-            //             // data_reader_address
-            //             //     .send_actor_mail(RemoveInstanceOwnership {
-            //             //         instance: change_instance_handle,
-            //             //     })?
-            //             //     .receive_reply()
-            //             //     .await;
+        self.instance_deadline_missed_task
+            .insert(change_instance_handle, deadline_missed_task);
+    }
 
-            //             // let reader_address = data_reader_address.clone();
-            //             // let subscriber = subscriber.clone();
-            //             // let topic = TopicAsync::new(
-            //             //     topic_address.clone(),
-            //             //     topic_status_condition_address.clone(),
-            //             //     type_name.clone(),
-            //             //     topic_name.clone(),
-            //             //     subscriber.get_participant(),
-            //             // );
-            //             // let status_condition_address = status_condition_address.clone();
-            //             // if reader_listener_mask.contains(&StatusKind::RequestedDeadlineMissed) {
-            //             //     let status = data_reader_address
-            //             //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-            //             //         .receive_reply()
-            //             //         .await;
-            //             //     if let Some(listener) = &data_reader_listener_sender {
-            //             //         listener
-            //             //             .send(DataReaderListenerMessage {
-            //             //                 listener_operation:
-            //             //                     DataReaderListenerOperation::RequestedDeadlineMissed(
-            //             //                         status,
-            //             //                     ),
-            //             //                 reader_address,
-            //             //                 status_condition_address,
-            //             //                 subscriber,
-            //             //                 topic,
-            //             //             })
-            //             //             .ok();
-            //             //     }
-            //             // } else if subscriber_listener_mask
-            //             //     .contains(&StatusKind::RequestedDeadlineMissed)
-            //             // {
-            //             //     let status = data_reader_address
-            //             //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-            //             //         .receive_reply()
-            //             //         .await;
-            //             //     if let Some(listener) = subscriber_listener {
-            //             //         listener
-            //             //             .send(SubscriberListenerMessage {
-            //             //                 listener_operation:
-            //             //                     SubscriberListenerOperation::RequestedDeadlineMissed(
-            //             //                         status,
-            //             //                     ),
-            //             //                 reader_address,
-            //             //                 status_condition_address,
-            //             //                 subscriber,
-            //             //                 topic,
-            //             //             })
-            //             //             .ok();
-            //             //     }
-            //             // } else if participant_listener_mask
-            //             //     .contains(&StatusKind::RequestedDeadlineMissed)
-            //             // {
-            //             //     let status = data_reader_address
-            //             //         .send_actor_mail(ReadRequestedDeadlineMissedStatus)?
-            //             //         .receive_reply()
-            //             //         .await;
-            //             //     if let Some(listener) = participant_listener {
-            //             //         listener
-            //             //             .send(ParticipantListenerMessage {
-            //             //                 listener_operation:
-            //             //                     ParticipantListenerOperation::RequestedDeadlineMissed(
-            //             //                         status,
-            //             //                     ),
-            //             //                 listener_kind: ListenerKind::Reader {
-            //             //                     reader_address,
-            //             //                     status_condition_address,
-            //             //                     subscriber,
-            //             //                     topic,
-            //             //                 },
-            //             //             })
-            //             //             .ok();
-            //             //     }
-            //             // }
-            //             // reader_status_condition
-            //             //     .send_actor_mail(AddCommunicationState {
-            //             //         state: StatusKind::RequestedDeadlineMissed,
-            //             //     })?
-            //             //     .receive_reply()
-            //             //     .await;
-            //             Ok(())
-            //         }
-            //         .await;
-
-            //         if r.is_err() {
-            //             break;
-            //         }
-            //     }
-            // });
-
-            // self.instance_deadline_missed_task
-            //     .insert(change_instance_handle, deadline_missed_task);
-        }
-        Ok(())
+    pub fn on_deadline_missed(&mut self, change_instance_handle: InstanceHandle) {
+        self.requested_deadline_missed_status.total_count += 1;
+        self.requested_deadline_missed_status.total_count_change += 1;
+        self.requested_deadline_missed_status.last_instance_handle = change_instance_handle;
+        self.remove_instance_ownership(change_instance_handle);
+        self.status_condition
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::RequestedDeadlineMissed,
+            });
     }
 
     pub fn as_subscription_builtin_topic_data(
@@ -1759,19 +1621,10 @@ impl DataReaderActor {
         self.instance_ownership.remove(&instance);
     }
 
-    pub fn add_change(&mut self, cache_change: ReaderCacheChange) {
-        match self.convert_cache_change_to_sample(cache_change, Time::now()) {
-            Ok(sample) => {
-                self.add_sample(
-                    sample, // , data_reader_address, subscriber, subscriber_mask_listener, participant_mask_listener, executor_handle, timer_handle
-                )
-                .ok();
-            }
-            Err(e) => debug!(
-                "Received invalid data on reader with handle {handle:?}. Error: {err:?}.",
-                handle = self.get_instance_handle(),
-                err = e,
-            ),
-        }
+    pub fn add_change(&mut self, cache_change: ReaderCacheChange) -> DdsResult<InstanceHandle> {
+        let sample = self.convert_cache_change_to_sample(cache_change, Time::now())?;
+        let change_instance_handle = sample.instance_handle;
+        self.add_sample(sample)?;
+        Ok(change_instance_handle)
     }
 }

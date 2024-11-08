@@ -121,7 +121,6 @@ pub struct SubscriberActor {
     qos: SubscriberQos,
     data_reader_list: Vec<DataReaderActor>,
     enabled: bool,
-    data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
     subscriber_listener_thread: Option<SubscriberListenerThread>,
@@ -144,7 +143,6 @@ impl SubscriberActor {
             qos,
             data_reader_list: Vec::new(),
             enabled: false,
-            data_reader_counter: 0,
             default_data_reader_qos: Default::default(),
             status_condition,
             subscriber_listener_thread,
@@ -341,51 +339,6 @@ impl SubscriberActor {
     pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
         for data_reader in self.data_reader_list.iter_mut() {
             data_reader.remove_matched_writer(discovered_writer_handle);
-        }
-    }
-
-    pub fn add_builtin_change(
-        &mut self,
-        cache_change: ReaderCacheChange,
-        reader_instance_handle: InstanceHandle,
-    ) {
-        if let Some(reader) = self
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.get_instance_handle() == reader_instance_handle)
-        {
-            reader.add_change(cache_change);
-
-            self.status_condition
-                .send_actor_mail(status_condition_actor::AddCommunicationState {
-                    state: StatusKind::DataOnReaders,
-                });
-        }
-    }
-
-    pub fn add_user_defined_change(
-        &mut self,
-        cache_change: ReaderCacheChange,
-        data_reader_handle: InstanceHandle,
-    ) {
-        let writer_instance_handle = InstanceHandle::new(cache_change.writer_guid.into());
-        if let Some(reader) = self
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.get_instance_handle() == data_reader_handle)
-        {
-            if reader
-                .get_matched_publications()
-                .contains(&writer_instance_handle)
-            {
-                reader.add_change(cache_change.clone());
-
-                self.status_condition.send_actor_mail(
-                    status_condition_actor::AddCommunicationState {
-                        state: StatusKind::DataOnReaders,
-                    },
-                );
-            }
         }
     }
 

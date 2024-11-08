@@ -4,7 +4,7 @@ use super::{
     data_writer_actor::DataWriterActor,
     handle::{InstanceHandleCounter, ParticipantHandle},
     publisher_actor::PublisherActor,
-    status_condition_actor::StatusConditionActor,
+    status_condition_actor::{self, StatusConditionActor},
 };
 use crate::{
     builtin_topics::{
@@ -2188,6 +2188,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             fn add_change(&mut self, cache_change: ReaderCacheChange) {
                 self.domain_participant_address
                     .send_actor_mail(AddCacheChange {
+                        domain_participant_address: self.domain_participant_address.clone(),
                         cache_change,
                         subscriber_handle: self.subscriber_handle,
                         data_reader_handle: self.data_reader_handle,
@@ -3479,6 +3480,7 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
 }
 
 pub struct AddCacheChange {
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
     pub cache_change: ReaderCacheChange,
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
@@ -3493,7 +3495,45 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .iter_mut()
             .find(|s| s.get_instance_handle() == message.subscriber_handle)
         {
-            subscriber.add_user_defined_change(message.cache_change, message.data_reader_handle);
+            if let Some(reader) = subscriber.get_mut_datareader(message.data_reader_handle) {
+                let writer_instance_handle =
+                    InstanceHandle::new(message.cache_change.writer_guid.into());
+
+                if reader
+                    .get_matched_publications()
+                    .contains(&writer_instance_handle)
+                {
+                    if let Ok(change_instance_handle) = reader.add_change(message.cache_change) {
+                        if let DurationKind::Finite(deadline_missed_period) =
+                            reader.get_qos().deadline.period
+                        {
+                            let timer_handle = self.timer_driver.handle();
+                            let deadline_missed_task = self.executor.handle().spawn(async move {
+                                timer_handle.sleep(deadline_missed_period.into()).await;
+                                message
+                                    .domain_participant_address
+                                    .send_actor_mail(DeadlineMissed {
+                                        subscriber_handle: message.subscriber_handle,
+                                        data_reader_handle: message.data_reader_handle,
+                                        change_instance_handle,
+                                    })
+                                    .ok();
+                            });
+                            reader.add_deadline_missed_task(
+                                change_instance_handle,
+                                deadline_missed_task,
+                            );
+                        }
+
+                        subscriber
+                            .get_statuscondition()
+                            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                                state: StatusKind::DataOnReaders,
+                            })
+                            .ok();
+                    }
+                }
+            }
         }
     }
 }
@@ -3509,25 +3549,18 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
         &mut self,
         message: AddBuiltinParticipantsDetectorCacheChange,
     ) -> <AddBuiltinParticipantsDetectorCacheChange as Mail>::Result {
-        let dcps_participant_reader_handle = self
+        if let Some(reader) = self
             .builtin_subscriber
             .lookup_datareader_by_topic_name(DCPS_PARTICIPANT)
-            .map(|dr| dr.get_instance_handle());
-        if let Some(reader_handle) = dcps_participant_reader_handle {
-            self.builtin_subscriber
-                .add_builtin_change(message.cache_change, reader_handle);
-            if let Ok(samples) = self
-                .builtin_subscriber
-                .get_mut_datareader(reader_handle)
-                .expect("Must exist")
-                .read(
-                    i32::MAX,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                    None,
-                )
-            {
+        {
+            reader.add_change(message.cache_change).ok();
+            if let Ok(samples) = reader.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            ) {
                 for (sample_data, sample_info) in samples {
                     match sample_info.instance_state {
                         InstanceStateKind::Alive => {
@@ -3563,25 +3596,18 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
         &mut self,
         message: AddBuiltinTopicsDetectorCacheChange,
     ) -> <AddBuiltinTopicsDetectorCacheChange as Mail>::Result {
-        let dcps_topic_reader_handle = self
+        if let Some(reader) = self
             .builtin_subscriber
             .lookup_datareader_by_topic_name(DCPS_TOPIC)
-            .map(|dr| dr.get_instance_handle());
-        if let Some(reader_handle) = dcps_topic_reader_handle {
-            self.builtin_subscriber
-                .add_builtin_change(message.cache_change, reader_handle);
-            if let Ok(samples) = self
-                .builtin_subscriber
-                .get_mut_datareader(reader_handle)
-                .expect("Must exist")
-                .read(
-                    i32::MAX,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                    None,
-                )
-            {
+        {
+            reader.add_change(message.cache_change).ok();
+            if let Ok(samples) = reader.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            ) {
                 for (sample_data, sample_info) in samples {
                     match sample_info.instance_state {
                         InstanceStateKind::Alive => {
@@ -3613,25 +3639,18 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
         &mut self,
         message: AddBuiltinPublicationsDetectorCacheChange,
     ) -> <AddBuiltinPublicationsDetectorCacheChange as Mail>::Result {
-        let dcps_publications_reader_handle = self
+        if let Some(reader) = self
             .builtin_subscriber
             .lookup_datareader_by_topic_name(DCPS_PUBLICATION)
-            .map(|dr| dr.get_instance_handle());
-        if let Some(reader_handle) = dcps_publications_reader_handle {
-            self.builtin_subscriber
-                .add_builtin_change(message.cache_change, reader_handle);
-            if let Ok(samples) = self
-                .builtin_subscriber
-                .get_mut_datareader(reader_handle)
-                .expect("Must exist")
-                .read(
-                    i32::MAX,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                    None,
-                )
-            {
+        {
+            reader.add_change(message.cache_change).ok();
+            if let Ok(samples) = reader.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            ) {
                 for (sample_data, sample_info) in samples {
                     match sample_info.instance_state {
                         InstanceStateKind::Alive => {
@@ -3667,25 +3686,24 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
         &mut self,
         message: AddBuiltinSubscriptionsDetectorCacheChange,
     ) -> <AddBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
-        let dcps_subscriptions_reader_handle = self
+        if let Some(reader) = self
             .builtin_subscriber
             .lookup_datareader_by_topic_name(DCPS_SUBSCRIPTION)
-            .map(|dr| dr.get_instance_handle());
-        if let Some(reader_handle) = dcps_subscriptions_reader_handle {
-            self.builtin_subscriber
-                .add_builtin_change(message.cache_change, reader_handle);
-            if let Ok(samples) = self
-                .builtin_subscriber
-                .get_mut_datareader(reader_handle)
-                .expect("Must exist")
-                .read(
-                    i32::MAX,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                    None,
-                )
-            {
+        {
+            reader.add_change(message.cache_change).ok();
+
+            self.status_condition
+                .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    state: StatusKind::DataOnReaders,
+                });
+
+            if let Ok(samples) = reader.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            ) {
                 for (sample_data, sample_info) in samples {
                     match sample_info.instance_state {
                         InstanceStateKind::Alive => {
@@ -3806,6 +3824,28 @@ impl MailHandler<RemoveWriterChange> for DomainParticipantActor {
                 dw.remove_change(message.sequence_number);
             }
         }
+    }
+}
+
+pub struct DeadlineMissed {
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+    pub change_instance_handle: InstanceHandle,
+}
+impl Mail for DeadlineMissed {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<DeadlineMissed> for DomainParticipantActor {
+    fn handle(&mut self, message: DeadlineMissed) -> <DeadlineMissed as Mail>::Result {
+        self.user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .on_deadline_missed(message.change_instance_handle);
+
+        Ok(())
     }
 }
 
