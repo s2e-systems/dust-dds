@@ -64,6 +64,8 @@ pub struct RtpsParticipant {
     user_defined_reader_list: Vec<RtpsStatefulReader>,
     message_sender: MessageSender,
     discovered_participant_list: Vec<InstanceHandle>,
+    discovered_reader_list: Vec<DiscoveredReaderData>,
+    discovered_writer_list: Vec<DiscoveredWriterData>,
 }
 
 impl RtpsParticipant {
@@ -171,6 +173,8 @@ impl RtpsParticipant {
             user_defined_reader_list,
             message_sender,
             discovered_participant_list: Vec::new(),
+            discovered_reader_list: Vec::new(),
+            discovered_writer_list: Vec::new(),
         })
     }
 
@@ -251,6 +255,8 @@ impl RtpsParticipant {
             self.add_matched_subscriptions_announcer(&discovered_participant_data);
             self.add_matched_topics_detector(&discovered_participant_data);
             self.add_matched_topics_announcer(&discovered_participant_data);
+            self.discovered_participant_list
+                .push(discovered_participant_handle);
         }
     }
 
@@ -521,7 +527,7 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn add_discovered_writer(&mut self, discovered_writer_data: &DiscoveredWriterData) {
+    pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
         for reader in &mut self.user_defined_reader_list {
             if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
                 let reliability_kind = discovered_writer_data
@@ -541,9 +547,10 @@ impl RtpsParticipant {
                 );
             }
         }
+        self.discovered_writer_list.push(discovered_writer_data);
     }
 
-    pub fn add_discovered_reader(&mut self, discovered_reader_data: &DiscoveredReaderData) {
+    pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
         for writer in &mut self.user_defined_writer_list {
             if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name() {
                 let reliability_kind = discovered_reader_data
@@ -563,6 +570,7 @@ impl RtpsParticipant {
                 );
             }
         }
+        self.discovered_reader_list.push(discovered_reader_data);
     }
 
     pub fn participant_proxy(&self) -> ParticipantProxy {
@@ -584,7 +592,27 @@ impl RtpsParticipant {
     }
 
     pub fn create_writer(&mut self, writer_guid: Guid, topic_name: String) -> Guid {
-        let writer = RtpsStatefulWriter::new(writer_guid, topic_name, self.message_sender.clone());
+        let mut writer =
+            RtpsStatefulWriter::new(writer_guid, topic_name, self.message_sender.clone());
+        for discovered_reader_data in &self.discovered_reader_list {
+            if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name() {
+                let reliability_kind = discovered_reader_data
+                    .dds_subscription_data
+                    .reliability()
+                    .into();
+                let durability_kind = discovered_reader_data
+                    .dds_subscription_data
+                    .durability()
+                    .into();
+                writer.add_matched_reader(
+                    &discovered_reader_data.reader_proxy,
+                    reliability_kind,
+                    durability_kind,
+                    &self.default_unicast_locator_list,
+                    &self.default_multicast_locator_list,
+                );
+            }
+        }
         self.user_defined_writer_list.push(writer);
         writer_guid
     }
@@ -600,12 +628,31 @@ impl RtpsParticipant {
         topic_name: String,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) {
-        let reader = RtpsStatefulReader::new(
+        let mut reader = RtpsStatefulReader::new(
             reader_guid,
             topic_name,
             reader_history_cache,
             self.message_sender.clone(),
         );
+        for discovered_writer_data in &self.discovered_writer_list {
+            if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
+                let reliability_kind = discovered_writer_data
+                    .dds_publication_data
+                    .reliability()
+                    .into();
+                let durability_kind = discovered_writer_data
+                    .dds_publication_data
+                    .durability()
+                    .into();
+                reader.add_matched_writer(
+                    &discovered_writer_data.writer_proxy,
+                    reliability_kind,
+                    durability_kind,
+                    &self.default_unicast_locator_list,
+                    &self.default_multicast_locator_list,
+                );
+            }
+        }
         self.user_defined_reader_list.push(reader);
     }
 
@@ -1066,7 +1113,7 @@ impl Mail for AddDiscoveredWriter {
 }
 impl MailHandler<AddDiscoveredWriter> for RtpsParticipant {
     fn handle(&mut self, message: AddDiscoveredWriter) -> <AddDiscoveredWriter as Mail>::Result {
-        self.add_discovered_writer(&message.discovered_writer_data);
+        self.add_discovered_writer(message.discovered_writer_data);
     }
 }
 
@@ -1078,7 +1125,7 @@ impl Mail for AddDiscoveredReader {
 }
 impl MailHandler<AddDiscoveredReader> for RtpsParticipant {
     fn handle(&mut self, message: AddDiscoveredReader) -> <AddDiscoveredReader as Mail>::Result {
-        self.add_discovered_reader(&message.discovered_reader_data);
+        self.add_discovered_reader(message.discovered_reader_data);
     }
 }
 
