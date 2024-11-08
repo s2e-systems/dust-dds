@@ -239,6 +239,7 @@ impl DataWriterListenerThread {
 }
 
 pub struct DataWriterActor {
+    instance_handle: InstanceHandle,
     transport_writer: Box<dyn WriterHistoryCache>,
     topic_name: String,
     type_name: String,
@@ -266,12 +267,14 @@ impl DataWriterActor {
         listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
+        instance_handle: InstanceHandle,
         executor_handle: &ExecutorHandle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
 
         DataWriterActor {
+            instance_handle,
             transport_writer,
             topic_name,
             type_name,

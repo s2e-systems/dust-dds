@@ -1,9 +1,6 @@
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::DataWriterActor,
-    handle::{DataWriterHandle, PublisherHandle},
-    status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
+    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
+    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -27,7 +24,7 @@ use crate::{
     rtps::stateful_writer::WriterHistoryCache,
 };
 use fnmatch_regex::glob_to_regex;
-use std::{collections::HashMap, thread::JoinHandle};
+use std::thread::JoinHandle;
 use tracing::warn;
 
 pub enum PublisherListenerOperation {
@@ -103,7 +100,7 @@ impl PublisherListenerThread {
 
 pub struct PublisherActor {
     qos: PublisherQos,
-    publisher_handle: PublisherHandle,
+    instance_handle: InstanceHandle,
     data_writer_list: Vec<DataWriterActor>,
     enabled: bool,
     data_writer_counter: u8,
@@ -118,14 +115,14 @@ impl PublisherActor {
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
-        publisher_handle: PublisherHandle,
+        instance_handle: InstanceHandle,
         executor_handle: &ExecutorHandle,
     ) -> Self {
         let publisher_listener_thread = listener.map(PublisherListenerThread::new);
         let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         Self {
             qos,
-            publisher_handle,
+            instance_handle,
             data_writer_list: Vec::new(),
             enabled: false,
             data_writer_counter: 0,
@@ -195,6 +192,7 @@ impl PublisherActor {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
         mask: Vec<StatusKind>,
+        instance_handle: InstanceHandle,
         transport_writer: Box<dyn WriterHistoryCache>,
         executor_handle: &ExecutorHandle,
     ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
@@ -216,6 +214,7 @@ impl PublisherActor {
             a_listener,
             mask,
             qos,
+            instance_handle,
             executor_handle,
         );
         let data_writer_handle = data_writer.get_instance_handle();
@@ -323,7 +322,7 @@ impl PublisherActor {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.publisher_handle.into()
+        self.instance_handle
     }
 
     pub fn get_status_kind(&self) -> Vec<StatusKind> {

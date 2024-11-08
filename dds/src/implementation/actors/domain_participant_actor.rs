@@ -1,7 +1,9 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
-    handle::ParticipantHandle, publisher_actor::PublisherActor,
+    any_data_writer_listener::AnyDataWriterListener,
+    data_writer_actor::DataWriterActor,
+    handle::{InstanceHandleCounter, ParticipantHandle},
+    publisher_actor::PublisherActor,
     status_condition_actor::StatusConditionActor,
 };
 use crate::{
@@ -20,9 +22,7 @@ use crate::{
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
         actors::{
-            data_reader_actor::DataReaderActor,
-            handle::{PublisherHandle, SubscriberHandle, TopicHandle},
-            subscriber_actor::SubscriberActor,
+            data_reader_actor::DataReaderActor, subscriber_actor::SubscriberActor,
             topic_actor::TopicActor,
         },
         data_representation_builtin_endpoints::{
@@ -368,18 +368,16 @@ impl ParticipantListenerThread {
 
 pub struct DomainParticipantActor {
     transport: Box<dyn Transport>,
+    instance_handle_counter: InstanceHandleCounter,
     domain_id: DomainId,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberActor,
     builtin_publisher: PublisherActor,
     user_defined_subscriber_list: Vec<SubscriberActor>,
-    subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherActor>,
-    publisher_counter: u8,
     default_publisher_qos: PublisherQos,
     topic_list: HashMap<String, TopicActor>,
-    topic_counter: u8,
     default_topic_qos: TopicQos,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
@@ -406,12 +404,11 @@ impl DomainParticipantActor {
         timer_driver: TimerDriver,
         transport: Box<dyn Transport>,
     ) -> Self {
-        let mut topic_counter = 0;
+        let mut instance_handle_counter = InstanceHandleCounter::default();
 
         let mut topic_list = HashMap::new();
-        let spdp_topic_participant_handle =
-            TopicHandle::new(ParticipantHandle::new(0), topic_counter);
-        topic_counter += 1;
+        let spdp_topic_participant_handle = instance_handle_counter.generate_new_instance_handle();
+
         let spdp_topic_participant = TopicActor::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
@@ -424,8 +421,7 @@ impl DomainParticipantActor {
         );
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
-        let sedp_topic_topics_handle = TopicHandle::new(ParticipantHandle::new(0), topic_counter);
-        topic_counter += 1;
+        let sedp_topic_topics_handle = instance_handle_counter.generate_new_instance_handle();
         let sedp_topic_topics = TopicActor::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
@@ -438,9 +434,7 @@ impl DomainParticipantActor {
         );
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
-        let sedp_topic_publications_handle =
-            TopicHandle::new(ParticipantHandle::new(0), topic_counter);
-        topic_counter += 1;
+        let sedp_topic_publications_handle = instance_handle_counter.generate_new_instance_handle();
         let sedp_topic_publications = TopicActor::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
@@ -454,8 +448,7 @@ impl DomainParticipantActor {
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_topic_subscriptions_handle =
-            TopicHandle::new(ParticipantHandle::new(0), topic_counter);
-        topic_counter += 1;
+            instance_handle_counter.generate_new_instance_handle();
         let sedp_topic_subscriptions = TopicActor::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
@@ -482,7 +475,7 @@ impl DomainParticipantActor {
             ..Default::default()
         };
 
-        let builtin_subscriber_handle = SubscriberHandle::new(ParticipantHandle::new(0), 0);
+        let builtin_subscriber_handle = instance_handle_counter.generate_new_instance_handle();
         let mut builtin_subscriber = SubscriberActor::new(
             SubscriberQos::default(),
             None,
@@ -510,6 +503,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(spdp_reader_qos),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_participant_discovery_reader(),
                 &executor.handle(),
             )
@@ -520,6 +514,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(sedp_data_reader_qos()),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_topics_discovery_reader(),
                 &executor.handle(),
             )
@@ -530,6 +525,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(sedp_data_reader_qos()),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_publications_discovery_reader(),
                 &executor.handle(),
             )
@@ -540,12 +536,13 @@ impl DomainParticipantActor {
                 QosKind::Specific(sedp_data_reader_qos()),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_subscriptions_discovery_reader(),
                 &executor.handle(),
             )
             .unwrap();
 
-        let builtin_publisher_handle = PublisherHandle::new(ParticipantHandle::new(0), 0);
+        let builtin_publisher_handle = instance_handle_counter.generate_new_instance_handle();
         let mut builtin_publisher = PublisherActor::new(
             PublisherQos::default(),
             None,
@@ -560,6 +557,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(spdp_writer_qos),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_participant_discovery_writer(),
                 &executor.handle(),
             )
@@ -570,6 +568,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(sedp_data_writer_qos()),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_topics_discovery_writer(),
                 &executor.handle(),
             )
@@ -580,6 +579,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(sedp_data_writer_qos()),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_publications_discovery_writer(),
                 &executor.handle(),
             )
@@ -590,6 +590,7 @@ impl DomainParticipantActor {
                 QosKind::Specific(sedp_data_writer_qos()),
                 None,
                 vec![],
+                instance_handle_counter.generate_new_instance_handle(),
                 transport.get_subscriptions_discovery_writer(),
                 &executor.handle(),
             )
@@ -600,18 +601,16 @@ impl DomainParticipantActor {
 
         Self {
             transport,
+            instance_handle_counter,
             domain_id,
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
             user_defined_subscriber_list: Vec::new(),
-            subscriber_counter: 1,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: Vec::new(),
-            publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list,
-            topic_counter,
             default_topic_qos: TopicQos::default(),
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),
@@ -1059,9 +1058,8 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let publisher_counter = self.publisher_counter;
-        self.publisher_counter += 1;
-        let publisher_handle = PublisherHandle::new(ParticipantHandle::new(0), publisher_counter);
+
+        let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
         let mut publisher = PublisherActor::new(
             publisher_qos,
             message.a_listener,
@@ -1135,9 +1133,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let subcriber_counter = self.subscriber_counter;
-        self.subscriber_counter += 1;
-        let subscriber_handle = SubscriberHandle::new(ParticipantHandle::new(0), subcriber_counter);
+        let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
         let subscriber_status_kind = message.mask.to_vec();
 
         let mut subscriber = SubscriberActor::new(
@@ -1224,9 +1220,8 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let topic_counter = self.topic_counter;
-        self.topic_counter += 1;
-        let topic_handle = TopicHandle::new(ParticipantHandle::new(0), topic_counter);
+
+        let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
         let mut topic = TopicActor::new(
             qos,
             message.type_name,
@@ -1314,7 +1309,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
             Ok(Some((
-                topic.get_handle().into(),
+                topic.get_instance_handle().into(),
                 topic.get_statuscondition(),
                 topic.get_type_name().to_owned(),
             )))
@@ -1337,9 +1332,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                         representation: discovered_topic_data.representation().clone(),
                     };
                     let type_name = discovered_topic_data.get_type_name().to_owned();
-                    let topic_counter = self.topic_counter;
-                    self.topic_counter += 1;
-                    let topic_handle = TopicHandle::new(ParticipantHandle::new(0), topic_counter);
+                    let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
                     let mut topic = TopicActor::new(
                         qos,
                         type_name.clone(),
@@ -1380,7 +1373,7 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
             Ok(Some((
                 topic.get_type_name().to_owned(),
-                topic.get_handle().into(),
+                topic.get_instance_handle().into(),
                 topic.get_statuscondition(),
             )))
         } else {
@@ -1853,11 +1846,13 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
         let transport_writer = self
             .transport
             .create_user_defined_writer(&message.topic_name, topic_kind);
+        let writer_handle = self.instance_handle_counter.generate_new_instance_handle();
         let (datawriter_handle, writer_status_condition_address) = publisher.create_datawriter(
             topic,
             message.qos,
             message.a_listener,
             message.mask,
+            writer_handle,
             transport_writer,
             &self.executor.handle(),
         )?;
@@ -2186,6 +2181,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
         struct UserDefinedReaderHistoryCache {
             pub domain_participant_address: ActorAddress<DomainParticipantActor>,
             pub subscriber_handle: InstanceHandle,
+            pub data_reader_handle: InstanceHandle,
         }
 
         impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
@@ -2194,6 +2190,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                     .send_actor_mail(AddCacheChange {
                         cache_change,
                         subscriber_handle: self.subscriber_handle,
+                        data_reader_handle: self.data_reader_handle,
                     })
                     .ok();
             }
@@ -2224,12 +2221,14 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             }
             topic_kind
         };
+        let reader_handle = self.instance_handle_counter.generate_new_instance_handle();
         let transport_reader = self.transport.create_user_defined_reader(
             &message.topic_name,
             topic_kind,
             Box::new(UserDefinedReaderHistoryCache {
                 domain_participant_address: message.domain_participant_address,
-                subscriber_handle: subscriber.get_handle().into(),
+                subscriber_handle: subscriber.get_instance_handle().into(),
+                data_reader_handle: reader_handle,
             }),
         );
         let (datareader_guid, reader_status_condition_address) = subscriber.create_datareader(
@@ -2237,6 +2236,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             message.qos,
             message.a_listener,
             message.mask,
+            reader_handle,
             transport_reader,
             &self.executor.handle(),
         )?;
@@ -3481,6 +3481,7 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
 pub struct AddCacheChange {
     pub cache_change: ReaderCacheChange,
     pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
 }
 impl Mail for AddCacheChange {
     type Result = ();
@@ -3492,7 +3493,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .iter_mut()
             .find(|s| s.get_instance_handle() == message.subscriber_handle)
         {
-            subscriber.add_user_defined_change(message.cache_change);
+            subscriber.add_user_defined_change(message.cache_change, message.data_reader_handle);
         }
     }
 }

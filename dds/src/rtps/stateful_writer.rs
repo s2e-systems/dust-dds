@@ -71,6 +71,14 @@ impl RtpsStatefulWriter {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
     ) {
+        if self
+            .matched_readers
+            .iter()
+            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
+        {
+            return;
+        }
+
         let unicast_locator_list = if reader_proxy.unicast_locator_list.is_empty() {
             default_unicast_locator_list
         } else {

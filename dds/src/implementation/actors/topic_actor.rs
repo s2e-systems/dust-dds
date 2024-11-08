@@ -1,7 +1,4 @@
-use super::{
-    handle::TopicHandle,
-    status_condition_actor::{self, StatusConditionActor},
-};
+use super::status_condition_actor::{self, StatusConditionActor};
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dds_async::topic_listener::TopicListenerAsync,
@@ -82,7 +79,7 @@ pub struct TopicActor {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
-    topic_handle: TopicHandle,
+    instance_handle: InstanceHandle,
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
@@ -99,7 +96,7 @@ impl TopicActor {
         listener: Option<Box<dyn TopicListenerAsync + Send>>,
         status_kind: Vec<StatusKind>,
         type_support: Arc<dyn DynamicType + Send + Sync>,
-        topic_handle: TopicHandle,
+        instance_handle: InstanceHandle,
         executor_handle: &ExecutorHandle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
@@ -109,7 +106,7 @@ impl TopicActor {
             qos,
             type_name,
             topic_name: topic_name.to_string(),
-            topic_handle,
+            instance_handle,
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition,
@@ -162,8 +159,8 @@ impl TopicActor {
         &self.topic_name
     }
 
-    pub fn get_handle(&self) -> TopicHandle {
-        self.topic_handle
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.instance_handle
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
@@ -175,7 +172,7 @@ impl TopicActor {
 
         TopicBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: InstanceHandle::from(self.topic_handle).into(),
+                value: self.instance_handle.into(),
             },
             name: self.topic_name.to_string(),
             type_name: self.type_name.to_string(),

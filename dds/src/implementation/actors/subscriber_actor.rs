@@ -1,6 +1,6 @@
 use super::{
     any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    handle::SubscriberHandle, status_condition_actor, topic_actor::TopicActor,
+    status_condition_actor, topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -117,7 +117,7 @@ impl SubscriberListenerThread {
 }
 
 pub struct SubscriberActor {
-    subscriber_handle: SubscriberHandle,
+    instance_handle: InstanceHandle,
     qos: SubscriberQos,
     data_reader_list: Vec<DataReaderActor>,
     enabled: bool,
@@ -133,14 +133,14 @@ impl SubscriberActor {
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
         subscriber_status_kind: Vec<StatusKind>,
-        subscriber_handle: SubscriberHandle,
+        instance_handle: InstanceHandle,
         executor_handle: &ExecutorHandle,
     ) -> Self {
         let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
         let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
 
         SubscriberActor {
-            subscriber_handle,
+            instance_handle,
             qos,
             data_reader_list: Vec::new(),
             enabled: false,
@@ -219,6 +219,7 @@ impl SubscriberActor {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
         mask: Vec<StatusKind>,
+        instance_handle: InstanceHandle,
         transport_reader: Box<dyn TransportReader>,
         executor_handle: &ExecutorHandle,
     ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
@@ -239,6 +240,7 @@ impl SubscriberActor {
         let data_reader_status_kind = mask.to_vec();
 
         let mut data_reader = DataReaderActor::new(
+            instance_handle,
             topic_name,
             type_name,
             type_support.clone(),
@@ -332,12 +334,8 @@ impl SubscriberActor {
         Ok(())
     }
 
-    pub fn get_handle(&self) -> SubscriberHandle {
-        self.subscriber_handle
-    }
-
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.subscriber_handle.into()
+        self.instance_handle
     }
 
     pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
@@ -365,9 +363,17 @@ impl SubscriberActor {
         }
     }
 
-    pub fn add_user_defined_change(&mut self, cache_change: ReaderCacheChange) {
+    pub fn add_user_defined_change(
+        &mut self,
+        cache_change: ReaderCacheChange,
+        data_reader_handle: InstanceHandle,
+    ) {
         let writer_instance_handle = InstanceHandle::new(cache_change.writer_guid.into());
-        for reader in self.data_reader_list.iter_mut() {
+        if let Some(reader) = self
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.get_instance_handle() == data_reader_handle)
+        {
             if reader
                 .get_matched_publications()
                 .contains(&writer_instance_handle)

@@ -1,5 +1,43 @@
 use crate::infrastructure::instance::InstanceHandle;
 
+#[derive(Default)]
+pub struct InstanceHandleCounter {
+    counter1: u64,
+    counter2: u64,
+}
+
+impl InstanceHandleCounter {
+    pub fn generate_new_instance_handle(&mut self) -> InstanceHandle {
+        if self.counter1 == u64::MAX {
+            self.counter2 += 1;
+        } else {
+            self.counter1 += 1;
+        }
+
+        let counter1_bytes = self.counter1.to_ne_bytes();
+        let counter2_bytes = self.counter2.to_ne_bytes();
+
+        InstanceHandle::new([
+            counter1_bytes[0],
+            counter1_bytes[1],
+            counter1_bytes[2],
+            counter1_bytes[3],
+            counter1_bytes[4],
+            counter1_bytes[5],
+            counter1_bytes[6],
+            counter1_bytes[7],
+            counter2_bytes[0],
+            counter2_bytes[1],
+            counter2_bytes[2],
+            counter2_bytes[3],
+            counter2_bytes[4],
+            counter2_bytes[5],
+            counter2_bytes[6],
+            counter2_bytes[7],
+        ])
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParticipantHandle {
     value: u8,

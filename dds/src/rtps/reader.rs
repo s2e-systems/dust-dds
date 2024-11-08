@@ -210,6 +210,14 @@ impl RtpsStatefulReader {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
     ) {
+        if self
+            .matched_writers
+            .iter()
+            .any(|wp| wp.remote_writer_guid() == writer_proxy.remote_writer_guid)
+        {
+            return;
+        }
+
         let unicast_locator_list = if writer_proxy.unicast_locator_list.is_empty() {
             default_unicast_locator_list
         } else {

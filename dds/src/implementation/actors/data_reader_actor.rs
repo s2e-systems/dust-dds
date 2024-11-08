@@ -312,6 +312,7 @@ pub struct DataReaderActorListener {
 }
 
 pub struct DataReaderActor {
+    instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
@@ -339,6 +340,7 @@ pub struct DataReaderActor {
 impl DataReaderActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        instance_handle: InstanceHandle,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -353,6 +355,7 @@ impl DataReaderActor {
             .map(|x| DataReaderListenerThread::new(x.data_reader_listener, x.subscriber_async));
 
         DataReaderActor {
+            instance_handle,
             sample_list: Vec::new(),
             topic_name,
             type_name,
@@ -379,7 +382,7 @@ impl DataReaderActor {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        InstanceHandle::new(self.transport_reader.guid().into())
+        self.instance_handle
     }
 
     pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
