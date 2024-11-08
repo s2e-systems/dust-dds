@@ -1,6 +1,5 @@
 use super::{
     any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    handle::DataWriterHandle,
     status_condition_actor::{self, StatusConditionActor},
 };
 use crate::{
@@ -11,7 +10,9 @@ use crate::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-            types::STATUS_INFO_DISPOSED,
+            types::{
+                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
+            },
         },
         runtime::{
             executor::{block_on, ExecutorHandle, TaskHandle},
@@ -37,13 +38,13 @@ use crate::{
             OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
             QosPolicyCount, StatusKind,
         },
-        time::{DurationKind, Time},
+        time::{Duration, DurationKind, Time},
     },
     rtps::{
         cache_change::RtpsCacheChange,
         messages::submessage_elements::{Parameter, ParameterList},
         stateful_writer::WriterHistoryCache,
-        types::{ChangeKind, DurabilityKind, ReliabilityKind, SequenceNumber},
+        types::{ChangeKind, SequenceNumber},
     },
     xtypes::{
         dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
@@ -608,29 +609,11 @@ impl DataWriterActor {
             //     .insert(change_instance_handle.into(), deadline_missed_task);
         }
 
-        // if let DurationKind::Finite(lifespan) = self.qos.lifespan.duration {
-        //     if let Some(timestamp) = change_timestamp {
-        //         let change_lifespan =
-        //             crate::infrastructure::time::Time::from(timestamp) - message.now + lifespan;
-        //         if change_lifespan > Duration::new(0, 0) {
-        //             rtps_writer.get_history_cache().add_change(message.change);
-        //             message.executor_handle.spawn(async move {
-        //                 message.timer_handle.sleep(change_lifespan.into()).await;
-
-        //                 message
-        //                     .writer_address
-        //                     .send_actor_mail(RemoveChange { seq_num })
-        //                     .ok();
-        //             });
-        //         }
-        //     }
-        // } else {
         self.instance_samples
             .entry(instance_handle)
             .or_insert(VecDeque::new())
             .push_back(change.sequence_number);
         self.transport_writer.add_change(change);
-        // }
     }
 
     pub fn write_w_timestamp(
@@ -638,7 +621,7 @@ impl DataWriterActor {
         serialized_data: Vec<u8>,
         timestamp: Time,
         type_support: &dyn DynamicType,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<SequenceNumber> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -671,7 +654,7 @@ impl DataWriterActor {
             inline_qos: parameter_list,
         };
         self.add_sample(instance_handle, change);
-        Ok(())
+        Ok(self.last_change_sequence_number)
     }
 
     pub fn dispose_w_timestamp(
@@ -720,6 +703,78 @@ impl DataWriterActor {
         let mut serialized_status_info = Vec::new();
         let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
         XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
+        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
+
+        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
+        let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
+
+        let cache_change = RtpsCacheChange {
+            kind: ChangeKind::NotAliveDisposed,
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(timestamp.into()),
+            data_value: serialized_key.into(),
+            inline_qos: parameter_list,
+        };
+        self.transport_writer.add_change(cache_change);
+
+        Ok(())
+    }
+
+    pub fn unregister_w_timestamp(
+        &mut self,
+        serialized_data: Vec<u8>,
+        timestamp: Time,
+        type_support: &dyn DynamicType,
+    ) -> DdsResult<()> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let has_key = {
+            let mut has_key = false;
+            for index in 0..type_support.get_member_count() {
+                if type_support
+                    .get_member_by_index(index)?
+                    .get_descriptor()?
+                    .is_key
+                {
+                    has_key = true;
+                    break;
+                }
+            }
+            has_key
+        };
+        if !has_key {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let serialized_key =
+            get_serialized_key_from_serialized_foo(&serialized_data, type_support)?;
+
+        let instance_handle =
+            get_instance_handle_from_serialized_key(&serialized_key, type_support)?;
+        if !self.registered_instance_list.contains(&instance_handle) {
+            return Err(DdsError::BadParameter);
+        }
+
+        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
+            t.abort();
+        }
+
+        self.last_change_sequence_number += 1;
+
+        let mut serialized_status_info = Vec::new();
+        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
+        match self
+            .qos
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            true => {
+                XTypesSerialize::serialize(&STATUS_INFO_DISPOSED_UNREGISTERED, &mut serializer)?
+            }
+            false => XTypesSerialize::serialize(&STATUS_INFO_UNREGISTERED, &mut serializer)?,
+        }
         let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
 
         let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));

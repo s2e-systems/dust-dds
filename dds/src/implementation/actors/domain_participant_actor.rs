@@ -54,12 +54,11 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    publication::publisher,
     rtps::{
         messages::submessage_elements::Data,
         reader::{ReaderCacheChange, ReaderHistoryCache},
         transport::Transport,
-        types::{Guid, TopicKind, ENTITYID_PARTICIPANT},
+        types::{Guid, SequenceNumber, TopicKind, ENTITYID_PARTICIPANT},
     },
     subscription::sample_info::{
         InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
@@ -70,7 +69,7 @@ use crate::{
 };
 use core::{future::Future, i32, pin::Pin};
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     sync::Arc,
     thread::JoinHandle,
 };
@@ -382,7 +381,6 @@ pub struct DomainParticipantActor {
     topic_list: HashMap<String, TopicActor>,
     topic_counter: u8,
     default_topic_qos: TopicQos,
-    lease_duration: Duration,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
     enabled: bool,
@@ -408,7 +406,6 @@ impl DomainParticipantActor {
         timer_driver: TimerDriver,
         transport: Box<dyn Transport>,
     ) -> Self {
-        let lease_duration = Duration::new(100, 0);
         let mut topic_counter = 0;
 
         let mut topic_list = HashMap::new();
@@ -616,7 +613,6 @@ impl DomainParticipantActor {
             topic_list,
             topic_counter,
             default_topic_qos: TopicQos::default(),
-            lease_duration,
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),
             enabled: false,
@@ -674,7 +670,7 @@ impl DomainParticipantActor {
                     participant_builtin_topic_data.serialize_data()?,
                     timestamp,
                     dcps_participant_topic.get_type_support().as_ref(),
-                )?
+                )?;
             }
         }
         Ok(())
@@ -726,7 +722,7 @@ impl DomainParticipantActor {
                     publication_builtin_topic_data.serialize_data()?,
                     timestamp,
                     dcps_publication_topic.get_type_support().as_ref(),
-                )?
+                )?;
             }
         }
         Ok(())
@@ -774,7 +770,7 @@ impl DomainParticipantActor {
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
                     dcps_subscription_topic.get_type_support().as_ref(),
-                )?
+                )?;
             }
         }
         Ok(())
@@ -1039,7 +1035,7 @@ impl DomainParticipantActor {
                     topic_builtin_topic_data.serialize_data()?,
                     timestamp,
                     dcps_topic_topic.get_type_support().as_ref(),
-                )?
+                )?;
             }
         }
         Ok(())
@@ -1451,7 +1447,7 @@ impl Mail for DeleteParticipantContainedEntities {
 impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor {
     fn handle(
         &mut self,
-        message: DeleteParticipantContainedEntities,
+        _: DeleteParticipantContainedEntities,
     ) -> <DeleteParticipantContainedEntities as Mail>::Result {
         let deleted_publisher_list: Vec<PublisherActor> =
             self.user_defined_publisher_list.drain(..).collect();
@@ -2611,138 +2607,23 @@ impl Mail for UnregisterInstance {
 }
 impl MailHandler<UnregisterInstance> for DomainParticipantActor {
     fn handle(&mut self, message: UnregisterInstance) -> <UnregisterInstance as Mail>::Result {
-        todo!()
-        //     if !self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     return Err(DdsError::NotEnabled);
-        // }
+        let publisher = self
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|p| p.get_instance_handle() == message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_writer = publisher
+            .get_mut_datawriter(&message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
 
-        // let type_support = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
-        //         topic_name: self.topic.get_name(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-        // let has_key = {
-        //     let mut has_key = false;
-        //     for index in 0..type_support.get_member_count() {
-        //         if type_support
-        //             .get_member_by_index(index)?
-        //             .get_descriptor()?
-        //             .is_key
-        //         {
-        //             has_key = true;
-        //             break;
-        //         }
-        //     }
-        //     has_key
-        // };
-        // if !has_key {
-        //     return Err(DdsError::IllegalOperation);
-        // }
+        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
+        data_writer.unregister_w_timestamp(
+            message.serialized_data,
+            message.timestamp,
+            type_support.as_ref(),
+        )?;
 
-        // let writer_qos = self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::GetQos)?
-        //     .receive_reply()
-        //     .await;
-        // let instance_handle = match handle {
-        //     Some(h) => {
-        //         if let Some(stored_handle) = self.lookup_instance(instance).await? {
-        //             if stored_handle == h {
-        //                 Ok(h)
-        //             } else {
-        //                 Err(DdsError::PreconditionNotMet(
-        //                     "Handle does not match instance".to_string(),
-        //                 ))
-        //             }
-        //         } else {
-        //             Err(DdsError::BadParameter)
-        //         }
-        //     }
-        //     None => {
-        //         if let Some(stored_handle) = self.lookup_instance(instance).await? {
-        //             Ok(stored_handle)
-        //         } else {
-        //             Err(DdsError::PreconditionNotMet(
-        //                 "Instance not registered with this DataWriter".to_string(),
-        //             ))
-        //         }
-        //     }
-        // }?;
-
-        // let serialized_foo = instance.serialize_data()?;
-        // let instance_serialized_key =
-        //     get_serialized_key_from_serialized_foo(&serialized_foo, type_support.as_ref())?;
-
-        // let message_sender_actor = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //     .receive_reply()
-        //     .await;
-        // let now = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetCurrentTime)?
-        //     .receive_reply()
-        //     .await;
-
-        // let mut serialized_status_info = Vec::new();
-        // let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-        // if writer_qos
-        //     .writer_data_lifecycle
-        //     .autodispose_unregistered_instances
-        // {
-        //     XTypesSerialize::serialize(&STATUS_INFO_DISPOSED_UNREGISTERED, &mut serializer)?;
-        // } else {
-        //     XTypesSerialize::serialize(&STATUS_INFO_UNREGISTERED, &mut serializer)?;
-        // }
-        // let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-        // let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        // let inline_qos = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        // let change = self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::NewChange {
-        //         kind: ChangeKind::NotAliveUnregistered,
-        //         data: instance_serialized_key.into(),
-        //         inline_qos,
-        //         handle: instance_handle,
-        //         timestamp,
-        //     })?
-        //     .receive_reply()
-        //     .await;
-
-        // let publisher_mask_listener = self
-        //     .publisher_address()
-        //     .send_actor_mail(publisher_actor::GetListener)?
-        //     .receive_reply()
-        //     .await;
-        // let participant_mask_listener = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetListener)?
-        //     .receive_reply()
-        //     .await;
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::AddChange {
-        //         change,
-        //         now,
-        //         message_sender_actor,
-        //         writer_address: self.writer_address.clone(),
-        //         publisher_mask_listener,
-        //         participant_mask_listener,
-        //         publisher: self.publisher.clone(),
-        //         executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //         timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //     })?
-        //     .receive_reply()
-        //     .await;
-
-        // Ok(())
+        Ok(())
     }
 }
 
@@ -2772,17 +2653,19 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
     }
 }
 
-pub struct Write {
+pub struct WriteWTimestamp {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
     pub serialized_data: Vec<u8>,
     pub timestamp: Time,
 }
-impl Mail for Write {
+impl Mail for WriteWTimestamp {
     type Result = DdsResult<()>;
 }
-impl MailHandler<Write> for DomainParticipantActor {
-    fn handle(&mut self, message: Write) -> <Write as Mail>::Result {
+impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
+    fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+        let now = self.get_current_time();
         let publisher = self
             .user_defined_publisher_list
             .iter_mut()
@@ -2792,12 +2675,57 @@ impl MailHandler<Write> for DomainParticipantActor {
             .get_mut_datawriter(&message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
-        data_writer.write_w_timestamp(
-            message.serialized_data,
-            message.timestamp,
-            type_support.as_ref(),
-        )
 
+        match data_writer.get_qos().lifespan.duration {
+            DurationKind::Finite(lifespan) => {
+                let change_lifespan =
+                    crate::infrastructure::time::Time::from(message.timestamp) - now + lifespan;
+                if change_lifespan > Duration::new(0, 0) {
+                    let change_sn = data_writer.write_w_timestamp(
+                        message.serialized_data,
+                        message.timestamp,
+                        type_support.as_ref(),
+                    )?;
+                    let timer_handle = self.timer_driver.handle();
+                    self.executor.handle().spawn(async move {
+                        timer_handle.sleep(change_lifespan.into()).await;
+                        message
+                            .participant_address
+                            .send_actor_mail(RemoveWriterChange {
+                                publisher_handle: message.publisher_handle,
+                                data_writer_handle: message.data_writer_handle,
+                                sequence_number: change_sn,
+                            })
+                            .ok();
+                    });
+                }
+            }
+            DurationKind::Infinite => {
+                data_writer.write_w_timestamp(
+                    message.serialized_data,
+                    message.timestamp,
+                    type_support.as_ref(),
+                )?;
+            }
+        }
+        //     if let Some(timestamp) = change_timestamp {
+
+        //             //             rtps_writer.get_history_cache().add_change(message.change);
+        //             //             message.executor_handle.spawn(async move {
+        //             //                 message.timer_handle.sleep(change_lifespan.into()).await;
+
+        //             //                 message
+        //             //                     .writer_address
+        //             //                     .send_actor_mail(RemoveChange { seq_num })
+        //             //                     .ok();
+        // });
+        // }
+        // }
+
+        Ok(())
+
+        //     }
+        // } else {
         // if writer_qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
         //     let start = std::time::Instant::now();
         //     let timer_handle = self.publisher.get_participant().timer_handle().clone();
@@ -3336,38 +3264,44 @@ impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
 }
 
 pub struct WaitForHistoricalData {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
+    pub max_wait: Duration,
 }
 impl Mail for WaitForHistoricalData {
-    type Result = DdsResult<()>;
+    type Result = Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>;
 }
 impl MailHandler<WaitForHistoricalData> for DomainParticipantActor {
     fn handle(
         &mut self,
         message: WaitForHistoricalData,
     ) -> <WaitForHistoricalData as Mail>::Result {
-        todo!()
-        // let reader_address = self.reader_address.clone();
-        // self.subscriber
-        //     .get_participant()
-        //     .timer_handle()
-        //     .timeout(
-        //         max_wait.into(),
-        //         Box::pin(async move {
-        //             loop {
-        //                 if reader_address
-        //                     .send_actor_mail(data_reader_actor::IsHistoricalDataReceived)?
-        //                     .receive_reply()
-        //                     .await?
-        //                 {
-        //                     return Ok(());
-        //                 }
-        //             }
-        //         }),
-        //     )
-        //     .await
-        //     .map_err(|_| DdsError::Timeout)?
+        let timer_handle = self.timer_driver.handle();
+
+        Box::pin(async move {
+            timer_handle
+                .timeout(
+                    message.max_wait.into(),
+                    Box::pin(async move {
+                        loop {
+                            if message
+                                .participant_address
+                                .send_actor_mail(IsHistoricalDataReceived {
+                                    subscriber_handle: message.subscriber_handle,
+                                    data_reader_handle: message.data_reader_handle,
+                                })?
+                                .receive_reply()
+                                .await?
+                            {
+                                return Ok(());
+                            }
+                        }
+                    }),
+                )
+                .await
+                .map_err(|_| DdsError::Timeout)?
+        })
     }
 }
 
@@ -3827,6 +3761,50 @@ impl MailHandler<AreAllChangesAcknowledged> for DomainParticipantActor {
             .get_datawriter(&message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .are_all_changes_acknowledged())
+    }
+}
+
+pub struct IsHistoricalDataReceived {
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+impl Mail for IsHistoricalDataReceived {
+    type Result = DdsResult<bool>;
+}
+impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: IsHistoricalDataReceived,
+    ) -> <IsHistoricalDataReceived as Mail>::Result {
+        self.user_defined_subscriber_list
+            .iter()
+            .find(|x| x.get_instance_handle() == message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_datareader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_historical_data_received()
+    }
+}
+
+pub struct RemoveWriterChange {
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveWriterChange {
+    type Result = ();
+}
+impl MailHandler<RemoveWriterChange> for DomainParticipantActor {
+    fn handle(&mut self, message: RemoveWriterChange) -> <RemoveWriterChange as Mail>::Result {
+        if let Some(p) = self
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == message.publisher_handle)
+        {
+            if let Some(dw) = p.get_mut_datawriter(&message.data_writer_handle) {
+                dw.remove_change(message.sequence_number);
+            }
+        }
     }
 }
 

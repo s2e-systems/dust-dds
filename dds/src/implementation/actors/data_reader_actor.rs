@@ -1623,12 +1623,10 @@ impl DataReaderActor {
         }
     }
 
-    pub fn is_historical_data_received(&mut self) -> DdsResult<bool> {
+    pub fn is_historical_data_received(&self) -> DdsResult<bool> {
         if !self.enabled {
-            Err(DdsError::NotEnabled)
-        } else {
-            Ok(())
-        }?;
+            return Err(DdsError::NotEnabled);
+        };
 
         match self.qos.durability.kind {
             DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
@@ -1637,11 +1635,7 @@ impl DataReaderActor {
             | DurabilityQosPolicyKind::Persistent => Ok(()),
         }?;
 
-        todo!()
-        // match &self.rtps_reader {
-        //     RtpsReaderKind::Stateful(r) => Ok(r.is_historical_data_received()),
-        //     RtpsReaderKind::Stateless(_) => Ok(true),
-        // }
+        Ok(self.transport_reader.is_historical_data_received())
     }
 
     pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {

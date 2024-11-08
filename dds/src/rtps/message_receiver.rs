@@ -92,8 +92,48 @@ impl MessageReceiver {
                         );
                     }
                 }
-                RtpsSubmessageReadKind::DataFrag(_) | RtpsSubmessageReadKind::HeartbeatFrag(_) => {
-                    todo!()
+                RtpsSubmessageReadKind::Data(data_submessage) => {
+                    let source_timestamp = if self.have_timestamp {
+                        Some(self.timestamp)
+                    } else {
+                        None
+                    };
+                    for stateless_reader in stateless_reader_list.iter_mut() {
+                        stateless_reader.on_data_submessage_received(
+                            &data_submessage,
+                            self.source_guid_prefix,
+                            source_timestamp,
+                        );
+                    }
+                    for stateful_reader in stateful_reader_list.iter_mut() {
+                        stateful_reader.on_data_submessage_received(
+                            data_submessage,
+                            self.source_guid_prefix,
+                            source_timestamp,
+                        );
+                    }
+                }
+                RtpsSubmessageReadKind::DataFrag(datafrag_submessage) => {
+                    let source_timestamp = if self.have_timestamp {
+                        Some(self.timestamp)
+                    } else {
+                        None
+                    };
+                    for stateful_reader in stateful_reader_list.iter_mut() {
+                        stateful_reader.on_data_frag_submessage_received(
+                            datafrag_submessage,
+                            self.source_guid_prefix,
+                            source_timestamp,
+                        );
+                    }
+                }
+                RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
+                    for stateful_reader in stateful_reader_list.iter_mut() {
+                        stateful_reader.on_heartbeat_frag_submessage_received(
+                            heartbeat_frag_submessage,
+                            self.source_guid_prefix,
+                        );
+                    }
                 }
                 RtpsSubmessageReadKind::Gap(gap_submessage) => {
                     for stateful_reader in stateful_reader_list.iter_mut() {
@@ -117,27 +157,7 @@ impl MessageReceiver {
                         );
                     }
                 }
-                RtpsSubmessageReadKind::Data(data_submessage) => {
-                    let source_timestamp = if self.have_timestamp {
-                        Some(self.timestamp)
-                    } else {
-                        None
-                    };
-                    for stateless_reader in stateless_reader_list.iter_mut() {
-                        stateless_reader.on_data_submessage_received(
-                            &data_submessage,
-                            self.source_guid_prefix,
-                            source_timestamp,
-                        );
-                    }
-                    for stateful_reader in stateful_reader_list.iter_mut() {
-                        stateful_reader.on_data_submessage_received(
-                            data_submessage,
-                            self.source_guid_prefix,
-                            source_timestamp,
-                        );
-                    }
-                }
+
                 RtpsSubmessageReadKind::InfoDestination(m) => {
                     self.dest_guid_prefix = m.guid_prefix();
                 }

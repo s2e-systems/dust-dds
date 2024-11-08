@@ -371,10 +371,13 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         self.participant_address()
             .send_actor_mail(domain_participant_actor::WaitForHistoricalData {
+                participant_address: self.participant_address().clone(),
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
+                max_wait,
             })?
             .receive_reply()
+            .await
             .await
     }
 

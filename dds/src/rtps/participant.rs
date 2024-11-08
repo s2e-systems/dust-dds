@@ -1104,3 +1104,26 @@ impl MailHandler<AreAllChangesAcknowledged> for RtpsParticipant {
         }
     }
 }
+
+pub struct IsHistoricalDataReceived {
+    pub guid: Guid,
+}
+impl Mail for IsHistoricalDataReceived {
+    type Result = bool;
+}
+impl MailHandler<IsHistoricalDataReceived> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: IsHistoricalDataReceived,
+    ) -> <IsHistoricalDataReceived as Mail>::Result {
+        if let Some(r) = self
+            .user_defined_reader_list
+            .iter_mut()
+            .find(|dw| dw.guid() == message.guid)
+        {
+            r.is_historical_data_received()
+        } else {
+            false
+        }
+    }
+}

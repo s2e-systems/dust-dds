@@ -4,7 +4,10 @@ use super::{
     messages::{
         self,
         submessage_elements::{Data, ParameterList},
-        submessages::{data::DataSubmessage, gap::GapSubmessage, heartbeat::HeartbeatSubmessage},
+        submessages::{
+            data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
+            heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
+        },
     },
     types::{
         ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
@@ -91,6 +94,7 @@ impl ReaderCacheChange {
 
 pub trait TransportReader: Send + Sync {
     fn guid(&self) -> [u8; 16];
+    fn is_historical_data_received(&self) -> bool;
 }
 
 pub trait ReaderHistoryCache: Send + Sync {
@@ -305,6 +309,27 @@ impl RtpsStatefulReader {
         }
     }
 
+    pub fn on_data_frag_submessage_received(
+        &mut self,
+        data_frag_submessage: &DataFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<messages::types::Time>,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
+        let sequence_number = data_frag_submessage.writer_sn();
+        if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+            writer_proxy.push_data_frag(data_frag_submessage.clone());
+            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
+            {
+                self.on_data_submessage_received(
+                    &data_submessage,
+                    source_guid_prefix,
+                    source_timestamp,
+                );
+            }
+        }
+    }
+
     pub fn on_gap_submessage_received(
         &mut self,
         gap_submessage: &GapSubmessage,
@@ -352,6 +377,24 @@ impl RtpsStatefulReader {
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
                 writer_proxy.send_message(&self.guid, &self.message_sender);
+            }
+        }
+    }
+
+    pub fn on_heartbeat_frag_submessage_received(
+        &mut self,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id());
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|w| w.remote_writer_guid() == writer_guid)
+        {
+            if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count() {
+                writer_proxy
+                    .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count());
             }
         }
     }

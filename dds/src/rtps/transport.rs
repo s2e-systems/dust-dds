@@ -412,6 +412,10 @@ impl Transport for RtpsTransport {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
+
+            fn is_historical_data_received(&self) -> bool {
+                true
+            }
         }
 
         Box::new(RtpsParticipantDiscoveryReader {
@@ -463,6 +467,10 @@ impl Transport for RtpsTransport {
         impl TransportReader for RtpsTopicsDiscoveryReader {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
+            }
+
+            fn is_historical_data_received(&self) -> bool {
+                true
             }
         }
 
@@ -520,6 +528,10 @@ impl Transport for RtpsTransport {
         impl TransportReader for RtpsPublicationsDiscoveryReader {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
+            }
+
+            fn is_historical_data_received(&self) -> bool {
+                true
             }
         }
 
@@ -581,6 +593,10 @@ impl Transport for RtpsTransport {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
+
+            fn is_historical_data_received(&self) -> bool {
+                true
+            }
         }
 
         Box::new(RtpsSubscriptionsDiscoveryReader {
@@ -598,12 +614,24 @@ impl Transport for RtpsTransport {
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) -> Box<dyn TransportReader> {
         struct UserDefinedTransportReader {
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
             guid: Guid,
         }
 
         impl TransportReader for UserDefinedTransportReader {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
+            }
+
+            fn is_historical_data_received(&self) -> bool {
+                if let Ok(r) = self
+                    .rtps_participant_address
+                    .send_actor_mail(participant::IsHistoricalDataReceived { guid: self.guid })
+                {
+                    block_on(r.receive_reply())
+                } else {
+                    false
+                }
             }
         }
 
@@ -625,7 +653,10 @@ impl Transport for RtpsTransport {
                 reader_history_cache,
             });
 
-        Box::new(UserDefinedTransportReader { guid: reader_guid })
+        Box::new(UserDefinedTransportReader {
+            rtps_participant_address: self.rtps_participant.address(),
+            guid: reader_guid,
+        })
     }
 
     fn create_user_defined_writer(
