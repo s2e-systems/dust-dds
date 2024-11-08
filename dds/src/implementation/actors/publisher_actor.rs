@@ -272,7 +272,7 @@ impl PublisherActor {
                 .subscription_builtin_topic_data()
                 .partition(),
         ) {
-            if let Some(dw) = self.data_writer_list.iter_mut().find(|dw| {
+            for dw in self.data_writer_list.iter_mut().filter(|dw| {
                 dw.get_topic_name()
                     == discovered_reader_data
                         .subscription_builtin_topic_data()

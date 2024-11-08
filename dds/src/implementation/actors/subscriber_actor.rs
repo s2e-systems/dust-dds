@@ -279,7 +279,7 @@ impl SubscriberActor {
 
     pub fn add_matched_writer(&mut self, discovered_writer_data: &DiscoveredWriterData) {
         if self.is_partition_matched(discovered_writer_data.dds_publication_data.partition()) {
-            if let Some(dr) = self.data_reader_list.iter_mut().find(|dr| {
+            for dr in self.data_reader_list.iter_mut().filter(|dr| {
                 dr.get_topic_name() == discovered_writer_data.dds_publication_data.topic_name()
             }) {
                 dr.add_matched_writer(&discovered_writer_data, &self.qos);
