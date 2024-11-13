@@ -229,10 +229,10 @@ impl SubscriberActor {
             }
         };
 
-        let topic_name = a_topic.get_name().to_string();
-        let type_name = a_topic.get_type_name().to_string();
+        let topic_name = a_topic.topic_name.clone();
+        let type_name = a_topic.type_name.clone();
 
-        let type_support = a_topic.get_type_support();
+        let type_support = a_topic.type_support.clone();
 
         let listener = None;
         let data_reader_status_kind = mask.to_vec();
@@ -241,7 +241,7 @@ impl SubscriberActor {
             instance_handle,
             topic_name,
             type_name,
-            type_support.clone(),
+            type_support,
             qos,
             listener,
             data_reader_status_kind,

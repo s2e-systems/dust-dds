@@ -411,56 +411,65 @@ impl DomainParticipantActor {
         let mut topic_list = HashMap::new();
         let spdp_topic_participant_handle = instance_handle_counter.generate_new_instance_handle();
 
-        let spdp_topic_participant = TopicActor::new(
-            TopicQos::default(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            DCPS_PARTICIPANT,
-            None,
-            vec![],
-            Arc::new(SpdpDiscoveredParticipantData::get_type()),
-            spdp_topic_participant_handle,
-            &executor.handle(),
-        );
+        let spdp_topic_participant = TopicActor {
+            qos: TopicQos::default(),
+            type_name: "SpdpDiscoveredParticipantData".to_string(),
+            topic_name: DCPS_PARTICIPANT.to_owned(),
+            instance_handle: spdp_topic_participant_handle,
+            enabled: true,
+            inconsistent_topic_status: InconsistentTopicStatus::default(),
+            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            topic_listener_thread: None,
+            status_kind: vec![],
+            type_support: Arc::new(SpdpDiscoveredParticipantData::get_type()),
+        };
+
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
         let sedp_topic_topics_handle = instance_handle_counter.generate_new_instance_handle();
-        let sedp_topic_topics = TopicActor::new(
-            TopicQos::default(),
-            "DiscoveredTopicData".to_string(),
-            DCPS_TOPIC,
-            None,
-            vec![],
-            Arc::new(DiscoveredTopicData::get_type()),
-            sedp_topic_topics_handle,
-            &executor.handle(),
-        );
+        let sedp_topic_topics = TopicActor {
+            qos: TopicQos::default(),
+            type_name: "DiscoveredTopicData".to_string(),
+            topic_name: DCPS_TOPIC.to_owned(),
+            instance_handle: sedp_topic_topics_handle,
+            enabled: true,
+            inconsistent_topic_status: InconsistentTopicStatus::default(),
+            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            topic_listener_thread: None,
+            status_kind: vec![],
+            type_support: Arc::new(DiscoveredTopicData::get_type()),
+        };
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
         let sedp_topic_publications_handle = instance_handle_counter.generate_new_instance_handle();
-        let sedp_topic_publications = TopicActor::new(
-            TopicQos::default(),
-            "DiscoveredWriterData".to_string(),
-            DCPS_PUBLICATION,
-            None,
-            vec![],
-            Arc::new(DiscoveredWriterData::get_type()),
-            sedp_topic_publications_handle,
-            &executor.handle(),
-        );
+        let sedp_topic_publications = TopicActor {
+            qos: TopicQos::default(),
+            type_name: "DiscoveredWriterData".to_string(),
+            topic_name: DCPS_PUBLICATION.to_owned(),
+            instance_handle: sedp_topic_publications_handle,
+            enabled: true,
+            inconsistent_topic_status: InconsistentTopicStatus::default(),
+            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            topic_listener_thread: None,
+            status_kind: vec![],
+            type_support: Arc::new(DiscoveredWriterData::get_type()),
+        };
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_topic_subscriptions_handle =
             instance_handle_counter.generate_new_instance_handle();
-        let sedp_topic_subscriptions = TopicActor::new(
-            TopicQos::default(),
-            "DiscoveredReaderData".to_string(),
-            DCPS_SUBSCRIPTION,
-            None,
-            vec![],
-            Arc::new(DiscoveredReaderData::get_type()),
-            sedp_topic_subscriptions_handle,
-            &executor.handle(),
-        );
+        let sedp_topic_subscriptions = TopicActor {
+            qos: TopicQos::default(),
+            type_name: "DiscoveredReaderData".to_string(),
+            topic_name: DCPS_SUBSCRIPTION.to_owned(),
+            instance_handle: sedp_topic_subscriptions_handle,
+            enabled: true,
+            inconsistent_topic_status: InconsistentTopicStatus::default(),
+            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            topic_listener_thread: None,
+            status_kind: vec![],
+            type_support: Arc::new(DiscoveredReaderData::get_type()),
+        };
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
         let spdp_writer_qos = DataWriterQos {
@@ -675,7 +684,7 @@ impl DomainParticipantActor {
                 dw.write_w_timestamp(
                     participant_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_participant_topic.get_type_support().as_ref(),
+                    dcps_participant_topic.type_support.as_ref(),
                 )?;
             }
         }
@@ -705,7 +714,7 @@ impl DomainParticipantActor {
                 dw.dispose_w_timestamp(
                     participant_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_participant_topic.get_type_support().as_ref(),
+                    dcps_participant_topic.type_support.as_ref(),
                 )?
             }
         }
@@ -731,7 +740,7 @@ impl DomainParticipantActor {
                 dw.write_w_timestamp(
                     publication_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_publication_topic.get_type_support().as_ref(),
+                    dcps_publication_topic.type_support.as_ref(),
                 )?;
             }
         }
@@ -757,7 +766,7 @@ impl DomainParticipantActor {
                 dw.dispose_w_timestamp(
                     publication_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_publication_topic.get_type_support().as_ref(),
+                    dcps_publication_topic.type_support.as_ref(),
                 )?
             }
         }
@@ -783,7 +792,7 @@ impl DomainParticipantActor {
                 dw.write_w_timestamp(
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_subscription_topic.get_type_support().as_ref(),
+                    dcps_subscription_topic.type_support.as_ref(),
                 )?;
             }
         }
@@ -809,7 +818,7 @@ impl DomainParticipantActor {
                 dw.dispose_w_timestamp(
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_subscription_topic.get_type_support().as_ref(),
+                    dcps_subscription_topic.type_support.as_ref(),
                 )?
             }
         }
@@ -822,7 +831,49 @@ impl DomainParticipantActor {
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
             for topic in self.topic_list.values_mut() {
-                topic.process_discovered_topic(&discovered_topic_data);
+                let is_discovered_topic_consistent = topic.qos.topic_data
+                    == discovered_topic_data.topic_builtin_topic_data.topic_data
+                    && topic.qos.durability
+                        == discovered_topic_data.topic_builtin_topic_data.durability
+                    && topic.qos.deadline
+                        == discovered_topic_data.topic_builtin_topic_data.deadline
+                    && topic.qos.latency_budget
+                        == discovered_topic_data
+                            .topic_builtin_topic_data
+                            .latency_budget
+                    && topic.qos.liveliness
+                        == discovered_topic_data.topic_builtin_topic_data.liveliness
+                    && topic.qos.reliability
+                        == discovered_topic_data.topic_builtin_topic_data.reliability
+                    && topic.qos.destination_order
+                        == discovered_topic_data
+                            .topic_builtin_topic_data
+                            .destination_order
+                    && topic.qos.history == discovered_topic_data.topic_builtin_topic_data.history
+                    && topic.qos.resource_limits
+                        == discovered_topic_data
+                            .topic_builtin_topic_data
+                            .resource_limits
+                    && topic.qos.transport_priority
+                        == discovered_topic_data
+                            .topic_builtin_topic_data
+                            .transport_priority
+                    && topic.qos.lifespan
+                        == discovered_topic_data.topic_builtin_topic_data.lifespan
+                    && topic.qos.ownership
+                        == discovered_topic_data.topic_builtin_topic_data.ownership;
+                if discovered_topic_data.topic_builtin_topic_data.type_name == topic.type_name
+                    && discovered_topic_data.topic_builtin_topic_data.name == topic.topic_name
+                    && !is_discovered_topic_consistent
+                {
+                    topic.inconsistent_topic_status.total_count += 1;
+                    topic.inconsistent_topic_status.total_count_change += 1;
+                    topic.status_condition.send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
+                            state: StatusKind::InconsistentTopic,
+                        },
+                    );
+                }
             }
             self.discovered_topic_list
                 .insert(handle, discovered_topic_data.topic_builtin_topic_data);
@@ -1099,7 +1150,7 @@ impl DomainParticipantActor {
                 dw.write_w_timestamp(
                     topic_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_topic_topic.get_type_support().as_ref(),
+                    dcps_topic_topic.type_support.as_ref(),
                 )?;
             }
         }
@@ -1297,22 +1348,47 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         };
 
         let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let mut topic = TopicActor::new(
+        let mut topic = TopicActor {
             qos,
-            message.type_name,
-            &message.topic_name,
-            message.a_listener,
-            message.mask,
-            message.type_support,
-            topic_handle,
-            &self.executor.handle(),
-        );
-        let topic_status_condition_address = topic.get_statuscondition();
+            type_name: message.type_name,
+            topic_name: message.topic_name.clone(),
+            instance_handle: topic_handle,
+            enabled: false,
+            inconsistent_topic_status: InconsistentTopicStatus::default(),
+            status_condition: Actor::spawn(
+                StatusConditionActor::default(),
+                &self.executor.handle(),
+            ),
+            topic_listener_thread: None,
+            status_kind: vec![],
+            type_support: message.type_support,
+        };
+        let topic_status_condition_address = topic.status_condition.address();
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            topic.enable()?;
-
-            self.announce_topic(topic.as_topic_builtin_topic_data())?;
+            topic.enabled = true;
+            let topic_qos = topic.qos.clone();
+            let topic_builtin_topic_data = TopicBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: topic.instance_handle.into(),
+                },
+                name: topic.topic_name.clone(),
+                type_name: topic.type_name.clone(),
+                durability: topic_qos.durability,
+                deadline: topic_qos.deadline,
+                latency_budget: topic_qos.latency_budget,
+                liveliness: topic_qos.liveliness,
+                reliability: topic_qos.reliability,
+                transport_priority: topic_qos.transport_priority,
+                lifespan: topic_qos.lifespan,
+                destination_order: topic_qos.destination_order,
+                history: topic_qos.history,
+                resource_limits: topic_qos.resource_limits,
+                ownership: topic_qos.ownership,
+                topic_data: topic_qos.topic_data,
+                representation: topic_qos.representation,
+            };
+            self.announce_topic(topic_builtin_topic_data)?;
         }
 
         self.topic_list.insert(message.topic_name, topic);
@@ -1386,9 +1462,9 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
             Ok(Some((
-                topic.get_instance_handle().into(),
-                topic.get_statuscondition(),
-                topic.get_type_name().to_owned(),
+                topic.instance_handle.into(),
+                topic.status_condition.address(),
+                topic.type_name.to_owned(),
             )))
         } else {
             for discovered_topic_data in self.discovered_topic_list.values() {
@@ -1408,20 +1484,24 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                         ownership: discovered_topic_data.ownership().clone(),
                         representation: discovered_topic_data.representation().clone(),
                     };
-                    let type_name = discovered_topic_data.get_type_name().to_owned();
+                    let type_name = discovered_topic_data.type_name.clone();
                     let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-                    let mut topic = TopicActor::new(
+                    let topic = TopicActor {
                         qos,
-                        type_name.clone(),
-                        &message.topic_name,
-                        None,
-                        vec![],
-                        message.type_support.clone(),
-                        topic_handle,
-                        &self.executor.handle(),
-                    );
-                    let topic_status_condition_address = topic.get_statuscondition();
-                    topic.enable()?;
+                        type_name: type_name.clone(),
+                        topic_name: message.topic_name.clone(),
+                        instance_handle: topic_handle,
+                        enabled: true,
+                        inconsistent_topic_status: InconsistentTopicStatus::default(),
+                        status_condition: Actor::spawn(
+                            StatusConditionActor::default(),
+                            &self.executor.handle(),
+                        ),
+                        topic_listener_thread: None,
+                        status_kind: vec![],
+                        type_support: message.type_support,
+                    };
+                    let topic_status_condition_address = topic.status_condition.address();
 
                     self.topic_list.insert(message.topic_name, topic);
                     return Ok(Some((
@@ -1449,9 +1529,9 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     ) -> <LookupTopicdescription as Mail>::Result {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
             Ok(Some((
-                topic.get_type_name().to_owned(),
-                topic.get_instance_handle().into(),
-                topic.get_statuscondition(),
+                topic.type_name.clone(),
+                topic.instance_handle.into(),
+                topic.status_condition.address(),
             )))
         } else {
             Ok(None)
@@ -1523,9 +1603,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
             self.user_defined_publisher_list.drain(..).collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.data_writer_list.drain(..) {
-                let topic_qos = self.topic_list[data_writer.get_topic_name()]
-                    .get_qos()
-                    .clone();
+                let topic_qos = self.topic_list[data_writer.get_topic_name()].qos.clone();
                 let publication_builtin_topic_data =
                     data_writer.as_publication_builtin_topic_data(&publisher.qos, &topic_qos);
                 self.announce_deleted_data_writer(publication_builtin_topic_data)?;
@@ -1536,9 +1614,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
             self.user_defined_subscriber_list.drain(..).collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.delete_contained_entities() {
-                let topic_qos = self.topic_list[data_reader.get_topic_name()]
-                    .get_qos()
-                    .clone();
+                let topic_qos = self.topic_list[data_reader.get_topic_name()].qos.clone();
                 let subscription_builtin_topic_data = data_reader
                     .as_subscription_builtin_topic_data(subscriber.get_qos(), &topic_qos);
                 self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
@@ -1546,7 +1622,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
         }
 
         self.topic_list
-            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.get_name()));
+            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_ref()));
 
         Ok(())
     }
@@ -1798,10 +1874,19 @@ impl MailHandler<GetInconsistentTopicStatus> for DomainParticipantActor {
         &mut self,
         message: GetInconsistentTopicStatus,
     ) -> <GetInconsistentTopicStatus as Mail>::Result {
-        self.topic_list
+        let topic = self
+            .topic_list
             .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_inconsistent_topic_status()
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        let status = topic.inconsistent_topic_status.clone();
+        topic.inconsistent_topic_status.total_count_change = 0;
+        topic
+            .status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::InconsistentTopic,
+            });
+        Ok(status)
     }
 }
 
@@ -1814,6 +1899,11 @@ impl Mail for SetTopicQos {
 }
 impl MailHandler<SetTopicQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetTopicQos) -> <SetTopicQos as Mail>::Result {
+        let topic = self
+            .topic_list
+            .get_mut(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
+
         let qos = match message.topic_qos {
             QosKind::Default => self.default_topic_qos.clone(),
             QosKind::Specific(q) => {
@@ -1822,10 +1912,22 @@ impl MailHandler<SetTopicQos> for DomainParticipantActor {
             }
         };
 
-        self.topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .set_qos(qos)
+        if topic.enabled {
+            if topic.qos.durability != qos.durability
+                || qos.liveliness != qos.liveliness
+                || qos.reliability != qos.reliability
+                || qos.destination_order != qos.destination_order
+                || qos.history != qos.history
+                || qos.resource_limits != qos.resource_limits
+                || qos.ownership != qos.ownership
+            {
+                return Err(DdsError::ImmutablePolicy);
+            }
+        }
+
+        topic.qos = qos;
+
+        Ok(())
     }
 }
 
@@ -1841,7 +1943,7 @@ impl MailHandler<GetTopicQos> for DomainParticipantActor {
             .topic_list
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_qos()
+            .qos
             .clone())
     }
 }
@@ -1857,7 +1959,8 @@ impl MailHandler<EnableTopic> for DomainParticipantActor {
         self.topic_list
             .get_mut(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
-            .enable()
+            .enabled = true;
+        Ok(())
     }
 }
 
@@ -1873,7 +1976,7 @@ impl MailHandler<GetTopicTypeSupport> for DomainParticipantActor {
             .topic_list
             .get_mut(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_type_support()
+            .type_support
             .clone())
     }
 }
@@ -1904,11 +2007,12 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
             .topic_list
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let type_support = topic.get_type_support();
+
         let topic_kind = {
             let mut topic_kind = TopicKind::NoKey;
-            for index in 0..type_support.get_member_count() {
-                if type_support
+            for index in 0..topic.type_support.get_member_count() {
+                if topic
+                    .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
                     .is_key
@@ -2023,7 +2127,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
                 .iter()
                 .find(|x| x.get_instance_handle() == datawriter_handle)
                 .ok_or(DdsError::AlreadyDeleted)?
-                .as_publication_builtin_topic_data(&publisher.qos, topic.get_qos());
+                .as_publication_builtin_topic_data(&publisher.qos, &topic.qos);
 
             self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
         }
@@ -2058,7 +2162,7 @@ impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
         let dw = publisher.data_writer_list.remove(data_writer_index);
         let topic = &self.topic_list[dw.get_topic_name()];
         let publication_builtin_topic_data =
-            dw.as_publication_builtin_topic_data(&publisher.qos, topic.get_qos());
+            dw.as_publication_builtin_topic_data(&publisher.qos, &topic.qos);
         self.announce_deleted_data_writer(publication_builtin_topic_data)?;
         Ok(())
     }
@@ -2362,11 +2466,11 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let type_support = topic.get_type_support();
         let topic_kind = {
             let mut topic_kind = TopicKind::NoKey;
-            for index in 0..type_support.get_member_count() {
-                if type_support
+            for index in 0..topic.type_support.get_member_count() {
+                if topic
+                    .type_support
                     .get_member_by_index(index)?
                     .get_descriptor()?
                     .is_key
@@ -2434,7 +2538,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             let subscription_builtin_topic_data = subscriber
                 .get_datareader(datareader_guid)
                 .ok_or(DdsError::AlreadyDeleted)?
-                .as_subscription_builtin_topic_data(subscriber.get_qos(), topic.get_qos());
+                .as_subscription_builtin_topic_data(subscriber.get_qos(), &topic.qos);
 
             self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
         }
@@ -2465,7 +2569,7 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let topic = &self.topic_list[dr.get_topic_name()];
         let subscription_builtin_topic_data =
-            dr.as_subscription_builtin_topic_data(subscriber.get_qos(), topic.get_qos());
+            dr.as_subscription_builtin_topic_data(subscriber.get_qos(), &topic.qos);
         self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
         Ok(())
     }
@@ -2774,11 +2878,12 @@ impl MailHandler<UnregisterInstance> for DomainParticipantActor {
             .find(|x| x.get_instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
         data_writer.unregister_w_timestamp(
             message.serialized_data,
             message.timestamp,
-            type_support.as_ref(),
+            self.topic_list[data_writer.get_topic_name()]
+                .type_support
+                .as_ref(),
         )?;
 
         Ok(())
@@ -2804,10 +2909,12 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
             .iter_mut()
             .find(|x| x.get_instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
+
         let instance_handle = get_instance_handle_from_serialized_foo(
             &message.serialized_data,
-            type_support.as_ref(),
+            self.topic_list[data_writer.get_topic_name()]
+                .type_support
+                .as_ref(),
         )?;
         data_writer.lookup_instance(instance_handle)
     }
@@ -2836,7 +2943,6 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
             .iter_mut()
             .find(|x| x.get_instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
 
         match data_writer.get_qos().lifespan.duration {
             DurationKind::Finite(lifespan) => {
@@ -2846,7 +2952,9 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
                     let change_sn = data_writer.write_w_timestamp(
                         message.serialized_data,
                         message.timestamp,
-                        type_support.as_ref(),
+                        self.topic_list[data_writer.get_topic_name()]
+                            .type_support
+                            .as_ref(),
                     )?;
                     let timer_handle = self.timer_driver.handle();
                     self.executor.handle().spawn(async move {
@@ -2866,7 +2974,9 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
                 data_writer.write_w_timestamp(
                     message.serialized_data,
                     message.timestamp,
-                    type_support.as_ref(),
+                    self.topic_list[data_writer.get_topic_name()]
+                        .type_support
+                        .as_ref(),
                 )?;
             }
         }
@@ -2936,11 +3046,13 @@ impl MailHandler<Dispose> for DomainParticipantActor {
             .iter_mut()
             .find(|x| x.get_instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let type_support = self.topic_list[data_writer.get_topic_name()].get_type_support();
+
         data_writer.dispose_w_timestamp(
             message.serialized_data,
             message.timestamp,
-            type_support.as_ref(),
+            self.topic_list[data_writer.get_topic_name()]
+                .type_support
+                .as_ref(),
         )
     }
 }
@@ -3107,7 +3219,7 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
         if data_writer.is_enabled() {
             let publication_builtin_topic_data = data_writer.as_publication_builtin_topic_data(
                 &publisher_qos,
-                self.topic_list[data_writer.get_topic_name()].get_qos(),
+                &self.topic_list[data_writer.get_topic_name()].qos,
             );
 
             self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
@@ -3551,7 +3663,7 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
         if data_reader.is_enabled() {
             let subscription_builtin_topic_data = data_reader.as_subscription_builtin_topic_data(
                 &subscriber_qos,
-                self.topic_list[data_reader.get_topic_name()].get_qos(),
+                &self.topic_list[data_reader.get_topic_name()].qos,
             );
 
             self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;

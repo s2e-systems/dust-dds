@@ -8,7 +8,6 @@ use crate::{
     },
     implementation::{
         actor::{Actor, ActorAddress},
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         runtime::{executor::ExecutorHandle, mpsc::MpscSender},
     },
     infrastructure::{
@@ -22,9 +21,8 @@ use crate::{
     },
     rtps::stateful_writer::WriterHistoryCache,
 };
-use fnmatch_regex::glob_to_regex;
+
 use std::thread::JoinHandle;
-use tracing::warn;
 
 pub enum PublisherListenerOperation {
     _LivelinessLost(LivelinessLostStatus),
@@ -127,9 +125,9 @@ impl PublisherActor {
             }
         };
 
-        let topic_name = a_topic.get_name().to_string();
+        let topic_name = a_topic.topic_name.clone();
 
-        let type_name = a_topic.get_type_name().to_string();
+        let type_name = a_topic.type_name.clone();
         let mut data_writer = DataWriterActor::new(
             transport_writer,
             topic_name,
