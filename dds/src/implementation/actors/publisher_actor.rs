@@ -138,10 +138,10 @@ impl PublisherActor {
             instance_handle,
             executor_handle,
         );
-        let data_writer_handle = data_writer.get_instance_handle();
-        let writer_status_condition_address = data_writer.get_statuscondition();
+        let data_writer_handle = data_writer.instance_handle;
+        let writer_status_condition_address = data_writer.status_condition.address();
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            data_writer.enable();
+            data_writer.enabled = true;
         }
 
         self.data_writer_list.push(data_writer);
