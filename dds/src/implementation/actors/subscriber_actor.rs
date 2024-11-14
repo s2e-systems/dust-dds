@@ -1,6 +1,8 @@
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, data_reader_actor::DataReaderActor,
-    status_condition_actor, topic_actor::TopicActor,
+    any_data_reader_listener::AnyDataReaderListener,
+    data_reader_actor::{DataReaderActor, DataReaderListenerThread},
+    status_condition_actor,
+    topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -26,7 +28,10 @@ use crate::{
     rtps::reader::{ReaderCacheChange, TransportReader},
 };
 use fnmatch_regex::glob_to_regex;
-use std::thread::JoinHandle;
+use std::{
+    collections::{HashMap, HashSet},
+    thread::JoinHandle,
+};
 use tracing::warn;
 
 pub enum SubscriberListenerOperation {
@@ -48,13 +53,13 @@ pub struct SubscriberListenerMessage {
     pub topic: TopicAsync,
 }
 
-struct SubscriberListenerThread {
+pub struct SubscriberListenerThread {
     thread: JoinHandle<()>,
     sender: MpscSender<SubscriberListenerMessage>,
 }
 
 impl SubscriberListenerThread {
-    fn new(mut listener: Box<dyn SubscriberListenerAsync + Send>) -> Self {
+    pub fn new(mut listener: Box<dyn SubscriberListenerAsync + Send>) -> Self {
         // let (sender, receiver) = mpsc_channel::<SubscriberListenerMessage>();
         // let thread = std::thread::Builder::new()
         //     .name("Subscriber listener".to_string())
@@ -117,246 +122,12 @@ impl SubscriberListenerThread {
 }
 
 pub struct SubscriberActor {
-    instance_handle: InstanceHandle,
-    qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderActor>,
-    enabled: bool,
-    default_data_reader_qos: DataReaderQos,
-    status_condition: Actor<StatusConditionActor>,
-    subscriber_listener_thread: Option<SubscriberListenerThread>,
-    subscriber_status_kind: Vec<StatusKind>,
-}
-
-impl SubscriberActor {
-    pub fn new(
-        qos: SubscriberQos,
-        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
-        subscriber_status_kind: Vec<StatusKind>,
-        instance_handle: InstanceHandle,
-        executor_handle: &ExecutorHandle,
-    ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
-        let subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
-
-        SubscriberActor {
-            instance_handle,
-            qos,
-            data_reader_list: Vec::new(),
-            enabled: false,
-            default_data_reader_qos: Default::default(),
-            status_condition,
-            subscriber_listener_thread,
-            subscriber_status_kind,
-        }
-    }
-
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
-        self.status_condition.address()
-    }
-
-    fn is_partition_matched(&self, discovered_partition_qos_policy: &PartitionQosPolicy) -> bool {
-        let is_any_name_matched = discovered_partition_qos_policy
-            .name
-            .iter()
-            .any(|n| self.qos.partition.name.contains(n));
-
-        let is_any_received_regex_matched_with_partition_qos = discovered_partition_qos_policy
-            .name
-            .iter()
-            .filter_map(|n| match glob_to_regex(n) {
-                Ok(regex) => Some(regex),
-                Err(e) => {
-                    warn!(
-                        "Received invalid partition regex name {:?}. Error {:?}",
-                        n, e
-                    );
-                    None
-                }
-            })
-            .any(|regex| self.qos.partition.name.iter().any(|n| regex.is_match(n)));
-
-        let is_any_local_regex_matched_with_received_partition_qos = self
-            .qos
-            .partition
-            .name
-            .iter()
-            .filter_map(|n| match glob_to_regex(n) {
-                Ok(regex) => Some(regex),
-                Err(e) => {
-                    warn!(
-                        "Invalid partition regex name on subscriber qos {:?}. Error {:?}",
-                        n, e
-                    );
-                    None
-                }
-            })
-            .any(|regex| {
-                discovered_partition_qos_policy
-                    .name
-                    .iter()
-                    .any(|n| regex.is_match(n))
-            });
-
-        discovered_partition_qos_policy == &self.qos.partition
-            || is_any_name_matched
-            || is_any_received_regex_matched_with_partition_qos
-            || is_any_local_regex_matched_with_received_partition_qos
-    }
-
-    pub fn enable(&mut self) {
-        self.enabled = true;
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.data_reader_list.is_empty()
-    }
-
-    pub fn create_datareader(
-        &mut self,
-        a_topic: &TopicActor,
-        qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
-        mask: Vec<StatusKind>,
-        instance_handle: InstanceHandle,
-        transport_reader: Box<dyn TransportReader>,
-        executor_handle: &ExecutorHandle,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
-        let qos = match qos {
-            QosKind::Default => self.default_data_reader_qos.clone(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-
-        let topic_name = a_topic.topic_name.clone();
-        let type_name = a_topic.type_name.clone();
-
-        let type_support = a_topic.type_support.clone();
-
-        let listener = None;
-        let data_reader_status_kind = mask.to_vec();
-
-        let mut data_reader = DataReaderActor::new(
-            instance_handle,
-            topic_name,
-            type_name,
-            type_support,
-            qos,
-            listener,
-            data_reader_status_kind,
-            transport_reader,
-            executor_handle,
-        );
-        let data_reader_handle = data_reader.get_instance_handle();
-        let reader_status_condition_address = data_reader.get_statuscondition();
-
-        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            data_reader.enable();
-        }
-
-        self.data_reader_list.push(data_reader);
-
-        Ok((data_reader_handle, reader_status_condition_address))
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn get_qos(&self) -> &SubscriberQos {
-        &self.qos
-    }
-
-    pub fn lookup_datareader_by_topic_name(
-        &mut self,
-        topic_name: &str,
-    ) -> Option<&mut DataReaderActor> {
-        self.data_reader_list
-            .iter_mut()
-            .find(|dw| dw.get_topic_name() == topic_name)
-    }
-
-    pub fn add_matched_writer(&mut self, discovered_writer_data: &DiscoveredWriterData) {
-        if self.is_partition_matched(discovered_writer_data.dds_publication_data.partition()) {
-            for dr in self.data_reader_list.iter_mut().filter(|dr| {
-                dr.get_topic_name() == discovered_writer_data.dds_publication_data.topic_name()
-            }) {
-                dr.add_matched_writer(&discovered_writer_data, &self.qos);
-            }
-        }
-    }
-
-    pub fn get_mut_datareader(&mut self, handle: InstanceHandle) -> Option<&mut DataReaderActor> {
-        self.data_reader_list
-            .iter_mut()
-            .find(|x| x.get_instance_handle() == handle)
-    }
-
-    pub fn get_datareader(&self, handle: InstanceHandle) -> Option<&DataReaderActor> {
-        self.data_reader_list
-            .iter()
-            .find(|x| x.get_instance_handle() == handle)
-    }
-
-    pub fn delete_datareader(&mut self, handle: &InstanceHandle) -> Option<DataReaderActor> {
-        let data_reader_index = self
-            .data_reader_list
-            .iter()
-            .position(|x| &x.get_instance_handle() == handle)?;
-        Some(self.data_reader_list.remove(data_reader_index))
-    }
-
-    pub fn set_default_datareader_qos(&mut self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => self.default_data_reader_qos = DataReaderQos::default(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                self.default_data_reader_qos = q;
-            }
-        }
-        Ok(())
-    }
-
-    pub fn get_default_datareader_qos(&self) -> &DataReaderQos {
-        &self.default_data_reader_qos
-    }
-
-    pub fn set_qos(&mut self, qos: SubscriberQos) -> DdsResult<()> {
-        if self.enabled {
-            self.qos.check_immutability(&qos)?;
-        }
-
-        self.qos = qos;
-
-        Ok(())
-    }
-
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
-    }
-
-    pub fn remove_matched_writer(&mut self, discovered_writer_handle: InstanceHandle) {
-        for data_reader in self.data_reader_list.iter_mut() {
-            data_reader.remove_matched_writer(discovered_writer_handle);
-        }
-    }
-
-    pub fn delete_contained_entities(&mut self) -> Vec<DataReaderActor> {
-        self.data_reader_list.drain(..).collect()
-    }
-
-    pub fn set_listener(
-        &mut self,
-        listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
-        status_kind: Vec<StatusKind>,
-    ) -> DdsResult<()> {
-        if let Some(l) = self.subscriber_listener_thread.take() {
-            l.join()?;
-        }
-        self.subscriber_listener_thread = listener.map(SubscriberListenerThread::new);
-        self.subscriber_status_kind = status_kind;
-
-        Ok(())
-    }
+    pub instance_handle: InstanceHandle,
+    pub qos: SubscriberQos,
+    pub data_reader_list: Vec<DataReaderActor>,
+    pub enabled: bool,
+    pub default_data_reader_qos: DataReaderQos,
+    pub status_condition: Actor<StatusConditionActor>,
+    pub subscriber_listener_thread: Option<SubscriberListenerThread>,
+    pub subscriber_status_kind: Vec<StatusKind>,
 }

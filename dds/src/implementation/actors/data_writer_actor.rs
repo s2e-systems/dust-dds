@@ -56,7 +56,7 @@ use std::{
     thread::JoinHandle,
 };
 
-struct DataWriterListenerMessage {
+pub struct DataWriterListenerMessage {
     listener_operation: DataWriterListenerOperation,
     writer_address: ActorAddress<DataWriterActor>,
     status_condition_address: ActorAddress<StatusConditionActor>,
@@ -64,13 +64,13 @@ struct DataWriterListenerMessage {
     topic: TopicAsync,
 }
 
-struct DataWriterListenerThread {
+pub struct DataWriterListenerThread {
     thread: JoinHandle<()>,
     sender: MpscSender<DataWriterListenerMessage>,
 }
 
 impl DataWriterListenerThread {
-    fn new(mut listener: Box<dyn AnyDataWriterListener + Send>) -> Self {
+    pub fn new(mut listener: Box<dyn AnyDataWriterListener + Send>) -> Self {
         let (sender, receiver) = mpsc_channel::<DataWriterListenerMessage>();
         let thread = std::thread::Builder::new()
             .name("Data writer listener".to_string())
@@ -124,43 +124,4 @@ pub struct DataWriterActor {
     pub offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     pub instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     pub instance_samples: HashMap<InstanceHandle, VecDeque<SequenceNumber>>,
-}
-
-impl DataWriterActor {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        transport_writer: Box<dyn WriterHistoryCache>,
-        topic_name: String,
-        type_name: String,
-        listener: Option<Box<dyn AnyDataWriterListener + Send>>,
-        status_kind: Vec<StatusKind>,
-        qos: DataWriterQos,
-        instance_handle: InstanceHandle,
-        executor_handle: &ExecutorHandle,
-    ) -> Self {
-        let status_condition = Actor::spawn(StatusConditionActor::default(), executor_handle);
-        let data_writer_listener_thread = listener.map(DataWriterListenerThread::new);
-
-        DataWriterActor {
-            instance_handle,
-            transport_writer,
-            topic_name,
-            type_name,
-            matched_subscription_list: HashMap::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
-            enabled: false,
-            status_condition,
-            data_writer_listener_thread,
-            status_kind,
-            max_seq_num: None,
-            last_change_sequence_number: 0,
-            qos,
-            registered_instance_list: HashSet::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
-        }
-    }
 }

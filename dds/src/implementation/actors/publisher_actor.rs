@@ -1,6 +1,8 @@
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, data_writer_actor::DataWriterActor,
-    status_condition_actor::StatusConditionActor, topic_actor::TopicActor,
+    any_data_writer_listener::AnyDataWriterListener,
+    data_writer_actor::{DataWriterActor, DataWriterListenerThread},
+    status_condition_actor::StatusConditionActor,
+    topic_actor::TopicActor,
 };
 use crate::{
     dds_async::{
@@ -22,7 +24,10 @@ use crate::{
     rtps::stateful_writer::WriterHistoryCache,
 };
 
-use std::thread::JoinHandle;
+use std::{
+    collections::{HashMap, HashSet},
+    thread::JoinHandle,
+};
 
 pub enum PublisherListenerOperation {
     _LivelinessLost(LivelinessLostStatus),
@@ -104,48 +109,4 @@ pub struct PublisherActor {
     pub publisher_listener_thread: Option<PublisherListenerThread>,
     pub status_kind: Vec<StatusKind>,
     pub status_condition: Actor<StatusConditionActor>,
-}
-
-impl PublisherActor {
-    pub fn create_datawriter(
-        &mut self,
-        a_topic: &TopicActor,
-        qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
-        mask: Vec<StatusKind>,
-        instance_handle: InstanceHandle,
-        transport_writer: Box<dyn WriterHistoryCache>,
-        executor_handle: &ExecutorHandle,
-    ) -> DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)> {
-        let qos = match qos {
-            QosKind::Default => self.default_datawriter_qos.clone(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-
-        let topic_name = a_topic.topic_name.clone();
-
-        let type_name = a_topic.type_name.clone();
-        let mut data_writer = DataWriterActor::new(
-            transport_writer,
-            topic_name,
-            type_name,
-            a_listener,
-            mask,
-            qos,
-            instance_handle,
-            executor_handle,
-        );
-        let data_writer_handle = data_writer.instance_handle;
-        let writer_status_condition_address = data_writer.status_condition.address();
-        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            data_writer.enabled = true;
-        }
-
-        self.data_writer_list.push(data_writer);
-
-        Ok((data_writer_handle, writer_status_condition_address))
-    }
 }
