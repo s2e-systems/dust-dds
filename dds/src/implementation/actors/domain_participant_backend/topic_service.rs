@@ -50,9 +50,7 @@ impl MailHandler<SetQos> for DomainParticipantActor {
             QosKind::Specific(q) => q,
         };
 
-        topic.set_qos(qos);
-
-        Ok(())
+        topic.set_qos(qos)
     }
 }
 

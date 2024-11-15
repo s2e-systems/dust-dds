@@ -24,8 +24,8 @@ pub struct TopicActor {
     enabled: bool,
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: Actor<StatusConditionActor>,
-    topic_listener_thread: Option<TopicListenerThread>,
-    status_kind: Vec<StatusKind>,
+    _topic_listener_thread: Option<TopicListenerThread>,
+    _status_kind: Vec<StatusKind>,
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
@@ -49,8 +49,8 @@ impl TopicActor {
             enabled: false,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
             status_condition,
-            topic_listener_thread,
-            status_kind,
+            _topic_listener_thread: topic_listener_thread,
+            _status_kind: status_kind,
             type_support,
         }
     }

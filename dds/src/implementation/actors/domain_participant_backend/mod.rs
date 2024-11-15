@@ -12,3 +12,4 @@ pub mod subscriber_listener;
 pub mod topic;
 pub mod topic_listener;
 pub mod topic_service;
+pub mod publisher_service;
