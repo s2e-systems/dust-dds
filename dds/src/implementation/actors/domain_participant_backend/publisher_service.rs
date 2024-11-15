@@ -32,21 +32,18 @@ use super::{
     publisher_listener::PublisherListenerThread,
 };
 
-pub struct CreateUserDefinedDataWriter {
+pub struct CreateDataWriter {
     pub publisher_handle: InstanceHandle,
     pub topic_name: String,
     pub qos: QosKind<DataWriterQos>,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub mask: Vec<StatusKind>,
 }
-impl Mail for CreateUserDefinedDataWriter {
+impl Mail for CreateDataWriter {
     type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
 }
-impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: CreateUserDefinedDataWriter,
-    ) -> <CreateUserDefinedDataWriter as Mail>::Result {
+impl MailHandler<CreateDataWriter> for DomainParticipantActor {
+    fn handle(&mut self, message: CreateDataWriter) -> <CreateDataWriter as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
             .iter_mut()
@@ -116,8 +113,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
 
             if let Some(dcps_subscription_reader) = self
                 .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
+                .data_reader_list_mut()
                 .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
             {
                 if let Ok(sample_list) = dcps_subscription_reader.read(
@@ -231,18 +227,15 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
     }
 }
 
-pub struct DeleteUserDefinedDataWriter {
+pub struct DeleteDataWriter {
     pub publisher_handle: InstanceHandle,
     pub datawriter_handle: InstanceHandle,
 }
-impl Mail for DeleteUserDefinedDataWriter {
+impl Mail for DeleteDataWriter {
     type Result = DdsResult<()>;
 }
-impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteUserDefinedDataWriter,
-    ) -> <DeleteUserDefinedDataWriter as Mail>::Result {
+impl MailHandler<DeleteDataWriter> for DomainParticipantActor {
+    fn handle(&mut self, message: DeleteDataWriter) -> <DeleteDataWriter as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
             .iter_mut()
@@ -345,17 +338,17 @@ impl MailHandler<LookupDataWriter> for DomainParticipantActor {
     }
 }
 
-pub struct DeletePublisherContainedEntities {
+pub struct DeleteContainedEntities {
     pub publisher_handle: InstanceHandle,
 }
-impl Mail for DeletePublisherContainedEntities {
+impl Mail for DeleteContainedEntities {
     type Result = DdsResult<()>;
 }
-impl MailHandler<DeletePublisherContainedEntities> for DomainParticipantActor {
+impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
     fn handle(
         &mut self,
-        message: DeletePublisherContainedEntities,
-    ) -> <DeletePublisherContainedEntities as Mail>::Result {
+        message: DeleteContainedEntities,
+    ) -> <DeleteContainedEntities as Mail>::Result {
         // let deleted_writer_actor_list = self
         //     .publisher_address
         //     .send_actor_mail(publisher_actor::DrainDataWriterList)?
@@ -433,15 +426,15 @@ impl MailHandler<GetDefaultDataWriterQos> for DomainParticipantActor {
     }
 }
 
-pub struct SetPublisherQos {
+pub struct SetQos {
     pub publisher_handle: InstanceHandle,
     pub qos: QosKind<PublisherQos>,
 }
-impl Mail for SetPublisherQos {
+impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetPublisherQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetPublisherQos) -> <SetPublisherQos as Mail>::Result {
+impl MailHandler<SetQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
             .iter_mut()
@@ -457,14 +450,14 @@ impl MailHandler<SetPublisherQos> for DomainParticipantActor {
     }
 }
 
-pub struct GetPublisherQos {
+pub struct GetQos {
     pub publisher_handle: InstanceHandle,
 }
-impl Mail for GetPublisherQos {
+impl Mail for GetQos {
     type Result = DdsResult<PublisherQos>;
 }
-impl MailHandler<GetPublisherQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetPublisherQos) -> <GetPublisherQos as Mail>::Result {
+impl MailHandler<GetQos> for DomainParticipantActor {
+    fn handle(&mut self, message: GetQos) -> <GetQos as Mail>::Result {
         Ok(self
             .user_defined_publisher_list
             .iter()
@@ -475,16 +468,16 @@ impl MailHandler<GetPublisherQos> for DomainParticipantActor {
     }
 }
 
-pub struct SetPublisherListener {
+pub struct SetListener {
     pub publisher_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn PublisherListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
 }
-impl Mail for SetPublisherListener {
+impl Mail for SetListener {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetPublisherListener> for DomainParticipantActor {
-    fn handle(&mut self, message: SetPublisherListener) -> <SetPublisherQos as Mail>::Result {
+impl MailHandler<SetListener> for DomainParticipantActor {
+    fn handle(&mut self, message: SetListener) -> <SetQos as Mail>::Result {
         let publisher = self
             .user_defined_publisher_list
             .iter_mut()
@@ -499,29 +492,26 @@ impl MailHandler<SetPublisherListener> for DomainParticipantActor {
     }
 }
 
-pub struct EnablePublisher {
+pub struct Enable {
     pub publisher_handle: InstanceHandle,
 }
-impl Mail for EnablePublisher {
+impl Mail for Enable {
     type Result = DdsResult<()>;
 }
-impl MailHandler<EnablePublisher> for DomainParticipantActor {
-    fn handle(&mut self, message: EnablePublisher) -> <EnablePublisher as Mail>::Result {
+impl MailHandler<Enable> for DomainParticipantActor {
+    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         todo!()
     }
 }
 
-pub struct GetPublisherInstanceHandle {
+pub struct GetInstanceHandle {
     pub publisher_handle: InstanceHandle,
 }
-impl Mail for GetPublisherInstanceHandle {
+impl Mail for GetInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
 }
-impl MailHandler<GetPublisherInstanceHandle> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetPublisherInstanceHandle,
-    ) -> <GetPublisherInstanceHandle as Mail>::Result {
+impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
+    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         todo!()
     }
 }

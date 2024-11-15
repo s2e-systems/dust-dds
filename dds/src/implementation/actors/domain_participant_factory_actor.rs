@@ -168,7 +168,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant_status_condition_address = domain_participant.get_statuscondition();
         let builtin_subscriber_status_condition_address = domain_participant
             .get_builtin_subscriber()
-            .status_condition
+            .status_condition()
             .address();
 
         let participant_actor =

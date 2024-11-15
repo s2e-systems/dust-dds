@@ -66,7 +66,7 @@ impl PublisherAsync {
         let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         let (guid, writer_status_condition_address) = self
             .participant_address()
-            .send_actor_mail(publisher_service::CreateUserDefinedDataWriter {
+            .send_actor_mail(publisher_service::CreateDataWriter {
                 publisher_handle: self.handle,
                 topic_name,
                 qos,
@@ -91,7 +91,7 @@ impl PublisherAsync {
         a_datawriter: &DataWriterAsync<Foo>,
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(publisher_service::DeleteUserDefinedDataWriter {
+            .send_actor_mail(publisher_service::DeleteDataWriter {
                 publisher_handle: self.handle,
                 datawriter_handle: a_datawriter.get_instance_handle().await,
             })?
@@ -155,7 +155,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(publisher_service::DeletePublisherContainedEntities {
+            .send_actor_mail(publisher_service::DeleteContainedEntities {
                 publisher_handle: self.handle,
             })?
             .receive_reply()
@@ -201,7 +201,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(publisher_service::SetPublisherQos {
+            .send_actor_mail(publisher_service::SetQos {
                 publisher_handle: self.handle,
                 qos,
             })?
@@ -213,7 +213,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
         self.participant_address()
-            .send_actor_mail(publisher_service::GetPublisherQos {
+            .send_actor_mail(publisher_service::GetQos {
                 publisher_handle: self.handle,
             })?
             .receive_reply()
@@ -228,7 +228,7 @@ impl PublisherAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(publisher_service::SetPublisherListener {
+            .send_actor_mail(publisher_service::SetListener {
                 publisher_handle: self.handle,
                 a_listener,
                 mask: mask.to_vec(),
@@ -253,7 +253,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(publisher_service::EnablePublisher {
+            .send_actor_mail(publisher_service::Enable {
                 publisher_handle: self.handle,
             })?
             .receive_reply()
