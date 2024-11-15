@@ -1,9 +1,12 @@
-use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
+use super::data_writer::DataWriterActor;
 use crate::{
     dds_async::{
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
-    implementation::{actor::ActorAddress, runtime::mpsc::MpscSender},
+    implementation::{
+        actor::ActorAddress, actors::status_condition_actor::StatusConditionActor,
+        runtime::mpsc::MpscSender,
+    },
     infrastructure::{
         error::DdsResult,
         status::{

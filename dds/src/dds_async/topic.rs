@@ -6,8 +6,7 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            domain_participant_actor::{self},
-            status_condition_actor::StatusConditionActor,
+            domain_participant_backend::topic_service, status_condition_actor::StatusConditionActor,
         },
     },
     infrastructure::{
@@ -54,7 +53,7 @@ impl TopicAsync {
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetInconsistentTopicStatus {
+            .send_actor_mail(topic_service::GetInconsistentTopicStatus {
                 topic_name: self.topic_name.clone(),
             })?
             .receive_reply()
@@ -88,7 +87,7 @@ impl TopicAsync {
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::SetTopicQos {
+            .send_actor_mail(topic_service::SetQos {
                 topic_name: self.topic_name.clone(),
                 topic_qos: qos,
             })?
@@ -101,7 +100,7 @@ impl TopicAsync {
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
         self.participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTopicQos {
+            .send_actor_mail(topic_service::GetQos {
                 topic_name: self.topic_name.clone(),
             })?
             .receive_reply()
@@ -125,7 +124,7 @@ impl TopicAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::EnableTopic {
+            .send_actor_mail(topic_service::Enable {
                 topic_name: self.topic_name.clone(),
             })?
             .receive_reply()
@@ -155,7 +154,7 @@ impl TopicAsync {
     pub async fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
         self.participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
+            .send_actor_mail(topic_service::GetTypeSupport {
                 topic_name: self.topic_name.clone(),
             })?
             .receive_reply()

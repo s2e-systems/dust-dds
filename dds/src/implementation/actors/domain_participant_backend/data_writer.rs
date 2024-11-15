@@ -1,12 +1,10 @@
-use super::{
-    any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    status_condition_actor::{self, StatusConditionActor},
-};
+use super::any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation};
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::{Actor, ActorAddress},
+        actors::status_condition_actor::StatusConditionActor,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},

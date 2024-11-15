@@ -3,13 +3,15 @@ use fnmatch_regex::glob_to_regex;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     any_data_writer_listener::AnyDataWriterListener,
-    data_reader_actor::DataReaderListenerThread,
-    data_writer_actor::{DataWriterActor, DataWriterListenerThread},
+    data_reader::DataReaderActor,
+    data_writer::{DataWriterActor, DataWriterListenerThread},
     handle::InstanceHandleCounter,
-    publisher_actor::PublisherListenerThread,
-    status_condition_actor::{self, StatusConditionActor},
-    subscriber_actor::SubscriberListenerThread,
-    topic_actor::TopicListenerThread,
+    publisher::PublisherActor,
+    publisher_listener::PublisherListenerThread,
+    subscriber::SubscriberActor,
+    subscriber_listener::SubscriberListenerThread,
+    topic::TopicActor,
+    topic_listener::TopicListenerThread,
 };
 use crate::{
     builtin_topics::{
@@ -26,6 +28,10 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
+        actors::{
+            domain_participant_backend::data_reader::InstanceState,
+            status_condition_actor::{self, StatusConditionActor},
+        },
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -38,11 +44,7 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
-        runtime::{
-            executor::{Executor, TaskHandle},
-            mpsc::MpscSender,
-            timer::TimerDriver,
-        },
+        runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
             get_serialized_key_from_serialized_foo,
@@ -415,145 +417,6 @@ pub struct DomainParticipantActor {
     pub timer_driver: TimerDriver,
 }
 
-struct PublisherActor {
-    qos: PublisherQos,
-    instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterActor>,
-    enabled: bool,
-    default_datawriter_qos: DataWriterQos,
-    publisher_listener_thread: Option<PublisherListenerThread>,
-    status_kind: Vec<StatusKind>,
-    status_condition: Actor<StatusConditionActor>,
-}
-
-pub struct SubscriberActor {
-    pub instance_handle: InstanceHandle,
-    pub qos: SubscriberQos,
-    pub data_reader_list: Vec<DataReaderActor>,
-    pub enabled: bool,
-    pub default_data_reader_qos: DataReaderQos,
-    pub status_condition: Actor<StatusConditionActor>,
-    pub subscriber_listener_thread: Option<SubscriberListenerThread>,
-    pub subscriber_status_kind: Vec<StatusKind>,
-}
-
-pub struct InstanceState {
-    pub view_state: ViewStateKind,
-    pub instance_state: InstanceStateKind,
-    pub most_recent_disposed_generation_count: i32,
-    pub most_recent_no_writers_generation_count: i32,
-}
-
-impl InstanceState {
-    pub fn new() -> Self {
-        Self {
-            view_state: ViewStateKind::New,
-            instance_state: InstanceStateKind::Alive,
-            most_recent_disposed_generation_count: 0,
-            most_recent_no_writers_generation_count: 0,
-        }
-    }
-
-    pub fn update_state(&mut self, change_kind: ChangeKind) {
-        match self.instance_state {
-            InstanceStateKind::Alive => {
-                if change_kind == ChangeKind::NotAliveDisposed
-                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
-                {
-                    self.instance_state = InstanceStateKind::NotAliveDisposed;
-                } else if change_kind == ChangeKind::NotAliveUnregistered {
-                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
-                }
-            }
-            InstanceStateKind::NotAliveDisposed => {
-                if change_kind == ChangeKind::Alive {
-                    self.instance_state = InstanceStateKind::Alive;
-                    self.most_recent_disposed_generation_count += 1;
-                }
-            }
-            InstanceStateKind::NotAliveNoWriters => {
-                if change_kind == ChangeKind::Alive {
-                    self.instance_state = InstanceStateKind::Alive;
-                    self.most_recent_no_writers_generation_count += 1;
-                }
-            }
-        }
-
-        match self.view_state {
-            ViewStateKind::New => (),
-            ViewStateKind::NotNew => {
-                if change_kind == ChangeKind::NotAliveDisposed
-                    || change_kind == ChangeKind::NotAliveUnregistered
-                {
-                    self.view_state = ViewStateKind::New;
-                }
-            }
-        }
-    }
-
-    pub fn mark_viewed(&mut self) {
-        self.view_state = ViewStateKind::NotNew;
-    }
-}
-
-#[derive(Debug)]
-pub struct ReaderSample {
-    pub kind: ChangeKind,
-    pub writer_guid: Guid,
-    pub instance_handle: InstanceHandle,
-    pub source_timestamp: Option<Time>,
-    pub data_value: Data,
-    pub _inline_qos: ParameterList,
-    pub sample_state: SampleStateKind,
-    pub disposed_generation_count: i32,
-    pub no_writers_generation_count: i32,
-    pub reception_timestamp: Time,
-}
-
-pub struct IndexedSample {
-    pub index: usize,
-    pub sample: (Option<Data>, SampleInfo),
-}
-
-pub struct DataReaderActor {
-    pub instance_handle: InstanceHandle,
-    pub sample_list: Vec<ReaderSample>,
-    pub qos: DataReaderQos,
-    pub topic_name: String,
-    pub type_name: String,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub _liveliness_changed_status: LivelinessChangedStatus,
-    pub requested_deadline_missed_status: RequestedDeadlineMissedStatus,
-    pub requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    pub sample_lost_status: SampleLostStatus,
-    pub sample_rejected_status: SampleRejectedStatus,
-    pub subscription_matched_status: SubscriptionMatchedStatus,
-    pub matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
-    pub enabled: bool,
-    pub data_available_status_changed_flag: bool,
-    pub incompatible_writer_list: HashSet<InstanceHandle>,
-    pub status_condition: Actor<StatusConditionActor>,
-    pub data_reader_listener_thread: Option<DataReaderListenerThread>,
-    pub data_reader_status_kind: Vec<StatusKind>,
-    pub instances: HashMap<InstanceHandle, InstanceState>,
-    pub instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
-    pub instance_ownership: HashMap<InstanceHandle, Guid>,
-    pub transport_reader: Box<dyn TransportReader>,
-}
-
-pub struct TopicActor {
-    pub qos: TopicQos,
-    pub type_name: String,
-    pub topic_name: String,
-    pub instance_handle: InstanceHandle,
-    pub enabled: bool,
-    pub inconsistent_topic_status: InconsistentTopicStatus,
-    pub status_condition: Actor<StatusConditionActor>,
-    pub topic_listener_thread: Option<TopicListenerThread>,
-    pub status_kind: Vec<StatusKind>,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-}
-
 impl DomainParticipantActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -570,65 +433,62 @@ impl DomainParticipantActor {
         let mut topic_list = HashMap::new();
         let spdp_topic_participant_handle = instance_handle_counter.generate_new_instance_handle();
 
-        let spdp_topic_participant = TopicActor {
-            qos: TopicQos::default(),
-            type_name: "SpdpDiscoveredParticipantData".to_string(),
-            topic_name: DCPS_PARTICIPANT.to_owned(),
-            instance_handle: spdp_topic_participant_handle,
-            enabled: true,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            topic_listener_thread: None,
-            status_kind: vec![],
-            type_support: Arc::new(SpdpDiscoveredParticipantData::get_type()),
-        };
+        let mut spdp_topic_participant = TopicActor::new(
+            TopicQos::default(),
+            "SpdpDiscoveredParticipantData".to_string(),
+            DCPS_PARTICIPANT.to_owned(),
+            spdp_topic_participant_handle,
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            Arc::new(SpdpDiscoveredParticipantData::get_type()),
+        );
+        spdp_topic_participant.enable();
 
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
         let sedp_topic_topics_handle = instance_handle_counter.generate_new_instance_handle();
-        let sedp_topic_topics = TopicActor {
-            qos: TopicQos::default(),
-            type_name: "DiscoveredTopicData".to_string(),
-            topic_name: DCPS_TOPIC.to_owned(),
-            instance_handle: sedp_topic_topics_handle,
-            enabled: true,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            topic_listener_thread: None,
-            status_kind: vec![],
-            type_support: Arc::new(DiscoveredTopicData::get_type()),
-        };
+        let mut sedp_topic_topics = TopicActor::new(
+            TopicQos::default(),
+            "DiscoveredTopicData".to_string(),
+            DCPS_TOPIC.to_owned(),
+            sedp_topic_topics_handle,
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            Arc::new(DiscoveredTopicData::get_type()),
+        );
+        sedp_topic_topics.enable();
+
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
         let sedp_topic_publications_handle = instance_handle_counter.generate_new_instance_handle();
-        let sedp_topic_publications = TopicActor {
-            qos: TopicQos::default(),
-            type_name: "DiscoveredWriterData".to_string(),
-            topic_name: DCPS_PUBLICATION.to_owned(),
-            instance_handle: sedp_topic_publications_handle,
-            enabled: true,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            topic_listener_thread: None,
-            status_kind: vec![],
-            type_support: Arc::new(DiscoveredWriterData::get_type()),
-        };
+        let mut sedp_topic_publications = TopicActor::new(
+            TopicQos::default(),
+            "DiscoveredWriterData".to_string(),
+            DCPS_PUBLICATION.to_owned(),
+            sedp_topic_publications_handle,
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            Arc::new(DiscoveredWriterData::get_type()),
+        );
+        sedp_topic_publications.enable();
         topic_list.insert(DCPS_PUBLICATION.to_owned(), sedp_topic_publications);
 
         let sedp_topic_subscriptions_handle =
             instance_handle_counter.generate_new_instance_handle();
-        let sedp_topic_subscriptions = TopicActor {
-            qos: TopicQos::default(),
-            type_name: "DiscoveredReaderData".to_string(),
-            topic_name: DCPS_SUBSCRIPTION.to_owned(),
-            instance_handle: sedp_topic_subscriptions_handle,
-            enabled: true,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            topic_listener_thread: None,
-            status_kind: vec![],
-            type_support: Arc::new(DiscoveredReaderData::get_type()),
-        };
+        let mut sedp_topic_subscriptions = TopicActor::new(
+            TopicQos::default(),
+            "DiscoveredReaderData".to_string(),
+            DCPS_SUBSCRIPTION.to_owned(),
+            sedp_topic_subscriptions_handle,
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            Arc::new(DiscoveredReaderData::get_type()),
+        );
+        sedp_topic_subscriptions.enable();
         topic_list.insert(DCPS_SUBSCRIPTION.to_owned(), sedp_topic_subscriptions);
 
         let spdp_writer_qos = DataWriterQos {
@@ -661,9 +521,9 @@ impl DomainParticipantActor {
         let dcps_participant_reader = DataReaderActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_PARTICIPANT].topic_name.clone(),
-            type_name: topic_list[DCPS_PARTICIPANT].type_name.clone(),
-            type_support: topic_list[DCPS_PARTICIPANT].type_support.clone(),
+            topic_name: topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
+            type_name: topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
+            type_support: topic_list[DCPS_PARTICIPANT].type_support().clone(),
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
@@ -686,9 +546,9 @@ impl DomainParticipantActor {
         let dcps_topic_reader = DataReaderActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_TOPIC].topic_name.clone(),
-            type_name: topic_list[DCPS_TOPIC].type_name.clone(),
-            type_support: topic_list[DCPS_TOPIC].type_support.clone(),
+            topic_name: topic_list[DCPS_TOPIC].topic_name().to_owned(),
+            type_name: topic_list[DCPS_TOPIC].type_name().to_owned(),
+            type_support: topic_list[DCPS_TOPIC].type_support().clone(),
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
@@ -711,9 +571,9 @@ impl DomainParticipantActor {
         let dcps_publication_reader = DataReaderActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_PUBLICATION].topic_name.clone(),
-            type_name: topic_list[DCPS_PUBLICATION].type_name.clone(),
-            type_support: topic_list[DCPS_PUBLICATION].type_support.clone(),
+            topic_name: topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
+            type_name: topic_list[DCPS_PUBLICATION].type_name().to_owned(),
+            type_support: topic_list[DCPS_PUBLICATION].type_support().clone(),
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
@@ -736,9 +596,9 @@ impl DomainParticipantActor {
         let dcps_subscription_reader = DataReaderActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_SUBSCRIPTION].topic_name.clone(),
-            type_name: topic_list[DCPS_SUBSCRIPTION].type_name.clone(),
-            type_support: topic_list[DCPS_SUBSCRIPTION].type_support.clone(),
+            topic_name: topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
+            type_name: topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
+            type_support: topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
@@ -778,8 +638,8 @@ impl DomainParticipantActor {
         let dcps_participant_writer = DataWriterActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             transport_writer: transport.get_participant_discovery_writer(),
-            topic_name: topic_list[DCPS_PARTICIPANT].topic_name.clone(),
-            type_name: topic_list[DCPS_PARTICIPANT].type_name.clone(),
+            topic_name: topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
+            type_name: topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
             matched_subscription_list: HashMap::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
             incompatible_subscription_list: HashSet::new(),
@@ -800,8 +660,8 @@ impl DomainParticipantActor {
         let dcps_topics_writer = DataWriterActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             transport_writer: transport.get_topics_discovery_writer(),
-            topic_name: topic_list[DCPS_TOPIC].topic_name.clone(),
-            type_name: topic_list[DCPS_TOPIC].type_name.clone(),
+            topic_name: topic_list[DCPS_TOPIC].topic_name().to_owned(),
+            type_name: topic_list[DCPS_TOPIC].type_name().to_owned(),
             matched_subscription_list: HashMap::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
             incompatible_subscription_list: HashSet::new(),
@@ -821,8 +681,8 @@ impl DomainParticipantActor {
         let dcps_publications_writer = DataWriterActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             transport_writer: transport.get_publications_discovery_writer(),
-            topic_name: topic_list[DCPS_PUBLICATION].topic_name.clone(),
-            type_name: topic_list[DCPS_PUBLICATION].type_name.clone(),
+            topic_name: topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
+            type_name: topic_list[DCPS_PUBLICATION].type_name().to_owned(),
             matched_subscription_list: HashMap::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
             incompatible_subscription_list: HashSet::new(),
@@ -842,8 +702,8 @@ impl DomainParticipantActor {
         let dcps_subscriptions_writer = DataWriterActor {
             instance_handle: instance_handle_counter.generate_new_instance_handle(),
             transport_writer: transport.get_subscriptions_discovery_writer(),
-            topic_name: topic_list[DCPS_SUBSCRIPTION].topic_name.clone(),
-            type_name: topic_list[DCPS_SUBSCRIPTION].type_name.clone(),
+            topic_name: topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
+            type_name: topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
             matched_subscription_list: HashMap::new(),
             publication_matched_status: PublicationMatchedStatus::default(),
             incompatible_subscription_list: HashSet::new(),
@@ -951,7 +811,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     participant_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_participant_topic.type_support.as_ref(),
+                    dcps_participant_topic.type_support().as_ref(),
                 )?;
             }
         }
@@ -982,7 +842,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     participant_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_participant_topic.type_support.as_ref(),
+                    dcps_participant_topic.type_support().as_ref(),
                 )?
             }
         }
@@ -1009,7 +869,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     publication_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_publication_topic.type_support.as_ref(),
+                    dcps_publication_topic.type_support().as_ref(),
                 )?;
             }
         }
@@ -1036,7 +896,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     publication_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_publication_topic.type_support.as_ref(),
+                    dcps_publication_topic.type_support().as_ref(),
                 )?
             }
         }
@@ -1063,7 +923,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_subscription_topic.type_support.as_ref(),
+                    dcps_subscription_topic.type_support().as_ref(),
                 )?;
             }
         }
@@ -1090,7 +950,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_subscription_topic.type_support.as_ref(),
+                    dcps_subscription_topic.type_support().as_ref(),
                 )?
             }
         }
@@ -1103,48 +963,43 @@ impl DomainParticipantActor {
         let is_topic_ignored = self.ignored_topic_list.contains(&handle);
         if !is_topic_ignored {
             for topic in self.topic_list.values_mut() {
-                let is_discovered_topic_consistent = topic.qos.topic_data
+                let topic_qos = topic.qos();
+                let is_discovered_topic_consistent = topic_qos.topic_data
                     == discovered_topic_data.topic_builtin_topic_data.topic_data
-                    && topic.qos.durability
+                    && topic_qos.durability
                         == discovered_topic_data.topic_builtin_topic_data.durability
-                    && topic.qos.deadline
+                    && topic_qos.deadline
                         == discovered_topic_data.topic_builtin_topic_data.deadline
-                    && topic.qos.latency_budget
+                    && topic_qos.latency_budget
                         == discovered_topic_data
                             .topic_builtin_topic_data
                             .latency_budget
-                    && topic.qos.liveliness
+                    && topic_qos.liveliness
                         == discovered_topic_data.topic_builtin_topic_data.liveliness
-                    && topic.qos.reliability
+                    && topic_qos.reliability
                         == discovered_topic_data.topic_builtin_topic_data.reliability
-                    && topic.qos.destination_order
+                    && topic_qos.destination_order
                         == discovered_topic_data
                             .topic_builtin_topic_data
                             .destination_order
-                    && topic.qos.history == discovered_topic_data.topic_builtin_topic_data.history
-                    && topic.qos.resource_limits
+                    && topic_qos.history == discovered_topic_data.topic_builtin_topic_data.history
+                    && topic_qos.resource_limits
                         == discovered_topic_data
                             .topic_builtin_topic_data
                             .resource_limits
-                    && topic.qos.transport_priority
+                    && topic_qos.transport_priority
                         == discovered_topic_data
                             .topic_builtin_topic_data
                             .transport_priority
-                    && topic.qos.lifespan
+                    && topic_qos.lifespan
                         == discovered_topic_data.topic_builtin_topic_data.lifespan
-                    && topic.qos.ownership
+                    && topic_qos.ownership
                         == discovered_topic_data.topic_builtin_topic_data.ownership;
-                if discovered_topic_data.topic_builtin_topic_data.type_name == topic.type_name
-                    && discovered_topic_data.topic_builtin_topic_data.name == topic.topic_name
+                if discovered_topic_data.topic_builtin_topic_data.type_name == topic.type_name()
+                    && discovered_topic_data.topic_builtin_topic_data.name == topic.topic_name()
                     && !is_discovered_topic_consistent
                 {
-                    topic.inconsistent_topic_status.total_count += 1;
-                    topic.inconsistent_topic_status.total_count_change += 1;
-                    topic.status_condition.send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
-                            state: StatusKind::InconsistentTopic,
-                        },
-                    );
+                    topic.increment_inconsistent_topic_status();
                 }
             }
             self.discovered_topic_list
@@ -1989,21 +1844,6 @@ impl DomainParticipantActor {
         }
     }
 
-    pub fn add_discovered_participant(
-        &mut self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        self.discovered_participant_list.insert(
-            InstanceHandle::new(discovered_participant_data.dds_participant_data.key().value),
-            discovered_participant_data,
-        );
-    }
-
-    pub fn remove_discovered_participant(&mut self, discovered_participant_handle: InstanceHandle) {
-        self.discovered_participant_list
-            .remove(&discovered_participant_handle);
-    }
-
     pub fn announce_topic(
         &mut self,
         topic_builtin_topic_data: TopicBuiltinTopicData,
@@ -2025,7 +1865,7 @@ impl DomainParticipantActor {
                     &mut dw,
                     topic_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_topic_topic.type_support.as_ref(),
+                    dcps_topic_topic.type_support().as_ref(),
                 )?;
             }
         }
@@ -2238,40 +2078,39 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
         let topic_status_condition_address = status_condition.address();
-        let enabled = self.enabled && self.qos.entity_factory.autoenable_created_entities;
-        let topic = TopicActor {
-            qos,
-            type_name: message.type_name,
-            topic_name: message.topic_name.clone(),
-            instance_handle: topic_handle,
-            enabled,
-            inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition,
-            topic_listener_thread: None,
-            status_kind: vec![],
-            type_support: message.type_support,
-        };
 
-        if enabled {
+        let topic = TopicActor::new(
+            qos,
+            message.type_name,
+            message.topic_name.clone(),
+            topic_handle,
+            status_condition,
+            None,
+            vec![],
+            message.type_support,
+        );
+
+        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
+            let topic_qos = topic.qos();
             let topic_builtin_topic_data = TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: topic.instance_handle.into(),
+                    value: topic.instance_handle().into(),
                 },
-                name: topic.topic_name.clone(),
-                type_name: topic.type_name.clone(),
-                durability: topic.qos.durability.clone(),
-                deadline: topic.qos.deadline.clone(),
-                latency_budget: topic.qos.latency_budget.clone(),
-                liveliness: topic.qos.liveliness.clone(),
-                reliability: topic.qos.reliability.clone(),
-                transport_priority: topic.qos.transport_priority.clone(),
-                lifespan: topic.qos.lifespan.clone(),
-                destination_order: topic.qos.destination_order.clone(),
-                history: topic.qos.history.clone(),
-                resource_limits: topic.qos.resource_limits.clone(),
-                ownership: topic.qos.ownership.clone(),
-                topic_data: topic.qos.topic_data.clone(),
-                representation: topic.qos.representation.clone(),
+                name: topic.topic_name().to_owned(),
+                type_name: topic.type_name().to_owned(),
+                durability: topic_qos.durability.clone(),
+                deadline: topic_qos.deadline.clone(),
+                latency_budget: topic_qos.latency_budget.clone(),
+                liveliness: topic_qos.liveliness.clone(),
+                reliability: topic_qos.reliability.clone(),
+                transport_priority: topic_qos.transport_priority.clone(),
+                lifespan: topic_qos.lifespan.clone(),
+                destination_order: topic_qos.destination_order.clone(),
+                history: topic_qos.history.clone(),
+                resource_limits: topic_qos.resource_limits.clone(),
+                ownership: topic_qos.ownership.clone(),
+                topic_data: topic_qos.topic_data.clone(),
+                representation: topic_qos.representation.clone(),
             };
             self.announce_topic(topic_builtin_topic_data)?;
         }
@@ -2349,9 +2188,9 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
             Ok(Some((
-                topic.instance_handle.into(),
-                topic.status_condition.address(),
-                topic.type_name.to_owned(),
+                topic.instance_handle().into(),
+                topic.status_condition().address(),
+                topic.type_name().to_owned(),
             )))
         } else {
             for discovered_topic_data in self.discovered_topic_list.values() {
@@ -2373,22 +2212,18 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                     };
                     let type_name = discovered_topic_data.type_name.clone();
                     let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-                    let topic = TopicActor {
+                    let mut topic = TopicActor::new(
                         qos,
-                        type_name: type_name.clone(),
-                        topic_name: message.topic_name.clone(),
-                        instance_handle: topic_handle,
-                        enabled: true,
-                        inconsistent_topic_status: InconsistentTopicStatus::default(),
-                        status_condition: Actor::spawn(
-                            StatusConditionActor::default(),
-                            &self.executor.handle(),
-                        ),
-                        topic_listener_thread: None,
-                        status_kind: vec![],
-                        type_support: message.type_support,
-                    };
-                    let topic_status_condition_address = topic.status_condition.address();
+                        type_name.clone(),
+                        message.topic_name.clone(),
+                        topic_handle,
+                        Actor::spawn(StatusConditionActor::default(), &self.executor.handle()),
+                        None,
+                        vec![],
+                        message.type_support,
+                    );
+                    topic.enable();
+                    let topic_status_condition_address = topic.status_condition().address();
 
                     self.topic_list.insert(message.topic_name, topic);
                     return Ok(Some((
@@ -2416,9 +2251,9 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
     ) -> <LookupTopicdescription as Mail>::Result {
         if let Some(topic) = self.topic_list.get(&message.topic_name) {
             Ok(Some((
-                topic.type_name.clone(),
-                topic.instance_handle.into(),
-                topic.status_condition.address(),
+                topic.type_name().to_owned(),
+                topic.instance_handle().into(),
+                topic.status_condition().address(),
             )))
         } else {
             Ok(None)
@@ -2510,7 +2345,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
                     presentation: publisher.qos.presentation.clone(),
                     partition: publisher.qos.partition.clone(),
                     topic_data: self.topic_list[&data_writer.topic_name]
-                        .qos
+                        .qos()
                         .topic_data
                         .clone(),
                     group_data: publisher.qos.group_data.clone(),
@@ -2543,7 +2378,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
                     presentation: subscriber.qos.presentation.clone(),
                     partition: subscriber.qos.partition.clone(),
                     topic_data: self.topic_list[&data_reader.topic_name]
-                        .qos
+                        .qos()
                         .topic_data
                         .clone(),
                     group_data: subscriber.qos.group_data.clone(),
@@ -2555,7 +2390,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
         }
 
         self.topic_list
-            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_ref()));
+            .retain(|_, x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
 
         Ok(())
     }
@@ -2795,125 +2630,6 @@ impl MailHandler<EnableDomainParticipant> for DomainParticipantActor {
     }
 }
 
-// ############################  Topic messages
-pub struct GetInconsistentTopicStatus {
-    pub topic_name: String,
-}
-impl Mail for GetInconsistentTopicStatus {
-    type Result = DdsResult<InconsistentTopicStatus>;
-}
-impl MailHandler<GetInconsistentTopicStatus> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetInconsistentTopicStatus,
-    ) -> <GetInconsistentTopicStatus as Mail>::Result {
-        let topic = self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        let status = topic.inconsistent_topic_status.clone();
-        topic.inconsistent_topic_status.total_count_change = 0;
-        topic
-            .status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::InconsistentTopic,
-            });
-        Ok(status)
-    }
-}
-
-pub struct SetTopicQos {
-    pub topic_name: String,
-    pub topic_qos: QosKind<TopicQos>,
-}
-impl Mail for SetTopicQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetTopicQos) -> <SetTopicQos as Mail>::Result {
-        let topic = self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        let qos = match message.topic_qos {
-            QosKind::Default => self.default_topic_qos.clone(),
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                q
-            }
-        };
-
-        if topic.enabled {
-            if topic.qos.durability != qos.durability
-                || qos.liveliness != qos.liveliness
-                || qos.reliability != qos.reliability
-                || qos.destination_order != qos.destination_order
-                || qos.history != qos.history
-                || qos.resource_limits != qos.resource_limits
-                || qos.ownership != qos.ownership
-            {
-                return Err(DdsError::ImmutablePolicy);
-            }
-        }
-
-        topic.qos = qos;
-
-        Ok(())
-    }
-}
-
-pub struct GetTopicQos {
-    pub topic_name: String,
-}
-impl Mail for GetTopicQos {
-    type Result = DdsResult<TopicQos>;
-}
-impl MailHandler<GetTopicQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetTopicQos) -> <GetTopicQos as Mail>::Result {
-        Ok(self
-            .topic_list
-            .get(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .qos
-            .clone())
-    }
-}
-
-pub struct EnableTopic {
-    pub topic_name: String,
-}
-impl Mail for EnableTopic {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<EnableTopic> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableTopic) -> <EnableTopic as Mail>::Result {
-        self.topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .enabled = true;
-        Ok(())
-    }
-}
-
-pub struct GetTopicTypeSupport {
-    pub topic_name: String,
-}
-impl Mail for GetTopicTypeSupport {
-    type Result = DdsResult<Arc<dyn DynamicType + Send + Sync>>;
-}
-impl MailHandler<GetTopicTypeSupport> for DomainParticipantActor {
-    fn handle(&mut self, message: GetTopicTypeSupport) -> <GetTopicTypeSupport as Mail>::Result {
-        Ok(self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .type_support
-            .clone())
-    }
-}
-
 // ############################  Publisher messages
 pub struct CreateUserDefinedDataWriter {
     pub publisher_handle: InstanceHandle,
@@ -2941,7 +2657,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let topic_kind = get_topic_kind(topic.type_support.as_ref());
+        let topic_kind = get_topic_kind(topic.type_support().as_ref());
 
         let transport_writer = self
             .transport
@@ -2957,7 +2673,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
 
         let topic_name = message.topic_name;
 
-        let type_name = topic.type_name.clone();
+        let type_name = topic.type_name().to_owned();
         let mut data_writer = DataWriterActor {
             instance_handle: writer_handle,
             transport_writer,
@@ -3004,8 +2720,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
                 .iter_mut()
                 .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
             {
-                if let Ok(sample_list) = read(
-                    dcps_subscription_reader,
+                if let Ok(sample_list) = dcps_subscription_reader.read(
                     i32::MAX,
                     ANY_SAMPLE_STATE,
                     ANY_VIEW_STATE,
@@ -3104,7 +2819,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
                 presentation: publisher.qos.presentation.clone(),
                 partition: publisher.qos.partition.clone(),
                 topic_data: self.topic_list[&data_writer.topic_name]
-                    .qos
+                    .qos()
                     .topic_data
                     .clone(),
                 group_data: publisher.qos.group_data.clone(),
@@ -3162,7 +2877,7 @@ impl MailHandler<DeleteUserDefinedDataWriter> for DomainParticipantActor {
             presentation: publisher.qos.presentation.clone(),
             partition: publisher.qos.partition.clone(),
             topic_data: self.topic_list[&data_writer.topic_name]
-                .qos
+                .qos()
                 .topic_data
                 .clone(),
             group_data: publisher.qos.group_data.clone(),
@@ -3471,7 +3186,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let topic_kind = get_topic_kind(topic.type_support.as_ref());
+        let topic_kind = get_topic_kind(topic.type_support().as_ref());
         let reader_handle = self.instance_handle_counter.generate_new_instance_handle();
         let transport_reader = self.transport.create_user_defined_reader(
             &message.topic_name,
@@ -3490,10 +3205,10 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             }
         };
 
-        let topic_name = topic.topic_name.clone();
-        let type_name = topic.type_name.clone();
+        let topic_name = topic.topic_name().to_owned();
+        let type_name = topic.type_name().to_owned();
 
-        let type_support = topic.type_support.clone();
+        let type_support = topic.type_support().clone();
 
         let data_reader_status_kind = message.mask.to_vec();
 
@@ -3549,8 +3264,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                 .iter_mut()
                 .find(|dr| dr.topic_name == DCPS_PUBLICATION)
             {
-                if let Ok(sample_list) = read(
-                    dcps_publication_reader,
+                if let Ok(sample_list) = dcps_publication_reader.read(
                     i32::MAX,
                     ANY_SAMPLE_STATE,
                     ANY_VIEW_STATE,
@@ -3643,7 +3357,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                 time_based_filter: dr.qos.time_based_filter.clone(),
                 presentation: subscriber.qos.presentation.clone(),
                 partition: subscriber.qos.partition.clone(),
-                topic_data: topic.qos.topic_data.clone(),
+                topic_data: topic.qos().topic_data.clone(),
                 group_data: subscriber.qos.group_data.clone(),
                 representation: dr.qos.representation.clone(),
             };
@@ -3698,7 +3412,7 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
             time_based_filter: dr.qos.time_based_filter.clone(),
             presentation: subscriber.qos.presentation.clone(),
             partition: subscriber.qos.partition.clone(),
-            topic_data: topic.qos.topic_data.clone(),
+            topic_data: topic.qos().topic_data.clone(),
             group_data: subscriber.qos.group_data.clone(),
             representation: dr.qos.representation.clone(),
         };
@@ -4034,7 +3748,7 @@ impl MailHandler<UnregisterInstance> for DomainParticipantActor {
         }
 
         let type_support = self.topic_list[&data_writer.topic_name]
-            .type_support
+            .type_support()
             .clone();
 
         let has_key = {
@@ -4131,7 +3845,7 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
         let instance_handle = get_instance_handle_from_serialized_foo(
             &message.serialized_data,
             self.topic_list[&data_writer.topic_name]
-                .type_support
+                .type_support()
                 .as_ref(),
         )?;
         if !data_writer.enabled {
@@ -4175,7 +3889,7 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
             .find(|x| x.instance_handle == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let type_support = self.topic_list[&data_writer.topic_name]
-            .type_support
+            .type_support()
             .clone();
 
         match data_writer.qos.lifespan.duration {
@@ -4504,7 +4218,7 @@ impl MailHandler<DisposeWTimestamp> for DomainParticipantActor {
             return Err(DdsError::NotEnabled);
         }
         let type_support = self.topic_list[&data_writer.topic_name]
-            .type_support
+            .type_support()
             .clone();
 
         let has_key = {
@@ -4783,7 +4497,7 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
                 presentation: publisher.qos.presentation.clone(),
                 partition: publisher.qos.partition.clone(),
                 topic_data: self.topic_list[&data_writer.topic_name]
-                    .qos
+                    .qos()
                     .topic_data
                     .clone(),
                 group_data: publisher.qos.group_data.clone(),
@@ -4991,8 +4705,7 @@ impl MailHandler<Read> for DomainParticipantActor {
             .find(|x| x.instance_handle == message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        read(
-            data_reader,
+        data_reader.read(
             message.max_samples,
             &message.sample_states,
             &message.view_states,
@@ -5026,8 +4739,7 @@ impl MailHandler<Take> for DomainParticipantActor {
             .iter_mut()
             .find(|x| x.instance_handle == message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        take(
-            data_reader,
+        data_reader.take(
             message.max_samples,
             message.sample_states,
             message.view_states,
@@ -5061,8 +4773,7 @@ impl MailHandler<ReadNextInstance> for DomainParticipantActor {
             .iter_mut()
             .find(|x| x.instance_handle == message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        read_next_instance(
-            data_reader,
+        data_reader.read_next_instance(
             message.max_samples,
             message.previous_handle,
             &message.sample_states,
@@ -5096,8 +4807,7 @@ impl MailHandler<TakeNextInstance> for DomainParticipantActor {
             .iter_mut()
             .find(|x| x.instance_handle == message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        take_next_instance(
-            data_reader,
+        data_reader.take_next_instance(
             message.max_samples,
             message.previous_handle,
             message.sample_states,
@@ -5299,7 +5009,7 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
                 presentation: subscriber.qos.presentation.clone(),
                 partition: subscriber.qos.partition.clone(),
                 topic_data: self.topic_list[&data_reader.topic_name]
-                    .qos
+                    .qos()
                     .topic_data
                     .clone(),
                 group_data: subscriber.qos.group_data.clone(),
@@ -5430,7 +5140,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .matched_publication_list
             .contains_key(&writer_instance_handle)
         {
-            if let Ok(change_instance_handle) = add_reader_change(data_reader, message.cache_change)
+            if let Ok(change_instance_handle) = data_reader.add_reader_change(message.cache_change)
             {
                 if let DurationKind::Finite(deadline_missed_period) =
                     data_reader.qos.deadline.period
@@ -5481,41 +5191,40 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
         &mut self,
         message: AddBuiltinParticipantsDetectorCacheChange,
     ) -> <AddBuiltinParticipantsDetectorCacheChange as Mail>::Result {
+        match message.cache_change.kind {
+            ChangeKind::Alive => {
+                if let Ok(discovered_participant_data) =
+                    SpdpDiscoveredParticipantData::deserialize_data(
+                        message.cache_change.data_value.as_ref(),
+                    )
+                {
+                    self.discovered_participant_list.insert(
+                        InstanceHandle::new(
+                            discovered_participant_data.dds_participant_data.key().value,
+                        ),
+                        discovered_participant_data,
+                    );
+                }
+            }
+            ChangeKind::NotAliveDisposed => {
+                if let Ok(discovered_participant_handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    self.discovered_participant_list
+                        .remove(&discovered_participant_handle);
+                }
+            }
+            ChangeKind::AliveFiltered
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
+        }
         if let Some(mut reader) = self
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
         {
-            add_reader_change(&mut reader, message.cache_change).ok();
-            if let Ok(samples) = read(
-                reader,
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            ) {
-                for (sample_data, sample_info) in samples {
-                    match sample_info.instance_state {
-                        InstanceStateKind::Alive => {
-                            if let Ok(discovered_participant_data) =
-                                SpdpDiscoveredParticipantData::deserialize_data(
-                                    sample_data
-                                        .expect("Alive samples must contain data")
-                                        .as_ref(),
-                                )
-                            {
-                                self.add_discovered_participant(discovered_participant_data);
-                            }
-                        }
-                        InstanceStateKind::NotAliveDisposed => {
-                            self.remove_discovered_participant(sample_info.instance_handle)
-                        }
-                        InstanceStateKind::NotAliveNoWriters => (),
-                    }
-                }
-            }
+            reader.add_reader_change(message.cache_change).ok();
         }
     }
 }
@@ -5531,15 +5240,26 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
         &mut self,
         message: AddBuiltinTopicsDetectorCacheChange,
     ) -> <AddBuiltinTopicsDetectorCacheChange as Mail>::Result {
+        match message.cache_change.kind {
+            ChangeKind::Alive => {
+                if let Ok(discovered_topic_data) =
+                    DiscoveredTopicData::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                }
+            }
+            ChangeKind::NotAliveDisposed => todo!(),
+            ChangeKind::AliveFiltered
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => (),
+        }
         if let Some(mut reader) = self
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_TOPIC)
         {
-            add_reader_change(&mut reader, message.cache_change).ok();
-            if let Ok(samples) = read(
-                reader,
+            reader.add_reader_change(message.cache_change).ok();
+            if let Ok(samples) = reader.read(
                 i32::MAX,
                 &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
@@ -5583,9 +5303,8 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_PUBLICATION)
         {
-            add_reader_change(&mut reader, message.cache_change).ok();
-            if let Ok(samples) = read(
-                reader,
+            reader.add_reader_change(message.cache_change).ok();
+            if let Ok(samples) = reader.read(
                 i32::MAX,
                 &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
@@ -5627,21 +5346,20 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
         &mut self,
         message: AddBuiltinSubscriptionsDetectorCacheChange,
     ) -> <AddBuiltinSubscriptionsDetectorCacheChange as Mail>::Result {
-        if let Some(mut reader) = self
+        if let Some(reader) = self
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
         {
-            add_reader_change(&mut reader, message.cache_change).ok();
+            reader.add_reader_change(message.cache_change).ok();
 
             self.status_condition
                 .send_actor_mail(status_condition_actor::AddCommunicationState {
                     state: StatusKind::DataOnReaders,
                 });
 
-            if let Ok(samples) = read(
-                reader,
+            if let Ok(samples) = reader.read(
                 i32::MAX,
                 &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
@@ -6286,329 +6004,6 @@ fn dispose_w_timestamp(
     Ok(())
 }
 
-fn add_reader_change(
-    data_reader: &mut DataReaderActor,
-    cache_change: ReaderCacheChange,
-) -> DdsResult<InstanceHandle> {
-    let sample = convert_cache_change_to_sample(data_reader, cache_change, Time::now())?;
-    let change_instance_handle = sample.instance_handle;
-    // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
-    if data_reader.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
-        // Get the InstanceHandle of the data writer owning this instance
-        if let Some(&instance_owner_handle) =
-            data_reader.instance_ownership.get(&sample.instance_handle)
-        {
-            let instance_owner = InstanceHandle::new(instance_owner_handle.into());
-            let instance_writer = InstanceHandle::new(sample.writer_guid.into());
-            if instance_owner_handle != sample.writer_guid
-                && data_reader.matched_publication_list[&instance_writer]
-                    .ownership_strength()
-                    .value
-                    <= data_reader.matched_publication_list[&instance_owner]
-                        .ownership_strength()
-                        .value
-            {
-                todo!()
-                // return Ok(());
-            }
-        }
-
-        data_reader
-            .instance_ownership
-            .insert(sample.instance_handle, sample.writer_guid);
-    }
-
-    if matches!(
-        sample.kind,
-        ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered
-    ) {
-        // Drop the ownership and stop the deadline task
-        data_reader
-            .instance_ownership
-            .remove(&sample.instance_handle);
-        if let Some(t) = data_reader
-            .instance_deadline_missed_task
-            .remove(&sample.instance_handle)
-        {
-            t.abort();
-        }
-    }
-
-    let is_sample_of_interest_based_on_time = {
-        let closest_timestamp_before_received_sample = data_reader
-            .sample_list
-            .iter()
-            .filter(|cc| cc.instance_handle == sample.instance_handle)
-            .filter(|cc| cc.source_timestamp <= sample.source_timestamp)
-            .map(|cc| cc.source_timestamp)
-            .max();
-
-        if let Some(Some(t)) = closest_timestamp_before_received_sample {
-            if let Some(sample_source_time) = sample.source_timestamp {
-                let sample_separation = sample_source_time - t;
-                DurationKind::Finite(sample_separation)
-                    >= data_reader.qos.time_based_filter.minimum_separation
-            } else {
-                true
-            }
-        } else {
-            true
-        }
-    };
-
-    if is_sample_of_interest_based_on_time {
-        let is_max_samples_limit_reached = {
-            let total_samples = data_reader
-                .sample_list
-                .iter()
-                .filter(|cc| cc.kind == ChangeKind::Alive)
-                .count();
-
-            total_samples == data_reader.qos.resource_limits.max_samples
-        };
-        let is_max_instances_limit_reached = {
-            let instance_handle_list: HashSet<_> = data_reader
-                .sample_list
-                .iter()
-                .map(|cc| cc.instance_handle)
-                .collect();
-
-            if instance_handle_list.contains(&sample.instance_handle) {
-                false
-            } else {
-                instance_handle_list.len() == data_reader.qos.resource_limits.max_instances
-            }
-        };
-        let is_max_samples_per_instance_limit_reached = {
-            let total_samples_of_instance = data_reader
-                .sample_list
-                .iter()
-                .filter(|cc| cc.instance_handle == sample.instance_handle)
-                .count();
-
-            total_samples_of_instance == data_reader.qos.resource_limits.max_samples_per_instance
-        };
-        if is_max_samples_limit_reached {
-            data_reader.sample_rejected_status.last_instance_handle = sample.instance_handle;
-            data_reader.sample_rejected_status.last_reason =
-                SampleRejectedStatusKind::RejectedBySamplesLimit;
-            data_reader.sample_rejected_status.total_count += 1;
-            data_reader.sample_rejected_status.total_count_change += 1;
-        } else if is_max_instances_limit_reached {
-            data_reader.sample_rejected_status.last_instance_handle = sample.instance_handle;
-            data_reader.sample_rejected_status.last_reason =
-                SampleRejectedStatusKind::RejectedByInstancesLimit;
-            data_reader.sample_rejected_status.total_count += 1;
-            data_reader.sample_rejected_status.total_count_change += 1;
-        } else if is_max_samples_per_instance_limit_reached {
-            data_reader.sample_rejected_status.last_instance_handle = sample.instance_handle;
-            data_reader.sample_rejected_status.last_reason =
-                SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit;
-            data_reader.sample_rejected_status.total_count += 1;
-            data_reader.sample_rejected_status.total_count_change += 1;
-        } else {
-            let num_alive_samples_of_instance = data_reader
-                .sample_list
-                .iter()
-                .filter(|cc| {
-                    cc.instance_handle == sample.instance_handle && cc.kind == ChangeKind::Alive
-                })
-                .count() as u32;
-
-            if let HistoryQosPolicyKind::KeepLast(depth) = data_reader.qos.history.kind {
-                if depth == num_alive_samples_of_instance {
-                    let index_sample_to_remove = data_reader
-                        .sample_list
-                        .iter()
-                        .position(|cc| {
-                            cc.instance_handle == sample.instance_handle
-                                && cc.kind == ChangeKind::Alive
-                        })
-                        .expect("Samples must exist");
-                    data_reader.sample_list.remove(index_sample_to_remove);
-                }
-            }
-
-            match sample.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                    data_reader
-                        .instances
-                        .entry(sample.instance_handle)
-                        .or_insert_with(InstanceState::new)
-                        .update_state(sample.kind);
-                    Ok(())
-                }
-                ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => {
-                    match data_reader.instances.get_mut(&sample.instance_handle) {
-                        Some(instance) => {
-                            instance.update_state(sample.kind);
-                            Ok(())
-                        }
-                        None => Err(DdsError::Error(
-                            "Received message changing state of unknown instance".to_string(),
-                        )),
-                    }
-                }
-            }?;
-
-            tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
-            data_reader.sample_list.push(sample);
-            data_reader.data_available_status_changed_flag = true;
-
-            match data_reader.qos.destination_order.kind {
-                DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                    data_reader.sample_list.sort_by(|a, b| {
-                        a.source_timestamp
-                            .as_ref()
-                            .expect("Missing source timestamp")
-                            .cmp(
-                                b.source_timestamp
-                                    .as_ref()
-                                    .expect("Missing source timestamp"),
-                            )
-                    });
-                }
-                DestinationOrderQosPolicyKind::ByReceptionTimestamp => data_reader
-                    .sample_list
-                    .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-            }
-
-            // let topic_status_condition_address = self.topic_status_condition.clone();
-            // let type_name = self.type_name.clone();
-            // let topic_name = self.topic_name.clone();
-            // let reader_address = data_reader_address.clone();
-            // let status_condition_address = self.status_condition.address();
-            // let subscriber = subscriber.clone();
-            // let topic = TopicAsync::new(
-            //     self.topic_address.clone(),
-            //     topic_status_condition_address.clone(),
-            //     type_name.clone(),
-            //     topic_name.clone(),
-            //     subscriber.get_participant(),
-            // );
-            // if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
-            //     if let Some(listener) = subscriber_listener {
-            //         listener.send(SubscriberListenerMessage {
-            //             listener_operation: SubscriberListenerOperation::DataOnReaders(
-            //                 subscriber.clone(),
-            //             ),
-            //             reader_address,
-            //             status_condition_address,
-            //             subscriber: subscriber.clone(),
-            //             topic,
-            //         })?;
-            //     }
-            // } else if self
-            //     .data_reader_status_kind
-            //     .contains(&StatusKind::DataAvailable)
-            // {
-            //     if let Some(listener) = &self.data_reader_listener_thread {
-            //         listener.sender().send(DataReaderListenerMessage {
-            //             listener_operation: DataReaderListenerOperation::DataAvailable,
-            //             reader_address,
-            //             status_condition_address,
-            //             subscriber: subscriber.clone(),
-            //             topic,
-            //         })?;
-            //     }
-            // }
-
-            data_reader.status_condition.send_actor_mail(
-                status_condition_actor::AddCommunicationState {
-                    state: StatusKind::DataAvailable,
-                },
-            );
-        }
-    }
-
-    Ok(change_instance_handle)
-}
-
-fn convert_cache_change_to_sample(
-    data_reader: &mut DataReaderActor,
-    cache_change: ReaderCacheChange,
-    reception_timestamp: Time,
-) -> DdsResult<ReaderSample> {
-    let instance_handle = {
-        match cache_change.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                get_instance_handle_from_serialized_foo(
-                    cache_change.data_value.as_ref(),
-                    data_reader.type_support.as_ref(),
-                )?
-            }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => match &cache_change
-                .inline_qos
-                .parameter()
-                .iter()
-                .find(|&x| x.parameter_id() == PID_KEY_HASH)
-            {
-                Some(p) => {
-                    if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
-                        InstanceHandle::new(key)
-                    } else {
-                        get_instance_handle_from_serialized_key(
-                            cache_change.data_value.as_ref(),
-                            data_reader.type_support.as_ref(),
-                        )?
-                    }
-                }
-                None => get_instance_handle_from_serialized_key(
-                    cache_change.data_value.as_ref(),
-                    data_reader.type_support.as_ref(),
-                )?,
-            },
-        }
-    };
-
-    // Update the state of the instance before creating since this has direct impact on
-    // the information that is store on the sample
-    match cache_change.kind {
-        ChangeKind::Alive | ChangeKind::AliveFiltered => {
-            data_reader
-                .instances
-                .entry(instance_handle)
-                .or_insert_with(InstanceState::new)
-                .update_state(cache_change.kind);
-            Ok(())
-        }
-        ChangeKind::NotAliveDisposed
-        | ChangeKind::NotAliveUnregistered
-        | ChangeKind::NotAliveDisposedUnregistered => {
-            match data_reader.instances.get_mut(&instance_handle) {
-                Some(instance) => {
-                    instance.update_state(cache_change.kind);
-                    Ok(())
-                }
-                None => Err(DdsError::Error(
-                    "Received message changing state of unknown instance".to_string(),
-                )),
-            }
-        }
-    }?;
-
-    Ok(ReaderSample {
-        kind: cache_change.kind,
-        writer_guid: cache_change.writer_guid,
-        instance_handle: instance_handle.into(),
-        source_timestamp: cache_change.source_timestamp.map(Into::into),
-        data_value: cache_change.data_value,
-        _inline_qos: cache_change.inline_qos,
-        sample_state: SampleStateKind::NotRead,
-        disposed_generation_count: data_reader.instances[&instance_handle]
-            .most_recent_disposed_generation_count,
-        no_writers_generation_count: data_reader.instances[&instance_handle]
-            .most_recent_no_writers_generation_count,
-        reception_timestamp,
-    })
-}
-
 fn get_discovered_writer_incompatible_qos_policy_list(
     data_reader: &DataReaderActor,
     discovered_writer_data: &DiscoveredWriterData,
@@ -6666,298 +6061,6 @@ fn get_discovered_writer_incompatible_qos_policy_list(
     }
 
     incompatible_qos_policy_list
-}
-
-pub fn read(
-    data_reader: &mut DataReaderActor,
-    max_samples: i32,
-    sample_states: &[SampleStateKind],
-    view_states: &[ViewStateKind],
-    instance_states: &[InstanceStateKind],
-    specific_instance_handle: Option<InstanceHandle>,
-) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-    if !data_reader.enabled {
-        return Err(DdsError::NotEnabled);
-    }
-
-    data_reader.status_condition.send_actor_mail(
-        status_condition_actor::RemoveCommunicationState {
-            state: StatusKind::DataAvailable,
-        },
-    );
-
-    let indexed_sample_list = create_indexed_sample_collection(
-        data_reader,
-        max_samples,
-        &sample_states,
-        &view_states,
-        &instance_states,
-        specific_instance_handle,
-    )?;
-
-    let change_index_list: Vec<usize>;
-    let samples;
-
-    (change_index_list, samples) = indexed_sample_list
-        .into_iter()
-        .map(|IndexedSample { index, sample }| (index, sample))
-        .unzip();
-
-    for index in change_index_list {
-        data_reader.sample_list[index].sample_state = SampleStateKind::Read;
-    }
-
-    Ok(samples)
-}
-
-pub fn take(
-    data_reader: &mut DataReaderActor,
-    max_samples: i32,
-    sample_states: Vec<SampleStateKind>,
-    view_states: Vec<ViewStateKind>,
-    instance_states: Vec<InstanceStateKind>,
-    specific_instance_handle: Option<InstanceHandle>,
-) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-    if !data_reader.enabled {
-        return Err(DdsError::NotEnabled);
-    }
-
-    let indexed_sample_list = create_indexed_sample_collection(
-        data_reader,
-        max_samples,
-        &sample_states,
-        &view_states,
-        &instance_states,
-        specific_instance_handle,
-    )?;
-
-    data_reader.status_condition.send_actor_mail(
-        status_condition_actor::RemoveCommunicationState {
-            state: StatusKind::DataAvailable,
-        },
-    );
-
-    let mut change_index_list: Vec<usize>;
-    let samples;
-
-    (change_index_list, samples) = indexed_sample_list
-        .into_iter()
-        .map(|IndexedSample { index, sample }| (index, sample))
-        .unzip();
-
-    while let Some(index) = change_index_list.pop() {
-        data_reader.sample_list.remove(index);
-    }
-
-    Ok(samples)
-}
-
-fn create_indexed_sample_collection(
-    data_reader: &mut DataReaderActor,
-    max_samples: i32,
-    sample_states: &[SampleStateKind],
-    view_states: &[ViewStateKind],
-    instance_states: &[InstanceStateKind],
-    specific_instance_handle: Option<InstanceHandle>,
-) -> DdsResult<Vec<IndexedSample>> {
-    if let Some(h) = specific_instance_handle {
-        if !data_reader.instances.contains_key(&h) {
-            return Err(DdsError::BadParameter);
-        }
-    };
-
-    let mut indexed_samples = Vec::new();
-
-    let instances = &data_reader.instances;
-    let mut instances_in_collection = HashMap::new();
-    for (index, cache_change) in data_reader
-        .sample_list
-        .iter()
-        .enumerate()
-        .filter(|(_, cc)| {
-            sample_states.contains(&cc.sample_state)
-                && view_states.contains(&instances[&cc.instance_handle].view_state)
-                && instance_states.contains(&instances[&cc.instance_handle].instance_state)
-                && if let Some(h) = specific_instance_handle {
-                    h == cc.instance_handle
-                } else {
-                    true
-                }
-        })
-        .take(max_samples as usize)
-    {
-        instances_in_collection
-            .entry(cache_change.instance_handle)
-            .or_insert_with(InstanceState::new);
-
-        instances_in_collection
-            .get_mut(&cache_change.instance_handle)
-            .unwrap()
-            .update_state(cache_change.kind);
-        let sample_state = cache_change.sample_state;
-        let view_state = data_reader.instances[&cache_change.instance_handle].view_state;
-        let instance_state = data_reader.instances[&cache_change.instance_handle].instance_state;
-
-        let absolute_generation_rank = (data_reader.instances[&cache_change.instance_handle]
-            .most_recent_disposed_generation_count
-            + data_reader.instances[&cache_change.instance_handle]
-                .most_recent_no_writers_generation_count)
-            - (instances_in_collection[&cache_change.instance_handle]
-                .most_recent_disposed_generation_count
-                + instances_in_collection[&cache_change.instance_handle]
-                    .most_recent_no_writers_generation_count);
-
-        let (data, valid_data) = match cache_change.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                (Some(cache_change.data_value.clone()), true)
-            }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (None, false),
-        };
-
-        let sample_info = SampleInfo {
-            sample_state,
-            view_state,
-            instance_state,
-            disposed_generation_count: cache_change.disposed_generation_count,
-            no_writers_generation_count: cache_change.no_writers_generation_count,
-            sample_rank: 0,     // To be filled up after collection is created
-            generation_rank: 0, // To be filled up after collection is created
-            absolute_generation_rank,
-            source_timestamp: cache_change.source_timestamp.map(Into::into),
-            instance_handle: cache_change.instance_handle,
-            publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
-            valid_data,
-        };
-
-        let sample = (data, sample_info);
-
-        indexed_samples.push(IndexedSample { index, sample })
-    }
-
-    // After the collection is created, update the relative generation rank values and mark the read instances as viewed
-    for handle in instances_in_collection.into_keys() {
-        let most_recent_sample_absolute_generation_rank = indexed_samples
-            .iter()
-            .filter(
-                |IndexedSample {
-                     sample: (_, sample_info),
-                     ..
-                 }| sample_info.instance_handle == handle,
-            )
-            .map(
-                |IndexedSample {
-                     sample: (_, sample_info),
-                     ..
-                 }| sample_info.absolute_generation_rank,
-            )
-            .last()
-            .expect("Instance handle must exist on collection");
-
-        let mut total_instance_samples_in_collection = indexed_samples
-            .iter()
-            .filter(
-                |IndexedSample {
-                     sample: (_, sample_info),
-                     ..
-                 }| sample_info.instance_handle == handle,
-            )
-            .count();
-
-        for IndexedSample {
-            sample: (_, sample_info),
-            ..
-        } in indexed_samples.iter_mut().filter(
-            |IndexedSample {
-                 sample: (_, sample_info),
-                 ..
-             }| sample_info.instance_handle == handle,
-        ) {
-            sample_info.generation_rank =
-                sample_info.absolute_generation_rank - most_recent_sample_absolute_generation_rank;
-
-            total_instance_samples_in_collection -= 1;
-            sample_info.sample_rank = total_instance_samples_in_collection as i32;
-        }
-
-        data_reader
-            .instances
-            .get_mut(&handle)
-            .expect("Sample must exist on hash map")
-            .mark_viewed()
-    }
-
-    if indexed_samples.is_empty() {
-        Err(DdsError::NoData)
-    } else {
-        Ok(indexed_samples)
-    }
-}
-
-fn next_instance(
-    data_reader: &mut DataReaderActor,
-    previous_handle: Option<InstanceHandle>,
-) -> Option<InstanceHandle> {
-    match previous_handle {
-        Some(p) => data_reader
-            .instances
-            .keys()
-            .filter(|&h| h > &p)
-            .min()
-            .cloned(),
-        None => data_reader.instances.keys().min().cloned(),
-    }
-}
-
-pub fn take_next_instance(
-    data_reader: &mut DataReaderActor,
-    max_samples: i32,
-    previous_handle: Option<InstanceHandle>,
-    sample_states: Vec<SampleStateKind>,
-    view_states: Vec<ViewStateKind>,
-    instance_states: Vec<InstanceStateKind>,
-) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-    if !data_reader.enabled {
-        return Err(DdsError::NotEnabled);
-    }
-
-    match next_instance(data_reader, previous_handle) {
-        Some(next_handle) => take(
-            data_reader,
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            Some(next_handle),
-        ),
-        None => Err(DdsError::NoData),
-    }
-}
-
-pub fn read_next_instance(
-    data_reader: &mut DataReaderActor,
-    max_samples: i32,
-    previous_handle: Option<InstanceHandle>,
-    sample_states: &[SampleStateKind],
-    view_states: &[ViewStateKind],
-    instance_states: &[InstanceStateKind],
-) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
-    if !data_reader.enabled {
-        return Err(DdsError::NotEnabled);
-    }
-
-    match next_instance(data_reader, previous_handle) {
-        Some(next_handle) => read(
-            data_reader,
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            Some(next_handle),
-        ),
-        None => Err(DdsError::NoData),
-    }
 }
 
 fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {

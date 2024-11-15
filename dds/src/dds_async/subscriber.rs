@@ -7,8 +7,8 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            any_data_reader_listener::AnyDataReaderListener,
-            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_backend::any_data_reader_listener::AnyDataReaderListener,
+            domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
         },
     },

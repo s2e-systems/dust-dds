@@ -10,7 +10,7 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
             status_condition_actor::StatusConditionActor,
         },
         runtime::timer::TimerHandle,

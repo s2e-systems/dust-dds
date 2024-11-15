@@ -1,0 +1,738 @@
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+
+use crate::{
+    builtin_topics::PublicationBuiltinTopicData,
+    implementation::{
+        actor::Actor,
+        actors::status_condition_actor::{self, StatusConditionActor},
+        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
+        runtime::executor::TaskHandle,
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
+        },
+    },
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::DataReaderQos,
+        qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind},
+        status::{
+            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+            SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, StatusKind,
+            SubscriptionMatchedStatus,
+        },
+        time::{DurationKind, Time},
+    },
+    rtps::{
+        messages::submessage_elements::{Data, ParameterList},
+        reader::{ReaderCacheChange, TransportReader},
+        types::{ChangeKind, Guid},
+    },
+    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    xtypes::dynamic_type::DynamicType,
+};
+
+use super::data_reader_listener::DataReaderListenerThread;
+
+pub struct InstanceState {
+    pub view_state: ViewStateKind,
+    pub instance_state: InstanceStateKind,
+    pub most_recent_disposed_generation_count: i32,
+    pub most_recent_no_writers_generation_count: i32,
+}
+
+impl InstanceState {
+    pub fn new() -> Self {
+        Self {
+            view_state: ViewStateKind::New,
+            instance_state: InstanceStateKind::Alive,
+            most_recent_disposed_generation_count: 0,
+            most_recent_no_writers_generation_count: 0,
+        }
+    }
+
+    pub fn update_state(&mut self, change_kind: ChangeKind) {
+        match self.instance_state {
+            InstanceStateKind::Alive => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
+                {
+                    self.instance_state = InstanceStateKind::NotAliveDisposed;
+                } else if change_kind == ChangeKind::NotAliveUnregistered {
+                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
+                }
+            }
+            InstanceStateKind::NotAliveDisposed => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_disposed_generation_count += 1;
+                }
+            }
+            InstanceStateKind::NotAliveNoWriters => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_no_writers_generation_count += 1;
+                }
+            }
+        }
+
+        match self.view_state {
+            ViewStateKind::New => (),
+            ViewStateKind::NotNew => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveUnregistered
+                {
+                    self.view_state = ViewStateKind::New;
+                }
+            }
+        }
+    }
+
+    pub fn mark_viewed(&mut self) {
+        self.view_state = ViewStateKind::NotNew;
+    }
+}
+
+#[derive(Debug)]
+pub struct ReaderSample {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub instance_handle: InstanceHandle,
+    pub source_timestamp: Option<Time>,
+    pub data_value: Data,
+    pub _inline_qos: ParameterList,
+    pub sample_state: SampleStateKind,
+    pub disposed_generation_count: i32,
+    pub no_writers_generation_count: i32,
+    pub reception_timestamp: Time,
+}
+
+pub struct IndexedSample {
+    pub index: usize,
+    pub sample: (Option<Data>, SampleInfo),
+}
+
+pub struct DataReaderActor {
+    pub instance_handle: InstanceHandle,
+    pub sample_list: Vec<ReaderSample>,
+    pub qos: DataReaderQos,
+    pub topic_name: String,
+    pub type_name: String,
+    pub type_support: Arc<dyn DynamicType + Send + Sync>,
+    pub _liveliness_changed_status: LivelinessChangedStatus,
+    pub requested_deadline_missed_status: RequestedDeadlineMissedStatus,
+    pub requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
+    pub sample_lost_status: SampleLostStatus,
+    pub sample_rejected_status: SampleRejectedStatus,
+    pub subscription_matched_status: SubscriptionMatchedStatus,
+    pub matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
+    pub enabled: bool,
+    pub data_available_status_changed_flag: bool,
+    pub incompatible_writer_list: HashSet<InstanceHandle>,
+    pub status_condition: Actor<StatusConditionActor>,
+    pub data_reader_listener_thread: Option<DataReaderListenerThread>,
+    pub data_reader_status_kind: Vec<StatusKind>,
+    pub instances: HashMap<InstanceHandle, InstanceState>,
+    pub instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
+    pub instance_ownership: HashMap<InstanceHandle, Guid>,
+    pub transport_reader: Box<dyn TransportReader>,
+}
+
+impl DataReaderActor {
+    pub fn read(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            });
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        let change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        for index in change_index_list {
+            self.sample_list[index].sample_state = SampleStateKind::Read;
+        }
+
+        Ok(samples)
+    }
+
+    pub fn take(
+        &mut self,
+        max_samples: i32,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let indexed_sample_list = self.create_indexed_sample_collection(
+            max_samples,
+            &sample_states,
+            &view_states,
+            &instance_states,
+            specific_instance_handle,
+        )?;
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::DataAvailable,
+            });
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list
+            .into_iter()
+            .map(|IndexedSample { index, sample }| (index, sample))
+            .unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.sample_list.remove(index);
+        }
+
+        Ok(samples)
+    }
+
+    fn create_indexed_sample_collection(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<IndexedSample>> {
+        if let Some(h) = specific_instance_handle {
+            if !self.instances.contains_key(&h) {
+                return Err(DdsError::BadParameter);
+            }
+        };
+
+        let mut indexed_samples = Vec::new();
+
+        let instances = &self.instances;
+        let mut instances_in_collection = HashMap::new();
+        for (index, cache_change) in self
+            .sample_list
+            .iter()
+            .enumerate()
+            .filter(|(_, cc)| {
+                sample_states.contains(&cc.sample_state)
+                    && view_states.contains(&instances[&cc.instance_handle].view_state)
+                    && instance_states.contains(&instances[&cc.instance_handle].instance_state)
+                    && if let Some(h) = specific_instance_handle {
+                        h == cc.instance_handle
+                    } else {
+                        true
+                    }
+            })
+            .take(max_samples as usize)
+        {
+            instances_in_collection
+                .entry(cache_change.instance_handle)
+                .or_insert_with(InstanceState::new);
+
+            instances_in_collection
+                .get_mut(&cache_change.instance_handle)
+                .unwrap()
+                .update_state(cache_change.kind);
+            let sample_state = cache_change.sample_state;
+            let view_state = self.instances[&cache_change.instance_handle].view_state;
+            let instance_state = self.instances[&cache_change.instance_handle].instance_state;
+
+            let absolute_generation_rank = (self.instances[&cache_change.instance_handle]
+                .most_recent_disposed_generation_count
+                + self.instances[&cache_change.instance_handle]
+                    .most_recent_no_writers_generation_count)
+                - (instances_in_collection[&cache_change.instance_handle]
+                    .most_recent_disposed_generation_count
+                    + instances_in_collection[&cache_change.instance_handle]
+                        .most_recent_no_writers_generation_count);
+
+            let (data, valid_data) = match cache_change.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                    (Some(cache_change.data_value.clone()), true)
+                }
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => (None, false),
+            };
+
+            let sample_info = SampleInfo {
+                sample_state,
+                view_state,
+                instance_state,
+                disposed_generation_count: cache_change.disposed_generation_count,
+                no_writers_generation_count: cache_change.no_writers_generation_count,
+                sample_rank: 0,     // To be filled up after collection is created
+                generation_rank: 0, // To be filled up after collection is created
+                absolute_generation_rank,
+                source_timestamp: cache_change.source_timestamp.map(Into::into),
+                instance_handle: cache_change.instance_handle,
+                publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
+                valid_data,
+            };
+
+            let sample = (data, sample_info);
+
+            indexed_samples.push(IndexedSample { index, sample })
+        }
+
+        // After the collection is created, update the relative generation rank values and mark the read instances as viewed
+        for handle in instances_in_collection.into_keys() {
+            let most_recent_sample_absolute_generation_rank = indexed_samples
+                .iter()
+                .filter(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.instance_handle == handle,
+                )
+                .map(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.absolute_generation_rank,
+                )
+                .last()
+                .expect("Instance handle must exist on collection");
+
+            let mut total_instance_samples_in_collection = indexed_samples
+                .iter()
+                .filter(
+                    |IndexedSample {
+                         sample: (_, sample_info),
+                         ..
+                     }| sample_info.instance_handle == handle,
+                )
+                .count();
+
+            for IndexedSample {
+                sample: (_, sample_info),
+                ..
+            } in indexed_samples.iter_mut().filter(
+                |IndexedSample {
+                     sample: (_, sample_info),
+                     ..
+                 }| sample_info.instance_handle == handle,
+            ) {
+                sample_info.generation_rank = sample_info.absolute_generation_rank
+                    - most_recent_sample_absolute_generation_rank;
+
+                total_instance_samples_in_collection -= 1;
+                sample_info.sample_rank = total_instance_samples_in_collection as i32;
+            }
+
+            self.instances
+                .get_mut(&handle)
+                .expect("Sample must exist on hash map")
+                .mark_viewed()
+        }
+
+        if indexed_samples.is_empty() {
+            Err(DdsError::NoData)
+        } else {
+            Ok(indexed_samples)
+        }
+    }
+
+    fn next_instance(&mut self, previous_handle: Option<InstanceHandle>) -> Option<InstanceHandle> {
+        match previous_handle {
+            Some(p) => self.instances.keys().filter(|&h| h > &p).min().cloned(),
+            None => self.instances.keys().min().cloned(),
+        }
+    }
+
+    pub fn take_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: Vec<SampleStateKind>,
+        view_states: Vec<ViewStateKind>,
+        instance_states: Vec<InstanceStateKind>,
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub fn read_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+    fn convert_cache_change_to_sample(
+        &mut self,
+        cache_change: ReaderCacheChange,
+        reception_timestamp: Time,
+    ) -> DdsResult<ReaderSample> {
+        let instance_handle = {
+            match cache_change.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                    get_instance_handle_from_serialized_foo(
+                        cache_change.data_value.as_ref(),
+                        self.type_support.as_ref(),
+                    )?
+                }
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => match &cache_change
+                    .inline_qos
+                    .parameter()
+                    .iter()
+                    .find(|&x| x.parameter_id() == PID_KEY_HASH)
+                {
+                    Some(p) => {
+                        if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
+                            InstanceHandle::new(key)
+                        } else {
+                            get_instance_handle_from_serialized_key(
+                                cache_change.data_value.as_ref(),
+                                self.type_support.as_ref(),
+                            )?
+                        }
+                    }
+                    None => get_instance_handle_from_serialized_key(
+                        cache_change.data_value.as_ref(),
+                        self.type_support.as_ref(),
+                    )?,
+                },
+            }
+        };
+
+        // Update the state of the instance before creating since this has direct impact on
+        // the information that is store on the sample
+        match cache_change.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                self.instances
+                    .entry(instance_handle)
+                    .or_insert_with(InstanceState::new)
+                    .update_state(cache_change.kind);
+                Ok(())
+            }
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                match self.instances.get_mut(&instance_handle) {
+                    Some(instance) => {
+                        instance.update_state(cache_change.kind);
+                        Ok(())
+                    }
+                    None => Err(DdsError::Error(
+                        "Received message changing state of unknown instance".to_string(),
+                    )),
+                }
+            }
+        }?;
+
+        Ok(ReaderSample {
+            kind: cache_change.kind,
+            writer_guid: cache_change.writer_guid,
+            instance_handle: instance_handle.into(),
+            source_timestamp: cache_change.source_timestamp.map(Into::into),
+            data_value: cache_change.data_value,
+            _inline_qos: cache_change.inline_qos,
+            sample_state: SampleStateKind::NotRead,
+            disposed_generation_count: self.instances[&instance_handle]
+                .most_recent_disposed_generation_count,
+            no_writers_generation_count: self.instances[&instance_handle]
+                .most_recent_no_writers_generation_count,
+            reception_timestamp,
+        })
+    }
+
+    pub fn add_reader_change(
+        &mut self,
+        cache_change: ReaderCacheChange,
+    ) -> DdsResult<InstanceHandle> {
+        let sample = self.convert_cache_change_to_sample(cache_change, Time::now())?;
+        let change_instance_handle = sample.instance_handle;
+        // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
+        if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
+            // Get the InstanceHandle of the data writer owning this instance
+            if let Some(&instance_owner_handle) =
+                self.instance_ownership.get(&sample.instance_handle)
+            {
+                let instance_owner = InstanceHandle::new(instance_owner_handle.into());
+                let instance_writer = InstanceHandle::new(sample.writer_guid.into());
+                if instance_owner_handle != sample.writer_guid
+                    && self.matched_publication_list[&instance_writer]
+                        .ownership_strength()
+                        .value
+                        <= self.matched_publication_list[&instance_owner]
+                            .ownership_strength()
+                            .value
+                {
+                    todo!()
+                    // return Ok(());
+                }
+            }
+
+            self.instance_ownership
+                .insert(sample.instance_handle, sample.writer_guid);
+        }
+
+        if matches!(
+            sample.kind,
+            ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered
+        ) {
+            // Drop the ownership and stop the deadline task
+            self.instance_ownership.remove(&sample.instance_handle);
+            if let Some(t) = self
+                .instance_deadline_missed_task
+                .remove(&sample.instance_handle)
+            {
+                t.abort();
+            }
+        }
+
+        let is_sample_of_interest_based_on_time = {
+            let closest_timestamp_before_received_sample = self
+                .sample_list
+                .iter()
+                .filter(|cc| cc.instance_handle == sample.instance_handle)
+                .filter(|cc| cc.source_timestamp <= sample.source_timestamp)
+                .map(|cc| cc.source_timestamp)
+                .max();
+
+            if let Some(Some(t)) = closest_timestamp_before_received_sample {
+                if let Some(sample_source_time) = sample.source_timestamp {
+                    let sample_separation = sample_source_time - t;
+                    DurationKind::Finite(sample_separation)
+                        >= self.qos.time_based_filter.minimum_separation
+                } else {
+                    true
+                }
+            } else {
+                true
+            }
+        };
+
+        if is_sample_of_interest_based_on_time {
+            let is_max_samples_limit_reached = {
+                let total_samples = self
+                    .sample_list
+                    .iter()
+                    .filter(|cc| cc.kind == ChangeKind::Alive)
+                    .count();
+
+                total_samples == self.qos.resource_limits.max_samples
+            };
+            let is_max_instances_limit_reached = {
+                let instance_handle_list: HashSet<_> = self
+                    .sample_list
+                    .iter()
+                    .map(|cc| cc.instance_handle)
+                    .collect();
+
+                if instance_handle_list.contains(&sample.instance_handle) {
+                    false
+                } else {
+                    instance_handle_list.len() == self.qos.resource_limits.max_instances
+                }
+            };
+            let is_max_samples_per_instance_limit_reached = {
+                let total_samples_of_instance = self
+                    .sample_list
+                    .iter()
+                    .filter(|cc| cc.instance_handle == sample.instance_handle)
+                    .count();
+
+                total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
+            };
+            if is_max_samples_limit_reached {
+                self.sample_rejected_status.last_instance_handle = sample.instance_handle;
+                self.sample_rejected_status.last_reason =
+                    SampleRejectedStatusKind::RejectedBySamplesLimit;
+                self.sample_rejected_status.total_count += 1;
+                self.sample_rejected_status.total_count_change += 1;
+            } else if is_max_instances_limit_reached {
+                self.sample_rejected_status.last_instance_handle = sample.instance_handle;
+                self.sample_rejected_status.last_reason =
+                    SampleRejectedStatusKind::RejectedByInstancesLimit;
+                self.sample_rejected_status.total_count += 1;
+                self.sample_rejected_status.total_count_change += 1;
+            } else if is_max_samples_per_instance_limit_reached {
+                self.sample_rejected_status.last_instance_handle = sample.instance_handle;
+                self.sample_rejected_status.last_reason =
+                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit;
+                self.sample_rejected_status.total_count += 1;
+                self.sample_rejected_status.total_count_change += 1;
+            } else {
+                let num_alive_samples_of_instance = self
+                    .sample_list
+                    .iter()
+                    .filter(|cc| {
+                        cc.instance_handle == sample.instance_handle && cc.kind == ChangeKind::Alive
+                    })
+                    .count() as u32;
+
+                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                    if depth == num_alive_samples_of_instance {
+                        let index_sample_to_remove = self
+                            .sample_list
+                            .iter()
+                            .position(|cc| {
+                                cc.instance_handle == sample.instance_handle
+                                    && cc.kind == ChangeKind::Alive
+                            })
+                            .expect("Samples must exist");
+                        self.sample_list.remove(index_sample_to_remove);
+                    }
+                }
+
+                match sample.kind {
+                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                        self.instances
+                            .entry(sample.instance_handle)
+                            .or_insert_with(InstanceState::new)
+                            .update_state(sample.kind);
+                        Ok(())
+                    }
+                    ChangeKind::NotAliveDisposed
+                    | ChangeKind::NotAliveUnregistered
+                    | ChangeKind::NotAliveDisposedUnregistered => {
+                        match self.instances.get_mut(&sample.instance_handle) {
+                            Some(instance) => {
+                                instance.update_state(sample.kind);
+                                Ok(())
+                            }
+                            None => Err(DdsError::Error(
+                                "Received message changing state of unknown instance".to_string(),
+                            )),
+                        }
+                    }
+                }?;
+
+                tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
+                self.sample_list.push(sample);
+                self.data_available_status_changed_flag = true;
+
+                match self.qos.destination_order.kind {
+                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                        self.sample_list.sort_by(|a, b| {
+                            a.source_timestamp
+                                .as_ref()
+                                .expect("Missing source timestamp")
+                                .cmp(
+                                    b.source_timestamp
+                                        .as_ref()
+                                        .expect("Missing source timestamp"),
+                                )
+                        });
+                    }
+                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                        .sample_list
+                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                }
+
+                // let topic_status_condition_address = self.topic_status_condition.clone();
+                // let type_name = self.type_name.clone();
+                // let topic_name = self.topic_name.clone();
+                // let reader_address = data_reader_address.clone();
+                // let status_condition_address = self.status_condition.address();
+                // let subscriber = subscriber.clone();
+                // let topic = TopicAsync::new(
+                //     self.topic_address.clone(),
+                //     topic_status_condition_address.clone(),
+                //     type_name.clone(),
+                //     topic_name.clone(),
+                //     subscriber.get_participant(),
+                // );
+                // if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
+                //     if let Some(listener) = subscriber_listener {
+                //         listener.send(SubscriberListenerMessage {
+                //             listener_operation: SubscriberListenerOperation::DataOnReaders(
+                //                 subscriber.clone(),
+                //             ),
+                //             reader_address,
+                //             status_condition_address,
+                //             subscriber: subscriber.clone(),
+                //             topic,
+                //         })?;
+                //     }
+                // } else if self
+                //     .data_reader_status_kind
+                //     .contains(&StatusKind::DataAvailable)
+                // {
+                //     if let Some(listener) = &self.data_reader_listener_thread {
+                //         listener.sender().send(DataReaderListenerMessage {
+                //             listener_operation: DataReaderListenerOperation::DataAvailable,
+                //             reader_address,
+                //             status_condition_address,
+                //             subscriber: subscriber.clone(),
+                //             topic,
+                //         })?;
+                //     }
+                // }
+
+                self.status_condition.send_actor_mail(
+                    status_condition_actor::AddCommunicationState {
+                        state: StatusKind::DataAvailable,
+                    },
+                );
+            }
+        }
+
+        Ok(change_instance_handle)
+    }
+}

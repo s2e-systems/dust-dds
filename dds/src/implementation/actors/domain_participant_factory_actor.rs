@@ -1,11 +1,13 @@
-use super::{domain_participant_actor, status_condition_actor::StatusConditionActor};
+use super::{
+    domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
+    status_condition_actor::StatusConditionActor,
+};
 use crate::{
     configuration::DustDdsConfiguration,
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
-        actors::domain_participant_actor::DomainParticipantActor,
         runtime::{executor::Executor, timer::TimerDriver},
     },
     infrastructure::{

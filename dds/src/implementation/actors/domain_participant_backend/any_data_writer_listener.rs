@@ -5,13 +5,13 @@ use crate::{
         data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync,
         publisher::PublisherAsync, topic::TopicAsync,
     },
-    implementation::actor::ActorAddress,
+    implementation::{actor::ActorAddress, actors::status_condition_actor::StatusConditionActor},
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
 };
 
-use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
+use super::data_writer::DataWriterActor;
 
 pub enum DataWriterListenerOperation {
     OfferedDeadlineMissed(OfferedDeadlineMissedStatus),

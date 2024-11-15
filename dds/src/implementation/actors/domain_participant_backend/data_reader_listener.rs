@@ -1,11 +1,9 @@
-use super::{
-    any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-    status_condition_actor::StatusConditionActor,
-};
+use super::any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation};
 use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
         actor::ActorAddress,
+        actors::status_condition_actor::StatusConditionActor,
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
