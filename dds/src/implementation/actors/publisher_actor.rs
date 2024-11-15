@@ -1,33 +1,19 @@
-use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer_actor::{DataWriterActor, DataWriterListenerThread},
-    status_condition_actor::StatusConditionActor,
-    topic_actor::TopicActor,
-};
+use super::{data_writer_actor::DataWriterActor, status_condition_actor::StatusConditionActor};
 use crate::{
     dds_async::{
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
-    implementation::{
-        actor::{Actor, ActorAddress},
-        runtime::{executor::ExecutorHandle, mpsc::MpscSender},
-    },
+    implementation::{actor::ActorAddress, runtime::mpsc::MpscSender},
     infrastructure::{
         error::DdsResult,
-        instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, StatusKind,
+            PublicationMatchedStatus,
         },
     },
-    rtps::stateful_writer::WriterHistoryCache,
 };
 
-use std::{
-    collections::{HashMap, HashSet},
-    thread::JoinHandle,
-};
+use std::thread::JoinHandle;
 
 pub enum PublisherListenerOperation {
     _LivelinessLost(LivelinessLostStatus),
@@ -98,15 +84,4 @@ impl PublisherListenerThread {
         self.thread.join()?;
         Ok(())
     }
-}
-
-pub struct PublisherActor {
-    pub qos: PublisherQos,
-    pub instance_handle: InstanceHandle,
-    pub data_writer_list: Vec<DataWriterActor>,
-    pub enabled: bool,
-    pub default_datawriter_qos: DataWriterQos,
-    pub publisher_listener_thread: Option<PublisherListenerThread>,
-    pub status_kind: Vec<StatusKind>,
-    pub status_condition: Actor<StatusConditionActor>,
 }

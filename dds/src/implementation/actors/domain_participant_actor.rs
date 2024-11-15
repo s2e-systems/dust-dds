@@ -3,12 +3,13 @@ use fnmatch_regex::glob_to_regex;
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     any_data_writer_listener::AnyDataWriterListener,
-    data_reader_actor::{IndexedSample, ReaderSample},
+    data_reader_actor::DataReaderListenerThread,
     data_writer_actor::{DataWriterActor, DataWriterListenerThread},
     handle::InstanceHandleCounter,
-    publisher_actor::{PublisherActor, PublisherListenerThread},
+    publisher_actor::PublisherListenerThread,
     status_condition_actor::{self, StatusConditionActor},
     subscriber_actor::SubscriberListenerThread,
+    topic_actor::TopicListenerThread,
 };
 use crate::{
     builtin_topics::{
@@ -25,11 +26,6 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::{
-            data_reader_actor::{DataReaderActor, InstanceState},
-            subscriber_actor::SubscriberActor,
-            topic_actor::TopicActor,
-        },
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -42,7 +38,11 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
-        runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
+        runtime::{
+            executor::{Executor, TaskHandle},
+            mpsc::MpscSender,
+            timer::TimerDriver,
+        },
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
             get_serialized_key_from_serialized_foo,
@@ -76,7 +76,7 @@ use crate::{
     rtps::{
         cache_change::RtpsCacheChange,
         messages::submessage_elements::{Data, Parameter, ParameterList},
-        reader::{ReaderCacheChange, ReaderHistoryCache},
+        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
         transport::Transport,
         types::{ChangeKind, Guid, SequenceNumber, TopicKind, ENTITYID_PARTICIPANT},
     },
@@ -389,30 +389,169 @@ impl ParticipantListenerThread {
 }
 
 pub struct DomainParticipantActor {
-    transport: Box<dyn Transport>,
-    instance_handle_counter: InstanceHandleCounter,
-    domain_id: DomainId,
-    qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberActor,
-    builtin_publisher: PublisherActor,
-    user_defined_subscriber_list: Vec<SubscriberActor>,
-    default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<PublisherActor>,
-    default_publisher_qos: PublisherQos,
-    topic_list: HashMap<String, TopicActor>,
-    default_topic_qos: TopicQos,
-    discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
-    discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
+    pub transport: Box<dyn Transport>,
+    pub instance_handle_counter: InstanceHandleCounter,
+    pub domain_id: DomainId,
+    pub qos: DomainParticipantQos,
+    pub builtin_subscriber: SubscriberActor,
+    pub builtin_publisher: PublisherActor,
+    pub user_defined_subscriber_list: Vec<SubscriberActor>,
+    pub default_subscriber_qos: SubscriberQos,
+    pub user_defined_publisher_list: Vec<PublisherActor>,
+    pub default_publisher_qos: PublisherQos,
+    pub topic_list: HashMap<String, TopicActor>,
+    pub default_topic_qos: TopicQos,
+    pub discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
+    pub discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
+    pub enabled: bool,
+    pub ignored_participants: HashSet<InstanceHandle>,
+    pub ignored_publications: HashSet<InstanceHandle>,
+    pub ignored_subcriptions: HashSet<InstanceHandle>,
+    pub ignored_topic_list: HashSet<InstanceHandle>,
+    pub participant_listener_thread: Option<ParticipantListenerThread>,
+    pub status_kind: Vec<StatusKind>,
+    pub status_condition: Actor<StatusConditionActor>,
+    pub executor: Executor,
+    pub timer_driver: TimerDriver,
+}
+
+struct PublisherActor {
+    qos: PublisherQos,
+    instance_handle: InstanceHandle,
+    data_writer_list: Vec<DataWriterActor>,
     enabled: bool,
-    ignored_participants: HashSet<InstanceHandle>,
-    ignored_publications: HashSet<InstanceHandle>,
-    ignored_subcriptions: HashSet<InstanceHandle>,
-    ignored_topic_list: HashSet<InstanceHandle>,
-    participant_listener_thread: Option<ParticipantListenerThread>,
+    default_datawriter_qos: DataWriterQos,
+    publisher_listener_thread: Option<PublisherListenerThread>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
-    executor: Executor,
-    timer_driver: TimerDriver,
+}
+
+pub struct SubscriberActor {
+    pub instance_handle: InstanceHandle,
+    pub qos: SubscriberQos,
+    pub data_reader_list: Vec<DataReaderActor>,
+    pub enabled: bool,
+    pub default_data_reader_qos: DataReaderQos,
+    pub status_condition: Actor<StatusConditionActor>,
+    pub subscriber_listener_thread: Option<SubscriberListenerThread>,
+    pub subscriber_status_kind: Vec<StatusKind>,
+}
+
+pub struct InstanceState {
+    pub view_state: ViewStateKind,
+    pub instance_state: InstanceStateKind,
+    pub most_recent_disposed_generation_count: i32,
+    pub most_recent_no_writers_generation_count: i32,
+}
+
+impl InstanceState {
+    pub fn new() -> Self {
+        Self {
+            view_state: ViewStateKind::New,
+            instance_state: InstanceStateKind::Alive,
+            most_recent_disposed_generation_count: 0,
+            most_recent_no_writers_generation_count: 0,
+        }
+    }
+
+    pub fn update_state(&mut self, change_kind: ChangeKind) {
+        match self.instance_state {
+            InstanceStateKind::Alive => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
+                {
+                    self.instance_state = InstanceStateKind::NotAliveDisposed;
+                } else if change_kind == ChangeKind::NotAliveUnregistered {
+                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
+                }
+            }
+            InstanceStateKind::NotAliveDisposed => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_disposed_generation_count += 1;
+                }
+            }
+            InstanceStateKind::NotAliveNoWriters => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_no_writers_generation_count += 1;
+                }
+            }
+        }
+
+        match self.view_state {
+            ViewStateKind::New => (),
+            ViewStateKind::NotNew => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveUnregistered
+                {
+                    self.view_state = ViewStateKind::New;
+                }
+            }
+        }
+    }
+
+    pub fn mark_viewed(&mut self) {
+        self.view_state = ViewStateKind::NotNew;
+    }
+}
+
+#[derive(Debug)]
+pub struct ReaderSample {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub instance_handle: InstanceHandle,
+    pub source_timestamp: Option<Time>,
+    pub data_value: Data,
+    pub _inline_qos: ParameterList,
+    pub sample_state: SampleStateKind,
+    pub disposed_generation_count: i32,
+    pub no_writers_generation_count: i32,
+    pub reception_timestamp: Time,
+}
+
+pub struct IndexedSample {
+    pub index: usize,
+    pub sample: (Option<Data>, SampleInfo),
+}
+
+pub struct DataReaderActor {
+    pub instance_handle: InstanceHandle,
+    pub sample_list: Vec<ReaderSample>,
+    pub qos: DataReaderQos,
+    pub topic_name: String,
+    pub type_name: String,
+    pub type_support: Arc<dyn DynamicType + Send + Sync>,
+    pub _liveliness_changed_status: LivelinessChangedStatus,
+    pub requested_deadline_missed_status: RequestedDeadlineMissedStatus,
+    pub requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
+    pub sample_lost_status: SampleLostStatus,
+    pub sample_rejected_status: SampleRejectedStatus,
+    pub subscription_matched_status: SubscriptionMatchedStatus,
+    pub matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
+    pub enabled: bool,
+    pub data_available_status_changed_flag: bool,
+    pub incompatible_writer_list: HashSet<InstanceHandle>,
+    pub status_condition: Actor<StatusConditionActor>,
+    pub data_reader_listener_thread: Option<DataReaderListenerThread>,
+    pub data_reader_status_kind: Vec<StatusKind>,
+    pub instances: HashMap<InstanceHandle, InstanceState>,
+    pub instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
+    pub instance_ownership: HashMap<InstanceHandle, Guid>,
+    pub transport_reader: Box<dyn TransportReader>,
+}
+
+pub struct TopicActor {
+    pub qos: TopicQos,
+    pub type_name: String,
+    pub topic_name: String,
+    pub instance_handle: InstanceHandle,
+    pub enabled: bool,
+    pub inconsistent_topic_status: InconsistentTopicStatus,
+    pub status_condition: Actor<StatusConditionActor>,
+    pub topic_listener_thread: Option<TopicListenerThread>,
+    pub status_kind: Vec<StatusKind>,
+    pub type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
 impl DomainParticipantActor {
@@ -1913,6 +2052,9 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         };
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
+        let status_condition =
+            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+        let publisher_status_condition_address = status_condition.address();
         let mut publisher = PublisherActor {
             qos: publisher_qos,
             instance_handle: publisher_handle,
@@ -1921,12 +2063,8 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             default_datawriter_qos: DataWriterQos::default(),
             publisher_listener_thread: message.a_listener.map(PublisherListenerThread::new),
             status_kind: message.mask,
-            status_condition: Actor::spawn(
-                StatusConditionActor::default(),
-                &self.executor.handle(),
-            ),
+            status_condition,
         };
-        let publisher_status_condition_address = publisher.status_condition.address();
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
             publisher.enabled = true;
@@ -1934,7 +2072,7 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
 
         self.user_defined_publisher_list.push(publisher);
 
-        Ok((publisher_handle.into(), publisher_status_condition_address))
+        Ok((publisher_handle, publisher_status_condition_address))
     }
 }
 
@@ -2084,7 +2222,11 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         message: CreateUserDefinedTopic,
     ) -> <CreateUserDefinedTopic as Mail>::Result {
         if self.topic_list.contains_key(&message.topic_name) {
-            return Err(DdsError::PreconditionNotMet(format!("Topic with name {} already exists. To access this topic call the lookup_topicdescription method.",message.topic_name)));
+            return Err(DdsError::PreconditionNotMet(format!(
+                "Topic with name {} already exists.
+             To access this topic call the lookup_topicdescription method.",
+                message.topic_name
+            )));
         }
 
         let qos = match message.qos {
@@ -2093,52 +2235,50 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         };
 
         let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let mut topic = TopicActor {
+        let status_condition =
+            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+        let topic_status_condition_address = status_condition.address();
+        let enabled = self.enabled && self.qos.entity_factory.autoenable_created_entities;
+        let topic = TopicActor {
             qos,
             type_name: message.type_name,
             topic_name: message.topic_name.clone(),
             instance_handle: topic_handle,
-            enabled: false,
+            enabled,
             inconsistent_topic_status: InconsistentTopicStatus::default(),
-            status_condition: Actor::spawn(
-                StatusConditionActor::default(),
-                &self.executor.handle(),
-            ),
+            status_condition,
             topic_listener_thread: None,
             status_kind: vec![],
             type_support: message.type_support,
         };
-        let topic_status_condition_address = topic.status_condition.address();
 
-        if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            topic.enabled = true;
-            let topic_qos = topic.qos.clone();
+        if enabled {
             let topic_builtin_topic_data = TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone(),
                 type_name: topic.type_name.clone(),
-                durability: topic_qos.durability,
-                deadline: topic_qos.deadline,
-                latency_budget: topic_qos.latency_budget,
-                liveliness: topic_qos.liveliness,
-                reliability: topic_qos.reliability,
-                transport_priority: topic_qos.transport_priority,
-                lifespan: topic_qos.lifespan,
-                destination_order: topic_qos.destination_order,
-                history: topic_qos.history,
-                resource_limits: topic_qos.resource_limits,
-                ownership: topic_qos.ownership,
-                topic_data: topic_qos.topic_data,
-                representation: topic_qos.representation,
+                durability: topic.qos.durability.clone(),
+                deadline: topic.qos.deadline.clone(),
+                latency_budget: topic.qos.latency_budget.clone(),
+                liveliness: topic.qos.liveliness.clone(),
+                reliability: topic.qos.reliability.clone(),
+                transport_priority: topic.qos.transport_priority.clone(),
+                lifespan: topic.qos.lifespan.clone(),
+                destination_order: topic.qos.destination_order.clone(),
+                history: topic.qos.history.clone(),
+                resource_limits: topic.qos.resource_limits.clone(),
+                ownership: topic.qos.ownership.clone(),
+                topic_data: topic.qos.topic_data.clone(),
+                representation: topic.qos.representation.clone(),
             };
             self.announce_topic(topic_builtin_topic_data)?;
         }
 
         self.topic_list.insert(message.topic_name, topic);
 
-        Ok((topic_handle.into(), topic_status_condition_address))
+        Ok((topic_handle, topic_status_condition_address))
     }
 }
 
@@ -2801,21 +2941,7 @@ impl MailHandler<CreateUserDefinedDataWriter> for DomainParticipantActor {
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let topic_kind = {
-            let mut topic_kind = TopicKind::NoKey;
-            for index in 0..topic.type_support.get_member_count() {
-                if topic
-                    .type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    topic_kind = TopicKind::WithKey;
-                    break;
-                }
-            }
-            topic_kind
-        };
+        let topic_kind = get_topic_kind(topic.type_support.as_ref());
 
         let transport_writer = self
             .transport
@@ -3345,28 +3471,14 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             .get(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let topic_kind = {
-            let mut topic_kind = TopicKind::NoKey;
-            for index in 0..topic.type_support.get_member_count() {
-                if topic
-                    .type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    topic_kind = TopicKind::WithKey;
-                    break;
-                }
-            }
-            topic_kind
-        };
+        let topic_kind = get_topic_kind(topic.type_support.as_ref());
         let reader_handle = self.instance_handle_counter.generate_new_instance_handle();
         let transport_reader = self.transport.create_user_defined_reader(
             &message.topic_name,
             topic_kind,
             Box::new(UserDefinedReaderHistoryCache {
                 domain_participant_address: message.domain_participant_address,
-                subscriber_handle: subscriber.instance_handle.into(),
+                subscriber_handle: subscriber.instance_handle,
                 data_reader_handle: reader_handle,
             }),
         );
@@ -5297,66 +5409,64 @@ pub struct AddCacheChange {
     pub data_reader_handle: InstanceHandle,
 }
 impl Mail for AddCacheChange {
-    type Result = ();
+    type Result = DdsResult<()>;
 }
 impl MailHandler<AddCacheChange> for DomainParticipantActor {
     fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
-        if let Some(subscriber) = self
+        let subscriber = self
             .user_defined_subscriber_list
             .iter_mut()
             .find(|s| s.instance_handle == message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        let data_reader = subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.instance_handle == message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid.into());
+
+        if data_reader
+            .matched_publication_list
+            .contains_key(&writer_instance_handle)
         {
-            if let Some(mut reader) = subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|x| x.instance_handle == message.data_reader_handle)
+            if let Ok(change_instance_handle) = add_reader_change(data_reader, message.cache_change)
             {
-                let writer_instance_handle =
-                    InstanceHandle::new(message.cache_change.writer_guid.into());
-
-                if reader
-                    .matched_publication_list
-                    .contains_key(&writer_instance_handle)
+                if let DurationKind::Finite(deadline_missed_period) =
+                    data_reader.qos.deadline.period
                 {
-                    if let Ok(change_instance_handle) =
-                        add_change(&mut reader, message.cache_change)
+                    let timer_handle = self.timer_driver.handle();
+                    let deadline_missed_task = self.executor.handle().spawn(async move {
+                        timer_handle.sleep(deadline_missed_period.into()).await;
+                        message
+                            .domain_participant_address
+                            .send_actor_mail(DeadlineMissed {
+                                subscriber_handle: message.subscriber_handle,
+                                data_reader_handle: message.data_reader_handle,
+                                change_instance_handle,
+                            })
+                            .ok();
+                    });
+                    if let Some(t) = data_reader
+                        .instance_deadline_missed_task
+                        .remove(&change_instance_handle)
                     {
-                        if let DurationKind::Finite(deadline_missed_period) =
-                            reader.qos.deadline.period
-                        {
-                            let timer_handle = self.timer_driver.handle();
-                            let deadline_missed_task = self.executor.handle().spawn(async move {
-                                timer_handle.sleep(deadline_missed_period.into()).await;
-                                message
-                                    .domain_participant_address
-                                    .send_actor_mail(DeadlineMissed {
-                                        subscriber_handle: message.subscriber_handle,
-                                        data_reader_handle: message.data_reader_handle,
-                                        change_instance_handle,
-                                    })
-                                    .ok();
-                            });
-                            if let Some(t) = reader
-                                .instance_deadline_missed_task
-                                .remove(&change_instance_handle)
-                            {
-                                t.abort();
-                            }
-
-                            reader
-                                .instance_deadline_missed_task
-                                .insert(change_instance_handle, deadline_missed_task);
-                        }
-
-                        subscriber.status_condition.send_actor_mail(
-                            status_condition_actor::AddCommunicationState {
-                                state: StatusKind::DataOnReaders,
-                            },
-                        );
+                        t.abort();
                     }
+
+                    data_reader
+                        .instance_deadline_missed_task
+                        .insert(change_instance_handle, deadline_missed_task);
                 }
+
+                subscriber.status_condition.send_actor_mail(
+                    status_condition_actor::AddCommunicationState {
+                        state: StatusKind::DataOnReaders,
+                    },
+                );
             }
         }
+        Ok(())
     }
 }
 
@@ -5377,7 +5487,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
         {
-            add_change(&mut reader, message.cache_change).ok();
+            add_reader_change(&mut reader, message.cache_change).ok();
             if let Ok(samples) = read(
                 reader,
                 i32::MAX,
@@ -5427,7 +5537,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_TOPIC)
         {
-            add_change(&mut reader, message.cache_change).ok();
+            add_reader_change(&mut reader, message.cache_change).ok();
             if let Ok(samples) = read(
                 reader,
                 i32::MAX,
@@ -5473,7 +5583,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_PUBLICATION)
         {
-            add_change(&mut reader, message.cache_change).ok();
+            add_reader_change(&mut reader, message.cache_change).ok();
             if let Ok(samples) = read(
                 reader,
                 i32::MAX,
@@ -5523,7 +5633,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
             .iter_mut()
             .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
         {
-            add_change(&mut reader, message.cache_change).ok();
+            add_reader_change(&mut reader, message.cache_change).ok();
 
             self.status_condition
                 .send_actor_mail(status_condition_actor::AddCommunicationState {
@@ -6176,7 +6286,7 @@ fn dispose_w_timestamp(
     Ok(())
 }
 
-fn add_change(
+fn add_reader_change(
     data_reader: &mut DataReaderActor,
     cache_change: ReaderCacheChange,
 ) -> DdsResult<InstanceHandle> {
@@ -6848,4 +6958,17 @@ pub fn read_next_instance(
         ),
         None => Err(DdsError::NoData),
     }
+}
+
+fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
+    for index in 0..type_support.get_member_count() {
+        if let Ok(m) = type_support.get_member_by_index(index) {
+            if let Ok(d) = m.get_descriptor() {
+                if d.is_key {
+                    return TopicKind::WithKey;
+                }
+            }
+        }
+    }
+    TopicKind::NoKey
 }

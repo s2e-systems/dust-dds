@@ -2,8 +2,8 @@ use std::{future::Future, pin::Pin};
 
 use crate::{
     dds_async::{
-        data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync,
+        data_reader_listener::DataReaderListenerAsync, subscriber::SubscriberAsync,
+        topic::TopicAsync,
     },
     implementation::actor::ActorAddress,
     infrastructure::status::{
@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-use super::{data_reader_actor::DataReaderActor, status_condition_actor::StatusConditionActor};
+use super::status_condition_actor::StatusConditionActor;
 
 pub enum DataReaderListenerOperation {
     DataAvailable,
@@ -28,7 +28,6 @@ pub trait AnyDataReaderListener {
     fn call_listener_function(
         &mut self,
         listener_operation: DataReaderListenerOperation,
-        reader_address: ActorAddress<DataReaderActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
@@ -42,7 +41,6 @@ where
     fn call_listener_function(
         &mut self,
         listener_operation: DataReaderListenerOperation,
-        reader_address: ActorAddress<DataReaderActor>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,

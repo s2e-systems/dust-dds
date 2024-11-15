@@ -1,38 +1,22 @@
-use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader_actor::{DataReaderActor, DataReaderListenerThread},
-    status_condition_actor,
-    topic_actor::TopicActor,
-};
 use crate::{
     dds_async::{
         subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
         topic::TopicAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress},
-        actors::status_condition_actor::StatusConditionActor,
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-        runtime::{executor::ExecutorHandle, mpsc::MpscSender},
+        actor::ActorAddress, actors::status_condition_actor::StatusConditionActor,
+        runtime::mpsc::MpscSender,
     },
     infrastructure::{
         error::DdsResult,
-        instance::InstanceHandle,
-        qos::{DataReaderQos, QosKind, SubscriberQos},
-        qos_policy::PartitionQosPolicy,
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
+            SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
         },
     },
-    rtps::reader::{ReaderCacheChange, TransportReader},
 };
-use fnmatch_regex::glob_to_regex;
-use std::{
-    collections::{HashMap, HashSet},
-    thread::JoinHandle,
-};
-use tracing::warn;
+
+use std::thread::JoinHandle;
 
 pub enum SubscriberListenerOperation {
     DataOnReaders(SubscriberAsync),
@@ -47,7 +31,6 @@ pub enum SubscriberListenerOperation {
 
 pub struct SubscriberListenerMessage {
     pub listener_operation: SubscriberListenerOperation,
-    pub reader_address: ActorAddress<DataReaderActor>,
     pub status_condition_address: ActorAddress<StatusConditionActor>,
     pub subscriber: SubscriberAsync,
     pub topic: TopicAsync,
@@ -119,15 +102,4 @@ impl SubscriberListenerThread {
         self.thread.join()?;
         Ok(())
     }
-}
-
-pub struct SubscriberActor {
-    pub instance_handle: InstanceHandle,
-    pub qos: SubscriberQos,
-    pub data_reader_list: Vec<DataReaderActor>,
-    pub enabled: bool,
-    pub default_data_reader_qos: DataReaderQos,
-    pub status_condition: Actor<StatusConditionActor>,
-    pub subscriber_listener_thread: Option<SubscriberListenerThread>,
-    pub subscriber_status_kind: Vec<StatusKind>,
 }

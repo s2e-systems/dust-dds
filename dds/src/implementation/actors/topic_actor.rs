@@ -1,24 +1,12 @@
-use super::status_condition_actor::{self, StatusConditionActor};
 use crate::{
-    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::{
-        actor::{Actor, ActorAddress},
-        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-        runtime::{
-            executor::{block_on, ExecutorHandle},
-            mpsc::{mpsc_channel, MpscSender},
-        },
+    implementation::runtime::{
+        executor::block_on,
+        mpsc::{mpsc_channel, MpscSender},
     },
-    infrastructure::{
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos::TopicQos,
-        status::{InconsistentTopicStatus, StatusKind},
-    },
-    xtypes::dynamic_type::DynamicType,
+    infrastructure::error::DdsResult,
 };
-use std::{sync::Arc, thread::JoinHandle};
+use std::thread::JoinHandle;
 
 pub enum TopicListenerOperation {}
 
@@ -60,17 +48,4 @@ impl TopicListenerThread {
         self._thread.join()?;
         Ok(())
     }
-}
-
-pub struct TopicActor {
-    pub qos: TopicQos,
-    pub type_name: String,
-    pub topic_name: String,
-    pub instance_handle: InstanceHandle,
-    pub enabled: bool,
-    pub inconsistent_topic_status: InconsistentTopicStatus,
-    pub status_condition: Actor<StatusConditionActor>,
-    pub topic_listener_thread: Option<TopicListenerThread>,
-    pub status_kind: Vec<StatusKind>,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
 }
