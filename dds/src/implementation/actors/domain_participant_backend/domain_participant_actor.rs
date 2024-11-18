@@ -30,7 +30,6 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -405,6 +404,38 @@ impl DomainParticipantActor {
         timer_driver: TimerDriver,
         transport: Box<dyn Transport>,
     ) -> Self {
+        fn sedp_data_reader_qos() -> DataReaderQos {
+            DataReaderQos {
+                durability: DurabilityQosPolicy {
+                    kind: DurabilityQosPolicyKind::TransientLocal,
+                },
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLast(1),
+                },
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::Reliable,
+                    max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+                },
+                ..Default::default()
+            }
+        }
+
+        fn sedp_data_writer_qos() -> DataWriterQos {
+            DataWriterQos {
+                durability: DurabilityQosPolicy {
+                    kind: DurabilityQosPolicyKind::TransientLocal,
+                },
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLast(1),
+                },
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::Reliable,
+                    max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
+                },
+                ..Default::default()
+            }
+        }
+
         let mut instance_handle_counter = InstanceHandleCounter::default();
 
         let mut topic_list = HashMap::new();
@@ -495,106 +526,50 @@ impl DomainParticipantActor {
             ..Default::default()
         };
 
-        let dcps_participant_reader = DataReaderActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
-            type_name: topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
-            type_support: topic_list[DCPS_PARTICIPANT].type_support().clone(),
-            _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            sample_lost_status: SampleLostStatus::default(),
-            sample_rejected_status: SampleRejectedStatus::default(),
-            subscription_matched_status: SubscriptionMatchedStatus::default(),
-            matched_publication_list: HashMap::new(),
-            enabled: false,
-            data_available_status_changed_flag: false,
-            incompatible_writer_list: HashSet::new(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_reader_status_kind: Vec::new(),
-            data_reader_listener_thread: None,
-            qos: spdp_reader_qos,
-            instances: HashMap::new(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_ownership: HashMap::new(),
-            transport_reader: transport.get_participant_discovery_reader(),
-        };
-        let dcps_topic_reader = DataReaderActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_TOPIC].topic_name().to_owned(),
-            type_name: topic_list[DCPS_TOPIC].type_name().to_owned(),
-            type_support: topic_list[DCPS_TOPIC].type_support().clone(),
-            _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            sample_lost_status: SampleLostStatus::default(),
-            sample_rejected_status: SampleRejectedStatus::default(),
-            subscription_matched_status: SubscriptionMatchedStatus::default(),
-            matched_publication_list: HashMap::new(),
-            enabled: false,
-            data_available_status_changed_flag: false,
-            incompatible_writer_list: HashSet::new(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_reader_status_kind: Vec::new(),
-            data_reader_listener_thread: None,
-            qos: sedp_data_reader_qos(),
-            instances: HashMap::new(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_ownership: HashMap::new(),
-            transport_reader: transport.get_topics_discovery_reader(),
-        };
-        let dcps_publication_reader = DataReaderActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
-            type_name: topic_list[DCPS_PUBLICATION].type_name().to_owned(),
-            type_support: topic_list[DCPS_PUBLICATION].type_support().clone(),
-            _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            sample_lost_status: SampleLostStatus::default(),
-            sample_rejected_status: SampleRejectedStatus::default(),
-            subscription_matched_status: SubscriptionMatchedStatus::default(),
-            matched_publication_list: HashMap::new(),
-            enabled: false,
-            data_available_status_changed_flag: false,
-            incompatible_writer_list: HashSet::new(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_reader_status_kind: Vec::new(),
-            data_reader_listener_thread: None,
-            qos: sedp_data_reader_qos(),
-            instances: HashMap::new(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_ownership: HashMap::new(),
-            transport_reader: transport.get_publications_discovery_reader(),
-        };
-        let dcps_subscription_reader = DataReaderActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            sample_list: Vec::new(),
-            topic_name: topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
-            type_name: topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
-            type_support: topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
-            _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            sample_lost_status: SampleLostStatus::default(),
-            sample_rejected_status: SampleRejectedStatus::default(),
-            subscription_matched_status: SubscriptionMatchedStatus::default(),
-            matched_publication_list: HashMap::new(),
-            enabled: false,
-            data_available_status_changed_flag: false,
-            incompatible_writer_list: HashSet::new(),
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_reader_status_kind: Vec::new(),
-            data_reader_listener_thread: None,
-            qos: sedp_data_reader_qos(),
-            instances: HashMap::new(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_ownership: HashMap::new(),
-            transport_reader: transport.get_subscriptions_discovery_reader(),
-        };
+        let dcps_participant_reader = DataReaderActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            spdp_reader_qos,
+            topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
+            topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
+            topic_list[DCPS_PARTICIPANT].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            Vec::new(),
+            transport.get_participant_discovery_reader(),
+        );
+        let dcps_topic_reader = DataReaderActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            sedp_data_reader_qos(),
+            topic_list[DCPS_TOPIC].topic_name().to_owned(),
+            topic_list[DCPS_TOPIC].type_name().to_owned(),
+            topic_list[DCPS_TOPIC].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            Vec::new(),
+            transport.get_topics_discovery_reader(),
+        );
+        let dcps_publication_reader = DataReaderActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            sedp_data_reader_qos(),
+            topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
+            topic_list[DCPS_PUBLICATION].type_name().to_owned(),
+            topic_list[DCPS_PUBLICATION].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            Vec::new(),
+            transport.get_topics_discovery_reader(),
+        );
+        let dcps_subscription_reader = DataReaderActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            sedp_data_reader_qos(),
+            topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
+            topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
+            topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            Vec::new(),
+            transport.get_topics_discovery_reader(),
+        );
 
         let mut builtin_subscriber = SubscriberActor::new(
             instance_handle_counter.generate_new_instance_handle(),
@@ -977,12 +952,14 @@ impl DomainParticipantActor {
                     if is_partition_matched {
                         let subscriber_qos = subscriber.qos().clone();
                         for data_reader in subscriber.data_reader_list_mut().filter(|dr| {
-                            dr.topic_name == discovered_writer_data.dds_publication_data.topic_name
+                            dr.topic_name()
+                                == discovered_writer_data.dds_publication_data.topic_name
                         }) {
                             let publication_builtin_topic_data =
                                 &discovered_writer_data.dds_publication_data;
-                            if publication_builtin_topic_data.topic_name == data_reader.topic_name
-                                && publication_builtin_topic_data.type_name == data_reader.type_name
+                            if publication_builtin_topic_data.topic_name == data_reader.topic_name()
+                                && publication_builtin_topic_data.type_name
+                                    == data_reader.type_name()
                             {
                                 let instance_handle = InstanceHandle::new(
                                     discovered_writer_data.dds_publication_data.key.value,
@@ -994,209 +971,185 @@ impl DomainParticipantActor {
                                         &subscriber_qos,
                                     );
                                 if incompatible_qos_policy_list.is_empty() {
-                                    let insert_matched_publication_result =
-                                        data_reader.matched_publication_list.insert(
-                                            instance_handle,
-                                            publication_builtin_topic_data.clone(),
-                                        );
-                                    match insert_matched_publication_result {
-                                        Some(value) if &value != publication_builtin_topic_data => {
-                                            data_reader.subscription_matched_status.total_count +=
-                                                1;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .total_count_change += 1;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .last_publication_handle = discovered_writer_handle;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .current_count += 1;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .current_count_change += 1;
+                                    todo!()
+                                    // let insert_matched_publication_result =
+                                    //     data_reader.matched_publication_list.insert(
+                                    //         instance_handle,
+                                    //         publication_builtin_topic_data.clone(),
+                                    //     );
+                                    // match insert_matched_publication_result {
+                                    //     Some(value) if &value != publication_builtin_topic_data => {
+                                    //         data_reader.subscription_matched_status.total_count +=
+                                    //             1;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .total_count_change += 1;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .last_publication_handle = discovered_writer_handle;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .current_count += 1;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .current_count_change += 1;
 
-                                            // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-                                            // let type_name = self.type_name.clone();
-                                            // let topic_name = self.topic_name.clone();
-                                            // let reader_address = data_reader_address.clone();
-                                            // let status_condition_address = self.status_condition.address();
-                                            // let subscriber = subscriber.clone();
+                                    //         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
+                                    //         // let type_name = self.type_name.clone();
+                                    //         // let topic_name = self.topic_name.clone();
+                                    //         // let reader_address = data_reader_address.clone();
+                                    //         // let status_condition_address = self.status_condition.address();
+                                    //         // let subscriber = subscriber.clone();
 
-                                            // let topic_status_condition_address = self.topic_status_condition.clone();
-                                            // let topic = TopicAsync::new(
-                                            //     self.topic_address.clone(),
-                                            //     topic_status_condition_address.clone(),
-                                            //     type_name.clone(),
-                                            //     topic_name.clone(),
-                                            //     subscriber.get_participant(),
-                                            // );
-                                            // if self
-                                            //     .data_reader_status_kind
-                                            //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
-                                            // {
-                                            //     let status = self
-                                            //         .subscription_matched_status
-                                            //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                            //     if let Some(listener) = &self.data_reader_listener_thread {
-                                            //         listener.sender().send(DataReaderListenerMessage {
-                                            //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
-                                            //             reader_address,
-                                            //             status_condition_address,
-                                            //             subscriber,
-                                            //             topic,
-                                            //         })?;
-                                            //     }
-                                            // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                            //     let status = self
-                                            //         .subscription_matched_status
-                                            //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                            //     if let Some(listener) = subscriber_listener {
-                                            //         listener.send(SubscriberListenerMessage {
-                                            //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
-                                            //             reader_address,
-                                            //             status_condition_address,
-                                            //             subscriber,
-                                            //             topic,
-                                            //         })?;
-                                            //     }
-                                            // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                            //     let status = self
-                                            //         .subscription_matched_status
-                                            //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                            //     if let Some(listener) = participant_listener {
-                                            //         listener.send(ParticipantListenerMessage {
-                                            //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
-                                            //             listener_kind: ListenerKind::Reader {
-                                            //                 reader_address,
-                                            //                 status_condition_address,
-                                            //                 subscriber,
-                                            //                 topic,
-                                            //             },
-                                            //         })?;
-                                            //     }
-                                            // }
-                                            data_reader.status_condition.send_actor_mail(
-                                                status_condition_actor::AddCommunicationState {
-                                                    state: StatusKind::SubscriptionMatched,
-                                                },
-                                            );
-                                        }
-                                        None => {
-                                            data_reader.subscription_matched_status.total_count +=
-                                                1;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .total_count_change += 1;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .last_publication_handle = discovered_writer_handle;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .current_count += 1;
-                                            data_reader
-                                                .subscription_matched_status
-                                                .current_count_change += 1;
+                                    //         // let topic_status_condition_address = self.topic_status_condition.clone();
+                                    //         // let topic = TopicAsync::new(
+                                    //         //     self.topic_address.clone(),
+                                    //         //     topic_status_condition_address.clone(),
+                                    //         //     type_name.clone(),
+                                    //         //     topic_name.clone(),
+                                    //         //     subscriber.get_participant(),
+                                    //         // );
+                                    //         // if self
+                                    //         //     .data_reader_status_kind
+                                    //         //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+                                    //         // {
+                                    //         //     let status = self
+                                    //         //         .subscription_matched_status
+                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+                                    //         //     if let Some(listener) = &self.data_reader_listener_thread {
+                                    //         //         listener.sender().send(DataReaderListenerMessage {
+                                    //         //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+                                    //         //             reader_address,
+                                    //         //             status_condition_address,
+                                    //         //             subscriber,
+                                    //         //             topic,
+                                    //         //         })?;
+                                    //         //     }
+                                    //         // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+                                    //         //     let status = self
+                                    //         //         .subscription_matched_status
+                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+                                    //         //     if let Some(listener) = subscriber_listener {
+                                    //         //         listener.send(SubscriberListenerMessage {
+                                    //         //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+                                    //         //             reader_address,
+                                    //         //             status_condition_address,
+                                    //         //             subscriber,
+                                    //         //             topic,
+                                    //         //         })?;
+                                    //         //     }
+                                    //         // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+                                    //         //     let status = self
+                                    //         //         .subscription_matched_status
+                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+                                    //         //     if let Some(listener) = participant_listener {
+                                    //         //         listener.send(ParticipantListenerMessage {
+                                    //         //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+                                    //         //             listener_kind: ListenerKind::Reader {
+                                    //         //                 reader_address,
+                                    //         //                 status_condition_address,
+                                    //         //                 subscriber,
+                                    //         //                 topic,
+                                    //         //             },
+                                    //         //         })?;
+                                    //         //     }
+                                    //         // }
+                                    //         data_reader.status_condition.send_actor_mail(
+                                    //             status_condition_actor::AddCommunicationState {
+                                    //                 state: StatusKind::SubscriptionMatched,
+                                    //             },
+                                    //         );
+                                    //     }
+                                    //     None => {
+                                    //         data_reader.subscription_matched_status.total_count +=
+                                    //             1;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .total_count_change += 1;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .last_publication_handle = discovered_writer_handle;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .current_count += 1;
+                                    //         data_reader
+                                    //             .subscription_matched_status
+                                    //             .current_count_change += 1;
 
-                                            // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-                                            // let type_name = self.type_name.clone();
-                                            // let topic_name = self.topic_name.clone();
-                                            // let reader_address = data_reader_address.clone();
-                                            // let status_condition_address = self.status_condition.address();
-                                            // let subscriber = subscriber.clone();
+                                    //         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
+                                    //         // let type_name = self.type_name.clone();
+                                    //         // let topic_name = self.topic_name.clone();
+                                    //         // let reader_address = data_reader_address.clone();
+                                    //         // let status_condition_address = self.status_condition.address();
+                                    //         // let subscriber = subscriber.clone();
 
-                                            // let topic_status_condition_address = self.topic_status_condition.clone();
-                                            // let topic = TopicAsync::new(
-                                            //     self.topic_address.clone(),
-                                            //     topic_status_condition_address.clone(),
-                                            //     type_name.clone(),
-                                            //     topic_name.clone(),
-                                            //     subscriber.get_participant(),
-                                            // );
-                                            // if self
-                                            //     .data_reader_status_kind
-                                            //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
-                                            // {
-                                            //     let status = self
-                                            //         .subscription_matched_status
-                                            //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                            //     if let Some(listener) = &self.data_reader_listener_thread {
-                                            //         listener.sender().send(DataReaderListenerMessage {
-                                            //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
-                                            //             reader_address,
-                                            //             status_condition_address,
-                                            //             subscriber,
-                                            //             topic,
-                                            //         })?;
-                                            //     }
-                                            // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                            //     let status = self
-                                            //         .subscription_matched_status
-                                            //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                            //     if let Some(listener) = subscriber_listener {
-                                            //         listener.send(SubscriberListenerMessage {
-                                            //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
-                                            //             reader_address,
-                                            //             status_condition_address,
-                                            //             subscriber,
-                                            //             topic,
-                                            //         })?;
-                                            //     }
-                                            // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                            //     let status = self
-                                            //         .subscription_matched_status
-                                            //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                            //     if let Some(listener) = participant_listener {
-                                            //         listener.send(ParticipantListenerMessage {
-                                            //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
-                                            //             listener_kind: ListenerKind::Reader {
-                                            //                 reader_address,
-                                            //                 status_condition_address,
-                                            //                 subscriber,
-                                            //                 topic,
-                                            //             },
-                                            //         })?;
-                                            //     }
-                                            // }
-                                            data_reader.status_condition.send_actor_mail(
-                                                status_condition_actor::AddCommunicationState {
-                                                    state: StatusKind::SubscriptionMatched,
-                                                },
-                                            );
-                                        }
-                                        _ => (),
-                                    }
-                                } else if !data_reader
-                                    .incompatible_writer_list
-                                    .contains(&instance_handle)
-                                {
-                                    data_reader.incompatible_writer_list.insert(instance_handle);
-                                    data_reader.requested_incompatible_qos_status.total_count += 1;
-                                    data_reader
-                                        .requested_incompatible_qos_status
-                                        .total_count_change += 1;
-                                    data_reader.requested_incompatible_qos_status.last_policy_id =
-                                        incompatible_qos_policy_list[0];
-                                    for incompatible_qos_policy in
-                                        incompatible_qos_policy_list.into_iter()
-                                    {
-                                        if let Some(policy_count) = data_reader
-                                            .requested_incompatible_qos_status
-                                            .policies
-                                            .iter_mut()
-                                            .find(|x| x.policy_id == incompatible_qos_policy)
-                                        {
-                                            policy_count.count += 1;
-                                        } else {
-                                            data_reader
-                                                .requested_incompatible_qos_status
-                                                .policies
-                                                .push(QosPolicyCount {
-                                                    policy_id: incompatible_qos_policy,
-                                                    count: 1,
-                                                })
-                                        }
-                                    }
+                                    //         // let topic_status_condition_address = self.topic_status_condition.clone();
+                                    //         // let topic = TopicAsync::new(
+                                    //         //     self.topic_address.clone(),
+                                    //         //     topic_status_condition_address.clone(),
+                                    //         //     type_name.clone(),
+                                    //         //     topic_name.clone(),
+                                    //         //     subscriber.get_participant(),
+                                    //         // );
+                                    //         // if self
+                                    //         //     .data_reader_status_kind
+                                    //         //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+                                    //         // {
+                                    //         //     let status = self
+                                    //         //         .subscription_matched_status
+                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+                                    //         //     if let Some(listener) = &self.data_reader_listener_thread {
+                                    //         //         listener.sender().send(DataReaderListenerMessage {
+                                    //         //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+                                    //         //             reader_address,
+                                    //         //             status_condition_address,
+                                    //         //             subscriber,
+                                    //         //             topic,
+                                    //         //         })?;
+                                    //         //     }
+                                    //         // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+                                    //         //     let status = self
+                                    //         //         .subscription_matched_status
+                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+                                    //         //     if let Some(listener) = subscriber_listener {
+                                    //         //         listener.send(SubscriberListenerMessage {
+                                    //         //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+                                    //         //             reader_address,
+                                    //         //             status_condition_address,
+                                    //         //             subscriber,
+                                    //         //             topic,
+                                    //         //         })?;
+                                    //         //     }
+                                    //         // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+                                    //         //     let status = self
+                                    //         //         .subscription_matched_status
+                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+                                    //         //     if let Some(listener) = participant_listener {
+                                    //         //         listener.send(ParticipantListenerMessage {
+                                    //         //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+                                    //         //             listener_kind: ListenerKind::Reader {
+                                    //         //                 reader_address,
+                                    //         //                 status_condition_address,
+                                    //         //                 subscriber,
+                                    //         //                 topic,
+                                    //         //             },
+                                    //         //         })?;
+                                    //         //     }
+                                    //         // }
+                                    //         data_reader.status_condition.send_actor_mail(
+                                    //             status_condition_actor::AddCommunicationState {
+                                    //                 state: StatusKind::SubscriptionMatched,
+                                    //             },
+                                    //         );
+                                    //     }
+                                    //     _ => (),
+
+                                    // }
+                                } else {
+                                    data_reader.add_requested_incompatible_qos(
+                                        instance_handle,
+                                        incompatible_qos_policy_list,
+                                    );
 
                                     // let type_name = self.type_name.clone();
                                     // let topic_name = self.topic_name.clone();
@@ -1256,11 +1209,6 @@ impl DomainParticipantActor {
                                     //         })?;
                                     //     }
                                     // }
-                                    data_reader.status_condition.send_actor_mail(
-                                        status_condition_actor::AddCommunicationState {
-                                            state: StatusKind::RequestedIncompatibleQos,
-                                        },
-                                    );
                                 }
                             }
                         }
@@ -1519,84 +1467,85 @@ impl DomainParticipantActor {
     pub fn remove_discovered_writer(&mut self, discovered_writer_handle: InstanceHandle) {
         for subscriber in self.user_defined_subscriber_list.iter_mut() {
             for data_reader in subscriber.data_reader_list_mut() {
-                let matched_publication = data_reader
-                    .matched_publication_list
-                    .remove(&discovered_writer_handle);
-                if let Some(w) = matched_publication {
-                    data_reader.subscription_matched_status.total_count += 1;
-                    data_reader.subscription_matched_status.total_count_change += 1;
-                    data_reader
-                        .subscription_matched_status
-                        .last_publication_handle = discovered_writer_handle;
-                    data_reader.subscription_matched_status.current_count += 1;
-                    data_reader.subscription_matched_status.current_count_change += 1;
+                todo!()
+                // let matched_publication = data_reader
+                //     .matched_publication_list
+                //     .remove(&discovered_writer_handle);
+                // if let Some(w) = matched_publication {
+                //     data_reader.subscription_matched_status.total_count += 1;
+                //     data_reader.subscription_matched_status.total_count_change += 1;
+                //     data_reader
+                //         .subscription_matched_status
+                //         .last_publication_handle = discovered_writer_handle;
+                //     data_reader.subscription_matched_status.current_count += 1;
+                //     data_reader.subscription_matched_status.current_count_change += 1;
 
-                    // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-                    // let type_name = self.type_name.clone();
-                    // let topic_name = self.topic_name.clone();
-                    // let reader_address = data_reader_address.clone();
-                    // let status_condition_address = self.status_condition.address();
-                    // let subscriber = subscriber.clone();
+                //     // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
+                //     // let type_name = self.type_name.clone();
+                //     // let topic_name = self.topic_name.clone();
+                //     // let reader_address = data_reader_address.clone();
+                //     // let status_condition_address = self.status_condition.address();
+                //     // let subscriber = subscriber.clone();
 
-                    // let topic_status_condition_address = self.topic_status_condition.clone();
-                    // let topic = TopicAsync::new(
-                    //     self.topic_address.clone(),
-                    //     topic_status_condition_address.clone(),
-                    //     type_name.clone(),
-                    //     topic_name.clone(),
-                    //     subscriber.get_participant(),
-                    // );
-                    // if self
-                    //     .data_reader_status_kind
-                    //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
-                    // {
-                    //     let status = self
-                    //         .subscription_matched_status
-                    //         .read_and_reset(self.matched_publication_list.len() as i32);
-                    //     if let Some(listener) = &self.data_reader_listener_thread {
-                    //         listener.sender().send(DataReaderListenerMessage {
-                    //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
-                    //             reader_address,
-                    //             status_condition_address,
-                    //             subscriber,
-                    //             topic,
-                    //         })?;
-                    //     }
-                    // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                    //     let status = self
-                    //         .subscription_matched_status
-                    //         .read_and_reset(self.matched_publication_list.len() as i32);
-                    //     if let Some(listener) = subscriber_listener {
-                    //         listener.send(SubscriberListenerMessage {
-                    //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
-                    //             reader_address,
-                    //             status_condition_address,
-                    //             subscriber,
-                    //             topic,
-                    //         })?;
-                    //     }
-                    // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                    //     let status = self
-                    //         .subscription_matched_status
-                    //         .read_and_reset(self.matched_publication_list.len() as i32);
-                    //     if let Some(listener) = participant_listener {
-                    //         listener.send(ParticipantListenerMessage {
-                    //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
-                    //             listener_kind: ListenerKind::Reader {
-                    //                 reader_address,
-                    //                 status_condition_address,
-                    //                 subscriber,
-                    //                 topic,
-                    //             },
-                    //         })?;
-                    //     }
-                    // }
-                    data_reader.status_condition.send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
-                            state: StatusKind::SubscriptionMatched,
-                        },
-                    );
-                }
+                //     // let topic_status_condition_address = self.topic_status_condition.clone();
+                //     // let topic = TopicAsync::new(
+                //     //     self.topic_address.clone(),
+                //     //     topic_status_condition_address.clone(),
+                //     //     type_name.clone(),
+                //     //     topic_name.clone(),
+                //     //     subscriber.get_participant(),
+                //     // );
+                //     // if self
+                //     //     .data_reader_status_kind
+                //     //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+                //     // {
+                //     //     let status = self
+                //     //         .subscription_matched_status
+                //     //         .read_and_reset(self.matched_publication_list.len() as i32);
+                //     //     if let Some(listener) = &self.data_reader_listener_thread {
+                //     //         listener.sender().send(DataReaderListenerMessage {
+                //     //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+                //     //             reader_address,
+                //     //             status_condition_address,
+                //     //             subscriber,
+                //     //             topic,
+                //     //         })?;
+                //     //     }
+                //     // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+                //     //     let status = self
+                //     //         .subscription_matched_status
+                //     //         .read_and_reset(self.matched_publication_list.len() as i32);
+                //     //     if let Some(listener) = subscriber_listener {
+                //     //         listener.send(SubscriberListenerMessage {
+                //     //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+                //     //             reader_address,
+                //     //             status_condition_address,
+                //     //             subscriber,
+                //     //             topic,
+                //     //         })?;
+                //     //     }
+                //     // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+                //     //     let status = self
+                //     //         .subscription_matched_status
+                //     //         .read_and_reset(self.matched_publication_list.len() as i32);
+                //     //     if let Some(listener) = participant_listener {
+                //     //         listener.send(ParticipantListenerMessage {
+                //     //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+                //     //             listener_kind: ListenerKind::Reader {
+                //     //                 reader_address,
+                //     //                 status_condition_address,
+                //     //                 subscriber,
+                //     //                 topic,
+                //     //             },
+                //     //         })?;
+                //     //     }
+                //     // }
+                //     data_reader.status_condition.send_actor_mail(
+                //         status_condition_actor::AddCommunicationState {
+                //             state: StatusKind::SubscriptionMatched,
+                //         },
+                //     );
+                // }
             }
         }
     }
@@ -1902,7 +1851,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
         for subscriber in self.user_defined_subscriber_list.iter_mut() {
             if subscriber
                 .data_reader_list()
-                .find(|dr| dr.topic_name == message.topic_name)
+                .find(|dr| dr.topic_name() == message.topic_name)
                 .is_some()
             {
                 return Err(DdsError::PreconditionNotMet(
@@ -2105,28 +2054,28 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
             for data_reader in subscriber.drain_data_reader_list() {
                 let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
                     key: BuiltInTopicKey {
-                        value: data_reader.transport_reader.guid(),
+                        value: data_reader.transport_reader().guid(),
                     },
                     participant_key: BuiltInTopicKey { value: [0; 16] },
-                    topic_name: data_reader.topic_name.clone(),
-                    type_name: data_reader.type_name.clone(),
-                    durability: data_reader.qos.durability.clone(),
-                    deadline: data_reader.qos.deadline.clone(),
-                    latency_budget: data_reader.qos.latency_budget.clone(),
-                    liveliness: data_reader.qos.liveliness.clone(),
-                    reliability: data_reader.qos.reliability.clone(),
-                    ownership: data_reader.qos.ownership.clone(),
-                    destination_order: data_reader.qos.destination_order.clone(),
-                    user_data: data_reader.qos.user_data.clone(),
-                    time_based_filter: data_reader.qos.time_based_filter.clone(),
+                    topic_name: data_reader.topic_name().to_owned(),
+                    type_name: data_reader.type_name().to_owned(),
+                    durability: data_reader.qos().durability.clone(),
+                    deadline: data_reader.qos().deadline.clone(),
+                    latency_budget: data_reader.qos().latency_budget.clone(),
+                    liveliness: data_reader.qos().liveliness.clone(),
+                    reliability: data_reader.qos().reliability.clone(),
+                    ownership: data_reader.qos().ownership.clone(),
+                    destination_order: data_reader.qos().destination_order.clone(),
+                    user_data: data_reader.qos().user_data.clone(),
+                    time_based_filter: data_reader.qos().time_based_filter.clone(),
                     presentation: subscriber_qos.presentation.clone(),
                     partition: subscriber_qos.partition.clone(),
-                    topic_data: self.topic_list[&data_reader.topic_name]
+                    topic_data: self.topic_list[data_reader.topic_name()]
                         .qos()
                         .topic_data
                         .clone(),
                     group_data: subscriber_qos.group_data.clone(),
-                    representation: data_reader.qos.representation.clone(),
+                    representation: data_reader.qos().representation.clone(),
                 };
 
                 self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
@@ -2374,937 +2323,6 @@ impl MailHandler<EnableDomainParticipant> for DomainParticipantActor {
     }
 }
 
-// ############################  Data writer messages
-pub struct RegisterInstance {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub serialized_data: Vec<u8>,
-    pub timestamp: Time,
-}
-impl Mail for RegisterInstance {
-    type Result = DdsResult<Option<InstanceHandle>>;
-}
-impl MailHandler<RegisterInstance> for DomainParticipantActor {
-    fn handle(&mut self, message: RegisterInstance) -> <RegisterInstance as Mail>::Result {
-        todo!()
-        // if !self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     return Err(DdsError::NotEnabled);
-        // }
-
-        // let type_support = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
-        //         topic_name: self.topic.get_name(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-
-        // let serialized_data = instance.serialize_data()?;
-        // let instance_handle =
-        //     get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
-
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp { instance_handle })?
-        //     .receive_reply()
-        //     .await
-    }
-}
-
-pub struct UnregisterInstance {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub serialized_data: Vec<u8>,
-    pub timestamp: Time,
-}
-impl Mail for UnregisterInstance {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<UnregisterInstance> for DomainParticipantActor {
-    fn handle(&mut self, message: UnregisterInstance) -> <UnregisterInstance as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        todo!();
-
-        Ok(())
-    }
-}
-
-pub struct LookupInstance {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub serialized_data: Vec<u8>,
-}
-impl Mail for LookupInstance {
-    type Result = DdsResult<Option<InstanceHandle>>;
-}
-impl MailHandler<LookupInstance> for DomainParticipantActor {
-    fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
-        let data_writer = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        if !data_writer.enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let instance_handle = get_instance_handle_from_serialized_foo(
-            &message.serialized_data,
-            self.topic_list[data_writer.topic_name()]
-                .type_support()
-                .as_ref(),
-        )?;
-
-        Ok(data_writer
-            .contains_instance(&instance_handle)
-            .then_some(instance_handle))
-    }
-}
-
-pub struct WriteWTimestamp {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub serialized_data: Vec<u8>,
-    pub timestamp: Time,
-}
-impl Mail for WriteWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
-    fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
-        let now = self.get_current_time();
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        todo!()
-    }
-}
-
-pub struct DisposeWTimestamp {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub serialized_data: Vec<u8>,
-    pub timestamp: Time,
-}
-impl Mail for DisposeWTimestamp {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<DisposeWTimestamp> for DomainParticipantActor {
-    fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        todo!()
-    }
-}
-
-pub struct WaitForAcknowledgments {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub timeout: Duration,
-}
-impl Mail for WaitForAcknowledgments {
-    type Result = Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>;
-}
-impl MailHandler<WaitForAcknowledgments> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: WaitForAcknowledgments,
-    ) -> <WaitForAcknowledgments as Mail>::Result {
-        let timer_handle = self.timer_driver.handle();
-        Box::pin(async move {
-            timer_handle
-                .timeout(
-                    message.timeout.into(),
-                    Box::pin(async move {
-                        loop {
-                            let all_changes_ack = message
-                                .participant_address
-                                .send_actor_mail(AreAllChangesAcknowledged {
-                                    publisher_handle: message.publisher_handle,
-                                    data_writer_handle: message.data_writer_handle,
-                                })?
-                                .receive_reply()
-                                .await?;
-                            if all_changes_ack {
-                                return Ok(());
-                            }
-                        }
-                    }),
-                )
-                .await
-                .map_err(|_| DdsError::Timeout)?
-        })
-    }
-}
-
-pub struct GetOfferedDeadlineMissedStatus {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for GetOfferedDeadlineMissedStatus {
-    type Result = DdsResult<OfferedDeadlineMissedStatus>;
-}
-impl MailHandler<GetOfferedDeadlineMissedStatus> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetOfferedDeadlineMissedStatus,
-    ) -> <GetOfferedDeadlineMissedStatus as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        Ok(data_writer.get_offered_deadline_missed_status())
-    }
-}
-
-pub struct GetPublicationMatchedStatus {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for GetPublicationMatchedStatus {
-    type Result = DdsResult<PublicationMatchedStatus>;
-}
-impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetPublicationMatchedStatus,
-    ) -> <GetPublicationMatchedStatus as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        Ok(data_writer.get_publication_matched_status())
-    }
-}
-
-pub struct GetMatchedSubscriptionData {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub subscription_handle: InstanceHandle,
-}
-impl Mail for GetMatchedSubscriptionData {
-    type Result = DdsResult<SubscriptionBuiltinTopicData>;
-}
-impl MailHandler<GetMatchedSubscriptionData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetMatchedSubscriptionData,
-    ) -> <GetMatchedSubscriptionData as Mail>::Result {
-        self.user_defined_publisher_list
-            .iter()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_matched_subscription_data(&message.subscription_handle)
-            .ok_or(DdsError::BadParameter)
-            .cloned()
-    }
-}
-
-pub struct GetMatchedSubscriptions {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for GetMatchedSubscriptions {
-    type Result = DdsResult<Vec<InstanceHandle>>;
-}
-impl MailHandler<GetMatchedSubscriptions> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetMatchedSubscriptions,
-    ) -> <GetMatchedSubscriptions as Mail>::Result {
-        Ok(self
-            .user_defined_publisher_list
-            .iter()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_writer(message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_matched_subscriptions())
-    }
-}
-
-pub struct SetDataWriterQos {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub qos: QosKind<DataWriterQos>,
-}
-impl Mail for SetDataWriterQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetDataWriterQos) -> <SetDataWriterQos as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let qos = match message.qos {
-            QosKind::Default => publisher.default_datawriter_qos().clone(),
-            QosKind::Specific(q) => q,
-        };
-        let publisher_qos = publisher.qos().clone();
-        let data_writer = publisher
-            .get_mut_data_writer(message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        if data_writer.enabled() {
-            data_writer.set_qos(qos);
-
-            let publication_builtin_topic_data = PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: data_writer.transport_writer().guid(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_writer.topic_name().to_owned(),
-                type_name: data_writer.type_name().to_owned(),
-                durability: data_writer.qos().durability.clone(),
-                deadline: data_writer.qos().deadline.clone(),
-                latency_budget: data_writer.qos().latency_budget.clone(),
-                liveliness: data_writer.qos().liveliness.clone(),
-                reliability: data_writer.qos().reliability.clone(),
-                lifespan: data_writer.qos().lifespan.clone(),
-                user_data: data_writer.qos().user_data.clone(),
-                ownership: data_writer.qos().ownership.clone(),
-                ownership_strength: data_writer.qos().ownership_strength.clone(),
-                destination_order: data_writer.qos().destination_order.clone(),
-                presentation: publisher_qos.presentation.clone(),
-                partition: publisher_qos.partition.clone(),
-                topic_data: self.topic_list[data_writer.topic_name()]
-                    .qos()
-                    .topic_data
-                    .clone(),
-                group_data: publisher_qos.group_data.clone(),
-                representation: data_writer.qos().representation.clone(),
-            };
-
-            self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
-        } else {
-            data_writer.set_qos(qos);
-        }
-
-        Ok(())
-    }
-}
-
-pub struct GetDataWriterQos {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for GetDataWriterQos {
-    type Result = DdsResult<DataWriterQos>;
-}
-impl MailHandler<GetDataWriterQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetDataWriterQos) -> <GetDataWriterQos as Mail>::Result {
-        todo!()
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.publisher_address()
-        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => q,
-        // };
-
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::SetQos { qos })?
-        //     .receive_reply()
-        //     .await?;
-        // if self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.announce_writer().await?;
-        // }
-
-        // Ok(())
-    }
-}
-
-pub struct EnableDataWriter {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for EnableDataWriter {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<EnableDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableDataWriter) -> <EnableDataWriter as Mail>::Result {
-        todo!()
-        // let writer = self.writer_address();
-        // if !writer
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     let message_sender_actor = self
-        //         .participant_address()
-        //         .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //         .receive_reply()
-        //         .await;
-        //     writer
-        //         .send_actor_mail(data_writer_actor::Enable {
-        //             data_writer_address: writer.clone(),
-        //             message_sender_actor,
-        //             executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //             timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
-
-        //     self.announce_writer().await?;
-
-        //     self.process_sedp_subscriptions_discovery().await?;
-        // }
-        // Ok(())
-    }
-}
-
-pub struct GetDataWriterInstanceHandle {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for GetDataWriterInstanceHandle {
-    type Result = DdsResult<InstanceHandle>;
-}
-impl MailHandler<GetDataWriterInstanceHandle> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDataWriterInstanceHandle,
-    ) -> <GetDataWriterInstanceHandle as Mail>::Result {
-        todo!()
-        // let writer = self.writer_address();
-        // if !writer
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     let message_sender_actor = self
-        //         .participant_address()
-        //         .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //         .receive_reply()
-        //         .await;
-        //     writer
-        //         .send_actor_mail(data_writer_actor::Enable {
-        //             data_writer_address: writer.clone(),
-        //             message_sender_actor,
-        //             executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //             timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
-
-        //     self.announce_writer().await?;
-
-        //     self.process_sedp_subscriptions_discovery().await?;
-        // }
-        // Ok(())
-    }
-}
-
-pub struct SetDataWriterListener {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
-    pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetDataWriterListener {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDataWriterListener> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDataWriterListener,
-    ) -> <SetDataWriterListener as Mail>::Result {
-        todo!()
-        // let writer = self.writer_address();
-        // if !writer
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     let message_sender_actor = self
-        //         .participant_address()
-        //         .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //         .receive_reply()
-        //         .await;
-        //     writer
-        //         .send_actor_mail(data_writer_actor::Enable {
-        //             data_writer_address: writer.clone(),
-        //             message_sender_actor,
-        //             executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //             timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
-
-        //     self.announce_writer().await?;
-
-        //     self.process_sedp_subscriptions_discovery().await?;
-        // }
-        // Ok(())
-    }
-}
-
-// ############################  Data reader messages
-pub struct Read {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub max_samples: i32,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-    pub specific_instance_handle: Option<InstanceHandle>,
-}
-impl Mail for Read {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<Read> for DomainParticipantActor {
-    fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
-        let subscriber = if message.subscriber_handle == self.get_instance_handle() {
-            Some(&mut self.builtin_subscriber)
-        } else {
-            self.user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| x.instance_handle() == message.subscriber_handle)
-        }
-        .ok_or(DdsError::AlreadyDeleted)?;
-
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        data_reader.read(
-            message.max_samples,
-            &message.sample_states,
-            &message.view_states,
-            &message.instance_states,
-            message.specific_instance_handle,
-        )
-    }
-}
-
-pub struct Take {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub max_samples: i32,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-    pub specific_instance_handle: Option<InstanceHandle>,
-}
-impl Mail for Take {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<Take> for DomainParticipantActor {
-    fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
-        let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        data_reader.take(
-            message.max_samples,
-            message.sample_states,
-            message.view_states,
-            message.instance_states,
-            message.specific_instance_handle,
-        )
-    }
-}
-
-pub struct ReadNextInstance {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub max_samples: i32,
-    pub previous_handle: Option<InstanceHandle>,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-}
-impl Mail for ReadNextInstance {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<ReadNextInstance> for DomainParticipantActor {
-    fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
-        let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        data_reader.read_next_instance(
-            message.max_samples,
-            message.previous_handle,
-            &message.sample_states,
-            &message.view_states,
-            &message.instance_states,
-        )
-    }
-}
-
-pub struct TakeNextInstance {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub max_samples: i32,
-    pub previous_handle: Option<InstanceHandle>,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
-}
-impl Mail for TakeNextInstance {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
-}
-impl MailHandler<TakeNextInstance> for DomainParticipantActor {
-    fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
-        let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        data_reader.take_next_instance(
-            message.max_samples,
-            message.previous_handle,
-            message.sample_states,
-            message.view_states,
-            message.instance_states,
-        )
-    }
-}
-
-pub struct GetSubscriptionMatchedStatus {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for GetSubscriptionMatchedStatus {
-    type Result = DdsResult<SubscriptionMatchedStatus>;
-}
-impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetSubscriptionMatchedStatus,
-    ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
-        let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        data_reader.status_condition.send_actor_mail(
-            status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            },
-        );
-        let status = data_reader.subscription_matched_status.clone();
-
-        data_reader.subscription_matched_status.total_count_change = 0;
-        data_reader.subscription_matched_status.current_count_change = 0;
-
-        Ok(status)
-    }
-}
-
-pub struct WaitForHistoricalData {
-    pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub max_wait: Duration,
-}
-impl Mail for WaitForHistoricalData {
-    type Result = Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>;
-}
-impl MailHandler<WaitForHistoricalData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: WaitForHistoricalData,
-    ) -> <WaitForHistoricalData as Mail>::Result {
-        let timer_handle = self.timer_driver.handle();
-
-        Box::pin(async move {
-            timer_handle
-                .timeout(
-                    message.max_wait.into(),
-                    Box::pin(async move {
-                        loop {
-                            if message
-                                .participant_address
-                                .send_actor_mail(IsHistoricalDataReceived {
-                                    subscriber_handle: message.subscriber_handle,
-                                    data_reader_handle: message.data_reader_handle,
-                                })?
-                                .receive_reply()
-                                .await?
-                            {
-                                return Ok(());
-                            }
-                        }
-                    }),
-                )
-                .await
-                .map_err(|_| DdsError::Timeout)?
-        })
-    }
-}
-
-pub struct GetMatchedPublicationData {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub publication_handle: InstanceHandle,
-}
-impl Mail for GetMatchedPublicationData {
-    type Result = DdsResult<PublicationBuiltinTopicData>;
-}
-impl MailHandler<GetMatchedPublicationData> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetMatchedPublicationData,
-    ) -> <GetMatchedPublicationData as Mail>::Result {
-        let subscriber = self
-            .user_defined_subscriber_list
-            .iter()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        if !data_reader.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        data_reader
-            .matched_publication_list
-            .get(&message.publication_handle)
-            .cloned()
-            .ok_or(DdsError::BadParameter)
-    }
-}
-
-pub struct GetMatchedPublications {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for GetMatchedPublications {
-    type Result = DdsResult<Vec<InstanceHandle>>;
-}
-impl MailHandler<GetMatchedPublications> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetMatchedPublications,
-    ) -> <GetMatchedPublications as Mail>::Result {
-        Ok(self
-            .user_defined_subscriber_list
-            .iter()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .matched_publication_list
-            .keys()
-            .cloned()
-            .collect())
-    }
-}
-
-pub struct SetDataReaderQos {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub qos: QosKind<DataReaderQos>,
-}
-impl Mail for SetDataReaderQos {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetDataReaderQos) -> <SetDataReaderQos as Mail>::Result {
-        let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let qos = match message.qos {
-            QosKind::Default => subscriber.default_data_reader_qos().clone(),
-            QosKind::Specific(q) => q,
-        };
-        let subscriber_qos = subscriber.qos().clone();
-        let data_reader = subscriber
-            .get_mut_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        qos.is_consistent()?;
-        if data_reader.enabled {
-            qos.check_immutability(&data_reader.qos)?;
-        }
-        data_reader.qos = qos;
-
-        if data_reader.enabled {
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: data_reader.transport_reader.guid(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_reader.topic_name.clone(),
-                type_name: data_reader.type_name.clone(),
-                durability: data_reader.qos.durability.clone(),
-                deadline: data_reader.qos.deadline.clone(),
-                latency_budget: data_reader.qos.latency_budget.clone(),
-                liveliness: data_reader.qos.liveliness.clone(),
-                reliability: data_reader.qos.reliability.clone(),
-                ownership: data_reader.qos.ownership.clone(),
-                destination_order: data_reader.qos.destination_order.clone(),
-                user_data: data_reader.qos.user_data.clone(),
-                time_based_filter: data_reader.qos.time_based_filter.clone(),
-                presentation: subscriber_qos.presentation,
-                partition: subscriber_qos.partition,
-                topic_data: self.topic_list[&data_reader.topic_name]
-                    .qos()
-                    .topic_data
-                    .clone(),
-                group_data: subscriber_qos.group_data,
-                representation: data_reader.qos.representation.clone(),
-            };
-
-            self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
-        }
-
-        Ok(())
-    }
-}
-
-pub struct GetDataReaderQos {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for GetDataReaderQos {
-    type Result = DdsResult<DataReaderQos>;
-}
-impl MailHandler<GetDataReaderQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetDataReaderQos) -> <GetDataReaderQos as Mail>::Result {
-        todo!()
-    }
-}
-
-pub struct EnableDataReader {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for EnableDataReader {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<EnableDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableDataReader) -> <EnableDataReader as Mail>::Result {
-        todo!()
-        // if !self
-        //     .reader_address
-        //     .send_actor_mail(data_reader_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.reader_address
-        //         .send_actor_mail(data_reader_actor::Enable {
-        //             data_reader_address: self.reader_address.clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
-
-        //     self.announce_reader().await?;
-
-        //     self.process_sedp_publications_discovery().await?;
-        // }
-        // Ok(())
-    }
-}
-
-pub struct GetDataReaderInstanceHandle {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for GetDataReaderInstanceHandle {
-    type Result = DdsResult<InstanceHandle>;
-}
-impl MailHandler<GetDataReaderInstanceHandle> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDataReaderInstanceHandle,
-    ) -> <GetDataReaderInstanceHandle as Mail>::Result {
-        todo!()
-    }
-}
-
-pub struct SetDataReaderListener {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-    pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
-    pub status_kind: Vec<StatusKind>,
-}
-impl Mail for SetDataReaderListener {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<SetDataReaderListener> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDataReaderListener,
-    ) -> <SetDataReaderListener as Mail>::Result {
-        todo!()
-    }
-}
-
 // ############################  Other messages
 pub struct AnnounceParticipant;
 impl Mail for AnnounceParticipant {
@@ -3339,38 +2357,11 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
         let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid.into());
 
         if data_reader
-            .matched_publication_list
-            .contains_key(&writer_instance_handle)
+            .get_matched_publication_data(&writer_instance_handle)
+            .is_some()
         {
             if let Ok(change_instance_handle) = data_reader.add_reader_change(message.cache_change)
             {
-                if let DurationKind::Finite(deadline_missed_period) =
-                    data_reader.qos.deadline.period
-                {
-                    let timer_handle = self.timer_driver.handle();
-                    let deadline_missed_task = self.executor.handle().spawn(async move {
-                        timer_handle.sleep(deadline_missed_period.into()).await;
-                        message
-                            .domain_participant_address
-                            .send_actor_mail(DeadlineMissed {
-                                subscriber_handle: message.subscriber_handle,
-                                data_reader_handle: message.data_reader_handle,
-                                change_instance_handle,
-                            })
-                            .ok();
-                    });
-                    if let Some(t) = data_reader
-                        .instance_deadline_missed_task
-                        .remove(&change_instance_handle)
-                    {
-                        t.abort();
-                    }
-
-                    data_reader
-                        .instance_deadline_missed_task
-                        .insert(change_instance_handle, deadline_missed_task);
-                }
-
                 subscriber.status_condition().send_actor_mail(
                     status_condition_actor::AddCommunicationState {
                         state: StatusKind::DataOnReaders,
@@ -3423,7 +2414,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
         if let Some(mut reader) = self
             .builtin_subscriber
             .data_reader_list_mut()
-            .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
+            .find(|dr| dr.topic_name() == DCPS_PARTICIPANT)
         {
             reader.add_reader_change(message.cache_change).ok();
         }
@@ -3456,7 +2447,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
         if let Some(reader) = self
             .builtin_subscriber
             .data_reader_list_mut()
-            .find(|dr| dr.topic_name == DCPS_TOPIC)
+            .find(|dr| dr.topic_name() == DCPS_TOPIC)
         {
             reader.add_reader_change(message.cache_change).ok();
             if let Ok(samples) = reader.read(
@@ -3501,7 +2492,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
         if let Some(reader) = self
             .builtin_subscriber
             .data_reader_list_mut()
-            .find(|dr| dr.topic_name == DCPS_PUBLICATION)
+            .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
         {
             reader.add_reader_change(message.cache_change).ok();
             if let Ok(samples) = reader.read(
@@ -3551,7 +2542,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
         if let Some(reader) = self
             .builtin_subscriber
             .data_reader_list_mut()
-            .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
+            .find(|dr| dr.topic_name() == DCPS_SUBSCRIPTION)
         {
             reader.add_reader_change(message.cache_change).ok();
 
@@ -3730,18 +2721,18 @@ impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
         let data_reader = subscriber
             .get_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        if !data_reader.enabled {
+        if !data_reader.enabled() {
             return Err(DdsError::NotEnabled);
         };
 
-        match data_reader.qos.durability.kind {
+        match data_reader.qos().durability.kind {
             DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
             DurabilityQosPolicyKind::TransientLocal
             | DurabilityQosPolicyKind::Transient
             | DurabilityQosPolicyKind::Persistent => Ok(()),
         }?;
 
-        Ok(data_reader.transport_reader.is_historical_data_received())
+        Ok(data_reader.transport_reader().is_historical_data_received())
     }
 }
 
@@ -3785,56 +2776,9 @@ impl MailHandler<DeadlineMissed> for DomainParticipantActor {
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        data_reader.requested_deadline_missed_status.total_count += 1;
-        data_reader
-            .requested_deadline_missed_status
-            .total_count_change += 1;
-        data_reader
-            .requested_deadline_missed_status
-            .last_instance_handle = message.change_instance_handle;
-        data_reader
-            .instance_ownership
-            .remove(&message.change_instance_handle);
-
-        data_reader.status_condition.send_actor_mail(
-            status_condition_actor::AddCommunicationState {
-                state: StatusKind::RequestedDeadlineMissed,
-            },
-        );
+        data_reader.add_requested_deadline_missed_status(message.change_instance_handle);
 
         Ok(())
-    }
-}
-
-fn sedp_data_reader_qos() -> DataReaderQos {
-    DataReaderQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-        },
-        ..Default::default()
-    }
-}
-
-fn sedp_data_writer_qos() -> DataWriterQos {
-    DataWriterQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-        },
-        ..Default::default()
     }
 }
 
@@ -3907,25 +2851,25 @@ fn get_discovered_writer_incompatible_qos_policy_list(
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
-    if &data_reader.qos.durability > writer_info.durability() {
+    if &data_reader.qos().durability > writer_info.durability() {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
-    if &data_reader.qos.deadline < writer_info.deadline() {
+    if &data_reader.qos().deadline < writer_info.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
-    if &data_reader.qos.latency_budget > writer_info.latency_budget() {
+    if &data_reader.qos().latency_budget > writer_info.latency_budget() {
         incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
     }
-    if &data_reader.qos.liveliness > writer_info.liveliness() {
+    if &data_reader.qos().liveliness > writer_info.liveliness() {
         incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
     }
-    if data_reader.qos.reliability.kind > writer_info.reliability().kind {
+    if data_reader.qos().reliability.kind > writer_info.reliability().kind {
         incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
     }
-    if &data_reader.qos.destination_order > writer_info.destination_order() {
+    if &data_reader.qos().destination_order > writer_info.destination_order() {
         incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
     }
-    if data_reader.qos.ownership.kind != writer_info.ownership().kind {
+    if data_reader.qos().ownership.kind != writer_info.ownership().kind {
         incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
     }
 
@@ -3935,14 +2879,14 @@ fn get_discovered_writer_incompatible_qos_policy_list(
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
     if !data_reader
-        .qos
+        .qos()
         .representation
         .value
         .contains(writer_offered_representation)
     {
         // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
         if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos.representation.value.is_empty())
+            && data_reader.qos().representation.value.is_empty())
         {
             incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
         }

@@ -9,7 +9,9 @@ use crate::{
     implementation::{
         actor::ActorAddress,
         actors::{
-            domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
+            domain_participant_backend::{
+                data_writer_service, domain_participant_actor::DomainParticipantActor,
+            },
             status_condition_actor::StatusConditionActor,
         },
     },
@@ -94,7 +96,7 @@ where
     ) -> DdsResult<Option<InstanceHandle>> {
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::RegisterInstance {
+            .send_actor_mail(data_writer_service::RegisterInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 serialized_data,
@@ -130,7 +132,7 @@ where
     ) -> DdsResult<()> {
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::UnregisterInstance {
+            .send_actor_mail(data_writer_service::UnregisterInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 serialized_data,
@@ -155,7 +157,7 @@ where
     pub async fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let serialized_data = instance.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::LookupInstance {
+            .send_actor_mail(data_writer_service::LookupInstance {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 serialized_data,
@@ -185,7 +187,7 @@ where
     ) -> DdsResult<()> {
         let serialized_data = data.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::WriteWTimestamp {
+            .send_actor_mail(data_writer_service::WriteWTimestamp {
                 participant_address: self.participant_address().clone(),
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
@@ -217,7 +219,7 @@ where
     ) -> DdsResult<()> {
         let serialized_data = data.serialize_data()?;
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::DisposeWTimestamp {
+            .send_actor_mail(data_writer_service::DisposeWTimestamp {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 serialized_data,
@@ -233,7 +235,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::WaitForAcknowledgments {
+            .send_actor_mail(data_writer_service::WaitForAcknowledgments {
                 participant_address: self.participant_address().clone(),
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
@@ -256,7 +258,7 @@ impl<Foo> DataWriterAsync<Foo> {
         &self,
     ) -> DdsResult<OfferedDeadlineMissedStatus> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetOfferedDeadlineMissedStatus {
+            .send_actor_mail(data_writer_service::GetOfferedDeadlineMissedStatus {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
             })?
@@ -276,7 +278,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetPublicationMatchedStatus {
+            .send_actor_mail(data_writer_service::GetPublicationMatchedStatus {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
             })?
@@ -309,7 +311,7 @@ impl<Foo> DataWriterAsync<Foo> {
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetMatchedSubscriptionData {
+            .send_actor_mail(data_writer_service::GetMatchedSubscriptionData {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 subscription_handle,
@@ -322,7 +324,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetMatchedSubscriptions {
+            .send_actor_mail(data_writer_service::GetMatchedSubscriptions {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
             })?
@@ -336,7 +338,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::SetDataWriterQos {
+            .send_actor_mail(data_writer_service::SetDataWriterQos {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 qos,
@@ -349,7 +351,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataWriterQos> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::GetDataWriterQos {
+            .send_actor_mail(data_writer_service::GetDataWriterQos {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
             })?
@@ -373,7 +375,7 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::EnableDataWriter {
+            .send_actor_mail(data_writer_service::EnableDataWriter {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
             })?
@@ -399,7 +401,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(domain_participant_actor::SetDataWriterListener {
+            .send_actor_mail(data_writer_service::SetDataWriterListener {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 a_listener: todo!(),

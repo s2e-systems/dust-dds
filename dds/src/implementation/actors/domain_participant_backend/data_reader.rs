@@ -18,11 +18,14 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataReaderQos,
-        qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind},
+        qos_policy::{
+            DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind,
+            QosPolicyId,
+        },
         status::{
-            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, StatusKind,
-            SubscriptionMatchedStatus,
+            LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
     },
@@ -37,15 +40,15 @@ use crate::{
 
 use super::data_reader_listener::DataReaderListenerThread;
 
-pub struct InstanceState {
-    pub view_state: ViewStateKind,
-    pub instance_state: InstanceStateKind,
-    pub most_recent_disposed_generation_count: i32,
-    pub most_recent_no_writers_generation_count: i32,
+struct InstanceState {
+    view_state: ViewStateKind,
+    instance_state: InstanceStateKind,
+    most_recent_disposed_generation_count: i32,
+    most_recent_no_writers_generation_count: i32,
 }
 
 impl InstanceState {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             view_state: ViewStateKind::New,
             instance_state: InstanceStateKind::Alive,
@@ -54,7 +57,7 @@ impl InstanceState {
         }
     }
 
-    pub fn update_state(&mut self, change_kind: ChangeKind) {
+    fn update_state(&mut self, change_kind: ChangeKind) {
         match self.instance_state {
             InstanceStateKind::Alive => {
                 if change_kind == ChangeKind::NotAliveDisposed
@@ -91,7 +94,7 @@ impl InstanceState {
         }
     }
 
-    pub fn mark_viewed(&mut self) {
+    fn mark_viewed(&mut self) {
         self.view_state = ViewStateKind::NotNew;
     }
 }
@@ -116,32 +119,70 @@ pub struct IndexedSample {
 }
 
 pub struct DataReaderActor {
-    pub instance_handle: InstanceHandle,
-    pub sample_list: Vec<ReaderSample>,
-    pub qos: DataReaderQos,
-    pub topic_name: String,
-    pub type_name: String,
-    pub type_support: Arc<dyn DynamicType + Send + Sync>,
-    pub _liveliness_changed_status: LivelinessChangedStatus,
-    pub requested_deadline_missed_status: RequestedDeadlineMissedStatus,
-    pub requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    pub sample_lost_status: SampleLostStatus,
-    pub sample_rejected_status: SampleRejectedStatus,
-    pub subscription_matched_status: SubscriptionMatchedStatus,
-    pub matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
-    pub enabled: bool,
-    pub data_available_status_changed_flag: bool,
-    pub incompatible_writer_list: HashSet<InstanceHandle>,
-    pub status_condition: Actor<StatusConditionActor>,
-    pub data_reader_listener_thread: Option<DataReaderListenerThread>,
-    pub data_reader_status_kind: Vec<StatusKind>,
-    pub instances: HashMap<InstanceHandle, InstanceState>,
-    pub instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
-    pub instance_ownership: HashMap<InstanceHandle, Guid>,
-    pub transport_reader: Box<dyn TransportReader>,
+    instance_handle: InstanceHandle,
+    sample_list: Vec<ReaderSample>,
+    qos: DataReaderQos,
+    topic_name: String,
+    type_name: String,
+    type_support: Arc<dyn DynamicType + Send + Sync>,
+    _liveliness_changed_status: LivelinessChangedStatus,
+    requested_deadline_missed_status: RequestedDeadlineMissedStatus,
+    requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
+    sample_lost_status: SampleLostStatus,
+    sample_rejected_status: SampleRejectedStatus,
+    subscription_matched_status: SubscriptionMatchedStatus,
+    matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
+    enabled: bool,
+    data_available_status_changed_flag: bool,
+    incompatible_writer_list: HashSet<InstanceHandle>,
+    status_condition: Actor<StatusConditionActor>,
+    data_reader_listener_thread: Option<DataReaderListenerThread>,
+    data_reader_status_kind: Vec<StatusKind>,
+    instances: HashMap<InstanceHandle, InstanceState>,
+    instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
+    instance_ownership: HashMap<InstanceHandle, Guid>,
+    transport_reader: Box<dyn TransportReader>,
 }
 
 impl DataReaderActor {
+    pub fn new(
+        instance_handle: InstanceHandle,
+        qos: DataReaderQos,
+        topic_name: String,
+        type_name: String,
+        type_support: Arc<dyn DynamicType + Send + Sync>,
+        status_condition: Actor<StatusConditionActor>,
+        data_reader_listener_thread: Option<DataReaderListenerThread>,
+        data_reader_status_kind: Vec<StatusKind>,
+        transport_reader: Box<dyn TransportReader>,
+    ) -> Self {
+        Self {
+            instance_handle,
+            sample_list: Vec::new(),
+            qos,
+            topic_name,
+            type_name,
+            type_support,
+            _liveliness_changed_status: LivelinessChangedStatus::default(),
+            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
+            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
+            sample_lost_status: SampleLostStatus::default(),
+            sample_rejected_status: SampleRejectedStatus::default(),
+            subscription_matched_status: SubscriptionMatchedStatus::default(),
+            matched_publication_list: HashMap::new(),
+            enabled: false,
+            data_available_status_changed_flag: false,
+            incompatible_writer_list: HashSet::new(),
+            status_condition,
+            data_reader_listener_thread,
+            data_reader_status_kind,
+            instances: HashMap::new(),
+            instance_deadline_missed_task: HashMap::new(),
+            instance_ownership: HashMap::new(),
+            transport_reader,
+        }
+    }
+
     pub fn read(
         &mut self,
         max_samples: i32,
@@ -725,6 +766,31 @@ impl DataReaderActor {
                 //     }
                 // }
 
+                if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
+                    todo!()
+                    // let timer_handle = self.timer_driver.handle();
+                    // let deadline_missed_task = self.executor.handle().spawn(async move {
+                    //     timer_handle.sleep(deadline_missed_period.into()).await;
+                    //     message
+                    //         .domain_participant_address
+                    //         .send_actor_mail(DeadlineMissed {
+                    //             subscriber_handle: message.subscriber_handle,
+                    //             data_reader_handle: message.data_reader_handle,
+                    //             change_instance_handle,
+                    //         })
+                    //         .ok();
+                    // });
+                    // if let Some(t) = self
+                    //     .instance_deadline_missed_task
+                    //     .remove(&change_instance_handle)
+                    // {
+                    //     t.abort();
+                    // }
+
+                    // self.instance_deadline_missed_task
+                    //     .insert(change_instance_handle, deadline_missed_task);
+                }
+
                 self.status_condition.send_actor_mail(
                     status_condition_actor::AddCommunicationState {
                         state: StatusKind::DataAvailable,
@@ -734,5 +800,119 @@ impl DataReaderActor {
         }
 
         Ok(change_instance_handle)
+    }
+
+    pub fn instance_handle(&self) -> InstanceHandle {
+        self.instance_handle
+    }
+
+    pub fn enable(&mut self) {
+        self.enabled = true;
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn qos(&self) -> &DataReaderQos {
+        &self.qos
+    }
+
+    pub fn type_name(&self) -> &str {
+        &self.type_name
+    }
+
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
+        qos.is_consistent()?;
+        if self.enabled {
+            self.qos.check_immutability(&qos)?
+        }
+
+        self.qos = qos;
+
+        Ok(())
+    }
+
+    pub fn add_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
+        self.requested_deadline_missed_status.total_count += 1;
+        self.requested_deadline_missed_status.total_count_change += 1;
+        self.requested_deadline_missed_status.last_instance_handle = instance_handle;
+        self.instance_ownership.remove(&instance_handle);
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::RequestedDeadlineMissed,
+            });
+    }
+
+    pub fn add_requested_incompatible_qos(
+        &mut self,
+        handle: InstanceHandle,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+    ) {
+        if !self.incompatible_writer_list.contains(&handle) {
+            self.incompatible_writer_list.insert(handle);
+            self.requested_incompatible_qos_status.total_count += 1;
+            self.requested_incompatible_qos_status.total_count_change += 1;
+            self.requested_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
+            for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
+                if let Some(policy_count) = self
+                    .requested_incompatible_qos_status
+                    .policies
+                    .iter_mut()
+                    .find(|x| x.policy_id == incompatible_qos_policy)
+                {
+                    policy_count.count += 1;
+                } else {
+                    self.requested_incompatible_qos_status
+                        .policies
+                        .push(QosPolicyCount {
+                            policy_id: incompatible_qos_policy,
+                            count: 1,
+                        })
+                }
+            }
+            self.status_condition
+                .send_actor_mail(status_condition_actor::AddCommunicationState {
+                    state: StatusKind::RequestedIncompatibleQos,
+                });
+        }
+    }
+
+    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+        &self.status_condition
+    }
+
+    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+        let status = self.subscription_matched_status.clone();
+
+        self.subscription_matched_status.total_count_change = 0;
+        self.subscription_matched_status.current_count_change = 0;
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            });
+
+        status
+    }
+
+    pub fn transport_reader(&self) -> &dyn TransportReader {
+        self.transport_reader.as_ref()
+    }
+
+    pub fn get_matched_publication_data(
+        &self,
+        handle: &InstanceHandle,
+    ) -> Option<&PublicationBuiltinTopicData> {
+        self.matched_publication_list.get(handle)
+    }
+
+    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+        self.matched_publication_list.keys().cloned().collect()
     }
 }

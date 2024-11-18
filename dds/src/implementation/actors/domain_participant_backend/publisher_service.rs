@@ -92,7 +92,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             if let Some(dcps_subscription_reader) = self
                 .builtin_subscriber
                 .data_reader_list_mut()
-                .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
+                .find(|dr| dr.topic_name() == DCPS_SUBSCRIPTION)
             {
                 if let Ok(sample_list) = dcps_subscription_reader.read(
                     i32::MAX,

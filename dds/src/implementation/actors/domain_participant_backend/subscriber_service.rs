@@ -106,41 +106,26 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
         let type_support = topic.type_support().clone();
 
         let data_reader_status_kind = message.mask.to_vec();
-
-        let mut data_reader = DataReaderActor {
-            instance_handle: reader_handle,
-            sample_list: Vec::new(),
+        let status_condition =
+            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+        let data_reader_listener_thread = None;
+        let mut data_reader = DataReaderActor::new(
+            reader_handle,
+            qos,
             topic_name,
             type_name,
             type_support,
-            _liveliness_changed_status: LivelinessChangedStatus::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            sample_lost_status: SampleLostStatus::default(),
-            sample_rejected_status: SampleRejectedStatus::default(),
-            subscription_matched_status: SubscriptionMatchedStatus::default(),
-            matched_publication_list: HashMap::new(),
-            enabled: false,
-            data_available_status_changed_flag: false,
-            incompatible_writer_list: HashSet::new(),
-            status_condition: Actor::spawn(
-                StatusConditionActor::default(),
-                &self.executor.handle(),
-            ),
+            status_condition,
+            data_reader_listener_thread,
             data_reader_status_kind,
-            data_reader_listener_thread: None,
-            qos,
-            instances: HashMap::new(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_ownership: HashMap::new(),
             transport_reader,
-        };
+        );
 
-        let data_reader_handle = data_reader.instance_handle;
-        let reader_status_condition_address = data_reader.status_condition.address();
+        let data_reader_handle = data_reader.instance_handle();
+        let reader_status_condition_address = data_reader.status_condition().address();
 
         if self.enabled && self.qos.entity_factory.autoenable_created_entities {
-            data_reader.enabled = true;
+            data_reader.enable();
         }
 
         subscriber.insert_data_reader(data_reader);
@@ -149,12 +134,12 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             subscriber
                 .get_mut_data_reader(data_reader_handle)
                 .ok_or(DdsError::AlreadyDeleted)?
-                .enabled = true;
+                .enable();
 
             if let Some(dcps_publication_reader) = self
                 .builtin_subscriber
                 .data_reader_list_mut()
-                .find(|dr| dr.topic_name == DCPS_PUBLICATION)
+                .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
             {
                 if let Ok(sample_list) = dcps_publication_reader.read(
                     i32::MAX,
@@ -215,7 +200,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                                     || is_any_local_regex_matched_with_received_partition_qos;
                             if is_partition_matched {
                                 for dr in subscriber.data_reader_list_mut().filter(|dr| {
-                                    dr.topic_name
+                                    dr.topic_name()
                                         == discovered_writer_data.dds_publication_data.topic_name
                                 }) {
                                     todo!()
@@ -232,25 +217,25 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                 .ok_or(DdsError::AlreadyDeleted)?;
             let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: dr.transport_reader.guid(),
+                    value: dr.transport_reader().guid(),
                 },
                 participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: dr.topic_name.clone(),
-                type_name: dr.type_name.clone(),
-                durability: dr.qos.durability.clone(),
-                deadline: dr.qos.deadline.clone(),
-                latency_budget: dr.qos.latency_budget.clone(),
-                liveliness: dr.qos.liveliness.clone(),
-                reliability: dr.qos.reliability.clone(),
-                ownership: dr.qos.ownership.clone(),
-                destination_order: dr.qos.destination_order.clone(),
-                user_data: dr.qos.user_data.clone(),
-                time_based_filter: dr.qos.time_based_filter.clone(),
+                topic_name: dr.topic_name().to_owned(),
+                type_name: dr.type_name().to_owned(),
+                durability: dr.qos().durability.clone(),
+                deadline: dr.qos().deadline.clone(),
+                latency_budget: dr.qos().latency_budget.clone(),
+                liveliness: dr.qos().liveliness.clone(),
+                reliability: dr.qos().reliability.clone(),
+                ownership: dr.qos().ownership.clone(),
+                destination_order: dr.qos().destination_order.clone(),
+                user_data: dr.qos().user_data.clone(),
+                time_based_filter: dr.qos().time_based_filter.clone(),
                 presentation: subscriber_qos.presentation.clone(),
                 partition: subscriber_qos.partition.clone(),
                 topic_data: topic.qos().topic_data.clone(),
                 group_data: subscriber_qos.group_data.clone(),
-                representation: dr.qos.representation.clone(),
+                representation: dr.qos().representation.clone(),
             };
 
             self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
@@ -281,28 +266,28 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
             .remove_data_reader(message.datareader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let topic = &self.topic_list[&dr.topic_name];
+        let topic = &self.topic_list[dr.topic_name()];
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: dr.transport_reader.guid(),
+                value: dr.transport_reader().guid(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: dr.topic_name.clone(),
-            type_name: dr.type_name.clone(),
-            durability: dr.qos.durability.clone(),
-            deadline: dr.qos.deadline.clone(),
-            latency_budget: dr.qos.latency_budget.clone(),
-            liveliness: dr.qos.liveliness.clone(),
-            reliability: dr.qos.reliability.clone(),
-            ownership: dr.qos.ownership.clone(),
-            destination_order: dr.qos.destination_order.clone(),
-            user_data: dr.qos.user_data.clone(),
-            time_based_filter: dr.qos.time_based_filter.clone(),
+            topic_name: dr.topic_name().to_owned(),
+            type_name: dr.type_name().to_owned(),
+            durability: dr.qos().durability.clone(),
+            deadline: dr.qos().deadline.clone(),
+            latency_budget: dr.qos().latency_budget.clone(),
+            liveliness: dr.qos().liveliness.clone(),
+            reliability: dr.qos().reliability.clone(),
+            ownership: dr.qos().ownership.clone(),
+            destination_order: dr.qos().destination_order.clone(),
+            user_data: dr.qos().user_data.clone(),
+            time_based_filter: dr.qos().time_based_filter.clone(),
             presentation: subscriber.qos().presentation.clone(),
             partition: subscriber.qos().partition.clone(),
             topic_data: topic.qos().topic_data.clone(),
             group_data: subscriber.qos().group_data.clone(),
-            representation: dr.qos.representation.clone(),
+            representation: dr.qos().representation.clone(),
         };
         self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
         Ok(())
@@ -327,8 +312,8 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
             Ok(self
                 .builtin_subscriber
                 .data_reader_list_mut()
-                .find(|dr| dr.topic_name == message.topic_name)
-                .map(|x: &mut DataReaderActor| (x.instance_handle, x.status_condition.address())))
+                .find(|dr| dr.topic_name() == message.topic_name)
+                .map(|x: &mut DataReaderActor| (x.instance_handle(), x.status_condition().address())))
         } else {
             let s = self
                 .user_defined_subscriber_list
@@ -336,8 +321,8 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
                 .find(|x| x.instance_handle() == message.subscriber_handle)
                 .ok_or(DdsError::AlreadyDeleted)?;
             Ok(s.data_reader_list_mut()
-                .find(|dr| dr.topic_name == message.topic_name)
-                .map(|x| (x.instance_handle, x.status_condition.address())))
+                .find(|dr| dr.topic_name() == message.topic_name)
+                .map(|x| (x.instance_handle(), x.status_condition().address())))
         }
     }
 }

@@ -61,20 +61,20 @@ impl SubscriberActor {
         let index = self
             .data_reader_list
             .iter()
-            .position(|x| x.instance_handle == handle)?;
+            .position(|x| x.instance_handle() == handle)?;
         Some(self.data_reader_list.remove(index))
     }
 
     pub fn get_data_reader(&self, handle: InstanceHandle) -> Option<&DataReaderActor> {
         self.data_reader_list
             .iter()
-            .find(|x| x.instance_handle == handle)
+            .find(|x| x.instance_handle() == handle)
     }
 
     pub fn get_mut_data_reader(&mut self, handle: InstanceHandle) -> Option<&mut DataReaderActor> {
         self.data_reader_list
             .iter_mut()
-            .find(|x| x.instance_handle == handle)
+            .find(|x| x.instance_handle() == handle)
     }
 
     pub fn instance_handle(&self) -> InstanceHandle {
