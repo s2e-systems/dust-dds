@@ -22,7 +22,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{self, StatusConditionActor},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,

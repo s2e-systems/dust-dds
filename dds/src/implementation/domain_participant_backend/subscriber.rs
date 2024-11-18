@@ -1,5 +1,5 @@
 use crate::{
-    implementation::{actor::Actor, actors::status_condition_actor::StatusConditionActor},
+    implementation::{actor::Actor, status_condition::status_condition_actor::StatusConditionActor},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,

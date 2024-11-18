@@ -9,10 +9,8 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::ActorAddress,
-        actors::{
-            domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
-            status_condition_actor::StatusConditionActor,
-        },
+        status_condition::status_condition_actor::StatusConditionActor,
+        domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
         runtime::timer::TimerHandle,
     },
     infrastructure::{

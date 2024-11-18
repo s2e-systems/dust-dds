@@ -7,7 +7,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actor::Actor,
-        actors::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{self, StatusConditionActor},
         data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
         runtime::executor::TaskHandle,
         xtypes_glue::key_and_instance_handle::{

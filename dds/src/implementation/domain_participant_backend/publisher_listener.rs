@@ -4,7 +4,7 @@ use crate::{
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress, actors::status_condition_actor::StatusConditionActor,
+        actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor,
         runtime::mpsc::MpscSender,
     },
     infrastructure::{

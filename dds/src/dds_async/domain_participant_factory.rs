@@ -9,9 +9,9 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::Actor,
-        actors::{
-            domain_participant_backend::domain_participant_actor,
-            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
+        domain_participant_backend::domain_participant_actor,
+        domain_participant_factory::domain_participant_factory_actor::{
+            self, DomainParticipantFactoryActor,
         },
         runtime::{executor::Executor, timer::TimerDriver},
     },

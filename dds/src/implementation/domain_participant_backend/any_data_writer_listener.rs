@@ -5,7 +5,7 @@ use crate::{
         data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync,
         publisher::PublisherAsync, topic::TopicAsync,
     },
-    implementation::{actor::ActorAddress, actors::status_condition_actor::StatusConditionActor},
+    implementation::{actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor},
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },

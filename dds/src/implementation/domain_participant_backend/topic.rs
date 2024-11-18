@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     implementation::{
         actor::Actor,
-        actors::status_condition_actor::{self, StatusConditionActor},
+        status_condition::status_condition_actor::{self, StatusConditionActor},
     },
     infrastructure::{
         error::{DdsError, DdsResult},

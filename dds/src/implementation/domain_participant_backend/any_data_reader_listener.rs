@@ -5,7 +5,7 @@ use crate::{
         data_reader_listener::DataReaderListenerAsync, subscriber::SubscriberAsync,
         topic::TopicAsync,
     },
-    implementation::{actor::ActorAddress, actors::status_condition_actor::StatusConditionActor},
+    implementation::{actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor},
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,

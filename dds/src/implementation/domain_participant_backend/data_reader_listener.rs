@@ -3,7 +3,7 @@ use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
         actor::ActorAddress,
-        actors::status_condition_actor::StatusConditionActor,
+        status_condition::status_condition_actor::StatusConditionActor,
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},

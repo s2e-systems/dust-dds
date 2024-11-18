@@ -8,11 +8,9 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actor::ActorAddress,
-        actors::{
-            domain_participant_backend::{
-                data_reader_service, domain_participant_actor::DomainParticipantActor,
-            },
-            status_condition_actor::StatusConditionActor,
+        status_condition::status_condition_actor::StatusConditionActor,
+        domain_participant_backend::{
+            data_reader_service, domain_participant_actor::DomainParticipantActor,
         },
     },
     infrastructure::{

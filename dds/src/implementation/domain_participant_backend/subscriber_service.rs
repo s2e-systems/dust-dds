@@ -7,10 +7,7 @@ use crate::{
     dds_async::subscriber_listener::SubscriberListenerAsync,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::{
-            domain_participant_backend::domain_participant_actor::AddCacheChange,
-            status_condition_actor::StatusConditionActor,
-        },
+        status_condition::status_condition_actor::StatusConditionActor,
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     },
     infrastructure::{
@@ -32,8 +29,9 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, data_reader::DataReaderActor,
-    domain_participant_actor::DomainParticipantActor,
+    any_data_reader_listener::AnyDataReaderListener,
+    data_reader::DataReaderActor,
+    domain_participant_actor::{AddCacheChange, DomainParticipantActor},
 };
 
 pub struct CreateUserDefinedDataReader {
@@ -313,7 +311,9 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
                 .builtin_subscriber
                 .data_reader_list_mut()
                 .find(|dr| dr.topic_name() == message.topic_name)
-                .map(|x: &mut DataReaderActor| (x.instance_handle(), x.status_condition().address())))
+                .map(|x: &mut DataReaderActor| {
+                    (x.instance_handle(), x.status_condition().address())
+                }))
         } else {
             let s = self
                 .user_defined_subscriber_list

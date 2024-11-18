@@ -5,7 +5,7 @@ use crate::{
     dds_async::publisher_listener::PublisherListenerAsync,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::status_condition_actor::StatusConditionActor,
+        status_condition::status_condition_actor::StatusConditionActor,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     },
     infrastructure::{
