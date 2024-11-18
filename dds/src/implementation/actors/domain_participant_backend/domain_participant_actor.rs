@@ -2,16 +2,10 @@ use fnmatch_regex::glob_to_regex;
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    any_data_writer_listener::AnyDataWriterListener,
-    data_reader::DataReaderActor,
-    data_writer::{DataWriterActor, DataWriterListenerThread},
-    handle::InstanceHandleCounter,
-    publisher::PublisherActor,
-    publisher_listener::PublisherListenerThread,
-    subscriber::SubscriberActor,
-    subscriber_listener::SubscriberListenerThread,
-    topic::TopicActor,
-    topic_listener::TopicListenerThread,
+    any_data_writer_listener::AnyDataWriterListener, data_reader::DataReaderActor,
+    data_writer::DataWriterActor, handle::InstanceHandleCounter, publisher::PublisherActor,
+    publisher_listener::PublisherListenerThread, subscriber::SubscriberActor,
+    subscriber_listener::SubscriberListenerThread, topic::TopicActor,
 };
 use crate::{
     builtin_topics::{
@@ -28,27 +22,15 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        actors::{
-            domain_participant_backend::data_reader::InstanceState,
-            status_condition_actor::{self, StatusConditionActor},
-        },
+        actors::status_condition_actor::{self, StatusConditionActor},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        data_representation_inline_qos::{
-            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-            types::{
-                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
-            },
-        },
         runtime::{executor::Executor, mpsc::MpscSender, timer::TimerDriver},
-        xtypes_glue::key_and_instance_handle::{
-            get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-            get_serialized_key_from_serialized_foo,
-        },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -58,42 +40,37 @@ use crate::{
             SubscriberQos, TopicQos,
         },
         qos_policy::{
-            DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
-            HistoryQosPolicy, HistoryQosPolicyKind, Length, LifespanQosPolicy,
-            OwnershipQosPolicyKind, QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            LifespanQosPolicy, QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             ResourceLimitsQosPolicy, TransportPriorityQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
             PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::{
-            InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
-            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, StatusKind,
-            SubscriptionMatchedStatus,
+            LivelinessChangedStatus, LivelinessLostStatus, OfferedDeadlineMissedStatus,
+            OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
     },
     rtps::{
-        cache_change::RtpsCacheChange,
-        messages::submessage_elements::{Data, Parameter, ParameterList},
-        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
+        messages::submessage_elements::Data,
+        reader::ReaderCacheChange,
         transport::Transport,
         types::{ChangeKind, Guid, SequenceNumber, TopicKind, ENTITYID_PARTICIPANT},
     },
     subscription::sample_info::{
         InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
-        ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+        ANY_VIEW_STATE,
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    xtypes::{
-        dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
-    },
+    xtypes::dynamic_type::DynamicType,
 };
 use core::{future::Future, i32, pin::Pin};
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     sync::Arc,
     thread::JoinHandle,
 };
@@ -632,91 +609,56 @@ impl DomainParticipantActor {
         builtin_subscriber.insert_data_reader(dcps_publication_reader);
         builtin_subscriber.insert_data_reader(dcps_subscription_reader);
 
-        let dcps_participant_writer = DataWriterActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            transport_writer: transport.get_participant_discovery_writer(),
-            topic_name: topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
-            type_name: topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
-            matched_subscription_list: HashMap::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
-            enabled: true,
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_writer_listener_thread: None,
-            status_kind: vec![],
-            max_seq_num: None,
-            last_change_sequence_number: 0,
-            qos: spdp_writer_qos,
-            registered_instance_list: HashSet::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
-        };
+        let mut dcps_participant_writer = DataWriterActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            transport.get_participant_discovery_writer(),
+            topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
+            topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
+            topic_list[DCPS_PARTICIPANT].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            spdp_writer_qos,
+        );
+        dcps_participant_writer.enable();
 
-        let dcps_topics_writer = DataWriterActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            transport_writer: transport.get_topics_discovery_writer(),
-            topic_name: topic_list[DCPS_TOPIC].topic_name().to_owned(),
-            type_name: topic_list[DCPS_TOPIC].type_name().to_owned(),
-            matched_subscription_list: HashMap::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
-            enabled: true,
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_writer_listener_thread: None,
-            status_kind: vec![],
-            max_seq_num: None,
-            last_change_sequence_number: 0,
-            qos: sedp_data_writer_qos(),
-            registered_instance_list: HashSet::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
-        };
-        let dcps_publications_writer = DataWriterActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            transport_writer: transport.get_publications_discovery_writer(),
-            topic_name: topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
-            type_name: topic_list[DCPS_PUBLICATION].type_name().to_owned(),
-            matched_subscription_list: HashMap::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
-            enabled: true,
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_writer_listener_thread: None,
-            status_kind: vec![],
-            max_seq_num: None,
-            last_change_sequence_number: 0,
-            qos: sedp_data_writer_qos(),
-            registered_instance_list: HashSet::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
-        };
-        let dcps_subscriptions_writer = DataWriterActor {
-            instance_handle: instance_handle_counter.generate_new_instance_handle(),
-            transport_writer: transport.get_subscriptions_discovery_writer(),
-            topic_name: topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
-            type_name: topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
-            matched_subscription_list: HashMap::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
-            enabled: true,
-            status_condition: Actor::spawn(StatusConditionActor::default(), &executor.handle()),
-            data_writer_listener_thread: None,
-            status_kind: vec![],
-            max_seq_num: None,
-            last_change_sequence_number: 0,
-            qos: sedp_data_writer_qos(),
-            registered_instance_list: HashSet::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
-        };
+        let mut dcps_topics_writer = DataWriterActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            transport.get_topics_discovery_writer(),
+            topic_list[DCPS_TOPIC].topic_name().to_owned(),
+            topic_list[DCPS_TOPIC].type_name().to_owned(),
+            topic_list[DCPS_TOPIC].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            sedp_data_writer_qos(),
+        );
+        dcps_topics_writer.enable();
+        let mut dcps_publications_writer = DataWriterActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            transport.get_publications_discovery_writer(),
+            topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
+            topic_list[DCPS_PUBLICATION].type_name().to_owned(),
+            topic_list[DCPS_PUBLICATION].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            sedp_data_writer_qos(),
+        );
+        dcps_publications_writer.enable();
+
+        let mut dcps_subscriptions_writer = DataWriterActor::new(
+            instance_handle_counter.generate_new_instance_handle(),
+            transport.get_subscriptions_discovery_writer(),
+            topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
+            topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
+            topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
+            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            None,
+            vec![],
+            sedp_data_writer_qos(),
+        );
+        dcps_subscriptions_writer.enable();
         let mut builtin_publisher = PublisherActor::new(
             PublisherQos::default(),
             instance_handle_counter.generate_new_instance_handle(),
@@ -798,14 +740,9 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_PARTICIPANT)
+                .find(|dw| dw.topic_name() == DCPS_PARTICIPANT)
             {
-                write_w_timestamp(
-                    &mut dw,
-                    participant_builtin_topic_data.serialize_data()?,
-                    timestamp,
-                    dcps_participant_topic.type_support().as_ref(),
-                )?;
+                dw.write_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?;
             }
         }
         Ok(())
@@ -828,14 +765,9 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_PARTICIPANT)
+                .find(|dw| dw.topic_name() == DCPS_PARTICIPANT)
             {
-                dispose_w_timestamp(
-                    &mut dw,
-                    participant_builtin_topic_data.serialize_data()?,
-                    timestamp,
-                    dcps_participant_topic.type_support().as_ref(),
-                )?
+                dw.dispose_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?
             }
         }
         Ok(())
@@ -854,14 +786,9 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_PUBLICATION)
+                .find(|dw| dw.topic_name() == DCPS_PUBLICATION)
             {
-                write_w_timestamp(
-                    &mut dw,
-                    publication_builtin_topic_data.serialize_data()?,
-                    timestamp,
-                    dcps_publication_topic.type_support().as_ref(),
-                )?;
+                dw.write_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?;
             }
         }
         Ok(())
@@ -880,14 +807,9 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_PUBLICATION)
+                .find(|dw| dw.topic_name() == DCPS_PUBLICATION)
             {
-                dispose_w_timestamp(
-                    &mut dw,
-                    publication_builtin_topic_data.serialize_data()?,
-                    timestamp,
-                    dcps_publication_topic.type_support().as_ref(),
-                )?
+                dw.dispose_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?
             }
         }
         Ok(())
@@ -906,14 +828,9 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_SUBSCRIPTION)
+                .find(|dw| dw.topic_name() == DCPS_SUBSCRIPTION)
             {
-                write_w_timestamp(
-                    &mut dw,
-                    subscription_builtin_topic_data.serialize_data()?,
-                    timestamp,
-                    dcps_subscription_topic.type_support().as_ref(),
-                )?;
+                dw.write_w_timestamp(subscription_builtin_topic_data.serialize_data()?, timestamp)?;
             }
         }
         Ok(())
@@ -932,13 +849,11 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_SUBSCRIPTION)
+                .find(|dw| dw.topic_name() == DCPS_SUBSCRIPTION)
             {
-                dispose_w_timestamp(
-                    &mut dw,
+                dw.dispose_w_timestamp(
                     subscription_builtin_topic_data.serialize_data()?,
                     timestamp,
-                    dcps_subscription_topic.type_support().as_ref(),
                 )?
             }
         }
@@ -987,7 +902,7 @@ impl DomainParticipantActor {
                     && discovered_topic_data.topic_builtin_topic_data.name == topic.topic_name()
                     && !is_discovered_topic_consistent
                 {
-                    topic.increment_inconsistent_topic_status();
+                    topic.add_inconsistent_topic_status();
                 }
             }
             self.discovered_topic_list
@@ -1485,7 +1400,7 @@ impl DomainParticipantActor {
                     if is_partition_matched {
                         let publisher_qos = publisher.qos().clone();
                         for dw in publisher.data_writer_list_mut().filter(|dw| {
-                            dw.topic_name
+                            dw.topic_name()
                                 == discovered_reader_data
                                     .subscription_builtin_topic_data()
                                     .topic_name()
@@ -1493,16 +1408,16 @@ impl DomainParticipantActor {
                             let is_matched_topic_name = discovered_reader_data
                                 .subscription_builtin_topic_data()
                                 .topic_name()
-                                == dw.topic_name;
+                                == dw.topic_name();
                             let is_matched_type_name = discovered_reader_data
                                 .subscription_builtin_topic_data()
                                 .get_type_name()
-                                == dw.type_name;
+                                == dw.type_name();
 
                             if is_matched_topic_name && is_matched_type_name {
                                 let incompatible_qos_policy_list =
                                     get_discovered_reader_incompatible_qos_policy_list(
-                                        &dw.qos,
+                                        &dw.qos(),
                                         discovered_reader_data.subscription_builtin_topic_data(),
                                         &publisher_qos,
                                     );
@@ -1513,170 +1428,22 @@ impl DomainParticipantActor {
                                         .value,
                                 );
                                 if incompatible_qos_policy_list.is_empty() {
-                                    if dw.matched_subscription_list.get(&instance_handle)
+                                    if dw.get_matched_subscription_data(&instance_handle)
                                         != Some(
                                             discovered_reader_data
                                                 .subscription_builtin_topic_data(),
                                         )
                                     {
-                                        dw.matched_subscription_list.insert(
-                                            instance_handle,
+                                        dw.add_matched_subscription(
                                             discovered_reader_data
                                                 .subscription_builtin_topic_data()
                                                 .clone(),
                                         );
-                                        dw.publication_matched_status.current_count =
-                                            dw.matched_subscription_list.len() as i32;
-                                        dw.publication_matched_status.current_count_change += 1;
-                                        dw.publication_matched_status.total_count += 1;
-                                        dw.publication_matched_status.total_count_change += 1;
-                                        // let type_name = self.type_name.clone();
-                                        // let topic_name = self.topic_name.clone();
-                                        // let participant = publisher.get_participant();
-                                        // let status_condition_address = self.status_condition.address();
-                                        // let topic_status_condition_address = self.topic_status_condition.clone();
-                                        // let topic = TopicAsync::new(
-                                        //     self.topic_address.clone(),
-                                        //     topic_status_condition_address,
-                                        //     type_name,
-                                        //     topic_name,
-                                        //     participant,
-                                        // );
-                                        // if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                                        //     let status = self.matched_subscriptions.get_publication_matched_status();
-                                        //     if let Some(listener) = &self.data_writer_listener_thread {
-                                        //         listener.sender().send(DataWriterListenerMessage {
-                                        //             listener_operation: DataWriterListenerOperation::PublicationMatched(status),
-                                        //             writer_address: data_writer_address,
-                                        //             status_condition_address,
-                                        //             publisher,
-                                        //             topic,
-                                        //         })?;
-                                        //     }
-                                        // } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-                                        //     let status = self.matched_subscriptions.get_publication_matched_status();
-                                        //     if let Some(listener) = publisher_listener {
-                                        //         listener.send(PublisherListenerMessage {
-                                        //             listener_operation: PublisherListenerOperation::PublicationMatched(status),
-                                        //             writer_address: data_writer_address,
-                                        //             status_condition_address,
-                                        //             publisher,
-                                        //             topic,
-                                        //         })?;
-                                        //     }
-                                        // } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-                                        //     let status = self.matched_subscriptions.get_publication_matched_status();
-                                        //     if let Some(listener) = participant_listener {
-                                        //         listener.send(ParticipantListenerMessage {
-                                        //             listener_operation: ParticipantListenerOperation::PublicationMatched(status),
-                                        //             listener_kind: ListenerKind::Writer {
-                                        //                 writer_address: data_writer_address,
-                                        //                 status_condition_address,
-                                        //                 publisher,
-                                        //                 topic,
-                                        //             },
-                                        //         })?;
-                                        //     }
-                                        // }
-                                        dw.status_condition.send_actor_mail(
-                                            status_condition_actor::AddCommunicationState {
-                                                state: StatusKind::PublicationMatched,
-                                            },
-                                        );
                                     }
-                                } else if !dw
-                                    .incompatible_subscription_list
-                                    .contains(&instance_handle)
-                                {
-                                    dw.offered_incompatible_qos_status.total_count += 1;
-                                    dw.offered_incompatible_qos_status.last_policy_id =
-                                        incompatible_qos_policy_list[0];
-
-                                    dw.incompatible_subscription_list.insert(instance_handle);
-                                    for incompatible_qos_policy in
-                                        incompatible_qos_policy_list.into_iter()
-                                    {
-                                        if let Some(policy_count) = dw
-                                            .offered_incompatible_qos_status
-                                            .policies
-                                            .iter_mut()
-                                            .find(|x| x.policy_id == incompatible_qos_policy)
-                                        {
-                                            policy_count.count += 1;
-                                        } else {
-                                            dw.offered_incompatible_qos_status.policies.push(
-                                                QosPolicyCount {
-                                                    policy_id: incompatible_qos_policy,
-                                                    count: 1,
-                                                },
-                                            )
-                                        }
-                                    }
-                                    // let type_name = self.type_name.clone();
-                                    // let topic_name = self.topic_name.clone();
-                                    // let participant = publisher.get_participant();
-                                    // let status_condition_address = self.status_condition.address();
-                                    // let topic_status_condition_address = self.topic_status_condition.clone();
-                                    // let topic = TopicAsync::new(
-                                    //     self.topic_address.clone(),
-                                    //     topic_status_condition_address,
-                                    //     type_name,
-                                    //     topic_name,
-                                    //     participant,
-                                    // );
-
-                                    // if self
-                                    //     .status_kind
-                                    //     .contains(&StatusKind::OfferedIncompatibleQos)
-                                    // {
-                                    //     let status = self
-                                    //         .incompatible_subscriptions
-                                    //         .get_offered_incompatible_qos_status();
-                                    //     if let Some(listener) = &self.data_writer_listener_thread {
-                                    //         listener.sender().send(DataWriterListenerMessage {
-                                    //             listener_operation: DataWriterListenerOperation::OfferedIncompatibleQos(status),
-                                    //             writer_address: data_writer_address,
-                                    //             status_condition_address,
-                                    //             publisher,
-                                    //             topic,
-                                    //         })?;
-                                    //     }
-                                    // } else if publisher_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
-                                    //     let status = self
-                                    //         .incompatible_subscriptions
-                                    //         .get_offered_incompatible_qos_status();
-
-                                    //     if let Some(listener) = publisher_listener {
-                                    //         listener.send(PublisherListenerMessage {
-                                    //             listener_operation: PublisherListenerOperation::OfferedIncompatibleQos(status),
-                                    //             writer_address: data_writer_address,
-                                    //             status_condition_address,
-                                    //             publisher,
-                                    //             topic,
-                                    //         })?;
-                                    //     }
-                                    // } else if participant_listener_mask.contains(&StatusKind::OfferedIncompatibleQos) {
-                                    //     let status = self
-                                    //         .incompatible_subscriptions
-                                    //         .get_offered_incompatible_qos_status();
-                                    //     if let Some(listener) = participant_listener {
-                                    //         listener.send(ParticipantListenerMessage {
-                                    //             listener_operation: ParticipantListenerOperation::OfferedIncompatibleQos(
-                                    //                 status,
-                                    //             ),
-                                    //             listener_kind: ListenerKind::Writer {
-                                    //                 writer_address: data_writer_address,
-                                    //                 status_condition_address,
-                                    //                 publisher,
-                                    //                 topic,
-                                    //             },
-                                    //         })?;
-                                    //     }
-                                    // }
-                                    dw.status_condition.send_actor_mail(
-                                        status_condition_actor::AddCommunicationState {
-                                            state: StatusKind::OfferedIncompatibleQos,
-                                        },
+                                } else {
+                                    dw.add_incompatible_subscription(
+                                        instance_handle,
+                                        incompatible_qos_policy_list,
                                     );
                                 }
                             }
@@ -1848,14 +1615,9 @@ impl DomainParticipantActor {
             if let Some(mut dw) = self
                 .builtin_publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == DCPS_TOPIC)
+                .find(|dw| dw.topic_name() == DCPS_TOPIC)
             {
-                write_w_timestamp(
-                    &mut dw,
-                    topic_builtin_topic_data.serialize_data()?,
-                    timestamp,
-                    dcps_topic_topic.type_support().as_ref(),
-                )?;
+                dw.write_w_timestamp(topic_builtin_topic_data.serialize_data()?, timestamp)?;
             }
         }
         Ok(())
@@ -2128,7 +1890,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
         for publisher in self.user_defined_publisher_list.iter_mut() {
             if publisher
                 .data_writer_list_mut()
-                .find(|dw| dw.topic_name == message.topic_name)
+                .find(|dw| dw.topic_name() == message.topic_name)
                 .is_some()
             {
                 return Err(DdsError::PreconditionNotMet(
@@ -2308,29 +2070,29 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
             for data_writer in publisher.drain_data_writer_list() {
                 let publication_builtin_topic_data = PublicationBuiltinTopicData {
                     key: BuiltInTopicKey {
-                        value: data_writer.transport_writer.guid(),
+                        value: data_writer.transport_writer().guid(),
                     },
                     participant_key: BuiltInTopicKey { value: [0; 16] },
-                    topic_name: data_writer.topic_name.clone(),
-                    type_name: data_writer.type_name.clone(),
-                    durability: data_writer.qos.durability.clone(),
-                    deadline: data_writer.qos.deadline.clone(),
-                    latency_budget: data_writer.qos.latency_budget.clone(),
-                    liveliness: data_writer.qos.liveliness.clone(),
-                    reliability: data_writer.qos.reliability.clone(),
-                    lifespan: data_writer.qos.lifespan.clone(),
-                    user_data: data_writer.qos.user_data.clone(),
-                    ownership: data_writer.qos.ownership.clone(),
-                    ownership_strength: data_writer.qos.ownership_strength.clone(),
-                    destination_order: data_writer.qos.destination_order.clone(),
+                    topic_name: data_writer.topic_name().to_owned(),
+                    type_name: data_writer.type_name().to_owned(),
+                    durability: data_writer.qos().durability.clone(),
+                    deadline: data_writer.qos().deadline.clone(),
+                    latency_budget: data_writer.qos().latency_budget.clone(),
+                    liveliness: data_writer.qos().liveliness.clone(),
+                    reliability: data_writer.qos().reliability.clone(),
+                    lifespan: data_writer.qos().lifespan.clone(),
+                    user_data: data_writer.qos().user_data.clone(),
+                    ownership: data_writer.qos().ownership.clone(),
+                    ownership_strength: data_writer.qos().ownership_strength.clone(),
+                    destination_order: data_writer.qos().destination_order.clone(),
                     presentation: publisher_qos.presentation.clone(),
                     partition: publisher_qos.partition.clone(),
-                    topic_data: self.topic_list[&data_writer.topic_name]
+                    topic_data: self.topic_list[data_writer.topic_name()]
                         .qos()
                         .topic_data
                         .clone(),
                     group_data: publisher_qos.group_data.clone(),
-                    representation: data_writer.qos.representation.clone(),
+                    representation: data_writer.qos().representation.clone(),
                 };
                 self.announce_deleted_data_writer(publication_builtin_topic_data)?;
             }
@@ -2671,83 +2433,10 @@ impl MailHandler<UnregisterInstance> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
             .data_writer_list_mut()
-            .find(|x| x.instance_handle == message.data_writer_handle)
+            .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        if !data_writer.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let type_support = self.topic_list[&data_writer.topic_name]
-            .type_support()
-            .clone();
-
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..type_support.get_member_count() {
-                if type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
-        if !has_key {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let serialized_key = get_serialized_key_from_serialized_foo(
-            &message.serialized_data,
-            type_support.as_ref(),
-        )?;
-
-        let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, type_support.as_ref())?;
-        if !data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
-        {
-            return Err(DdsError::BadParameter);
-        }
-
-        if let Some(t) = data_writer
-            .instance_deadline_missed_task
-            .remove(&instance_handle)
-        {
-            t.abort();
-        }
-
-        data_writer.last_change_sequence_number += 1;
-
-        let mut serialized_status_info = Vec::new();
-        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-        match data_writer
-            .qos
-            .writer_data_lifecycle
-            .autodispose_unregistered_instances
-        {
-            true => {
-                XTypesSerialize::serialize(&STATUS_INFO_DISPOSED_UNREGISTERED, &mut serializer)?
-            }
-            false => XTypesSerialize::serialize(&STATUS_INFO_UNREGISTERED, &mut serializer)?,
-        }
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        let cache_change = RtpsCacheChange {
-            kind: ChangeKind::NotAliveDisposed,
-            sequence_number: data_writer.last_change_sequence_number,
-            source_timestamp: Some(message.timestamp.into()),
-            data_value: serialized_key.into(),
-            inline_qos: parameter_list,
-        };
-        data_writer.transport_writer.add_change(cache_change);
+        todo!();
 
         Ok(())
     }
@@ -2769,29 +2458,23 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
             .find(|x| x.instance_handle() == message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .data_writer_list_mut()
-            .find(|x| x.instance_handle == message.data_writer_handle)
+            .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let instance_handle = get_instance_handle_from_serialized_foo(
-            &message.serialized_data,
-            self.topic_list[&data_writer.topic_name]
-                .type_support()
-                .as_ref(),
-        )?;
-        if !data_writer.enabled {
+        if !data_writer.enabled() {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(
-            if data_writer
-                .registered_instance_list
-                .contains(&instance_handle)
-            {
-                Some(instance_handle)
-            } else {
-                None
-            },
-        )
+        let instance_handle = get_instance_handle_from_serialized_foo(
+            &message.serialized_data,
+            self.topic_list[data_writer.topic_name()]
+                .type_support()
+                .as_ref(),
+        )?;
+
+        Ok(data_writer
+            .contains_instance(&instance_handle)
+            .then_some(instance_handle))
     }
 }
 
@@ -2815,310 +2498,9 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
             .data_writer_list_mut()
-            .find(|x| x.instance_handle == message.data_writer_handle)
+            .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let type_support = self.topic_list[&data_writer.topic_name]
-            .type_support()
-            .clone();
-
-        match data_writer.qos.lifespan.duration {
-            DurationKind::Finite(lifespan) => {
-                let change_lifespan =
-                    crate::infrastructure::time::Time::from(message.timestamp) - now + lifespan;
-                if change_lifespan > Duration::new(0, 0) {
-                    todo!();
-                    let timer_handle = self.timer_driver.handle();
-                    self.executor.handle().spawn(async move {
-                        timer_handle.sleep(change_lifespan.into()).await;
-                        message
-                            .participant_address
-                            .send_actor_mail(RemoveWriterChange {
-                                publisher_handle: message.publisher_handle,
-                                data_writer_handle: message.data_writer_handle,
-                                sequence_number: todo!(),
-                            })
-                            .ok();
-                    });
-                }
-            }
-            DurationKind::Infinite => {}
-        }
-
-        if !data_writer.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        data_writer.last_change_sequence_number += 1;
-
-        let instance_handle = get_instance_handle_from_serialized_foo(
-            &message.serialized_data,
-            type_support.as_ref(),
-        )?;
-
-        if !data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
-        {
-            if data_writer.registered_instance_list.len()
-                < data_writer.qos.resource_limits.max_instances
-            {
-                data_writer.registered_instance_list.insert(instance_handle);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_instances) = data_writer.qos.resource_limits.max_instances {
-            if !data_writer.instance_samples.contains_key(&instance_handle)
-                && data_writer.instance_samples.len() == max_instances as usize
-            {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_samples_per_instance) =
-            data_writer.qos.resource_limits.max_samples_per_instance
-        {
-            // If the history Qos guarantess that the number of samples
-            // is below the limit there is no need to check
-            match data_writer.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
-                _ => {
-                    if let Some(s) = data_writer.instance_samples.get(&instance_handle) {
-                        // Only Alive changes count towards the resource limits
-                        if s.len() >= max_samples_per_instance as usize {
-                            return Err(DdsError::OutOfResources);
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Length::Limited(max_samples) = data_writer.qos.resource_limits.max_samples {
-            let total_samples = data_writer
-                .instance_samples
-                .iter()
-                .fold(0, |acc, (_, x)| acc + x.len());
-
-            if total_samples >= max_samples as usize {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_key_hash]);
-
-        let change = RtpsCacheChange {
-            kind: ChangeKind::Alive,
-            sequence_number: data_writer.last_change_sequence_number,
-            source_timestamp: Some(message.timestamp.into()),
-            data_value: message.serialized_data.into(),
-            inline_qos: parameter_list,
-        };
-        if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
-            if let Some(s) = data_writer.instance_samples.get_mut(&instance_handle) {
-                if s.len() == depth as usize {
-                    if let Some(smallest_seq_num_instance) = s.pop_front() {
-                        data_writer
-                            .transport_writer
-                            .remove_change(smallest_seq_num_instance);
-                    }
-                }
-            }
-        }
-
-        let change_timestamp = change.source_timestamp();
-        let seq_num = change.sequence_number();
-
-        if seq_num > data_writer.max_seq_num.unwrap_or(0) {
-            data_writer.max_seq_num = Some(seq_num)
-        }
-
-        if let Some(t) = data_writer
-            .instance_deadline_missed_task
-            .remove(&instance_handle.into())
-        {
-            t.abort();
-        }
-
-        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
-            let deadline_missed_interval = std::time::Duration::new(
-                deadline_missed_period.sec() as u64,
-                deadline_missed_period.nanosec(),
-            );
-            // let writer_status_condition = self.status_condition.address();
-            // let writer_address = message.writer_address.clone();
-            // let timer_handle = message.timer_handle.clone();
-            // let writer_listener_mask = self.status_kind.clone();
-            // let data_writer_listener_sender = self
-            //     .data_writer_listener_thread
-            //     .as_ref()
-            //     .map(|l| l.sender().clone());
-            // let publisher_listener = message.publisher_mask_listener.0.clone();
-            // let publisher_listener_mask = message.publisher_mask_listener.1.clone();
-            // let participant_listener = message.participant_mask_listener.0.clone();
-            // let participant_listener_mask = message.participant_mask_listener.1.clone();
-            // let status_condition_address = self.status_condition.address();
-            // // let topic_address = self.topic_address.clone();
-            // // let topic_status_condition_address = self.topic_status_condition.clone();
-            // let type_name = self.type_name.clone();
-            // let topic_name = self.topic_name.clone();
-            // let publisher = message.publisher.clone();
-
-            // let deadline_missed_task = message.executor_handle.spawn(async move {
-            //     loop {
-            //         timer_handle.sleep(deadline_missed_interval).await;
-            //         let publisher_listener = publisher_listener.clone();
-            //         let participant_listener = participant_listener.clone();
-
-            //         let r: DdsResult<()> = async {
-            //             writer_address.send_actor_mail(
-            //                 IncrementOfferedDeadlineMissedStatus {
-            //                     instance_handle: change_instance_handle.into(),
-            //                 },
-            //             )?;
-
-            //             let writer_address = writer_address.clone();
-            //             let status_condition_address = status_condition_address.clone();
-            //             let publisher = publisher.clone();
-            //             let topic = TopicAsync::new(
-            //                 topic_address.clone(),
-            //                 topic_status_condition_address.clone(),
-            //                 type_name.clone(),
-            //                 topic_name.clone(),
-            //                 publisher.get_participant(),
-            //             );
-            //             if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
-            //                 let status = writer_address
-            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-            //                     .receive_reply()
-            //                     .await;
-            //                 if let Some(listener) = &data_writer_listener_sender {
-            //                     listener
-            //                         .send(DataWriterListenerMessage {
-            //                             listener_operation:
-            //                                 DataWriterListenerOperation::OfferedDeadlineMissed(
-            //                                     status,
-            //                                 ),
-            //                             writer_address,
-            //                             status_condition_address,
-            //                             publisher,
-            //                             topic,
-            //                         })
-            //                         .ok();
-            //                 }
-            //             } else if publisher_listener_mask
-            //                 .contains(&StatusKind::OfferedDeadlineMissed)
-            //             {
-            //                 let status = writer_address
-            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-            //                     .receive_reply()
-            //                     .await;
-            //                 if let Some(listener) = publisher_listener {
-            //                     listener
-            //                         .send(PublisherListenerMessage {
-            //                             listener_operation:
-            //                                 PublisherListenerOperation::OfferedDeadlineMissed(
-            //                                     status,
-            //                                 ),
-            //                             writer_address,
-            //                             status_condition_address,
-            //                             publisher,
-            //                             topic,
-            //                         })
-            //                         .ok();
-            //                 }
-            //             } else if participant_listener_mask
-            //                 .contains(&StatusKind::OfferedDeadlineMissed)
-            //             {
-            //                 let status = writer_address
-            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-            //                     .receive_reply()
-            //                     .await;
-            //                 if let Some(listener) = participant_listener {
-            //                     listener
-            //                     .send(ParticipantListenerMessage {
-            //                         listener_operation:
-            //                             ParticipantListenerOperation::_OfferedDeadlineMissed(
-            //                                 status,
-            //                             ),
-            //                         listener_kind: ListenerKind::Writer {
-            //                             writer_address,
-            //                             status_condition_address,
-            //                             publisher,
-            //                             topic,
-            //                         },
-            //                     })
-            //                     .ok();
-            //                 }
-            //             }
-            //             writer_status_condition
-            //                 .send_actor_mail(AddCommunicationState {
-            //                     state: StatusKind::OfferedDeadlineMissed,
-            //                 })?
-            //                 .receive_reply()
-            //                 .await;
-            //             Ok(())
-            //         }
-            //         .await;
-            //         if r.is_err() {
-            //             break;
-            //         }
-            //     }
-            // });
-            // self.instance_deadline_missed_task
-            //     .insert(change_instance_handle.into(), deadline_missed_task);
-        }
-
-        data_writer
-            .instance_samples
-            .entry(instance_handle)
-            .or_insert(VecDeque::new())
-            .push_back(change.sequence_number);
-        data_writer.transport_writer.add_change(change);
-
-        //     if let Some(timestamp) = change_timestamp {
-
-        //             //             rtps_writer.get_history_cache().add_change(message.change);
-        //             //             message.executor_handle.spawn(async move {
-        //             //                 message.timer_handle.sleep(change_lifespan.into()).await;
-
-        //             //                 message
-        //             //                     .writer_address
-        //             //                     .send_actor_mail(RemoveChange { seq_num })
-        //             //                     .ok();
-        // });
-        // }
-        // }
-
-        Ok(())
-
-        //     }
-        // } else {
-        // if writer_qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-        //     let start = std::time::Instant::now();
-        //     let timer_handle = self.publisher.get_participant().timer_handle().clone();
-        //     loop {
-        //         if !self
-        //             .writer_address
-        //             .send_actor_mail(data_writer_actor::IsDataLostAfterAddingChange {
-        //                 instance_handle: change.instance_handle().into(),
-        //             })?
-        //             .receive_reply()
-        //             .await
-        //         {
-        //             break;
-        //         }
-        //         timer_handle
-        //             .sleep(std::time::Duration::from_millis(20))
-        //             .await;
-        //         if let DurationKind::Finite(timeout) = writer_qos.reliability.max_blocking_time {
-        //             if std::time::Instant::now().duration_since(start) > timeout.into() {
-        //                 return Err(DdsError::Timeout);
-        //             }
-        //         }
-        //     }
-        // }
+        todo!()
     }
 }
 
@@ -3140,74 +2522,9 @@ impl MailHandler<DisposeWTimestamp> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
             .data_writer_list_mut()
-            .find(|x| x.instance_handle == message.data_writer_handle)
+            .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        if !data_writer.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-        let type_support = self.topic_list[&data_writer.topic_name]
-            .type_support()
-            .clone();
-
-        let has_key = {
-            let mut has_key = false;
-            for index in 0..type_support.get_member_count() {
-                if type_support
-                    .get_member_by_index(index)?
-                    .get_descriptor()?
-                    .is_key
-                {
-                    has_key = true;
-                    break;
-                }
-            }
-            has_key
-        };
-        if !has_key {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let serialized_key = get_serialized_key_from_serialized_foo(
-            &message.serialized_data,
-            type_support.as_ref(),
-        )?;
-
-        let instance_handle =
-            get_instance_handle_from_serialized_key(&serialized_key, type_support.as_ref())?;
-        if !data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
-        {
-            return Err(DdsError::BadParameter);
-        }
-
-        if let Some(t) = data_writer
-            .instance_deadline_missed_task
-            .remove(&instance_handle)
-        {
-            t.abort();
-        }
-
-        data_writer.last_change_sequence_number += 1;
-
-        let mut serialized_status_info = Vec::new();
-        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-        XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-        let cache_change = RtpsCacheChange {
-            kind: ChangeKind::NotAliveDisposed,
-            sequence_number: data_writer.last_change_sequence_number,
-            source_timestamp: Some(message.timestamp.into()),
-            data_value: serialized_key.into(),
-            inline_qos: parameter_list,
-        };
-        data_writer.transport_writer.add_change(cache_change);
-
-        Ok(())
+        todo!()
     }
 }
 
@@ -3271,14 +2588,10 @@ impl MailHandler<GetOfferedDeadlineMissedStatus> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
             .data_writer_list_mut()
-            .find(|x| x.instance_handle == message.data_writer_handle)
+            .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let status = data_writer.offered_deadline_missed_status.clone();
-        data_writer
-            .offered_deadline_missed_status
-            .total_count_change = 0;
-        Ok(status)
+        Ok(data_writer.get_offered_deadline_missed_status())
     }
 }
 
@@ -3301,19 +2614,10 @@ impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
             .data_writer_list_mut()
-            .find(|x| x.instance_handle == message.data_writer_handle)
+            .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        data_writer.status_condition.send_actor_mail(
-            status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::PublicationMatched,
-            },
-        );
-
-        let status = data_writer.publication_matched_status.clone();
-        data_writer.publication_matched_status.current_count_change = 0;
-        data_writer.publication_matched_status.total_count_change = 0;
-        Ok(status)
+        Ok(data_writer.get_publication_matched_status())
     }
 }
 
@@ -3336,8 +2640,7 @@ impl MailHandler<GetMatchedSubscriptionData> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
-            .matched_subscription_list
-            .get(&message.subscription_handle)
+            .get_matched_subscription_data(&message.subscription_handle)
             .ok_or(DdsError::BadParameter)
             .cloned()
     }
@@ -3362,10 +2665,7 @@ impl MailHandler<GetMatchedSubscriptions> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
-            .matched_subscription_list
-            .keys()
-            .cloned()
-            .collect())
+            .get_matched_subscriptions())
     }
 }
 
@@ -3393,42 +2693,39 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
             .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        qos.is_consistent()?;
-
-        if data_writer.enabled {
-            qos.check_immutability(&data_writer.qos)?;
-            data_writer.qos = qos;
+        if data_writer.enabled() {
+            data_writer.set_qos(qos);
 
             let publication_builtin_topic_data = PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: data_writer.transport_writer.guid(),
+                    value: data_writer.transport_writer().guid(),
                 },
                 participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_writer.topic_name.clone(),
-                type_name: data_writer.type_name.clone(),
-                durability: data_writer.qos.durability.clone(),
-                deadline: data_writer.qos.deadline.clone(),
-                latency_budget: data_writer.qos.latency_budget.clone(),
-                liveliness: data_writer.qos.liveliness.clone(),
-                reliability: data_writer.qos.reliability.clone(),
-                lifespan: data_writer.qos.lifespan.clone(),
-                user_data: data_writer.qos.user_data.clone(),
-                ownership: data_writer.qos.ownership.clone(),
-                ownership_strength: data_writer.qos.ownership_strength.clone(),
-                destination_order: data_writer.qos.destination_order.clone(),
+                topic_name: data_writer.topic_name().to_owned(),
+                type_name: data_writer.type_name().to_owned(),
+                durability: data_writer.qos().durability.clone(),
+                deadline: data_writer.qos().deadline.clone(),
+                latency_budget: data_writer.qos().latency_budget.clone(),
+                liveliness: data_writer.qos().liveliness.clone(),
+                reliability: data_writer.qos().reliability.clone(),
+                lifespan: data_writer.qos().lifespan.clone(),
+                user_data: data_writer.qos().user_data.clone(),
+                ownership: data_writer.qos().ownership.clone(),
+                ownership_strength: data_writer.qos().ownership_strength.clone(),
+                destination_order: data_writer.qos().destination_order.clone(),
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),
-                topic_data: self.topic_list[&data_writer.topic_name]
+                topic_data: self.topic_list[data_writer.topic_name()]
                     .qos()
                     .topic_data
                     .clone(),
                 group_data: publisher_qos.group_data.clone(),
-                representation: data_writer.qos.representation.clone(),
+                representation: data_writer.qos().representation.clone(),
             };
 
             self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
         } else {
-            data_writer.qos = qos;
+            data_writer.set_qos(qos);
         }
 
         Ok(())
@@ -4287,64 +3584,65 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                         InstanceStateKind::NotAliveDisposed => {
                             for publisher in self.user_defined_publisher_list.iter_mut() {
                                 for data_writer in publisher.data_writer_list_mut() {
-                                    if let Some(r) = data_writer
-                                        .matched_subscription_list
-                                        .remove(&sample_info.instance_handle)
-                                    {
-                                        // let type_name = self.type_name.clone();
-                                        // let topic_name = self.topic_name.clone();
-                                        // let participant = publisher.get_participant();
-                                        // let status_condition_address = self.status_condition.address();
-                                        // let topic_status_condition_address = self.topic_status_condition.clone();
-                                        // let topic = TopicAsync::new(
-                                        //     self.topic_address.clone(),
-                                        //     topic_status_condition_address,
-                                        //     type_name,
-                                        //     topic_name,
-                                        //     participant,
-                                        // );
-                                        // if self.status_kind.contains(&StatusKind::PublicationMatched) {
-                                        //     let status = self.matched_subscriptions.get_publication_matched_status();
-                                        //     if let Some(listener) = &self.data_writer_listener_thread {
-                                        //         listener.sender().send(DataWriterListenerMessage {
-                                        //             listener_operation: DataWriterListenerOperation::PublicationMatched(status),
-                                        //             writer_address: data_writer_address,
-                                        //             status_condition_address,
-                                        //             publisher,
-                                        //             topic,
-                                        //         })?;
-                                        //     }
-                                        // } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-                                        //     let status = self.matched_subscriptions.get_publication_matched_status();
-                                        //     if let Some(listener) = publisher_listener {
-                                        //         listener.send(PublisherListenerMessage {
-                                        //             listener_operation: PublisherListenerOperation::PublicationMatched(status),
-                                        //             writer_address: data_writer_address,
-                                        //             status_condition_address,
-                                        //             publisher,
-                                        //             topic,
-                                        //         })?;
-                                        //     }
-                                        // } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-                                        //     let status = self.matched_subscriptions.get_publication_matched_status();
-                                        //     if let Some(listener) = participant_listener {
-                                        //         listener.send(ParticipantListenerMessage {
-                                        //             listener_operation: ParticipantListenerOperation::PublicationMatched(status),
-                                        //             listener_kind: ListenerKind::Writer {
-                                        //                 writer_address: data_writer_address,
-                                        //                 status_condition_address,
-                                        //                 publisher,
-                                        //                 topic,
-                                        //             },
-                                        //         })?;
-                                        //     }
-                                        // }
-                                        data_writer.status_condition.send_actor_mail(
-                                            status_condition_actor::AddCommunicationState {
-                                                state: StatusKind::PublicationMatched,
-                                            },
-                                        );
-                                    }
+                                    todo!()
+                                    // if let Some(r) = data_writer
+                                    //     .matched_subscription_list
+                                    //     .remove(&sample_info.instance_handle)
+                                    // {
+                                    // let type_name = self.type_name.clone();
+                                    // let topic_name = self.topic_name.clone();
+                                    // let participant = publisher.get_participant();
+                                    // let status_condition_address = self.status_condition.address();
+                                    // let topic_status_condition_address = self.topic_status_condition.clone();
+                                    // let topic = TopicAsync::new(
+                                    //     self.topic_address.clone(),
+                                    //     topic_status_condition_address,
+                                    //     type_name,
+                                    //     topic_name,
+                                    //     participant,
+                                    // );
+                                    // if self.status_kind.contains(&StatusKind::PublicationMatched) {
+                                    //     let status = self.matched_subscriptions.get_publication_matched_status();
+                                    //     if let Some(listener) = &self.data_writer_listener_thread {
+                                    //         listener.sender().send(DataWriterListenerMessage {
+                                    //             listener_operation: DataWriterListenerOperation::PublicationMatched(status),
+                                    //             writer_address: data_writer_address,
+                                    //             status_condition_address,
+                                    //             publisher,
+                                    //             topic,
+                                    //         })?;
+                                    //     }
+                                    // } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
+                                    //     let status = self.matched_subscriptions.get_publication_matched_status();
+                                    //     if let Some(listener) = publisher_listener {
+                                    //         listener.send(PublisherListenerMessage {
+                                    //             listener_operation: PublisherListenerOperation::PublicationMatched(status),
+                                    //             writer_address: data_writer_address,
+                                    //             status_condition_address,
+                                    //             publisher,
+                                    //             topic,
+                                    //         })?;
+                                    //     }
+                                    // } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
+                                    //     let status = self.matched_subscriptions.get_publication_matched_status();
+                                    //     if let Some(listener) = participant_listener {
+                                    //         listener.send(ParticipantListenerMessage {
+                                    //             listener_operation: ParticipantListenerOperation::PublicationMatched(status),
+                                    //             listener_kind: ListenerKind::Writer {
+                                    //                 writer_address: data_writer_address,
+                                    //                 status_condition_address,
+                                    //                 publisher,
+                                    //                 topic,
+                                    //             },
+                                    //         })?;
+                                    //     }
+                                    // }
+                                    //     data_writer.status_condition.send_actor_mail(
+                                    //         status_condition_actor::AddCommunicationState {
+                                    //             state: StatusKind::PublicationMatched,
+                                    //         },
+                                    //     );
+                                    // }
                                 }
                             }
                         }
@@ -4407,7 +3705,7 @@ impl MailHandler<AreAllChangesAcknowledged> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
-            .transport_writer
+            .transport_writer()
             .are_all_changes_acknowledged())
     }
 }
@@ -4463,7 +3761,7 @@ impl MailHandler<RemoveWriterChange> for DomainParticipantActor {
             .find(|x| x.instance_handle() == message.publisher_handle)
         {
             if let Some(dw) = p.get_mut_data_writer(message.data_writer_handle) {
-                dw.transport_writer.remove_change(message.sequence_number);
+                dw.remove_change(message.sequence_number);
             }
         }
     }
@@ -4540,244 +3838,6 @@ fn sedp_data_writer_qos() -> DataWriterQos {
     }
 }
 
-fn write_w_timestamp(
-    data_writer: &mut DataWriterActor,
-    serialized_data: Vec<u8>,
-    timestamp: Time,
-    type_support: &dyn DynamicType,
-) -> DdsResult<SequenceNumber> {
-    if !data_writer.enabled {
-        return Err(DdsError::NotEnabled);
-    }
-
-    data_writer.last_change_sequence_number += 1;
-
-    let instance_handle = get_instance_handle_from_serialized_foo(&serialized_data, type_support)?;
-
-    if !data_writer
-        .registered_instance_list
-        .contains(&instance_handle)
-    {
-        if data_writer.registered_instance_list.len()
-            < data_writer.qos.resource_limits.max_instances
-        {
-            data_writer.registered_instance_list.insert(instance_handle);
-        } else {
-            return Err(DdsError::OutOfResources);
-        }
-    }
-
-    if let Length::Limited(max_instances) = data_writer.qos.resource_limits.max_instances {
-        if !data_writer.instance_samples.contains_key(&instance_handle)
-            && data_writer.instance_samples.len() == max_instances as usize
-        {
-            return Err(DdsError::OutOfResources);
-        }
-    }
-
-    if let Length::Limited(max_samples_per_instance) =
-        data_writer.qos.resource_limits.max_samples_per_instance
-    {
-        // If the history Qos guarantess that the number of samples
-        // is below the limit there is no need to check
-        match data_writer.qos.history.kind {
-            HistoryQosPolicyKind::KeepLast(depth) if depth <= max_samples_per_instance => {}
-            _ => {
-                if let Some(s) = data_writer.instance_samples.get(&instance_handle) {
-                    // Only Alive changes count towards the resource limits
-                    if s.len() >= max_samples_per_instance as usize {
-                        return Err(DdsError::OutOfResources);
-                    }
-                }
-            }
-        }
-    }
-
-    if let Length::Limited(max_samples) = data_writer.qos.resource_limits.max_samples {
-        let total_samples = data_writer
-            .instance_samples
-            .iter()
-            .fold(0, |acc, (_, x)| acc + x.len());
-
-        if total_samples >= max_samples as usize {
-            return Err(DdsError::OutOfResources);
-        }
-    }
-
-    let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-    let parameter_list = ParameterList::new(vec![pid_key_hash]);
-
-    let change = RtpsCacheChange {
-        kind: ChangeKind::Alive,
-        sequence_number: data_writer.last_change_sequence_number,
-        source_timestamp: Some(timestamp.into()),
-        data_value: serialized_data.into(),
-        inline_qos: parameter_list,
-    };
-    if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
-        if let Some(s) = data_writer.instance_samples.get_mut(&instance_handle) {
-            if s.len() == depth as usize {
-                if let Some(smallest_seq_num_instance) = s.pop_front() {
-                    data_writer
-                        .transport_writer
-                        .remove_change(smallest_seq_num_instance);
-                }
-            }
-        }
-    }
-
-    let change_timestamp = change.source_timestamp();
-    let seq_num = change.sequence_number();
-
-    if seq_num > data_writer.max_seq_num.unwrap_or(0) {
-        data_writer.max_seq_num = Some(seq_num)
-    }
-
-    if let Some(t) = data_writer
-        .instance_deadline_missed_task
-        .remove(&instance_handle.into())
-    {
-        t.abort();
-    }
-
-    if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
-        let deadline_missed_interval = std::time::Duration::new(
-            deadline_missed_period.sec() as u64,
-            deadline_missed_period.nanosec(),
-        );
-        // let writer_status_condition = self.status_condition.address();
-        // let writer_address = message.writer_address.clone();
-        // let timer_handle = message.timer_handle.clone();
-        // let writer_listener_mask = self.status_kind.clone();
-        // let data_writer_listener_sender = self
-        //     .data_writer_listener_thread
-        //     .as_ref()
-        //     .map(|l| l.sender().clone());
-        // let publisher_listener = message.publisher_mask_listener.0.clone();
-        // let publisher_listener_mask = message.publisher_mask_listener.1.clone();
-        // let participant_listener = message.participant_mask_listener.0.clone();
-        // let participant_listener_mask = message.participant_mask_listener.1.clone();
-        // let status_condition_address = self.status_condition.address();
-        // // let topic_address = self.topic_address.clone();
-        // // let topic_status_condition_address = self.topic_status_condition.clone();
-        // let type_name = self.type_name.clone();
-        // let topic_name = self.topic_name.clone();
-        // let publisher = message.publisher.clone();
-
-        // let deadline_missed_task = message.executor_handle.spawn(async move {
-        //     loop {
-        //         timer_handle.sleep(deadline_missed_interval).await;
-        //         let publisher_listener = publisher_listener.clone();
-        //         let participant_listener = participant_listener.clone();
-
-        //         let r: DdsResult<()> = async {
-        //             writer_address.send_actor_mail(
-        //                 IncrementOfferedDeadlineMissedStatus {
-        //                     instance_handle: change_instance_handle.into(),
-        //                 },
-        //             )?;
-
-        //             let writer_address = writer_address.clone();
-        //             let status_condition_address = status_condition_address.clone();
-        //             let publisher = publisher.clone();
-        //             let topic = TopicAsync::new(
-        //                 topic_address.clone(),
-        //                 topic_status_condition_address.clone(),
-        //                 type_name.clone(),
-        //                 topic_name.clone(),
-        //                 publisher.get_participant(),
-        //             );
-        //             if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
-        //                 let status = writer_address
-        //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-        //                     .receive_reply()
-        //                     .await;
-        //                 if let Some(listener) = &data_writer_listener_sender {
-        //                     listener
-        //                         .send(DataWriterListenerMessage {
-        //                             listener_operation:
-        //                                 DataWriterListenerOperation::OfferedDeadlineMissed(
-        //                                     status,
-        //                                 ),
-        //                             writer_address,
-        //                             status_condition_address,
-        //                             publisher,
-        //                             topic,
-        //                         })
-        //                         .ok();
-        //                 }
-        //             } else if publisher_listener_mask
-        //                 .contains(&StatusKind::OfferedDeadlineMissed)
-        //             {
-        //                 let status = writer_address
-        //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-        //                     .receive_reply()
-        //                     .await;
-        //                 if let Some(listener) = publisher_listener {
-        //                     listener
-        //                         .send(PublisherListenerMessage {
-        //                             listener_operation:
-        //                                 PublisherListenerOperation::OfferedDeadlineMissed(
-        //                                     status,
-        //                                 ),
-        //                             writer_address,
-        //                             status_condition_address,
-        //                             publisher,
-        //                             topic,
-        //                         })
-        //                         .ok();
-        //                 }
-        //             } else if participant_listener_mask
-        //                 .contains(&StatusKind::OfferedDeadlineMissed)
-        //             {
-        //                 let status = writer_address
-        //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-        //                     .receive_reply()
-        //                     .await;
-        //                 if let Some(listener) = participant_listener {
-        //                     listener
-        //                     .send(ParticipantListenerMessage {
-        //                         listener_operation:
-        //                             ParticipantListenerOperation::_OfferedDeadlineMissed(
-        //                                 status,
-        //                             ),
-        //                         listener_kind: ListenerKind::Writer {
-        //                             writer_address,
-        //                             status_condition_address,
-        //                             publisher,
-        //                             topic,
-        //                         },
-        //                     })
-        //                     .ok();
-        //                 }
-        //             }
-        //             writer_status_condition
-        //                 .send_actor_mail(AddCommunicationState {
-        //                     state: StatusKind::OfferedDeadlineMissed,
-        //                 })?
-        //                 .receive_reply()
-        //                 .await;
-        //             Ok(())
-        //         }
-        //         .await;
-        //         if r.is_err() {
-        //             break;
-        //         }
-        //     }
-        // });
-        // self.instance_deadline_missed_task
-        //     .insert(change_instance_handle.into(), deadline_missed_task);
-    }
-
-    data_writer
-        .instance_samples
-        .entry(instance_handle)
-        .or_insert(VecDeque::new())
-        .push_back(change.sequence_number);
-    data_writer.transport_writer.add_change(change);
-    Ok(data_writer.last_change_sequence_number)
-}
-
 fn get_discovered_reader_incompatible_qos_policy_list(
     writer_qos: &DataWriterQos,
     discovered_reader_data: &SubscriptionBuiltinTopicData,
@@ -4830,73 +3890,6 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     }
 
     incompatible_qos_policy_list
-}
-
-fn dispose_w_timestamp(
-    data_writer: &mut DataWriterActor,
-    serialized_data: Vec<u8>,
-    timestamp: Time,
-    type_support: &dyn DynamicType,
-) -> DdsResult<()> {
-    if !data_writer.enabled {
-        return Err(DdsError::NotEnabled);
-    }
-
-    let has_key = {
-        let mut has_key = false;
-        for index in 0..type_support.get_member_count() {
-            if type_support
-                .get_member_by_index(index)?
-                .get_descriptor()?
-                .is_key
-            {
-                has_key = true;
-                break;
-            }
-        }
-        has_key
-    };
-    if !has_key {
-        return Err(DdsError::IllegalOperation);
-    }
-
-    let serialized_key = get_serialized_key_from_serialized_foo(&serialized_data, type_support)?;
-
-    let instance_handle = get_instance_handle_from_serialized_key(&serialized_key, type_support)?;
-    if !data_writer
-        .registered_instance_list
-        .contains(&instance_handle)
-    {
-        return Err(DdsError::BadParameter);
-    }
-
-    if let Some(t) = data_writer
-        .instance_deadline_missed_task
-        .remove(&instance_handle)
-    {
-        t.abort();
-    }
-
-    data_writer.last_change_sequence_number += 1;
-
-    let mut serialized_status_info = Vec::new();
-    let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-    XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
-    let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-
-    let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-    let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
-    let cache_change = RtpsCacheChange {
-        kind: ChangeKind::NotAliveDisposed,
-        sequence_number: data_writer.last_change_sequence_number,
-        source_timestamp: Some(timestamp.into()),
-        data_value: serialized_key.into(),
-        inline_qos: parameter_list,
-    };
-    data_writer.transport_writer.add_change(cache_change);
-
-    Ok(())
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list(

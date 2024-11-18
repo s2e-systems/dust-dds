@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
@@ -14,10 +12,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
-        status::{
-            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            StatusKind,
-        },
+        status::StatusKind,
     },
     rtps::types::TopicKind,
     subscription::sample_info::{InstanceStateKind, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -26,10 +21,9 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    data_writer::{DataWriterActor, DataWriterListenerThread},
-    domain_participant_actor::DomainParticipantActor,
-    publisher_listener::PublisherListenerThread,
+    any_data_writer_listener::AnyDataWriterListener, data_writer::DataWriterActor,
+    data_writer_listener::DataWriterListenerThread,
+    domain_participant_actor::DomainParticipantActor, publisher_listener::PublisherListenerThread,
 };
 
 pub struct CreateDataWriter {
@@ -56,6 +50,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
 
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
+        let type_support = topic.type_support().clone();
 
         let transport_writer = self
             .transport
@@ -72,45 +67,28 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         let topic_name = message.topic_name;
 
         let type_name = topic.type_name().to_owned();
-        let mut data_writer = DataWriterActor {
-            instance_handle: writer_handle,
+        let status_condition =
+            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+        let writer_status_condition_address = status_condition.address();
+        let mut data_writer = DataWriterActor::new(
+            writer_handle,
             transport_writer,
             topic_name,
             type_name,
-            matched_subscription_list: HashMap::new(),
-            publication_matched_status: PublicationMatchedStatus::default(),
-            incompatible_subscription_list: HashSet::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
-            enabled: false,
-            status_condition: Actor::spawn(
-                StatusConditionActor::default(),
-                &self.executor.handle(),
-            ),
-            data_writer_listener_thread: message.a_listener.map(DataWriterListenerThread::new),
-            status_kind: message.mask,
-            max_seq_num: None,
-            last_change_sequence_number: 0,
+            type_support,
+            status_condition,
+            message.a_listener.map(DataWriterListenerThread::new),
+            message.mask,
             qos,
-            registered_instance_list: HashSet::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::default(),
-            instance_deadline_missed_task: HashMap::new(),
-            instance_samples: HashMap::new(),
-        };
-        let data_writer_handle = data_writer.instance_handle;
-        let writer_status_condition_address = data_writer.status_condition.address();
+        );
+        let data_writer_handle = data_writer.instance_handle();
         if publisher.enabled() && publisher.qos().entity_factory.autoenable_created_entities {
-            data_writer.enabled = true;
+            data_writer.enable();
         }
 
         publisher.insert_data_writer(data_writer);
 
         if publisher.enabled() && publisher.qos().entity_factory.autoenable_created_entities {
-            publisher
-                .data_writer_list_mut()
-                .find(|x| x.instance_handle == data_writer_handle)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .enabled = true;
-
             if let Some(dcps_subscription_reader) = self
                 .builtin_subscriber
                 .data_reader_list_mut()
@@ -176,7 +154,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
 
                             if is_partition_matched {
                                 for dw in publisher.data_writer_list_mut().filter(|dw| {
-                                    dw.topic_name
+                                    dw.topic_name()
                                         == discovered_reader_data
                                             .subscription_builtin_topic_data()
                                             .topic_name()
@@ -195,29 +173,29 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
                 .ok_or(DdsError::AlreadyDeleted)?;
             let publication_builtin_topic_data = PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: data_writer.transport_writer.guid(),
+                    value: data_writer.transport_writer().guid(),
                 },
                 participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_writer.topic_name.clone(),
-                type_name: data_writer.type_name.clone(),
-                durability: data_writer.qos.durability.clone(),
-                deadline: data_writer.qos.deadline.clone(),
-                latency_budget: data_writer.qos.latency_budget.clone(),
-                liveliness: data_writer.qos.liveliness.clone(),
-                reliability: data_writer.qos.reliability.clone(),
-                lifespan: data_writer.qos.lifespan.clone(),
-                user_data: data_writer.qos.user_data.clone(),
-                ownership: data_writer.qos.ownership.clone(),
-                ownership_strength: data_writer.qos.ownership_strength.clone(),
-                destination_order: data_writer.qos.destination_order.clone(),
+                topic_name: data_writer.topic_name().to_owned(),
+                type_name: data_writer.type_name().to_owned(),
+                durability: data_writer.qos().durability.clone(),
+                deadline: data_writer.qos().deadline.clone(),
+                latency_budget: data_writer.qos().latency_budget.clone(),
+                liveliness: data_writer.qos().liveliness.clone(),
+                reliability: data_writer.qos().reliability.clone(),
+                lifespan: data_writer.qos().lifespan.clone(),
+                user_data: data_writer.qos().user_data.clone(),
+                ownership: data_writer.qos().ownership.clone(),
+                ownership_strength: data_writer.qos().ownership_strength.clone(),
+                destination_order: data_writer.qos().destination_order.clone(),
                 presentation: publisher.qos().presentation.clone(),
                 partition: publisher.qos().partition.clone(),
-                topic_data: self.topic_list[&data_writer.topic_name]
+                topic_data: self.topic_list[data_writer.topic_name()]
                     .qos()
                     .topic_data
                     .clone(),
                 group_data: publisher.qos().group_data.clone(),
-                representation: data_writer.qos.representation.clone(),
+                representation: data_writer.qos().representation.clone(),
             };
 
             self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
@@ -247,29 +225,29 @@ impl MailHandler<DeleteDataWriter> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         let publication_builtin_topic_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: data_writer.transport_writer.guid(),
+                value: data_writer.transport_writer().guid(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_writer.topic_name.clone(),
-            type_name: data_writer.type_name.clone(),
-            durability: data_writer.qos.durability.clone(),
-            deadline: data_writer.qos.deadline.clone(),
-            latency_budget: data_writer.qos.latency_budget.clone(),
-            liveliness: data_writer.qos.liveliness.clone(),
-            reliability: data_writer.qos.reliability.clone(),
-            lifespan: data_writer.qos.lifespan.clone(),
-            user_data: data_writer.qos.user_data.clone(),
-            ownership: data_writer.qos.ownership.clone(),
-            ownership_strength: data_writer.qos.ownership_strength.clone(),
-            destination_order: data_writer.qos.destination_order.clone(),
+            topic_name: data_writer.topic_name().to_owned(),
+            type_name: data_writer.type_name().to_owned(),
+            durability: data_writer.qos().durability.clone(),
+            deadline: data_writer.qos().deadline.clone(),
+            latency_budget: data_writer.qos().latency_budget.clone(),
+            liveliness: data_writer.qos().liveliness.clone(),
+            reliability: data_writer.qos().reliability.clone(),
+            lifespan: data_writer.qos().lifespan.clone(),
+            user_data: data_writer.qos().user_data.clone(),
+            ownership: data_writer.qos().ownership.clone(),
+            ownership_strength: data_writer.qos().ownership_strength.clone(),
+            destination_order: data_writer.qos().destination_order.clone(),
             presentation: publisher.qos().presentation.clone(),
             partition: publisher.qos().partition.clone(),
-            topic_data: self.topic_list[&data_writer.topic_name]
+            topic_data: self.topic_list[data_writer.topic_name()]
                 .qos()
                 .topic_data
                 .clone(),
             group_data: publisher.qos().group_data.clone(),
-            representation: data_writer.qos.representation.clone(),
+            representation: data_writer.qos().representation.clone(),
         };
         self.announce_deleted_data_writer(publication_builtin_topic_data)?;
         Ok(())

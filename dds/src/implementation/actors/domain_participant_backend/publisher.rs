@@ -61,20 +61,20 @@ impl PublisherActor {
         let index = self
             .data_writer_list
             .iter()
-            .position(|x| x.instance_handle == handle)?;
+            .position(|x| x.instance_handle() == handle)?;
         Some(self.data_writer_list.remove(index))
     }
 
     pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterActor> {
         self.data_writer_list
             .iter()
-            .find(|x| x.instance_handle == handle)
+            .find(|x| x.instance_handle() == handle)
     }
 
     pub fn get_mut_data_writer(&mut self, handle: InstanceHandle) -> Option<&mut DataWriterActor> {
         self.data_writer_list
             .iter_mut()
-            .find(|x| x.instance_handle == handle)
+            .find(|x| x.instance_handle() == handle)
     }
 
     pub fn instance_handle(&self) -> InstanceHandle {

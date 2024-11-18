@@ -113,7 +113,7 @@ impl TopicActor {
         status
     }
 
-    pub fn increment_inconsistent_topic_status(&mut self) {
+    pub fn add_inconsistent_topic_status(&mut self) {
         self.inconsistent_topic_status.total_count += 1;
         self.inconsistent_topic_status.total_count_change += 1;
         self.status_condition
