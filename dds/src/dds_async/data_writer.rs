@@ -10,7 +10,7 @@ use crate::{
         actor::ActorAddress,
         status_condition::status_condition_actor::StatusConditionActor,
         domain_participant_backend::{
-            data_writer_service, domain_participant_actor::DomainParticipantActor,
+            services::data_writer_service, domain_participant_actor::DomainParticipantActor,
         },
     },
     infrastructure::{

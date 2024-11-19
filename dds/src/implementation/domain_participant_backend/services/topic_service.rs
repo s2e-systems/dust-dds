@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    implementation::actor::{Mail, MailHandler},
+    implementation::{
+        actor::{Mail, MailHandler},
+        domain_participant_backend::domain_participant_actor::DomainParticipantActor,
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
@@ -9,8 +12,6 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::domain_participant_actor::DomainParticipantActor;
 
 pub struct GetInconsistentTopicStatus {
     pub topic_name: String,

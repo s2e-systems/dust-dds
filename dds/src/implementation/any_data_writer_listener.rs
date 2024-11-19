@@ -2,16 +2,17 @@ use std::{future::Future, pin::Pin};
 
 use crate::{
     dds_async::{
-        data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync,
-        publisher::PublisherAsync, topic::TopicAsync,
+        data_writer_listener::DataWriterListenerAsync, publisher::PublisherAsync, topic::TopicAsync,
     },
-    implementation::{actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor},
+    implementation::{
+        actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor,
+    },
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
 };
 
-use super::data_writer::DataWriterActor;
+use super::domain_participant_backend::entities::data_writer::DataWriterActor;
 
 pub enum DataWriterListenerOperation {
     OfferedDeadlineMissed(OfferedDeadlineMissedStatus),

@@ -8,10 +8,10 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actor::ActorAddress,
-        status_condition::status_condition_actor::StatusConditionActor,
         domain_participant_backend::{
-            data_reader_service, domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::DomainParticipantActor, services::data_reader_service,
         },
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

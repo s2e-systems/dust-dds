@@ -9,7 +9,9 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::Actor,
-        domain_participant_backend::domain_participant_actor,
+        domain_participant_backend::{
+            domain_participant_actor, services::domain_participant_service,
+        },
         domain_participant_factory::domain_participant_factory_actor::{
             self, DomainParticipantFactoryActor,
         },
@@ -74,7 +76,7 @@ impl DomainParticipantFactoryAsync {
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
         let is_participant_empty = participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::IsEmpty)?
+            .send_actor_mail(domain_participant_service::IsEmpty)?
             .receive_reply()
             .await;
         if is_participant_empty {

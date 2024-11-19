@@ -9,9 +9,11 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::ActorAddress,
-        status_condition::status_condition_actor::StatusConditionActor,
-        domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
+        domain_participant_backend::{
+            domain_participant_actor::DomainParticipantActor, services::domain_participant_service,
+        },
         runtime::timer::TimerHandle,
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -71,7 +73,7 @@ impl DomainParticipantAsync {
     ) -> DdsResult<PublisherAsync> {
         let (guid, publisher_status_condition_address) = self
             .participant_address
-            .send_actor_mail(domain_participant_actor::CreateUserDefinedPublisher {
+            .send_actor_mail(domain_participant_service::CreateUserDefinedPublisher {
                 qos,
                 a_listener,
                 mask: mask.to_vec(),
@@ -87,7 +89,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedPublisher {
+            .send_actor_mail(domain_participant_service::DeleteUserDefinedPublisher {
                 participant_handle: a_publisher.get_participant().handle,
                 publisher_handle: a_publisher.get_instance_handle().await,
             })?
@@ -105,7 +107,7 @@ impl DomainParticipantAsync {
     ) -> DdsResult<SubscriberAsync> {
         let (guid, subscriber_status_condition_address) = self
             .participant_address
-            .send_actor_mail(domain_participant_actor::CreateUserDefinedSubscriber {
+            .send_actor_mail(domain_participant_service::CreateUserDefinedSubscriber {
                 qos,
                 a_listener,
                 mask: mask.to_vec(),
@@ -122,7 +124,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedSubscriber {
+            .send_actor_mail(domain_participant_service::DeleteUserDefinedSubscriber {
                 participant_handle: a_subscriber.get_participant().handle,
                 subscriber_handle: a_subscriber.get_instance_handle().await,
             })?
@@ -162,7 +164,7 @@ impl DomainParticipantAsync {
     ) -> DdsResult<TopicAsync> {
         let (guid, topic_status_condition_address) = self
             .participant_address
-            .send_actor_mail(domain_participant_actor::CreateUserDefinedTopic {
+            .send_actor_mail(domain_participant_service::CreateUserDefinedTopic {
                 topic_name: topic_name.to_string(),
                 type_name: type_name.to_string(),
                 qos,
@@ -186,7 +188,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteUserDefinedTopic {
+            .send_actor_mail(domain_participant_service::DeleteUserDefinedTopic {
                 participant_handle: a_topic.get_participant().handle,
                 topic_name: a_topic.get_name(),
             })?
@@ -215,7 +217,7 @@ impl DomainParticipantAsync {
                     loop {
                         if let Some((guid, topic_status_condition_address, type_name)) =
                             participant_address
-                                .send_actor_mail(domain_participant_actor::FindTopic {
+                                .send_actor_mail(domain_participant_service::FindTopic {
                                     topic_name: topic_name.clone(),
                                     type_support: type_support.clone(),
                                 })?
@@ -242,7 +244,7 @@ impl DomainParticipantAsync {
     pub async fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicAsync>> {
         if let Some((type_name, topic_handle, topic_status_condition_address)) = self
             .participant_address
-            .send_actor_mail(domain_participant_actor::LookupTopicdescription {
+            .send_actor_mail(domain_participant_service::LookupTopicdescription {
                 topic_name: topic_name.to_owned(),
             })?
             .receive_reply()
@@ -274,7 +276,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::IgnoreParticipant { handle })?
+            .send_actor_mail(domain_participant_service::IgnoreParticipant { handle })?
             .receive_reply()
             .await
     }
@@ -289,7 +291,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::IgnorePublication { handle })?
+            .send_actor_mail(domain_participant_service::IgnorePublication { handle })?
             .receive_reply()
             .await
     }
@@ -298,7 +300,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::IgnoreSubscription { handle })?
+            .send_actor_mail(domain_participant_service::IgnoreSubscription { handle })?
             .receive_reply()
             .await
     }
@@ -313,7 +315,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::DeleteParticipantContainedEntities)?
+            .send_actor_mail(domain_participant_service::DeleteParticipantContainedEntities)?
             .receive_reply()
             .await
     }
@@ -328,7 +330,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::SetDefaultPublisherQos { qos })?
+            .send_actor_mail(domain_participant_service::SetDefaultPublisherQos { qos })?
             .receive_reply()
             .await
     }
@@ -337,7 +339,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDefaultPublisherQos)?
+            .send_actor_mail(domain_participant_service::GetDefaultPublisherQos)?
             .receive_reply()
             .await
     }
@@ -346,7 +348,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::SetDefaultSubscriberQos { qos })?
+            .send_actor_mail(domain_participant_service::SetDefaultSubscriberQos { qos })?
             .receive_reply()
             .await
     }
@@ -355,7 +357,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDefaultSubscriberQos)?
+            .send_actor_mail(domain_participant_service::GetDefaultSubscriberQos)?
             .receive_reply()
             .await
     }
@@ -364,7 +366,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::SetDefaultTopicQos { qos })?
+            .send_actor_mail(domain_participant_service::SetDefaultTopicQos { qos })?
             .receive_reply()
             .await
     }
@@ -373,7 +375,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDefaultTopicQos)?
+            .send_actor_mail(domain_participant_service::GetDefaultTopicQos)?
             .receive_reply()
             .await
     }
@@ -382,7 +384,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDiscoveredParticipants)?
+            .send_actor_mail(domain_participant_service::GetDiscoveredParticipants)?
             .receive_reply()
             .await
     }
@@ -394,7 +396,7 @@ impl DomainParticipantAsync {
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDiscoveredParticipantData {
+            .send_actor_mail(domain_participant_service::GetDiscoveredParticipantData {
                 participant_handle,
             })?
             .receive_reply()
@@ -405,7 +407,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDiscoveredTopics)?
+            .send_actor_mail(domain_participant_service::GetDiscoveredTopics)?
             .receive_reply()
             .await
     }
@@ -417,7 +419,7 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDiscoveredTopicData { topic_handle })?
+            .send_actor_mail(domain_participant_service::GetDiscoveredTopicData { topic_handle })?
             .receive_reply()
             .await
     }
@@ -433,7 +435,7 @@ impl DomainParticipantAsync {
     pub async fn get_current_time(&self) -> DdsResult<Time> {
         Ok(self
             .participant_address
-            .send_actor_mail(domain_participant_actor::GetCurrentTime)?
+            .send_actor_mail(domain_participant_service::GetCurrentTime)?
             .receive_reply()
             .await)
     }
@@ -444,7 +446,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::SetDomainParticipantQos { qos })?
+            .send_actor_mail(domain_participant_service::SetDomainParticipantQos { qos })?
             .receive_reply()
             .await
     }
@@ -453,7 +455,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::GetDomainParticipantQos)?
+            .send_actor_mail(domain_participant_service::GetDomainParticipantQos)?
             .receive_reply()
             .await
     }
@@ -466,7 +468,7 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::SetDomainParticipantListener {
+            .send_actor_mail(domain_participant_service::SetDomainParticipantListener {
                 listener: a_listener,
                 status_kind: mask.to_vec(),
             })?
@@ -490,7 +492,7 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_actor::EnableDomainParticipant)?
+            .send_actor_mail(domain_participant_service::EnableDomainParticipant)?
             .receive_reply()
             .await
     }

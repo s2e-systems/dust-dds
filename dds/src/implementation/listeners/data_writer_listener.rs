@@ -4,18 +4,15 @@ use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
         actor::ActorAddress,
-        status_condition::status_condition_actor::StatusConditionActor,
+        any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
+        domain_participant_backend::entities::data_writer::DataWriterActor,
         runtime::{
             executor::block_on,
             mpsc::{mpsc_channel, MpscSender},
         },
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::error::DdsResult,
-};
-
-use super::{
-    any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-    data_writer::DataWriterActor,
 };
 
 pub struct DataWriterListenerMessage {

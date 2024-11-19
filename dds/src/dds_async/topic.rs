@@ -4,8 +4,8 @@ use super::{
 };
 use crate::{
     implementation::{
-        actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor,
-        domain_participant_backend::topic_service,
+        actor::ActorAddress, domain_participant_backend::services::topic_service,
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

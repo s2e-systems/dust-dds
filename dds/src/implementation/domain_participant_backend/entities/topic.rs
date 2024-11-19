@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     implementation::{
         actor::Actor,
+        listeners::topic_listener::TopicListenerThread,
         status_condition::status_condition_actor::{self, StatusConditionActor},
     },
     infrastructure::{
@@ -13,8 +14,6 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::topic_listener::TopicListenerThread;
 
 pub struct TopicActor {
     qos: TopicQos,

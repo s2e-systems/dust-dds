@@ -7,9 +7,10 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         actor::Actor,
-        status_condition::status_condition_actor::{self, StatusConditionActor},
         data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
+        listeners::data_reader_listener::DataReaderListenerThread,
         runtime::executor::TaskHandle,
+        status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
         },
@@ -37,8 +38,6 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     xtypes::dynamic_type::DynamicType,
 };
-
-use super::data_reader_listener::DataReaderListenerThread;
 
 struct InstanceState {
     view_state: ViewStateKind,

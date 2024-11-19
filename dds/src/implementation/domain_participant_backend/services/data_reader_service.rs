@@ -2,7 +2,13 @@ use core::{future::Future, pin::Pin};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    implementation::actor::{ActorAddress, Mail, MailHandler},
+    implementation::{
+        actor::{ActorAddress, Mail, MailHandler},
+        any_data_reader_listener::AnyDataReaderListener,
+        domain_participant_backend::domain_participant_actor::{
+            DomainParticipantActor, IsHistoricalDataReceived,
+        },
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -12,11 +18,6 @@ use crate::{
     },
     rtps::messages::submessage_elements::Data,
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-};
-
-use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    domain_participant_actor::{DomainParticipantActor, IsHistoricalDataReceived},
 };
 
 pub struct Read {

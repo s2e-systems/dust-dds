@@ -1,5 +1,8 @@
 use crate::{
-    implementation::{actor::Actor, status_condition::status_condition_actor::StatusConditionActor},
+    implementation::{
+        actor::Actor, listeners::subscriber_listener::SubscriberListenerThread,
+        status_condition::status_condition_actor::StatusConditionActor,
+    },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -8,7 +11,7 @@ use crate::{
     },
 };
 
-use super::{data_reader::DataReaderActor, subscriber_listener::SubscriberListenerThread};
+use super::data_reader::DataReaderActor;
 
 pub struct SubscriberActor {
     instance_handle: InstanceHandle,

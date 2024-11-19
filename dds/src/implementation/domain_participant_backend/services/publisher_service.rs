@@ -5,8 +5,17 @@ use crate::{
     dds_async::publisher_listener::PublisherListenerAsync,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        status_condition::status_condition_actor::StatusConditionActor,
+        any_data_writer_listener::AnyDataWriterListener,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
+        domain_participant_backend::{
+            domain_participant_actor::DomainParticipantActor,
+            entities::data_writer::DataWriterActor,
+        },
+        listeners::{
+            data_writer_listener::DataWriterListenerThread,
+            publisher_listener::PublisherListenerThread,
+        },
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -18,12 +27,6 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsDeserialize,
     xtypes::dynamic_type::DynamicType,
-};
-
-use super::{
-    any_data_writer_listener::AnyDataWriterListener, data_writer::DataWriterActor,
-    data_writer_listener::DataWriterListenerThread,
-    domain_participant_actor::DomainParticipantActor, publisher_listener::PublisherListenerThread,
 };
 
 pub struct CreateDataWriter {

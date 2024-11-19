@@ -4,6 +4,10 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     implementation::{
         actor::{ActorAddress, Mail, MailHandler},
+        any_data_writer_listener::AnyDataWriterListener,
+        domain_participant_backend::domain_participant_actor::{
+            AreAllChangesAcknowledged, DomainParticipantActor,
+        },
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
     infrastructure::{
@@ -13,11 +17,6 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, Time},
     },
-};
-
-use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_actor::{AreAllChangesAcknowledged, DomainParticipantActor},
 };
 
 pub struct RegisterInstance {

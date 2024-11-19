@@ -1,16 +1,16 @@
-use super::data_writer_listener::DataWriterListenerThread;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         actor::Actor,
-        status_condition::status_condition_actor::{self, StatusConditionActor},
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
+        listeners::data_writer_listener::DataWriterListenerThread,
         runtime::executor::TaskHandle,
+        status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
             get_serialized_key_from_serialized_foo,

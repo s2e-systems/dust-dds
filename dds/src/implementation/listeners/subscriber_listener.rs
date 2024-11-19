@@ -4,8 +4,8 @@ use crate::{
         topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress, actors::status_condition_actor::StatusConditionActor,
-        runtime::mpsc::MpscSender,
+        actor::ActorAddress, runtime::mpsc::MpscSender,
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,

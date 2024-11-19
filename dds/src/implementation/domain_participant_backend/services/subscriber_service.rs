@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
@@ -7,17 +5,19 @@ use crate::{
     dds_async::subscriber_listener::SubscriberListenerAsync,
     implementation::{
         actor::{Actor, ActorAddress, Mail, MailHandler},
-        status_condition::status_condition_actor::StatusConditionActor,
+        any_data_reader_listener::AnyDataReaderListener,
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        domain_participant_backend::{
+            domain_participant_actor::{AddCacheChange, DomainParticipantActor},
+            entities::data_reader::DataReaderActor,
+        },
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
-        status::{
-            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
-        },
+        status::StatusKind,
     },
     rtps::{
         reader::{ReaderCacheChange, ReaderHistoryCache},
@@ -26,12 +26,6 @@ use crate::{
     subscription::sample_info::{InstanceStateKind, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsDeserialize,
     xtypes::dynamic_type::DynamicType,
-};
-
-use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    data_reader::DataReaderActor,
-    domain_participant_actor::{AddCacheChange, DomainParticipantActor},
 };
 
 pub struct CreateUserDefinedDataReader {

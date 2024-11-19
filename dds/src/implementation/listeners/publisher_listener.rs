@@ -1,11 +1,10 @@
-use super::data_writer::DataWriterActor;
 use crate::{
     dds_async::{
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor,
-        runtime::mpsc::MpscSender,
+        actor::ActorAddress, domain_participant_backend::entities::data_writer::DataWriterActor,
+        runtime::mpsc::MpscSender, status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,
