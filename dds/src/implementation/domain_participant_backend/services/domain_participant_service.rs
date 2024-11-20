@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use tracing::error;
+
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT,
@@ -33,6 +35,8 @@ use crate::{
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     xtypes::dynamic_type::DynamicType,
 };
+
+use super::message_service;
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -733,6 +737,7 @@ impl MailHandler<GetCurrentTime> for DomainParticipantActor {
 
 pub struct SetDomainParticipantQos {
     pub qos: QosKind<DomainParticipantQos>,
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for SetDomainParticipantQos {
     type Result = DdsResult<()>;
@@ -748,7 +753,11 @@ impl MailHandler<SetDomainParticipantQos> for DomainParticipantActor {
         };
 
         self.domain_participant.set_qos(qos);
-        self.domain_participant.announce_participant()
+        message
+            .domain_participant_address
+            .send_actor_mail(message_service::AnnounceParticipant)
+            .ok();
+        Ok(())
     }
 }
 
@@ -784,15 +793,24 @@ impl MailHandler<SetDomainParticipantListener> for DomainParticipantActor {
     }
 }
 
-pub struct EnableDomainParticipant;
-impl Mail for EnableDomainParticipant {
+pub struct Enable {
+    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
+}
+impl Mail for Enable {
     type Result = DdsResult<()>;
 }
-impl MailHandler<EnableDomainParticipant> for DomainParticipantActor {
-    fn handle(&mut self, _: EnableDomainParticipant) -> <EnableDomainParticipant as Mail>::Result {
+impl MailHandler<Enable> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: Enable,
+    ) -> <Enable as Mail>::Result {
         if !self.domain_participant.enabled() {
             self.domain_participant.enable();
-            self.domain_participant.announce_participant()?;
+
+            message
+                .domain_participant_address
+                .send_actor_mail(message_service::AnnounceParticipant)
+                .ok();
         }
         Ok(())
     }

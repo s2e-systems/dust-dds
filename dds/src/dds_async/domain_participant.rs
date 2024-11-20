@@ -445,7 +445,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_service::SetDomainParticipantQos { qos })?
+            .send_actor_mail(domain_participant_service::SetDomainParticipantQos {
+                qos,
+                domain_participant_address: self.participant_address.clone(),
+            })?
             .receive_reply()
             .await
     }
@@ -491,7 +494,9 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_service::EnableDomainParticipant)?
+            .send_actor_mail(domain_participant_service::Enable {
+                domain_participant_address: self.participant_address.clone(),
+            })?
             .receive_reply()
             .await
     }

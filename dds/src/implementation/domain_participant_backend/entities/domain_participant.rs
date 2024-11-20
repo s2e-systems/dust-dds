@@ -169,27 +169,6 @@ impl DomainParticipantEntity {
         // Ok(())
     }
 
-    pub fn announce_created_or_modified_datawriter(
-        &mut self,
-        publication_builtin_topic_data: PublicationBuiltinTopicData,
-    ) -> DdsResult<()> {
-        if self.enabled {
-            let timestamp = self.get_current_time();
-            let dcps_publication_topic = self
-                .topic_list
-                .get(DCPS_PUBLICATION)
-                .expect("DCPS Publication topic must exist");
-            if let Some(mut dw) = self
-                .builtin_publisher
-                .data_writer_list_mut()
-                .find(|dw| dw.topic_name() == DCPS_PUBLICATION)
-            {
-                dw.write_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?;
-            }
-        }
-        Ok(())
-    }
-
     pub fn announce_deleted_data_writer(
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
@@ -206,27 +185,6 @@ impl DomainParticipantEntity {
                 .find(|dw| dw.topic_name() == DCPS_PUBLICATION)
             {
                 dw.dispose_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?
-            }
-        }
-        Ok(())
-    }
-
-    pub fn announce_created_or_modified_datareader(
-        &mut self,
-        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
-    ) -> DdsResult<()> {
-        if self.enabled {
-            let timestamp = self.get_current_time();
-            let dcps_subscription_topic = self
-                .topic_list
-                .get(DCPS_SUBSCRIPTION)
-                .expect("DCPS Subscription topic must exist");
-            if let Some(mut dw) = self
-                .builtin_publisher
-                .data_writer_list_mut()
-                .find(|dw| dw.topic_name() == DCPS_SUBSCRIPTION)
-            {
-                dw.write_w_timestamp(subscription_builtin_topic_data.serialize_data()?, timestamp)?;
             }
         }
         Ok(())
@@ -700,190 +658,190 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
-        let discovered_reader_participant_guid = Guid::new(
-            discovered_reader_data
-                .reader_proxy()
-                .remote_reader_guid
-                .prefix(),
-            ENTITYID_PARTICIPANT,
-        );
-        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
-            discovered_reader_participant_guid.into(),
-        ));
-        let is_subscription_ignored = self.ignored_subcriptions.contains(&InstanceHandle::new(
-            discovered_reader_data
-                .subscription_builtin_topic_data()
-                .key()
-                .value,
-        ));
-        if !is_subscription_ignored && !is_participant_ignored {
-            if let Some(_) = self.discovered_participant_list.get(&InstanceHandle::new(
-                discovered_reader_participant_guid.into(),
-            )) {
-                for publisher in self.user_defined_publisher_list.iter_mut() {
-                    let is_any_name_matched = discovered_reader_data
-                        .dds_subscription_data
-                        .partition
-                        .name
-                        .iter()
-                        .any(|n| publisher.qos().partition.name.contains(n));
+    // pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
+    //     let discovered_reader_participant_guid = Guid::new(
+    //         discovered_reader_data
+    //             .reader_proxy()
+    //             .remote_reader_guid
+    //             .prefix(),
+    //         ENTITYID_PARTICIPANT,
+    //     );
+    //     let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+    //         discovered_reader_participant_guid.into(),
+    //     ));
+    //     let is_subscription_ignored = self.ignored_subcriptions.contains(&InstanceHandle::new(
+    //         discovered_reader_data
+    //             .subscription_builtin_topic_data()
+    //             .key()
+    //             .value,
+    //     ));
+    //     if !is_subscription_ignored && !is_participant_ignored {
+    //         if let Some(_) = self.discovered_participant_list.get(&InstanceHandle::new(
+    //             discovered_reader_participant_guid.into(),
+    //         )) {
+    //             for publisher in self.user_defined_publisher_list.iter_mut() {
+    //                 let is_any_name_matched = discovered_reader_data
+    //                     .dds_subscription_data
+    //                     .partition
+    //                     .name
+    //                     .iter()
+    //                     .any(|n| publisher.qos().partition.name.contains(n));
 
-                    let is_any_received_regex_matched_with_partition_qos = discovered_reader_data
-                        .dds_subscription_data
-                        .partition
-                        .name
-                        .iter()
-                        .filter_map(|n| glob_to_regex(n).ok())
-                        .any(|regex| {
-                            publisher
-                                .qos()
-                                .partition
-                                .name
-                                .iter()
-                                .any(|n| regex.is_match(n))
-                        });
+    //                 let is_any_received_regex_matched_with_partition_qos = discovered_reader_data
+    //                     .dds_subscription_data
+    //                     .partition
+    //                     .name
+    //                     .iter()
+    //                     .filter_map(|n| glob_to_regex(n).ok())
+    //                     .any(|regex| {
+    //                         publisher
+    //                             .qos()
+    //                             .partition
+    //                             .name
+    //                             .iter()
+    //                             .any(|n| regex.is_match(n))
+    //                     });
 
-                    let is_any_local_regex_matched_with_received_partition_qos = publisher
-                        .qos()
-                        .partition
-                        .name
-                        .iter()
-                        .filter_map(|n| glob_to_regex(n).ok())
-                        .any(|regex| {
-                            discovered_reader_data
-                                .dds_subscription_data
-                                .partition
-                                .name
-                                .iter()
-                                .any(|n| regex.is_match(n))
-                        });
+    //                 let is_any_local_regex_matched_with_received_partition_qos = publisher
+    //                     .qos()
+    //                     .partition
+    //                     .name
+    //                     .iter()
+    //                     .filter_map(|n| glob_to_regex(n).ok())
+    //                     .any(|regex| {
+    //                         discovered_reader_data
+    //                             .dds_subscription_data
+    //                             .partition
+    //                             .name
+    //                             .iter()
+    //                             .any(|n| regex.is_match(n))
+    //                     });
 
-                    let is_partition_matched =
-                        discovered_reader_data.dds_subscription_data.partition
-                            == publisher.qos().partition
-                            || is_any_name_matched
-                            || is_any_received_regex_matched_with_partition_qos
-                            || is_any_local_regex_matched_with_received_partition_qos;
+    //                 let is_partition_matched =
+    //                     discovered_reader_data.dds_subscription_data.partition
+    //                         == publisher.qos().partition
+    //                         || is_any_name_matched
+    //                         || is_any_received_regex_matched_with_partition_qos
+    //                         || is_any_local_regex_matched_with_received_partition_qos;
 
-                    if is_partition_matched {
-                        let publisher_qos = publisher.qos().clone();
-                        for dw in publisher.data_writer_list_mut().filter(|dw| {
-                            dw.topic_name()
-                                == discovered_reader_data
-                                    .subscription_builtin_topic_data()
-                                    .topic_name()
-                        }) {
-                            let is_matched_topic_name = discovered_reader_data
-                                .subscription_builtin_topic_data()
-                                .topic_name()
-                                == dw.topic_name();
-                            let is_matched_type_name = discovered_reader_data
-                                .subscription_builtin_topic_data()
-                                .get_type_name()
-                                == dw.type_name();
+    //                 if is_partition_matched {
+    //                     let publisher_qos = publisher.qos().clone();
+    //                     for dw in publisher.data_writer_list_mut().filter(|dw| {
+    //                         dw.topic_name()
+    //                             == discovered_reader_data
+    //                                 .subscription_builtin_topic_data()
+    //                                 .topic_name()
+    //                     }) {
+    //                         let is_matched_topic_name = discovered_reader_data
+    //                             .subscription_builtin_topic_data()
+    //                             .topic_name()
+    //                             == dw.topic_name();
+    //                         let is_matched_type_name = discovered_reader_data
+    //                             .subscription_builtin_topic_data()
+    //                             .get_type_name()
+    //                             == dw.type_name();
 
-                            if is_matched_topic_name && is_matched_type_name {
-                                let incompatible_qos_policy_list =
-                                    get_discovered_reader_incompatible_qos_policy_list(
-                                        &dw.qos(),
-                                        discovered_reader_data.subscription_builtin_topic_data(),
-                                        &publisher_qos,
-                                    );
-                                let instance_handle = InstanceHandle::new(
-                                    discovered_reader_data
-                                        .subscription_builtin_topic_data()
-                                        .key
-                                        .value,
-                                );
-                                if incompatible_qos_policy_list.is_empty() {
-                                    if dw.get_matched_subscription_data(&instance_handle)
-                                        != Some(
-                                            discovered_reader_data
-                                                .subscription_builtin_topic_data(),
-                                        )
-                                    {
-                                        dw.add_matched_subscription(
-                                            discovered_reader_data
-                                                .subscription_builtin_topic_data()
-                                                .clone(),
-                                        );
-                                    }
-                                } else {
-                                    dw.add_incompatible_subscription(
-                                        instance_handle,
-                                        incompatible_qos_policy_list,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+    //                         if is_matched_topic_name && is_matched_type_name {
+    //                             let incompatible_qos_policy_list =
+    //                                 get_discovered_reader_incompatible_qos_policy_list(
+    //                                     &dw.qos(),
+    //                                     discovered_reader_data.subscription_builtin_topic_data(),
+    //                                     &publisher_qos,
+    //                                 );
+    //                             let instance_handle = InstanceHandle::new(
+    //                                 discovered_reader_data
+    //                                     .subscription_builtin_topic_data()
+    //                                     .key
+    //                                     .value,
+    //                             );
+    //                             if incompatible_qos_policy_list.is_empty() {
+    //                                 if dw.get_matched_subscription_data(&instance_handle)
+    //                                     != Some(
+    //                                         discovered_reader_data
+    //                                             .subscription_builtin_topic_data(),
+    //                                     )
+    //                                 {
+    //                                     dw.add_matched_subscription(
+    //                                         discovered_reader_data
+    //                                             .subscription_builtin_topic_data()
+    //                                             .clone(),
+    //                                     );
+    //                                 }
+    //                             } else {
+    //                                 dw.add_incompatible_subscription(
+    //                                     instance_handle,
+    //                                     incompatible_qos_policy_list,
+    //                                 );
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             }
 
-                // Add reader topic to discovered topic list using the reader instance handle
-                let topic_instance_handle = InstanceHandle::new(
-                    discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .key()
-                        .value,
-                );
-                let reader_topic = TopicBuiltinTopicData {
-                    key: BuiltInTopicKey::default(),
-                    name: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .topic_name()
-                        .to_string(),
-                    type_name: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .get_type_name()
-                        .to_string(),
+    //             // Add reader topic to discovered topic list using the reader instance handle
+    //             let topic_instance_handle = InstanceHandle::new(
+    //                 discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .key()
+    //                     .value,
+    //             );
+    //             let reader_topic = TopicBuiltinTopicData {
+    //                 key: BuiltInTopicKey::default(),
+    //                 name: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .topic_name()
+    //                     .to_string(),
+    //                 type_name: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .get_type_name()
+    //                     .to_string(),
 
-                    topic_data: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .topic_data()
-                        .clone(),
-                    durability: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .durability()
-                        .clone(),
-                    deadline: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .deadline()
-                        .clone(),
-                    latency_budget: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .latency_budget()
-                        .clone(),
-                    liveliness: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .liveliness()
-                        .clone(),
-                    reliability: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .reliability()
-                        .clone(),
-                    destination_order: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .destination_order()
-                        .clone(),
-                    history: HistoryQosPolicy::default(),
-                    resource_limits: ResourceLimitsQosPolicy::default(),
-                    transport_priority: TransportPriorityQosPolicy::default(),
-                    lifespan: LifespanQosPolicy::default(),
-                    ownership: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .ownership()
-                        .clone(),
-                    representation: discovered_reader_data
-                        .subscription_builtin_topic_data()
-                        .representation()
-                        .clone(),
-                };
-                self.discovered_topic_list
-                    .insert(topic_instance_handle, reader_topic);
-            }
-        }
-    }
+    //                 topic_data: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .topic_data()
+    //                     .clone(),
+    //                 durability: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .durability()
+    //                     .clone(),
+    //                 deadline: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .deadline()
+    //                     .clone(),
+    //                 latency_budget: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .latency_budget()
+    //                     .clone(),
+    //                 liveliness: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .liveliness()
+    //                     .clone(),
+    //                 reliability: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .reliability()
+    //                     .clone(),
+    //                 destination_order: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .destination_order()
+    //                     .clone(),
+    //                 history: HistoryQosPolicy::default(),
+    //                 resource_limits: ResourceLimitsQosPolicy::default(),
+    //                 transport_priority: TransportPriorityQosPolicy::default(),
+    //                 lifespan: LifespanQosPolicy::default(),
+    //                 ownership: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .ownership()
+    //                     .clone(),
+    //                 representation: discovered_reader_data
+    //                     .subscription_builtin_topic_data()
+    //                     .representation()
+    //                     .clone(),
+    //             };
+    //             self.discovered_topic_list
+    //                 .insert(topic_instance_handle, reader_topic);
+    //         }
+    //     }
+    // }
 
     pub fn remove_discovered_writer(&mut self, discovered_writer_handle: InstanceHandle) {
         for subscriber in self.user_defined_subscriber_list.iter_mut() {
@@ -1158,6 +1116,10 @@ impl DomainParticipantEntity {
         self.user_defined_publisher_list.drain(..)
     }
 
+    pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity> {
+        self.user_defined_publisher_list.iter_mut()
+    }
+
     pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity> {
         self.topic_list.get(topic_name)
     }
@@ -1191,60 +1153,6 @@ impl DomainParticipantEntity {
             && self.user_defined_subscriber_list.is_empty()
             && no_user_defined_topics
     }
-}
-
-fn get_discovered_reader_incompatible_qos_policy_list(
-    writer_qos: &DataWriterQos,
-    discovered_reader_data: &SubscriptionBuiltinTopicData,
-    publisher_qos: &PublisherQos,
-) -> Vec<QosPolicyId> {
-    let mut incompatible_qos_policy_list = Vec::new();
-    if &writer_qos.durability < discovered_reader_data.durability() {
-        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-    }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
-        || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation().coherent_access
-        || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation().ordered_access
-    {
-        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-    }
-    if &writer_qos.deadline > discovered_reader_data.deadline() {
-        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-    }
-    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
-        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-    }
-    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
-        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-    }
-    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
-        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-    }
-    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
-        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-    }
-    if writer_qos.ownership.kind != discovered_reader_data.ownership().kind {
-        incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
-    }
-
-    let writer_offered_representation = writer_qos
-        .representation
-        .value
-        .first()
-        .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !(discovered_reader_data
-        .representation()
-        .value
-        .contains(writer_offered_representation)
-        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty()))
-    {
-        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
-    }
-
-    incompatible_qos_policy_list
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list(

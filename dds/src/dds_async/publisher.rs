@@ -4,7 +4,6 @@ use super::{
     publisher_listener::PublisherListenerAsync, topic::TopicAsync,
 };
 use crate::{
-    runtime::actor::ActorAddress,
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
@@ -19,6 +18,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
+    runtime::actor::ActorAddress,
 };
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
@@ -70,6 +70,7 @@ impl PublisherAsync {
                 qos,
                 a_listener: listener,
                 mask: mask.to_vec(),
+                participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await?;

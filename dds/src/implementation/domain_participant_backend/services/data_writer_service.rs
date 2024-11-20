@@ -6,7 +6,7 @@ use crate::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            services::message_service::AreAllChangesAcknowledged,
+            services::message_service::{self, AreAllChangesAcknowledged},
         },
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
@@ -405,42 +405,34 @@ impl MailHandler<GetDataWriterQos> for DomainParticipantActor {
     }
 }
 
-pub struct EnableDataWriter {
+pub struct Enable {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for EnableDataWriter {
+impl Mail for Enable {
     type Result = DdsResult<()>;
 }
-impl MailHandler<EnableDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableDataWriter) -> <EnableDataWriter as Mail>::Result {
-        todo!()
-        // let writer = self.writer_address();
-        // if !writer
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     let message_sender_actor = self
-        //         .participant_address()
-        //         .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //         .receive_reply()
-        //         .await;
-        //     writer
-        //         .send_actor_mail(data_writer_actor::Enable {
-        //             data_writer_address: writer.clone(),
-        //             message_sender_actor,
-        //             executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //             timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
+impl MailHandler<Enable> for DomainParticipantActor {
+    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
+        let publisher = self
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_writer = publisher
+            .get_mut_data_writer(message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if !data_writer.enabled() {
+            data_writer.enable();
+            message
+                .participant_address
+                .send_actor_mail(message_service::AnnounceDataWriter {
+                    publisher_handle: message.publisher_handle,
+                    data_writer_handle: message.data_writer_handle,
+                })?;
+        }
 
-        //     self.announce_writer().await?;
-
-        //     self.process_sedp_subscriptions_discovery().await?;
-        // }
-        // Ok(())
+        Ok(())
     }
 }
 

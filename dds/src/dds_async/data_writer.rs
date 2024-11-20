@@ -373,9 +373,10 @@ impl<Foo> DataWriterAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(data_writer_service::EnableDataWriter {
+            .send_actor_mail(data_writer_service::Enable {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
+                participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await

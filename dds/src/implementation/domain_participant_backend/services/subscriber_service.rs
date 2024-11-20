@@ -4,7 +4,8 @@ use crate::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::DataReaderEntity, services::message_service,
+            entities::data_reader::DataReaderEntity,
+            services::{data_reader_service, message_service},
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -83,7 +84,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             &message.topic_name,
             topic_kind,
             Box::new(UserDefinedReaderHistoryCache {
-                domain_participant_address: message.domain_participant_address,
+                domain_participant_address: message.domain_participant_address.clone(),
                 subscriber_handle: subscriber.instance_handle(),
                 data_reader_handle: reader_handle,
             }),
@@ -111,117 +112,88 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
         subscriber.insert_data_reader(data_reader);
 
         if subscriber.enabled() && subscriber.qos().entity_factory.autoenable_created_entities {
-            subscriber
-                .get_mut_data_reader(data_reader_handle)
-                .ok_or(DdsError::AlreadyDeleted)?
-                .enable();
-
-            todo!()
-
-            // if let Some(dcps_publication_reader) = self
-            //     .builtin_subscriber_mut()
-            //     .data_reader_list_mut()
-            //     .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
-            // {
-            //     if let Ok(sample_list) = dcps_publication_reader.read(
-            //         i32::MAX,
-            //         ANY_SAMPLE_STATE,
-            //         ANY_VIEW_STATE,
-            //         &[InstanceStateKind::Alive],
-            //         None,
-            //     ) {
-            //         for (sample_data, _) in sample_list {
-            //             if let Ok(discovered_writer_data) = DiscoveredWriterData::deserialize_data(
-            //                 sample_data
-            //                     .expect("Alive samples should always contain data")
-            //                     .as_ref(),
-            //             ) {
-            //                 let is_any_name_matched = discovered_writer_data
-            //                     .dds_publication_data
-            //                     .partition
-            //                     .name
-            //                     .iter()
-            //                     .any(|n| subscriber.qos().partition.name.contains(n));
-
-            //                 let is_any_received_regex_matched_with_partition_qos =
-            //                     discovered_writer_data
-            //                         .dds_publication_data
-            //                         .partition
-            //                         .name
-            //                         .iter()
-            //                         .filter_map(|n| glob_to_regex(n).ok())
-            //                         .any(|regex| {
-            //                             subscriber
-            //                                 .qos()
-            //                                 .partition
-            //                                 .name
-            //                                 .iter()
-            //                                 .any(|n| regex.is_match(n))
-            //                         });
-
-            //                 let is_any_local_regex_matched_with_received_partition_qos = subscriber
-            //                     .qos()
-            //                     .partition
-            //                     .name
-            //                     .iter()
-            //                     .filter_map(|n| glob_to_regex(n).ok())
-            //                     .any(|regex| {
-            //                         discovered_writer_data
-            //                             .dds_publication_data
-            //                             .partition
-            //                             .name
-            //                             .iter()
-            //                             .any(|n| regex.is_match(n))
-            //                     });
-
-            //                 let is_partition_matched =
-            //                     discovered_writer_data.dds_publication_data.partition
-            //                         == subscriber.qos().partition
-            //                         || is_any_name_matched
-            //                         || is_any_received_regex_matched_with_partition_qos
-            //                         || is_any_local_regex_matched_with_received_partition_qos;
-            //                 if is_partition_matched {
-            //                     for dr in subscriber.data_reader_list_mut().filter(|dr| {
-            //                         dr.topic_name()
-            //                             == discovered_writer_data.dds_publication_data.topic_name
-            //                     }) {
-            //                         todo!()
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-            // let subscriber_qos = subscriber.qos().clone();
-            // let dr = subscriber
-            //     .get_mut_data_reader(data_reader_handle)
-            //     .ok_or(DdsError::AlreadyDeleted)?;
-            // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-            //     key: BuiltInTopicKey {
-            //         value: dr.transport_reader().guid(),
-            //     },
-            //     participant_key: BuiltInTopicKey { value: [0; 16] },
-            //     topic_name: dr.topic_name().to_owned(),
-            //     type_name: dr.type_name().to_owned(),
-            //     durability: dr.qos().durability.clone(),
-            //     deadline: dr.qos().deadline.clone(),
-            //     latency_budget: dr.qos().latency_budget.clone(),
-            //     liveliness: dr.qos().liveliness.clone(),
-            //     reliability: dr.qos().reliability.clone(),
-            //     ownership: dr.qos().ownership.clone(),
-            //     destination_order: dr.qos().destination_order.clone(),
-            //     user_data: dr.qos().user_data.clone(),
-            //     time_based_filter: dr.qos().time_based_filter.clone(),
-            //     presentation: subscriber_qos.presentation.clone(),
-            //     partition: subscriber_qos.partition.clone(),
-            //     topic_data: topic.qos().topic_data.clone(),
-            //     group_data: subscriber_qos.group_data.clone(),
-            //     representation: dr.qos().representation.clone(),
-            // };
-
-            // self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
+            message
+                .domain_participant_address
+                .send_actor_mail(data_reader_service::Enable {
+                    subscriber_handle: message.subscriber_handle,
+                    data_reader_handle: reader_handle,
+                    participant_address: message.domain_participant_address.clone(),
+                })?;
         }
+        // if let Some(dcps_publication_reader) = self
+        //     .builtin_subscriber_mut()
+        //     .data_reader_list_mut()
+        //     .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
+        // {
+        //     if let Ok(sample_list) = dcps_publication_reader.read(
+        //         i32::MAX,
+        //         ANY_SAMPLE_STATE,
+        //         ANY_VIEW_STATE,
+        //         &[InstanceStateKind::Alive],
+        //         None,
+        //     ) {
+        //         for (sample_data, _) in sample_list {
+        //             if let Ok(discovered_writer_data) = DiscoveredWriterData::deserialize_data(
+        //                 sample_data
+        //                     .expect("Alive samples should always contain data")
+        //                     .as_ref(),
+        //             ) {
+        //                 let is_any_name_matched = discovered_writer_data
+        //                     .dds_publication_data
+        //                     .partition
+        //                     .name
+        //                     .iter()
+        //                     .any(|n| subscriber.qos().partition.name.contains(n));
+
+        //                 let is_any_received_regex_matched_with_partition_qos =
+        //                     discovered_writer_data
+        //                         .dds_publication_data
+        //                         .partition
+        //                         .name
+        //                         .iter()
+        //                         .filter_map(|n| glob_to_regex(n).ok())
+        //                         .any(|regex| {
+        //                             subscriber
+        //                                 .qos()
+        //                                 .partition
+        //                                 .name
+        //                                 .iter()
+        //                                 .any(|n| regex.is_match(n))
+        //                         });
+
+        //                 let is_any_local_regex_matched_with_received_partition_qos = subscriber
+        //                     .qos()
+        //                     .partition
+        //                     .name
+        //                     .iter()
+        //                     .filter_map(|n| glob_to_regex(n).ok())
+        //                     .any(|regex| {
+        //                         discovered_writer_data
+        //                             .dds_publication_data
+        //                             .partition
+        //                             .name
+        //                             .iter()
+        //                             .any(|n| regex.is_match(n))
+        //                     });
+
+        //                 let is_partition_matched =
+        //                     discovered_writer_data.dds_publication_data.partition
+        //                         == subscriber.qos().partition
+        //                         || is_any_name_matched
+        //                         || is_any_received_regex_matched_with_partition_qos
+        //                         || is_any_local_regex_matched_with_received_partition_qos;
+        //                 if is_partition_matched {
+        //                     for dr in subscriber.data_reader_list_mut().filter(|dr| {
+        //                         dr.topic_name()
+        //                             == discovered_writer_data.dds_publication_data.topic_name
+        //                     }) {
+        //                         todo!()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         Ok((data_reader_handle, reader_status_condition_address))
     }

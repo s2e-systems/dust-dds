@@ -18,7 +18,7 @@ use crate::{
                 subscriber::SubscriberEntity, topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
-            services::message_service,
+            services::{domain_participant_service, message_service},
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -431,7 +431,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list,
         );
 
-        let mut domain_participant_actor = DomainParticipantActor::new(
+        let domain_participant_actor = DomainParticipantActor::new(
             domain_participant,
             transport,
             executor,
@@ -441,13 +441,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant_handle = domain_participant_actor
             .domain_participant
             .instance_handle();
-
-        if self.qos.entity_factory.autoenable_created_entities {
-            domain_participant_actor.domain_participant.enable();
-            domain_participant_actor
-                .domain_participant
-                .announce_participant()?;
-        }
 
         let participant_status_condition_address = domain_participant_actor
             .domain_participant
@@ -482,6 +475,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
                 }
             }
         });
+
+        if self.qos.entity_factory.autoenable_created_entities {
+            participant_actor.send_actor_mail(
+                domain_participant_service::Enable {
+                    domain_participant_address: participant_actor.address(),
+                },
+            );
+        }
 
         let participant_address = participant_actor.address();
         self.domain_participant_list

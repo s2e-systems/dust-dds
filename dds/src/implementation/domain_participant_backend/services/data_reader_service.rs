@@ -6,7 +6,7 @@ use crate::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            services::message_service::IsHistoricalDataReceived,
+            services::message_service::{self, IsHistoricalDataReceived},
         },
     },
     infrastructure::{
@@ -343,34 +343,34 @@ impl MailHandler<GetDataReaderQos> for DomainParticipantActor {
     }
 }
 
-pub struct EnableDataReader {
+pub struct Enable {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for EnableDataReader {
+impl Mail for Enable {
     type Result = DdsResult<()>;
 }
-impl MailHandler<EnableDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableDataReader) -> <EnableDataReader as Mail>::Result {
-        todo!()
-        // if !self
-        //     .reader_address
-        //     .send_actor_mail(data_reader_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.reader_address
-        //         .send_actor_mail(data_reader_actor::Enable {
-        //             data_reader_address: self.reader_address.clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
-
-        //     self.announce_reader().await?;
-
-        //     self.process_sedp_publications_discovery().await?;
-        // }
-        // Ok(())
+impl MailHandler<Enable> for DomainParticipantActor {
+    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
+        let subscriber = self
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_reader = subscriber
+            .get_mut_data_reader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if !data_reader.enabled() {
+            data_reader.enable();
+            message
+                .participant_address
+                .send_actor_mail(message_service::AnnounceDataReader {
+                    subscriber_handle: message.subscriber_handle,
+                    data_reader_handle: message.data_reader_handle,
+                })
+                .ok();
+        }
+        Ok(())
     }
 }
 

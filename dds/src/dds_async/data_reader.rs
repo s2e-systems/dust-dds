@@ -451,9 +451,10 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(data_reader_service::EnableDataReader {
+            .send_actor_mail(data_reader_service::Enable {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
+                participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await
