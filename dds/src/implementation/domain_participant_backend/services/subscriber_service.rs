@@ -5,7 +5,7 @@ use crate::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::data_reader::DataReaderEntity,
-            services::{data_reader_service, message_service},
+            services::{data_reader_service, discovery_service, message_service},
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -202,6 +202,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
 pub struct DeleteUserDefinedDataReader {
     pub subscriber_handle: InstanceHandle,
     pub datareader_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for DeleteUserDefinedDataReader {
     type Result = DdsResult<()>;
@@ -215,36 +216,13 @@ impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let dr = subscriber
+        let data_reader = subscriber
             .remove_data_reader(message.datareader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-
-        todo!();
-        // let topic = &self.topic_list[dr.topic_name()];
-        // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-        //     key: BuiltInTopicKey {
-        //         value: dr.transport_reader().guid(),
-        //     },
-        //     participant_key: BuiltInTopicKey { value: [0; 16] },
-        //     topic_name: dr.topic_name().to_owned(),
-        //     type_name: dr.type_name().to_owned(),
-        //     durability: dr.qos().durability.clone(),
-        //     deadline: dr.qos().deadline.clone(),
-        //     latency_budget: dr.qos().latency_budget.clone(),
-        //     liveliness: dr.qos().liveliness.clone(),
-        //     reliability: dr.qos().reliability.clone(),
-        //     ownership: dr.qos().ownership.clone(),
-        //     destination_order: dr.qos().destination_order.clone(),
-        //     user_data: dr.qos().user_data.clone(),
-        //     time_based_filter: dr.qos().time_based_filter.clone(),
-        //     presentation: subscriber.qos().presentation.clone(),
-        //     partition: subscriber.qos().partition.clone(),
-        //     topic_data: topic.qos().topic_data.clone(),
-        //     group_data: subscriber.qos().group_data.clone(),
-        //     representation: dr.qos().representation.clone(),
-        // };
-        // self.domain_participant
-        //     .announce_deleted_data_reader(subscription_builtin_topic_data)?;
+        message
+            .participant_address
+            .send_actor_mail(discovery_service::AnnounceDeletedDataReader { data_reader })
+            .ok();
         Ok(())
     }
 }
@@ -288,17 +266,17 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
     }
 }
 
-pub struct DeleteSubscriberContainedEntities {
+pub struct DeleteContainedEntities {
     pub subscriber_handle: InstanceHandle,
 }
-impl Mail for DeleteSubscriberContainedEntities {
+impl Mail for DeleteContainedEntities {
     type Result = DdsResult<()>;
 }
-impl MailHandler<DeleteSubscriberContainedEntities> for DomainParticipantActor {
+impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
     fn handle(
         &mut self,
-        message: DeleteSubscriberContainedEntities,
-    ) -> <DeleteSubscriberContainedEntities as Mail>::Result {
+        message: DeleteContainedEntities,
+    ) -> <DeleteContainedEntities as Mail>::Result {
         //         let deleted_reader_actor_list = self
         //         .subscriber_address
         //         .send_actor_mail(subscriber_actor::DrainDataReaderList)?
@@ -386,15 +364,15 @@ impl MailHandler<GetDefaultDataReaderQos> for DomainParticipantActor {
     }
 }
 
-pub struct SetSubscriberQos {
+pub struct SetQos {
     pub subscriber_handle: InstanceHandle,
     pub qos: QosKind<SubscriberQos>,
 }
-impl Mail for SetSubscriberQos {
+impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetSubscriberQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetSubscriberQos) -> <SetSubscriberQos as Mail>::Result {
+impl MailHandler<SetQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         let qos = match message.qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos().clone(),
             QosKind::Specific(q) => q,

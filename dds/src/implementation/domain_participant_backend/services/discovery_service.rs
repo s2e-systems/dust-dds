@@ -5,7 +5,9 @@ use crate::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
         SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
     },
-    implementation::domain_participant_backend::domain_participant_actor::DomainParticipantActor,
+    implementation::domain_participant_backend::{
+        domain_participant_actor::DomainParticipantActor, entities::data_reader::DataReaderEntity,
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -167,6 +169,30 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
     }
 }
 
+pub struct AnnounceDeletedDataReader {
+    pub data_reader: DataReaderEntity,
+}
+impl Mail for AnnounceDeletedDataReader {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AnnounceDeletedDataReader,
+    ) -> <AnnounceDeletedDataReader as Mail>::Result {
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
+        {
+            let key = InstanceHandle::new(message.data_reader.transport_reader().guid());
+            dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+        }
+        Ok(())
+    }
+}
+
 pub struct AddDiscoveredReader {
     pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     pub publisher_handle: InstanceHandle,
@@ -177,61 +203,6 @@ impl Mail for AddDiscoveredReader {
 }
 impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
     fn handle(&mut self, message: AddDiscoveredReader) -> <AddDiscoveredReader as Mail>::Result {
-        fn get_discovered_reader_incompatible_qos_policy_list(
-            writer_qos: &DataWriterQos,
-            discovered_reader_data: &SubscriptionBuiltinTopicData,
-            publisher_qos: &PublisherQos,
-        ) -> Vec<QosPolicyId> {
-            let mut incompatible_qos_policy_list = Vec::new();
-            if &writer_qos.durability < discovered_reader_data.durability() {
-                incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-            }
-            if publisher_qos.presentation.access_scope
-                < discovered_reader_data.presentation().access_scope
-                || publisher_qos.presentation.coherent_access
-                    != discovered_reader_data.presentation().coherent_access
-                || publisher_qos.presentation.ordered_access
-                    != discovered_reader_data.presentation().ordered_access
-            {
-                incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-            }
-            if &writer_qos.deadline > discovered_reader_data.deadline() {
-                incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-            }
-            if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
-                incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-            }
-            if &writer_qos.liveliness < discovered_reader_data.liveliness() {
-                incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-            }
-            if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
-                incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-            }
-            if &writer_qos.destination_order < discovered_reader_data.destination_order() {
-                incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-            }
-            if writer_qos.ownership.kind != discovered_reader_data.ownership().kind {
-                incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
-            }
-
-            let writer_offered_representation = writer_qos
-                .representation
-                .value
-                .first()
-                .unwrap_or(&XCDR_DATA_REPRESENTATION);
-            if !(discovered_reader_data
-                .representation()
-                .value
-                .contains(writer_offered_representation)
-                || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-                    && discovered_reader_data.representation().value.is_empty()))
-            {
-                incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
-            }
-
-            incompatible_qos_policy_list
-        }
-
         let publisher = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
@@ -307,4 +278,88 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
         }
         Ok(())
     }
+}
+
+pub struct RemoveDiscoveredReader {
+    pub subscription_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+impl Mail for RemoveDiscoveredReader {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<RemoveDiscoveredReader> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: RemoveDiscoveredReader,
+    ) -> <RemoveDiscoveredReader as Mail>::Result {
+        let publisher = self
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_writer = publisher
+            .get_mut_data_writer(message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if data_writer
+            .get_matched_subscription_data(&message.subscription_handle)
+            .is_some()
+        {
+            data_writer.remove_matched_subscription(&message.subscription_handle);
+        }
+        Ok(())
+    }
+}
+
+fn get_discovered_reader_incompatible_qos_policy_list(
+    writer_qos: &DataWriterQos,
+    discovered_reader_data: &SubscriptionBuiltinTopicData,
+    publisher_qos: &PublisherQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+    if &writer_qos.durability < discovered_reader_data.durability() {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
+        || publisher_qos.presentation.coherent_access
+            != discovered_reader_data.presentation().coherent_access
+        || publisher_qos.presentation.ordered_access
+            != discovered_reader_data.presentation().ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if &writer_qos.deadline > discovered_reader_data.deadline() {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    if writer_qos.ownership.kind != discovered_reader_data.ownership().kind {
+        incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
+    }
+
+    let writer_offered_representation = writer_qos
+        .representation
+        .value
+        .first()
+        .unwrap_or(&XCDR_DATA_REPRESENTATION);
+    if !(discovered_reader_data
+        .representation()
+        .value
+        .contains(writer_offered_representation)
+        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
+            && discovered_reader_data.representation().value.is_empty()))
+    {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
+    }
+
+    incompatible_qos_policy_list
 }

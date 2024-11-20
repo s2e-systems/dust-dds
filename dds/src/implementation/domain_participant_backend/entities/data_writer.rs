@@ -374,7 +374,7 @@ impl DataWriterEntity {
 
     pub fn dispose_w_timestamp(
         &mut self,
-        serialized_data: Vec<u8>,
+        serialized_key: Vec<u8>,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -399,9 +399,6 @@ impl DataWriterEntity {
         if !has_key {
             return Err(DdsError::IllegalOperation);
         }
-
-        let serialized_key =
-            get_serialized_key_from_serialized_foo(&serialized_data, self.type_support.as_ref())?;
 
         let instance_handle =
             get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
@@ -521,6 +518,18 @@ impl DataWriterEntity {
         self.publication_matched_status.current_count_change += 1;
         self.publication_matched_status.total_count += 1;
         self.publication_matched_status.total_count_change += 1;
+        self.status_condition
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::PublicationMatched,
+            });
+    }
+
+    pub fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
+        self.matched_subscription_list.remove(subscription_handle);
+        self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
+        self.publication_matched_status.current_count_change -= 1;
+        self.publication_matched_status.total_count -= 1;
+        self.publication_matched_status.total_count_change -= 1;
         self.status_condition
             .send_actor_mail(status_condition_actor::AddCommunicationState {
                 state: StatusKind::PublicationMatched,

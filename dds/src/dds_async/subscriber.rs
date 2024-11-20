@@ -92,6 +92,7 @@ impl SubscriberAsync {
             .send_actor_mail(subscriber_service::DeleteUserDefinedDataReader {
                 subscriber_handle: self.handle,
                 datareader_handle: a_datareader.get_instance_handle().await,
+                participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await
@@ -149,7 +150,7 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(subscriber_service::DeleteSubscriberContainedEntities {
+            .send_actor_mail(subscriber_service::DeleteContainedEntities {
                 subscriber_handle: self.handle,
             })?
             .receive_reply()
@@ -192,7 +193,7 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(subscriber_service::SetSubscriberQos {
+            .send_actor_mail(subscriber_service::SetQos {
                 subscriber_handle: self.handle,
                 qos,
             })?

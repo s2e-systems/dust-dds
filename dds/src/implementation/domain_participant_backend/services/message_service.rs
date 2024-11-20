@@ -269,10 +269,27 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                     }
                 }
             }
-            ChangeKind::AliveFiltered => todo!(),
-            ChangeKind::NotAliveDisposed => todo!(),
-            ChangeKind::NotAliveUnregistered => todo!(),
-            ChangeKind::NotAliveDisposedUnregistered => todo!(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
+                if let Ok(discovered_reader_handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    self.domain_participant
+                        .remove_discovered_reader(&discovered_reader_handle);
+                    for publisher in self.domain_participant.publisher_list_mut() {
+                        for data_writer in publisher.data_writer_list() {
+                            message
+                                .participant_address
+                                .send_actor_mail(discovery_service::RemoveDiscoveredReader {
+                                    subscription_handle: discovered_reader_handle.clone(),
+                                    publisher_handle: publisher.instance_handle(),
+                                    data_writer_handle: data_writer.instance_handle(),
+                                })
+                                .ok();
+                        }
+                    }
+                }
+            }
+            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
         if let Some(reader) = self
