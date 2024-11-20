@@ -36,7 +36,7 @@ impl Mail for Read {
 impl MailHandler<Read> for DomainParticipantActor {
     fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
         let subscriber =
-            if message.subscriber_handle == self.domain_participant.get_instance_handle() {
+            if message.subscriber_handle == self.domain_participant.instance_handle() {
                 Some(self.domain_participant.builtin_subscriber_mut())
             } else {
                 self.domain_participant

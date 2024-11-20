@@ -295,7 +295,7 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
         }
 
         // Built-in subscriber is identified by the handle of the participant itself
-        if self.domain_participant.get_instance_handle() == message.subscriber_handle {
+        if self.domain_participant.instance_handle() == message.subscriber_handle {
             Ok(self
                 .domain_participant
                 .builtin_subscriber_mut()

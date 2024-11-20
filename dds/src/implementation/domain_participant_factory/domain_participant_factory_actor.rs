@@ -163,7 +163,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         let participant_handle = domain_participant_actor
             .domain_participant
-            .get_instance_handle();
+            .instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
             domain_participant_actor.domain_participant.enable();

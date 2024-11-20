@@ -99,7 +99,7 @@ impl MailHandler<DeleteUserDefinedPublisher> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedPublisher,
     ) -> <DeleteUserDefinedPublisher as Mail>::Result {
-        if message.participant_handle != self.domain_participant.get_instance_handle() {
+        if message.participant_handle != self.domain_participant.instance_handle() {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -186,7 +186,7 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedSubscriber,
     ) -> <DeleteUserDefinedSubscriber as Mail>::Result {
-        if self.domain_participant.get_instance_handle() != message.participant_handle {
+        if self.domain_participant.instance_handle() != message.participant_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ));
@@ -311,7 +311,7 @@ impl MailHandler<DeleteUserDefinedTopic> for DomainParticipantActor {
         &mut self,
         message: DeleteUserDefinedTopic,
     ) -> <DeleteUserDefinedTopic as Mail>::Result {
-        if self.domain_participant.get_instance_handle() != message.participant_handle {
+        if self.domain_participant.instance_handle() != message.participant_handle {
             return Err(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant".to_string(),
             ));
