@@ -1,5 +1,8 @@
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
+    builtin_topics::{
+        BuiltInTopicKey, ParticipantBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -24,7 +27,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::DdsDeserialize,
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
 };
 
 pub struct AnnounceParticipant;
@@ -33,7 +36,25 @@ impl Mail for AnnounceParticipant {
 }
 impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
     fn handle(&mut self, _: AnnounceParticipant) -> <AnnounceParticipant as Mail>::Result {
-        self.domain_participant.announce_participant()
+        if self.domain_participant.enabled() {
+            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.transport.guid(),
+                },
+                user_data: self.domain_participant.qos().user_data.clone(),
+            };
+            let timestamp = self.domain_participant.get_current_time();
+
+            if let Some(dw) = self
+                .domain_participant
+                .builtin_publisher_mut()
+                .lookup_datawriter_mut(DCPS_PARTICIPANT)
+            {
+                dw.write_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?;
+            }
+        }
+
+        Ok(())
     }
 }
 

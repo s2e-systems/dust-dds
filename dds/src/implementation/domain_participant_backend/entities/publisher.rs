@@ -81,6 +81,12 @@ impl PublisherEntity {
             .find(|x| x.instance_handle() == handle)
     }
 
+    pub fn lookup_datawriter_mut(&mut self, topic_name: &str) -> Option<&mut DataWriterEntity> {
+        self.data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name() == topic_name)
+    }
+
     pub fn instance_handle(&self) -> InstanceHandle {
         self.instance_handle
     }

@@ -139,34 +139,8 @@ impl DomainParticipantEntity {
         self.status_condition.address()
     }
 
-    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity {
+    pub fn builtin_subscriber(&self) -> &SubscriberEntity {
         &self.builtin_subscriber
-    }
-
-    pub fn announce_participant(&mut self) -> DdsResult<()> {
-        todo!()
-        // if self.enabled {
-        //     let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-        //         key: BuiltInTopicKey {
-        //             value: self.transport.guid(),
-        //         },
-        //         user_data: self.qos.user_data.clone(),
-        //     };
-        //     let timestamp = self.get_current_time();
-        //     let dcps_participant_topic = self
-        //         .topic_list
-        //         .get_mut(DCPS_PARTICIPANT)
-        //         .expect("DCPS Participant topic must exist");
-
-        //     if let Some(mut dw) = self
-        //         .builtin_publisher
-        //         .data_writer_list_mut()
-        //         .find(|dw| dw.topic_name() == DCPS_PARTICIPANT)
-        //     {
-        //         dw.write_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?;
-        //     }
-        // }
-        // Ok(())
     }
 
     pub fn announce_deleted_participant(&mut self) -> DdsResult<()> {
