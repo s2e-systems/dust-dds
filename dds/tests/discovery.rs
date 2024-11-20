@@ -47,7 +47,6 @@ fn writer_discovers_reader_in_same_participant() {
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(5));
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))

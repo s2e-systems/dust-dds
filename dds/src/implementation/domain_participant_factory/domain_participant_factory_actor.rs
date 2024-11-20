@@ -477,11 +477,9 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         });
 
         if self.qos.entity_factory.autoenable_created_entities {
-            participant_actor.send_actor_mail(
-                domain_participant_service::Enable {
-                    domain_participant_address: participant_actor.address(),
-                },
-            );
+            participant_actor.send_actor_mail(domain_participant_service::Enable {
+                domain_participant_address: participant_actor.address(),
+            });
         }
 
         let participant_address = participant_actor.address();
@@ -647,7 +645,10 @@ impl ReaderHistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
             .send_actor_mail(
-                message_service::AddBuiltinSubscriptionsDetectorCacheChange { cache_change },
+                message_service::AddBuiltinSubscriptionsDetectorCacheChange {
+                    cache_change,
+                    participant_address: self.participant_address.clone(),
+                },
             )
             .ok();
     }
