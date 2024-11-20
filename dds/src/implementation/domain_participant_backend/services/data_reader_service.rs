@@ -275,6 +275,7 @@ pub struct SetDataReaderQos {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub qos: QosKind<DataReaderQos>,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for SetDataReaderQos {
     type Result = DdsResult<()>;
@@ -296,35 +297,13 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
         data_reader.set_qos(qos)?;
 
         if data_reader.enabled() {
-            // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-            //     key: BuiltInTopicKey {
-            //         value: data_reader.transport_reader().guid(),
-            //     },
-            //     participant_key: BuiltInTopicKey { value: [0; 16] },
-            //     topic_name: data_reader.topic_name().to_owned(),
-            //     type_name: data_reader.type_name().to_owned(),
-            //     durability: data_reader.qos().durability.clone(),
-            //     deadline: data_reader.qos().deadline.clone(),
-            //     latency_budget: data_reader.qos().latency_budget.clone(),
-            //     liveliness: data_reader.qos().liveliness.clone(),
-            //     reliability: data_reader.qos().reliability.clone(),
-            //     ownership: data_reader.qos().ownership.clone(),
-            //     destination_order: data_reader.qos().destination_order.clone(),
-            //     user_data: data_reader.qos().user_data.clone(),
-            //     time_based_filter: data_reader.qos().time_based_filter.clone(),
-            //     presentation: subscriber_qos.presentation,
-            //     partition: subscriber_qos.partition,
-            //     topic_data: self.domain_participant.topic_list[data_reader.topic_name()]
-            //         .qos()
-            //         .topic_data
-            //         .clone(),
-            //     group_data: subscriber_qos.group_data,
-            //     representation: data_reader.qos().representation.clone(),
-            // };
-
-            // self.domain_participant
-            //     .announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
-            todo!()
+            message
+                .participant_address
+                .send_actor_mail(discovery_service::AnnounceDataReader {
+                    subscriber_handle: message.subscriber_handle,
+                    data_reader_handle: message.data_reader_handle,
+                })
+                .ok();
         }
 
         Ok(())
@@ -340,7 +319,14 @@ impl Mail for GetDataReaderQos {
 }
 impl MailHandler<GetDataReaderQos> for DomainParticipantActor {
     fn handle(&mut self, message: GetDataReaderQos) -> <GetDataReaderQos as Mail>::Result {
-        todo!()
+        Ok(self
+            .domain_participant
+            .get_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_reader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .qos()
+            .clone())
     }
 }
 
