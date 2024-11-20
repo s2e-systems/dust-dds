@@ -5,8 +5,9 @@ use crate::{
     implementation::{
         actor::{ActorAddress, Mail, MailHandler},
         any_data_writer_listener::AnyDataWriterListener,
-        domain_participant_backend::domain_participant_actor::{
-            AreAllChangesAcknowledged, DomainParticipantActor,
+        domain_participant_backend::{
+            domain_participant_actor::DomainParticipantActor,
+            services::message_service::AreAllChangesAcknowledged,
         },
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
     },
@@ -71,9 +72,8 @@ impl Mail for UnregisterInstance {
 impl MailHandler<UnregisterInstance> for DomainParticipantActor {
     fn handle(&mut self, message: UnregisterInstance) -> <UnregisterInstance as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
             .data_writer_list_mut()
@@ -97,9 +97,8 @@ impl Mail for LookupInstance {
 impl MailHandler<LookupInstance> for DomainParticipantActor {
     fn handle(&mut self, message: LookupInstance) -> <LookupInstance as Mail>::Result {
         let data_writer = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .data_writer_list_mut()
             .find(|x| x.instance_handle() == message.data_writer_handle)
@@ -111,9 +110,12 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
 
         let instance_handle = get_instance_handle_from_serialized_foo(
             &message.serialized_data,
-            self.topic_list[data_writer.topic_name()]
-                .type_support()
-                .as_ref(),
+            todo!(),
+            // self.domain_participant
+            //     .get_topic(data_writer.topic_name())
+            //     .unwrap()
+            //     .type_support()
+            //     .as_ref(),
         )?;
 
         Ok(data_writer
@@ -134,15 +136,13 @@ impl Mail for WriteWTimestamp {
 }
 impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
     fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
-        let now = self.get_current_time();
+        let now = self.domain_participant.get_current_time();
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
+            .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         todo!()
     }
@@ -160,13 +160,11 @@ impl Mail for DisposeWTimestamp {
 impl MailHandler<DisposeWTimestamp> for DomainParticipantActor {
     fn handle(&mut self, message: DisposeWTimestamp) -> <DisposeWTimestamp as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
+            .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         todo!()
     }
@@ -226,13 +224,11 @@ impl MailHandler<GetOfferedDeadlineMissedStatus> for DomainParticipantActor {
         message: GetOfferedDeadlineMissedStatus,
     ) -> <GetOfferedDeadlineMissedStatus as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
+            .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         Ok(data_writer.get_offered_deadline_missed_status())
@@ -252,13 +248,11 @@ impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
         message: GetPublicationMatchedStatus,
     ) -> <GetPublicationMatchedStatus as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_writer = publisher
-            .data_writer_list_mut()
-            .find(|x| x.instance_handle() == message.data_writer_handle)
+            .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         Ok(data_writer.get_publication_matched_status())
@@ -278,9 +272,8 @@ impl MailHandler<GetMatchedSubscriptionData> for DomainParticipantActor {
         &mut self,
         message: GetMatchedSubscriptionData,
     ) -> <GetMatchedSubscriptionData as Mail>::Result {
-        self.user_defined_publisher_list
-            .iter()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+        self.domain_participant
+            .get_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -303,9 +296,8 @@ impl MailHandler<GetMatchedSubscriptions> for DomainParticipantActor {
         message: GetMatchedSubscriptions,
     ) -> <GetMatchedSubscriptions as Mail>::Result {
         Ok(self
-            .user_defined_publisher_list
-            .iter()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -324,9 +316,8 @@ impl Mail for SetDataWriterQos {
 impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetDataWriterQos) -> <SetDataWriterQos as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let qos = match message.qos {
             QosKind::Default => publisher.default_datawriter_qos().clone(),
@@ -340,34 +331,35 @@ impl MailHandler<SetDataWriterQos> for DomainParticipantActor {
         if data_writer.enabled() {
             data_writer.set_qos(qos);
 
-            let publication_builtin_topic_data = PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: data_writer.transport_writer().guid(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_writer.topic_name().to_owned(),
-                type_name: data_writer.type_name().to_owned(),
-                durability: data_writer.qos().durability.clone(),
-                deadline: data_writer.qos().deadline.clone(),
-                latency_budget: data_writer.qos().latency_budget.clone(),
-                liveliness: data_writer.qos().liveliness.clone(),
-                reliability: data_writer.qos().reliability.clone(),
-                lifespan: data_writer.qos().lifespan.clone(),
-                user_data: data_writer.qos().user_data.clone(),
-                ownership: data_writer.qos().ownership.clone(),
-                ownership_strength: data_writer.qos().ownership_strength.clone(),
-                destination_order: data_writer.qos().destination_order.clone(),
-                presentation: publisher_qos.presentation.clone(),
-                partition: publisher_qos.partition.clone(),
-                topic_data: self.topic_list[data_writer.topic_name()]
-                    .qos()
-                    .topic_data
-                    .clone(),
-                group_data: publisher_qos.group_data.clone(),
-                representation: data_writer.qos().representation.clone(),
-            };
+            todo!()
+            // let publication_builtin_topic_data = PublicationBuiltinTopicData {
+            //     key: BuiltInTopicKey {
+            //         value: data_writer.transport_writer().guid(),
+            //     },
+            //     participant_key: BuiltInTopicKey { value: [0; 16] },
+            //     topic_name: data_writer.topic_name().to_owned(),
+            //     type_name: data_writer.type_name().to_owned(),
+            //     durability: data_writer.qos().durability.clone(),
+            //     deadline: data_writer.qos().deadline.clone(),
+            //     latency_budget: data_writer.qos().latency_budget.clone(),
+            //     liveliness: data_writer.qos().liveliness.clone(),
+            //     reliability: data_writer.qos().reliability.clone(),
+            //     lifespan: data_writer.qos().lifespan.clone(),
+            //     user_data: data_writer.qos().user_data.clone(),
+            //     ownership: data_writer.qos().ownership.clone(),
+            //     ownership_strength: data_writer.qos().ownership_strength.clone(),
+            //     destination_order: data_writer.qos().destination_order.clone(),
+            //     presentation: publisher_qos.presentation.clone(),
+            //     partition: publisher_qos.partition.clone(),
+            //     topic_data: self.topic_list[data_writer.topic_name()]
+            //         .qos()
+            //         .topic_data
+            //         .clone(),
+            //     group_data: publisher_qos.group_data.clone(),
+            //     representation: data_writer.qos().representation.clone(),
+            // };
 
-            self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
+            // self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
         } else {
             data_writer.set_qos(qos);
         }

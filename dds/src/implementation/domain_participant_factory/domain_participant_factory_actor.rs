@@ -4,7 +4,9 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
-        domain_participant_backend::domain_participant_actor::{self, DomainParticipantActor},
+        domain_participant_backend::{
+            domain_participant_actor::DomainParticipantActor, services::message_service,
+        },
         runtime::{executor::Executor, timer::TimerDriver},
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -147,7 +149,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             }),
         )?);
 
-        let mut domain_participant = DomainParticipantActor::new(
+        let mut domain_participant_actor = DomainParticipantActor::new(
             message.domain_id,
             domain_participant_qos,
             message.listener,
@@ -156,21 +158,28 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             timer_driver,
             transport,
         );
-        let participant_handle = domain_participant.get_instance_handle();
+        let participant_handle = domain_participant_actor
+            .domain_participant
+            .get_instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
-            domain_participant.enable();
-            domain_participant.announce_participant()?;
+            domain_participant_actor.domain_participant.enable();
+            domain_participant_actor
+                .domain_participant
+                .announce_participant()?;
         }
 
-        let participant_status_condition_address = domain_participant.get_statuscondition();
-        let builtin_subscriber_status_condition_address = domain_participant
+        let participant_status_condition_address = domain_participant_actor
+            .domain_participant
+            .get_statuscondition();
+        let builtin_subscriber_status_condition_address = domain_participant_actor
+            .domain_participant
             .get_builtin_subscriber()
             .status_condition()
             .address();
 
         let participant_actor =
-            participant_actor_builder.build(domain_participant, &executor_handle);
+            participant_actor_builder.build(domain_participant_actor, &executor_handle);
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -181,8 +190,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         executor_handle.spawn(async move {
             loop {
-                if let Ok(r) = participant_address
-                    .send_actor_mail(domain_participant_actor::AnnounceParticipant)
+                if let Ok(r) =
+                    participant_address.send_actor_mail(message_service::AnnounceParticipant)
                 {
                     if let Err(announce_result) = r.receive_reply().await {
                         error!("Error announcing participant: {:?}", announce_result);
@@ -330,11 +339,9 @@ struct DcpsParticipantReaderHistoryCache {
 impl ReaderHistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinParticipantsDetectorCacheChange {
-                    cache_change,
-                },
-            )
+            .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
+                cache_change,
+            })
             .ok();
     }
 }
@@ -346,9 +353,7 @@ struct DcpsTopicsReaderHistoryCache {
 impl ReaderHistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinTopicsDetectorCacheChange { cache_change },
-            )
+            .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange { cache_change })
             .ok();
     }
 }
@@ -361,9 +366,7 @@ impl ReaderHistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
             .send_actor_mail(
-                domain_participant_actor::AddBuiltinSubscriptionsDetectorCacheChange {
-                    cache_change,
-                },
+                message_service::AddBuiltinSubscriptionsDetectorCacheChange { cache_change },
             )
             .ok();
     }
@@ -376,11 +379,9 @@ struct DcpsPublicationsReaderHistoryCache {
 impl ReaderHistoryCache for DcpsPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
-            .send_actor_mail(
-                domain_participant_actor::AddBuiltinPublicationsDetectorCacheChange {
-                    cache_change,
-                },
-            )
+            .send_actor_mail(message_service::AddBuiltinPublicationsDetectorCacheChange {
+                cache_change,
+            })
             .ok();
     }
 }

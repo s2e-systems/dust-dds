@@ -25,8 +25,8 @@ impl MailHandler<GetInconsistentTopicStatus> for DomainParticipantActor {
         message: GetInconsistentTopicStatus,
     ) -> <GetInconsistentTopicStatus as Mail>::Result {
         Ok(self
-            .topic_list
-            .get_mut(&message.topic_name)
+            .domain_participant
+            .get_mut_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_inconsistent_topic_status())
     }
@@ -41,15 +41,15 @@ impl Mail for SetQos {
 }
 impl MailHandler<SetQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
-        let topic = self
-            .topic_list
-            .get_mut(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
         let qos = match message.topic_qos {
-            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Default => self.domain_participant.get_default_topic_qos().clone(),
             QosKind::Specific(q) => q,
         };
+
+        let topic = self
+            .domain_participant
+            .get_mut_topic(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         topic.set_qos(qos)
     }
@@ -64,8 +64,8 @@ impl Mail for GetQos {
 impl MailHandler<GetQos> for DomainParticipantActor {
     fn handle(&mut self, message: GetQos) -> <GetQos as Mail>::Result {
         Ok(self
-            .topic_list
-            .get(&message.topic_name)
+            .domain_participant
+            .get_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
             .qos()
             .clone())
@@ -80,8 +80,8 @@ impl Mail for Enable {
 }
 impl MailHandler<Enable> for DomainParticipantActor {
     fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        self.topic_list
-            .get_mut(&message.topic_name)
+        self.domain_participant
+            .get_mut_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
             .enable();
         Ok(())
@@ -97,8 +97,8 @@ impl Mail for GetTypeSupport {
 impl MailHandler<GetTypeSupport> for DomainParticipantActor {
     fn handle(&mut self, message: GetTypeSupport) -> <GetTypeSupport as Mail>::Result {
         Ok(self
-            .topic_list
-            .get_mut(&message.topic_name)
+            .domain_participant
+            .get_mut_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?
             .type_support()
             .clone())

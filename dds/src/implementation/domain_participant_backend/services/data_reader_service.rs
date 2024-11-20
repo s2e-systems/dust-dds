@@ -5,8 +5,9 @@ use crate::{
     implementation::{
         actor::{ActorAddress, Mail, MailHandler},
         any_data_reader_listener::AnyDataReaderListener,
-        domain_participant_backend::domain_participant_actor::{
-            DomainParticipantActor, IsHistoricalDataReceived,
+        domain_participant_backend::{
+            domain_participant_actor::DomainParticipantActor,
+            services::message_service::IsHistoricalDataReceived,
         },
     },
     infrastructure::{
@@ -34,14 +35,14 @@ impl Mail for Read {
 }
 impl MailHandler<Read> for DomainParticipantActor {
     fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
-        let subscriber = if message.subscriber_handle == self.get_instance_handle() {
-            Some(&mut self.builtin_subscriber)
-        } else {
-            self.user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| x.instance_handle() == message.subscriber_handle)
-        }
-        .ok_or(DdsError::AlreadyDeleted)?;
+        let subscriber =
+            if message.subscriber_handle == self.domain_participant.get_instance_handle() {
+                Some(self.domain_participant.builtin_subscriber_mut())
+            } else {
+                self.domain_participant
+                    .get_mut_subscriber(message.subscriber_handle)
+            }
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
@@ -72,9 +73,8 @@ impl Mail for Take {
 impl MailHandler<Take> for DomainParticipantActor {
     fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
@@ -104,9 +104,8 @@ impl Mail for ReadNextInstance {
 impl MailHandler<ReadNextInstance> for DomainParticipantActor {
     fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
@@ -136,9 +135,8 @@ impl Mail for TakeNextInstance {
 impl MailHandler<TakeNextInstance> for DomainParticipantActor {
     fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
@@ -166,9 +164,8 @@ impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
         message: GetSubscriptionMatchedStatus,
     ) -> <GetSubscriptionMatchedStatus as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
@@ -233,9 +230,8 @@ impl MailHandler<GetMatchedPublicationData> for DomainParticipantActor {
         message: GetMatchedPublicationData,
     ) -> <GetMatchedPublicationData as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_reader = subscriber
             .get_data_reader(message.data_reader_handle)
@@ -264,9 +260,8 @@ impl MailHandler<GetMatchedPublications> for DomainParticipantActor {
         message: GetMatchedPublications,
     ) -> <GetMatchedPublications as Mail>::Result {
         Ok(self
-            .user_defined_subscriber_list
-            .iter()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -285,9 +280,8 @@ impl Mail for SetDataReaderQos {
 impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetDataReaderQos) -> <SetDataReaderQos as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|s| s.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let qos = match message.qos {
             QosKind::Default => subscriber.default_data_reader_qos().clone(),
@@ -301,33 +295,35 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
         data_reader.set_qos(qos)?;
 
         if data_reader.enabled() {
-            let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: data_reader.transport_reader().guid(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_reader.topic_name().to_owned(),
-                type_name: data_reader.type_name().to_owned(),
-                durability: data_reader.qos().durability.clone(),
-                deadline: data_reader.qos().deadline.clone(),
-                latency_budget: data_reader.qos().latency_budget.clone(),
-                liveliness: data_reader.qos().liveliness.clone(),
-                reliability: data_reader.qos().reliability.clone(),
-                ownership: data_reader.qos().ownership.clone(),
-                destination_order: data_reader.qos().destination_order.clone(),
-                user_data: data_reader.qos().user_data.clone(),
-                time_based_filter: data_reader.qos().time_based_filter.clone(),
-                presentation: subscriber_qos.presentation,
-                partition: subscriber_qos.partition,
-                topic_data: self.topic_list[data_reader.topic_name()]
-                    .qos()
-                    .topic_data
-                    .clone(),
-                group_data: subscriber_qos.group_data,
-                representation: data_reader.qos().representation.clone(),
-            };
+            // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+            //     key: BuiltInTopicKey {
+            //         value: data_reader.transport_reader().guid(),
+            //     },
+            //     participant_key: BuiltInTopicKey { value: [0; 16] },
+            //     topic_name: data_reader.topic_name().to_owned(),
+            //     type_name: data_reader.type_name().to_owned(),
+            //     durability: data_reader.qos().durability.clone(),
+            //     deadline: data_reader.qos().deadline.clone(),
+            //     latency_budget: data_reader.qos().latency_budget.clone(),
+            //     liveliness: data_reader.qos().liveliness.clone(),
+            //     reliability: data_reader.qos().reliability.clone(),
+            //     ownership: data_reader.qos().ownership.clone(),
+            //     destination_order: data_reader.qos().destination_order.clone(),
+            //     user_data: data_reader.qos().user_data.clone(),
+            //     time_based_filter: data_reader.qos().time_based_filter.clone(),
+            //     presentation: subscriber_qos.presentation,
+            //     partition: subscriber_qos.partition,
+            //     topic_data: self.domain_participant.topic_list[data_reader.topic_name()]
+            //         .qos()
+            //         .topic_data
+            //         .clone(),
+            //     group_data: subscriber_qos.group_data,
+            //     representation: data_reader.qos().representation.clone(),
+            // };
 
-            self.announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
+            // self.domain_participant
+            //     .announce_created_or_modified_datareader(subscription_builtin_topic_data)?;
+            todo!()
         }
 
         Ok(())

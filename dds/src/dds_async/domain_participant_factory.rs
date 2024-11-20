@@ -9,9 +9,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
         actor::Actor,
-        domain_participant_backend::{
-            domain_participant_actor, services::domain_participant_service,
-        },
+        domain_participant_backend::services::{domain_participant_service, message_service},
         domain_participant_factory::domain_participant_factory_actor::{
             self, DomainParticipantFactoryActor,
         },
@@ -88,7 +86,7 @@ impl DomainParticipantFactoryAsync {
                 .receive_reply()
                 .await?;
             deleted_participant
-                .send_actor_mail(domain_participant_actor::AnnounceDeletedParticipant)
+                .send_actor_mail(message_service::AnnounceDeletedParticipant)
                 .receive_reply()
                 .await?;
             deleted_participant.stop().await;

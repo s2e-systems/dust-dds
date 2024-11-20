@@ -20,9 +20,8 @@ impl Mail for DeadlineMissed {
 impl MailHandler<DeadlineMissed> for DomainParticipantActor {
     fn handle(&mut self, message: DeadlineMissed) -> <DeadlineMissed as Mail>::Result {
         let subscriber = self
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.subscriber_handle)
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)

@@ -41,24 +41,23 @@ impl Mail for CreateDataWriter {
 }
 impl MailHandler<CreateDataWriter> for DomainParticipantActor {
     fn handle(&mut self, message: CreateDataWriter) -> <CreateDataWriter as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
         let topic = self
-            .topic_list
-            .get(&message.topic_name)
+            .domain_participant
+            .get_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
         let type_support = topic.type_support().clone();
+        let type_name = topic.type_name().to_owned();
 
         let transport_writer = self
             .transport
             .create_user_defined_writer(&message.topic_name, topic_kind);
         let writer_handle = self.instance_handle_counter.generate_new_instance_handle();
+        let publisher = self
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         let qos = match message.qos {
             QosKind::Default => publisher.default_datawriter_qos().clone(),
             QosKind::Specific(q) => {
@@ -69,10 +68,10 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
 
         let topic_name = message.topic_name;
 
-        let type_name = topic.type_name().to_owned();
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
         let writer_status_condition_address = status_condition.address();
+
         let mut data_writer = DataWriterActor::new(
             writer_handle,
             transport_writer,
@@ -93,115 +92,118 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
 
         if publisher.enabled() && publisher.qos().entity_factory.autoenable_created_entities {
             if let Some(dcps_subscription_reader) = self
-                .builtin_subscriber
+                .domain_participant
+                .builtin_subscriber_mut()
                 .data_reader_list_mut()
                 .find(|dr| dr.topic_name() == DCPS_SUBSCRIPTION)
             {
-                if let Ok(sample_list) = dcps_subscription_reader.read(
-                    i32::MAX,
-                    ANY_SAMPLE_STATE,
-                    ANY_VIEW_STATE,
-                    &[InstanceStateKind::Alive],
-                    None,
-                ) {
-                    for (sample_data, _) in sample_list {
-                        if let Ok(discovered_reader_data) = DiscoveredReaderData::deserialize_data(
-                            sample_data
-                                .expect("Alive samples should always contain data")
-                                .as_ref(),
-                        ) {
-                            let is_any_name_matched = discovered_reader_data
-                                .dds_subscription_data
-                                .partition
-                                .name
-                                .iter()
-                                .any(|n| publisher.qos().partition.name.contains(n));
+                todo!()
+                //     if let Ok(sample_list) = dcps_subscription_reader.read(
+                //         i32::MAX,
+                //         ANY_SAMPLE_STATE,
+                //         ANY_VIEW_STATE,
+                //         &[InstanceStateKind::Alive],
+                //         None,
+                //     ) {
+                //         for (sample_data, _) in sample_list {
+                //             if let Ok(discovered_reader_data) = DiscoveredReaderData::deserialize_data(
+                //                 sample_data
+                //                     .expect("Alive samples should always contain data")
+                //                     .as_ref(),
+                //             ) {
+                //                 let is_any_name_matched = discovered_reader_data
+                //                     .dds_subscription_data
+                //                     .partition
+                //                     .name
+                //                     .iter()
+                //                     .any(|n| publisher.qos().partition.name.contains(n));
 
-                            let is_any_received_regex_matched_with_partition_qos =
-                                discovered_reader_data
-                                    .dds_subscription_data
-                                    .partition
-                                    .name
-                                    .iter()
-                                    .filter_map(|n| glob_to_regex(n).ok())
-                                    .any(|regex| {
-                                        publisher
-                                            .qos()
-                                            .partition
-                                            .name
-                                            .iter()
-                                            .any(|n| regex.is_match(n))
-                                    });
+                //                 let is_any_received_regex_matched_with_partition_qos =
+                //                     discovered_reader_data
+                //                         .dds_subscription_data
+                //                         .partition
+                //                         .name
+                //                         .iter()
+                //                         .filter_map(|n| glob_to_regex(n).ok())
+                //                         .any(|regex| {
+                //                             publisher
+                //                                 .qos()
+                //                                 .partition
+                //                                 .name
+                //                                 .iter()
+                //                                 .any(|n| regex.is_match(n))
+                //                         });
 
-                            let is_any_local_regex_matched_with_received_partition_qos = publisher
-                                .qos()
-                                .partition
-                                .name
-                                .iter()
-                                .filter_map(|n| glob_to_regex(n).ok())
-                                .any(|regex| {
-                                    discovered_reader_data
-                                        .dds_subscription_data
-                                        .partition
-                                        .name
-                                        .iter()
-                                        .any(|n| regex.is_match(n))
-                                });
+                //                 let is_any_local_regex_matched_with_received_partition_qos = publisher
+                //                     .qos()
+                //                     .partition
+                //                     .name
+                //                     .iter()
+                //                     .filter_map(|n| glob_to_regex(n).ok())
+                //                     .any(|regex| {
+                //                         discovered_reader_data
+                //                             .dds_subscription_data
+                //                             .partition
+                //                             .name
+                //                             .iter()
+                //                             .any(|n| regex.is_match(n))
+                //                     });
 
-                            let is_partition_matched =
-                                discovered_reader_data.dds_subscription_data.partition
-                                    == publisher.qos().partition
-                                    || is_any_name_matched
-                                    || is_any_received_regex_matched_with_partition_qos
-                                    || is_any_local_regex_matched_with_received_partition_qos;
+                //                 let is_partition_matched =
+                //                     discovered_reader_data.dds_subscription_data.partition
+                //                         == publisher.qos().partition
+                //                         || is_any_name_matched
+                //                         || is_any_received_regex_matched_with_partition_qos
+                //                         || is_any_local_regex_matched_with_received_partition_qos;
 
-                            if is_partition_matched {
-                                for dw in publisher.data_writer_list_mut().filter(|dw| {
-                                    dw.topic_name()
-                                        == discovered_reader_data
-                                            .subscription_builtin_topic_data()
-                                            .topic_name()
-                                }) {
-                                    todo!()
-                                    // dw.add_matched_reader(&discovered_reader_data, &publisher.qos);
-                                }
-                            }
-                        }
-                    }
-                }
+                //                 if is_partition_matched {
+                //                     for dw in publisher.data_writer_list_mut().filter(|dw| {
+                //                         dw.topic_name()
+                //                             == discovered_reader_data
+                //                                 .subscription_builtin_topic_data()
+                //                                 .topic_name()
+                //                     }) {
+                //                         todo!()
+                //                         // dw.add_matched_reader(&discovered_reader_data, &publisher.qos);
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
+
+                // let data_writer = publisher
+                //     .get_data_writer(data_writer_handle)
+                //     .ok_or(DdsError::AlreadyDeleted)?;
+                // let publication_builtin_topic_data = PublicationBuiltinTopicData {
+                //     key: BuiltInTopicKey {
+                //         value: data_writer.transport_writer().guid(),
+                //     },
+                //     participant_key: BuiltInTopicKey { value: [0; 16] },
+                //     topic_name: data_writer.topic_name().to_owned(),
+                //     type_name: data_writer.type_name().to_owned(),
+                //     durability: data_writer.qos().durability.clone(),
+                //     deadline: data_writer.qos().deadline.clone(),
+                //     latency_budget: data_writer.qos().latency_budget.clone(),
+                //     liveliness: data_writer.qos().liveliness.clone(),
+                //     reliability: data_writer.qos().reliability.clone(),
+                //     lifespan: data_writer.qos().lifespan.clone(),
+                //     user_data: data_writer.qos().user_data.clone(),
+                //     ownership: data_writer.qos().ownership.clone(),
+                //     ownership_strength: data_writer.qos().ownership_strength.clone(),
+                //     destination_order: data_writer.qos().destination_order.clone(),
+                //     presentation: publisher.qos().presentation.clone(),
+                //     partition: publisher.qos().partition.clone(),
+                //     topic_data: self.topic_list[data_writer.topic_name()]
+                //         .qos()
+                //         .topic_data
+                //         .clone(),
+                //     group_data: publisher.qos().group_data.clone(),
+                //     representation: data_writer.qos().representation.clone(),
+                // };
+
+                // self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
             }
-
-            let data_writer = publisher
-                .get_data_writer(data_writer_handle)
-                .ok_or(DdsError::AlreadyDeleted)?;
-            let publication_builtin_topic_data = PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: data_writer.transport_writer().guid(),
-                },
-                participant_key: BuiltInTopicKey { value: [0; 16] },
-                topic_name: data_writer.topic_name().to_owned(),
-                type_name: data_writer.type_name().to_owned(),
-                durability: data_writer.qos().durability.clone(),
-                deadline: data_writer.qos().deadline.clone(),
-                latency_budget: data_writer.qos().latency_budget.clone(),
-                liveliness: data_writer.qos().liveliness.clone(),
-                reliability: data_writer.qos().reliability.clone(),
-                lifespan: data_writer.qos().lifespan.clone(),
-                user_data: data_writer.qos().user_data.clone(),
-                ownership: data_writer.qos().ownership.clone(),
-                ownership_strength: data_writer.qos().ownership_strength.clone(),
-                destination_order: data_writer.qos().destination_order.clone(),
-                presentation: publisher.qos().presentation.clone(),
-                partition: publisher.qos().partition.clone(),
-                topic_data: self.topic_list[data_writer.topic_name()]
-                    .qos()
-                    .topic_data
-                    .clone(),
-                group_data: publisher.qos().group_data.clone(),
-                representation: data_writer.qos().representation.clone(),
-            };
-
-            self.announce_created_or_modified_datawriter(publication_builtin_topic_data)?;
         }
 
         Ok((data_writer_handle.into(), writer_status_condition_address))
@@ -218,41 +220,41 @@ impl Mail for DeleteDataWriter {
 impl MailHandler<DeleteDataWriter> for DomainParticipantActor {
     fn handle(&mut self, message: DeleteDataWriter) -> <DeleteDataWriter as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         let data_writer = publisher
             .remove_data_writer(message.datawriter_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let publication_builtin_topic_data = PublicationBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: data_writer.transport_writer().guid(),
-            },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_writer.topic_name().to_owned(),
-            type_name: data_writer.type_name().to_owned(),
-            durability: data_writer.qos().durability.clone(),
-            deadline: data_writer.qos().deadline.clone(),
-            latency_budget: data_writer.qos().latency_budget.clone(),
-            liveliness: data_writer.qos().liveliness.clone(),
-            reliability: data_writer.qos().reliability.clone(),
-            lifespan: data_writer.qos().lifespan.clone(),
-            user_data: data_writer.qos().user_data.clone(),
-            ownership: data_writer.qos().ownership.clone(),
-            ownership_strength: data_writer.qos().ownership_strength.clone(),
-            destination_order: data_writer.qos().destination_order.clone(),
-            presentation: publisher.qos().presentation.clone(),
-            partition: publisher.qos().partition.clone(),
-            topic_data: self.topic_list[data_writer.topic_name()]
-                .qos()
-                .topic_data
-                .clone(),
-            group_data: publisher.qos().group_data.clone(),
-            representation: data_writer.qos().representation.clone(),
-        };
-        self.announce_deleted_data_writer(publication_builtin_topic_data)?;
+        todo!();
+        // let publication_builtin_topic_data = PublicationBuiltinTopicData {
+        //     key: BuiltInTopicKey {
+        //         value: data_writer.transport_writer().guid(),
+        //     },
+        //     participant_key: BuiltInTopicKey { value: [0; 16] },
+        //     topic_name: data_writer.topic_name().to_owned(),
+        //     type_name: data_writer.type_name().to_owned(),
+        //     durability: data_writer.qos().durability.clone(),
+        //     deadline: data_writer.qos().deadline.clone(),
+        //     latency_budget: data_writer.qos().latency_budget.clone(),
+        //     liveliness: data_writer.qos().liveliness.clone(),
+        //     reliability: data_writer.qos().reliability.clone(),
+        //     lifespan: data_writer.qos().lifespan.clone(),
+        //     user_data: data_writer.qos().user_data.clone(),
+        //     ownership: data_writer.qos().ownership.clone(),
+        //     ownership_strength: data_writer.qos().ownership_strength.clone(),
+        //     destination_order: data_writer.qos().destination_order.clone(),
+        //     presentation: publisher.qos().presentation.clone(),
+        //     partition: publisher.qos().partition.clone(),
+        //     topic_data: self.topic_list[data_writer.topic_name()]
+        //         .qos()
+        //         .topic_data
+        //         .clone(),
+        //     group_data: publisher.qos().group_data.clone(),
+        //     representation: data_writer.qos().representation.clone(),
+        // };
+        // self.announce_deleted_data_writer(publication_builtin_topic_data)?;
         Ok(())
     }
 }
@@ -360,9 +362,8 @@ impl MailHandler<SetDefaultDataWriterQos> for DomainParticipantActor {
         message: SetDefaultDataWriterQos,
     ) -> <SetDefaultDataWriterQos as Mail>::Result {
         let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let qos = match message.qos {
             QosKind::Default => DataWriterQos::default(),
@@ -416,16 +417,14 @@ impl Mail for SetQos {
 }
 impl MailHandler<SetQos> for DomainParticipantActor {
     fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
         let qos = match message.qos {
-            QosKind::Default => self.default_publisher_qos.clone(),
+            QosKind::Default => self.domain_participant.default_publisher_qos().clone(),
             QosKind::Specific(q) => q,
         };
+        let publisher = self
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         publisher.set_qos(qos)
     }
@@ -440,9 +439,8 @@ impl Mail for GetQos {
 impl MailHandler<GetQos> for DomainParticipantActor {
     fn handle(&mut self, message: GetQos) -> <GetQos as Mail>::Result {
         Ok(self
-            .user_defined_publisher_list
-            .iter()
-            .find(|p| p.instance_handle() == message.publisher_handle)
+            .domain_participant
+            .get_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .qos()
             .clone())
@@ -459,10 +457,8 @@ impl Mail for SetListener {
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
     fn handle(&mut self, message: SetListener) -> <SetQos as Mail>::Result {
-        let publisher = self
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle() == message.publisher_handle)
+        self.domain_participant
+            .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_listener(
                 message.a_listener.map(PublisherListenerThread::new),
