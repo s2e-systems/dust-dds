@@ -1,6 +1,6 @@
 use crate::{
-    implementation::actor::{Mail, MailHandler},
     infrastructure::status::StatusKind,
+    runtime::actor::{Mail, MailHandler},
 };
 
 #[derive(Debug)]

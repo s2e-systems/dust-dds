@@ -1,9 +1,7 @@
 use crate::{
-    implementation::{
-        actor::ActorAddress,
-        status_condition::status_condition_actor::{self, StatusConditionActor},
-    },
+    implementation::status_condition::status_condition_actor::{self, StatusConditionActor},
     infrastructure::{error::DdsResult, status::StatusKind},
+    runtime::actor::ActorAddress,
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).

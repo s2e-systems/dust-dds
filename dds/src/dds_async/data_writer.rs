@@ -7,11 +7,10 @@ use super::{
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        actor::ActorAddress,
-        status_condition::status_condition_actor::StatusConditionActor,
         domain_participant_backend::{
-            services::data_writer_service, domain_participant_actor::DomainParticipantActor,
+            domain_participant_actor::DomainParticipantActor, services::data_writer_service,
         },
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,
@@ -23,6 +22,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
+    runtime::actor::ActorAddress,
     topic_definition::type_support::DdsSerialize,
 };
 use std::marker::PhantomData;

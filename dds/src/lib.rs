@@ -1,8 +1,6 @@
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
-
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![doc = include_str!("../README.md")]
 #[cfg(feature = "std")]
 mod dds;
@@ -19,6 +17,9 @@ pub mod rtps;
 
 #[cfg(feature = "std")]
 mod implementation;
+
+#[cfg(feature = "std")]
+mod runtime;
 
 /// Contains the XTypes serializer and deserializer
 #[doc(hidden)]

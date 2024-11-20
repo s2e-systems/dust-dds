@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     implementation::{
-        actor::{ActorAddress, Mail, MailHandler},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -21,6 +20,7 @@ use crate::{
         reader::ReaderCacheChange,
         types::{ChangeKind, SequenceNumber},
     },
+    runtime::actor::{ActorAddress, Mail, MailHandler},
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
     },

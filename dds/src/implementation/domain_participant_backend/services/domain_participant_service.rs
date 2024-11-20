@@ -11,10 +11,11 @@ use crate::{
         topic_listener::TopicListenerAsync,
     },
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::{publisher::PublisherActor, subscriber::SubscriberActor, topic::TopicActor},
+            entities::{
+                publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity,
+            },
         },
         listeners::{
             publisher_listener::PublisherListenerThread,
@@ -29,6 +30,7 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
+    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -61,7 +63,7 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
         let publisher_status_condition_address = status_condition.address();
-        let mut publisher = PublisherActor::new(
+        let mut publisher = PublisherEntity::new(
             publisher_qos,
             publisher_handle,
             message.a_listener.map(PublisherListenerThread::new),
@@ -143,7 +145,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
         let status_kind = message.mask.to_vec();
 
-        let mut subscriber = SubscriberActor::new(
+        let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle()),
@@ -248,7 +250,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
         let topic_status_condition_address = status_condition.address();
 
-        let topic = TopicActor::new(
+        let topic = TopicEntity::new(
             qos,
             message.type_name,
             message.topic_name.clone(),
@@ -375,7 +377,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                 };
                 let type_name = discovered_topic_data.type_name.clone();
                 let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-                let mut topic = TopicActor::new(
+                let mut topic = TopicEntity::new(
                     qos,
                     type_name.clone(),
                     message.topic_name.clone(),
@@ -483,7 +485,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
         &mut self,
         _: DeleteParticipantContainedEntities,
     ) -> <DeleteParticipantContainedEntities as Mail>::Result {
-        let deleted_publisher_list: Vec<PublisherActor> =
+        let deleted_publisher_list: Vec<PublisherEntity> =
             self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
             let publisher_qos = publisher.qos().clone();
@@ -519,7 +521,7 @@ impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor 
             // }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberActor> =
+        let deleted_subscriber_list: Vec<SubscriberEntity> =
             self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
             let subscriber_qos = subscriber.qos().clone();

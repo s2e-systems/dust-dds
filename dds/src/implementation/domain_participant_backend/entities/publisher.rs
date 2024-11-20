@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        actor::Actor, listeners::publisher_listener::PublisherListenerThread,
+        listeners::publisher_listener::PublisherListenerThread,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -9,14 +9,15 @@ use crate::{
         qos::{DataWriterQos, PublisherQos},
         status::StatusKind,
     },
+    runtime::actor::Actor,
 };
 
-use super::data_writer::DataWriterActor;
+use super::data_writer::DataWriterEntity;
 
-pub struct PublisherActor {
+pub struct PublisherEntity {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterActor>,
+    data_writer_list: Vec<DataWriterEntity>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     publisher_listener_thread: Option<PublisherListenerThread>,
@@ -24,7 +25,7 @@ pub struct PublisherActor {
     _status_condition: Actor<StatusConditionActor>,
 }
 
-impl PublisherActor {
+impl PublisherEntity {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
@@ -44,23 +45,23 @@ impl PublisherActor {
         }
     }
 
-    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterActor> {
+    pub fn data_writer_list(&self) -> impl Iterator<Item = &DataWriterEntity> {
         self.data_writer_list.iter()
     }
 
-    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterActor> {
+    pub fn data_writer_list_mut(&mut self) -> impl Iterator<Item = &mut DataWriterEntity> {
         self.data_writer_list.iter_mut()
     }
 
-    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterActor> + '_ {
+    pub fn drain_data_writer_list(&mut self) -> impl Iterator<Item = DataWriterEntity> + '_ {
         self.data_writer_list.drain(..)
     }
 
-    pub fn insert_data_writer(&mut self, data_writer: DataWriterActor) {
+    pub fn insert_data_writer(&mut self, data_writer: DataWriterEntity) {
         self.data_writer_list.push(data_writer);
     }
 
-    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterActor> {
+    pub fn remove_data_writer(&mut self, handle: InstanceHandle) -> Option<DataWriterEntity> {
         let index = self
             .data_writer_list
             .iter()
@@ -68,13 +69,13 @@ impl PublisherActor {
         Some(self.data_writer_list.remove(index))
     }
 
-    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterActor> {
+    pub fn get_data_writer(&self, handle: InstanceHandle) -> Option<&DataWriterEntity> {
         self.data_writer_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_data_writer(&mut self, handle: InstanceHandle) -> Option<&mut DataWriterActor> {
+    pub fn get_mut_data_writer(&mut self, handle: InstanceHandle) -> Option<&mut DataWriterEntity> {
         self.data_writer_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)

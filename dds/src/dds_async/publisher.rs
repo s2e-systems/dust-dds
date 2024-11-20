@@ -4,8 +4,8 @@ use super::{
     publisher_listener::PublisherListenerAsync, topic::TopicAsync,
 };
 use crate::{
+    runtime::actor::ActorAddress,
     implementation::{
-        actor::ActorAddress,
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::publisher_service,

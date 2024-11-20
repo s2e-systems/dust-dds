@@ -2,9 +2,9 @@ use super::{entities::domain_participant::DomainParticipantEntity, handle::Insta
 use crate::{
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
-    implementation::runtime::{executor::Executor, timer::TimerDriver},
     infrastructure::{qos::DomainParticipantQos, status::StatusKind},
     rtps::transport::Transport,
+    runtime::{executor::Executor, timer::TimerDriver},
 };
 
 pub struct DomainParticipantActor {

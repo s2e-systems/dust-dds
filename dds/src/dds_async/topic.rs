@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     implementation::{
-        actor::ActorAddress, domain_participant_backend::services::topic_service,
+        domain_participant_backend::services::topic_service,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -13,6 +13,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    runtime::actor::ActorAddress,
     xtypes::dynamic_type::DynamicType,
 };
 use std::sync::Arc;

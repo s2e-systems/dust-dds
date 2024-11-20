@@ -6,7 +6,6 @@ use crate::{
         publisher_listener::PublisherListenerAsync, subscriber_listener::SubscriberListenerAsync,
         topic_listener::TopicListenerAsync,
     },
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -16,6 +15,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    runtime::executor::block_on,
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::TypeSupport},
     xtypes::dynamic_type::DynamicType,

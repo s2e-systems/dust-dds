@@ -6,10 +6,8 @@ use std::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        actor::Actor,
         data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
         listeners::data_reader_listener::DataReaderListenerThread,
-        runtime::executor::TaskHandle,
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -35,6 +33,7 @@ use crate::{
         reader::{ReaderCacheChange, TransportReader},
         types::{ChangeKind, Guid},
     },
+    runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     xtypes::dynamic_type::DynamicType,
 };
@@ -117,7 +116,7 @@ pub struct IndexedSample {
     pub sample: (Option<Data>, SampleInfo),
 }
 
-pub struct DataReaderActor {
+pub struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -143,7 +142,7 @@ pub struct DataReaderActor {
     transport_reader: Box<dyn TransportReader>,
 }
 
-impl DataReaderActor {
+impl DataReaderEntity {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,

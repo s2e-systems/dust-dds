@@ -4,15 +4,14 @@ use crate::{
     dds_async::{
         data_writer_listener::DataWriterListenerAsync, publisher::PublisherAsync, topic::TopicAsync,
     },
-    implementation::{
-        actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor,
-    },
+    implementation::status_condition::status_condition_actor::StatusConditionActor,
     infrastructure::status::{
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
     },
+    runtime::actor::ActorAddress,
 };
 
-use super::domain_participant_backend::entities::data_writer::DataWriterActor;
+use super::domain_participant_backend::entities::data_writer::DataWriterEntity;
 
 pub enum DataWriterListenerOperation {
     OfferedDeadlineMissed(OfferedDeadlineMissedStatus),
@@ -24,7 +23,7 @@ pub trait AnyDataWriterListener {
     fn call_listener_function(
         &mut self,
         listener_operation: DataWriterListenerOperation,
-        writer_address: ActorAddress<DataWriterActor>,
+        writer_address: ActorAddress<DataWriterEntity>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,
@@ -38,7 +37,7 @@ where
     fn call_listener_function(
         &mut self,
         listener_operation: DataWriterListenerOperation,
-        writer_address: ActorAddress<DataWriterActor>,
+        writer_address: ActorAddress<DataWriterEntity>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,

@@ -5,11 +5,12 @@ use crate::{
         data_reader_listener::DataReaderListenerAsync, subscriber::SubscriberAsync,
         topic::TopicAsync,
     },
-    implementation::{actor::ActorAddress, status_condition::status_condition_actor::StatusConditionActor},
+    implementation::status_condition::status_condition_actor::StatusConditionActor,
     infrastructure::status::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
+    runtime::actor::ActorAddress,
 };
 
 pub enum DataReaderListenerOperation {

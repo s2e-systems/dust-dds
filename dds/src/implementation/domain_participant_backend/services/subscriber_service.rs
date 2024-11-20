@@ -1,11 +1,10 @@
 use crate::{
     dds_async::subscriber_listener::SubscriberListenerAsync,
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::DataReaderActor, services::message_service,
+            entities::data_reader::DataReaderEntity, services::message_service,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -19,6 +18,7 @@ use crate::{
         reader::{ReaderCacheChange, ReaderHistoryCache},
         types::TopicKind,
     },
+    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -93,7 +93,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
         let data_reader_listener_thread = None;
-        let data_reader = DataReaderActor::new(
+        let data_reader = DataReaderEntity::new(
             reader_handle,
             qos,
             topic_name,
@@ -301,7 +301,7 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
                 .builtin_subscriber_mut()
                 .data_reader_list_mut()
                 .find(|dr| dr.topic_name() == message.topic_name)
-                .map(|x: &mut DataReaderActor| {
+                .map(|x: &mut DataReaderEntity| {
                     (x.instance_handle(), x.status_condition().address())
                 }))
         } else {

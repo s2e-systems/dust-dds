@@ -3,8 +3,8 @@ use crate::{
         publisher::PublisherAsync, publisher_listener::PublisherListenerAsync, topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress, domain_participant_backend::entities::data_writer::DataWriterActor,
-        runtime::mpsc::MpscSender, status_condition::status_condition_actor::StatusConditionActor,
+        domain_participant_backend::entities::data_writer::DataWriterEntity,
+        status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,
@@ -13,6 +13,7 @@ use crate::{
             PublicationMatchedStatus,
         },
     },
+    runtime::{actor::ActorAddress, mpsc::MpscSender},
 };
 
 use std::thread::JoinHandle;
@@ -26,7 +27,7 @@ pub enum PublisherListenerOperation {
 
 pub struct PublisherListenerMessage {
     pub listener_operation: PublisherListenerOperation,
-    pub writer_address: ActorAddress<DataWriterActor>,
+    pub writer_address: ActorAddress<DataWriterEntity>,
     pub status_condition_address: ActorAddress<StatusConditionActor>,
     pub publisher: PublisherAsync,
     pub topic: TopicAsync,

@@ -4,7 +4,6 @@ use crate::{
         publisher_listener::PublisherListenerAsync,
     },
     domain::domain_participant::DomainParticipant,
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -14,6 +13,7 @@ use crate::{
         time::Duration,
     },
     publication::data_writer::DataWriter,
+    runtime::executor::block_on,
     topic_definition::topic::Topic,
 };
 

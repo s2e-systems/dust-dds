@@ -6,12 +6,12 @@ use crate::{
         domain_participant_listener::DomainParticipantListenerAsync,
     },
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::runtime::executor::block_on,
     infrastructure::{
         error::DdsResult,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::executor::block_on,
 };
 
 use std::sync::OnceLock;

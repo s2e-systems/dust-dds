@@ -6,14 +6,9 @@ use tracing::info;
 
 use crate::{
     domain::domain_participant_factory::DomainId,
-    implementation::{
-        actor::{Actor, ActorAddress, ActorBuilder},
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
-            discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        },
-        runtime::executor::{block_on, Executor},
+    implementation::data_representation_builtin_endpoints::{
+        discovered_reader_data::DiscoveredReaderData, discovered_writer_data::DiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     rtps::{
         discovery_types::{
@@ -24,6 +19,10 @@ use crate::{
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
         participant,
+    },
+    runtime::{
+        actor::{Actor, ActorAddress, ActorBuilder},
+        executor::{block_on, Executor},
     },
     topic_definition::type_support::DdsDeserialize,
 };

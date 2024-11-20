@@ -7,14 +7,12 @@ use fnmatch_regex::glob_to_regex;
 
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
-        DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -22,12 +20,11 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         domain_participant_backend::{
-            entities::{data_reader::DataReaderActor, data_writer::DataWriterActor},
+            entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
             handle::InstanceHandleCounter,
             services::domain_participant_service::BUILT_IN_TOPIC_NAME_LIST,
         },
         listeners::domain_participant_listener::ParticipantListenerThread,
-        runtime::executor::{Executor, ExecutorHandle},
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -52,22 +49,26 @@ use crate::{
         transport::Transport,
         types::{Guid, TopicKind, ENTITYID_PARTICIPANT},
     },
+    runtime::{
+        actor::{Actor, ActorAddress},
+        executor::Executor,
+    },
     topic_definition::type_support::{DdsSerialize, TypeSupport},
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::{publisher::PublisherActor, subscriber::SubscriberActor, topic::TopicActor};
+use super::{publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity};
 
 pub struct DomainParticipantEntity {
     domain_id: DomainId,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberActor,
-    builtin_publisher: PublisherActor,
-    user_defined_subscriber_list: Vec<SubscriberActor>,
+    builtin_subscriber: SubscriberEntity,
+    builtin_publisher: PublisherEntity,
+    user_defined_subscriber_list: Vec<SubscriberEntity>,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Vec<PublisherActor>,
+    user_defined_publisher_list: Vec<PublisherEntity>,
     default_publisher_qos: PublisherQos,
-    topic_list: HashMap<String, TopicActor>,
+    topic_list: HashMap<String, TopicEntity>,
     default_topic_qos: TopicQos,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
@@ -127,7 +128,7 @@ impl DomainParticipantEntity {
         let mut topic_list = HashMap::new();
         let spdp_topic_participant_handle = instance_handle_counter.generate_new_instance_handle();
 
-        let mut spdp_topic_participant = TopicActor::new(
+        let mut spdp_topic_participant = TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT.to_owned(),
@@ -142,7 +143,7 @@ impl DomainParticipantEntity {
         topic_list.insert(DCPS_PARTICIPANT.to_owned(), spdp_topic_participant);
 
         let sedp_topic_topics_handle = instance_handle_counter.generate_new_instance_handle();
-        let mut sedp_topic_topics = TopicActor::new(
+        let mut sedp_topic_topics = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC.to_owned(),
@@ -157,7 +158,7 @@ impl DomainParticipantEntity {
         topic_list.insert(DCPS_TOPIC.to_owned(), sedp_topic_topics);
 
         let sedp_topic_publications_handle = instance_handle_counter.generate_new_instance_handle();
-        let mut sedp_topic_publications = TopicActor::new(
+        let mut sedp_topic_publications = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION.to_owned(),
@@ -172,7 +173,7 @@ impl DomainParticipantEntity {
 
         let sedp_topic_subscriptions_handle =
             instance_handle_counter.generate_new_instance_handle();
-        let mut sedp_topic_subscriptions = TopicActor::new(
+        let mut sedp_topic_subscriptions = TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION.to_owned(),
@@ -212,7 +213,7 @@ impl DomainParticipantEntity {
             ..Default::default()
         };
 
-        let dcps_participant_reader = DataReaderActor::new(
+        let dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
@@ -223,7 +224,7 @@ impl DomainParticipantEntity {
             Vec::new(),
             transport.get_participant_discovery_reader(),
         );
-        let dcps_topic_reader = DataReaderActor::new(
+        let dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
@@ -234,7 +235,7 @@ impl DomainParticipantEntity {
             Vec::new(),
             transport.get_topics_discovery_reader(),
         );
-        let dcps_publication_reader = DataReaderActor::new(
+        let dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
@@ -245,7 +246,7 @@ impl DomainParticipantEntity {
             Vec::new(),
             transport.get_topics_discovery_reader(),
         );
-        let dcps_subscription_reader = DataReaderActor::new(
+        let dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
@@ -257,7 +258,7 @@ impl DomainParticipantEntity {
             transport.get_topics_discovery_reader(),
         );
 
-        let mut builtin_subscriber = SubscriberActor::new(
+        let mut builtin_subscriber = SubscriberEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
             Actor::spawn(StatusConditionActor::default(), &executor.handle()),
@@ -270,7 +271,7 @@ impl DomainParticipantEntity {
         builtin_subscriber.insert_data_reader(dcps_publication_reader);
         builtin_subscriber.insert_data_reader(dcps_subscription_reader);
 
-        let mut dcps_participant_writer = DataWriterActor::new(
+        let mut dcps_participant_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             transport.get_participant_discovery_writer(),
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
@@ -283,7 +284,7 @@ impl DomainParticipantEntity {
         );
         dcps_participant_writer.enable();
 
-        let mut dcps_topics_writer = DataWriterActor::new(
+        let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             transport.get_topics_discovery_writer(),
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
@@ -295,7 +296,7 @@ impl DomainParticipantEntity {
             sedp_data_writer_qos(),
         );
         dcps_topics_writer.enable();
-        let mut dcps_publications_writer = DataWriterActor::new(
+        let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             transport.get_publications_discovery_writer(),
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
@@ -308,7 +309,7 @@ impl DomainParticipantEntity {
         );
         dcps_publications_writer.enable();
 
-        let mut dcps_subscriptions_writer = DataWriterActor::new(
+        let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             transport.get_subscriptions_discovery_writer(),
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
@@ -320,7 +321,7 @@ impl DomainParticipantEntity {
             sedp_data_writer_qos(),
         );
         dcps_subscriptions_writer.enable();
-        let mut builtin_publisher = PublisherActor::new(
+        let mut builtin_publisher = PublisherEntity::new(
             PublisherQos::default(),
             instance_handle_counter.generate_new_instance_handle(),
             None,
@@ -377,7 +378,7 @@ impl DomainParticipantEntity {
         self.status_condition.address()
     }
 
-    pub fn get_builtin_subscriber(&self) -> &SubscriberActor {
+    pub fn get_builtin_subscriber(&self) -> &SubscriberEntity {
         &self.builtin_subscriber
     }
 
@@ -1269,11 +1270,11 @@ impl DomainParticipantEntity {
         self.enabled
     }
 
-    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberActor {
+    pub fn builtin_subscriber_mut(&mut self) -> &mut SubscriberEntity {
         &mut self.builtin_subscriber
     }
 
-    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherActor {
+    pub fn builtin_publisher_mut(&mut self) -> &mut PublisherEntity {
         &mut self.builtin_publisher
     }
 
@@ -1364,23 +1365,23 @@ impl DomainParticipantEntity {
         self.default_publisher_qos = default_publisher_qos;
     }
 
-    pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberActor> {
+    pub fn get_subscriber(&self, handle: InstanceHandle) -> Option<&SubscriberEntity> {
         self.user_defined_subscriber_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_subscriber(&mut self, handle: InstanceHandle) -> Option<&mut SubscriberActor> {
+    pub fn get_mut_subscriber(&mut self, handle: InstanceHandle) -> Option<&mut SubscriberEntity> {
         self.user_defined_subscriber_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_subscriber(&mut self, subscriber: SubscriberActor) {
+    pub fn insert_subscriber(&mut self, subscriber: SubscriberEntity) {
         self.user_defined_subscriber_list.push(subscriber);
     }
 
-    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberActor> {
+    pub fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -1389,27 +1390,27 @@ impl DomainParticipantEntity {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
-    pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberActor> + '_ {
+    pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity> + '_ {
         self.user_defined_subscriber_list.drain(..)
     }
 
-    pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherActor> {
+    pub fn get_publisher(&self, handle: InstanceHandle) -> Option<&PublisherEntity> {
         self.user_defined_publisher_list
             .iter()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn get_mut_publisher(&mut self, handle: InstanceHandle) -> Option<&mut PublisherActor> {
+    pub fn get_mut_publisher(&mut self, handle: InstanceHandle) -> Option<&mut PublisherEntity> {
         self.user_defined_publisher_list
             .iter_mut()
             .find(|x| x.instance_handle() == handle)
     }
 
-    pub fn insert_publisher(&mut self, publisher: PublisherActor) {
+    pub fn insert_publisher(&mut self, publisher: PublisherEntity) {
         self.user_defined_publisher_list.push(publisher);
     }
 
-    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherActor> {
+    pub fn remove_publisher(&mut self, handle: &InstanceHandle) -> Option<PublisherEntity> {
         let i = self
             .user_defined_publisher_list
             .iter()
@@ -1418,23 +1419,23 @@ impl DomainParticipantEntity {
         Some(self.user_defined_publisher_list.remove(i))
     }
 
-    pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherActor> + '_ {
+    pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherEntity> + '_ {
         self.user_defined_publisher_list.drain(..)
     }
 
-    pub fn get_topic(&self, topic_name: &str) -> Option<&TopicActor> {
+    pub fn get_topic(&self, topic_name: &str) -> Option<&TopicEntity> {
         self.topic_list.get(topic_name)
     }
 
-    pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicActor> {
+    pub fn get_mut_topic(&mut self, topic_name: &str) -> Option<&mut TopicEntity> {
         self.topic_list.get_mut(topic_name)
     }
 
-    pub fn insert_topic(&mut self, topic: TopicActor) {
+    pub fn insert_topic(&mut self, topic: TopicEntity) {
         self.topic_list.insert(topic.topic_name().to_owned(), topic);
     }
 
-    pub fn remove_topic(&mut self, topic_name: &str) -> Option<TopicActor> {
+    pub fn remove_topic(&mut self, topic_name: &str) -> Option<TopicEntity> {
         self.topic_list.remove(topic_name)
     }
 
@@ -1512,7 +1513,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list(
-    data_reader: &DataReaderActor,
+    data_reader: &DataReaderEntity,
     discovered_writer_data: &DiscoveredWriterData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {

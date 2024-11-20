@@ -4,12 +4,11 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, DCPS_SUBSCRIPTION},
     dds_async::publisher_listener::PublisherListenerAsync,
     implementation::{
-        actor::{Actor, ActorAddress, Mail, MailHandler},
         any_data_writer_listener::AnyDataWriterListener,
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_writer::DataWriterActor,
+            entities::data_writer::DataWriterEntity,
         },
         listeners::{
             data_writer_listener::DataWriterListenerThread,
@@ -24,6 +23,7 @@ use crate::{
         status::StatusKind,
     },
     rtps::types::TopicKind,
+    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     subscription::sample_info::{InstanceStateKind, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::DdsDeserialize,
     xtypes::dynamic_type::DynamicType,
@@ -72,7 +72,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
         let writer_status_condition_address = status_condition.address();
 
-        let mut data_writer = DataWriterActor::new(
+        let mut data_writer = DataWriterEntity::new(
             writer_handle,
             transport_writer,
             topic_name,

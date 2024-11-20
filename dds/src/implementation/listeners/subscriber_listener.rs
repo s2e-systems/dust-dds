@@ -3,10 +3,7 @@ use crate::{
         subscriber::SubscriberAsync, subscriber_listener::SubscriberListenerAsync,
         topic::TopicAsync,
     },
-    implementation::{
-        actor::ActorAddress, runtime::mpsc::MpscSender,
-        status_condition::status_condition_actor::StatusConditionActor,
-    },
+    implementation::status_condition::status_condition_actor::StatusConditionActor,
     infrastructure::{
         error::DdsResult,
         status::{
@@ -14,6 +11,7 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
         },
     },
+    runtime::{actor::ActorAddress, mpsc::MpscSender},
 };
 
 use std::thread::JoinHandle;

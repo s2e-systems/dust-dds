@@ -1,7 +1,7 @@
 use crate::{
     dds_async::wait_set::{ConditionAsync, WaitSetAsync},
-    implementation::runtime::executor::block_on,
     infrastructure::{error::DdsResult, time::Duration},
+    runtime::executor::block_on,
 };
 
 use super::condition::StatusCondition;

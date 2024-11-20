@@ -1,9 +1,6 @@
 use std::any::Any;
 
-use crate::{
-    implementation::runtime::mpsc::MpscSenderError, rtps::error::RtpsError,
-    xtypes::error::XTypesError,
-};
+use crate::{rtps::error::RtpsError, runtime::mpsc::MpscSenderError, xtypes::error::XTypesError};
 
 /// Result type returned by the different operations of the service
 pub type DdsResult<T> = Result<T, DdsError>;

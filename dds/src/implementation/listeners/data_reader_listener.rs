@@ -1,15 +1,15 @@
 use crate::{
     dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
     implementation::{
-        actor::ActorAddress,
         any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-        runtime::{
-            executor::block_on,
-            mpsc::{mpsc_channel, MpscSender},
-        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::error::DdsResult,
+    runtime::{
+        actor::ActorAddress,
+        executor::block_on,
+        mpsc::{mpsc_channel, MpscSender},
+    },
 };
 use std::thread::JoinHandle;
 

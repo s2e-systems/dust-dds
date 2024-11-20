@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::{
     implementation::{
-        actor::Actor,
         listeners::topic_listener::TopicListenerThread,
         status_condition::status_condition_actor::{self, StatusConditionActor},
     },
@@ -12,10 +11,11 @@ use crate::{
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusKind},
     },
+    runtime::actor::Actor,
     xtypes::dynamic_type::DynamicType,
 };
 
-pub struct TopicActor {
+pub struct TopicEntity {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
@@ -28,7 +28,7 @@ pub struct TopicActor {
     type_support: Arc<dyn DynamicType + Send + Sync>,
 }
 
-impl TopicActor {
+impl TopicEntity {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: TopicQos,

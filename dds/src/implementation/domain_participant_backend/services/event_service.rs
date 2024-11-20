@@ -1,12 +1,10 @@
 use crate::{
-    implementation::{
-        actor::{Mail, MailHandler},
-        domain_participant_backend::domain_participant_actor::DomainParticipantActor,
-    },
+    implementation::domain_participant_backend::domain_participant_actor::DomainParticipantActor,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
     },
+    runtime::actor::{Mail, MailHandler},
 };
 
 pub struct DeadlineMissed {

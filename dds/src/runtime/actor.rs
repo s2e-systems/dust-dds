@@ -1,10 +1,9 @@
-use crate::infrastructure::error::{DdsError, DdsResult};
-
-use super::runtime::{
+use super::{
     executor::ExecutorHandle,
     mpsc::{mpsc_channel, MpscReceiver, MpscSender},
     oneshot::{oneshot, OneshotReceiver, OneshotSender},
 };
+use crate::infrastructure::error::{DdsError, DdsResult};
 
 pub trait Mail {
     type Result;
@@ -183,7 +182,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::runtime::executor::{block_on, Executor};
+    use crate::runtime::executor::{block_on, Executor};
 
     use super::*;
 

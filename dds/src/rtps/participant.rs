@@ -4,14 +4,10 @@ use crate::{
         DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     domain::domain_participant_factory::DomainId,
-    implementation::{
-        actor::{ActorAddress, Mail, MailHandler},
-        data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
-        },
-        runtime::executor::block_on,
+    implementation::data_representation_builtin_endpoints::{
+        discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+        discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     rtps::{
         cache_change::RtpsCacheChange,
@@ -22,6 +18,10 @@ use crate::{
         message_receiver::MessageReceiver,
         stateful_writer::{RtpsStatefulWriter, WriterHistoryCache},
         types::{SequenceNumber, ENTITYID_UNKNOWN},
+    },
+    runtime::{
+        actor::{ActorAddress, Mail, MailHandler},
+        executor::block_on,
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
 };

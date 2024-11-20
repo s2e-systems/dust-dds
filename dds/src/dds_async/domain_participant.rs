@@ -8,11 +8,9 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::ActorAddress,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::domain_participant_service,
         },
-        runtime::timer::TimerHandle,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -22,6 +20,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, Time},
     },
+    runtime::{actor::ActorAddress, timer::TimerHandle},
     topic_definition::type_support::TypeSupport,
     xtypes::dynamic_type::DynamicType,
 };

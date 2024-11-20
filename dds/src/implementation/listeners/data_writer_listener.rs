@@ -3,21 +3,21 @@ use std::thread::JoinHandle;
 use crate::{
     dds_async::{publisher::PublisherAsync, topic::TopicAsync},
     implementation::{
-        actor::ActorAddress,
         any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-        domain_participant_backend::entities::data_writer::DataWriterActor,
-        runtime::{
-            executor::block_on,
-            mpsc::{mpsc_channel, MpscSender},
-        },
+        domain_participant_backend::entities::data_writer::DataWriterEntity,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::error::DdsResult,
+    runtime::{
+        actor::ActorAddress,
+        executor::block_on,
+        mpsc::{mpsc_channel, MpscSender},
+    },
 };
 
 pub struct DataWriterListenerMessage {
     listener_operation: DataWriterListenerOperation,
-    writer_address: ActorAddress<DataWriterActor>,
+    writer_address: ActorAddress<DataWriterEntity>,
     status_condition_address: ActorAddress<StatusConditionActor>,
     publisher: PublisherAsync,
     topic: TopicAsync,

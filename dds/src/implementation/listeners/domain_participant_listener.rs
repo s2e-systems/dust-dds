@@ -6,11 +6,9 @@ use crate::{
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
     implementation::{
-        actor::ActorAddress,
         domain_participant_backend::entities::{
-            data_reader::DataReaderActor, data_writer::DataWriterActor,
+            data_reader::DataReaderEntity, data_writer::DataWriterEntity,
         },
-        runtime::mpsc::MpscSender,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -22,17 +20,18 @@ use crate::{
             SubscriptionMatchedStatus,
         },
     },
+    runtime::{actor::ActorAddress, mpsc::MpscSender},
 };
 
 pub enum ListenerKind {
     Reader {
-        reader_address: ActorAddress<DataReaderActor>,
+        reader_address: ActorAddress<DataReaderEntity>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         subscriber: SubscriberAsync,
         topic: TopicAsync,
     },
     Writer {
-        writer_address: ActorAddress<DataWriterActor>,
+        writer_address: ActorAddress<DataWriterEntity>,
         status_condition_address: ActorAddress<StatusConditionActor>,
         publisher: PublisherAsync,
         topic: TopicAsync,

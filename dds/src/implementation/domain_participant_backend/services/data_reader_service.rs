@@ -3,7 +3,6 @@ use core::{future::Future, pin::Pin};
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     implementation::{
-        actor::{ActorAddress, Mail, MailHandler},
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
@@ -18,6 +17,7 @@ use crate::{
         time::Duration,
     },
     rtps::messages::submessage_elements::Data,
+    runtime::actor::{ActorAddress, Mail, MailHandler},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
 };
 

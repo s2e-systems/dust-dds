@@ -8,18 +8,17 @@ use crate::{
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::Actor,
         domain_participant_backend::services::{domain_participant_service, message_service},
         domain_participant_factory::domain_participant_factory_actor::{
             self, DomainParticipantFactoryActor,
         },
-        runtime::{executor::Executor, timer::TimerDriver},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::{actor::Actor, executor::Executor, timer::TimerDriver},
 };
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).

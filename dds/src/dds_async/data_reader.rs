@@ -7,7 +7,6 @@ use super::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        actor::ActorAddress,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::data_reader_service,
         },
@@ -23,6 +22,7 @@ use crate::{
         },
         time::Duration,
     },
+    runtime::actor::ActorAddress,
     subscription::{
         data_reader::Sample,
         sample_info::{

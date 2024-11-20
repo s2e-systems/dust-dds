@@ -5,7 +5,6 @@ use super::{
 };
 use crate::{
     implementation::{
-        actor::ActorAddress,
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::subscriber_service,
@@ -18,6 +17,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
+    runtime::actor::ActorAddress,
 };
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).

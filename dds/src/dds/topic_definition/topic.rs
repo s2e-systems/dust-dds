@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::{
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -11,6 +10,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    runtime::executor::block_on,
     xtypes::dynamic_type::DynamicType,
 };
 

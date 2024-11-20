@@ -3,11 +3,9 @@ use crate::{
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::message_service,
         },
-        runtime::{executor::Executor, timer::TimerDriver},
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -20,6 +18,11 @@ use crate::{
         reader::{ReaderCacheChange, ReaderHistoryCache},
         transport::RtpsTransport,
         types::GuidPrefix,
+    },
+    runtime::{
+        actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
+        executor::Executor,
+        timer::TimerDriver,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};

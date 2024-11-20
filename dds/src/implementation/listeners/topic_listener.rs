@@ -1,10 +1,10 @@
 use crate::{
     dds_async::topic_listener::TopicListenerAsync,
-    implementation::runtime::{
+    infrastructure::error::DdsResult,
+    runtime::{
         executor::block_on,
         mpsc::{mpsc_channel, MpscSender},
     },
-    infrastructure::error::DdsResult,
 };
 use std::thread::JoinHandle;
 

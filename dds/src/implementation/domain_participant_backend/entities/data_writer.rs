@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        actor::Actor,
         data_representation_inline_qos::{
             parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
@@ -9,7 +8,6 @@ use crate::{
             },
         },
         listeners::data_writer_listener::DataWriterListenerThread,
-        runtime::executor::TaskHandle,
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -33,6 +31,7 @@ use crate::{
         stateful_writer::WriterHistoryCache,
         types::{ChangeKind, SequenceNumber},
     },
+    runtime::{actor::Actor, executor::TaskHandle},
     xtypes::{
         dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
     },
@@ -42,7 +41,7 @@ use std::{
     sync::Arc,
 };
 
-pub struct DataWriterActor {
+pub struct DataWriterEntity {
     instance_handle: InstanceHandle,
     transport_writer: Box<dyn WriterHistoryCache>,
     topic_name: String,
@@ -65,7 +64,7 @@ pub struct DataWriterActor {
     instance_samples: HashMap<InstanceHandle, VecDeque<SequenceNumber>>,
 }
 
-impl DataWriterActor {
+impl DataWriterEntity {
     pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: Box<dyn WriterHistoryCache>,
