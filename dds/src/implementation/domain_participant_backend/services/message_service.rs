@@ -398,12 +398,9 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                         message.cache_change.data_value.as_ref(),
                     )
                 {
-                    message
-                        .participant_address
-                        .send_actor_mail(discovery_service::AddDiscoveredReader {
-                            subscription_builtin_topic_data,
-                        })
-                        .ok();
+                    self.domain_participant
+                        .add_discovered_reader(subscription_builtin_topic_data.clone());
+                    self.domain_participant.process_discovered_readers();
                 }
             }
             ChangeKind::AliveFiltered => todo!(),

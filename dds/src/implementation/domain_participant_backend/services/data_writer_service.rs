@@ -424,6 +424,7 @@ impl MailHandler<Enable> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         if !data_writer.enabled() {
             data_writer.enable();
+            self.domain_participant.process_discovered_readers();
             message
                 .participant_address
                 .send_actor_mail(message_service::AnnounceDataWriter {

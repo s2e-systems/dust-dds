@@ -1,27 +1,22 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        TopicBuiltinTopicData, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         domain_participant_backend::{
-            entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
-            handle::InstanceHandleCounter,
+            entities::data_reader::DataReaderEntity,
             services::domain_participant_service::BUILT_IN_TOPIC_NAME_LIST,
         },
         listeners::domain_participant_listener::ParticipantListenerThread,
@@ -30,30 +25,20 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{
-            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
-            TopicQos,
-        },
+        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
-            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LifespanQosPolicy, QosPolicyId, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TransportPriorityQosPolicy, DATA_REPRESENTATION_QOS_POLICY_ID,
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
+            HistoryQosPolicy, QosPolicyId, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
+            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
         status::StatusKind,
-        time::{Duration, DurationKind, Time},
+        time::Time,
     },
-    rtps::{
-        transport::Transport,
-        types::{Guid, TopicKind, ENTITYID_PARTICIPANT},
-    },
-    runtime::{
-        actor::{Actor, ActorAddress},
-        executor::Executor,
-    },
-    topic_definition::type_support::{DdsSerialize, TypeSupport},
+    rtps::types::{Guid, TopicKind, ENTITYID_PARTICIPANT},
+    runtime::actor::{Actor, ActorAddress},
+    topic_definition::type_support::DdsSerialize,
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -73,6 +58,7 @@ pub struct DomainParticipantEntity {
     default_topic_qos: TopicQos,
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
+    discovered_reader_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
     enabled: bool,
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
@@ -112,6 +98,7 @@ impl DomainParticipantEntity {
             default_topic_qos: TopicQos::default(),
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),
+            discovered_reader_list: HashMap::new(),
             enabled: false,
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
@@ -1042,6 +1029,26 @@ impl DomainParticipantEntity {
             .remove(discovered_participant_handle);
     }
 
+    pub fn add_discovered_reader(
+        &mut self,
+        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    ) {
+        self.discovered_reader_list.insert(
+            InstanceHandle::new(subscription_builtin_topic_data.key().value),
+            subscription_builtin_topic_data,
+        );
+    }
+
+    pub fn remove_discovered_reader(&mut self, discovered_reader_handle: &InstanceHandle) {
+        self.discovered_reader_list.remove(discovered_reader_handle);
+    }
+
+    pub fn subscription_builtin_topic_data_list(
+        &self,
+    ) -> impl Iterator<Item = &SubscriptionBuiltinTopicData> {
+        self.discovered_reader_list.values()
+    }
+
     pub fn default_subscriber_qos(&self) -> &SubscriberQos {
         &self.default_subscriber_qos
     }
@@ -1153,6 +1160,78 @@ impl DomainParticipantEntity {
             && self.user_defined_subscriber_list.is_empty()
             && no_user_defined_topics
     }
+
+    pub fn process_discovered_readers(&mut self) {
+        for subscription_builtin_topic_data in self.discovered_reader_list.values() {
+            for publisher in &mut self.user_defined_publisher_list {
+                let is_any_name_matched = subscription_builtin_topic_data
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| publisher.qos().partition.name.contains(n));
+
+                let is_any_received_regex_matched_with_partition_qos =
+                    subscription_builtin_topic_data
+                        .partition
+                        .name
+                        .iter()
+                        .filter_map(|n| glob_to_regex(n).ok())
+                        .any(|regex| {
+                            publisher
+                                .qos()
+                                .partition
+                                .name
+                                .iter()
+                                .any(|n| regex.is_match(n))
+                        });
+
+                let is_any_local_regex_matched_with_received_partition_qos = publisher
+                    .qos()
+                    .partition
+                    .name
+                    .iter()
+                    .filter_map(|n| glob_to_regex(n).ok())
+                    .any(|regex| {
+                        subscription_builtin_topic_data
+                            .partition
+                            .name
+                            .iter()
+                            .any(|n| regex.is_match(n))
+                    });
+
+                let is_partition_matched = subscription_builtin_topic_data.partition
+                    == publisher.qos().partition
+                    || is_any_name_matched
+                    || is_any_received_regex_matched_with_partition_qos
+                    || is_any_local_regex_matched_with_received_partition_qos;
+                if is_partition_matched {
+                    let publisher_qos = publisher.qos().clone();
+                    for data_writer in publisher.data_writer_list_mut() {
+                        let is_matched_topic_name = subscription_builtin_topic_data.topic_name()
+                            == data_writer.topic_name();
+                        let is_matched_type_name = subscription_builtin_topic_data.get_type_name()
+                            == data_writer.type_name();
+
+                        if is_matched_topic_name && is_matched_type_name {
+                            let incompatible_qos_policy_list =
+                                get_discovered_reader_incompatible_qos_policy_list(
+                                    &data_writer.qos(),
+                                    &subscription_builtin_topic_data,
+                                    &publisher_qos,
+                                );
+                            if incompatible_qos_policy_list.is_empty() {
+                                data_writer.add_matched_subscription(
+                                    subscription_builtin_topic_data.clone(),
+                                );
+                            } else {
+                                todo!("Incompatible reader found")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn get_discovered_writer_incompatible_qos_policy_list(
@@ -1209,6 +1288,60 @@ fn get_discovered_writer_incompatible_qos_policy_list(
         {
             incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
         }
+    }
+
+    incompatible_qos_policy_list
+}
+
+fn get_discovered_reader_incompatible_qos_policy_list(
+    writer_qos: &DataWriterQos,
+    discovered_reader_data: &SubscriptionBuiltinTopicData,
+    publisher_qos: &PublisherQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+    if &writer_qos.durability < discovered_reader_data.durability() {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
+        || publisher_qos.presentation.coherent_access
+            != discovered_reader_data.presentation().coherent_access
+        || publisher_qos.presentation.ordered_access
+            != discovered_reader_data.presentation().ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if &writer_qos.deadline > discovered_reader_data.deadline() {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    if writer_qos.ownership.kind != discovered_reader_data.ownership().kind {
+        incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
+    }
+
+    let writer_offered_representation = writer_qos
+        .representation
+        .value
+        .first()
+        .unwrap_or(&XCDR_DATA_REPRESENTATION);
+    if !(discovered_reader_data
+        .representation()
+        .value
+        .contains(writer_offered_representation)
+        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
+            && discovered_reader_data.representation().value.is_empty()))
+    {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
     incompatible_qos_policy_list
