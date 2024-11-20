@@ -1,12 +1,12 @@
 use core::{future::Future, pin::Pin};
 
 use crate::{
-    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+    builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            services::message_service::{self, IsHistoricalDataReceived},
+            services::message_service::IsHistoricalDataReceived,
         },
     },
     infrastructure::{
@@ -20,6 +20,8 @@ use crate::{
     runtime::actor::{ActorAddress, Mail, MailHandler},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
 };
+
+use super::discovery_service;
 
 pub struct Read {
     pub subscriber_handle: InstanceHandle,
@@ -287,7 +289,6 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
             QosKind::Default => subscriber.default_data_reader_qos().clone(),
             QosKind::Specific(q) => q,
         };
-        let subscriber_qos = subscriber.qos().clone();
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
@@ -364,7 +365,7 @@ impl MailHandler<Enable> for DomainParticipantActor {
             data_reader.enable();
             message
                 .participant_address
-                .send_actor_mail(message_service::AnnounceDataReader {
+                .send_actor_mail(discovery_service::AnnounceDataReader {
                     subscriber_handle: message.subscriber_handle,
                     data_reader_handle: message.data_reader_handle,
                 })

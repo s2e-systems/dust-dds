@@ -36,7 +36,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::message_service;
+use super::{discovery_service, message_service};
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -755,7 +755,7 @@ impl MailHandler<SetDomainParticipantQos> for DomainParticipantActor {
         self.domain_participant.set_qos(qos);
         message
             .domain_participant_address
-            .send_actor_mail(message_service::AnnounceParticipant)
+            .send_actor_mail(discovery_service::AnnounceParticipant)
             .ok();
         Ok(())
     }
@@ -800,16 +800,13 @@ impl Mail for Enable {
     type Result = DdsResult<()>;
 }
 impl MailHandler<Enable> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: Enable,
-    ) -> <Enable as Mail>::Result {
+    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
         if !self.domain_participant.enabled() {
             self.domain_participant.enable();
 
             message
                 .domain_participant_address
-                .send_actor_mail(message_service::AnnounceParticipant)
+                .send_actor_mail(discovery_service::AnnounceParticipant)
                 .ok();
         }
         Ok(())

@@ -20,6 +20,8 @@ use crate::{
     runtime::actor::{ActorAddress, Mail, MailHandler},
 };
 
+use super::discovery_service;
+
 pub struct RegisterInstance {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
@@ -424,10 +426,25 @@ impl MailHandler<Enable> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         if !data_writer.enabled() {
             data_writer.enable();
-            self.domain_participant.process_discovered_readers();
+
+            for subscription_builtin_topic_data in self
+                .domain_participant
+                .subscription_builtin_topic_data_list()
+                .cloned()
+            {
+                message
+                    .participant_address
+                    .send_actor_mail(discovery_service::AddDiscoveredReader {
+                        subscription_builtin_topic_data,
+                        publisher_handle: message.publisher_handle,
+                        data_writer_handle: message.data_writer_handle,
+                    })
+                    .ok();
+            }
+
             message
                 .participant_address
-                .send_actor_mail(message_service::AnnounceDataWriter {
+                .send_actor_mail(discovery_service::AnnounceDataWriter {
                     publisher_handle: message.publisher_handle,
                     data_writer_handle: message.data_writer_handle,
                 })?;

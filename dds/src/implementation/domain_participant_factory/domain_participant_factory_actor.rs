@@ -18,7 +18,7 @@ use crate::{
                 subscriber::SubscriberEntity, topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
-            services::{domain_participant_service, message_service},
+            services::{discovery_service, domain_participant_service, message_service},
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -464,7 +464,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         executor_handle.spawn(async move {
             loop {
                 if let Ok(r) =
-                    participant_address.send_actor_mail(message_service::AnnounceParticipant)
+                    participant_address.send_actor_mail(discovery_service::AnnounceParticipant)
                 {
                     if let Err(announce_result) = r.receive_reply().await {
                         error!("Error announcing participant: {:?}", announce_result);

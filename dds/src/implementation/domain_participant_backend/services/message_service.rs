@@ -41,152 +41,6 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
 };
 
-pub struct AnnounceParticipant;
-impl Mail for AnnounceParticipant {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
-    fn handle(&mut self, _: AnnounceParticipant) -> <AnnounceParticipant as Mail>::Result {
-        if self.domain_participant.enabled() {
-            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.transport.guid(),
-                },
-                user_data: self.domain_participant.qos().user_data.clone(),
-            };
-            let timestamp = self.domain_participant.get_current_time();
-
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher_mut()
-                .lookup_datawriter_mut(DCPS_PARTICIPANT)
-            {
-                dw.write_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-pub struct AnnounceDataWriter {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for AnnounceDataWriter {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDataWriter) -> <AnnounceDataWriter as Mail>::Result {
-        let publisher = self
-            .domain_participant
-            .get_publisher(message.publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_writer = publisher
-            .get_data_writer(message.data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let topic_data = self
-            .domain_participant
-            .get_topic(data_writer.topic_name())
-            .ok_or(DdsError::Error(
-                "Internal error. Data writer exists without associated topic".to_owned(),
-            ))?
-            .qos()
-            .topic_data
-            .clone();
-
-        let publication_builtin_topic_data = PublicationBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: data_writer.transport_writer().guid(),
-            },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_writer.topic_name().to_owned(),
-            type_name: data_writer.type_name().to_owned(),
-            durability: data_writer.qos().durability.clone(),
-            deadline: data_writer.qos().deadline.clone(),
-            latency_budget: data_writer.qos().latency_budget.clone(),
-            liveliness: data_writer.qos().liveliness.clone(),
-            reliability: data_writer.qos().reliability.clone(),
-            lifespan: data_writer.qos().lifespan.clone(),
-            user_data: data_writer.qos().user_data.clone(),
-            ownership: data_writer.qos().ownership.clone(),
-            ownership_strength: data_writer.qos().ownership_strength.clone(),
-            destination_order: data_writer.qos().destination_order.clone(),
-            presentation: publisher.qos().presentation.clone(),
-            partition: publisher.qos().partition.clone(),
-            topic_data,
-            group_data: publisher.qos().group_data.clone(),
-            representation: data_writer.qos().representation.clone(),
-        };
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_PUBLICATION)
-        {
-            dw.write_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?;
-        }
-        Ok(())
-    }
-}
-
-pub struct AnnounceDataReader {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for AnnounceDataReader {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
-    fn handle(&mut self, message: AnnounceDataReader) -> <AnnounceDataReader as Mail>::Result {
-        let subscriber = self
-            .domain_participant
-            .get_subscriber(message.subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let data_reader = subscriber
-            .get_data_reader(message.data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let topic = self
-            .domain_participant
-            .get_topic(data_reader.topic_name())
-            .ok_or(DdsError::Error(
-                "Internal error. Data reader exists without associated topic".to_owned(),
-            ))?;
-
-        let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: data_reader.transport_reader().guid(),
-            },
-            participant_key: BuiltInTopicKey { value: [0; 16] },
-            topic_name: data_reader.topic_name().to_owned(),
-            type_name: data_reader.type_name().to_owned(),
-            durability: data_reader.qos().durability.clone(),
-            deadline: data_reader.qos().deadline.clone(),
-            latency_budget: data_reader.qos().latency_budget.clone(),
-            liveliness: data_reader.qos().liveliness.clone(),
-            reliability: data_reader.qos().reliability.clone(),
-            ownership: data_reader.qos().ownership.clone(),
-            destination_order: data_reader.qos().destination_order.clone(),
-            user_data: data_reader.qos().user_data.clone(),
-            time_based_filter: data_reader.qos().time_based_filter.clone(),
-            presentation: subscriber.qos().presentation.clone(),
-            partition: subscriber.qos().partition.clone(),
-            topic_data: topic.qos().topic_data.clone(),
-            group_data: subscriber.qos().group_data.clone(),
-            representation: data_reader.qos().representation.clone(),
-        };
-        let timestamp = self.domain_participant.get_current_time();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher_mut()
-            .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
-        {
-            dw.write_w_timestamp(subscription_builtin_topic_data.serialize_data()?, timestamp)?;
-        }
-        Ok(())
-    }
-}
-
 pub struct AddCacheChange {
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
     pub cache_change: ReaderCacheChange,
@@ -400,7 +254,19 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                 {
                     self.domain_participant
                         .add_discovered_reader(subscription_builtin_topic_data.clone());
-                    self.domain_participant.process_discovered_readers();
+                    for publisher in self.domain_participant.publisher_list_mut() {
+                        for data_writer in publisher.data_writer_list() {
+                            message
+                                .participant_address
+                                .send_actor_mail(discovery_service::AddDiscoveredReader {
+                                    subscription_builtin_topic_data:
+                                        subscription_builtin_topic_data.clone(),
+                                    publisher_handle: publisher.instance_handle(),
+                                    data_writer_handle: data_writer.instance_handle(),
+                                })
+                                .ok();
+                        }
+                    }
                 }
             }
             ChangeKind::AliveFiltered => todo!(),
