@@ -738,10 +738,12 @@ impl MailHandler<SetDomainParticipantQos> for DomainParticipantActor {
         };
 
         self.domain_participant.set_qos(qos);
-        message
-            .domain_participant_address
-            .send_actor_mail(discovery_service::AnnounceParticipant)
-            .ok();
+        if self.domain_participant.enabled() {
+            message
+                .domain_participant_address
+                .send_actor_mail(discovery_service::AnnounceParticipant)
+                .ok();
+        }
         Ok(())
     }
 }

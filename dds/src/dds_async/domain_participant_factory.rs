@@ -8,7 +8,9 @@ use crate::{
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        domain_participant_backend::services::{domain_participant_service, message_service},
+        domain_participant_backend::services::{
+            discovery_service, domain_participant_service, message_service,
+        },
         domain_participant_factory::domain_participant_factory_actor::{
             self, DomainParticipantFactoryActor,
         },
@@ -85,7 +87,7 @@ impl DomainParticipantFactoryAsync {
                 .receive_reply()
                 .await?;
             deleted_participant
-                .send_actor_mail(message_service::AnnounceDeletedParticipant)
+                .send_actor_mail(discovery_service::AnnounceDeletedParticipant)
                 .receive_reply()
                 .await?;
             deleted_participant.stop().await;

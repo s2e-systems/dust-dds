@@ -141,52 +141,6 @@ impl DomainParticipantEntity {
             InstanceHandle::new(topic_builtin_topic_data.key().value),
             topic_builtin_topic_data,
         );
-        // let handle =
-        //     InstanceHandle::new(discovered_topic_data.topic_builtin_topic_data.key().value);
-        // let is_topic_ignored = self.ignored_topic_list.contains(&handle);
-        // if !is_topic_ignored {
-        //     for topic in self.topic_list.values_mut() {
-        //         let topic_qos = topic.qos();
-        //         let is_discovered_topic_consistent = topic_qos.topic_data
-        //             == discovered_topic_data.topic_builtin_topic_data.topic_data
-        //             && topic_qos.durability
-        //                 == discovered_topic_data.topic_builtin_topic_data.durability
-        //             && topic_qos.deadline
-        //                 == discovered_topic_data.topic_builtin_topic_data.deadline
-        //             && topic_qos.latency_budget
-        //                 == discovered_topic_data
-        //                     .topic_builtin_topic_data
-        //                     .latency_budget
-        //             && topic_qos.liveliness
-        //                 == discovered_topic_data.topic_builtin_topic_data.liveliness
-        //             && topic_qos.reliability
-        //                 == discovered_topic_data.topic_builtin_topic_data.reliability
-        //             && topic_qos.destination_order
-        //                 == discovered_topic_data
-        //                     .topic_builtin_topic_data
-        //                     .destination_order
-        //             && topic_qos.history == discovered_topic_data.topic_builtin_topic_data.history
-        //             && topic_qos.resource_limits
-        //                 == discovered_topic_data
-        //                     .topic_builtin_topic_data
-        //                     .resource_limits
-        //             && topic_qos.transport_priority
-        //                 == discovered_topic_data
-        //                     .topic_builtin_topic_data
-        //                     .transport_priority
-        //             && topic_qos.lifespan
-        //                 == discovered_topic_data.topic_builtin_topic_data.lifespan
-        //             && topic_qos.ownership
-        //                 == discovered_topic_data.topic_builtin_topic_data.ownership;
-        //         if discovered_topic_data.topic_builtin_topic_data.type_name == topic.type_name()
-        //             && discovered_topic_data.topic_builtin_topic_data.name == topic.topic_name()
-        //             && !is_discovered_topic_consistent
-        //         {
-        //             topic.add_inconsistent_topic_status();
-        //         }
-        //     }
-        //     self.discovered_topic_list
-        //         .insert(handle, discovered_topic_data.topic_builtin_topic_data);
     }
 
     pub fn remove_discovered_writer(&mut self, discovered_writer_handle: &InstanceHandle) {
@@ -312,6 +266,12 @@ impl DomainParticipantEntity {
             InstanceHandle::new(publication_builtin_topic_data.key().value),
             publication_builtin_topic_data,
         );
+    }
+
+    pub fn publication_builtin_topic_data_list(
+        &self,
+    ) -> impl Iterator<Item = &PublicationBuiltinTopicData> {
+        self.discovered_writer_list.values()
     }
 
     pub fn default_subscriber_qos(&self) -> &SubscriberQos {

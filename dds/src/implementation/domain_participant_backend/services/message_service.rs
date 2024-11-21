@@ -290,41 +290,6 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
     }
 }
 
-pub struct AnnounceDeletedParticipant;
-impl Mail for AnnounceDeletedParticipant {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        _: AnnounceDeletedParticipant,
-    ) -> <AnnounceDeletedParticipant as Mail>::Result {
-        todo!()
-        // if self.enabled {
-        //     let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-        //         key: BuiltInTopicKey {
-        //             value: self.transport.guid(),
-        //         },
-        //         user_data: self.qos.user_data.clone(),
-        //     };
-        //     let timestamp = self.get_current_time();
-        //     let dcps_participant_topic = self
-        //         .topic_list
-        //         .get_mut(DCPS_PARTICIPANT)
-        //         .expect("DCPS Participant topic must exist");
-
-        //     if let Some(mut dw) = self
-        //         .builtin_publisher
-        //         .data_writer_list_mut()
-        //         .find(|dw| dw.topic_name() == DCPS_PARTICIPANT)
-        //     {
-        //         dw.dispose_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?
-        //     }
-        // }
-        // Ok(())
-    }
-}
-
 pub struct AreAllChangesAcknowledged {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,

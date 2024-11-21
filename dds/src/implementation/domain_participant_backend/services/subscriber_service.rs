@@ -120,81 +120,6 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
                     participant_address: message.domain_participant_address.clone(),
                 })?;
         }
-        // if let Some(dcps_publication_reader) = self
-        //     .builtin_subscriber_mut()
-        //     .data_reader_list_mut()
-        //     .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
-        // {
-        //     if let Ok(sample_list) = dcps_publication_reader.read(
-        //         i32::MAX,
-        //         ANY_SAMPLE_STATE,
-        //         ANY_VIEW_STATE,
-        //         &[InstanceStateKind::Alive],
-        //         None,
-        //     ) {
-        //         for (sample_data, _) in sample_list {
-        //             if let Ok(discovered_writer_data) = DiscoveredWriterData::deserialize_data(
-        //                 sample_data
-        //                     .expect("Alive samples should always contain data")
-        //                     .as_ref(),
-        //             ) {
-        //                 let is_any_name_matched = discovered_writer_data
-        //                     .dds_publication_data
-        //                     .partition
-        //                     .name
-        //                     .iter()
-        //                     .any(|n| subscriber.qos().partition.name.contains(n));
-
-        //                 let is_any_received_regex_matched_with_partition_qos =
-        //                     discovered_writer_data
-        //                         .dds_publication_data
-        //                         .partition
-        //                         .name
-        //                         .iter()
-        //                         .filter_map(|n| glob_to_regex(n).ok())
-        //                         .any(|regex| {
-        //                             subscriber
-        //                                 .qos()
-        //                                 .partition
-        //                                 .name
-        //                                 .iter()
-        //                                 .any(|n| regex.is_match(n))
-        //                         });
-
-        //                 let is_any_local_regex_matched_with_received_partition_qos = subscriber
-        //                     .qos()
-        //                     .partition
-        //                     .name
-        //                     .iter()
-        //                     .filter_map(|n| glob_to_regex(n).ok())
-        //                     .any(|regex| {
-        //                         discovered_writer_data
-        //                             .dds_publication_data
-        //                             .partition
-        //                             .name
-        //                             .iter()
-        //                             .any(|n| regex.is_match(n))
-        //                     });
-
-        //                 let is_partition_matched =
-        //                     discovered_writer_data.dds_publication_data.partition
-        //                         == subscriber.qos().partition
-        //                         || is_any_name_matched
-        //                         || is_any_received_regex_matched_with_partition_qos
-        //                         || is_any_local_regex_matched_with_received_partition_qos;
-        //                 if is_partition_matched {
-        //                     for dr in subscriber.data_reader_list_mut().filter(|dr| {
-        //                         dr.topic_name()
-        //                             == discovered_writer_data.dds_publication_data.topic_name
-        //                     }) {
-        //                         todo!()
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
         Ok((data_reader_handle, reader_status_condition_address))
     }
 }
@@ -208,10 +133,7 @@ impl Mail for DeleteDataReader {
     type Result = DdsResult<()>;
 }
 impl MailHandler<DeleteDataReader> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteDataReader,
-    ) -> <DeleteDataReader as Mail>::Result {
+    fn handle(&mut self, message: DeleteDataReader) -> <DeleteDataReader as Mail>::Result {
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)

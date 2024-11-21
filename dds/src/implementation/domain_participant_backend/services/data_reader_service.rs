@@ -349,6 +349,22 @@ impl MailHandler<Enable> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
         if !data_reader.enabled() {
             data_reader.enable();
+
+            for publication_builtin_topic_data in self
+                .domain_participant
+                .publication_builtin_topic_data_list()
+                .cloned()
+            {
+                message
+                    .participant_address
+                    .send_actor_mail(discovery_service::AddDiscoveredWriter {
+                        publication_builtin_topic_data,
+                        subscriber_handle: message.subscriber_handle,
+                        data_reader_handle: message.data_reader_handle,
+                    })
+                    .ok();
+            }
+
             message
                 .participant_address
                 .send_actor_mail(discovery_service::AnnounceDataReader {
@@ -361,36 +377,30 @@ impl MailHandler<Enable> for DomainParticipantActor {
     }
 }
 
-pub struct GetDataReaderInstanceHandle {
+pub struct GetInstanceHandle {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
 }
-impl Mail for GetDataReaderInstanceHandle {
+impl Mail for GetInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
 }
-impl MailHandler<GetDataReaderInstanceHandle> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDataReaderInstanceHandle,
-    ) -> <GetDataReaderInstanceHandle as Mail>::Result {
+impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
+    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         todo!()
     }
 }
 
-pub struct SetDataReaderListener {
+pub struct SetListener {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
     pub status_kind: Vec<StatusKind>,
 }
-impl Mail for SetDataReaderListener {
+impl Mail for SetListener {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetDataReaderListener> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDataReaderListener,
-    ) -> <SetDataReaderListener as Mail>::Result {
+impl MailHandler<SetListener> for DomainParticipantActor {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         todo!()
     }
 }

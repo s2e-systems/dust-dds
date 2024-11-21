@@ -53,6 +53,31 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
     }
 }
 
+pub struct AnnounceDeletedParticipant;
+impl Mail for AnnounceDeletedParticipant {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        _: AnnounceDeletedParticipant,
+    ) -> <AnnounceDeletedParticipant as Mail>::Result {
+        if self.domain_participant.enabled() {
+            let timestamp = self.domain_participant.get_current_time();
+            if let Some(dw) = self
+                .domain_participant
+                .builtin_publisher_mut()
+                .lookup_datawriter_mut(DCPS_PARTICIPANT)
+            {
+                let key = InstanceHandle::new(self.transport.guid());
+                dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
 pub struct AnnounceDataWriter {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
@@ -343,7 +368,10 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                     data_writer
                         .add_matched_subscription(message.subscription_builtin_topic_data.clone());
                 } else {
-                    todo!("Incompatible reader found")
+                    data_writer.add_incompatible_subscription(
+                        InstanceHandle::new(message.subscription_builtin_topic_data.key().value),
+                        incompatible_qos_policy_list,
+                    );
                 }
             }
         }
@@ -458,7 +486,10 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                     data_reader
                         .add_matched_publication(message.publication_builtin_topic_data.clone());
                 } else {
-                    todo!("Incompatible reader found")
+                    data_reader.add_requested_incompatible_qos(
+                        InstanceHandle::new(message.publication_builtin_topic_data.key().value),
+                        incompatible_qos_policy_list,
+                    );
                 }
             }
         }

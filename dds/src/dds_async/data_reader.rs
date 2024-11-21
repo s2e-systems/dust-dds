@@ -480,7 +480,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(data_reader_service::SetDataReaderListener {
+            .send_actor_mail(data_reader_service::SetListener {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 a_listener: todo!(),
