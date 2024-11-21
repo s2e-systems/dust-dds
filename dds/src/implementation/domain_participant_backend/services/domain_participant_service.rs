@@ -36,7 +36,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::{discovery_service, message_service};
+use super::{discovery_service, message_service, topic_service};
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -223,6 +223,7 @@ pub struct CreateUserDefinedTopic {
     pub a_listener: Option<Box<dyn TopicListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for CreateUserDefinedTopic {
     type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
@@ -265,6 +266,8 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
             message.type_support,
         );
 
+        self.domain_participant.insert_topic(topic);
+
         if self.domain_participant.enabled()
             && self
                 .domain_participant
@@ -272,32 +275,14 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
                 .entity_factory
                 .autoenable_created_entities
         {
-            let topic_qos = topic.qos();
-            let topic_builtin_topic_data = TopicBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: topic.instance_handle().into(),
-                },
-                name: topic.topic_name().to_owned(),
-                type_name: topic.type_name().to_owned(),
-                durability: topic_qos.durability.clone(),
-                deadline: topic_qos.deadline.clone(),
-                latency_budget: topic_qos.latency_budget.clone(),
-                liveliness: topic_qos.liveliness.clone(),
-                reliability: topic_qos.reliability.clone(),
-                transport_priority: topic_qos.transport_priority.clone(),
-                lifespan: topic_qos.lifespan.clone(),
-                destination_order: topic_qos.destination_order.clone(),
-                history: topic_qos.history.clone(),
-                resource_limits: topic_qos.resource_limits.clone(),
-                ownership: topic_qos.ownership.clone(),
-                topic_data: topic_qos.topic_data.clone(),
-                representation: topic_qos.representation.clone(),
-            };
-            self.domain_participant
-                .announce_topic(topic_builtin_topic_data)?;
+            message
+                .participant_address
+                .send_actor_mail(topic_service::Enable {
+                    topic_name: message.topic_name.clone(),
+                    participant_address: message.participant_address.clone(),
+                })
+                .ok();
         }
-
-        self.domain_participant.insert_topic(topic);
 
         Ok((topic_handle, topic_status_condition_address))
     }

@@ -3,7 +3,8 @@ use fnmatch_regex::glob_to_regex;
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::domain_participant_backend::{
         domain_participant_actor::DomainParticipantActor,
@@ -194,6 +195,51 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
     }
 }
 
+pub struct AnnounceTopic {
+    pub topic_name: String,
+}
+impl Mail for AnnounceTopic {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceTopic> for DomainParticipantActor {
+    fn handle(&mut self, message: AnnounceTopic) -> <AnnounceTopic as Mail>::Result {
+        let topic = self
+            .domain_participant
+            .get_topic(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        let topic_builtin_topic_data = TopicBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: topic.instance_handle().into(),
+            },
+            name: topic.topic_name().to_owned(),
+            type_name: topic.type_name().to_owned(),
+            durability: topic.qos().durability.clone(),
+            deadline: topic.qos().deadline.clone(),
+            latency_budget: topic.qos().latency_budget.clone(),
+            liveliness: topic.qos().liveliness.clone(),
+            reliability: topic.qos().reliability.clone(),
+            transport_priority: topic.qos().transport_priority.clone(),
+            lifespan: topic.qos().lifespan.clone(),
+            destination_order: topic.qos().destination_order.clone(),
+            history: topic.qos().history.clone(),
+            resource_limits: topic.qos().resource_limits.clone(),
+            ownership: topic.qos().ownership.clone(),
+            topic_data: topic.qos().topic_data.clone(),
+            representation: topic.qos().representation.clone(),
+        };
+
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_TOPIC)
+        {
+            dw.write_w_timestamp(topic_builtin_topic_data.serialize_data()?, timestamp)?;
+        }
+        Ok(())
+    }
+}
 pub struct AnnounceDeletedDataReader {
     pub data_reader: DataReaderEntity,
 }

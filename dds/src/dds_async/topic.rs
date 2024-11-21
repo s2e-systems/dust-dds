@@ -125,6 +125,7 @@ impl TopicAsync {
             .participant_address()
             .send_actor_mail(topic_service::Enable {
                 topic_name: self.topic_name.clone(),
+                participant_address: self.participant.participant_address().clone(),
             })?
             .receive_reply()
             .await

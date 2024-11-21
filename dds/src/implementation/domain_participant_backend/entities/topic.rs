@@ -58,6 +58,10 @@ impl TopicEntity {
         self.enabled = true;
     }
 
+    pub fn enabled(&mut self) -> bool {
+        self.enabled
+    }
+
     pub fn type_name(&self) -> &str {
         &self.type_name
     }

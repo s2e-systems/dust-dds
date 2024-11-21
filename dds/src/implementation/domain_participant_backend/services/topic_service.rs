@@ -7,9 +7,11 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::InconsistentTopicStatus,
     },
-    runtime::actor::{Mail, MailHandler},
+    runtime::actor::{ActorAddress, Mail, MailHandler},
     xtypes::dynamic_type::DynamicType,
 };
+
+use super::discovery_service;
 
 pub struct GetInconsistentTopicStatus {
     pub topic_name: String,
@@ -72,16 +74,27 @@ impl MailHandler<GetQos> for DomainParticipantActor {
 
 pub struct Enable {
     pub topic_name: String,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for Enable {
     type Result = DdsResult<()>;
 }
 impl MailHandler<Enable> for DomainParticipantActor {
     fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        self.domain_participant
+        let topic = self
+            .domain_participant
             .get_mut_topic(&message.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .enable();
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if !topic.enabled() {
+            topic.enable();
+            message
+                .participant_address
+                .send_actor_mail(discovery_service::AnnounceTopic {
+                    topic_name: message.topic_name,
+                })
+                .ok();
+        }
+
         Ok(())
     }
 }

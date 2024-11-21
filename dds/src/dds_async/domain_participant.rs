@@ -170,6 +170,7 @@ impl DomainParticipantAsync {
                 a_listener,
                 mask: mask.to_vec(),
                 type_support: dynamic_type_representation,
+                participant_address: self.participant_address.clone(),
             })?
             .receive_reply()
             .await?;

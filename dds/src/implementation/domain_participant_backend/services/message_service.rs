@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
-        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, DCPS_PARTICIPANT,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -127,16 +127,19 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
     ) -> <AddBuiltinTopicsDetectorCacheChange as Mail>::Result {
         match message.cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(discovered_topic_data) =
-                    DiscoveredTopicData::deserialize_data(message.cache_change.data_value.as_ref())
-                {
+                if let Ok(topic_builtin_topic_data) = TopicBuiltinTopicData::deserialize_data(
+                    message.cache_change.data_value.as_ref(),
+                ) {
+                    self.domain_participant
+                        .add_discovered_topic(topic_builtin_topic_data);
                 }
             }
-            ChangeKind::NotAliveDisposed => todo!(),
-            ChangeKind::AliveFiltered
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::AliveFiltered
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => (),
         }
+
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
@@ -144,30 +147,6 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
             .find(|dr| dr.topic_name() == DCPS_TOPIC)
         {
             reader.add_reader_change(message.cache_change).ok();
-            if let Ok(samples) = reader.read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            ) {
-                for (sample_data, sample_info) in samples {
-                    match sample_info.instance_state {
-                        InstanceStateKind::Alive => {
-                            if let Ok(discovered_topic_data) = DiscoveredTopicData::deserialize_data(
-                                sample_data
-                                    .expect("Alive samples must contain data")
-                                    .as_ref(),
-                            ) {
-                                todo!()
-                                // self.add_discovered_topic(discovered_topic_data);
-                            }
-                        }
-                        InstanceStateKind::NotAliveDisposed => (), // Discovered topics are not deleted,
-                        InstanceStateKind::NotAliveNoWriters => (),
-                    }
-                }
-            }
         }
     }
 }
@@ -320,7 +299,29 @@ impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
         &mut self,
         _: AnnounceDeletedParticipant,
     ) -> <AnnounceDeletedParticipant as Mail>::Result {
-        self.domain_participant.announce_deleted_participant()
+        todo!()
+        // if self.enabled {
+        //     let participant_builtin_topic_data = ParticipantBuiltinTopicData {
+        //         key: BuiltInTopicKey {
+        //             value: self.transport.guid(),
+        //         },
+        //         user_data: self.qos.user_data.clone(),
+        //     };
+        //     let timestamp = self.get_current_time();
+        //     let dcps_participant_topic = self
+        //         .topic_list
+        //         .get_mut(DCPS_PARTICIPANT)
+        //         .expect("DCPS Participant topic must exist");
+
+        //     if let Some(mut dw) = self
+        //         .builtin_publisher
+        //         .data_writer_list_mut()
+        //         .find(|dw| dw.topic_name() == DCPS_PARTICIPANT)
+        //     {
+        //         dw.dispose_w_timestamp(participant_builtin_topic_data.serialize_data()?, timestamp)?
+        //     }
+        // }
+        // Ok(())
     }
 }
 
