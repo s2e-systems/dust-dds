@@ -39,7 +39,7 @@ use crate::{
 };
 
 pub enum AddChangeResult {
-    ChangeAdded,
+    ChangeAdded(InstanceHandle),
     ChangeNotAdded,
     ChangeRejected(InstanceHandle, SampleRejectedStatusKind),
 }
@@ -579,14 +579,7 @@ impl DataReaderEntity {
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered
         ) {
-            // Drop the ownership and stop the deadline task
             self.instance_ownership.remove(&sample.instance_handle);
-            if let Some(t) = self
-                .instance_deadline_missed_task
-                .remove(&sample.instance_handle)
-            {
-                t.abort();
-            }
         }
 
         let is_sample_of_interest_based_on_time = {
@@ -728,32 +721,14 @@ impl DataReaderEntity {
                 .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
         }
 
-        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            todo!()
-            // let timer_handle = self.timer_driver.handle();
-            // let deadline_missed_task = self.executor.handle().spawn(async move {
-            //     timer_handle.sleep(deadline_missed_period.into()).await;
-            //     message
-            //         .domain_participant_address
-            //         .send_actor_mail(DeadlineMissed {
-            //             subscriber_handle: message.subscriber_handle,
-            //             data_reader_handle: message.data_reader_handle,
-            //             change_instance_handle,
-            //         })
-            //         .ok();
-            // });
-            // if let Some(t) = self
-            //     .instance_deadline_missed_task
-            //     .remove(&change_instance_handle)
-            // {
-            //     t.abort();
-            // }
-
-            // self.instance_deadline_missed_task
-            //     .insert(change_instance_handle, deadline_missed_task);
+        if let Some(t) = self
+            .instance_deadline_missed_task
+            .remove(&change_instance_handle)
+        {
+            t.abort();
         }
 
-        Ok(AddChangeResult::ChangeAdded)
+        Ok(AddChangeResult::ChangeAdded(change_instance_handle))
     }
 
     pub fn instance_handle(&self) -> InstanceHandle {
@@ -820,16 +795,19 @@ impl DataReaderEntity {
             });
     }
 
-    pub fn add_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
+    pub fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;
         self.requested_deadline_missed_status.last_instance_handle = instance_handle;
-        self.instance_ownership.remove(&instance_handle);
 
         self.status_condition
             .send_actor_mail(status_condition_actor::AddCommunicationState {
                 state: StatusKind::RequestedDeadlineMissed,
             });
+    }
+
+    pub fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
+        self.instance_ownership.remove(&instance_handle);
     }
 
     pub fn add_requested_incompatible_qos(
@@ -908,5 +886,14 @@ impl DataReaderEntity {
 
     pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list.keys().cloned().collect()
+    }
+
+    pub fn insert_instance_deadline_missed_task(
+        &mut self,
+        instance_handle: InstanceHandle,
+        task: TaskHandle,
+    ) {
+        self.instance_deadline_missed_task
+            .insert(instance_handle, task);
     }
 }

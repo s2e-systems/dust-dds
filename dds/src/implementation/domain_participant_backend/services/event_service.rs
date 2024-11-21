@@ -7,16 +7,19 @@ use crate::{
     runtime::actor::{Mail, MailHandler},
 };
 
-pub struct DeadlineMissed {
+pub struct RequestedDeadlineMissed {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub change_instance_handle: InstanceHandle,
 }
-impl Mail for DeadlineMissed {
+impl Mail for RequestedDeadlineMissed {
     type Result = DdsResult<()>;
 }
-impl MailHandler<DeadlineMissed> for DomainParticipantActor {
-    fn handle(&mut self, message: DeadlineMissed) -> <DeadlineMissed as Mail>::Result {
+impl MailHandler<RequestedDeadlineMissed> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: RequestedDeadlineMissed,
+    ) -> <RequestedDeadlineMissed as Mail>::Result {
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
@@ -24,7 +27,8 @@ impl MailHandler<DeadlineMissed> for DomainParticipantActor {
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        data_reader.add_requested_deadline_missed_status(message.change_instance_handle);
+        data_reader.remove_instance_ownership(&message.change_instance_handle);
+        data_reader.increment_requested_deadline_missed_status(message.change_instance_handle);
 
         Ok(())
     }

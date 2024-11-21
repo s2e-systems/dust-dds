@@ -16,6 +16,7 @@ use crate::{
         instance::InstanceHandle,
         qos_policy::DurabilityQosPolicyKind,
         status::StatusKind,
+        time::DurationKind,
     },
     rtps::{
         reader::ReaderCacheChange,
@@ -24,6 +25,8 @@ use crate::{
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsDeserialize,
 };
+
+use super::event_service;
 
 pub struct AddCacheChange {
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
@@ -51,7 +54,32 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .is_some()
         {
             match data_reader.add_reader_change(message.cache_change)? {
-                AddChangeResult::ChangeAdded => {
+                AddChangeResult::ChangeAdded(change_instance_handle) => {
+                    if let DurationKind::Finite(deadline_missed_period) =
+                        data_reader.qos().deadline.period
+                    {
+                        let timer_handle = self.timer_driver.handle();
+                        let requested_deadline_missed_task =
+                            self.executor.handle().spawn(async move {
+                                loop {
+                                    timer_handle.sleep(deadline_missed_period.into()).await;
+                                    message
+                                        .domain_participant_address
+                                        .send_actor_mail(event_service::RequestedDeadlineMissed {
+                                            subscriber_handle: message.subscriber_handle,
+                                            data_reader_handle: message.data_reader_handle,
+                                            change_instance_handle,
+                                        })
+                                        .ok();
+                                }
+                            });
+
+                        data_reader.insert_instance_deadline_missed_task(
+                            change_instance_handle,
+                            requested_deadline_missed_task,
+                        );
+                    }
+
                     subscriber.status_condition().send_actor_mail(
                         status_condition_actor::AddCommunicationState {
                             state: StatusKind::DataOnReaders,
