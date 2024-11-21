@@ -465,84 +465,36 @@ impl MailHandler<IgnorePublication> for DomainParticipantActor {
     }
 }
 
-pub struct DeleteParticipantContainedEntities;
-impl Mail for DeleteParticipantContainedEntities {
+pub struct DeleteContainedEntities {
+    pub participant_address: ActorAddress<DomainParticipantActor>,
+}
+impl Mail for DeleteContainedEntities {
     type Result = DdsResult<()>;
 }
-impl MailHandler<DeleteParticipantContainedEntities> for DomainParticipantActor {
+impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
     fn handle(
         &mut self,
-        _: DeleteParticipantContainedEntities,
-    ) -> <DeleteParticipantContainedEntities as Mail>::Result {
+        message: DeleteContainedEntities,
+    ) -> <DeleteContainedEntities as Mail>::Result {
         let deleted_publisher_list: Vec<PublisherEntity> =
             self.domain_participant.drain_publisher_list().collect();
         for mut publisher in deleted_publisher_list {
-            let publisher_qos = publisher.qos().clone();
-            todo!();
-            // for data_writer in publisher.drain_data_writer_list() {
-            //     let publication_builtin_topic_data = PublicationBuiltinTopicData {
-            //         key: BuiltInTopicKey {
-            //             value: data_writer.transport_writer().guid(),
-            //         },
-            //         participant_key: BuiltInTopicKey { value: [0; 16] },
-            //         topic_name: data_writer.topic_name().to_owned(),
-            //         type_name: data_writer.type_name().to_owned(),
-            //         durability: data_writer.qos().durability.clone(),
-            //         deadline: data_writer.qos().deadline.clone(),
-            //         latency_budget: data_writer.qos().latency_budget.clone(),
-            //         liveliness: data_writer.qos().liveliness.clone(),
-            //         reliability: data_writer.qos().reliability.clone(),
-            //         lifespan: data_writer.qos().lifespan.clone(),
-            //         user_data: data_writer.qos().user_data.clone(),
-            //         ownership: data_writer.qos().ownership.clone(),
-            //         ownership_strength: data_writer.qos().ownership_strength.clone(),
-            //         destination_order: data_writer.qos().destination_order.clone(),
-            //         presentation: publisher_qos.presentation.clone(),
-            //         partition: publisher_qos.partition.clone(),
-            //         topic_data: self.topic_list[data_writer.topic_name()]
-            //             .qos()
-            //             .topic_data
-            //             .clone(),
-            //         group_data: publisher_qos.group_data.clone(),
-            //         representation: data_writer.qos().representation.clone(),
-            //     };
-            //     self.announce_deleted_data_writer(publication_builtin_topic_data)?;
-            // }
+            for data_writer in publisher.drain_data_writer_list() {
+                message
+                    .participant_address
+                    .send_actor_mail(discovery_service::AnnounceDeletedDataWriter { data_writer })
+                    .ok();
+            }
         }
 
         let deleted_subscriber_list: Vec<SubscriberEntity> =
             self.domain_participant.drain_subscriber_list().collect();
         for mut subscriber in deleted_subscriber_list {
-            let subscriber_qos = subscriber.qos().clone();
             for data_reader in subscriber.drain_data_reader_list() {
-                todo!()
-                // let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-                //     key: BuiltInTopicKey {
-                //         value: data_reader.transport_reader().guid(),
-                //     },
-                //     participant_key: BuiltInTopicKey { value: [0; 16] },
-                //     topic_name: data_reader.topic_name().to_owned(),
-                //     type_name: data_reader.type_name().to_owned(),
-                //     durability: data_reader.qos().durability.clone(),
-                //     deadline: data_reader.qos().deadline.clone(),
-                //     latency_budget: data_reader.qos().latency_budget.clone(),
-                //     liveliness: data_reader.qos().liveliness.clone(),
-                //     reliability: data_reader.qos().reliability.clone(),
-                //     ownership: data_reader.qos().ownership.clone(),
-                //     destination_order: data_reader.qos().destination_order.clone(),
-                //     user_data: data_reader.qos().user_data.clone(),
-                //     time_based_filter: data_reader.qos().time_based_filter.clone(),
-                //     presentation: subscriber_qos.presentation.clone(),
-                //     partition: subscriber_qos.partition.clone(),
-                //     topic_data: self.topic_list[data_reader.topic_name()]
-                //         .qos()
-                //         .topic_data
-                //         .clone(),
-                //     group_data: subscriber_qos.group_data.clone(),
-                //     representation: data_reader.qos().representation.clone(),
-                // };
-
-                // self.announce_deleted_data_reader(subscription_builtin_topic_data)?;
+                message
+                    .participant_address
+                    .send_actor_mail(discovery_service::AnnounceDeletedDataReader { data_reader })
+                    .ok();
             }
         }
 
@@ -631,9 +583,7 @@ impl MailHandler<SetDefaultTopicQos> for DomainParticipantActor {
             }
         };
 
-        self.domain_participant.set_default_topic_qos(qos);
-
-        Ok(())
+        self.domain_participant.set_default_topic_qos(qos)
     }
 }
 

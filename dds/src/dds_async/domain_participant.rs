@@ -315,7 +315,9 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_service::DeleteParticipantContainedEntities)?
+            .send_actor_mail(domain_participant_service::DeleteContainedEntities {
+                participant_address: self.participant_address.clone(),
+            })?
             .receive_reply()
             .await
     }
