@@ -229,26 +229,15 @@ impl MailHandler<SetDefaultDataReaderQos> for DomainParticipantActor {
         &mut self,
         message: SetDefaultDataReaderQos,
     ) -> <SetDefaultDataReaderQos as Mail>::Result {
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.publisher_address
-        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => {
-        //         q.is_consistent()?;
-        //         q
-        //     }
-        // };
-
-        // self.publisher_address
-        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
-        //     .receive_reply()
-        //     .await;
-
-        // Ok(())
-        todo!()
+        let subscriber = self
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let qos = match message.qos {
+            QosKind::Default => DataReaderQos::default(),
+            QosKind::Specific(q) => q,
+        };
+        subscriber.set_default_data_reader_qos(qos)
     }
 }
 
@@ -263,26 +252,12 @@ impl MailHandler<GetDefaultDataReaderQos> for DomainParticipantActor {
         &mut self,
         message: GetDefaultDataReaderQos,
     ) -> <GetDefaultDataReaderQos as Mail>::Result {
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.publisher_address
-        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => {
-        //         q.is_consistent()?;
-        //         q
-        //     }
-        // };
-
-        // self.publisher_address
-        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
-        //     .receive_reply()
-        //     .await;
-
-        // Ok(())
-        todo!()
+        Ok(self
+            .domain_participant
+            .get_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .default_data_reader_qos()
+            .clone())
     }
 }
 
@@ -390,17 +365,14 @@ impl MailHandler<EnableSubscriber> for DomainParticipantActor {
     }
 }
 
-pub struct GetSubscriberInstanceHandle {
+pub struct GetInstanceHandle {
     pub subscriber_handle: InstanceHandle,
 }
-impl Mail for GetSubscriberInstanceHandle {
+impl Mail for GetInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
 }
-impl MailHandler<GetSubscriberInstanceHandle> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetSubscriberInstanceHandle,
-    ) -> <GetSubscriberInstanceHandle as Mail>::Result {
+impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
+    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         todo!()
     }
 }
