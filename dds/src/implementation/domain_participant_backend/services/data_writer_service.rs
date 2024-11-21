@@ -22,7 +22,7 @@ use crate::{
     runtime::actor::{ActorAddress, Mail, MailHandler},
 };
 
-use super::{discovery_service, message_service};
+use super::{discovery_service, event_service, message_service};
 
 pub struct RegisterInstance {
     pub publisher_handle: InstanceHandle,
@@ -146,6 +146,10 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
         let data_writer = publisher
             .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
+        let instance_handle = get_instance_handle_from_serialized_foo(
+            &message.serialized_data,
+            data_writer.type_support(),
+        )?;
 
         match data_writer.qos().lifespan.duration {
             DurationKind::Finite(lifespan_duration) => {
@@ -154,11 +158,10 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
                 if sleep_duration > Duration::new(0, 0) {
                     let sequence_number = data_writer
                         .write_w_timestamp(message.serialized_data, message.timestamp)?;
-
+                    let participant_address = message.participant_address.clone();
                     self.executor.handle().spawn(async move {
                         timer_handle.sleep(sleep_duration.into()).await;
-                        message
-                            .participant_address
+                        participant_address
                             .send_actor_mail(message_service::RemoveWriterChange {
                                 publisher_handle: message.publisher_handle,
                                 data_writer_handle: message.data_writer_handle,
@@ -171,6 +174,27 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
             DurationKind::Infinite => {
                 data_writer.write_w_timestamp(message.serialized_data, message.timestamp)?;
             }
+        }
+
+        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
+            let timer_handle = self.timer_driver.handle();
+            let offered_deadline_missed_task = self.executor.handle().spawn(async move {
+                loop {
+                    timer_handle.sleep(deadline_missed_period.into()).await;
+                    message
+                        .participant_address
+                        .send_actor_mail(event_service::OfferedDeadlineMissed {
+                            publisher_handle: message.publisher_handle,
+                            data_writer_handle: message.data_writer_handle,
+                            change_instance_handle: instance_handle,
+                        })
+                        .ok();
+                }
+            });
+            data_writer.insert_instance_deadline_missed_task(
+                instance_handle,
+                offered_deadline_missed_task,
+            );
         }
 
         Ok(())

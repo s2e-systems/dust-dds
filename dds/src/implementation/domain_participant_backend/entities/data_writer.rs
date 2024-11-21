@@ -11,7 +11,6 @@ use crate::{
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
-            get_serialized_key_from_serialized_foo,
         },
     },
     infrastructure::{
@@ -23,7 +22,7 @@ use crate::{
             OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
             QosPolicyCount, StatusKind,
         },
-        time::{DurationKind, Time},
+        time::Time,
     },
     rtps::{
         cache_change::RtpsCacheChange,
@@ -221,7 +220,6 @@ impl DataWriterEntity {
             }
         }
 
-        let change_timestamp = change.source_timestamp();
         let seq_num = change.sequence_number();
 
         if seq_num > self.max_seq_num.unwrap_or(0) {
@@ -235,133 +233,8 @@ impl DataWriterEntity {
             t.abort();
         }
 
-        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-            let deadline_missed_interval = std::time::Duration::new(
-                deadline_missed_period.sec() as u64,
-                deadline_missed_period.nanosec(),
-            );
-            // let writer_status_condition = self.status_condition.address();
-            // let writer_address = message.writer_address.clone();
-            // let timer_handle = message.timer_handle.clone();
-            // let writer_listener_mask = self.status_kind.clone();
-            // let data_writer_listener_sender = self
-            //     .data_writer_listener_thread
-            //     .as_ref()
-            //     .map(|l| l.sender().clone());
-            // let publisher_listener = message.publisher_mask_listener.0.clone();
-            // let publisher_listener_mask = message.publisher_mask_listener.1.clone();
-            // let participant_listener = message.participant_mask_listener.0.clone();
-            // let participant_listener_mask = message.participant_mask_listener.1.clone();
-            // let status_condition_address = self.status_condition.address();
-            // // let topic_address = self.topic_address.clone();
-            // // let topic_status_condition_address = self.topic_status_condition.clone();
-            // let type_name = self.type_name.clone();
-            // let topic_name = self.topic_name.clone();
-            // let publisher = message.publisher.clone();
-
-            // let deadline_missed_task = message.executor_handle.spawn(async move {
-            //     loop {
-            //         timer_handle.sleep(deadline_missed_interval).await;
-            //         let publisher_listener = publisher_listener.clone();
-            //         let participant_listener = participant_listener.clone();
-
-            //         let r: DdsResult<()> = async {
-            //             writer_address.send_actor_mail(
-            //                 IncrementOfferedDeadlineMissedStatus {
-            //                     instance_handle: change_instance_handle.into(),
-            //                 },
-            //             )?;
-
-            //             let writer_address = writer_address.clone();
-            //             let status_condition_address = status_condition_address.clone();
-            //             let publisher = publisher.clone();
-            //             let topic = TopicAsync::new(
-            //                 topic_address.clone(),
-            //                 topic_status_condition_address.clone(),
-            //                 type_name.clone(),
-            //                 topic_name.clone(),
-            //                 publisher.get_participant(),
-            //             );
-            //             if writer_listener_mask.contains(&StatusKind::OfferedDeadlineMissed) {
-            //                 let status = writer_address
-            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-            //                     .receive_reply()
-            //                     .await;
-            //                 if let Some(listener) = &data_writer_listener_sender {
-            //                     listener
-            //                         .send(DataWriterListenerMessage {
-            //                             listener_operation:
-            //                                 DataWriterListenerOperation::OfferedDeadlineMissed(
-            //                                     status,
-            //                                 ),
-            //                             writer_address,
-            //                             status_condition_address,
-            //                             publisher,
-            //                             topic,
-            //                         })
-            //                         .ok();
-            //                 }
-            //             } else if publisher_listener_mask
-            //                 .contains(&StatusKind::OfferedDeadlineMissed)
-            //             {
-            //                 let status = writer_address
-            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-            //                     .receive_reply()
-            //                     .await;
-            //                 if let Some(listener) = publisher_listener {
-            //                     listener
-            //                         .send(PublisherListenerMessage {
-            //                             listener_operation:
-            //                                 PublisherListenerOperation::OfferedDeadlineMissed(
-            //                                     status,
-            //                                 ),
-            //                             writer_address,
-            //                             status_condition_address,
-            //                             publisher,
-            //                             topic,
-            //                         })
-            //                         .ok();
-            //                 }
-            //             } else if participant_listener_mask
-            //                 .contains(&StatusKind::OfferedDeadlineMissed)
-            //             {
-            //                 let status = writer_address
-            //                     .send_actor_mail(GetOfferedDeadlineMissedStatus)?
-            //                     .receive_reply()
-            //                     .await;
-            //                 if let Some(listener) = participant_listener {
-            //                     listener
-            //                     .send(ParticipantListenerMessage {
-            //                         listener_operation:
-            //                             ParticipantListenerOperation::_OfferedDeadlineMissed(
-            //                                 status,
-            //                             ),
-            //                         listener_kind: ListenerKind::Writer {
-            //                             writer_address,
-            //                             status_condition_address,
-            //                             publisher,
-            //                             topic,
-            //                         },
-            //                     })
-            //                     .ok();
-            //                 }
-            //             }
-            //             writer_status_condition
-            //                 .send_actor_mail(AddCommunicationState {
-            //                     state: StatusKind::OfferedDeadlineMissed,
-            //                 })?
-            //                 .receive_reply()
-            //                 .await;
-            //             Ok(())
-            //         }
-            //         .await;
-            //         if r.is_err() {
-            //             break;
-            //         }
-            //     }
-            // });
-            // self.instance_deadline_missed_task
-            //     .insert(change_instance_handle.into(), deadline_missed_task);
+        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
+            t.abort();
         }
 
         self.instance_samples
@@ -597,7 +470,27 @@ impl DataWriterEntity {
         status
     }
 
+    pub fn increment_offered_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
+        self.offered_deadline_missed_status.last_instance_handle = instance_handle;
+        self.offered_deadline_missed_status.total_count += 1;
+        self.offered_deadline_missed_status.total_count_change += 1;
+
+        self.status_condition
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::OfferedDeadlineMissed,
+            });
+    }
+
     pub fn type_support(&self) -> &(dyn DynamicType + Send + Sync) {
         self.type_support.as_ref()
+    }
+
+    pub fn insert_instance_deadline_missed_task(
+        &mut self,
+        instance_handle: InstanceHandle,
+        task: TaskHandle,
+    ) {
+        self.instance_deadline_missed_task
+            .insert(instance_handle, task);
     }
 }

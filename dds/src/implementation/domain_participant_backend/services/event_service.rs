@@ -33,3 +33,30 @@ impl MailHandler<RequestedDeadlineMissed> for DomainParticipantActor {
         Ok(())
     }
 }
+
+pub struct OfferedDeadlineMissed {
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub change_instance_handle: InstanceHandle,
+}
+impl Mail for OfferedDeadlineMissed {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<OfferedDeadlineMissed> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: OfferedDeadlineMissed,
+    ) -> <OfferedDeadlineMissed as Mail>::Result {
+        let publisher = self
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_writer = publisher
+            .get_mut_data_writer(message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        data_writer.increment_offered_deadline_missed_status(message.change_instance_handle);
+
+        Ok(())
+    }
+}
