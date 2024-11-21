@@ -401,7 +401,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(data_writer_service::SetDataWriterListener {
+            .send_actor_mail(data_writer_service::SetListener {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 a_listener: todo!(),

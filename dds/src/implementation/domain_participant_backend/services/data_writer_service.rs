@@ -354,31 +354,14 @@ impl Mail for GetDataWriterQos {
 }
 impl MailHandler<GetDataWriterQos> for DomainParticipantActor {
     fn handle(&mut self, message: GetDataWriterQos) -> <GetDataWriterQos as Mail>::Result {
-        todo!()
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.publisher_address()
-        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => q,
-        // };
-
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::SetQos { qos })?
-        //     .receive_reply()
-        //     .await?;
-        // if self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.announce_writer().await?;
-        // }
-
-        // Ok(())
+        Ok(self
+            .domain_participant
+            .get_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .qos()
+            .clone())
     }
 }
 
@@ -429,18 +412,15 @@ impl MailHandler<Enable> for DomainParticipantActor {
     }
 }
 
-pub struct GetDataWriterInstanceHandle {
+pub struct GetInstanceHandle {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
 }
-impl Mail for GetDataWriterInstanceHandle {
+impl Mail for GetInstanceHandle {
     type Result = DdsResult<InstanceHandle>;
 }
-impl MailHandler<GetDataWriterInstanceHandle> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: GetDataWriterInstanceHandle,
-    ) -> <GetDataWriterInstanceHandle as Mail>::Result {
+impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
+    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         todo!()
         // let writer = self.writer_address();
         // if !writer
@@ -471,20 +451,17 @@ impl MailHandler<GetDataWriterInstanceHandle> for DomainParticipantActor {
     }
 }
 
-pub struct SetDataWriterListener {
+pub struct SetListener {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
     pub status_kind: Vec<StatusKind>,
 }
-impl Mail for SetDataWriterListener {
+impl Mail for SetListener {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetDataWriterListener> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDataWriterListener,
-    ) -> <SetDataWriterListener as Mail>::Result {
+impl MailHandler<SetListener> for DomainParticipantActor {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
         todo!()
         // let writer = self.writer_address();
         // if !writer

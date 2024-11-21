@@ -235,8 +235,7 @@ impl MailHandler<SetDefaultDataWriterQos> for DomainParticipantActor {
             QosKind::Default => DataWriterQos::default(),
             QosKind::Specific(q) => q,
         };
-        publisher.set_default_datawriter_qos(qos);
-        Ok(())
+        publisher.set_default_datawriter_qos(qos)
     }
 }
 
@@ -251,26 +250,12 @@ impl MailHandler<GetDefaultDataWriterQos> for DomainParticipantActor {
         &mut self,
         message: GetDefaultDataWriterQos,
     ) -> <GetDefaultDataWriterQos as Mail>::Result {
-        // let qos = match qos {
-        //     QosKind::Default => {
-        //         self.publisher_address
-        //             .send_actor_mail(publisher_actor::GetDefaultDatawriterQos)?
-        //             .receive_reply()
-        //             .await
-        //     }
-        //     QosKind::Specific(q) => {
-        //         q.is_consistent()?;
-        //         q
-        //     }
-        // };
-
-        // self.publisher_address
-        //     .send_actor_mail(publisher_actor::SetDefaultDatawriterQos { qos })?
-        //     .receive_reply()
-        //     .await;
-
-        // Ok(())
-        todo!()
+        Ok(self
+            .domain_participant
+            .get_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .default_datawriter_qos()
+            .clone())
     }
 }
 
