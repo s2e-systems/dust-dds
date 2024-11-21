@@ -17,12 +17,12 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
 };
 
-use super::discovery_service;
+use super::{discovery_service, message_service};
 
 pub struct RegisterInstance {
     pub publisher_handle: InstanceHandle,
@@ -138,6 +138,7 @@ impl Mail for WriteWTimestamp {
 }
 impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
     fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
+        let now = self.domain_participant.get_current_time();
         let publisher = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
@@ -145,7 +146,33 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
         let data_writer = publisher
             .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        data_writer.write_w_timestamp(message.serialized_data, message.timestamp)?;
+
+        match data_writer.qos().lifespan.duration {
+            DurationKind::Finite(lifespan_duration) => {
+                let timer_handle = self.timer_driver.handle();
+                let sleep_duration = message.timestamp - now + lifespan_duration;
+                if sleep_duration > Duration::new(0, 0) {
+                    let sequence_number = data_writer
+                        .write_w_timestamp(message.serialized_data, message.timestamp)?;
+
+                    self.executor.handle().spawn(async move {
+                        timer_handle.sleep(sleep_duration.into()).await;
+                        message
+                            .participant_address
+                            .send_actor_mail(message_service::RemoveWriterChange {
+                                publisher_handle: message.publisher_handle,
+                                data_writer_handle: message.data_writer_handle,
+                                sequence_number,
+                            })
+                            .ok();
+                    });
+                }
+            }
+            DurationKind::Infinite => {
+                data_writer.write_w_timestamp(message.serialized_data, message.timestamp)?;
+            }
+        }
+
         Ok(())
     }
 }
