@@ -83,8 +83,11 @@ impl MailHandler<UnregisterInstance> for DomainParticipantActor {
             .data_writer_list_mut()
             .find(|x| x.instance_handle() == message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-
-        todo!();
+        let serialized_key = get_serialized_key_from_serialized_foo(
+            &message.serialized_data,
+            data_writer.type_support(),
+        )?;
+        data_writer.unregister_w_timestamp(serialized_key, message.timestamp)?;
 
         Ok(())
     }

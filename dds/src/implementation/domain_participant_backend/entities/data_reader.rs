@@ -38,6 +38,12 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
+pub enum AddChangeResult {
+    ChangeAdded,
+    ChangeNotAdded,
+    ChangeRejected(InstanceHandle, SampleRejectedStatusKind),
+}
+
 struct InstanceState {
     view_state: ViewStateKind,
     instance_state: InstanceStateKind,
@@ -540,7 +546,7 @@ impl DataReaderEntity {
     pub fn add_reader_change(
         &mut self,
         cache_change: ReaderCacheChange,
-    ) -> DdsResult<InstanceHandle> {
+    ) -> DdsResult<AddChangeResult> {
         let sample = self.convert_cache_change_to_sample(cache_change, Time::now())?;
         let change_instance_handle = sample.instance_handle;
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
@@ -559,8 +565,7 @@ impl DataReaderEntity {
                             .ownership_strength()
                             .value
                 {
-                    todo!()
-                    // return Ok(());
+                    return Ok(AddChangeResult::ChangeNotAdded);
                 }
             }
 
@@ -606,198 +611,149 @@ impl DataReaderEntity {
             }
         };
 
-        if is_sample_of_interest_based_on_time {
-            let is_max_samples_limit_reached = {
-                let total_samples = self
-                    .sample_list
-                    .iter()
-                    .filter(|cc| cc.kind == ChangeKind::Alive)
-                    .count();
+        if !is_sample_of_interest_based_on_time {
+            return Ok(AddChangeResult::ChangeNotAdded);
+        }
 
-                total_samples == self.qos.resource_limits.max_samples
-            };
-            let is_max_instances_limit_reached = {
-                let instance_handle_list: HashSet<_> = self
-                    .sample_list
-                    .iter()
-                    .map(|cc| cc.instance_handle)
-                    .collect();
+        let is_max_samples_limit_reached = {
+            let total_samples = self
+                .sample_list
+                .iter()
+                .filter(|cc| cc.kind == ChangeKind::Alive)
+                .count();
 
-                if instance_handle_list.contains(&sample.instance_handle) {
-                    false
-                } else {
-                    instance_handle_list.len() == self.qos.resource_limits.max_instances
-                }
-            };
-            let is_max_samples_per_instance_limit_reached = {
-                let total_samples_of_instance = self
-                    .sample_list
-                    .iter()
-                    .filter(|cc| cc.instance_handle == sample.instance_handle)
-                    .count();
+            total_samples == self.qos.resource_limits.max_samples
+        };
+        let is_max_instances_limit_reached = {
+            let instance_handle_list: HashSet<_> = self
+                .sample_list
+                .iter()
+                .map(|cc| cc.instance_handle)
+                .collect();
 
-                total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
-            };
-            if is_max_samples_limit_reached {
-                self.sample_rejected_status.last_instance_handle = sample.instance_handle;
-                self.sample_rejected_status.last_reason =
-                    SampleRejectedStatusKind::RejectedBySamplesLimit;
-                self.sample_rejected_status.total_count += 1;
-                self.sample_rejected_status.total_count_change += 1;
-            } else if is_max_instances_limit_reached {
-                self.sample_rejected_status.last_instance_handle = sample.instance_handle;
-                self.sample_rejected_status.last_reason =
-                    SampleRejectedStatusKind::RejectedByInstancesLimit;
-                self.sample_rejected_status.total_count += 1;
-                self.sample_rejected_status.total_count_change += 1;
-            } else if is_max_samples_per_instance_limit_reached {
-                self.sample_rejected_status.last_instance_handle = sample.instance_handle;
-                self.sample_rejected_status.last_reason =
-                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit;
-                self.sample_rejected_status.total_count += 1;
-                self.sample_rejected_status.total_count_change += 1;
+            if instance_handle_list.contains(&sample.instance_handle) {
+                false
             } else {
-                let num_alive_samples_of_instance = self
+                instance_handle_list.len() == self.qos.resource_limits.max_instances
+            }
+        };
+        let is_max_samples_per_instance_limit_reached = {
+            let total_samples_of_instance = self
+                .sample_list
+                .iter()
+                .filter(|cc| cc.instance_handle == sample.instance_handle)
+                .count();
+
+            total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
+        };
+        if is_max_samples_limit_reached {
+            return Ok(AddChangeResult::ChangeRejected(
+                sample.instance_handle,
+                SampleRejectedStatusKind::RejectedBySamplesLimit,
+            ));
+        } else if is_max_instances_limit_reached {
+            return Ok(AddChangeResult::ChangeRejected(
+                sample.instance_handle,
+                SampleRejectedStatusKind::RejectedByInstancesLimit,
+            ));
+        } else if is_max_samples_per_instance_limit_reached {
+            return Ok(AddChangeResult::ChangeRejected(
+                sample.instance_handle,
+                SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
+            ));
+        }
+        let num_alive_samples_of_instance = self
+            .sample_list
+            .iter()
+            .filter(|cc| {
+                cc.instance_handle == sample.instance_handle && cc.kind == ChangeKind::Alive
+            })
+            .count() as u32;
+
+        if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+            if depth == num_alive_samples_of_instance {
+                let index_sample_to_remove = self
                     .sample_list
                     .iter()
-                    .filter(|cc| {
+                    .position(|cc| {
                         cc.instance_handle == sample.instance_handle && cc.kind == ChangeKind::Alive
                     })
-                    .count() as u32;
-
-                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
-                    if depth == num_alive_samples_of_instance {
-                        let index_sample_to_remove = self
-                            .sample_list
-                            .iter()
-                            .position(|cc| {
-                                cc.instance_handle == sample.instance_handle
-                                    && cc.kind == ChangeKind::Alive
-                            })
-                            .expect("Samples must exist");
-                        self.sample_list.remove(index_sample_to_remove);
-                    }
-                }
-
-                match sample.kind {
-                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                        self.instances
-                            .entry(sample.instance_handle)
-                            .or_insert_with(InstanceState::new)
-                            .update_state(sample.kind);
-                        Ok(())
-                    }
-                    ChangeKind::NotAliveDisposed
-                    | ChangeKind::NotAliveUnregistered
-                    | ChangeKind::NotAliveDisposedUnregistered => {
-                        match self.instances.get_mut(&sample.instance_handle) {
-                            Some(instance) => {
-                                instance.update_state(sample.kind);
-                                Ok(())
-                            }
-                            None => Err(DdsError::Error(
-                                "Received message changing state of unknown instance".to_string(),
-                            )),
-                        }
-                    }
-                }?;
-
-                tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
-                self.sample_list.push(sample);
-                self.data_available_status_changed_flag = true;
-
-                match self.qos.destination_order.kind {
-                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                        self.sample_list.sort_by(|a, b| {
-                            a.source_timestamp
-                                .as_ref()
-                                .expect("Missing source timestamp")
-                                .cmp(
-                                    b.source_timestamp
-                                        .as_ref()
-                                        .expect("Missing source timestamp"),
-                                )
-                        });
-                    }
-                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                        .sample_list
-                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-                }
-
-                // let topic_status_condition_address = self.topic_status_condition.clone();
-                // let type_name = self.type_name.clone();
-                // let topic_name = self.topic_name.clone();
-                // let reader_address = data_reader_address.clone();
-                // let status_condition_address = self.status_condition.address();
-                // let subscriber = subscriber.clone();
-                // let topic = TopicAsync::new(
-                //     self.topic_address.clone(),
-                //     topic_status_condition_address.clone(),
-                //     type_name.clone(),
-                //     topic_name.clone(),
-                //     subscriber.get_participant(),
-                // );
-                // if subscriber_listener_mask.contains(&StatusKind::DataOnReaders) {
-                //     if let Some(listener) = subscriber_listener {
-                //         listener.send(SubscriberListenerMessage {
-                //             listener_operation: SubscriberListenerOperation::DataOnReaders(
-                //                 subscriber.clone(),
-                //             ),
-                //             reader_address,
-                //             status_condition_address,
-                //             subscriber: subscriber.clone(),
-                //             topic,
-                //         })?;
-                //     }
-                // } else if self
-                //     .data_reader_status_kind
-                //     .contains(&StatusKind::DataAvailable)
-                // {
-                //     if let Some(listener) = &self.data_reader_listener_thread {
-                //         listener.sender().send(DataReaderListenerMessage {
-                //             listener_operation: DataReaderListenerOperation::DataAvailable,
-                //             reader_address,
-                //             status_condition_address,
-                //             subscriber: subscriber.clone(),
-                //             topic,
-                //         })?;
-                //     }
-                // }
-
-                if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
-                    todo!()
-                    // let timer_handle = self.timer_driver.handle();
-                    // let deadline_missed_task = self.executor.handle().spawn(async move {
-                    //     timer_handle.sleep(deadline_missed_period.into()).await;
-                    //     message
-                    //         .domain_participant_address
-                    //         .send_actor_mail(DeadlineMissed {
-                    //             subscriber_handle: message.subscriber_handle,
-                    //             data_reader_handle: message.data_reader_handle,
-                    //             change_instance_handle,
-                    //         })
-                    //         .ok();
-                    // });
-                    // if let Some(t) = self
-                    //     .instance_deadline_missed_task
-                    //     .remove(&change_instance_handle)
-                    // {
-                    //     t.abort();
-                    // }
-
-                    // self.instance_deadline_missed_task
-                    //     .insert(change_instance_handle, deadline_missed_task);
-                }
-
-                self.status_condition.send_actor_mail(
-                    status_condition_actor::AddCommunicationState {
-                        state: StatusKind::DataAvailable,
-                    },
-                );
+                    .expect("Samples must exist");
+                self.sample_list.remove(index_sample_to_remove);
             }
         }
 
-        Ok(change_instance_handle)
+        match sample.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                self.instances
+                    .entry(sample.instance_handle)
+                    .or_insert_with(InstanceState::new)
+                    .update_state(sample.kind);
+                Ok(())
+            }
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => {
+                match self.instances.get_mut(&sample.instance_handle) {
+                    Some(instance) => {
+                        instance.update_state(sample.kind);
+                        Ok(())
+                    }
+                    None => Err(DdsError::Error(
+                        "Received message changing state of unknown instance".to_string(),
+                    )),
+                }
+            }
+        }?;
+
+        tracing::debug!(cache_change = ?sample, "Adding change to data reader history cache");
+        self.sample_list.push(sample);
+        self.data_available_status_changed_flag = true;
+
+        match self.qos.destination_order.kind {
+            DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                self.sample_list.sort_by(|a, b| {
+                    a.source_timestamp
+                        .as_ref()
+                        .expect("Missing source timestamp")
+                        .cmp(
+                            b.source_timestamp
+                                .as_ref()
+                                .expect("Missing source timestamp"),
+                        )
+                });
+            }
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                .sample_list
+                .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+        }
+
+        if let DurationKind::Finite(deadline_missed_period) = self.qos.deadline.period {
+            todo!()
+            // let timer_handle = self.timer_driver.handle();
+            // let deadline_missed_task = self.executor.handle().spawn(async move {
+            //     timer_handle.sleep(deadline_missed_period.into()).await;
+            //     message
+            //         .domain_participant_address
+            //         .send_actor_mail(DeadlineMissed {
+            //             subscriber_handle: message.subscriber_handle,
+            //             data_reader_handle: message.data_reader_handle,
+            //             change_instance_handle,
+            //         })
+            //         .ok();
+            // });
+            // if let Some(t) = self
+            //     .instance_deadline_missed_task
+            //     .remove(&change_instance_handle)
+            // {
+            //     t.abort();
+            // }
+
+            // self.instance_deadline_missed_task
+            //     .insert(change_instance_handle, deadline_missed_task);
+        }
+
+        Ok(AddChangeResult::ChangeAdded)
     }
 
     pub fn instance_handle(&self) -> InstanceHandle {
@@ -912,6 +868,17 @@ impl DataReaderEntity {
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
         &self.status_condition
+    }
+
+    pub fn increment_sample_rejected_status(
+        &mut self,
+        sample_handle: InstanceHandle,
+        sample_rejected_status_kind: SampleRejectedStatusKind,
+    ) {
+        self.sample_rejected_status.last_instance_handle = sample_handle;
+        self.sample_rejected_status.last_reason = sample_rejected_status_kind;
+        self.sample_rejected_status.total_count += 1;
+        self.sample_rejected_status.total_count_change += 1;
     }
 
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {

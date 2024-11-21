@@ -4,13 +4,10 @@ use crate::{
         DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
-        data_representation_builtin_endpoints::{
-            discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         domain_participant_backend::{
-            domain_participant_actor::DomainParticipantActor, services::discovery_service,
+            domain_participant_actor::DomainParticipantActor,
+            entities::data_reader::AddChangeResult, services::discovery_service,
         },
         status_condition::status_condition_actor,
     },
@@ -25,9 +22,6 @@ use crate::{
         types::{ChangeKind, SequenceNumber},
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
-    subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
-    },
     topic_definition::type_support::DdsDeserialize,
 };
 
@@ -56,13 +50,35 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .get_matched_publication_data(&writer_instance_handle)
             .is_some()
         {
-            if let Ok(change_instance_handle) = data_reader.add_reader_change(message.cache_change)
-            {
-                subscriber.status_condition().send_actor_mail(
-                    status_condition_actor::AddCommunicationState {
-                        state: StatusKind::DataOnReaders,
-                    },
-                );
+            match data_reader.add_reader_change(message.cache_change)? {
+                AddChangeResult::ChangeAdded => {
+                    subscriber.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
+                            state: StatusKind::DataOnReaders,
+                        },
+                    );
+
+                    subscriber
+                        .get_mut_data_reader(message.data_reader_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::DataAvailable,
+                        });
+                }
+                AddChangeResult::ChangeNotAdded => (), // Do nothing
+                AddChangeResult::ChangeRejected(instance_handle, sample_rejected_status_kind) => {
+                    data_reader.increment_sample_rejected_status(
+                        instance_handle,
+                        sample_rejected_status_kind,
+                    );
+
+                    data_reader.status_condition().send_actor_mail(
+                        status_condition_actor::AddCommunicationState {
+                            state: StatusKind::SampleRejected,
+                        },
+                    );
+                }
             }
         }
         Ok(())

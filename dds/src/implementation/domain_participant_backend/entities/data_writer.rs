@@ -434,7 +434,7 @@ impl DataWriterEntity {
 
     pub fn unregister_w_timestamp(
         &mut self,
-        serialized_data: Vec<u8>,
+        serialized_key: Vec<u8>,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
@@ -459,9 +459,6 @@ impl DataWriterEntity {
         if !has_key {
             return Err(DdsError::IllegalOperation);
         }
-
-        let serialized_key =
-            get_serialized_key_from_serialized_foo(&serialized_data, self.type_support.as_ref())?;
 
         let instance_handle =
             get_instance_handle_from_serialized_key(&serialized_key, self.type_support.as_ref())?;
