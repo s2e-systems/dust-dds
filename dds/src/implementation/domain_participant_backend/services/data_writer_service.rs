@@ -8,7 +8,9 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             services::message_service::AreAllChangesAcknowledged,
         },
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_serialized_foo,
+        xtypes_glue::key_and_instance_handle::{
+            get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -138,7 +140,6 @@ impl Mail for WriteWTimestamp {
 }
 impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
     fn handle(&mut self, message: WriteWTimestamp) -> <WriteWTimestamp as Mail>::Result {
-        let now = self.domain_participant.get_current_time();
         let publisher = self
             .domain_participant
             .get_mut_publisher(message.publisher_handle)
@@ -146,7 +147,8 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
         let data_writer = publisher
             .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        todo!()
+        data_writer.write_w_timestamp(message.serialized_data, message.timestamp)?;
+        Ok(())
     }
 }
 
@@ -168,7 +170,11 @@ impl MailHandler<DisposeWTimestamp> for DomainParticipantActor {
         let data_writer = publisher
             .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        todo!()
+        let serialized_key = get_serialized_key_from_serialized_foo(
+            &message.serialized_data,
+            data_writer.type_support(),
+        )?;
+        data_writer.dispose_w_timestamp(serialized_key, message.timestamp)
     }
 }
 

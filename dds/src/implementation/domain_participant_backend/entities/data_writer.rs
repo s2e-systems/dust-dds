@@ -599,4 +599,8 @@ impl DataWriterEntity {
             });
         status
     }
+
+    pub fn type_support(&self) -> &(dyn DynamicType + Send + Sync) {
+        self.type_support.as_ref()
+    }
 }
