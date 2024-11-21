@@ -199,19 +199,19 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
     }
 }
 
-pub struct DeleteUserDefinedDataReader {
+pub struct DeleteDataReader {
     pub subscriber_handle: InstanceHandle,
     pub datareader_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for DeleteUserDefinedDataReader {
+impl Mail for DeleteDataReader {
     type Result = DdsResult<()>;
 }
-impl MailHandler<DeleteUserDefinedDataReader> for DomainParticipantActor {
+impl MailHandler<DeleteDataReader> for DomainParticipantActor {
     fn handle(
         &mut self,
-        message: DeleteUserDefinedDataReader,
-    ) -> <DeleteUserDefinedDataReader as Mail>::Result {
+        message: DeleteDataReader,
+    ) -> <DeleteDataReader as Mail>::Result {
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)

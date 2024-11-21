@@ -6,7 +6,8 @@ use crate::{
         SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
     },
     implementation::domain_participant_backend::{
-        domain_participant_actor::DomainParticipantActor, entities::data_reader::DataReaderEntity,
+        domain_participant_actor::DomainParticipantActor,
+        entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -107,6 +108,30 @@ impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
             dw.write_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct AnnounceDeletedDataWriter {
+    pub data_writer: DataWriterEntity,
+}
+impl Mail for AnnounceDeletedDataWriter {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AnnounceDeletedDataWriter> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: AnnounceDeletedDataWriter,
+    ) -> <AnnounceDeletedDataWriter as Mail>::Result {
+        let timestamp = self.domain_participant.get_current_time();
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher_mut()
+            .lookup_datawriter_mut(DCPS_PUBLICATION)
+        {
+            let key = InstanceHandle::new(message.data_writer.transport_writer().guid());
+            dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
         }
         Ok(())
     }
@@ -390,6 +415,36 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                     todo!("Incompatible reader found")
                 }
             }
+        }
+        Ok(())
+    }
+}
+
+pub struct RemoveDiscoveredWriter {
+    pub publication_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+impl Mail for RemoveDiscoveredWriter {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<RemoveDiscoveredWriter> for DomainParticipantActor {
+    fn handle(
+        &mut self,
+        message: RemoveDiscoveredWriter,
+    ) -> <RemoveDiscoveredWriter as Mail>::Result {
+        let subscriber = self
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_reader = subscriber
+            .get_mut_data_reader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if data_reader
+            .get_matched_publication_data(&message.publication_handle)
+            .is_some()
+        {
+            data_reader.remove_matched_publication(&message.publication_handle);
         }
         Ok(())
     }

@@ -208,7 +208,26 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                     }
                 }
             }
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => todo!(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
+                if let Ok(discovered_writer_handle) =
+                    InstanceHandle::deserialize_data(message.cache_change.data_value.as_ref())
+                {
+                    self.domain_participant
+                        .remove_discovered_writer(&discovered_writer_handle);
+                    for subscriber in self.domain_participant.subscriber_list() {
+                        for data_reader in subscriber.data_reader_list() {
+                            message
+                                .participant_address
+                                .send_actor_mail(discovery_service::RemoveDiscoveredWriter {
+                                    publication_handle: discovered_writer_handle.clone(),
+                                    subscriber_handle: subscriber.instance_handle(),
+                                    data_reader_handle: data_reader.instance_handle(),
+                                })
+                                .ok();
+                        }
+                    }
+                }
+            }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
         if let Some(reader) = self

@@ -89,7 +89,7 @@ impl SubscriberAsync {
         a_datareader: &DataReaderAsync<Foo>,
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(subscriber_service::DeleteUserDefinedDataReader {
+            .send_actor_mail(subscriber_service::DeleteDataReader {
                 subscriber_handle: self.handle,
                 datareader_handle: a_datareader.get_instance_handle().await,
                 participant_address: self.participant_address().clone(),

@@ -1,11 +1,7 @@
-use fnmatch_regex::glob_to_regex;
-
 use crate::{
-    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, DCPS_SUBSCRIPTION},
     dds_async::publisher_listener::PublisherListenerAsync,
     implementation::{
         any_data_writer_listener::AnyDataWriterListener,
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::data_writer::DataWriterEntity,
@@ -24,12 +20,10 @@ use crate::{
     },
     rtps::types::TopicKind,
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
-    subscription::sample_info::{InstanceStateKind, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    topic_definition::type_support::DdsDeserialize,
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::data_writer_service;
+use super::{data_writer_service, discovery_service};
 
 pub struct CreateDataWriter {
     pub publisher_handle: InstanceHandle,
@@ -108,6 +102,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
 pub struct DeleteDataWriter {
     pub publisher_handle: InstanceHandle,
     pub datawriter_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for DeleteDataWriter {
     type Result = DdsResult<()>;
@@ -122,34 +117,10 @@ impl MailHandler<DeleteDataWriter> for DomainParticipantActor {
         let data_writer = publisher
             .remove_data_writer(message.datawriter_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        todo!();
-        // let publication_builtin_topic_data = PublicationBuiltinTopicData {
-        //     key: BuiltInTopicKey {
-        //         value: data_writer.transport_writer().guid(),
-        //     },
-        //     participant_key: BuiltInTopicKey { value: [0; 16] },
-        //     topic_name: data_writer.topic_name().to_owned(),
-        //     type_name: data_writer.type_name().to_owned(),
-        //     durability: data_writer.qos().durability.clone(),
-        //     deadline: data_writer.qos().deadline.clone(),
-        //     latency_budget: data_writer.qos().latency_budget.clone(),
-        //     liveliness: data_writer.qos().liveliness.clone(),
-        //     reliability: data_writer.qos().reliability.clone(),
-        //     lifespan: data_writer.qos().lifespan.clone(),
-        //     user_data: data_writer.qos().user_data.clone(),
-        //     ownership: data_writer.qos().ownership.clone(),
-        //     ownership_strength: data_writer.qos().ownership_strength.clone(),
-        //     destination_order: data_writer.qos().destination_order.clone(),
-        //     presentation: publisher.qos().presentation.clone(),
-        //     partition: publisher.qos().partition.clone(),
-        //     topic_data: self.topic_list[data_writer.topic_name()]
-        //         .qos()
-        //         .topic_data
-        //         .clone(),
-        //     group_data: publisher.qos().group_data.clone(),
-        //     representation: data_writer.qos().representation.clone(),
-        // };
-        // self.announce_deleted_data_writer(publication_builtin_topic_data)?;
+        message
+            .participant_address
+            .send_actor_mail(discovery_service::AnnounceDeletedDataWriter { data_writer })
+            .ok();
         Ok(())
     }
 }

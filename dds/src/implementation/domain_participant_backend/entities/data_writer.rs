@@ -528,8 +528,6 @@ impl DataWriterEntity {
         self.matched_subscription_list.remove(subscription_handle);
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
-        self.publication_matched_status.total_count -= 1;
-        self.publication_matched_status.total_count_change -= 1;
         self.status_condition
             .send_actor_mail(status_condition_actor::AddCommunicationState {
                 state: StatusKind::PublicationMatched,

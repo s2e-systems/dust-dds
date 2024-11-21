@@ -93,6 +93,7 @@ impl PublisherAsync {
             .send_actor_mail(publisher_service::DeleteDataWriter {
                 publisher_handle: self.handle,
                 datawriter_handle: a_datawriter.get_instance_handle().await,
+                participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await

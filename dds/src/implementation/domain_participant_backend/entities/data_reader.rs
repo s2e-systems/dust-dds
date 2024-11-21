@@ -854,6 +854,16 @@ impl DataReaderEntity {
             });
     }
 
+    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+        self.matched_publication_list.remove(publication_handle);
+        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
+        self.subscription_matched_status.current_count_change -= 1;
+        self.status_condition
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            });
+    }
+
     pub fn add_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;
