@@ -114,12 +114,7 @@ impl MailHandler<LookupInstance> for DomainParticipantActor {
 
         let instance_handle = get_instance_handle_from_serialized_foo(
             &message.serialized_data,
-            todo!(),
-            // self.domain_participant
-            //     .get_topic(data_writer.topic_name())
-            //     .unwrap()
-            //     .type_support()
-            //     .as_ref(),
+            data_writer.type_support(),
         )?;
 
         Ok(data_writer

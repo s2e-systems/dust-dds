@@ -636,7 +636,10 @@ struct DcpsTopicsReaderHistoryCache {
 impl ReaderHistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: ReaderCacheChange) {
         self.participant_address
-            .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange { cache_change })
+            .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange {
+                cache_change,
+                participant_address: self.participant_address.clone(),
+            })
             .ok();
     }
 }

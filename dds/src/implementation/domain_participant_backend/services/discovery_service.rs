@@ -13,7 +13,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, SubscriberQos},
+        qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
             QosPolicyId, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
@@ -261,6 +261,30 @@ impl MailHandler<AnnounceTopic> for DomainParticipantActor {
             .lookup_datawriter_mut(DCPS_TOPIC)
         {
             dw.write_w_timestamp(topic_builtin_topic_data.serialize_data()?, timestamp)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct AddDiscoveredTopic {
+    pub topic_builtin_topic_data: TopicBuiltinTopicData,
+    pub topic_name: String,
+}
+impl Mail for AddDiscoveredTopic {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AddDiscoveredTopic> for DomainParticipantActor {
+    fn handle(&mut self, message: AddDiscoveredTopic) -> <AddDiscoveredTopic as Mail>::Result {
+        let topic = self
+            .domain_participant
+            .get_mut_topic(&message.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if topic.topic_name() == message.topic_builtin_topic_data.name()
+            && topic.type_name() == message.topic_builtin_topic_data.get_type_name()
+        {
+            if !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data) {
+                topic.add_inconsistent_topic_status();
+            }
         }
         Ok(())
     }
@@ -641,4 +665,22 @@ fn get_discovered_writer_incompatible_qos_policy_list(
     }
 
     incompatible_qos_policy_list
+}
+
+fn is_discovered_topic_consistent(
+    topic_qos: &TopicQos,
+    topic_builtin_topic_data: &TopicBuiltinTopicData,
+) -> bool {
+    &topic_qos.topic_data == topic_builtin_topic_data.topic_data()
+        && &topic_qos.durability == topic_builtin_topic_data.durability()
+        && &topic_qos.deadline == topic_builtin_topic_data.deadline()
+        && &topic_qos.latency_budget == topic_builtin_topic_data.latency_budget()
+        && &topic_qos.liveliness == topic_builtin_topic_data.liveliness()
+        && &topic_qos.reliability == topic_builtin_topic_data.reliability()
+        && &topic_qos.destination_order == topic_builtin_topic_data.destination_order()
+        && &topic_qos.history == topic_builtin_topic_data.history()
+        && &topic_qos.resource_limits == topic_builtin_topic_data.resource_limits()
+        && &topic_qos.transport_priority == topic_builtin_topic_data.transport_priority()
+        && &topic_qos.lifespan == topic_builtin_topic_data.lifespan()
+        && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }

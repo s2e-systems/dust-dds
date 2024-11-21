@@ -116,6 +116,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
 
 pub struct AddBuiltinTopicsDetectorCacheChange {
     pub cache_change: ReaderCacheChange,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddBuiltinTopicsDetectorCacheChange {
     type Result = ();
@@ -131,7 +132,16 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
                     message.cache_change.data_value.as_ref(),
                 ) {
                     self.domain_participant
-                        .add_discovered_topic(topic_builtin_topic_data);
+                        .add_discovered_topic(topic_builtin_topic_data.clone());
+                    for topic in self.domain_participant.topic_list() {
+                        message
+                            .participant_address
+                            .send_actor_mail(discovery_service::AddDiscoveredTopic {
+                                topic_builtin_topic_data: topic_builtin_topic_data.clone(),
+                                topic_name: topic.topic_name().to_owned(),
+                            })
+                            .ok();
+                    }
                 }
             }
             ChangeKind::NotAliveDisposed
