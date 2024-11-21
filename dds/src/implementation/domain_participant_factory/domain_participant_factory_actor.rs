@@ -20,6 +20,7 @@ use crate::{
             handle::InstanceHandleCounter,
             services::{discovery_service, domain_participant_service, message_service},
         },
+        listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -141,8 +142,8 @@ impl Mail for CreateParticipant {
 }
 impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
     fn handle(&mut self, message: CreateParticipant) -> <CreateParticipant as Mail>::Result {
-        let executor = Executor::new();
-        let executor_handle = executor.handle();
+        let backend_executor = Executor::new();
+        let backend_executor_handle = backend_executor.handle();
 
         let timer_driver = TimerDriver::new();
         let timer_handle = timer_driver.handle();
@@ -216,7 +217,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             "SpdpDiscoveredParticipantData".to_string(),
             DCPS_PARTICIPANT.to_owned(),
             spdp_topic_participant_handle,
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             Arc::new(SpdpDiscoveredParticipantData::get_type()),
@@ -231,7 +232,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             "DiscoveredTopicData".to_string(),
             DCPS_TOPIC.to_owned(),
             sedp_topic_topics_handle,
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             Arc::new(DiscoveredTopicData::get_type()),
@@ -246,7 +247,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             "DiscoveredWriterData".to_string(),
             DCPS_PUBLICATION.to_owned(),
             sedp_topic_publications_handle,
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             Arc::new(DiscoveredWriterData::get_type()),
@@ -261,7 +262,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             "DiscoveredReaderData".to_string(),
             DCPS_SUBSCRIPTION.to_owned(),
             sedp_topic_subscriptions_handle,
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             Arc::new(DiscoveredReaderData::get_type()),
@@ -302,7 +303,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             Vec::new(),
             transport.get_participant_discovery_reader(),
@@ -314,7 +315,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
             topic_list[DCPS_TOPIC].type_name().to_owned(),
             topic_list[DCPS_TOPIC].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             Vec::new(),
             transport.get_topics_discovery_reader(),
@@ -326,7 +327,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             Vec::new(),
             transport.get_topics_discovery_reader(),
@@ -338,7 +339,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             Vec::new(),
             transport.get_topics_discovery_reader(),
@@ -348,7 +349,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let mut builtin_subscriber = SubscriberEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             SubscriberQos::default(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
         );
@@ -364,7 +365,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             spdp_writer_qos,
@@ -377,7 +378,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
             topic_list[DCPS_TOPIC].type_name().to_owned(),
             topic_list[DCPS_TOPIC].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -389,7 +390,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -402,7 +403,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
             None,
             vec![],
             sedp_data_writer_qos(),
@@ -413,7 +414,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             instance_handle_counter.generate_new_instance_handle(),
             None,
             vec![],
-            Actor::spawn(StatusConditionActor::default(), &executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle()),
         );
         builtin_publisher.enable();
         builtin_publisher.insert_data_writer(dcps_participant_writer);
@@ -422,11 +423,19 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
         let instance_handle = InstanceHandle::new(transport.guid().into());
 
-        let status_condition = Actor::spawn(StatusConditionActor::default(), &executor.handle());
+        let listener_executor = Executor::new();
+        let status_condition =
+            Actor::spawn(StatusConditionActor::default(), &backend_executor.handle());
+        let listener = message.listener.map(|l| {
+            Actor::spawn(
+                DomainParticipantListenerActor::new(l),
+                &listener_executor.handle(),
+            )
+        });
         let domain_participant = DomainParticipantEntity::new(
             message.domain_id,
             domain_participant_qos,
-            message.listener,
+            listener,
             message.status_kind,
             status_condition,
             instance_handle,
@@ -438,7 +447,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let domain_participant_actor = DomainParticipantActor::new(
             domain_participant,
             transport,
-            executor,
+            backend_executor,
+            listener_executor,
             timer_driver,
             instance_handle_counter,
         );
@@ -448,7 +458,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let participant_status_condition_address = domain_participant_actor
             .domain_participant
-            .get_statuscondition();
+            .status_condition()
+            .address();
         let builtin_subscriber_status_condition_address = domain_participant_actor
             .domain_participant
             .builtin_subscriber()
@@ -456,7 +467,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             .address();
 
         let participant_actor =
-            participant_actor_builder.build(domain_participant_actor, &executor_handle);
+            participant_actor_builder.build(domain_participant_actor, &backend_executor_handle);
 
         //****** Spawn the participant actor and tasks **********//
 
@@ -465,7 +476,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let participant_announcement_interval =
             self.configuration.participant_announcement_interval();
 
-        executor_handle.spawn(async move {
+        backend_executor_handle.spawn(async move {
             loop {
                 if let Ok(r) =
                     participant_address.send_actor_mail(discovery_service::AnnounceParticipant)

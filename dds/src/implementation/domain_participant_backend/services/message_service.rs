@@ -29,7 +29,7 @@ use crate::{
 use super::event_service;
 
 pub struct AddCacheChange {
-    pub domain_participant_address: ActorAddress<DomainParticipantActor>,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
     pub cache_change: ReaderCacheChange,
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
@@ -59,16 +59,18 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                         data_reader.qos().deadline.period
                     {
                         let timer_handle = self.timer_driver.handle();
+                        let participant_address = message.participant_address.clone();
                         let requested_deadline_missed_task =
-                            self.executor.handle().spawn(async move {
+                            self.backend_executor.handle().spawn(async move {
                                 loop {
                                     timer_handle.sleep(deadline_missed_period.into()).await;
                                     message
-                                        .domain_participant_address
+                                        .participant_address
                                         .send_actor_mail(event_service::RequestedDeadlineMissed {
                                             subscriber_handle: message.subscriber_handle,
                                             data_reader_handle: message.data_reader_handle,
                                             change_instance_handle,
+                                            participant_address: participant_address.clone(),
                                         })
                                         .ok();
                                 }

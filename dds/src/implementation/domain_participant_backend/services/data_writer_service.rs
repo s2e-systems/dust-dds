@@ -159,7 +159,7 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
                     let sequence_number = data_writer
                         .write_w_timestamp(message.serialized_data, message.timestamp)?;
                     let participant_address = message.participant_address.clone();
-                    self.executor.handle().spawn(async move {
+                    self.backend_executor.handle().spawn(async move {
                         timer_handle.sleep(sleep_duration.into()).await;
                         participant_address
                             .send_actor_mail(message_service::RemoveWriterChange {
@@ -178,7 +178,7 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
 
         if let DurationKind::Finite(deadline_missed_period) = data_writer.qos().deadline.period {
             let timer_handle = self.timer_driver.handle();
-            let offered_deadline_missed_task = self.executor.handle().spawn(async move {
+            let offered_deadline_missed_task = self.backend_executor.handle().spawn(async move {
                 loop {
                     timer_handle.sleep(deadline_missed_period.into()).await;
                     message

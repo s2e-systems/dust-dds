@@ -799,11 +799,12 @@ impl DataReaderEntity {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;
         self.requested_deadline_missed_status.last_instance_handle = instance_handle;
+    }
 
-        self.status_condition
-            .send_actor_mail(status_condition_actor::AddCommunicationState {
-                state: StatusKind::RequestedDeadlineMissed,
-            });
+    pub fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
+        let status = self.requested_deadline_missed_status.clone();
+        self.requested_deadline_missed_status.total_count_change = 0;
+        status
     }
 
     pub fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {

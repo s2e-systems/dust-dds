@@ -49,7 +49,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             fn add_change(&mut self, cache_change: ReaderCacheChange) {
                 self.domain_participant_address
                     .send_actor_mail(message_service::AddCacheChange {
-                        domain_participant_address: self.domain_participant_address.clone(),
+                        participant_address: self.domain_participant_address.clone(),
                         cache_change,
                         subscriber_handle: self.subscriber_handle,
                         data_reader_handle: self.data_reader_handle,
@@ -92,7 +92,7 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
 
         let data_reader_status_kind = message.mask.to_vec();
         let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
         let data_reader_listener_thread = None;
         let data_reader = DataReaderEntity::new(
             reader_handle,

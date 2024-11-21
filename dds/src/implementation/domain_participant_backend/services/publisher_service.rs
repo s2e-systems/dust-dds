@@ -66,7 +66,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         let topic_name = message.topic_name;
 
         let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
         let writer_status_condition_address = status_condition.address();
 
         let data_writer = DataWriterEntity::new(

@@ -65,7 +65,7 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
         let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
         let publisher_status_condition_address = status_condition.address();
         let mut publisher = PublisherEntity::new(
             publisher_qos,
@@ -152,7 +152,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
-            Actor::spawn(StatusConditionActor::default(), &self.executor.handle()),
+            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle()),
             message.a_listener.map(SubscriberListenerThread::new),
             status_kind,
         );
@@ -252,7 +252,7 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
 
         let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
         let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.executor.handle());
+            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
         let topic_status_condition_address = status_condition.address();
 
         let topic = TopicEntity::new(
@@ -371,7 +371,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                     type_name.clone(),
                     message.topic_name.clone(),
                     topic_handle,
-                    Actor::spawn(StatusConditionActor::default(), &self.executor.handle()),
+                    Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle()),
                     None,
                     vec![],
                     message.type_support,

@@ -1,44 +1,25 @@
 use std::collections::{HashMap, HashSet};
 
-use fnmatch_regex::glob_to_regex;
-
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
-    dds_async::domain_participant_listener::DomainParticipantListenerAsync,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        data_representation_builtin_endpoints::{
-            discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        },
-        domain_participant_backend::{
-            entities::data_reader::DataReaderEntity,
-            services::domain_participant_service::BUILT_IN_TOPIC_NAME_LIST,
-        },
-        listeners::domain_participant_listener::ParticipantListenerThread,
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        domain_participant_backend::services::domain_participant_service::BUILT_IN_TOPIC_NAME_LIST,
+        listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-        qos_policy::{
-            HistoryQosPolicy, QosPolicyId, ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
-            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
-            LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
-        },
+        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusKind,
         time::Time,
     },
-    rtps::types::{Guid, TopicKind, ENTITYID_PARTICIPANT},
-    runtime::actor::{Actor, ActorAddress},
-    topic_definition::type_support::DdsSerialize,
+    rtps::types::TopicKind,
+    runtime::actor::Actor,
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -65,7 +46,7 @@ pub struct DomainParticipantEntity {
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
     ignored_topic_list: HashSet<InstanceHandle>,
-    participant_listener_thread: Option<ParticipantListenerThread>,
+    listener: Option<Actor<DomainParticipantListenerActor>>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
@@ -75,7 +56,7 @@ impl DomainParticipantEntity {
     pub fn new(
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
-        listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
+        listener: Option<Actor<DomainParticipantListenerActor>>,
         status_kind: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
@@ -83,8 +64,6 @@ impl DomainParticipantEntity {
         builtin_subscriber: SubscriberEntity,
         topic_list: HashMap<String, TopicEntity>,
     ) -> Self {
-        let participant_listener_thread = listener.map(ParticipantListenerThread::new);
-
         Self {
             domain_id,
             instance_handle,
@@ -106,7 +85,7 @@ impl DomainParticipantEntity {
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
             ignored_topic_list: HashSet::new(),
-            participant_listener_thread,
+            listener,
             status_kind,
             status_condition,
         }
@@ -124,16 +103,12 @@ impl DomainParticipantEntity {
         self.instance_handle
     }
 
-    pub fn get_statuscondition(&self) -> ActorAddress<StatusConditionActor> {
-        self.status_condition.address()
+    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+        &self.status_condition
     }
 
     pub fn builtin_subscriber(&self) -> &SubscriberEntity {
         &self.builtin_subscriber
-    }
-
-    pub fn announce_deleted_participant(&mut self) -> DdsResult<()> {
-        todo!()
     }
 
     pub fn add_discovered_topic(&mut self, topic_builtin_topic_data: TopicBuiltinTopicData) {
@@ -396,6 +371,18 @@ impl DomainParticipantEntity {
         self.user_defined_publisher_list.is_empty()
             && self.user_defined_subscriber_list.is_empty()
             && no_user_defined_topics
+    }
+
+    pub fn status_kind(&self) -> &[StatusKind] {
+        &self.status_kind
+    }
+
+    pub fn listener(&self) -> Option<&Actor<DomainParticipantListenerActor>> {
+        self.listener.as_ref()
+    }
+
+    pub fn domain_id(&self) -> i32 {
+        self.domain_id
     }
 }
 
