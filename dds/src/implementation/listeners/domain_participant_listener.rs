@@ -51,3 +51,22 @@ impl MailHandler<TriggerRequestedDeadlineMissed> for DomainParticipantListenerAc
         );
     }
 }
+
+pub struct TriggerSampleRejected {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: SampleRejectedStatus,
+}
+impl Mail for TriggerSampleRejected {
+    type Result = ();
+}
+impl MailHandler<TriggerSampleRejected> for DomainParticipantListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerSampleRejected,
+    ) -> <TriggerSampleRejected as Mail>::Result {
+        block_on(
+            self.listener
+                .on_sample_rejected(message.the_reader, message.status),
+        );
+    }
+}

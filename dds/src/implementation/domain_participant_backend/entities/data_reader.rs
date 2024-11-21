@@ -860,6 +860,13 @@ impl DataReaderEntity {
         self.sample_rejected_status.total_count_change += 1;
     }
 
+    pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
+        let status = self.sample_rejected_status.clone();
+        self.sample_rejected_status.total_count_change = 0;
+
+        status
+    }
+
     pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         let status = self.subscription_matched_status.clone();
 

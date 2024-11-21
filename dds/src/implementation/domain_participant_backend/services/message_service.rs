@@ -9,6 +9,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             entities::data_reader::AddChangeResult, services::discovery_service,
         },
+        listeners::domain_participant_listener,
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -103,11 +104,40 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                         sample_rejected_status_kind,
                     );
 
-                    data_reader.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
+                    if self
+                        .domain_participant
+                        .status_kind()
+                        .contains(&StatusKind::SampleRejected)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_sample_rejected_status();
+                        if let Some(l) = self.domain_participant.listener() {
+                            l.send_actor_mail(domain_participant_listener::TriggerSampleRejected {
+                                status,
+                                the_reader,
+                            });
+                        }
+                    }
+
+                    self.domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_mut_data_reader(message.data_reader_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
                             state: StatusKind::SampleRejected,
-                        },
-                    );
+                        });
                 }
             }
         }
