@@ -267,6 +267,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                                         .clone(),
                                     subscriber_handle: subscriber.instance_handle(),
                                     data_reader_handle: data_reader.instance_handle(),
+                                    participant_address: message.participant_address.clone(),
                                 })
                                 .ok();
                         }
@@ -336,6 +337,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                                         subscription_builtin_topic_data.clone(),
                                     publisher_handle: publisher.instance_handle(),
                                     data_writer_handle: data_writer.instance_handle(),
+                                    participant_address: message.participant_address.clone(),
                                 })
                                 .ok();
                         }

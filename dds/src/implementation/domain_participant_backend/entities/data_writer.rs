@@ -52,7 +52,7 @@ pub struct DataWriterEntity {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    data_writer_listener_thread: Option<DataWriterListenerThread>,
+    listener: Option<DataWriterListenerThread>,
     status_kind: Vec<StatusKind>,
     max_seq_num: Option<SequenceNumber>,
     last_change_sequence_number: SequenceNumber,
@@ -71,7 +71,7 @@ impl DataWriterEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        data_writer_listener_thread: Option<DataWriterListenerThread>,
+        listener: Option<DataWriterListenerThread>,
         status_kind: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
@@ -87,7 +87,7 @@ impl DataWriterEntity {
             offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
             enabled: false,
             status_condition,
-            data_writer_listener_thread,
+            listener,
             status_kind,
             max_seq_num: None,
             last_change_sequence_number: 0,
@@ -388,10 +388,6 @@ impl DataWriterEntity {
         self.publication_matched_status.current_count_change += 1;
         self.publication_matched_status.total_count += 1;
         self.publication_matched_status.total_count_change += 1;
-        self.status_condition
-            .send_actor_mail(status_condition_actor::AddCommunicationState {
-                state: StatusKind::PublicationMatched,
-            });
     }
 
     pub fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
@@ -411,6 +407,7 @@ impl DataWriterEntity {
     ) {
         if !self.incompatible_subscription_list.contains(&handle) {
             self.offered_incompatible_qos_status.total_count += 1;
+            self.offered_incompatible_qos_status.total_count_change += 1;
             self.offered_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
 
             self.incompatible_subscription_list.insert(handle);
@@ -431,11 +428,13 @@ impl DataWriterEntity {
                         })
                 }
             }
-            self.status_condition
-                .send_actor_mail(status_condition_actor::AddCommunicationState {
-                    state: StatusKind::OfferedIncompatibleQos,
-                });
         }
+    }
+
+    pub fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
+        let status = self.offered_incompatible_qos_status.clone();
+        self.offered_incompatible_qos_status.total_count_change = 0;
+        status
     }
 
     pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
@@ -492,5 +491,9 @@ impl DataWriterEntity {
     ) {
         self.instance_deadline_missed_task
             .insert(instance_handle, task);
+    }
+
+    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+        &self.status_condition
     }
 }

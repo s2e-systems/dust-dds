@@ -18,9 +18,7 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    rtps::types::TopicKind,
     runtime::actor::Actor,
-    xtypes::dynamic_type::DynamicType,
 };
 
 use super::{publisher::PublisherEntity, subscriber::SubscriberEntity, topic::TopicEntity};
@@ -45,7 +43,7 @@ pub struct DomainParticipantEntity {
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
     ignored_subcriptions: HashSet<InstanceHandle>,
-    ignored_topic_list: HashSet<InstanceHandle>,
+    _ignored_topic_list: HashSet<InstanceHandle>,
     listener: Option<Actor<DomainParticipantListenerActor>>,
     status_kind: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
@@ -84,7 +82,7 @@ impl DomainParticipantEntity {
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
             ignored_subcriptions: HashSet::new(),
-            ignored_topic_list: HashSet::new(),
+            _ignored_topic_list: HashSet::new(),
             listener,
             status_kind,
             status_condition,
@@ -381,20 +379,16 @@ impl DomainParticipantEntity {
         self.listener.as_ref()
     }
 
+    pub fn set_listener(
+        &mut self,
+        listener: Option<Actor<DomainParticipantListenerActor>>,
+        status_kind: Vec<StatusKind>,
+    ) {
+        self.listener = listener;
+        self.status_kind = status_kind;
+    }
+
     pub fn domain_id(&self) -> i32 {
         self.domain_id
     }
-}
-
-fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
-    for index in 0..type_support.get_member_count() {
-        if let Ok(m) = type_support.get_member_by_index(index) {
-            if let Ok(d) = m.get_descriptor() {
-                if d.is_key {
-                    return TopicKind::WithKey;
-                }
-            }
-        }
-    }
-    TopicKind::NoKey
 }

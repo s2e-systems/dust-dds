@@ -1,7 +1,8 @@
 use super::{entities::domain_participant::DomainParticipantEntity, handle::InstanceHandleCounter};
 use crate::{
     dds_async::{
-        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
+        domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         subscriber::SubscriberAsync, topic::TopicAsync,
     },
     infrastructure::{
@@ -91,6 +92,43 @@ impl DomainParticipantActor {
             data_reader.status_condition().address(),
             self.get_subscriber_async(participant_address.clone(), subscriber_handle)?,
             self.get_topic_async(participant_address, data_reader.topic_name().to_owned())?,
+        ))
+    }
+
+    pub fn get_publisher_async(
+        &self,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+    ) -> DdsResult<PublisherAsync> {
+        Ok(PublisherAsync::new(
+            publisher_handle,
+            self.domain_participant
+                .get_publisher(publisher_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .status_condition()
+                .address(),
+            self.get_participant_async(participant_address),
+        ))
+    }
+
+    pub fn get_data_writer_async<Foo>(
+        &self,
+        participant_address: ActorAddress<DomainParticipantActor>,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+    ) -> DdsResult<DataWriterAsync<Foo>> {
+        let data_writer = self
+            .domain_participant
+            .get_publisher(publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        Ok(DataWriterAsync::new(
+            data_writer_handle,
+            data_writer.status_condition().address(),
+            self.get_publisher_async(participant_address.clone(), publisher_handle)?,
+            self.get_topic_async(participant_address, data_writer.topic_name().to_owned())?,
         ))
     }
 

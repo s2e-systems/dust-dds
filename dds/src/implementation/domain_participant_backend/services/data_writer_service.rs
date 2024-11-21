@@ -451,6 +451,7 @@ impl MailHandler<Enable> for DomainParticipantActor {
                         subscription_builtin_topic_data,
                         publisher_handle: message.publisher_handle,
                         data_writer_handle: message.data_writer_handle,
+                        participant_address: message.participant_address.clone(),
                     })
                     .ok();
             }

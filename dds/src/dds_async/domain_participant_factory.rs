@@ -8,9 +8,7 @@ use crate::{
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        domain_participant_backend::services::{
-            discovery_service, domain_participant_service, message_service,
-        },
+        domain_participant_backend::services::{discovery_service, domain_participant_service},
         domain_participant_factory::domain_participant_factory_actor::{
             self, DomainParticipantFactoryActor,
         },

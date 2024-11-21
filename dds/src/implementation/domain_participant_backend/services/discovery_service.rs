@@ -6,9 +6,13 @@ use crate::{
         SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
-    implementation::domain_participant_backend::{
-        domain_participant_actor::DomainParticipantActor,
-        entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
+    implementation::{
+        domain_participant_backend::{
+            domain_participant_actor::DomainParticipantActor,
+            entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
+        },
+        listeners::domain_participant_listener,
+        status_condition::status_condition_actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -20,8 +24,9 @@ use crate::{
             LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
             RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
         },
+        status::StatusKind,
     },
-    runtime::actor::{Mail, MailHandler},
+    runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsSerialize,
 };
 
@@ -283,7 +288,7 @@ impl MailHandler<AddDiscoveredTopic> for DomainParticipantActor {
             && topic.type_name() == message.topic_builtin_topic_data.get_type_name()
         {
             if !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data) {
-                topic.add_inconsistent_topic_status();
+                topic.increment_inconsistent_topic_status();
             }
         }
         Ok(())
@@ -317,6 +322,7 @@ pub struct AddDiscoveredReader {
     pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddDiscoveredReader {
     type Result = DdsResult<()>;
@@ -391,11 +397,85 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                 if incompatible_qos_policy_list.is_empty() {
                     data_writer
                         .add_matched_subscription(message.subscription_builtin_topic_data.clone());
+
+                    if self
+                        .domain_participant
+                        .status_kind()
+                        .contains(&StatusKind::PublicationMatched)
+                    {
+                        let the_writer = self.get_data_writer_async(
+                            message.participant_address,
+                            message.publisher_handle,
+                            message.data_writer_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_writer(message.data_writer_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_publication_matched_status();
+                        if let Some(l) = self.domain_participant.listener() {
+                            l.send_actor_mail(
+                                domain_participant_listener::TriggerPublicationMatched {
+                                    the_writer,
+                                    status,
+                                },
+                            );
+                        }
+                    }
+
+                    self.domain_participant
+                        .get_mut_publisher(message.publisher_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_mut_data_writer(message.data_writer_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::PublicationMatched,
+                        });
                 } else {
                     data_writer.add_incompatible_subscription(
                         InstanceHandle::new(message.subscription_builtin_topic_data.key().value),
                         incompatible_qos_policy_list,
                     );
+
+                    if self
+                        .domain_participant
+                        .status_kind()
+                        .contains(&StatusKind::OfferedIncompatibleQos)
+                    {
+                        let the_writer = self.get_data_writer_async(
+                            message.participant_address,
+                            message.publisher_handle,
+                            message.data_writer_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_writer(message.data_writer_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_offered_incompatible_qos_status();
+                        if let Some(l) = self.domain_participant.listener() {
+                            l.send_actor_mail(
+                                domain_participant_listener::TriggerOfferedIncompatibleQos {
+                                    the_writer,
+                                    status,
+                                },
+                            );
+                        }
+                    }
+
+                    self.domain_participant
+                        .get_mut_publisher(message.publisher_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_mut_data_writer(message.data_writer_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::OfferedIncompatibleQos,
+                        });
                 }
             }
         }
@@ -437,6 +517,7 @@ pub struct AddDiscoveredWriter {
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddDiscoveredWriter {
     type Result = DdsResult<()>;
@@ -509,11 +590,85 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                 if incompatible_qos_policy_list.is_empty() {
                     data_reader
                         .add_matched_publication(message.publication_builtin_topic_data.clone());
+
+                    if self
+                        .domain_participant
+                        .status_kind()
+                        .contains(&StatusKind::SubscriptionMatched)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_subscription_matched_status();
+                        if let Some(l) = self.domain_participant.listener() {
+                            l.send_actor_mail(
+                                domain_participant_listener::TriggerSubscriptionMatched {
+                                    the_reader,
+                                    status,
+                                },
+                            );
+                        }
+                    }
+
+                    self.domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_mut_data_reader(message.data_reader_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::SubscriptionMatched,
+                        });
                 } else {
                     data_reader.add_requested_incompatible_qos(
                         InstanceHandle::new(message.publication_builtin_topic_data.key().value),
                         incompatible_qos_policy_list,
                     );
+
+                    if self
+                        .domain_participant
+                        .status_kind()
+                        .contains(&StatusKind::RequestedIncompatibleQos)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_requested_incompatible_qos_status();
+                        if let Some(l) = self.domain_participant.listener() {
+                            l.send_actor_mail(
+                                domain_participant_listener::TriggerRequestedIncompatibleQos {
+                                    the_reader,
+                                    status,
+                                },
+                            );
+                        }
+                    }
+
+                    self.domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .get_mut_data_reader(message.data_reader_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::RequestedIncompatibleQos,
+                        });
                 }
             }
         }

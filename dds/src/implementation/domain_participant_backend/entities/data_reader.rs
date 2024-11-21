@@ -779,10 +779,6 @@ impl DataReaderEntity {
         self.subscription_matched_status.current_count_change += 1;
         self.subscription_matched_status.total_count += 1;
         self.subscription_matched_status.total_count_change += 1;
-        self.status_condition
-            .send_actor_mail(status_condition_actor::AddCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            });
     }
 
     pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
@@ -838,11 +834,13 @@ impl DataReaderEntity {
                         })
                 }
             }
-            self.status_condition
-                .send_actor_mail(status_condition_actor::AddCommunicationState {
-                    state: StatusKind::RequestedIncompatibleQos,
-                });
         }
+    }
+
+    pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
+        let status = self.requested_incompatible_qos_status.clone();
+        self.requested_incompatible_qos_status.total_count_change = 0;
+        status
     }
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {

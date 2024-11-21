@@ -21,7 +21,7 @@ pub struct SubscriberEntity {
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    subscriber_listener_thread: Option<SubscriberListenerThread>,
+    listener: Option<SubscriberListenerThread>,
     status_kind: Vec<StatusKind>,
 }
 
@@ -30,7 +30,7 @@ impl SubscriberEntity {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         status_condition: Actor<StatusConditionActor>,
-        subscriber_listener_thread: Option<SubscriberListenerThread>,
+        listener: Option<SubscriberListenerThread>,
         status_kind: Vec<StatusKind>,
     ) -> Self {
         Self {
@@ -40,7 +40,7 @@ impl SubscriberEntity {
             enabled: false,
             default_data_reader_qos: DataReaderQos::default(),
             status_condition,
-            subscriber_listener_thread,
+            listener,
             status_kind,
         }
     }
@@ -121,7 +121,7 @@ impl SubscriberEntity {
         a_listener: Option<SubscriberListenerThread>,
         status_kind: Vec<StatusKind>,
     ) {
-        self.subscriber_listener_thread = a_listener;
+        self.listener = a_listener;
         self.status_kind = status_kind;
     }
 

@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use tracing::error;
-
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dds_async::{
         domain_participant_listener::DomainParticipantListenerAsync,
@@ -20,8 +18,9 @@ use crate::{
             },
         },
         listeners::{
+            domain_participant_listener::DomainParticipantListenerActor,
             publisher_listener::PublisherListenerThread,
-            subscriber_listener::SubscriberListenerThread,
+            subscriber_listener::SubscriberListenerThread, topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -36,7 +35,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-use super::{discovery_service, message_service, topic_service};
+use super::{discovery_service, topic_service};
 
 pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 4] = [
     DCPS_PARTICIPANT,
@@ -64,8 +63,10 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
         };
 
         let publisher_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.listener_executor.handle(),
+        );
         let publisher_status_condition_address = status_condition.address();
         let mut publisher = PublisherEntity::new(
             publisher_qos,
@@ -152,7 +153,10 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
             subscriber_qos,
-            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle()),
+            Actor::spawn(
+                StatusConditionActor::default(),
+                &self.listener_executor.handle(),
+            ),
             message.a_listener.map(SubscriberListenerThread::new),
             status_kind,
         );
@@ -216,7 +220,7 @@ impl MailHandler<DeleteUserDefinedSubscriber> for DomainParticipantActor {
     }
 }
 
-pub struct CreateUserDefinedTopic {
+pub struct CreateTopic {
     pub topic_name: String,
     pub type_name: String,
     pub qos: QosKind<TopicQos>,
@@ -225,14 +229,11 @@ pub struct CreateUserDefinedTopic {
     pub type_support: Arc<dyn DynamicType + Send + Sync>,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for CreateUserDefinedTopic {
+impl Mail for CreateTopic {
     type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
 }
-impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: CreateUserDefinedTopic,
-    ) -> <CreateUserDefinedTopic as Mail>::Result {
+impl MailHandler<CreateTopic> for DomainParticipantActor {
+    fn handle(&mut self, message: CreateTopic) -> <CreateTopic as Mail>::Result {
         if self
             .domain_participant
             .get_topic(&message.topic_name)
@@ -251,18 +252,22 @@ impl MailHandler<CreateUserDefinedTopic> for DomainParticipantActor {
         };
 
         let topic_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.listener_executor.handle(),
+        );
         let topic_status_condition_address = status_condition.address();
-
+        let topic_listener = message
+            .a_listener
+            .map(|l| Actor::spawn(TopicListenerActor::new(l), &self.listener_executor.handle()));
         let topic = TopicEntity::new(
             qos,
             message.type_name,
             message.topic_name.clone(),
             topic_handle,
             status_condition,
-            None,
-            vec![],
+            topic_listener,
+            message.mask,
             message.type_support,
         );
 
@@ -371,7 +376,10 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
                     type_name.clone(),
                     message.topic_name.clone(),
                     topic_handle,
-                    Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle()),
+                    Actor::spawn(
+                        StatusConditionActor::default(),
+                        &self.listener_executor.handle(),
+                    ),
                     None,
                     vec![],
                     message.type_support,
@@ -708,25 +716,24 @@ impl MailHandler<GetDomainParticipantQos> for DomainParticipantActor {
     }
 }
 
-pub struct SetDomainParticipantListener {
+pub struct SetListener {
     pub listener: Option<Box<dyn DomainParticipantListenerAsync + Send>>,
     pub status_kind: Vec<StatusKind>,
 }
-impl Mail for SetDomainParticipantListener {
+impl Mail for SetListener {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetDomainParticipantListener> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetDomainParticipantListener,
-    ) -> <SetDomainParticipantListener as Mail>::Result {
-        todo!()
-        // if let Some(l) = self.participant_listener_thread.take() {
-        //     l.join()?;
-        // }
-        // self.participant_listener_thread = message.listener.map(ParticipantListenerThread::new);
-        // self.status_kind = message.status_kind;
-        // Ok(())
+impl MailHandler<SetListener> for DomainParticipantActor {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+        let participant_listener = message.listener.map(|l| {
+            Actor::spawn(
+                DomainParticipantListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        self.domain_participant
+            .set_listener(participant_listener, message.status_kind);
+        Ok(())
     }
 }
 

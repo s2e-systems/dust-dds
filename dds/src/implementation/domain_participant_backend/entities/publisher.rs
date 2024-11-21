@@ -22,7 +22,7 @@ pub struct PublisherEntity {
     default_datawriter_qos: DataWriterQos,
     publisher_listener_thread: Option<PublisherListenerThread>,
     status_kind: Vec<StatusKind>,
-    _status_condition: Actor<StatusConditionActor>,
+    status_condition: Actor<StatusConditionActor>,
 }
 
 impl PublisherEntity {
@@ -41,7 +41,7 @@ impl PublisherEntity {
             default_datawriter_qos: DataWriterQos::default(),
             publisher_listener_thread,
             status_kind,
-            _status_condition: status_condition,
+            status_condition,
         }
     }
 
@@ -129,5 +129,9 @@ impl PublisherEntity {
     ) {
         self.publisher_listener_thread = a_listener;
         self.status_kind = status_kind;
+    }
+
+    pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
+        &self.status_condition
     }
 }

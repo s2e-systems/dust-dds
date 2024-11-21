@@ -91,8 +91,10 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
         );
 
         let data_reader_status_kind = message.mask.to_vec();
-        let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.backend_executor.handle());
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.listener_executor.handle(),
+        );
         let data_reader_listener_thread = None;
         let data_reader = DataReaderEntity::new(
             reader_handle,

@@ -163,7 +163,7 @@ impl DomainParticipantAsync {
     ) -> DdsResult<TopicAsync> {
         let (guid, topic_status_condition_address) = self
             .participant_address
-            .send_actor_mail(domain_participant_service::CreateUserDefinedTopic {
+            .send_actor_mail(domain_participant_service::CreateTopic {
                 topic_name: topic_name.to_string(),
                 type_name: type_name.to_string(),
                 qos,
@@ -473,7 +473,7 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address
-            .send_actor_mail(domain_participant_service::SetDomainParticipantListener {
+            .send_actor_mail(domain_participant_service::SetListener {
                 listener: a_listener,
                 status_kind: mask.to_vec(),
             })?

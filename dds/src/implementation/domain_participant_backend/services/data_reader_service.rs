@@ -361,6 +361,7 @@ impl MailHandler<Enable> for DomainParticipantActor {
                         publication_builtin_topic_data,
                         subscriber_handle: message.subscriber_handle,
                         data_reader_handle: message.data_reader_handle,
+                        participant_address: message.participant_address.clone(),
                     })
                     .ok();
             }
@@ -374,19 +375,6 @@ impl MailHandler<Enable> for DomainParticipantActor {
                 .ok();
         }
         Ok(())
-    }
-}
-
-pub struct GetInstanceHandle {
-    pub subscriber_handle: InstanceHandle,
-    pub data_reader_handle: InstanceHandle,
-}
-impl Mail for GetInstanceHandle {
-    type Result = DdsResult<InstanceHandle>;
-}
-impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
-    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        todo!()
     }
 }
 

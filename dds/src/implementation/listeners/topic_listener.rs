@@ -1,51 +1,11 @@
-use crate::{
-    dds_async::topic_listener::TopicListenerAsync,
-    infrastructure::error::DdsResult,
-    runtime::{
-        executor::block_on,
-        mpsc::{mpsc_channel, MpscSender},
-    },
-};
-use std::thread::JoinHandle;
+use crate::dds_async::topic_listener::TopicListenerAsync;
 
-pub enum TopicListenerOperation {}
-
-pub struct TopicListenerMessage {
-    pub _listener_operation: TopicListenerOperation,
+pub struct TopicListenerActor {
+    listener: Box<dyn TopicListenerAsync + Send>,
 }
 
-pub struct TopicListenerThread {
-    _thread: JoinHandle<()>,
-    _sender: MpscSender<TopicListenerMessage>,
-}
-
-impl TopicListenerThread {
-    fn new(_listener: Box<dyn TopicListenerAsync + Send>) -> Self {
-        let (sender, _receiver) = mpsc_channel::<TopicListenerMessage>();
-        let thread = std::thread::Builder::new()
-            .name("Topic listener".to_string())
-            .spawn(move || {
-                block_on(async {
-                    // TODO
-                    // while let Some(m) = receiver.recv().await {
-                    //     match m.listener_operation {}
-                    // }
-                });
-            })
-            .expect("failed to spawn thread");
-        Self {
-            _thread: thread,
-            _sender: sender,
-        }
-    }
-
-    fn _sender(&self) -> &MpscSender<TopicListenerMessage> {
-        &self._sender
-    }
-
-    fn _join(self) -> DdsResult<()> {
-        self._sender.close();
-        self._thread.join()?;
-        Ok(())
+impl TopicListenerActor {
+    pub fn new(listener: Box<dyn TopicListenerAsync + Send>) -> Self {
+        Self { listener }
     }
 }
