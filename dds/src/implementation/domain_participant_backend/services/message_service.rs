@@ -1,14 +1,10 @@
-use fnmatch_regex::glob_to_regex;
-
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
-        DCPS_TOPIC,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, DCPS_PARTICIPANT,
+        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
@@ -21,13 +17,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos},
-        qos_policy::{
-            DurabilityQosPolicyKind, QosPolicyId, DATA_REPRESENTATION_QOS_POLICY_ID,
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID, XCDR_DATA_REPRESENTATION,
-        },
+        qos_policy::DurabilityQosPolicyKind,
         status::StatusKind,
     },
     rtps::{
@@ -38,7 +28,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize},
+    topic_definition::type_support::DdsDeserialize,
 };
 
 pub struct AddCacheChange {
@@ -113,7 +103,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
         }
-        if let Some(mut reader) = self
+        if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
@@ -184,6 +174,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
 
 pub struct AddBuiltinPublicationsDetectorCacheChange {
     pub cache_change: ReaderCacheChange,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddBuiltinPublicationsDetectorCacheChange {
     type Result = ();
@@ -193,6 +184,33 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
         &mut self,
         message: AddBuiltinPublicationsDetectorCacheChange,
     ) -> <AddBuiltinPublicationsDetectorCacheChange as Mail>::Result {
+        match message.cache_change.kind {
+            ChangeKind::Alive => {
+                if let Ok(publication_builtin_topic_data) =
+                    PublicationBuiltinTopicData::deserialize_data(
+                        message.cache_change.data_value.as_ref(),
+                    )
+                {
+                    self.domain_participant
+                        .add_discovered_writer(publication_builtin_topic_data.clone());
+                    for subscriber in self.domain_participant.subscriber_list() {
+                        for data_reader in subscriber.data_reader_list() {
+                            message
+                                .participant_address
+                                .send_actor_mail(discovery_service::AddDiscoveredWriter {
+                                    publication_builtin_topic_data: publication_builtin_topic_data
+                                        .clone(),
+                                    subscriber_handle: subscriber.instance_handle(),
+                                    data_reader_handle: data_reader.instance_handle(),
+                                })
+                                .ok();
+                        }
+                    }
+                }
+            }
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => todo!(),
+            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
+        }
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
@@ -200,35 +218,6 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
         {
             reader.add_reader_change(message.cache_change).ok();
-            if let Ok(samples) = reader.read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            ) {
-                for (sample_data, sample_info) in samples {
-                    match sample_info.instance_state {
-                        InstanceStateKind::Alive => {
-                            if let Ok(discovered_writer_data) =
-                                DiscoveredWriterData::deserialize_data(
-                                    sample_data
-                                        .expect("Alive samples must contain data")
-                                        .as_ref(),
-                                )
-                            {
-                                todo!()
-                                // self.add_discovered_writer(discovered_writer_data);
-                            }
-                        }
-                        InstanceStateKind::NotAliveDisposed => {
-                            todo!()
-                            // self.remove_discovered_writer(sample_info.instance_handle)
-                        }
-                        InstanceStateKind::NotAliveNoWriters => (),
-                    }
-                }
-            }
         }
     }
 }
@@ -254,7 +243,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                 {
                     self.domain_participant
                         .add_discovered_reader(subscription_builtin_topic_data.clone());
-                    for publisher in self.domain_participant.publisher_list_mut() {
+                    for publisher in self.domain_participant.publisher_list() {
                         for data_writer in publisher.data_writer_list() {
                             message
                                 .participant_address
@@ -300,104 +289,6 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
         {
             reader.add_reader_change(message.cache_change).ok();
         }
-
-        // todo!();
-        // self.status_condition
-        //     .send_actor_mail(status_condition_actor::AddCommunicationState {
-        //         state: StatusKind::DataOnReaders,
-        //     });
-
-        // if let Ok(samples) = reader.read(
-        //     i32::MAX,
-        //     &[SampleStateKind::NotRead],
-        //     ANY_VIEW_STATE,
-        //     ANY_INSTANCE_STATE,
-        //     None,
-        // ) {
-        //     for (sample_data, sample_info) in samples {
-        //         match sample_info.instance_state {
-        //             InstanceStateKind::Alive => {
-        //                 if let Ok(discovered_reader_data) =
-        //                     DiscoveredReaderData::deserialize_data(
-        //                         sample_data
-        //                             .expect("Alive samples must contain data")
-        //                             .as_ref(),
-        //                     )
-        //                 {
-        //                     todo!()
-        //                     // self.add_discovered_reader(discovered_reader_data);
-        //                 }
-        //             }
-        //             InstanceStateKind::NotAliveDisposed => {
-        //                 // for publisher in self.user_defined_publisher_list.iter_mut() {
-        //                 // for data_writer in publisher.data_writer_list_mut() {
-        //                 todo!()
-        //                 // if let Some(r) = data_writer
-        //                 //     .matched_subscription_list
-        //                 //     .remove(&sample_info.instance_handle)
-        //                 // {
-        //                 // let type_name = self.type_name.clone();
-        //                 // let topic_name = self.topic_name.clone();
-        //                 // let participant = publisher.get_participant();
-        //                 // let status_condition_address = self.status_condition.address();
-        //                 // let topic_status_condition_address = self.topic_status_condition.clone();
-        //                 // let topic = TopicAsync::new(
-        //                 //     self.topic_address.clone(),
-        //                 //     topic_status_condition_address,
-        //                 //     type_name,
-        //                 //     topic_name,
-        //                 //     participant,
-        //                 // );
-        //                 // if self.status_kind.contains(&StatusKind::PublicationMatched) {
-        //                 //     let status = self.matched_subscriptions.get_publication_matched_status();
-        //                 //     if let Some(listener) = &self.data_writer_listener_thread {
-        //                 //         listener.sender().send(DataWriterListenerMessage {
-        //                 //             listener_operation: DataWriterListenerOperation::PublicationMatched(status),
-        //                 //             writer_address: data_writer_address,
-        //                 //             status_condition_address,
-        //                 //             publisher,
-        //                 //             topic,
-        //                 //         })?;
-        //                 //     }
-        //                 // } else if publisher_listener_mask.contains(&StatusKind::PublicationMatched) {
-        //                 //     let status = self.matched_subscriptions.get_publication_matched_status();
-        //                 //     if let Some(listener) = publisher_listener {
-        //                 //         listener.send(PublisherListenerMessage {
-        //                 //             listener_operation: PublisherListenerOperation::PublicationMatched(status),
-        //                 //             writer_address: data_writer_address,
-        //                 //             status_condition_address,
-        //                 //             publisher,
-        //                 //             topic,
-        //                 //         })?;
-        //                 //     }
-        //                 // } else if participant_listener_mask.contains(&StatusKind::PublicationMatched) {
-        //                 //     let status = self.matched_subscriptions.get_publication_matched_status();
-        //                 //     if let Some(listener) = participant_listener {
-        //                 //         listener.send(ParticipantListenerMessage {
-        //                 //             listener_operation: ParticipantListenerOperation::PublicationMatched(status),
-        //                 //             listener_kind: ListenerKind::Writer {
-        //                 //                 writer_address: data_writer_address,
-        //                 //                 status_condition_address,
-        //                 //                 publisher,
-        //                 //                 topic,
-        //                 //             },
-        //                 //         })?;
-        //                 //     }
-        //                 // }
-        //                 //     data_writer.status_condition.send_actor_mail(
-        //                 //         status_condition_actor::AddCommunicationState {
-        //                 //             state: StatusKind::PublicationMatched,
-        //                 //         },
-        //                 //     );
-        //                 // }
-        //                 // }
-        //                 // }
-        //             }
-        //             InstanceStateKind::NotAliveNoWriters => (),
-        //         }
-        //     }
-        // }
-        // }
     }
 }
 

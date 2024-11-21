@@ -835,6 +835,25 @@ impl DataReaderEntity {
         Ok(())
     }
 
+    pub fn add_matched_publication(
+        &mut self,
+        publication_builtin_topic_data: PublicationBuiltinTopicData,
+    ) {
+        self.matched_publication_list.insert(
+            InstanceHandle::new(publication_builtin_topic_data.key.value),
+            publication_builtin_topic_data,
+        );
+        self.subscription_matched_status.current_count +=
+            self.matched_publication_list.len() as i32;
+        self.subscription_matched_status.current_count_change += 1;
+        self.subscription_matched_status.total_count += 1;
+        self.subscription_matched_status.total_count_change += 1;
+        self.status_condition
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            });
+    }
+
     pub fn add_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
         self.requested_deadline_missed_status.total_count += 1;
         self.requested_deadline_missed_status.total_count_change += 1;

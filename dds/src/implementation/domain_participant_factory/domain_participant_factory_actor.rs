@@ -663,6 +663,7 @@ impl ReaderHistoryCache for DcpsPublicationsReaderHistoryCache {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,
+                participant_address: self.participant_address.clone(),
             })
             .ok();
     }

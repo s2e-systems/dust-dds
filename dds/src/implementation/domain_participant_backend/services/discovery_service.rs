@@ -11,7 +11,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos},
+        qos::{DataWriterQos, PublisherQos, SubscriberQos},
         qos_policy::{
             QosPolicyId, DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
@@ -310,6 +310,91 @@ impl MailHandler<RemoveDiscoveredReader> for DomainParticipantActor {
     }
 }
 
+pub struct AddDiscoveredWriter {
+    pub publication_builtin_topic_data: PublicationBuiltinTopicData,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+impl Mail for AddDiscoveredWriter {
+    type Result = DdsResult<()>;
+}
+impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
+    fn handle(&mut self, message: AddDiscoveredWriter) -> <AddDiscoveredWriter as Mail>::Result {
+        let subscriber = self
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let is_any_name_matched = message
+            .publication_builtin_topic_data
+            .partition
+            .name
+            .iter()
+            .any(|n| subscriber.qos().partition.name.contains(n));
+
+        let is_any_received_regex_matched_with_partition_qos = message
+            .publication_builtin_topic_data
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| glob_to_regex(n).ok())
+            .any(|regex| {
+                subscriber
+                    .qos()
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
+
+        let is_any_local_regex_matched_with_received_partition_qos = subscriber
+            .qos()
+            .partition
+            .name
+            .iter()
+            .filter_map(|n| glob_to_regex(n).ok())
+            .any(|regex| {
+                message
+                    .publication_builtin_topic_data
+                    .partition
+                    .name
+                    .iter()
+                    .any(|n| regex.is_match(n))
+            });
+
+        let is_partition_matched = message.publication_builtin_topic_data.partition
+            == subscriber.qos().partition
+            || is_any_name_matched
+            || is_any_received_regex_matched_with_partition_qos
+            || is_any_local_regex_matched_with_received_partition_qos;
+        if is_partition_matched {
+            let subscriber_qos = subscriber.qos().clone();
+            let data_reader = subscriber
+                .get_mut_data_reader(message.data_reader_handle)
+                .ok_or(DdsError::AlreadyDeleted)?;
+            let is_matched_topic_name =
+                message.publication_builtin_topic_data.topic_name() == data_reader.topic_name();
+            let is_matched_type_name =
+                message.publication_builtin_topic_data.get_type_name() == data_reader.type_name();
+
+            if is_matched_topic_name && is_matched_type_name {
+                let incompatible_qos_policy_list =
+                    get_discovered_writer_incompatible_qos_policy_list(
+                        &data_reader,
+                        &message.publication_builtin_topic_data,
+                        &subscriber_qos,
+                    );
+                if incompatible_qos_policy_list.is_empty() {
+                    data_reader
+                        .add_matched_publication(message.publication_builtin_topic_data.clone());
+                } else {
+                    todo!("Incompatible reader found")
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 fn get_discovered_reader_incompatible_qos_policy_list(
     writer_qos: &DataWriterQos,
     discovered_reader_data: &SubscriptionBuiltinTopicData,
@@ -359,6 +444,68 @@ fn get_discovered_reader_incompatible_qos_policy_list(
             && discovered_reader_data.representation().value.is_empty()))
     {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
+    }
+
+    incompatible_qos_policy_list
+}
+
+fn get_discovered_writer_incompatible_qos_policy_list(
+    data_reader: &DataReaderEntity,
+    publication_builtin_topic_data: &PublicationBuiltinTopicData,
+    subscriber_qos: &SubscriberQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+
+    if subscriber_qos.presentation.access_scope
+        > publication_builtin_topic_data.presentation().access_scope
+        || subscriber_qos.presentation.coherent_access
+            != publication_builtin_topic_data
+                .presentation()
+                .coherent_access
+        || subscriber_qos.presentation.ordered_access
+            != publication_builtin_topic_data.presentation().ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if &data_reader.qos().durability > publication_builtin_topic_data.durability() {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if &data_reader.qos().deadline < publication_builtin_topic_data.deadline() {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if &data_reader.qos().latency_budget > publication_builtin_topic_data.latency_budget() {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if &data_reader.qos().liveliness > publication_builtin_topic_data.liveliness() {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if data_reader.qos().reliability.kind > publication_builtin_topic_data.reliability().kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if &data_reader.qos().destination_order > publication_builtin_topic_data.destination_order() {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    if data_reader.qos().ownership.kind != publication_builtin_topic_data.ownership().kind {
+        incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
+    }
+
+    let writer_offered_representation = publication_builtin_topic_data
+        .representation()
+        .value
+        .first()
+        .unwrap_or(&XCDR_DATA_REPRESENTATION);
+    if !data_reader
+        .qos()
+        .representation
+        .value
+        .contains(writer_offered_representation)
+    {
+        // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
+        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
+            && data_reader.qos().representation.value.is_empty())
+        {
+            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
+        }
     }
 
     incompatible_qos_policy_list

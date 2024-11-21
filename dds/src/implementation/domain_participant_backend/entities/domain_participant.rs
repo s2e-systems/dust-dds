@@ -59,6 +59,7 @@ pub struct DomainParticipantEntity {
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
     discovered_reader_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
+    discovered_writer_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
     enabled: bool,
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
@@ -99,6 +100,7 @@ impl DomainParticipantEntity {
             discovered_participant_list: HashMap::new(),
             discovered_topic_list: HashMap::new(),
             discovered_reader_list: HashMap::new(),
+            discovered_writer_list: HashMap::new(),
             enabled: false,
             ignored_participants: HashSet::new(),
             ignored_publications: HashSet::new(),
@@ -251,399 +253,399 @@ impl DomainParticipantEntity {
         }
     }
 
-    pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
-        let discovered_writer_participant_guid = Guid::new(
-            discovered_writer_data
-                .writer_proxy
-                .remote_writer_guid
-                .prefix(),
-            ENTITYID_PARTICIPANT,
-        );
-        let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
-            discovered_writer_participant_guid.into(),
-        ));
-        let discovered_writer_handle =
-            InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value);
-        let is_publication_ignored = self
-            .ignored_publications
-            .contains(&discovered_writer_handle);
-        if !is_publication_ignored && !is_participant_ignored {
-            if let Some(_) = self.discovered_participant_list.get(&InstanceHandle::new(
-                discovered_writer_participant_guid.into(),
-            )) {
-                for subscriber in self.user_defined_subscriber_list.iter_mut() {
-                    let is_any_name_matched = discovered_writer_data
-                        .dds_publication_data
-                        .partition
-                        .name
-                        .iter()
-                        .any(|n| subscriber.qos().partition.name.contains(n));
+    // pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
+    //     let discovered_writer_participant_guid = Guid::new(
+    //         discovered_writer_data
+    //             .writer_proxy
+    //             .remote_writer_guid
+    //             .prefix(),
+    //         ENTITYID_PARTICIPANT,
+    //     );
+    //     let is_participant_ignored = self.ignored_participants.contains(&InstanceHandle::new(
+    //         discovered_writer_participant_guid.into(),
+    //     ));
+    //     let discovered_writer_handle =
+    //         InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value);
+    //     let is_publication_ignored = self
+    //         .ignored_publications
+    //         .contains(&discovered_writer_handle);
+    //     if !is_publication_ignored && !is_participant_ignored {
+    //         if let Some(_) = self.discovered_participant_list.get(&InstanceHandle::new(
+    //             discovered_writer_participant_guid.into(),
+    //         )) {
+    //             for subscriber in self.user_defined_subscriber_list.iter_mut() {
+    //                 let is_any_name_matched = discovered_writer_data
+    //                     .dds_publication_data
+    //                     .partition
+    //                     .name
+    //                     .iter()
+    //                     .any(|n| subscriber.qos().partition.name.contains(n));
 
-                    let is_any_received_regex_matched_with_partition_qos = discovered_writer_data
-                        .dds_publication_data
-                        .partition
-                        .name
-                        .iter()
-                        .filter_map(|n| glob_to_regex(n).ok())
-                        .any(|regex| {
-                            subscriber
-                                .qos()
-                                .partition
-                                .name
-                                .iter()
-                                .any(|n| regex.is_match(n))
-                        });
+    //                 let is_any_received_regex_matched_with_partition_qos = discovered_writer_data
+    //                     .dds_publication_data
+    //                     .partition
+    //                     .name
+    //                     .iter()
+    //                     .filter_map(|n| glob_to_regex(n).ok())
+    //                     .any(|regex| {
+    //                         subscriber
+    //                             .qos()
+    //                             .partition
+    //                             .name
+    //                             .iter()
+    //                             .any(|n| regex.is_match(n))
+    //                     });
 
-                    let is_any_local_regex_matched_with_received_partition_qos = subscriber
-                        .qos()
-                        .partition
-                        .name
-                        .iter()
-                        .filter_map(|n| glob_to_regex(n).ok())
-                        .any(|regex| {
-                            discovered_writer_data
-                                .dds_publication_data
-                                .partition
-                                .name
-                                .iter()
-                                .any(|n| regex.is_match(n))
-                        });
+    //                 let is_any_local_regex_matched_with_received_partition_qos = subscriber
+    //                     .qos()
+    //                     .partition
+    //                     .name
+    //                     .iter()
+    //                     .filter_map(|n| glob_to_regex(n).ok())
+    //                     .any(|regex| {
+    //                         discovered_writer_data
+    //                             .dds_publication_data
+    //                             .partition
+    //                             .name
+    //                             .iter()
+    //                             .any(|n| regex.is_match(n))
+    //                     });
 
-                    let is_partition_matched =
-                        discovered_writer_data.dds_publication_data.partition
-                            == subscriber.qos().partition
-                            || is_any_name_matched
-                            || is_any_received_regex_matched_with_partition_qos
-                            || is_any_local_regex_matched_with_received_partition_qos;
-                    if is_partition_matched {
-                        let subscriber_qos = subscriber.qos().clone();
-                        for data_reader in subscriber.data_reader_list_mut().filter(|dr| {
-                            dr.topic_name()
-                                == discovered_writer_data.dds_publication_data.topic_name
-                        }) {
-                            let publication_builtin_topic_data =
-                                &discovered_writer_data.dds_publication_data;
-                            if publication_builtin_topic_data.topic_name == data_reader.topic_name()
-                                && publication_builtin_topic_data.type_name
-                                    == data_reader.type_name()
-                            {
-                                let instance_handle = InstanceHandle::new(
-                                    discovered_writer_data.dds_publication_data.key.value,
-                                );
-                                let incompatible_qos_policy_list =
-                                    get_discovered_writer_incompatible_qos_policy_list(
-                                        data_reader,
-                                        &discovered_writer_data,
-                                        &subscriber_qos,
-                                    );
-                                if incompatible_qos_policy_list.is_empty() {
-                                    todo!()
-                                    // let insert_matched_publication_result =
-                                    //     data_reader.matched_publication_list.insert(
-                                    //         instance_handle,
-                                    //         publication_builtin_topic_data.clone(),
-                                    //     );
-                                    // match insert_matched_publication_result {
-                                    //     Some(value) if &value != publication_builtin_topic_data => {
-                                    //         data_reader.subscription_matched_status.total_count +=
-                                    //             1;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .total_count_change += 1;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .last_publication_handle = discovered_writer_handle;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .current_count += 1;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .current_count_change += 1;
+    //                 let is_partition_matched =
+    //                     discovered_writer_data.dds_publication_data.partition
+    //                         == subscriber.qos().partition
+    //                         || is_any_name_matched
+    //                         || is_any_received_regex_matched_with_partition_qos
+    //                         || is_any_local_regex_matched_with_received_partition_qos;
+    //                 if is_partition_matched {
+    //                     let subscriber_qos = subscriber.qos().clone();
+    //                     for data_reader in subscriber.data_reader_list_mut().filter(|dr| {
+    //                         dr.topic_name()
+    //                             == discovered_writer_data.dds_publication_data.topic_name
+    //                     }) {
+    //                         let publication_builtin_topic_data =
+    //                             &discovered_writer_data.dds_publication_data;
+    //                         if publication_builtin_topic_data.topic_name == data_reader.topic_name()
+    //                             && publication_builtin_topic_data.type_name
+    //                                 == data_reader.type_name()
+    //                         {
+    //                             let instance_handle = InstanceHandle::new(
+    //                                 discovered_writer_data.dds_publication_data.key.value,
+    //                             );
+    //                             let incompatible_qos_policy_list =
+    //                                 get_discovered_writer_incompatible_qos_policy_list(
+    //                                     data_reader,
+    //                                     &discovered_writer_data,
+    //                                     &subscriber_qos,
+    //                                 );
+    //                             if incompatible_qos_policy_list.is_empty() {
+    //                                 todo!()
+    //                                 // let insert_matched_publication_result =
+    //                                 //     data_reader.matched_publication_list.insert(
+    //                                 //         instance_handle,
+    //                                 //         publication_builtin_topic_data.clone(),
+    //                                 //     );
+    //                                 // match insert_matched_publication_result {
+    //                                 //     Some(value) if &value != publication_builtin_topic_data => {
+    //                                 //         data_reader.subscription_matched_status.total_count +=
+    //                                 //             1;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .total_count_change += 1;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .last_publication_handle = discovered_writer_handle;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .current_count += 1;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .current_count_change += 1;
 
-                                    //         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-                                    //         // let type_name = self.type_name.clone();
-                                    //         // let topic_name = self.topic_name.clone();
-                                    //         // let reader_address = data_reader_address.clone();
-                                    //         // let status_condition_address = self.status_condition.address();
-                                    //         // let subscriber = subscriber.clone();
+    //                                 //         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
+    //                                 //         // let type_name = self.type_name.clone();
+    //                                 //         // let topic_name = self.topic_name.clone();
+    //                                 //         // let reader_address = data_reader_address.clone();
+    //                                 //         // let status_condition_address = self.status_condition.address();
+    //                                 //         // let subscriber = subscriber.clone();
 
-                                    //         // let topic_status_condition_address = self.topic_status_condition.clone();
-                                    //         // let topic = TopicAsync::new(
-                                    //         //     self.topic_address.clone(),
-                                    //         //     topic_status_condition_address.clone(),
-                                    //         //     type_name.clone(),
-                                    //         //     topic_name.clone(),
-                                    //         //     subscriber.get_participant(),
-                                    //         // );
-                                    //         // if self
-                                    //         //     .data_reader_status_kind
-                                    //         //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
-                                    //         // {
-                                    //         //     let status = self
-                                    //         //         .subscription_matched_status
-                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                    //         //     if let Some(listener) = &self.data_reader_listener_thread {
-                                    //         //         listener.sender().send(DataReaderListenerMessage {
-                                    //         //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
-                                    //         //             reader_address,
-                                    //         //             status_condition_address,
-                                    //         //             subscriber,
-                                    //         //             topic,
-                                    //         //         })?;
-                                    //         //     }
-                                    //         // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                    //         //     let status = self
-                                    //         //         .subscription_matched_status
-                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                    //         //     if let Some(listener) = subscriber_listener {
-                                    //         //         listener.send(SubscriberListenerMessage {
-                                    //         //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
-                                    //         //             reader_address,
-                                    //         //             status_condition_address,
-                                    //         //             subscriber,
-                                    //         //             topic,
-                                    //         //         })?;
-                                    //         //     }
-                                    //         // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                    //         //     let status = self
-                                    //         //         .subscription_matched_status
-                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                    //         //     if let Some(listener) = participant_listener {
-                                    //         //         listener.send(ParticipantListenerMessage {
-                                    //         //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
-                                    //         //             listener_kind: ListenerKind::Reader {
-                                    //         //                 reader_address,
-                                    //         //                 status_condition_address,
-                                    //         //                 subscriber,
-                                    //         //                 topic,
-                                    //         //             },
-                                    //         //         })?;
-                                    //         //     }
-                                    //         // }
-                                    //         data_reader.status_condition.send_actor_mail(
-                                    //             status_condition_actor::AddCommunicationState {
-                                    //                 state: StatusKind::SubscriptionMatched,
-                                    //             },
-                                    //         );
-                                    //     }
-                                    //     None => {
-                                    //         data_reader.subscription_matched_status.total_count +=
-                                    //             1;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .total_count_change += 1;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .last_publication_handle = discovered_writer_handle;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .current_count += 1;
-                                    //         data_reader
-                                    //             .subscription_matched_status
-                                    //             .current_count_change += 1;
+    //                                 //         // let topic_status_condition_address = self.topic_status_condition.clone();
+    //                                 //         // let topic = TopicAsync::new(
+    //                                 //         //     self.topic_address.clone(),
+    //                                 //         //     topic_status_condition_address.clone(),
+    //                                 //         //     type_name.clone(),
+    //                                 //         //     topic_name.clone(),
+    //                                 //         //     subscriber.get_participant(),
+    //                                 //         // );
+    //                                 //         // if self
+    //                                 //         //     .data_reader_status_kind
+    //                                 //         //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+    //                                 //         // {
+    //                                 //         //     let status = self
+    //                                 //         //         .subscription_matched_status
+    //                                 //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+    //                                 //         //     if let Some(listener) = &self.data_reader_listener_thread {
+    //                                 //         //         listener.sender().send(DataReaderListenerMessage {
+    //                                 //         //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+    //                                 //         //             reader_address,
+    //                                 //         //             status_condition_address,
+    //                                 //         //             subscriber,
+    //                                 //         //             topic,
+    //                                 //         //         })?;
+    //                                 //         //     }
+    //                                 //         // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+    //                                 //         //     let status = self
+    //                                 //         //         .subscription_matched_status
+    //                                 //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+    //                                 //         //     if let Some(listener) = subscriber_listener {
+    //                                 //         //         listener.send(SubscriberListenerMessage {
+    //                                 //         //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+    //                                 //         //             reader_address,
+    //                                 //         //             status_condition_address,
+    //                                 //         //             subscriber,
+    //                                 //         //             topic,
+    //                                 //         //         })?;
+    //                                 //         //     }
+    //                                 //         // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+    //                                 //         //     let status = self
+    //                                 //         //         .subscription_matched_status
+    //                                 //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+    //                                 //         //     if let Some(listener) = participant_listener {
+    //                                 //         //         listener.send(ParticipantListenerMessage {
+    //                                 //         //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+    //                                 //         //             listener_kind: ListenerKind::Reader {
+    //                                 //         //                 reader_address,
+    //                                 //         //                 status_condition_address,
+    //                                 //         //                 subscriber,
+    //                                 //         //                 topic,
+    //                                 //         //             },
+    //                                 //         //         })?;
+    //                                 //         //     }
+    //                                 //         // }
+    //                                 //         data_reader.status_condition.send_actor_mail(
+    //                                 //             status_condition_actor::AddCommunicationState {
+    //                                 //                 state: StatusKind::SubscriptionMatched,
+    //                                 //             },
+    //                                 //         );
+    //                                 //     }
+    //                                 //     None => {
+    //                                 //         data_reader.subscription_matched_status.total_count +=
+    //                                 //             1;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .total_count_change += 1;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .last_publication_handle = discovered_writer_handle;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .current_count += 1;
+    //                                 //         data_reader
+    //                                 //             .subscription_matched_status
+    //                                 //             .current_count_change += 1;
 
-                                    //         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
-                                    //         // let type_name = self.type_name.clone();
-                                    //         // let topic_name = self.topic_name.clone();
-                                    //         // let reader_address = data_reader_address.clone();
-                                    //         // let status_condition_address = self.status_condition.address();
-                                    //         // let subscriber = subscriber.clone();
+    //                                 //         // const SUBSCRIPTION_MATCHED_STATUS_KIND: &StatusKind = &StatusKind::SubscriptionMatched;
+    //                                 //         // let type_name = self.type_name.clone();
+    //                                 //         // let topic_name = self.topic_name.clone();
+    //                                 //         // let reader_address = data_reader_address.clone();
+    //                                 //         // let status_condition_address = self.status_condition.address();
+    //                                 //         // let subscriber = subscriber.clone();
 
-                                    //         // let topic_status_condition_address = self.topic_status_condition.clone();
-                                    //         // let topic = TopicAsync::new(
-                                    //         //     self.topic_address.clone(),
-                                    //         //     topic_status_condition_address.clone(),
-                                    //         //     type_name.clone(),
-                                    //         //     topic_name.clone(),
-                                    //         //     subscriber.get_participant(),
-                                    //         // );
-                                    //         // if self
-                                    //         //     .data_reader_status_kind
-                                    //         //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
-                                    //         // {
-                                    //         //     let status = self
-                                    //         //         .subscription_matched_status
-                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                    //         //     if let Some(listener) = &self.data_reader_listener_thread {
-                                    //         //         listener.sender().send(DataReaderListenerMessage {
-                                    //         //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
-                                    //         //             reader_address,
-                                    //         //             status_condition_address,
-                                    //         //             subscriber,
-                                    //         //             topic,
-                                    //         //         })?;
-                                    //         //     }
-                                    //         // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                    //         //     let status = self
-                                    //         //         .subscription_matched_status
-                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                    //         //     if let Some(listener) = subscriber_listener {
-                                    //         //         listener.send(SubscriberListenerMessage {
-                                    //         //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
-                                    //         //             reader_address,
-                                    //         //             status_condition_address,
-                                    //         //             subscriber,
-                                    //         //             topic,
-                                    //         //         })?;
-                                    //         //     }
-                                    //         // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
-                                    //         //     let status = self
-                                    //         //         .subscription_matched_status
-                                    //         //         .read_and_reset(self.matched_publication_list.len() as i32);
-                                    //         //     if let Some(listener) = participant_listener {
-                                    //         //         listener.send(ParticipantListenerMessage {
-                                    //         //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
-                                    //         //             listener_kind: ListenerKind::Reader {
-                                    //         //                 reader_address,
-                                    //         //                 status_condition_address,
-                                    //         //                 subscriber,
-                                    //         //                 topic,
-                                    //         //             },
-                                    //         //         })?;
-                                    //         //     }
-                                    //         // }
-                                    //         data_reader.status_condition.send_actor_mail(
-                                    //             status_condition_actor::AddCommunicationState {
-                                    //                 state: StatusKind::SubscriptionMatched,
-                                    //             },
-                                    //         );
-                                    //     }
-                                    //     _ => (),
+    //                                 //         // let topic_status_condition_address = self.topic_status_condition.clone();
+    //                                 //         // let topic = TopicAsync::new(
+    //                                 //         //     self.topic_address.clone(),
+    //                                 //         //     topic_status_condition_address.clone(),
+    //                                 //         //     type_name.clone(),
+    //                                 //         //     topic_name.clone(),
+    //                                 //         //     subscriber.get_participant(),
+    //                                 //         // );
+    //                                 //         // if self
+    //                                 //         //     .data_reader_status_kind
+    //                                 //         //     .contains(SUBSCRIPTION_MATCHED_STATUS_KIND)
+    //                                 //         // {
+    //                                 //         //     let status = self
+    //                                 //         //         .subscription_matched_status
+    //                                 //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+    //                                 //         //     if let Some(listener) = &self.data_reader_listener_thread {
+    //                                 //         //         listener.sender().send(DataReaderListenerMessage {
+    //                                 //         //             listener_operation: DataReaderListenerOperation::SubscriptionMatched(status),
+    //                                 //         //             reader_address,
+    //                                 //         //             status_condition_address,
+    //                                 //         //             subscriber,
+    //                                 //         //             topic,
+    //                                 //         //         })?;
+    //                                 //         //     }
+    //                                 //         // } else if subscriber_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+    //                                 //         //     let status = self
+    //                                 //         //         .subscription_matched_status
+    //                                 //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+    //                                 //         //     if let Some(listener) = subscriber_listener {
+    //                                 //         //         listener.send(SubscriberListenerMessage {
+    //                                 //         //             listener_operation: SubscriberListenerOperation::SubscriptionMatched(status),
+    //                                 //         //             reader_address,
+    //                                 //         //             status_condition_address,
+    //                                 //         //             subscriber,
+    //                                 //         //             topic,
+    //                                 //         //         })?;
+    //                                 //         //     }
+    //                                 //         // } else if participant_listener_mask.contains(SUBSCRIPTION_MATCHED_STATUS_KIND) {
+    //                                 //         //     let status = self
+    //                                 //         //         .subscription_matched_status
+    //                                 //         //         .read_and_reset(self.matched_publication_list.len() as i32);
+    //                                 //         //     if let Some(listener) = participant_listener {
+    //                                 //         //         listener.send(ParticipantListenerMessage {
+    //                                 //         //             listener_operation: ParticipantListenerOperation::SubscriptionMatched(status),
+    //                                 //         //             listener_kind: ListenerKind::Reader {
+    //                                 //         //                 reader_address,
+    //                                 //         //                 status_condition_address,
+    //                                 //         //                 subscriber,
+    //                                 //         //                 topic,
+    //                                 //         //             },
+    //                                 //         //         })?;
+    //                                 //         //     }
+    //                                 //         // }
+    //                                 //         data_reader.status_condition.send_actor_mail(
+    //                                 //             status_condition_actor::AddCommunicationState {
+    //                                 //                 state: StatusKind::SubscriptionMatched,
+    //                                 //             },
+    //                                 //         );
+    //                                 //     }
+    //                                 //     _ => (),
 
-                                    // }
-                                } else {
-                                    data_reader.add_requested_incompatible_qos(
-                                        instance_handle,
-                                        incompatible_qos_policy_list,
-                                    );
+    //                                 // }
+    //                             } else {
+    //                                 data_reader.add_requested_incompatible_qos(
+    //                                     instance_handle,
+    //                                     incompatible_qos_policy_list,
+    //                                 );
 
-                                    // let type_name = self.type_name.clone();
-                                    // let topic_name = self.topic_name.clone();
-                                    // let topic_status_condition_address = self.topic_status_condition.clone();
-                                    // let reader_address = data_reader_address.clone();
-                                    // let status_condition_address = self.status_condition.address();
-                                    // let subscriber = subscriber.clone();
-                                    // let topic = TopicAsync::new(
-                                    //     self.topic_address.clone(),
-                                    //     topic_status_condition_address.clone(),
-                                    //     type_name.clone(),
-                                    //     topic_name.clone(),
-                                    //     subscriber.get_participant(),
-                                    // );
-                                    // if self
-                                    //     .data_reader_status_kind
-                                    //     .contains(&StatusKind::RequestedIncompatibleQos)
-                                    // {
-                                    //     let status = self.requested_incompatible_qos_status.read_and_reset();
-                                    //     if let Some(listener) = &self.data_reader_listener_thread {
-                                    //         listener.sender().send(DataReaderListenerMessage {
-                                    //             listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
-                                    //                 status,
-                                    //             ),
-                                    //             reader_address,
-                                    //             status_condition_address,
-                                    //             subscriber,
-                                    //             topic,
-                                    //         })?;
-                                    //     }
-                                    // } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
-                                    //     let status = self.requested_incompatible_qos_status.read_and_reset();
-                                    //     if let Some(listener) = subscriber_listener {
-                                    //         listener.send(SubscriberListenerMessage {
-                                    //             listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
-                                    //                 status,
-                                    //             ),
-                                    //             reader_address,
-                                    //             status_condition_address,
-                                    //             subscriber,
-                                    //             topic,
-                                    //         })?;
-                                    //     }
-                                    // } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
-                                    //     let status = self.requested_incompatible_qos_status.read_and_reset();
-                                    //     if let Some(listener) = participant_listener {
-                                    //         listener.send(ParticipantListenerMessage {
-                                    //             listener_operation: ParticipantListenerOperation::RequestedIncompatibleQos(
-                                    //                 status,
-                                    //             ),
-                                    //             listener_kind: ListenerKind::Reader {
-                                    //                 reader_address,
-                                    //                 status_condition_address,
-                                    //                 subscriber,
-                                    //                 topic,
-                                    //             },
-                                    //         })?;
-                                    //     }
-                                    // }
-                                }
-                            }
-                        }
-                    }
-                }
+    //                                 // let type_name = self.type_name.clone();
+    //                                 // let topic_name = self.topic_name.clone();
+    //                                 // let topic_status_condition_address = self.topic_status_condition.clone();
+    //                                 // let reader_address = data_reader_address.clone();
+    //                                 // let status_condition_address = self.status_condition.address();
+    //                                 // let subscriber = subscriber.clone();
+    //                                 // let topic = TopicAsync::new(
+    //                                 //     self.topic_address.clone(),
+    //                                 //     topic_status_condition_address.clone(),
+    //                                 //     type_name.clone(),
+    //                                 //     topic_name.clone(),
+    //                                 //     subscriber.get_participant(),
+    //                                 // );
+    //                                 // if self
+    //                                 //     .data_reader_status_kind
+    //                                 //     .contains(&StatusKind::RequestedIncompatibleQos)
+    //                                 // {
+    //                                 //     let status = self.requested_incompatible_qos_status.read_and_reset();
+    //                                 //     if let Some(listener) = &self.data_reader_listener_thread {
+    //                                 //         listener.sender().send(DataReaderListenerMessage {
+    //                                 //             listener_operation: DataReaderListenerOperation::RequestedIncompatibleQos(
+    //                                 //                 status,
+    //                                 //             ),
+    //                                 //             reader_address,
+    //                                 //             status_condition_address,
+    //                                 //             subscriber,
+    //                                 //             topic,
+    //                                 //         })?;
+    //                                 //     }
+    //                                 // } else if subscriber_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
+    //                                 //     let status = self.requested_incompatible_qos_status.read_and_reset();
+    //                                 //     if let Some(listener) = subscriber_listener {
+    //                                 //         listener.send(SubscriberListenerMessage {
+    //                                 //             listener_operation: SubscriberListenerOperation::RequestedIncompatibleQos(
+    //                                 //                 status,
+    //                                 //             ),
+    //                                 //             reader_address,
+    //                                 //             status_condition_address,
+    //                                 //             subscriber,
+    //                                 //             topic,
+    //                                 //         })?;
+    //                                 //     }
+    //                                 // } else if participant_listener_mask.contains(&StatusKind::RequestedIncompatibleQos) {
+    //                                 //     let status = self.requested_incompatible_qos_status.read_and_reset();
+    //                                 //     if let Some(listener) = participant_listener {
+    //                                 //         listener.send(ParticipantListenerMessage {
+    //                                 //             listener_operation: ParticipantListenerOperation::RequestedIncompatibleQos(
+    //                                 //                 status,
+    //                                 //             ),
+    //                                 //             listener_kind: ListenerKind::Reader {
+    //                                 //                 reader_address,
+    //                                 //                 status_condition_address,
+    //                                 //                 subscriber,
+    //                                 //                 topic,
+    //                                 //             },
+    //                                 //         })?;
+    //                                 //     }
+    //                                 // }
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             }
 
-                // Add writer topic to discovered topic list using the writer instance handle
-                let topic_instance_handle =
-                    InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value);
-                let writer_topic = TopicBuiltinTopicData {
-                    key: BuiltInTopicKey::default(),
-                    name: discovered_writer_data
-                        .dds_publication_data
-                        .topic_name()
-                        .to_owned(),
-                    type_name: discovered_writer_data
-                        .dds_publication_data
-                        .get_type_name()
-                        .to_owned(),
-                    durability: discovered_writer_data
-                        .dds_publication_data
-                        .durability()
-                        .clone(),
-                    deadline: discovered_writer_data
-                        .dds_publication_data
-                        .deadline()
-                        .clone(),
-                    latency_budget: discovered_writer_data
-                        .dds_publication_data
-                        .latency_budget()
-                        .clone(),
-                    liveliness: discovered_writer_data
-                        .dds_publication_data
-                        .liveliness()
-                        .clone(),
-                    reliability: discovered_writer_data
-                        .dds_publication_data
-                        .reliability()
-                        .clone(),
-                    transport_priority: TransportPriorityQosPolicy::default(),
-                    lifespan: discovered_writer_data
-                        .dds_publication_data
-                        .lifespan()
-                        .clone(),
-                    destination_order: discovered_writer_data
-                        .dds_publication_data
-                        .destination_order()
-                        .clone(),
-                    history: HistoryQosPolicy::default(),
-                    resource_limits: ResourceLimitsQosPolicy::default(),
-                    ownership: discovered_writer_data
-                        .dds_publication_data
-                        .ownership()
-                        .clone(),
-                    topic_data: discovered_writer_data
-                        .dds_publication_data
-                        .topic_data()
-                        .clone(),
-                    representation: discovered_writer_data
-                        .dds_publication_data
-                        .representation()
-                        .clone(),
-                };
+    //             // Add writer topic to discovered topic list using the writer instance handle
+    //             let topic_instance_handle =
+    //                 InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value);
+    //             let writer_topic = TopicBuiltinTopicData {
+    //                 key: BuiltInTopicKey::default(),
+    //                 name: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .topic_name()
+    //                     .to_owned(),
+    //                 type_name: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .get_type_name()
+    //                     .to_owned(),
+    //                 durability: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .durability()
+    //                     .clone(),
+    //                 deadline: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .deadline()
+    //                     .clone(),
+    //                 latency_budget: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .latency_budget()
+    //                     .clone(),
+    //                 liveliness: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .liveliness()
+    //                     .clone(),
+    //                 reliability: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .reliability()
+    //                     .clone(),
+    //                 transport_priority: TransportPriorityQosPolicy::default(),
+    //                 lifespan: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .lifespan()
+    //                     .clone(),
+    //                 destination_order: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .destination_order()
+    //                     .clone(),
+    //                 history: HistoryQosPolicy::default(),
+    //                 resource_limits: ResourceLimitsQosPolicy::default(),
+    //                 ownership: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .ownership()
+    //                     .clone(),
+    //                 topic_data: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .topic_data()
+    //                     .clone(),
+    //                 representation: discovered_writer_data
+    //                     .dds_publication_data
+    //                     .representation()
+    //                     .clone(),
+    //             };
 
-                self.discovered_topic_list
-                    .insert(topic_instance_handle, writer_topic);
-            }
-        }
-    }
+    //             self.discovered_topic_list
+    //                 .insert(topic_instance_handle, writer_topic);
+    //         }
+    //     }
+    // }
 
     // pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
     //     let discovered_reader_participant_guid = Guid::new(
@@ -1049,6 +1051,16 @@ impl DomainParticipantEntity {
         self.discovered_reader_list.values()
     }
 
+    pub fn add_discovered_writer(
+        &mut self,
+        publication_builtin_topic_data: PublicationBuiltinTopicData,
+    ) {
+        self.discovered_writer_list.insert(
+            InstanceHandle::new(publication_builtin_topic_data.key().value),
+            publication_builtin_topic_data,
+        );
+    }
+
     pub fn default_subscriber_qos(&self) -> &SubscriberQos {
         &self.default_subscriber_qos
     }
@@ -1090,6 +1102,10 @@ impl DomainParticipantEntity {
         Some(self.user_defined_subscriber_list.remove(i))
     }
 
+    pub fn subscriber_list(&mut self) -> impl Iterator<Item = &SubscriberEntity> {
+        self.user_defined_subscriber_list.iter()
+    }
+
     pub fn drain_subscriber_list(&mut self) -> impl Iterator<Item = SubscriberEntity> + '_ {
         self.user_defined_subscriber_list.drain(..)
     }
@@ -1121,6 +1137,10 @@ impl DomainParticipantEntity {
 
     pub fn drain_publisher_list(&mut self) -> impl Iterator<Item = PublisherEntity> + '_ {
         self.user_defined_publisher_list.drain(..)
+    }
+
+    pub fn publisher_list(&mut self) -> impl Iterator<Item = &PublisherEntity> {
+        self.user_defined_publisher_list.iter()
     }
 
     pub fn publisher_list_mut(&mut self) -> impl Iterator<Item = &mut PublisherEntity> {
@@ -1160,119 +1180,6 @@ impl DomainParticipantEntity {
             && self.user_defined_subscriber_list.is_empty()
             && no_user_defined_topics
     }
-}
-
-fn get_discovered_writer_incompatible_qos_policy_list(
-    data_reader: &DataReaderEntity,
-    discovered_writer_data: &DiscoveredWriterData,
-    subscriber_qos: &SubscriberQos,
-) -> Vec<QosPolicyId> {
-    let writer_info = &discovered_writer_data.dds_publication_data;
-
-    let mut incompatible_qos_policy_list = Vec::new();
-
-    if subscriber_qos.presentation.access_scope > writer_info.presentation().access_scope
-        || subscriber_qos.presentation.coherent_access != writer_info.presentation().coherent_access
-        || subscriber_qos.presentation.ordered_access != writer_info.presentation().ordered_access
-    {
-        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-    }
-    if &data_reader.qos().durability > writer_info.durability() {
-        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-    }
-    if &data_reader.qos().deadline < writer_info.deadline() {
-        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-    }
-    if &data_reader.qos().latency_budget > writer_info.latency_budget() {
-        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-    }
-    if &data_reader.qos().liveliness > writer_info.liveliness() {
-        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-    }
-    if data_reader.qos().reliability.kind > writer_info.reliability().kind {
-        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-    }
-    if &data_reader.qos().destination_order > writer_info.destination_order() {
-        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-    }
-    if data_reader.qos().ownership.kind != writer_info.ownership().kind {
-        incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
-    }
-
-    let writer_offered_representation = writer_info
-        .representation()
-        .value
-        .first()
-        .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !data_reader
-        .qos()
-        .representation
-        .value
-        .contains(writer_offered_representation)
-    {
-        // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
-        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos().representation.value.is_empty())
-        {
-            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
-        }
-    }
-
-    incompatible_qos_policy_list
-}
-
-fn get_discovered_reader_incompatible_qos_policy_list(
-    writer_qos: &DataWriterQos,
-    discovered_reader_data: &SubscriptionBuiltinTopicData,
-    publisher_qos: &PublisherQos,
-) -> Vec<QosPolicyId> {
-    let mut incompatible_qos_policy_list = Vec::new();
-    if &writer_qos.durability < discovered_reader_data.durability() {
-        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-    }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
-        || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation().coherent_access
-        || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation().ordered_access
-    {
-        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-    }
-    if &writer_qos.deadline > discovered_reader_data.deadline() {
-        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-    }
-    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
-        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-    }
-    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
-        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-    }
-    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
-        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-    }
-    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
-        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-    }
-    if writer_qos.ownership.kind != discovered_reader_data.ownership().kind {
-        incompatible_qos_policy_list.push(OWNERSHIP_QOS_POLICY_ID);
-    }
-
-    let writer_offered_representation = writer_qos
-        .representation
-        .value
-        .first()
-        .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !(discovered_reader_data
-        .representation()
-        .value
-        .contains(writer_offered_representation)
-        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty()))
-    {
-        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
-    }
-
-    incompatible_qos_policy_list
 }
 
 fn get_topic_kind(type_support: &dyn DynamicType) -> TopicKind {
