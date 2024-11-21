@@ -271,17 +271,17 @@ impl MailHandler<GetMatchedPublications> for DomainParticipantActor {
     }
 }
 
-pub struct SetDataReaderQos {
+pub struct SetQos {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub qos: QosKind<DataReaderQos>,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for SetDataReaderQos {
+impl Mail for SetQos {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
-    fn handle(&mut self, message: SetDataReaderQos) -> <SetDataReaderQos as Mail>::Result {
+impl MailHandler<SetQos> for DomainParticipantActor {
+    fn handle(&mut self, message: SetQos) -> <SetQos as Mail>::Result {
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
@@ -310,15 +310,15 @@ impl MailHandler<SetDataReaderQos> for DomainParticipantActor {
     }
 }
 
-pub struct GetDataReaderQos {
+pub struct GetQos {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
 }
-impl Mail for GetDataReaderQos {
+impl Mail for GetQos {
     type Result = DdsResult<DataReaderQos>;
 }
-impl MailHandler<GetDataReaderQos> for DomainParticipantActor {
-    fn handle(&mut self, message: GetDataReaderQos) -> <GetDataReaderQos as Mail>::Result {
+impl MailHandler<GetQos> for DomainParticipantActor {
+    fn handle(&mut self, message: GetQos) -> <GetQos as Mail>::Result {
         Ok(self
             .domain_participant
             .get_subscriber(message.subscriber_handle)

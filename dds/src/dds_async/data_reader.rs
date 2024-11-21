@@ -414,7 +414,7 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`set_qos`](crate::subscription::data_reader::DataReader::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(data_reader_service::SetDataReaderQos {
+            .send_actor_mail(data_reader_service::SetQos {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 qos,
@@ -428,7 +428,7 @@ impl<Foo> DataReaderAsync<Foo> {
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
         self.participant_address()
-            .send_actor_mail(data_reader_service::GetDataReaderQos {
+            .send_actor_mail(data_reader_service::GetQos {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
             })?

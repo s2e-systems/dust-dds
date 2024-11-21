@@ -340,6 +340,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
                 qos,
+                participant_address: self.participant_address().clone(),
             })?
             .receive_reply()
             .await
