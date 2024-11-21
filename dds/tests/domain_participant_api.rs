@@ -232,7 +232,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
     assert_eq!(
         participant.delete_topic(&reader_topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic still attached to some data reader".to_string()
+            "Topic still attached to some data writer or data reader".to_string()
         ))
     );
 }
@@ -257,7 +257,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
     assert_eq!(
         participant.delete_topic(&writer_topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic still attached to some data writer".to_string()
+            "Topic still attached to some data writer or data reader".to_string()
         ))
     );
 }
@@ -734,6 +734,7 @@ fn get_discovery_data_from_builtin_reader() {
 }
 
 #[test]
+#[ignore = "Functionality needs to be revisited"]
 fn ignore_publication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();

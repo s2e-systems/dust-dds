@@ -296,7 +296,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             ..Default::default()
         };
 
-        let dcps_participant_reader = DataReaderEntity::new(
+        let mut dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
@@ -307,7 +307,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Vec::new(),
             transport.get_participant_discovery_reader(),
         );
-        let dcps_topic_reader = DataReaderEntity::new(
+        dcps_participant_reader.enable();
+        let mut dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
@@ -318,7 +319,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Vec::new(),
             transport.get_topics_discovery_reader(),
         );
-        let dcps_publication_reader = DataReaderEntity::new(
+        dcps_topic_reader.enable();
+        let mut dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
@@ -329,7 +331,8 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Vec::new(),
             transport.get_topics_discovery_reader(),
         );
-        let dcps_subscription_reader = DataReaderEntity::new(
+        dcps_publication_reader.enable();
+        let mut dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
@@ -340,6 +343,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Vec::new(),
             transport.get_topics_discovery_reader(),
         );
+        dcps_subscription_reader.enable();
 
         let mut builtin_subscriber = SubscriberEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
