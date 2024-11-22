@@ -65,8 +65,10 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
 
         let topic_name = message.topic_name;
 
-        let status_condition =
-            Actor::spawn(StatusConditionActor::default(), &self.listener_executor.handle());
+        let status_condition = Actor::spawn(
+            StatusConditionActor::default(),
+            &self.listener_executor.handle(),
+        );
         let writer_status_condition_address = status_condition.address();
 
         let data_writer = DataWriterEntity::new(
@@ -328,18 +330,6 @@ impl Mail for Enable {
 }
 impl MailHandler<Enable> for DomainParticipantActor {
     fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        todo!()
-    }
-}
-
-pub struct GetInstanceHandle {
-    pub publisher_handle: InstanceHandle,
-}
-impl Mail for GetInstanceHandle {
-    type Result = DdsResult<InstanceHandle>;
-}
-impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
-    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
         todo!()
     }
 }

@@ -382,7 +382,7 @@ pub struct SetListener {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
-    pub status_kind: Vec<StatusKind>,
+    pub listener_mask: Vec<StatusKind>,
 }
 impl Mail for SetListener {
     type Result = DdsResult<()>;

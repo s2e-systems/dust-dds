@@ -468,45 +468,6 @@ impl MailHandler<Enable> for DomainParticipantActor {
     }
 }
 
-pub struct GetInstanceHandle {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-}
-impl Mail for GetInstanceHandle {
-    type Result = DdsResult<InstanceHandle>;
-}
-impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
-    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        todo!()
-        // let writer = self.writer_address();
-        // if !writer
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     let message_sender_actor = self
-        //         .participant_address()
-        //         .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //         .receive_reply()
-        //         .await;
-        //     writer
-        //         .send_actor_mail(data_writer_actor::Enable {
-        //             data_writer_address: writer.clone(),
-        //             message_sender_actor,
-        //             executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //             timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
-
-        //     self.announce_writer().await?;
-
-        //     self.process_sedp_subscriptions_discovery().await?;
-        // }
-        // Ok(())
-    }
-}
-
 pub struct SetListener {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,

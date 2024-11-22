@@ -7,7 +7,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
-        listeners::data_reader_listener::DataReaderListenerThread,
+        listeners::data_reader_listener::DataReaderListenerActor,
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -140,8 +140,8 @@ pub struct DataReaderEntity {
     data_available_status_changed_flag: bool,
     incompatible_writer_list: HashSet<InstanceHandle>,
     status_condition: Actor<StatusConditionActor>,
-    data_reader_listener_thread: Option<DataReaderListenerThread>,
-    data_reader_status_kind: Vec<StatusKind>,
+    listener: Option<Actor<DataReaderListenerActor>>,
+    listener_mask: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, Guid>,
@@ -156,8 +156,8 @@ impl DataReaderEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        data_reader_listener_thread: Option<DataReaderListenerThread>,
-        data_reader_status_kind: Vec<StatusKind>,
+        listener: Option<Actor<DataReaderListenerActor>>,
+        listener_mask: Vec<StatusKind>,
         transport_reader: Box<dyn TransportReader>,
     ) -> Self {
         Self {
@@ -178,8 +178,8 @@ impl DataReaderEntity {
             data_available_status_changed_flag: false,
             incompatible_writer_list: HashSet::new(),
             status_condition,
-            data_reader_listener_thread,
-            data_reader_status_kind,
+            listener,
+            listener_mask,
             instances: HashMap::new(),
             instance_deadline_missed_task: HashMap::new(),
             instance_ownership: HashMap::new(),
@@ -901,5 +901,13 @@ impl DataReaderEntity {
     ) {
         self.instance_deadline_missed_task
             .insert(instance_handle, task);
+    }
+
+    pub fn listener(&self) -> Option<&Actor<DataReaderListenerActor>> {
+        self.listener.as_ref()
+    }
+
+    pub fn listener_mask(&self) -> &[StatusKind] {
+        &self.listener_mask
     }
 }

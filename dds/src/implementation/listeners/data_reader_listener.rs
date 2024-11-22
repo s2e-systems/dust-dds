@@ -1,73 +1,29 @@
 use crate::{
-    dds_async::{subscriber::SubscriberAsync, topic::TopicAsync},
-    implementation::{
-        any_data_reader_listener::{AnyDataReaderListener, DataReaderListenerOperation},
-        status_condition::status_condition_actor::StatusConditionActor,
-    },
-    infrastructure::error::DdsResult,
-    runtime::{
-        actor::ActorAddress,
-        executor::block_on,
-        mpsc::{mpsc_channel, MpscSender},
-    },
+    dds_async::data_reader::DataReaderAsync,
+    implementation::any_data_reader_listener::AnyDataReaderListener,
+    runtime::actor::{Mail, MailHandler},
 };
-use std::thread::JoinHandle;
 
-pub struct DataReaderListenerMessage {
-    listener_operation: DataReaderListenerOperation,
-    status_condition_address: ActorAddress<StatusConditionActor>,
-    subscriber: SubscriberAsync,
-    topic: TopicAsync,
+pub struct DataReaderListenerActor {
+    listener: Box<dyn AnyDataReaderListener>,
 }
 
-pub struct DataReaderListenerThread {
-    thread: JoinHandle<()>,
-    sender: MpscSender<DataReaderListenerMessage>,
-    subscriber_async: SubscriberAsync,
-}
-
-impl DataReaderListenerThread {
-    pub fn new(
-        mut listener: Box<dyn AnyDataReaderListener + Send>,
-        subscriber_async: SubscriberAsync,
-    ) -> Self {
-        let (sender, receiver) = mpsc_channel::<DataReaderListenerMessage>();
-        let thread = std::thread::Builder::new()
-            .name("Data reader listener".to_string())
-            .spawn(move || {
-                block_on(async {
-                    while let Some(m) = receiver.recv().await {
-                        listener
-                            .call_listener_function(
-                                m.listener_operation,
-                                m.status_condition_address,
-                                m.subscriber,
-                                m.topic,
-                            )
-                            .await;
-                    }
-                });
-            })
-            .expect("failed to spawn thread");
-        Self {
-            thread,
-            sender,
-            subscriber_async,
-        }
-    }
-
-    fn sender(&self) -> &MpscSender<DataReaderListenerMessage> {
-        &self.sender
-    }
-
-    fn join(self) -> DdsResult<()> {
-        self.sender.close();
-        self.thread.join()?;
-        Ok(())
+impl DataReaderListenerActor {
+    pub fn new(listener: Box<dyn AnyDataReaderListener>) -> Self {
+        Self { listener }
     }
 }
-
-pub struct DataReaderActorListener {
-    pub data_reader_listener: Box<dyn AnyDataReaderListener + Send>,
-    pub subscriber_async: SubscriberAsync,
+pub struct TriggerOnDataAvailable {
+    pub the_reader: DataReaderAsync<()>,
+}
+impl Mail for TriggerOnDataAvailable {
+    type Result = ();
+}
+impl MailHandler<TriggerOnDataAvailable> for DataReaderListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOnDataAvailable,
+    ) -> <TriggerOnDataAvailable as Mail>::Result {
+        self.listener.trigger_on_data_available(message.the_reader);
+    }
 }

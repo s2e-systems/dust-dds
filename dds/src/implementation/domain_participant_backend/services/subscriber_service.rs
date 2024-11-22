@@ -1,5 +1,7 @@
 use crate::{
-    dds_async::subscriber_listener::SubscriberListenerAsync,
+    dds_async::{
+        data_reader_listener::DataReaderListenerAsync, subscriber_listener::SubscriberListenerAsync,
+    },
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
@@ -7,6 +9,7 @@ use crate::{
             entities::data_reader::DataReaderEntity,
             services::{data_reader_service, discovery_service, message_service},
         },
+        listeners::data_reader_listener::DataReaderListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -23,22 +26,19 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
-pub struct CreateUserDefinedDataReader {
+pub struct CreateDataReader {
     pub subscriber_handle: InstanceHandle,
     pub topic_name: String,
     pub qos: QosKind<DataReaderQos>,
-    pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
+    pub a_listener: Option<Box<dyn AnyDataReaderListener>>,
     pub mask: Vec<StatusKind>,
     pub domain_participant_address: ActorAddress<DomainParticipantActor>,
 }
-impl Mail for CreateUserDefinedDataReader {
+impl Mail for CreateDataReader {
     type Result = DdsResult<(InstanceHandle, ActorAddress<StatusConditionActor>)>;
 }
-impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: CreateUserDefinedDataReader,
-    ) -> <CreateUserDefinedDataReader as Mail>::Result {
+impl MailHandler<CreateDataReader> for DomainParticipantActor {
+    fn handle(&mut self, message: CreateDataReader) -> <CreateDataReader as Mail>::Result {
         struct UserDefinedReaderHistoryCache {
             pub domain_participant_address: ActorAddress<DomainParticipantActor>,
             pub subscriber_handle: InstanceHandle,
@@ -90,12 +90,17 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             }),
         );
 
-        let data_reader_status_kind = message.mask.to_vec();
+        let listener_mask = message.mask.to_vec();
         let status_condition = Actor::spawn(
             StatusConditionActor::default(),
             &self.listener_executor.handle(),
         );
-        let data_reader_listener_thread = None;
+        let listener = message.a_listener.map(|l| {
+            Actor::spawn(
+                DataReaderListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
         let data_reader = DataReaderEntity::new(
             reader_handle,
             qos,
@@ -103,8 +108,8 @@ impl MailHandler<CreateUserDefinedDataReader> for DomainParticipantActor {
             type_name,
             type_support,
             status_condition,
-            data_reader_listener_thread,
-            data_reader_status_kind,
+            listener,
+            listener_mask,
             transport_reader,
         );
 

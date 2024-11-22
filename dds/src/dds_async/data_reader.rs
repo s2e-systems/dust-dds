@@ -60,6 +60,16 @@ impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         self.subscriber.participant_address()
     }
+
+    pub(crate) fn change_foo_type<T>(self) -> DataReaderAsync<T> {
+        DataReaderAsync {
+            handle: self.handle,
+            status_condition_address: self.status_condition_address,
+            subscriber: self.subscriber,
+            topic: self.topic,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<Foo> Clone for DataReaderAsync<Foo> {
@@ -484,7 +494,7 @@ where
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
                 a_listener: todo!(),
-                status_kind: mask.to_vec(),
+                listener_mask: mask.to_vec(),
             })?
             .receive_reply()
             .await

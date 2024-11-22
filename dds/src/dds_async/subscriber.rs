@@ -59,15 +59,14 @@ impl SubscriberAsync {
     where
         Foo: 'b,
     {
-        let topic_name = a_topic.get_name();
-        let listener = a_listener.map::<Box<dyn AnyDataReaderListener + Send>, _>(|b| Box::new(b));
+        let a_listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
         let (guid, reader_status_condition_address) = self
             .participant_address()
-            .send_actor_mail(subscriber_service::CreateUserDefinedDataReader {
+            .send_actor_mail(subscriber_service::CreateDataReader {
                 subscriber_handle: self.handle,
-                topic_name,
+                topic_name: a_topic.get_name(),
                 qos,
-                a_listener: listener,
+                a_listener,
                 mask: mask.to_vec(),
                 domain_participant_address: self.participant_address().clone(),
             })?

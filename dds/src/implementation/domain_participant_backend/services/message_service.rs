@@ -9,7 +9,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             entities::data_reader::AddChangeResult, services::discovery_service,
         },
-        listeners::domain_participant_listener,
+        listeners::{data_reader_listener, domain_participant_listener},
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -65,8 +65,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             self.backend_executor.handle().spawn(async move {
                                 loop {
                                     timer_handle.sleep(deadline_missed_period.into()).await;
-                                    message
-                                        .participant_address
+                                    participant_address
                                         .send_actor_mail(event_service::RequestedDeadlineMissed {
                                             subscriber_handle: message.subscriber_handle,
                                             data_reader_handle: message.data_reader_handle,
@@ -89,7 +88,34 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                         },
                     );
 
-                    subscriber
+                    if subscriber
+                        .get_mut_data_reader(message.data_reader_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::DataAvailable)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(data_reader_listener::TriggerOnDataAvailable {
+                                the_reader,
+                            });
+                        }
+                    }
+
+                    self.domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
                         .get_mut_data_reader(message.data_reader_handle)
                         .ok_or(DdsError::AlreadyDeleted)?
                         .status_condition()
