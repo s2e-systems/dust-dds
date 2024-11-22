@@ -1,7 +1,8 @@
 use crate::{
     implementation::{
         domain_participant_backend::domain_participant_actor::DomainParticipantActor,
-        listeners::domain_participant_listener, status_condition::status_condition_actor,
+        listeners::{data_reader_listener, domain_participant_listener},
+        status_condition::status_condition_actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -35,7 +36,30 @@ impl MailHandler<RequestedDeadlineMissed> for DomainParticipantActor {
         data_reader.remove_instance_ownership(&message.change_instance_handle);
         data_reader.increment_requested_deadline_missed_status(message.change_instance_handle);
 
-        if self
+        if data_reader
+            .listener_mask()
+            .contains(&StatusKind::RequestedDeadlineMissed)
+        {
+            let status = data_reader.get_requested_deadline_missed_status();
+            let the_reader = self.get_data_reader_async(
+                message.participant_address,
+                message.subscriber_handle,
+                message.data_reader_handle,
+            )?;
+            if let Some(l) = self
+                .domain_participant
+                .get_mut_subscriber(message.subscriber_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_mut_data_reader(message.data_reader_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .listener()
+            {
+                l.send_actor_mail(data_reader_listener::TriggerOnRequestedDeadlineMissed {
+                    the_reader,
+                    status,
+                });
+            }
+        } else if self
             .domain_participant
             .status_kind()
             .contains(&StatusKind::RequestedDeadlineMissed)

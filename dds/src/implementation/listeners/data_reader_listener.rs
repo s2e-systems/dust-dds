@@ -1,6 +1,7 @@
 use crate::{
     dds_async::data_reader::DataReaderAsync,
     implementation::any_data_reader_listener::AnyDataReaderListener,
+    infrastructure::status::RequestedDeadlineMissedStatus,
     runtime::actor::{Mail, MailHandler},
 };
 
@@ -25,5 +26,22 @@ impl MailHandler<TriggerOnDataAvailable> for DataReaderListenerActor {
         message: TriggerOnDataAvailable,
     ) -> <TriggerOnDataAvailable as Mail>::Result {
         self.listener.trigger_on_data_available(message.the_reader);
+    }
+}
+
+pub struct TriggerOnRequestedDeadlineMissed {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: RequestedDeadlineMissedStatus,
+}
+impl Mail for TriggerOnRequestedDeadlineMissed {
+    type Result = ();
+}
+impl MailHandler<TriggerOnRequestedDeadlineMissed> for DataReaderListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOnRequestedDeadlineMissed,
+    ) -> <TriggerOnRequestedDeadlineMissed as Mail>::Result {
+        self.listener
+            .trigger_on_requested_deadline_missed(message.the_reader, message.status);
     }
 }
