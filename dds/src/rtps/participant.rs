@@ -529,49 +529,60 @@ impl RtpsParticipant {
     }
 
     pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
-        for reader in &mut self.user_defined_reader_list {
-            if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
-                let reliability_kind = discovered_writer_data
-                    .dds_publication_data
-                    .reliability()
-                    .into();
-                let durability_kind = discovered_writer_data
-                    .dds_publication_data
-                    .durability()
-                    .into();
-                reader.add_matched_writer(
-                    &discovered_writer_data.writer_proxy,
-                    reliability_kind,
-                    durability_kind,
-                    &self.default_unicast_locator_list,
-                    &self.default_multicast_locator_list,
-                );
+        if !self
+            .discovered_writer_list
+            .contains(&discovered_writer_data)
+        {
+            for reader in &mut self.user_defined_reader_list {
+                if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
+                    let reliability_kind = discovered_writer_data
+                        .dds_publication_data
+                        .reliability()
+                        .into();
+                    let durability_kind = discovered_writer_data
+                        .dds_publication_data
+                        .durability()
+                        .into();
+                    reader.add_matched_writer(
+                        &discovered_writer_data.writer_proxy,
+                        reliability_kind,
+                        durability_kind,
+                        &self.default_unicast_locator_list,
+                        &self.default_multicast_locator_list,
+                    );
+                }
             }
+            self.discovered_writer_list.push(discovered_writer_data);
         }
-        self.discovered_writer_list.push(discovered_writer_data);
     }
 
     pub fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
-        for writer in &mut self.user_defined_writer_list {
-            if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name() {
-                let reliability_kind = discovered_reader_data
-                    .dds_subscription_data
-                    .reliability()
-                    .into();
-                let durability_kind = discovered_reader_data
-                    .dds_subscription_data
-                    .durability()
-                    .into();
-                writer.add_matched_reader(
-                    &discovered_reader_data.reader_proxy,
-                    reliability_kind,
-                    durability_kind,
-                    &self.default_unicast_locator_list,
-                    &self.default_multicast_locator_list,
-                );
+        if !self
+            .discovered_reader_list
+            .contains(&discovered_reader_data)
+        {
+            for writer in &mut self.user_defined_writer_list {
+                if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name()
+                {
+                    let reliability_kind = discovered_reader_data
+                        .dds_subscription_data
+                        .reliability()
+                        .into();
+                    let durability_kind = discovered_reader_data
+                        .dds_subscription_data
+                        .durability()
+                        .into();
+                    writer.add_matched_reader(
+                        &discovered_reader_data.reader_proxy,
+                        reliability_kind,
+                        durability_kind,
+                        &self.default_unicast_locator_list,
+                        &self.default_multicast_locator_list,
+                    );
+                }
             }
+            self.discovered_reader_list.push(discovered_reader_data);
         }
-        self.discovered_reader_list.push(discovered_reader_data);
     }
 
     pub fn participant_proxy(&self) -> ParticipantProxy {
@@ -592,7 +603,7 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_writer(&mut self, writer_guid: Guid, topic_name: String) -> Guid {
+    pub fn create_writer(&mut self, writer_guid: Guid, topic_name: String) {
         let mut writer =
             RtpsStatefulWriter::new(writer_guid, topic_name, self.message_sender.clone());
         for discovered_reader_data in &self.discovered_reader_list {
@@ -615,7 +626,6 @@ impl RtpsParticipant {
             }
         }
         self.user_defined_writer_list.push(writer);
-        writer_guid
     }
 
     pub fn delete_writer(&mut self, writer_guid: Guid) {
@@ -735,7 +745,7 @@ impl Mail for CreateWriter {
 }
 impl MailHandler<CreateWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
-        let guid = self.create_writer(message.writer_guid, message.topic_name);
+        self.create_writer(message.writer_guid, message.topic_name);
 
         struct RtpsUserDefinedWriterHistoryCache {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
@@ -779,7 +789,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
 
         Box::new(RtpsUserDefinedWriterHistoryCache {
             rtps_participant_address: message.rtps_participant_address,
-            guid,
+            guid: message.writer_guid,
         })
     }
 }
