@@ -54,7 +54,7 @@ impl MailHandler<RequestedDeadlineMissed> for DomainParticipantActor {
                 .ok_or(DdsError::AlreadyDeleted)?
                 .listener()
             {
-                l.send_actor_mail(data_reader_listener::TriggerOnRequestedDeadlineMissed {
+                l.send_actor_mail(data_reader_listener::TriggerRequestedDeadlineMissed {
                     the_reader,
                     status,
                 });

@@ -7,7 +7,7 @@ use crate::{
             entities::data_writer::DataWriterEntity,
         },
         listeners::{
-            data_writer_listener::DataWriterListenerThread,
+            data_writer_listener::DataWriterListenerActor,
             publisher_listener::PublisherListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
@@ -70,7 +70,12 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             &self.listener_executor.handle(),
         );
         let writer_status_condition_address = status_condition.address();
-
+        let listener = message.a_listener.map(|l| {
+            Actor::spawn(
+                DataWriterListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
         let data_writer = DataWriterEntity::new(
             writer_handle,
             transport_writer,
@@ -78,7 +83,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             type_name,
             type_support,
             status_condition,
-            message.a_listener.map(DataWriterListenerThread::new),
+            listener,
             message.mask,
             qos,
         );

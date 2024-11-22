@@ -125,7 +125,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             .ok_or(DdsError::AlreadyDeleted)?
                             .listener()
                         {
-                            l.send_actor_mail(data_reader_listener::TriggerOnDataAvailable {
+                            l.send_actor_mail(data_reader_listener::TriggerDataAvailable {
                                 the_reader,
                             });
                         }
@@ -174,7 +174,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             .ok_or(DdsError::AlreadyDeleted)?
                             .listener()
                         {
-                            l.send_actor_mail(data_reader_listener::TriggerOnSampleRejected {
+                            l.send_actor_mail(data_reader_listener::TriggerSampleRejected {
                                 the_reader,
                                 status,
                             });

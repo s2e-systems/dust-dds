@@ -1,64 +1,50 @@
-use std::thread::JoinHandle;
-
 use crate::{
-    dds_async::{publisher::PublisherAsync, topic::TopicAsync},
-    implementation::{
-        any_data_writer_listener::{AnyDataWriterListener, DataWriterListenerOperation},
-        domain_participant_backend::entities::data_writer::DataWriterEntity,
-        status_condition::status_condition_actor::StatusConditionActor,
-    },
-    infrastructure::error::DdsResult,
-    runtime::{
-        actor::ActorAddress,
-        executor::block_on,
-        mpsc::{mpsc_channel, MpscSender},
-    },
+    dds_async::data_writer::DataWriterAsync,
+    implementation::any_data_writer_listener::AnyDataWriterListener,
+    infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
+    runtime::actor::{Mail, MailHandler},
 };
 
-pub struct DataWriterListenerMessage {
-    listener_operation: DataWriterListenerOperation,
-    writer_address: ActorAddress<DataWriterEntity>,
-    status_condition_address: ActorAddress<StatusConditionActor>,
-    publisher: PublisherAsync,
-    topic: TopicAsync,
+pub struct DataWriterListenerActor {
+    listener: Box<dyn AnyDataWriterListener>,
 }
 
-pub struct DataWriterListenerThread {
-    thread: JoinHandle<()>,
-    sender: MpscSender<DataWriterListenerMessage>,
+impl DataWriterListenerActor {
+    pub fn new(listener: Box<dyn AnyDataWriterListener>) -> Self {
+        Self { listener }
+    }
 }
 
-impl DataWriterListenerThread {
-    pub fn new(mut listener: Box<dyn AnyDataWriterListener + Send>) -> Self {
-        let (sender, receiver) = mpsc_channel::<DataWriterListenerMessage>();
-        let thread = std::thread::Builder::new()
-            .name("Data writer listener".to_string())
-            .spawn(move || {
-                block_on(async {
-                    while let Some(m) = receiver.recv().await {
-                        listener
-                            .call_listener_function(
-                                m.listener_operation,
-                                m.writer_address,
-                                m.status_condition_address,
-                                m.publisher,
-                                m.topic,
-                            )
-                            .await;
-                    }
-                });
-            })
-            .expect("failed to spawn thread");
-        Self { thread, sender }
+pub struct TriggerPublicationMatched {
+    pub the_writer: DataWriterAsync<()>,
+    pub status: PublicationMatchedStatus,
+}
+impl Mail for TriggerPublicationMatched {
+    type Result = ();
+}
+impl MailHandler<TriggerPublicationMatched> for DataWriterListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerPublicationMatched,
+    ) -> <TriggerPublicationMatched as Mail>::Result {
+        self.listener
+            .trigger_on_publication_matched(message.the_writer, message.status);
     }
+}
 
-    fn sender(&self) -> &MpscSender<DataWriterListenerMessage> {
-        &self.sender
-    }
-
-    fn join(self) -> DdsResult<()> {
-        self.sender.close();
-        self.thread.join()?;
-        Ok(())
+pub struct TriggerOfferedIncompatibleQos {
+    pub the_writer: DataWriterAsync<()>,
+    pub status: OfferedIncompatibleQosStatus,
+}
+impl Mail for TriggerOfferedIncompatibleQos {
+    type Result = ();
+}
+impl MailHandler<TriggerOfferedIncompatibleQos> for DataWriterListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOfferedIncompatibleQos,
+    ) -> <TriggerOfferedIncompatibleQos as Mail>::Result {
+        self.listener
+            .trigger_on_offered_incompatible_qos(message.the_writer, message.status);
     }
 }

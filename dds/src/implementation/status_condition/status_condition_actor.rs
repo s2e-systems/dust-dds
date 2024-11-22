@@ -68,7 +68,7 @@ impl MailHandler<GetStatusConditionEnabledStatuses> for StatusConditionActor {
         &mut self,
         _: GetStatusConditionEnabledStatuses,
     ) -> <GetStatusConditionEnabledStatuses as Mail>::Result {
-        self.enabled_statuses.clone()
+        self.get_enabled_statuses()
     }
 }
 
@@ -83,7 +83,7 @@ impl MailHandler<SetStatusConditionEnabledStatuses> for StatusConditionActor {
         &mut self,
         message: SetStatusConditionEnabledStatuses,
     ) -> <SetStatusConditionEnabledStatuses as Mail>::Result {
-        self.enabled_statuses = message.status_mask;
+        self.set_enabled_statuses(message.status_mask);
     }
 }
 

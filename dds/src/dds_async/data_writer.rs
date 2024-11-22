@@ -67,6 +67,16 @@ impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn participant_address(&self) -> &ActorAddress<DomainParticipantActor> {
         self.publisher.participant_address()
     }
+
+    pub(crate) fn change_foo_type<T>(self) -> DataWriterAsync<T> {
+        DataWriterAsync {
+            handle: self.handle,
+            status_condition_address: self.status_condition_address,
+            publisher: self.publisher,
+            topic: self.topic,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<Foo> DataWriterAsync<Foo>

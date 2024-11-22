@@ -1,8 +1,8 @@
 use crate::{
     dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
     infrastructure::status::{
-        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+        SubscriptionMatchedStatus,
     },
     runtime::executor::block_on,
 };

@@ -7,7 +7,7 @@ use crate::{
                 STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
             },
         },
-        listeners::data_writer_listener::DataWriterListenerThread,
+        listeners::data_writer_listener::DataWriterListenerActor,
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_instance_handle_from_serialized_key,
@@ -52,8 +52,8 @@ pub struct DataWriterEntity {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     enabled: bool,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<DataWriterListenerThread>,
-    status_kind: Vec<StatusKind>,
+    listener: Option<Actor<DataWriterListenerActor>>,
+    listener_mask: Vec<StatusKind>,
     max_seq_num: Option<SequenceNumber>,
     last_change_sequence_number: SequenceNumber,
     qos: DataWriterQos,
@@ -71,8 +71,8 @@ impl DataWriterEntity {
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
         status_condition: Actor<StatusConditionActor>,
-        listener: Option<DataWriterListenerThread>,
-        status_kind: Vec<StatusKind>,
+        listener: Option<Actor<DataWriterListenerActor>>,
+        listener_mask: Vec<StatusKind>,
         qos: DataWriterQos,
     ) -> Self {
         Self {
@@ -88,7 +88,7 @@ impl DataWriterEntity {
             enabled: false,
             status_condition,
             listener,
-            status_kind,
+            listener_mask,
             max_seq_num: None,
             last_change_sequence_number: 0,
             qos,
@@ -495,5 +495,13 @@ impl DataWriterEntity {
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
         &self.status_condition
+    }
+
+    pub fn listener(&self) -> Option<&Actor<DataWriterListenerActor>> {
+        self.listener.as_ref()
+    }
+
+    pub fn listener_mask(&self) -> &[StatusKind] {
+        &self.listener_mask
     }
 }

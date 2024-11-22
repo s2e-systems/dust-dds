@@ -12,8 +12,8 @@ use crate::{
             entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
         },
         listeners::{
-            data_reader_listener, domain_participant_listener, publisher_listener,
-            subscriber_listener,
+            data_reader_listener, data_writer_listener, domain_participant_listener,
+            publisher_listener, subscriber_listener,
         },
         status_condition::status_condition_actor,
     },
@@ -401,7 +401,30 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                     data_writer
                         .add_matched_subscription(message.subscription_builtin_topic_data.clone());
 
-                    if self
+                    if data_writer
+                        .listener_mask()
+                        .contains(&StatusKind::PublicationMatched)
+                    {
+                        let status = data_writer.get_publication_matched_status();
+                        let the_writer = self.get_data_writer_async(
+                            message.participant_address,
+                            message.publisher_handle,
+                            message.data_writer_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_writer(message.data_writer_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(data_writer_listener::TriggerPublicationMatched {
+                                the_writer,
+                                status,
+                            });
+                        }
+                    } else if self
                         .domain_participant
                         .get_mut_publisher(message.publisher_handle)
                         .ok_or(DdsError::AlreadyDeleted)?
@@ -473,7 +496,32 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         incompatible_qos_policy_list,
                     );
 
-                    if self
+                    if data_writer
+                        .listener_mask()
+                        .contains(&StatusKind::OfferedIncompatibleQos)
+                    {
+                        let status = data_writer.get_offered_incompatible_qos_status();
+                        let the_writer = self.get_data_writer_async(
+                            message.participant_address,
+                            message.publisher_handle,
+                            message.data_writer_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_writer(message.data_writer_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(
+                                data_writer_listener::TriggerOfferedIncompatibleQos {
+                                    the_writer,
+                                    status,
+                                },
+                            );
+                        }
+                    } else if self
                         .domain_participant
                         .get_mut_publisher(message.publisher_handle)
                         .ok_or(DdsError::AlreadyDeleted)?
@@ -672,7 +720,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                             .ok_or(DdsError::AlreadyDeleted)?
                             .listener()
                         {
-                            l.send_actor_mail(data_reader_listener::TriggerOnSubscriptionMatched {
+                            l.send_actor_mail(data_reader_listener::TriggerSubscriptionMatched {
                                 the_reader,
                                 status,
                             });
@@ -768,7 +816,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                             .listener()
                         {
                             l.send_actor_mail(
-                                data_reader_listener::TriggerOnRequestedIncompatibleQos {
+                                data_reader_listener::TriggerRequestedIncompatibleQos {
                                     the_reader,
                                     status,
                                 },
