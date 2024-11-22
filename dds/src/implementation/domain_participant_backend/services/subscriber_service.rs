@@ -1,7 +1,5 @@
 use crate::{
-    dds_async::{
-        data_reader_listener::DataReaderListenerAsync, subscriber_listener::SubscriberListenerAsync,
-    },
+    dds_async::subscriber_listener::SubscriberListenerAsync,
     implementation::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
@@ -9,7 +7,10 @@ use crate::{
             entities::data_reader::DataReaderEntity,
             services::{data_reader_service, discovery_service, message_service},
         },
-        listeners::data_reader_listener::DataReaderListenerActor,
+        listeners::{
+            data_reader_listener::DataReaderListenerActor,
+            subscriber_listener::SubscriberListenerActor,
+        },
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -195,35 +196,6 @@ impl MailHandler<LookupDataReader> for DomainParticipantActor {
     }
 }
 
-pub struct DeleteContainedEntities {
-    pub subscriber_handle: InstanceHandle,
-}
-impl Mail for DeleteContainedEntities {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Mail>::Result {
-        //         let deleted_reader_actor_list = self
-        //         .subscriber_address
-        //         .send_actor_mail(subscriber_actor::DrainDataReaderList)?
-        //         .receive_reply()
-        //         .await;
-
-        //     for deleted_reader_actor in deleted_reader_actor_list {
-        //         todo!();
-        //         // self.announce_deleted_data_reader(&deleted_reader_actor, &topic)
-        //         //     .await?;
-        //         deleted_reader_actor.stop().await;
-        //     }
-        //     Ok(())
-        // }
-        todo!()
-    }
-}
-
 pub struct SetDefaultDataReaderQos {
     pub subscriber_handle: InstanceHandle,
     pub qos: QosKind<DataReaderQos>,
@@ -307,80 +279,27 @@ impl MailHandler<GetSubscriberQos> for DomainParticipantActor {
     }
 }
 
-pub struct SetSubscriberListener {
+pub struct SetListener {
     pub subscriber_handle: InstanceHandle,
     pub a_listener: Option<Box<dyn SubscriberListenerAsync + Send>>,
     pub mask: Vec<StatusKind>,
 }
-impl Mail for SetSubscriberListener {
+impl Mail for SetListener {
     type Result = DdsResult<()>;
 }
-impl MailHandler<SetSubscriberListener> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: SetSubscriberListener,
-    ) -> <SetSubscriberListener as Mail>::Result {
-        todo!()
-    }
-}
-
-pub struct EnableSubscriber {
-    pub subscriber_handle: InstanceHandle,
-}
-impl Mail for EnableSubscriber {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<EnableSubscriber> for DomainParticipantActor {
-    fn handle(&mut self, message: EnableSubscriber) -> <EnableSubscriber as Mail>::Result {
-        // if !self
-        //     .subscriber_address
-        //     .send_actor_mail(subscriber_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     self.subscriber_address
-        //         .send_actor_mail(subscriber_actor::Enable)?
-        //         .receive_reply()
-        //         .await;
-
-        //     if self
-        //         .subscriber_address
-        //         .send_actor_mail(subscriber_actor::GetQos)?
-        //         .receive_reply()
-        //         .await
-        //         .entity_factory
-        //         .autoenable_created_entities
-        //     {
-        //         for data_reader in self
-        //             .subscriber_address
-        //             .send_actor_mail(subscriber_actor::GetDataReaderList)?
-        //             .receive_reply()
-        //             .await
-        //         {
-        //             data_reader
-        //                 .send_actor_mail(data_reader_actor::Enable {
-        //                     data_reader_address: data_reader.clone(),
-        //                 })?
-        //                 .receive_reply()
-        //                 .await;
-        //         }
-        //     }
-        // }
-
-        // Ok(())
-        todo!()
-    }
-}
-
-pub struct GetInstanceHandle {
-    pub subscriber_handle: InstanceHandle,
-}
-impl Mail for GetInstanceHandle {
-    type Result = DdsResult<InstanceHandle>;
-}
-impl MailHandler<GetInstanceHandle> for DomainParticipantActor {
-    fn handle(&mut self, message: GetInstanceHandle) -> <GetInstanceHandle as Mail>::Result {
-        todo!()
+impl MailHandler<SetListener> for DomainParticipantActor {
+    fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
+        let listener = message.a_listener.map(|l| {
+            Actor::spawn(
+                SubscriberListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        self.domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_listener(listener, message.mask);
+        Ok(())
     }
 }
 

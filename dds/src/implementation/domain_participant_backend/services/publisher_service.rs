@@ -132,96 +132,6 @@ impl MailHandler<DeleteDataWriter> for DomainParticipantActor {
     }
 }
 
-pub struct LookupDataWriter {
-    pub publisher_handle: InstanceHandle,
-    pub topic_name: String,
-}
-impl Mail for LookupDataWriter {
-    type Result = DdsResult<Option<InstanceHandle>>;
-}
-impl MailHandler<LookupDataWriter> for DomainParticipantActor {
-    fn handle(&mut self, message: LookupDataWriter) -> <LookupDataWriter as Mail>::Result {
-        todo!()
-        // if let Some(_) = self
-        //     .participant
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::LookupTopicdescription {
-        //         topic_name: topic_name.to_string(),
-        //     })?
-        //     .receive_reply()
-        //     .await?
-        // {
-        //     let data_writer_list = self
-        //         .publisher_address
-        //         .send_actor_mail(publisher_actor::GetDataWriterList)?
-        //         .receive_reply()
-        //         .await;
-        //     for dw in data_writer_list {
-        //         if dw
-        //             .send_actor_mail(data_writer_actor::GetTopicName)?
-        //             .receive_reply()
-        //             .await?
-        //             == topic_name
-        //         {
-        //             let type_name = self
-        //                 .participant_address()
-        //                 .send_actor_mail(domain_participant_actor::GetTopicTypeName {
-        //                     topic_name: topic_name.to_string(),
-        //                 })?
-        //                 .receive_reply()
-        //                 .await?;
-        //             let topic = TopicAsync::new(
-        //                 type_name,
-        //                 topic_name.to_string(),
-        //                 self.participant.clone(),
-        //             );
-        //             let status_condition = dw
-        //                 .send_actor_mail(data_writer_actor::GetStatuscondition)?
-        //                 .receive_reply()
-        //                 .await;
-        //             return Ok(Some(DataWriterAsync::new(
-        //                 dw.clone(),
-        //                 status_condition,
-        //                 self.clone(),
-        //                 topic,
-        //             )));
-        //         }
-        //     }
-        //     Ok(None)
-        // } else {
-        //     Err(DdsError::BadParameter)
-        // }
-    }
-}
-
-pub struct DeleteContainedEntities {
-    pub publisher_handle: InstanceHandle,
-}
-impl Mail for DeleteContainedEntities {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<DeleteContainedEntities> for DomainParticipantActor {
-    fn handle(
-        &mut self,
-        message: DeleteContainedEntities,
-    ) -> <DeleteContainedEntities as Mail>::Result {
-        // let deleted_writer_actor_list = self
-        //     .publisher_address
-        //     .send_actor_mail(publisher_actor::DrainDataWriterList)?
-        //     .receive_reply()
-        //     .await;
-
-        // for deleted_writer_actor in deleted_writer_actor_list {
-        //     todo!();
-        //     // self.announce_deleted_data_writer(&deleted_writer_actor, &topic_address)
-        //     //     .await?;
-        //     deleted_writer_actor.stop().await;
-        // }
-        // Ok(())
-        todo!()
-    }
-}
-
 pub struct SetDefaultDataWriterQos {
     pub publisher_handle: InstanceHandle,
     pub qos: QosKind<DataWriterQos>,
@@ -329,18 +239,6 @@ impl MailHandler<SetListener> for DomainParticipantActor {
             );
 
         Ok(())
-    }
-}
-
-pub struct Enable {
-    pub publisher_handle: InstanceHandle,
-}
-impl Mail for Enable {
-    type Result = DdsResult<()>;
-}
-impl MailHandler<Enable> for DomainParticipantActor {
-    fn handle(&mut self, message: Enable) -> <Enable as Mail>::Result {
-        todo!()
     }
 }
 

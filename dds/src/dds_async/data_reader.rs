@@ -7,6 +7,7 @@ use super::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
+        any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::data_reader_service,
         },
@@ -489,11 +490,12 @@ where
         a_listener: Option<Box<dyn DataReaderListenerAsync<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
+        let listener = a_listener.map::<Box<dyn AnyDataReaderListener>, _>(|l| Box::new(l));
         self.participant_address()
             .send_actor_mail(data_reader_service::SetListener {
                 subscriber_handle: self.subscriber.get_instance_handle().await,
                 data_reader_handle: self.handle,
-                a_listener: todo!(),
+                listener,
                 listener_mask: mask.to_vec(),
             })?
             .receive_reply()

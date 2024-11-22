@@ -118,46 +118,9 @@ impl DomainParticipantFactoryAsync {
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
     pub async fn lookup_participant(
         &self,
-        domain_id: DomainId,
+        _domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
         todo!()
-        // let domain_participant_list = self
-        //     .domain_participant_factory_actor
-        //     .send_actor_mail(domain_participant_factory_actor::GetParticipantList)
-        //     .receive_reply()
-        //     .await;
-        // for dp in domain_participant_list {
-        //     if dp
-        //         .send_actor_mail(domain_participant_actor::GetDomainId)?
-        //         .receive_reply()
-        //         .await
-        //         == domain_id
-        //     {
-        //         let status_condition = dp
-        //             .send_actor_mail(domain_participant_actor::GetStatuscondition)?
-        //             .receive_reply()
-        //             .await;
-        //         let builtin_subscriber = dp
-        //             .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
-        //             .receive_reply()
-        //             .await;
-        //         let builtin_subscriber_status_condition_address = builtin_subscriber
-        //             .send_actor_mail(subscriber_actor::GetStatuscondition)?
-        //             .receive_reply()
-        //             .await;
-        //         let timer_handle = dp
-        //             .send_actor_mail(domain_participant_actor::GetTimerHandle)?
-        //             .receive_reply()
-        //             .await;
-        //         let executor_handle = dp
-        //             .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
-        //             .receive_reply()
-        //             .await;
-        //         return Ok(Some(DomainParticipantAsync::new(dp, domain_id)));
-        //     }
-        // }
-
-        // Ok(None)
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

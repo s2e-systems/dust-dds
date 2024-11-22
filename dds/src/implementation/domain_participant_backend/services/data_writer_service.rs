@@ -8,6 +8,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             services::message_service::AreAllChangesAcknowledged,
         },
+        listeners::data_writer_listener::DataWriterListenerActor,
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
         },
@@ -16,54 +17,13 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
-        qos_policy::ReliabilityQosPolicyKind,
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
-    runtime::actor::{ActorAddress, Mail, MailHandler},
+    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
 };
 
 use super::{discovery_service, event_service, message_service};
-
-pub struct RegisterInstance {
-    pub publisher_handle: InstanceHandle,
-    pub data_writer_handle: InstanceHandle,
-    pub serialized_data: Vec<u8>,
-    pub timestamp: Time,
-}
-impl Mail for RegisterInstance {
-    type Result = DdsResult<Option<InstanceHandle>>;
-}
-impl MailHandler<RegisterInstance> for DomainParticipantActor {
-    fn handle(&mut self, message: RegisterInstance) -> <RegisterInstance as Mail>::Result {
-        todo!()
-        // if !self
-        //     .writer_address
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     return Err(DdsError::NotEnabled);
-        // }
-
-        // let type_support = self
-        //     .participant_address()
-        //     .send_actor_mail(domain_participant_actor::GetTopicTypeSupport {
-        //         topic_name: self.topic.get_name(),
-        //     })?
-        //     .receive_reply()
-        //     .await?;
-
-        // let serialized_data = instance.serialize_data()?;
-        // let instance_handle =
-        //     get_instance_handle_from_serialized_foo(&serialized_data, type_support.as_ref())?;
-
-        // self.writer_address
-        //     .send_actor_mail(data_writer_actor::RegisterInstanceWTimestamp { instance_handle })?
-        //     .receive_reply()
-        //     .await
-    }
-}
 
 pub struct UnregisterInstance {
     pub publisher_handle: InstanceHandle,
@@ -151,33 +111,6 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
             &message.serialized_data,
             data_writer.type_support(),
         )?;
-
-        // if data_writer.qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-        // let start = std::time::Instant::now();
-        // todo!();
-        // data_writer.transport_writer().are_all_changes_acknowledged()
-        // let timer_handle = self.publisher.get_participant().timer_handle().clone();
-        // loop {
-        //     if !self
-        //         .writer_address
-        //         .send_actor_mail(data_writer_actor::IsDataLostAfterAddingChange {
-        //             instance_handle: change.instance_handle().into(),
-        //         })?
-        //         .receive_reply()
-        //         .await
-        //     {
-        //         break;
-        //     }
-        //     timer_handle
-        //         .sleep(std::time::Duration::from_millis(20))
-        //         .await;
-        //     if let DurationKind::Finite(timeout) = writer_qos.reliability.max_blocking_time {
-        //         if std::time::Instant::now().duration_since(start) > timeout.into() {
-        //             return Err(DdsError::Timeout);
-        //         }
-        //     }
-        // }
-        // }
 
         match data_writer.qos().lifespan.duration {
             DurationKind::Finite(lifespan_duration) => {
@@ -500,40 +433,27 @@ impl MailHandler<Enable> for DomainParticipantActor {
 pub struct SetListener {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
-    pub a_listener: Option<Box<dyn AnyDataWriterListener + Send>>,
-    pub status_kind: Vec<StatusKind>,
+    pub listener: Option<Box<dyn AnyDataWriterListener + Send>>,
+    pub listener_mask: Vec<StatusKind>,
 }
 impl Mail for SetListener {
     type Result = DdsResult<()>;
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        todo!()
-        // let writer = self.writer_address();
-        // if !writer
-        //     .send_actor_mail(data_writer_actor::IsEnabled)?
-        //     .receive_reply()
-        //     .await
-        // {
-        //     let message_sender_actor = self
-        //         .participant_address()
-        //         .send_actor_mail(domain_participant_actor::GetMessageSender)?
-        //         .receive_reply()
-        //         .await;
-        //     writer
-        //         .send_actor_mail(data_writer_actor::Enable {
-        //             data_writer_address: writer.clone(),
-        //             message_sender_actor,
-        //             executor_handle: self.publisher.get_participant().executor_handle().clone(),
-        //             timer_handle: self.publisher.get_participant().timer_handle().clone(),
-        //         })?
-        //         .receive_reply()
-        //         .await;
+        let listener = message.listener.map(|l| {
+            Actor::spawn(
+                DataWriterListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        self.domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_data_writer(message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_listener(listener, message.listener_mask);
 
-        //     self.announce_writer().await?;
-
-        //     self.process_sedp_subscriptions_discovery().await?;
-        // }
-        // Ok(())
+        Ok(())
     }
 }

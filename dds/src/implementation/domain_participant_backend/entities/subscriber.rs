@@ -111,7 +111,9 @@ impl SubscriberEntity {
     }
 
     pub fn set_qos(&mut self, qos: SubscriberQos) -> DdsResult<()> {
-        if self.enabled {}
+        if self.enabled {
+            self.qos.check_immutability(&qos)?;
+        }
         self.qos = qos;
         Ok(())
     }
@@ -119,10 +121,10 @@ impl SubscriberEntity {
     pub fn set_listener(
         &mut self,
         a_listener: Option<Actor<SubscriberListenerActor>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: Vec<StatusKind>,
     ) {
         self.listener = a_listener;
-        self.listener_mask = status_kind;
+        self.listener_mask = listener_mask;
     }
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {

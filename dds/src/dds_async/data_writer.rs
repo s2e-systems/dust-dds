@@ -7,6 +7,7 @@ use super::{
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
+        any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor, services::data_writer_service,
         },
@@ -96,22 +97,13 @@ where
     }
 
     /// Async version of [`register_instance_w_timestamp`](crate::publication::data_writer::DataWriter::register_instance_w_timestamp).
-    #[tracing::instrument(skip(self, instance))]
+    #[tracing::instrument(skip(self, _instance))]
     pub async fn register_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        _instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        let serialized_data = instance.serialize_data()?;
-        self.participant_address()
-            .send_actor_mail(data_writer_service::RegisterInstance {
-                publisher_handle: self.publisher.get_instance_handle().await,
-                data_writer_handle: self.handle,
-                serialized_data,
-                timestamp,
-            })?
-            .receive_reply()
-            .await
+        todo!()
     }
 
     /// Async version of [`unregister_instance`](crate::publication::data_writer::DataWriter::unregister_instance).
@@ -410,12 +402,13 @@ where
         a_listener: Option<Box<dyn DataWriterListenerAsync<'a, Foo = Foo> + Send + 'a>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
+        let listener = a_listener.map::<Box<dyn AnyDataWriterListener + Send>, _>(|b| Box::new(b));
         self.participant_address()
             .send_actor_mail(data_writer_service::SetListener {
                 publisher_handle: self.publisher.get_instance_handle().await,
                 data_writer_handle: self.handle,
-                a_listener: todo!(),
-                status_kind: mask.to_vec(),
+                listener,
+                listener_mask: mask.to_vec(),
             })?
             .receive_reply()
             .await

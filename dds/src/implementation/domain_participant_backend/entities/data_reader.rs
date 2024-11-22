@@ -132,7 +132,7 @@ pub struct DataReaderEntity {
     _liveliness_changed_status: LivelinessChangedStatus,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    sample_lost_status: SampleLostStatus,
+    _sample_lost_status: SampleLostStatus,
     sample_rejected_status: SampleRejectedStatus,
     subscription_matched_status: SubscriptionMatchedStatus,
     matched_publication_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
@@ -170,7 +170,7 @@ impl DataReaderEntity {
             _liveliness_changed_status: LivelinessChangedStatus::default(),
             requested_deadline_missed_status: RequestedDeadlineMissedStatus::default(),
             requested_incompatible_qos_status: RequestedIncompatibleQosStatus::default(),
-            sample_lost_status: SampleLostStatus::default(),
+            _sample_lost_status: SampleLostStatus::default(),
             sample_rejected_status: SampleRejectedStatus::default(),
             subscription_matched_status: SubscriptionMatchedStatus::default(),
             matched_publication_list: HashMap::new(),
@@ -909,5 +909,14 @@ impl DataReaderEntity {
 
     pub fn listener_mask(&self) -> &[StatusKind] {
         &self.listener_mask
+    }
+
+    pub fn set_listener(
+        &mut self,
+        listener: Option<Actor<DataReaderListenerActor>>,
+        listener_mask: Vec<StatusKind>,
+    ) {
+        self.listener = listener;
+        self.listener_mask = listener_mask;
     }
 }

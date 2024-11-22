@@ -513,6 +513,15 @@ impl DataWriterEntity {
         &self.status_condition
     }
 
+    pub fn set_listener(
+        &mut self,
+        listener: Option<Actor<DataWriterListenerActor>>,
+        listener_mask: Vec<StatusKind>,
+    ) {
+        self.listener = listener;
+        self.listener_mask = listener_mask;
+    }
+
     pub fn listener(&self) -> Option<&Actor<DataWriterListenerActor>> {
         self.listener.as_ref()
     }

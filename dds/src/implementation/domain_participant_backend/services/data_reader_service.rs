@@ -8,6 +8,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             services::message_service::IsHistoricalDataReceived,
         },
+        listeners::data_reader_listener::DataReaderListenerActor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -17,7 +18,7 @@ use crate::{
         time::Duration,
     },
     rtps::messages::submessage_elements::Data,
-    runtime::actor::{ActorAddress, Mail, MailHandler},
+    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
 };
 
@@ -381,7 +382,7 @@ impl MailHandler<Enable> for DomainParticipantActor {
 pub struct SetListener {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
-    pub a_listener: Option<Box<dyn AnyDataReaderListener + Send>>,
+    pub listener: Option<Box<dyn AnyDataReaderListener>>,
     pub listener_mask: Vec<StatusKind>,
 }
 impl Mail for SetListener {
@@ -389,6 +390,18 @@ impl Mail for SetListener {
 }
 impl MailHandler<SetListener> for DomainParticipantActor {
     fn handle(&mut self, message: SetListener) -> <SetListener as Mail>::Result {
-        todo!()
+        let listener = message.listener.map(|l| {
+            Actor::spawn(
+                DataReaderListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        self.domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_data_reader(message.data_reader_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_listener(listener, message.listener_mask);
+        Ok(())
     }
 }

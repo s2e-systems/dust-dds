@@ -148,12 +148,7 @@ impl SubscriberAsync {
     /// Async version of [`delete_contained_entities`](crate::subscription::subscriber::Subscriber::delete_contained_entities).
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.participant_address()
-            .send_actor_mail(subscriber_service::DeleteContainedEntities {
-                subscriber_handle: self.handle,
-            })?
-            .receive_reply()
-            .await
+        todo!()
     }
 
     /// Async version of [`set_default_datareader_qos`](crate::subscription::subscriber::Subscriber::set_default_datareader_qos).
@@ -219,7 +214,7 @@ impl SubscriberAsync {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.participant_address()
-            .send_actor_mail(subscriber_service::SetSubscriberListener {
+            .send_actor_mail(subscriber_service::SetListener {
                 subscriber_handle: self.handle,
                 a_listener,
                 mask: mask.to_vec(),
@@ -243,12 +238,7 @@ impl SubscriberAsync {
     /// Async version of [`enable`](crate::subscription::subscriber::Subscriber::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        self.participant_address()
-            .send_actor_mail(subscriber_service::EnableSubscriber {
-                subscriber_handle: self.handle,
-            })?
-            .receive_reply()
-            .await
+        todo!()
     }
 
     /// Async version of [`get_instance_handle`](crate::subscription::subscriber::Subscriber::get_instance_handle).
