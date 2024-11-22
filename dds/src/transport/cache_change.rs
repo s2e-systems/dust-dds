@@ -1,4 +1,6 @@
-use crate::rtps::messages::submessage_elements::{Data, ParameterList};
+use std::sync::Arc;
+
+use crate::rtps::messages::submessage_elements::ParameterList;
 
 use super::types::{ChangeKind, SequenceNumber, Time};
 
@@ -8,7 +10,7 @@ pub struct CacheChange {
     pub writer_guid: [u8; 16],
     pub sequence_number: SequenceNumber,
     pub source_timestamp: Option<Time>,
-    pub data_value: Data,
+    pub data_value: Arc<[u8]>,
     pub inline_qos: ParameterList,
 }
 
@@ -25,7 +27,7 @@ impl CacheChange {
         self.source_timestamp
     }
 
-    pub fn data_value(&self) -> &Data {
+    pub fn data_value(&self) -> &Arc<[u8]> {
         &self.data_value
     }
 

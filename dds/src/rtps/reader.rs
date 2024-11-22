@@ -75,7 +75,7 @@ impl CacheChange {
             writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()).into(),
             source_timestamp: source_timestamp.map(Into::into),
             sequence_number: data_submessage.writer_sn(),
-            data_value: data_submessage.serialized_payload().clone(),
+            data_value: data_submessage.serialized_payload().clone().into(),
             inline_qos: data_submessage.inline_qos().clone(),
         })
     }

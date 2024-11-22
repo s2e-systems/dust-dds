@@ -309,8 +309,10 @@ fn send_message_to_reader_proxy_best_effort(
                         cache_change.data_value().len(),
                     );
 
-                    let serialized_payload =
-                        SerializedDataFragment::new(cache_change.data_value().clone(), start..end);
+                    let serialized_payload = SerializedDataFragment::new(
+                        cache_change.data_value().clone().into(),
+                        start..end,
+                    );
 
                     let data_frag = Box::new(DataFragSubmessage::new(
                         inline_qos_flag,
@@ -523,8 +525,10 @@ fn send_change_message_reader_proxy_reliable(
                         cache_change.data_value().len(),
                     );
 
-                    let serialized_payload =
-                        SerializedDataFragment::new(cache_change.data_value().clone(), start..end);
+                    let serialized_payload = SerializedDataFragment::new(
+                        cache_change.data_value().clone().into(),
+                        start..end,
+                    );
 
                     let data_frag = Box::new(DataFragSubmessage::new(
                         inline_qos_flag,

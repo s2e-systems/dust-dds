@@ -20,7 +20,7 @@ impl CacheChange {
             writer_id,
             self.sequence_number,
             self.inline_qos.clone(),
-            self.data_value.clone(),
+            self.data_value.clone().into(),
         )
     }
 }
