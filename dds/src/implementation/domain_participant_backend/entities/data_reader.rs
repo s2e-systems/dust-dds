@@ -872,11 +872,6 @@ impl DataReaderEntity {
         self.subscription_matched_status.total_count_change = 0;
         self.subscription_matched_status.current_count_change = 0;
 
-        self.status_condition
-            .send_actor_mail(status_condition_actor::RemoveCommunicationState {
-                state: StatusKind::SubscriptionMatched,
-            });
-
         status
     }
 

@@ -9,6 +9,7 @@ use crate::{
             services::message_service::IsHistoricalDataReceived,
         },
         listeners::data_reader_listener::DataReaderListenerActor,
+        status_condition::status_condition_actor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -173,7 +174,13 @@ impl MailHandler<GetSubscriptionMatchedStatus> for DomainParticipantActor {
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        Ok(data_reader.get_subscription_matched_status())
+        let status = data_reader.get_subscription_matched_status();
+        data_reader.status_condition().send_actor_mail(
+            status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::SubscriptionMatched,
+            },
+        );
+        Ok(status)
     }
 }
 

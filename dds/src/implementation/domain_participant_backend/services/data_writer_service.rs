@@ -9,6 +9,7 @@ use crate::{
             services::message_service::AreAllChangesAcknowledged,
         },
         listeners::data_writer_listener::DataWriterListenerActor,
+        status_condition::status_condition_actor,
         xtypes_glue::key_and_instance_handle::{
             get_instance_handle_from_serialized_foo, get_serialized_key_from_serialized_foo,
         },
@@ -274,7 +275,14 @@ impl MailHandler<GetPublicationMatchedStatus> for DomainParticipantActor {
             .get_mut_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        Ok(data_writer.get_publication_matched_status())
+        let status = data_writer.get_publication_matched_status();
+
+        data_writer.status_condition().send_actor_mail(
+            status_condition_actor::RemoveCommunicationState {
+                state: StatusKind::PublicationMatched,
+            },
+        );
+        Ok(status)
     }
 }
 

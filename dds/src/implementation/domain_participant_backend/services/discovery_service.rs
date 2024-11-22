@@ -287,7 +287,10 @@ impl MailHandler<AddDiscoveredTopic> for DomainParticipantActor {
             .domain_participant
             .get_mut_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
-        if topic.topic_name() == message.topic_builtin_topic_data.name() && topic.type_name() == message.topic_builtin_topic_data.get_type_name() && !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data) {
+        if topic.topic_name() == message.topic_builtin_topic_data.name()
+            && topic.type_name() == message.topic_builtin_topic_data.get_type_name()
+            && !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data)
+        {
             topic.increment_inconsistent_topic_status();
         }
         Ok(())
@@ -615,6 +618,12 @@ impl MailHandler<RemoveDiscoveredReader> for DomainParticipantActor {
             .is_some()
         {
             data_writer.remove_matched_subscription(&message.subscription_handle);
+
+            data_writer.status_condition().send_actor_mail(
+                status_condition_actor::AddCommunicationState {
+                    state: StatusKind::PublicationMatched,
+                },
+            );
         }
         Ok(())
     }
