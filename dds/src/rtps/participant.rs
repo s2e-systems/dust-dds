@@ -763,10 +763,13 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
                     .ok();
             }
 
-            fn are_all_changes_acknowledged(&self) -> bool {
+            fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
                 block_on(
                     self.rtps_participant_address
-                        .send_actor_mail(AreAllChangesAcknowledged { guid: self.guid })
+                        .send_actor_mail(IsChangeAcknowledged {
+                            guid: self.guid,
+                            sequence_number,
+                        })
                         .expect("Actor must exist")
                         .receive_reply(),
                 )
@@ -1129,23 +1132,21 @@ impl MailHandler<AddDiscoveredReader> for RtpsParticipant {
     }
 }
 
-pub struct AreAllChangesAcknowledged {
+pub struct IsChangeAcknowledged {
     pub guid: Guid,
+    pub sequence_number: SequenceNumber,
 }
-impl Mail for AreAllChangesAcknowledged {
+impl Mail for IsChangeAcknowledged {
     type Result = bool;
 }
-impl MailHandler<AreAllChangesAcknowledged> for RtpsParticipant {
-    fn handle(
-        &mut self,
-        message: AreAllChangesAcknowledged,
-    ) -> <AreAllChangesAcknowledged as Mail>::Result {
+impl MailHandler<IsChangeAcknowledged> for RtpsParticipant {
+    fn handle(&mut self, message: IsChangeAcknowledged) -> <IsChangeAcknowledged as Mail>::Result {
         if let Some(w) = self
             .user_defined_writer_list
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {
-            w.are_all_changes_acknowledged()
+            w.is_change_acknowledged(message.sequence_number)
         } else {
             false
         }

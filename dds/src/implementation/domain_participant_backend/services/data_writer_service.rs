@@ -16,6 +16,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
+        qos_policy::ReliabilityQosPolicyKind,
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
@@ -150,6 +151,33 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
             &message.serialized_data,
             data_writer.type_support(),
         )?;
+
+        // if data_writer.qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+        // let start = std::time::Instant::now();
+        // todo!();
+        // data_writer.transport_writer().are_all_changes_acknowledged()
+        // let timer_handle = self.publisher.get_participant().timer_handle().clone();
+        // loop {
+        //     if !self
+        //         .writer_address
+        //         .send_actor_mail(data_writer_actor::IsDataLostAfterAddingChange {
+        //             instance_handle: change.instance_handle().into(),
+        //         })?
+        //         .receive_reply()
+        //         .await
+        //     {
+        //         break;
+        //     }
+        //     timer_handle
+        //         .sleep(std::time::Duration::from_millis(20))
+        //         .await;
+        //     if let DurationKind::Finite(timeout) = writer_qos.reliability.max_blocking_time {
+        //         if std::time::Instant::now().duration_since(start) > timeout.into() {
+        //             return Err(DdsError::Timeout);
+        //         }
+        //     }
+        // }
+        // }
 
         match data_writer.qos().lifespan.duration {
             DurationKind::Finite(lifespan_duration) => {

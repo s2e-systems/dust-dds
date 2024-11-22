@@ -499,4 +499,9 @@ impl DataWriterEntity {
     pub fn listener_mask(&self) -> &[StatusKind] {
         &self.listener_mask
     }
+
+    pub fn are_all_changes_acknowledged(&self) -> bool {
+        self.transport_writer
+            .is_change_acknowledged(self.last_change_sequence_number)
+    }
 }

@@ -101,7 +101,7 @@ impl WriterHistoryCache for RtpsStatelessWriter {
             .retain(|cc| cc.sequence_number() != sequence_number);
     }
 
-    fn are_all_changes_acknowledged(&self) -> bool {
+    fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
         true
     }
 }

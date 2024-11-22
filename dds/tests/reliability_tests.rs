@@ -1,5 +1,5 @@
 use dust_dds::{
-    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_SUBSCRIPTION},
+    builtin_topics::DCPS_PARTICIPANT,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,

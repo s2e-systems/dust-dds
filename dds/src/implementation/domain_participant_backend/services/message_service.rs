@@ -501,7 +501,6 @@ impl MailHandler<AreAllChangesAcknowledged> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(message.data_writer_handle)
             .ok_or(DdsError::AlreadyDeleted)?
-            .transport_writer()
             .are_all_changes_acknowledged())
     }
 }

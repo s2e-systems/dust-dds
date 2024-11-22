@@ -29,7 +29,7 @@ pub trait WriterHistoryCache: Send + Sync {
 
     fn remove_change(&mut self, sequence_number: SequenceNumber);
 
-    fn are_all_changes_acknowledged(&self) -> bool;
+    fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool;
 }
 
 pub struct RtpsStatefulWriter {
@@ -620,12 +620,11 @@ impl WriterHistoryCache for RtpsStatefulWriter {
             .retain(|cc| cc.sequence_number() != sequence_number);
     }
 
-    fn are_all_changes_acknowledged(&self) -> bool {
-        let max_seq_num = self.changes.iter().map(|cc| cc.sequence_number).max();
+    fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
         !self
             .matched_readers
             .iter()
             .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
-            .any(|rp| rp.unacked_changes(max_seq_num))
+            .any(|rp| rp.unacked_changes(Some(sequence_number)))
     }
 }
