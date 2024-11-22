@@ -392,7 +392,7 @@ impl Transport for RtpsTransport {
             }
 
             fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
-                todo!()
+                true
             }
         }
 
@@ -448,7 +448,7 @@ impl Transport for RtpsTransport {
             }
 
             fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
-                todo!()
+                true
             }
         }
 
@@ -506,7 +506,7 @@ impl Transport for RtpsTransport {
             }
 
             fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
-                todo!()
+                true
             }
         }
 
@@ -570,7 +570,7 @@ impl Transport for RtpsTransport {
             }
 
             fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
-                todo!()
+                true
             }
         }
 

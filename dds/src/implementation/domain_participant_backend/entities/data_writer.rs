@@ -17,12 +17,12 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
-        qos_policy::{HistoryQosPolicyKind, Length, QosPolicyId},
+        qos_policy::{HistoryQosPolicyKind, Length, QosPolicyId, ReliabilityQosPolicyKind},
         status::{
             OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
             QosPolicyCount, StatusKind,
         },
-        time::Time,
+        time::{DurationKind, Time},
     },
     rtps::{
         cache_change::RtpsCacheChange,
@@ -212,6 +212,27 @@ impl DataWriterEntity {
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if let Some(s) = self.instance_samples.get_mut(&instance_handle) {
                 if s.len() == depth as usize {
+                    if let Some(&smallest_seq_num_instance) = s.front() {
+                        if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                            let start_time = std::time::Instant::now();
+                            loop {
+                                if self
+                                    .transport_writer
+                                    .is_change_acknowledged(smallest_seq_num_instance)
+                                {
+                                    break;
+                                }
+
+                                if let DurationKind::Finite(t) =
+                                    self.qos.reliability.max_blocking_time
+                                {
+                                    if start_time.elapsed() > t.into() {
+                                        return Err(DdsError::Timeout);
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if let Some(smallest_seq_num_instance) = s.pop_front() {
                         self.transport_writer
                             .remove_change(smallest_seq_num_instance);
