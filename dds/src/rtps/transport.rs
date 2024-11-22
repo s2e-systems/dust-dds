@@ -27,7 +27,7 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
     transport::{
         reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-        transport::Transport,
+        participant::TransportParticipant,
         types::{SequenceNumber, TopicKind},
         writer::{RtpsCacheChange, WriterHistoryCache},
     },
@@ -332,7 +332,7 @@ impl RtpsTransport {
     }
 }
 
-impl Transport for RtpsTransport {
+impl TransportParticipant for RtpsTransport {
     fn guid(&self) -> [u8; 16] {
         self.guid.into()
     }

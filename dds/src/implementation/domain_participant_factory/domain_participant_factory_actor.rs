@@ -46,7 +46,7 @@ use crate::{
     topic_definition::type_support::TypeSupport,
     transport::{
         reader::{ReaderCacheChange, ReaderHistoryCache},
-        transport::Transport,
+        participant::TransportParticipant,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -332,7 +332,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            transport.get_topics_discovery_reader(),
+            transport.get_publications_discovery_reader(),
         );
         dcps_publication_reader.enable();
         let mut dcps_subscription_reader = DataReaderEntity::new(
@@ -344,7 +344,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            transport.get_topics_discovery_reader(),
+            transport.get_subscriptions_discovery_reader(),
         );
         dcps_subscription_reader.enable();
 

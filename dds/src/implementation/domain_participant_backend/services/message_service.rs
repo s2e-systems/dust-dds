@@ -48,7 +48,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
         let data_reader = subscriber
             .get_mut_data_reader(message.data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid.into());
+        let writer_instance_handle = InstanceHandle::new(message.cache_change.writer_guid);
 
         if data_reader
             .get_matched_publication_data(&writer_instance_handle)

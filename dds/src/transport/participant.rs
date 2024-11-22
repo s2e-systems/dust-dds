@@ -4,7 +4,7 @@ use super::{
     writer::WriterHistoryCache,
 };
 
-pub trait Transport: Send + Sync {
+pub trait TransportParticipant: Send + Sync {
     fn guid(&self) -> [u8; 16];
 
     fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;

@@ -10,11 +10,11 @@ use crate::{
         instance::InstanceHandle,
     },
     runtime::{actor::ActorAddress, executor::Executor, timer::TimerDriver},
-    transport::transport::Transport,
+    transport::participant::TransportParticipant,
 };
 
 pub struct DomainParticipantActor {
-    pub transport: Box<dyn Transport>,
+    pub transport: Box<dyn TransportParticipant>,
     pub instance_handle_counter: InstanceHandleCounter,
     pub domain_participant: DomainParticipantEntity,
     pub backend_executor: Executor,
@@ -25,7 +25,7 @@ pub struct DomainParticipantActor {
 impl DomainParticipantActor {
     pub fn new(
         domain_participant: DomainParticipantEntity,
-        transport: Box<dyn Transport>,
+        transport: Box<dyn TransportParticipant>,
         backend_executor: Executor,
         listener_executor: Executor,
         timer_driver: TimerDriver,
