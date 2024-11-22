@@ -103,17 +103,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                                 the_subscriber,
                             });
                         }
-                    }
-
-                    self.domain_participant
-                        .get_mut_subscriber(message.subscriber_handle)
-                        .ok_or(DdsError::AlreadyDeleted)?
-                        .status_condition()
-                        .send_actor_mail(status_condition_actor::AddCommunicationState {
-                            state: StatusKind::DataOnReaders,
-                        });
-
-                    if self
+                    } else if self
                         .domain_participant
                         .get_mut_subscriber(message.subscriber_handle)
                         .ok_or(DdsError::AlreadyDeleted)?
@@ -140,6 +130,14 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             });
                         }
                     }
+
+                    self.domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::DataOnReaders,
+                        });
 
                     self.domain_participant
                         .get_mut_subscriber(message.subscriber_handle)

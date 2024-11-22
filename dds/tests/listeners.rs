@@ -830,7 +830,9 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     assert!(data_on_readers_receiver
         .recv_timeout(std::time::Duration::from_secs(10))
         .is_ok());
-    assert!(data_available_receiver.try_recv().is_err());
+    assert!(data_available_receiver
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .is_err());
 }
 
 #[test]
