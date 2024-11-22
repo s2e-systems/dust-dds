@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        listeners::subscriber_listener::SubscriberListenerThread,
+        listeners::subscriber_listener::SubscriberListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -21,8 +21,8 @@ pub struct SubscriberEntity {
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: Actor<StatusConditionActor>,
-    listener: Option<SubscriberListenerThread>,
-    status_kind: Vec<StatusKind>,
+    listener: Option<Actor<SubscriberListenerActor>>,
+    listener_mask: Vec<StatusKind>,
 }
 
 impl SubscriberEntity {
@@ -30,8 +30,8 @@ impl SubscriberEntity {
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         status_condition: Actor<StatusConditionActor>,
-        listener: Option<SubscriberListenerThread>,
-        status_kind: Vec<StatusKind>,
+        listener: Option<Actor<SubscriberListenerActor>>,
+        listener_mask: Vec<StatusKind>,
     ) -> Self {
         Self {
             instance_handle,
@@ -41,7 +41,7 @@ impl SubscriberEntity {
             default_data_reader_qos: DataReaderQos::default(),
             status_condition,
             listener,
-            status_kind,
+            listener_mask,
         }
     }
 
@@ -118,14 +118,22 @@ impl SubscriberEntity {
 
     pub fn set_listener(
         &mut self,
-        a_listener: Option<SubscriberListenerThread>,
+        a_listener: Option<Actor<SubscriberListenerActor>>,
         status_kind: Vec<StatusKind>,
     ) {
         self.listener = a_listener;
-        self.status_kind = status_kind;
+        self.listener_mask = status_kind;
     }
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
         &self.status_condition
+    }
+
+    pub fn listener(&self) -> Option<&Actor<SubscriberListenerActor>> {
+        self.listener.as_ref()
+    }
+
+    pub fn listener_mask(&self) -> &[StatusKind] {
+        &self.listener_mask
     }
 }

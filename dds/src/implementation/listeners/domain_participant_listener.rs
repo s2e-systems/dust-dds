@@ -1,25 +1,14 @@
-use std::thread::JoinHandle;
-
 use crate::{
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant_listener::DomainParticipantListenerAsync, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync,
-    },
-    implementation::{
-        domain_participant_backend::entities::{
-            data_reader::DataReaderEntity, data_writer::DataWriterEntity,
-        },
-        status_condition::status_condition_actor::StatusConditionActor,
+        domain_participant_listener::DomainParticipantListenerAsync,
     },
     infrastructure::status::{
-        LivelinessChangedStatus, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
-        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-        SubscriptionMatchedStatus,
+        RequestedIncompatibleQosStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     runtime::{
-        actor::{ActorAddress, Mail, MailHandler},
+        actor::{Mail, MailHandler},
         executor::block_on,
     },
 };

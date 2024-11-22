@@ -9,7 +9,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             entities::data_reader::AddChangeResult, services::discovery_service,
         },
-        listeners::{data_reader_listener, domain_participant_listener},
+        listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -82,13 +82,41 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                         );
                     }
 
-                    subscriber.status_condition().send_actor_mail(
-                        status_condition_actor::AddCommunicationState {
-                            state: StatusKind::DataOnReaders,
-                        },
-                    );
+                    if self
+                        .domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::DataOnReaders)
+                    {
+                        let the_subscriber = self.get_subscriber_async(
+                            message.participant_address.clone(),
+                            message.subscriber_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(subscriber_listener::TriggerOnDataOnReaders {
+                                the_subscriber,
+                            });
+                        }
+                    }
 
-                    if subscriber
+                    self.domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .status_condition()
+                        .send_actor_mail(status_condition_actor::AddCommunicationState {
+                            state: StatusKind::DataOnReaders,
+                        });
+
+                    if self
+                        .domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
                         .get_mut_data_reader(message.data_reader_handle)
                         .ok_or(DdsError::AlreadyDeleted)?
                         .listener_mask()

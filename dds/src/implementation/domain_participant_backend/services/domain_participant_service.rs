@@ -20,7 +20,7 @@ use crate::{
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
             publisher_listener::PublisherListenerThread,
-            subscriber_listener::SubscriberListenerThread, topic_listener::TopicListenerActor,
+            subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -148,7 +148,13 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
             QosKind::Specific(q) => q,
         };
         let subscriber_handle = self.instance_handle_counter.generate_new_instance_handle();
-        let status_kind = message.mask.to_vec();
+        let listener = message.a_listener.map(|l| {
+            Actor::spawn(
+                SubscriberListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
+        let listener_mask = message.mask.to_vec();
 
         let mut subscriber = SubscriberEntity::new(
             subscriber_handle,
@@ -157,8 +163,8 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
                 StatusConditionActor::default(),
                 &self.listener_executor.handle(),
             ),
-            message.a_listener.map(SubscriberListenerThread::new),
-            status_kind,
+            listener,
+            listener_mask,
         );
 
         let subscriber_status_condition_address = subscriber.status_condition().address();
