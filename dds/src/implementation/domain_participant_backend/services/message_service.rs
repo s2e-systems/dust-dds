@@ -99,7 +99,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             .ok_or(DdsError::AlreadyDeleted)?
                             .listener()
                         {
-                            l.send_actor_mail(subscriber_listener::TriggerOnDataOnReaders {
+                            l.send_actor_mail(subscriber_listener::TriggerDataOnReaders {
                                 the_subscriber,
                             });
                         }
@@ -177,6 +177,36 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             l.send_actor_mail(data_reader_listener::TriggerOnSampleRejected {
                                 the_reader,
                                 status,
+                            });
+                        }
+                    } else if self
+                        .domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::SampleRejected)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_sample_rejected_status();
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(subscriber_listener::TriggerSampleRejected {
+                                status,
+                                the_reader,
                             });
                         }
                     } else if self

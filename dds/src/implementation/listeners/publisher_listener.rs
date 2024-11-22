@@ -1,6 +1,6 @@
 use crate::{
     dds_async::{data_writer::DataWriterAsync, publisher_listener::PublisherListenerAsync},
-    infrastructure::status::PublicationMatchedStatus,
+    infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
     runtime::{
         actor::{Mail, MailHandler},
         executor::block_on,
@@ -32,6 +32,25 @@ impl MailHandler<TriggerOnPublicationMatched> for PublisherListenerActor {
         block_on(
             self.listener
                 .on_publication_matched(message.the_writer, message.status),
+        )
+    }
+}
+
+pub struct TriggerOfferedIncompatibleQos {
+    pub the_writer: DataWriterAsync<()>,
+    pub status: OfferedIncompatibleQosStatus,
+}
+impl Mail for TriggerOfferedIncompatibleQos {
+    type Result = ();
+}
+impl MailHandler<TriggerOfferedIncompatibleQos> for PublisherListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOfferedIncompatibleQos,
+    ) -> <TriggerOfferedIncompatibleQos as Mail>::Result {
+        block_on(
+            self.listener
+                .on_offered_incompatible_qos(message.the_writer, message.status),
         )
     }
 }

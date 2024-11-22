@@ -1,7 +1,7 @@
 use crate::{
     implementation::{
         domain_participant_backend::domain_participant_actor::DomainParticipantActor,
-        listeners::{data_reader_listener, domain_participant_listener},
+        listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -57,6 +57,37 @@ impl MailHandler<RequestedDeadlineMissed> for DomainParticipantActor {
                 l.send_actor_mail(data_reader_listener::TriggerOnRequestedDeadlineMissed {
                     the_reader,
                     status,
+                });
+            }
+        } else if self
+            .domain_participant
+            .get_mut_subscriber(message.subscriber_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .listener_mask()
+            .contains(&StatusKind::RequestedDeadlineMissed)
+        {
+            let the_reader = self.get_data_reader_async(
+                message.participant_address,
+                message.subscriber_handle,
+                message.data_reader_handle,
+            )?;
+
+            let status = self
+                .domain_participant
+                .get_mut_subscriber(message.subscriber_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_mut_data_reader(message.data_reader_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_requested_deadline_missed_status();
+            if let Some(l) = self
+                .domain_participant
+                .get_mut_subscriber(message.subscriber_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .listener()
+            {
+                l.send_actor_mail(subscriber_listener::TriggerRequestedDeadlineMissed {
+                    status,
+                    the_reader,
                 });
             }
         } else if self

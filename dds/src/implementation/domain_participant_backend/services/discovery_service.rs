@@ -472,6 +472,36 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
 
                     if self
                         .domain_participant
+                        .get_mut_publisher(message.publisher_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::OfferedIncompatibleQos)
+                    {
+                        let the_writer = self.get_data_writer_async(
+                            message.participant_address,
+                            message.publisher_handle,
+                            message.data_writer_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_writer(message.data_writer_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_offered_incompatible_qos_status();
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(publisher_listener::TriggerOfferedIncompatibleQos {
+                                the_writer,
+                                status,
+                            });
+                        }
+                    } else if self
+                        .domain_participant
                         .status_kind()
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
