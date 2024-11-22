@@ -188,7 +188,7 @@ impl MailHandler<CreateUserDefinedSubscriber> for DomainParticipantActor {
         self.domain_participant.insert_subscriber(subscriber);
 
         Ok((
-            subscriber_handle.into(),
+            subscriber_handle,
             subscriber_status_condition_address,
         ))
     }
@@ -358,7 +358,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
     fn handle(&mut self, message: FindTopic) -> <FindTopic as Mail>::Result {
         if let Some(topic) = self.domain_participant.get_topic(&message.topic_name) {
             Ok(Some((
-                topic.instance_handle().into(),
+                topic.instance_handle(),
                 topic.status_condition().address(),
                 topic.type_name().to_owned(),
             )))
@@ -401,7 +401,7 @@ impl MailHandler<FindTopic> for DomainParticipantActor {
 
                 self.domain_participant.insert_topic(topic);
                 return Ok(Some((
-                    topic_handle.into(),
+                    topic_handle,
                     topic_status_condition_address,
                     type_name,
                 )));
@@ -425,7 +425,7 @@ impl MailHandler<LookupTopicdescription> for DomainParticipantActor {
         if let Some(topic) = self.domain_participant.get_topic(&message.topic_name) {
             Ok(Some((
                 topic.type_name().to_owned(),
-                topic.instance_handle().into(),
+                topic.instance_handle(),
                 topic.status_condition().address(),
             )))
         } else {

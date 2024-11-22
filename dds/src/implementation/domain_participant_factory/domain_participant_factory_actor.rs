@@ -423,7 +423,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         builtin_publisher.insert_data_writer(dcps_topics_writer);
         builtin_publisher.insert_data_writer(dcps_publications_writer);
         builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
-        let instance_handle = InstanceHandle::new(transport.guid().into());
+        let instance_handle = InstanceHandle::new(transport.guid());
 
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle());
@@ -478,17 +478,13 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.participant_announcement_interval();
 
         backend_executor_handle.spawn(async move {
-            loop {
-                if let Ok(r) =
-                    participant_address.send_actor_mail(discovery_service::AnnounceParticipant)
-                {
-                    if let Err(announce_result) = r.receive_reply().await {
-                        error!("Error announcing participant: {:?}", announce_result);
-                    }
-                    timer_handle.sleep(participant_announcement_interval).await;
-                } else {
-                    break;
+            while let Ok(r) =
+                participant_address.send_actor_mail(discovery_service::AnnounceParticipant)
+            {
+                if let Err(announce_result) = r.receive_reply().await {
+                    error!("Error announcing participant: {:?}", announce_result);
                 }
+                timer_handle.sleep(participant_announcement_interval).await;
             }
         });
 
@@ -500,11 +496,11 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let participant_address = participant_actor.address();
         self.domain_participant_list
-            .insert(participant_handle.into(), participant_actor);
+            .insert(participant_handle, participant_actor);
 
         Ok((
             participant_address,
-            participant_handle.into(),
+            participant_handle,
             participant_status_condition_address,
             builtin_subscriber_status_condition_address,
         ))

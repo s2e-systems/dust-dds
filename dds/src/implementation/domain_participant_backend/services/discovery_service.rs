@@ -287,12 +287,8 @@ impl MailHandler<AddDiscoveredTopic> for DomainParticipantActor {
             .domain_participant
             .get_mut_topic(&message.topic_name)
             .ok_or(DdsError::AlreadyDeleted)?;
-        if topic.topic_name() == message.topic_builtin_topic_data.name()
-            && topic.type_name() == message.topic_builtin_topic_data.get_type_name()
-        {
-            if !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data) {
-                topic.increment_inconsistent_topic_status();
-            }
+        if topic.topic_name() == message.topic_builtin_topic_data.name() && topic.type_name() == message.topic_builtin_topic_data.get_type_name() && !is_discovered_topic_consistent(topic.qos(), &message.topic_builtin_topic_data) {
+            topic.increment_inconsistent_topic_status();
         }
         Ok(())
     }
@@ -393,7 +389,7 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
                     get_discovered_reader_incompatible_qos_policy_list(
-                        &data_writer.qos(),
+                        data_writer.qos(),
                         &message.subscription_builtin_topic_data,
                         &publisher_qos,
                     );
@@ -694,7 +690,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
                     get_discovered_writer_incompatible_qos_policy_list(
-                        &data_reader,
+                        data_reader,
                         &message.publication_builtin_topic_data,
                         &subscriber_qos,
                     );

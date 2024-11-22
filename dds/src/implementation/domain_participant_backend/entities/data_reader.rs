@@ -39,9 +39,9 @@ use crate::{
 };
 
 pub enum AddChangeResult {
-    ChangeAdded(InstanceHandle),
-    ChangeNotAdded,
-    ChangeRejected(InstanceHandle, SampleRejectedStatusKind),
+    Added(InstanceHandle),
+    NotAdded,
+    Rejected(InstanceHandle, SampleRejectedStatusKind),
 }
 
 struct InstanceState {
@@ -149,6 +149,7 @@ pub struct DataReaderEntity {
 }
 
 impl DataReaderEntity {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
@@ -206,9 +207,9 @@ impl DataReaderEntity {
 
         let indexed_sample_list = self.create_indexed_sample_collection(
             max_samples,
-            &sample_states,
-            &view_states,
-            &instance_states,
+            sample_states,
+            view_states,
+            instance_states,
             specific_instance_handle,
         )?;
 
@@ -530,7 +531,7 @@ impl DataReaderEntity {
         Ok(ReaderSample {
             kind: cache_change.kind,
             writer_guid: cache_change.writer_guid,
-            instance_handle: instance_handle.into(),
+            instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
             data_value: cache_change.data_value,
             _inline_qos: cache_change.inline_qos,
@@ -565,7 +566,7 @@ impl DataReaderEntity {
                             .ownership_strength()
                             .value
                 {
-                    return Ok(AddChangeResult::ChangeNotAdded);
+                    return Ok(AddChangeResult::NotAdded);
                 }
             }
 
@@ -605,7 +606,7 @@ impl DataReaderEntity {
         };
 
         if !is_sample_of_interest_based_on_time {
-            return Ok(AddChangeResult::ChangeNotAdded);
+            return Ok(AddChangeResult::NotAdded);
         }
 
         let is_max_samples_limit_reached = {
@@ -640,17 +641,17 @@ impl DataReaderEntity {
             total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
         };
         if is_max_samples_limit_reached {
-            return Ok(AddChangeResult::ChangeRejected(
+            return Ok(AddChangeResult::Rejected(
                 sample.instance_handle,
                 SampleRejectedStatusKind::RejectedBySamplesLimit,
             ));
         } else if is_max_instances_limit_reached {
-            return Ok(AddChangeResult::ChangeRejected(
+            return Ok(AddChangeResult::Rejected(
                 sample.instance_handle,
                 SampleRejectedStatusKind::RejectedByInstancesLimit,
             ));
         } else if is_max_samples_per_instance_limit_reached {
-            return Ok(AddChangeResult::ChangeRejected(
+            return Ok(AddChangeResult::Rejected(
                 sample.instance_handle,
                 SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
             ));
@@ -728,7 +729,7 @@ impl DataReaderEntity {
             t.abort();
         }
 
-        Ok(AddChangeResult::ChangeAdded(change_instance_handle))
+        Ok(AddChangeResult::Added(change_instance_handle))
     }
 
     pub fn instance_handle(&self) -> InstanceHandle {
@@ -804,7 +805,7 @@ impl DataReaderEntity {
     }
 
     pub fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
-        self.instance_ownership.remove(&instance_handle);
+        self.instance_ownership.remove(instance_handle);
     }
 
     pub fn add_requested_incompatible_qos(

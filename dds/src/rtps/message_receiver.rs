@@ -87,7 +87,7 @@ impl MessageReceiver {
                 RtpsSubmessageReadKind::AckNack(acknack_submessage) => {
                     for stateful_writer in stateful_writer_list.iter_mut() {
                         stateful_writer.on_acknack_submessage_received(
-                            &acknack_submessage,
+                            acknack_submessage,
                             self.source_guid_prefix,
                         );
                     }
@@ -100,7 +100,7 @@ impl MessageReceiver {
                     };
                     for stateless_reader in stateless_reader_list.iter_mut() {
                         stateless_reader.on_data_submessage_received(
-                            &data_submessage,
+                            data_submessage,
                             self.source_guid_prefix,
                             source_timestamp,
                         );
@@ -152,7 +152,7 @@ impl MessageReceiver {
                 RtpsSubmessageReadKind::NackFrag(nackfrag_submessage) => {
                     for stateful_writer in stateful_writer_list.iter_mut() {
                         stateful_writer.on_nack_frag_submessage_received(
-                            &nackfrag_submessage,
+                            nackfrag_submessage,
                             self.source_guid_prefix,
                         );
                     }

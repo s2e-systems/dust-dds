@@ -64,6 +64,7 @@ pub struct DataWriterEntity {
 }
 
 impl DataWriterEntity {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: Box<dyn WriterHistoryCache>,
@@ -137,7 +138,7 @@ impl DataWriterEntity {
     }
 
     pub fn contains_instance(&mut self, instance_handle: &InstanceHandle) -> bool {
-        self.registered_instance_list.contains(&instance_handle)
+        self.registered_instance_list.contains(instance_handle)
     }
 
     pub fn write_w_timestamp(
@@ -247,10 +248,7 @@ impl DataWriterEntity {
             self.max_seq_num = Some(seq_num)
         }
 
-        if let Some(t) = self
-            .instance_deadline_missed_task
-            .remove(&instance_handle.into())
-        {
+        if let Some(t) = self.instance_deadline_missed_task.remove(&instance_handle) {
             t.abort();
         }
 
@@ -260,7 +258,7 @@ impl DataWriterEntity {
 
         self.instance_samples
             .entry(instance_handle)
-            .or_insert(VecDeque::new())
+            .or_default()
             .push_back(change.sequence_number);
         self.transport_writer.add_change(change);
         Ok(self.last_change_sequence_number)

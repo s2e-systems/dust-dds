@@ -102,7 +102,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
                 .ok();
         }
 
-        Ok((data_writer_handle.into(), writer_status_condition_address))
+        Ok((data_writer_handle, writer_status_condition_address))
     }
 }
 

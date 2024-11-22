@@ -44,7 +44,7 @@ impl ReaderCacheChange {
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<messages::types::Time>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, String> {
         let kind = match data_submessage
             .inline_qos()
             .parameter()
@@ -62,20 +62,16 @@ impl ReaderCacheChange {
                             Ok(ChangeKind::NotAliveDisposedUnregistered)
                         }
                         STATUS_INFO_FILTERED => Ok(ChangeKind::AliveFiltered),
-                        _ => {
-                            error!(
-                                "Received invalid status info parameter with value {:?}",
-                                status_info
-                            );
-                            Err(())
-                        }
+                        _ => Err(format!(
+                            "Received invalid status info parameter with value {:?}",
+                            status_info
+                        )),
                     }
                 } else {
-                    error!(
+                    Err(format!(
                         "Received invalid status info parameter length. Expected 4, got {:?}",
                         p.length()
-                    );
-                    Err(())
+                    ))
                 }
             }
             None => Ok(ChangeKind::Alive),
@@ -84,7 +80,7 @@ impl ReaderCacheChange {
         Ok(ReaderCacheChange {
             kind,
             writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
-            source_timestamp: source_timestamp,
+            source_timestamp,
             sequence_number: data_submessage.writer_sn(),
             data_value: data_submessage.serialized_payload().clone(),
             inline_qos: data_submessage.inline_qos().clone(),

@@ -21,9 +21,9 @@ pub struct MessageSender {
 impl Clone for MessageSender {
     fn clone(&self) -> Self {
         Self {
-            protocol_version: self.protocol_version.clone(),
-            vendor_id: self.vendor_id.clone(),
-            guid_prefix: self.guid_prefix.clone(),
+            protocol_version: self.protocol_version,
+            vendor_id: self.vendor_id,
+            guid_prefix: self.guid_prefix,
             socket: self.socket.try_clone().expect("Should always be clone"),
         }
     }

@@ -117,7 +117,7 @@ impl PublisherEntity {
     }
 
     pub fn set_qos(&mut self, qos: PublisherQos) -> DdsResult<()> {
-        if self.enabled {}
+        
         self.qos = qos;
         Ok(())
     }

@@ -55,7 +55,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .is_some()
         {
             match data_reader.add_reader_change(message.cache_change)? {
-                AddChangeResult::ChangeAdded(change_instance_handle) => {
+                AddChangeResult::Added(change_instance_handle) => {
                     if let DurationKind::Finite(deadline_missed_period) =
                         data_reader.qos().deadline.period
                     {
@@ -149,8 +149,8 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                             state: StatusKind::DataAvailable,
                         });
                 }
-                AddChangeResult::ChangeNotAdded => (), // Do nothing
-                AddChangeResult::ChangeRejected(instance_handle, sample_rejected_status_kind) => {
+                AddChangeResult::NotAdded => (), // Do nothing
+                AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind) => {
                     data_reader.increment_sample_rejected_status(
                         instance_handle,
                         sample_rejected_status_kind,
@@ -390,7 +390,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                             message
                                 .participant_address
                                 .send_actor_mail(discovery_service::RemoveDiscoveredWriter {
-                                    publication_handle: discovered_writer_handle.clone(),
+                                    publication_handle: discovered_writer_handle,
                                     subscriber_handle: subscriber.instance_handle(),
                                     data_reader_handle: data_reader.instance_handle(),
                                 })
@@ -460,7 +460,7 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                             message
                                 .participant_address
                                 .send_actor_mail(discovery_service::RemoveDiscoveredReader {
-                                    subscription_handle: discovered_reader_handle.clone(),
+                                    subscription_handle: discovered_reader_handle,
                                     publisher_handle: publisher.instance_handle(),
                                     data_writer_handle: data_writer.instance_handle(),
                                 })

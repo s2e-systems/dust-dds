@@ -50,7 +50,7 @@ impl RtpsStatefulWriter {
             changes: Vec::new(),
             matched_readers: Vec::new(),
             message_sender,
-            heartbeat_period: Duration::new(0, 200_000_000).into(),
+            heartbeat_period: Duration::new(0, 200_000_000),
             data_max_size_serialized: 1344,
         }
     }
@@ -154,7 +154,7 @@ impl RtpsStatefulWriter {
                     self.changes.iter().map(|cc| cc.sequence_number()).min(),
                     self.changes.iter().map(|cc| cc.sequence_number()).max(),
                     self.data_max_size_serialized,
-                    self.heartbeat_period.into(),
+                    self.heartbeat_period,
                     &self.message_sender,
                 ),
             }
@@ -174,26 +174,24 @@ impl RtpsStatefulWriter {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                if reader_proxy.reliability() == ReliabilityKind::Reliable {
-                    if acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
-                        reader_proxy
-                            .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
-                        reader_proxy
-                            .requested_changes_set(acknack_submessage.reader_sn_state().set());
+                if reader_proxy.reliability() == ReliabilityKind::Reliable && acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
+                    reader_proxy
+                        .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
+                    reader_proxy
+                        .requested_changes_set(acknack_submessage.reader_sn_state().set());
 
-                        reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
+                    reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
 
-                        send_message_to_reader_proxy_reliable(
-                            reader_proxy,
-                            self.guid.entity_id(),
-                            &self.changes,
-                            self.changes.iter().map(|cc| cc.sequence_number()).min(),
-                            self.changes.iter().map(|cc| cc.sequence_number()).max(),
-                            self.data_max_size_serialized,
-                            self.heartbeat_period.into(),
-                            &self.message_sender,
-                        );
-                    }
+                    send_message_to_reader_proxy_reliable(
+                        reader_proxy,
+                        self.guid.entity_id(),
+                        &self.changes,
+                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
+                        self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                        self.data_max_size_serialized,
+                        self.heartbeat_period,
+                        &self.message_sender,
+                    );
                 }
             }
         }
@@ -211,23 +209,21 @@ impl RtpsStatefulWriter {
             .iter_mut()
             .find(|x| x.remote_reader_guid() == reader_guid)
         {
-            if reader_proxy.reliability() == ReliabilityKind::Reliable {
-                if nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count() {
-                    reader_proxy
-                        .requested_changes_set(std::iter::once(nackfrag_submessage.writer_sn()));
-                    reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
+            if reader_proxy.reliability() == ReliabilityKind::Reliable && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count() {
+                reader_proxy
+                    .requested_changes_set(std::iter::once(nackfrag_submessage.writer_sn()));
+                reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
 
-                    send_message_to_reader_proxy_reliable(
-                        reader_proxy,
-                        self.guid.entity_id(),
-                        &self.changes,
-                        self.changes.iter().map(|cc| cc.sequence_number()).min(),
-                        self.changes.iter().map(|cc| cc.sequence_number()).max(),
-                        self.data_max_size_serialized,
-                        self.heartbeat_period.into(),
-                        &self.message_sender,
-                    );
-                }
+                send_message_to_reader_proxy_reliable(
+                    reader_proxy,
+                    self.guid.entity_id(),
+                    &self.changes,
+                    self.changes.iter().map(|cc| cc.sequence_number()).min(),
+                    self.changes.iter().map(|cc| cc.sequence_number()).max(),
+                    self.data_max_size_serialized,
+                    self.heartbeat_period,
+                    &self.message_sender,
+                );
             }
         }
     }

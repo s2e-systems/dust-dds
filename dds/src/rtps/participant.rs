@@ -69,6 +69,7 @@ pub struct RtpsParticipant {
 }
 
 impl RtpsParticipant {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         guid: Guid,
         domain_id: DomainId,
@@ -92,7 +93,7 @@ impl RtpsParticipant {
             message_sender.clone(),
         );
         for locator in &metatraffic_multicast_locator_list {
-            spdp_builtin_participant_writer.reader_locator_add(locator.clone());
+            spdp_builtin_participant_writer.reader_locator_add(*locator);
         }
 
         let spdp_builtin_participant_reader = RtpsStatelessReader::new(
@@ -249,12 +250,12 @@ impl RtpsParticipant {
             .discovered_participant_list
             .contains(&discovered_participant_handle);
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
-            self.add_matched_publications_detector(&discovered_participant_data);
-            self.add_matched_publications_announcer(&discovered_participant_data);
-            self.add_matched_subscriptions_detector(&discovered_participant_data);
-            self.add_matched_subscriptions_announcer(&discovered_participant_data);
-            self.add_matched_topics_detector(&discovered_participant_data);
-            self.add_matched_topics_announcer(&discovered_participant_data);
+            self.add_matched_publications_detector(discovered_participant_data);
+            self.add_matched_publications_announcer(discovered_participant_data);
+            self.add_matched_subscriptions_detector(discovered_participant_data);
+            self.add_matched_subscriptions_announcer(discovered_participant_data);
+            self.add_matched_topics_detector(discovered_participant_data);
+            self.add_matched_topics_announcer(discovered_participant_data);
             self.discovered_participant_list
                 .push(discovered_participant_handle);
         }

@@ -89,17 +89,13 @@ impl TopicEntity {
     pub fn set_qos(&mut self, qos: TopicQos) -> DdsResult<()> {
         qos.is_consistent()?;
 
-        if self.enabled {
-            if self.qos.durability != qos.durability
+        if self.enabled && (self.qos.durability != qos.durability
                 || self.qos.liveliness != qos.liveliness
                 || self.qos.reliability != qos.reliability
                 || self.qos.destination_order != qos.destination_order
                 || self.qos.history != qos.history
-                || self.qos.resource_limits != qos.resource_limits
-                || self.qos.ownership != qos.ownership
-            {
-                return Err(DdsError::ImmutablePolicy);
-            }
+                || self.qos.resource_limits != qos.resource_limits || self.qos.ownership != qos.ownership) {
+            return Err(DdsError::ImmutablePolicy);
         }
 
         self.qos = qos;

@@ -155,6 +155,7 @@ pub struct RtpsTransport {
 }
 
 impl RtpsTransport {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,

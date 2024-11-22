@@ -185,12 +185,7 @@ impl DomainParticipantEntity {
     }
 
     pub fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
-        for discovered_topic_data in self.discovered_topic_list.values() {
-            if discovered_topic_data.name() == topic_name {
-                return Some(discovered_topic_data);
-            }
-        }
-        None
+        self.discovered_topic_list.values().find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
     }
 
     pub fn add_discovered_participant(
