@@ -3,7 +3,10 @@ use crate::{
         data_reader::DataReaderAsync, subscriber::SubscriberAsync,
         subscriber_listener::SubscriberListenerAsync,
     },
-    infrastructure::status::{RequestedDeadlineMissedStatus, SampleRejectedStatus},
+    infrastructure::status::{
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+        SubscriptionMatchedStatus,
+    },
     runtime::{
         actor::{Mail, MailHandler},
         executor::block_on,
@@ -66,6 +69,46 @@ impl MailHandler<TriggerSampleRejected> for SubscriberListenerActor {
         block_on(
             self.listener
                 .on_sample_rejected(message.the_reader.change_foo_type(), message.status),
+        );
+    }
+}
+
+pub struct TriggerSubscriptionMatched {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: SubscriptionMatchedStatus,
+}
+impl Mail for TriggerSubscriptionMatched {
+    type Result = ();
+}
+impl MailHandler<TriggerSubscriptionMatched> for SubscriberListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerSubscriptionMatched,
+    ) -> <TriggerSubscriptionMatched as Mail>::Result {
+        block_on(
+            self.listener
+                .on_subscription_matched(message.the_reader.change_foo_type(), message.status),
+        );
+    }
+}
+
+pub struct TriggerRequestedIncompatibleQos {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: RequestedIncompatibleQosStatus,
+}
+impl Mail for TriggerRequestedIncompatibleQos {
+    type Result = ();
+}
+impl MailHandler<TriggerRequestedIncompatibleQos> for SubscriberListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerRequestedIncompatibleQos,
+    ) -> <TriggerRequestedIncompatibleQos as Mail>::Result {
+        block_on(
+            self.listener.on_requested_incompatible_qos(
+                message.the_reader.change_foo_type(),
+                message.status,
+            ),
         );
     }
 }

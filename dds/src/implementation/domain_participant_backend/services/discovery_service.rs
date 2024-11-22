@@ -11,7 +11,10 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
         },
-        listeners::{data_reader_listener, domain_participant_listener, publisher_listener},
+        listeners::{
+            data_reader_listener, domain_participant_listener, publisher_listener,
+            subscriber_listener,
+        },
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -676,6 +679,36 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         }
                     } else if self
                         .domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::SubscriptionMatched)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_subscription_matched_status();
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(subscriber_listener::TriggerSubscriptionMatched {
+                                the_reader,
+                                status,
+                            });
+                        }
+                    } else if self
+                        .domain_participant
                         .status_kind()
                         .contains(&StatusKind::SubscriptionMatched)
                     {
@@ -736,6 +769,38 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         {
                             l.send_actor_mail(
                                 data_reader_listener::TriggerOnRequestedIncompatibleQos {
+                                    the_reader,
+                                    status,
+                                },
+                            );
+                        }
+                    } else if self
+                        .domain_participant
+                        .get_mut_subscriber(message.subscriber_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::RequestedIncompatibleQos)
+                    {
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_requested_incompatible_qos_status();
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(
+                                subscriber_listener::TriggerRequestedIncompatibleQos {
                                     the_reader,
                                     status,
                                 },
