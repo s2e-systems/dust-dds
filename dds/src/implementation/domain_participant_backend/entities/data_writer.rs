@@ -19,11 +19,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     runtime::{actor::Actor, executor::TaskHandle},
-    transport::{
-        cache_change::CacheChange,
-        types::{ChangeKind, SequenceNumber},
-        writer::WriterHistoryCache,
-    },
+    transport::{cache_change::CacheChange, types::ChangeKind, writer::WriterHistoryCache},
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
@@ -45,13 +41,13 @@ pub struct DataWriterEntity {
     status_condition: Actor<StatusConditionActor>,
     listener: Option<Actor<DataWriterListenerActor>>,
     listener_mask: Vec<StatusKind>,
-    max_seq_num: Option<SequenceNumber>,
-    last_change_sequence_number: SequenceNumber,
+    max_seq_num: Option<i64>,
+    last_change_sequence_number: i64,
     qos: DataWriterQos,
     registered_instance_list: HashSet<InstanceHandle>,
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
-    instance_samples: HashMap<InstanceHandle, VecDeque<SequenceNumber>>,
+    instance_samples: HashMap<InstanceHandle, VecDeque<i64>>,
 }
 
 impl DataWriterEntity {
@@ -136,7 +132,7 @@ impl DataWriterEntity {
         &mut self,
         serialized_data: Vec<u8>,
         timestamp: Time,
-    ) -> DdsResult<SequenceNumber> {
+    ) -> DdsResult<i64> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -358,7 +354,7 @@ impl DataWriterEntity {
         Ok(())
     }
 
-    pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
+    pub fn remove_change(&mut self, sequence_number: i64) {
         self.transport_writer.remove_change(sequence_number);
     }
 

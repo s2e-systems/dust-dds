@@ -21,10 +21,7 @@ use crate::{
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsDeserialize,
-    transport::{
-        cache_change::CacheChange,
-        types::{ChangeKind, SequenceNumber},
-    },
+    transport::{cache_change::CacheChange, types::ChangeKind},
 };
 
 use super::event_service;
@@ -542,7 +539,7 @@ impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
 pub struct RemoveWriterChange {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
-    pub sequence_number: SequenceNumber,
+    pub sequence_number: i64,
 }
 impl Mail for RemoveWriterChange {
     type Result = ();

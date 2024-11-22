@@ -26,7 +26,7 @@ use crate::{
     transport::{
         cache_change::CacheChange,
         reader::ReaderHistoryCache,
-        types::{ChangeKind, ReliabilityKind, SequenceNumber},
+        types::{ChangeKind, ReliabilityKind},
         writer::WriterHistoryCache,
     },
 };
@@ -46,8 +46,8 @@ use super::{
     reader::{RtpsStatefulReader, RtpsStatelessReader},
     stateless_writer::RtpsStatelessWriter,
     types::{
-        DurabilityKind, Guid, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION_2_4,
-        VENDOR_ID_S2E,
+        DurabilityKind, Guid, Locator, ProtocolVersion, SequenceNumber, VendorId,
+        PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
     },
 };
 

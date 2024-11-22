@@ -30,11 +30,6 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-/// SequenceNumber_t
-/// Type used to hold sequence numbers.
-/// Must be possible to represent using 64 bits.
-pub type SequenceNumber = i64;
-
 #[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
 pub struct Time {
     sec: i32,

@@ -1,10 +1,8 @@
-use crate::transport::types::SequenceNumber;
-
 use super::{
     super::{
         error::{RtpsError, RtpsErrorKind, RtpsResult},
         messages::types::FragmentNumber,
-        types::Locator,
+        types::{Locator, SequenceNumber},
     },
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     types::ParameterId,

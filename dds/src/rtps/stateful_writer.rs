@@ -4,7 +4,7 @@ use crate::{
     },
     transport::{
         cache_change::CacheChange,
-        types::{ChangeKind, ReliabilityKind, SequenceNumber},
+        types::{ChangeKind, ReliabilityKind},
         writer::WriterHistoryCache,
     },
 };
@@ -22,7 +22,9 @@ use super::{
         types::TIME_INVALID,
     },
     reader_proxy::RtpsReaderProxy,
-    types::{DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
+    types::{
+        DurabilityKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
+    },
 };
 
 pub struct RtpsStatefulWriter {

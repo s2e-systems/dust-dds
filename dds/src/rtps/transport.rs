@@ -29,7 +29,7 @@ use crate::{
         cache_change::CacheChange,
         participant::TransportParticipant,
         reader::{ReaderHistoryCache, TransportReader},
-        types::{SequenceNumber, TopicKind},
+        types::TopicKind,
         writer::WriterHistoryCache,
     },
 };
@@ -356,7 +356,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: i64) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemoveParticipantDiscoveryCacheChange {
                         sequence_number,
@@ -364,7 +364,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: i64) -> bool {
                 true
             }
         }
@@ -412,7 +412,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: i64) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemoveTopicsDiscoveryCacheChange {
                         sequence_number,
@@ -420,7 +420,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: i64) -> bool {
                 true
             }
         }
@@ -470,7 +470,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: i64) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemovePublicationsDiscoveryCacheChange {
                         sequence_number,
@@ -478,7 +478,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: i64) -> bool {
                 true
             }
         }
@@ -534,7 +534,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: i64) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemoveSubscriptionsDiscoveryCacheChange {
                         sequence_number,
@@ -542,7 +542,7 @@ impl TransportParticipant for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: i64) -> bool {
                 true
             }
         }

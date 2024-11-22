@@ -8,12 +8,9 @@ use super::super::super::{
         submessage_elements::{Data, ParameterList},
         types::{SubmessageFlag, SubmessageKind},
     },
-    types::EntityId,
+    types::{EntityId, SequenceNumber},
 };
-use crate::{
-    rtps::error::{RtpsError, RtpsErrorKind},
-    transport::types::SequenceNumber,
-};
+use crate::rtps::error::{RtpsError, RtpsErrorKind};
 use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

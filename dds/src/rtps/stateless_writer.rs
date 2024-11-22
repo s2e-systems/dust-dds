@@ -1,6 +1,4 @@
-use crate::transport::{
-    cache_change::CacheChange, types::SequenceNumber, writer::WriterHistoryCache,
-};
+use crate::transport::{cache_change::CacheChange, writer::WriterHistoryCache};
 
 use super::{
     message_sender::MessageSender,
@@ -9,7 +7,7 @@ use super::{
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
     },
     reader_locator::RtpsReaderLocator,
-    types::{Guid, Locator, ENTITYID_UNKNOWN},
+    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 pub struct RtpsStatelessWriter {

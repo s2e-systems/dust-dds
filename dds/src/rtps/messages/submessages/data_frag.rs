@@ -1,6 +1,4 @@
-use crate::{
-    rtps::messages::submessage_elements::SerializedDataFragment, transport::types::SequenceNumber,
-};
+use crate::rtps::messages::submessage_elements::SerializedDataFragment;
 
 use super::super::super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
@@ -12,7 +10,7 @@ use super::super::super::{
         submessage_elements::ParameterList,
         types::{FragmentNumber, SubmessageFlag, SubmessageKind},
     },
-    types::EntityId,
+    types::{EntityId, SequenceNumber},
 };
 use std::io::Write;
 

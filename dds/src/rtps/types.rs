@@ -7,7 +7,7 @@ use crate::{
         DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
         ReliabilityQosPolicyKind,
     },
-    transport::types::{ReliabilityKind, SequenceNumber},
+    transport::types::ReliabilityKind,
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use network_interface::Addr;
@@ -229,6 +229,11 @@ pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
 // Added in comparison to the RTPS standard
 pub const BUILT_IN_TOPIC: Octet = 0xca;
 pub const USER_DEFINED_TOPIC: Octet = 0x0a;
+
+/// SequenceNumber_t
+/// Type used to hold sequence numbers.
+/// Must be possible to represent using 64 bits.
+pub type SequenceNumber = i64;
 
 impl TryReadFromBytes for SequenceNumber {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
