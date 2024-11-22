@@ -1,7 +1,9 @@
 use crate::{
     dds_async::data_writer::DataWriterAsync,
     implementation::any_data_writer_listener::AnyDataWriterListener,
-    infrastructure::status::{OfferedIncompatibleQosStatus, PublicationMatchedStatus},
+    infrastructure::status::{
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+    },
     runtime::actor::{Mail, MailHandler},
 };
 
@@ -46,5 +48,22 @@ impl MailHandler<TriggerOfferedIncompatibleQos> for DataWriterListenerActor {
     ) -> <TriggerOfferedIncompatibleQos as Mail>::Result {
         self.listener
             .trigger_on_offered_incompatible_qos(message.the_writer, message.status);
+    }
+}
+
+pub struct TriggerOfferedDeadlineMissed {
+    pub the_writer: DataWriterAsync<()>,
+    pub status: OfferedDeadlineMissedStatus,
+}
+impl Mail for TriggerOfferedDeadlineMissed {
+    type Result = ();
+}
+impl MailHandler<TriggerOfferedDeadlineMissed> for DataWriterListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOfferedDeadlineMissed,
+    ) -> <TriggerOfferedDeadlineMissed as Mail>::Result {
+        self.listener
+            .trigger_on_offered_deadline_missed(message.the_writer, message.status);
     }
 }

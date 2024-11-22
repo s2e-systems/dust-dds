@@ -1,7 +1,10 @@
 use crate::{
     implementation::{
         domain_participant_backend::domain_participant_actor::DomainParticipantActor,
-        listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
+        listeners::{
+            data_reader_listener, data_writer_listener, domain_participant_listener,
+            publisher_listener, subscriber_listener,
+        },
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -136,6 +139,7 @@ pub struct OfferedDeadlineMissed {
     pub publisher_handle: InstanceHandle,
     pub data_writer_handle: InstanceHandle,
     pub change_instance_handle: InstanceHandle,
+    pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for OfferedDeadlineMissed {
     type Result = DdsResult<()>;
@@ -154,6 +158,94 @@ impl MailHandler<OfferedDeadlineMissed> for DomainParticipantActor {
             .ok_or(DdsError::AlreadyDeleted)?;
 
         data_writer.increment_offered_deadline_missed_status(message.change_instance_handle);
+
+        if data_writer
+            .listener_mask()
+            .contains(&StatusKind::OfferedDeadlineMissed)
+        {
+            let status = data_writer.get_offered_deadline_missed_status();
+            let the_writer = self.get_data_writer_async(
+                message.participant_address,
+                message.publisher_handle,
+                message.data_writer_handle,
+            )?;
+            if let Some(l) = self
+                .domain_participant
+                .get_mut_publisher(message.publisher_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_mut_data_writer(message.data_writer_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .listener()
+            {
+                l.send_actor_mail(data_writer_listener::TriggerOfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
+            }
+        } else if self
+            .domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .listener_mask()
+            .contains(&StatusKind::OfferedDeadlineMissed)
+        {
+            let the_writer = self.get_data_writer_async(
+                message.participant_address,
+                message.publisher_handle,
+                message.data_writer_handle,
+            )?;
+            let status = self
+                .domain_participant
+                .get_mut_publisher(message.publisher_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_mut_data_writer(message.data_writer_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_offered_deadline_missed_status();
+            if let Some(l) = self
+                .domain_participant
+                .get_mut_publisher(message.publisher_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .listener()
+            {
+                l.send_actor_mail(publisher_listener::TriggerOfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
+            }
+        } else if self
+            .domain_participant
+            .listener_mask()
+            .contains(&StatusKind::OfferedDeadlineMissed)
+        {
+            let the_writer = self.get_data_writer_async(
+                message.participant_address,
+                message.publisher_handle,
+                message.data_writer_handle,
+            )?;
+            let status = self
+                .domain_participant
+                .get_mut_publisher(message.publisher_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_mut_data_writer(message.data_writer_handle)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_offered_deadline_missed_status();
+            if let Some(l) = self.domain_participant.listener() {
+                l.send_actor_mail(domain_participant_listener::TriggerOfferedDeadlineMissed {
+                    the_writer,
+                    status,
+                });
+            }
+        }
+
+        self.domain_participant
+            .get_mut_publisher(message.publisher_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_mut_data_writer(message.data_writer_handle)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .status_condition()
+            .send_actor_mail(status_condition_actor::AddCommunicationState {
+                state: StatusKind::OfferedDeadlineMissed,
+            });
 
         Ok(())
     }

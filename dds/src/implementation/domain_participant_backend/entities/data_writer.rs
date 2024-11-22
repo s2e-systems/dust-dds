@@ -473,11 +473,6 @@ impl DataWriterEntity {
         self.offered_deadline_missed_status.last_instance_handle = instance_handle;
         self.offered_deadline_missed_status.total_count += 1;
         self.offered_deadline_missed_status.total_count_change += 1;
-
-        self.status_condition
-            .send_actor_mail(status_condition_actor::AddCommunicationState {
-                state: StatusKind::OfferedDeadlineMissed,
-            });
     }
 
     pub fn type_support(&self) -> &(dyn DynamicType + Send + Sync) {

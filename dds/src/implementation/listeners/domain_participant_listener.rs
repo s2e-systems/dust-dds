@@ -4,8 +4,9 @@ use crate::{
         domain_participant_listener::DomainParticipantListenerAsync,
     },
     infrastructure::status::{
-        OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
-        RequestedIncompatibleQosStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+        SubscriptionMatchedStatus,
     },
     runtime::{
         actor::{Mail, MailHandler},
@@ -133,6 +134,25 @@ impl MailHandler<TriggerOfferedIncompatibleQos> for DomainParticipantListenerAct
         block_on(
             self.listener
                 .on_offered_incompatible_qos(message.the_writer, message.status),
+        )
+    }
+}
+
+pub struct TriggerOfferedDeadlineMissed {
+    pub the_writer: DataWriterAsync<()>,
+    pub status: OfferedDeadlineMissedStatus,
+}
+impl Mail for TriggerOfferedDeadlineMissed {
+    type Result = ();
+}
+impl MailHandler<TriggerOfferedDeadlineMissed> for DomainParticipantListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOfferedDeadlineMissed,
+    ) -> <TriggerOfferedDeadlineMissed as Mail>::Result {
+        block_on(
+            self.listener
+                .on_offered_deadline_missed(message.the_writer, message.status),
         )
     }
 }

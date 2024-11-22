@@ -187,6 +187,7 @@ impl MailHandler<WriteWTimestamp> for DomainParticipantActor {
                             publisher_handle: message.publisher_handle,
                             data_writer_handle: message.data_writer_handle,
                             change_instance_handle: instance_handle,
+                            participant_address: message.participant_address.clone(),
                         })
                         .ok();
                 }
