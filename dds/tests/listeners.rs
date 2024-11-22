@@ -929,7 +929,7 @@ fn participant_requested_deadline_missed_listener() {
 }
 
 #[test]
-fn participant_sample_rejected_listener() {
+fn data_reader_sample_rejected_listener() {
     struct SampleRejectedListener {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
@@ -1039,7 +1039,7 @@ fn participant_sample_rejected_listener() {
 }
 
 #[test]
-fn participant_subscription_matched_listener() {
+fn data_reader_subscription_matched_listener() {
     struct SubscriptionMatchedListener {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
@@ -1125,7 +1125,7 @@ fn participant_subscription_matched_listener() {
 }
 
 #[test]
-fn participant_requested_incompatible_qos_listener() {
+fn data_reader_requested_incompatible_qos_listener() {
     struct RequestedIncompatibleQosListener {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }

@@ -1,7 +1,10 @@
 use crate::{
     dds_async::data_reader::DataReaderAsync,
     implementation::any_data_reader_listener::AnyDataReaderListener,
-    infrastructure::status::RequestedDeadlineMissedStatus,
+    infrastructure::status::{
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+        SubscriptionMatchedStatus,
+    },
     runtime::actor::{Mail, MailHandler},
 };
 
@@ -43,5 +46,56 @@ impl MailHandler<TriggerOnRequestedDeadlineMissed> for DataReaderListenerActor {
     ) -> <TriggerOnRequestedDeadlineMissed as Mail>::Result {
         self.listener
             .trigger_on_requested_deadline_missed(message.the_reader, message.status);
+    }
+}
+
+pub struct TriggerOnSampleRejected {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: SampleRejectedStatus,
+}
+impl Mail for TriggerOnSampleRejected {
+    type Result = ();
+}
+impl MailHandler<TriggerOnSampleRejected> for DataReaderListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOnSampleRejected,
+    ) -> <TriggerOnSampleRejected as Mail>::Result {
+        self.listener
+            .trigger_on_sample_rejected(message.the_reader, message.status);
+    }
+}
+
+pub struct TriggerOnSubscriptionMatched {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: SubscriptionMatchedStatus,
+}
+impl Mail for TriggerOnSubscriptionMatched {
+    type Result = ();
+}
+impl MailHandler<TriggerOnSubscriptionMatched> for DataReaderListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOnSubscriptionMatched,
+    ) -> <TriggerOnSubscriptionMatched as Mail>::Result {
+        self.listener
+            .trigger_on_subscription_matched(message.the_reader, message.status);
+    }
+}
+
+pub struct TriggerOnRequestedIncompatibleQos {
+    pub the_reader: DataReaderAsync<()>,
+    pub status: RequestedIncompatibleQosStatus,
+}
+impl Mail for TriggerOnRequestedIncompatibleQos {
+    type Result = ();
+}
+impl MailHandler<TriggerOnRequestedIncompatibleQos> for DataReaderListenerActor {
+    fn handle(
+        &mut self,
+        message: TriggerOnRequestedIncompatibleQos,
+    ) -> <TriggerOnRequestedIncompatibleQos as Mail>::Result {
+        self.listener
+            .trigger_on_requested_incompatible_qos(message.the_reader, message.status);
     }
 }

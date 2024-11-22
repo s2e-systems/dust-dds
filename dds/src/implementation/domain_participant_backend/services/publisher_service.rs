@@ -8,7 +8,7 @@ use crate::{
         },
         listeners::{
             data_writer_listener::DataWriterListenerThread,
-            publisher_listener::PublisherListenerThread,
+            publisher_listener::PublisherListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
     },
@@ -314,7 +314,12 @@ impl MailHandler<SetListener> for DomainParticipantActor {
             .get_mut_publisher(message.publisher_handle)
             .ok_or(DdsError::AlreadyDeleted)?
             .set_listener(
-                message.a_listener.map(PublisherListenerThread::new),
+                message.a_listener.map(|l| {
+                    Actor::spawn(
+                        PublisherListenerActor::new(l),
+                        &self.listener_executor.handle(),
+                    )
+                }),
                 message.mask,
             );
 

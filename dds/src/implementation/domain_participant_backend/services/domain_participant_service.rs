@@ -19,7 +19,7 @@ use crate::{
         },
         listeners::{
             domain_participant_listener::DomainParticipantListenerActor,
-            publisher_listener::PublisherListenerThread,
+            publisher_listener::PublisherListenerActor,
             subscriber_listener::SubscriberListenerActor, topic_listener::TopicListenerActor,
         },
         status_condition::status_condition_actor::StatusConditionActor,
@@ -68,10 +68,16 @@ impl MailHandler<CreateUserDefinedPublisher> for DomainParticipantActor {
             &self.listener_executor.handle(),
         );
         let publisher_status_condition_address = status_condition.address();
+        let listener = message.a_listener.map(|l| {
+            Actor::spawn(
+                PublisherListenerActor::new(l),
+                &self.listener_executor.handle(),
+            )
+        });
         let mut publisher = PublisherEntity::new(
             publisher_qos,
             publisher_handle,
-            message.a_listener.map(PublisherListenerThread::new),
+            listener,
             message.mask,
             status_condition,
         );

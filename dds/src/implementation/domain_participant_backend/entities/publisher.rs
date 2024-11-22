@@ -1,6 +1,6 @@
 use crate::{
     implementation::{
-        listeners::publisher_listener::PublisherListenerThread,
+        listeners::publisher_listener::PublisherListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
     },
     infrastructure::{
@@ -20,8 +20,8 @@ pub struct PublisherEntity {
     data_writer_list: Vec<DataWriterEntity>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
-    publisher_listener_thread: Option<PublisherListenerThread>,
-    status_kind: Vec<StatusKind>,
+    listener: Option<Actor<PublisherListenerActor>>,
+    listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
 
@@ -29,8 +29,8 @@ impl PublisherEntity {
     pub fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        publisher_listener_thread: Option<PublisherListenerThread>,
-        status_kind: Vec<StatusKind>,
+        listener: Option<Actor<PublisherListenerActor>>,
+        listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
     ) -> Self {
         Self {
@@ -39,8 +39,8 @@ impl PublisherEntity {
             data_writer_list: Vec::new(),
             enabled: false,
             default_datawriter_qos: DataWriterQos::default(),
-            publisher_listener_thread,
-            status_kind,
+            listener,
+            listener_mask,
             status_condition,
         }
     }
@@ -124,14 +124,22 @@ impl PublisherEntity {
 
     pub fn set_listener(
         &mut self,
-        a_listener: Option<PublisherListenerThread>,
-        status_kind: Vec<StatusKind>,
+        a_listener: Option<Actor<PublisherListenerActor>>,
+        mask: Vec<StatusKind>,
     ) {
-        self.publisher_listener_thread = a_listener;
-        self.status_kind = status_kind;
+        self.listener = a_listener;
+        self.listener_mask = mask;
     }
 
     pub fn status_condition(&self) -> &Actor<StatusConditionActor> {
         &self.status_condition
+    }
+
+    pub fn listener_mask(&self) -> &[StatusKind] {
+        &self.listener_mask
+    }
+
+    pub fn listener(&self) -> Option<&Actor<PublisherListenerActor>> {
+        self.listener.as_ref()
     }
 }

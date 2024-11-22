@@ -11,7 +11,7 @@ use crate::{
             domain_participant_actor::DomainParticipantActor,
             entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
         },
-        listeners::domain_participant_listener,
+        listeners::{data_reader_listener, domain_participant_listener, publisher_listener},
         status_condition::status_condition_actor,
     },
     infrastructure::{
@@ -400,6 +400,36 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
 
                     if self
                         .domain_participant
+                        .get_mut_publisher(message.publisher_handle)
+                        .ok_or(DdsError::AlreadyDeleted)?
+                        .listener_mask()
+                        .contains(&StatusKind::PublicationMatched)
+                    {
+                        let the_writer = self.get_data_writer_async(
+                            message.participant_address,
+                            message.publisher_handle,
+                            message.data_writer_handle,
+                        )?;
+                        let status = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_writer(message.data_writer_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_publication_matched_status();
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_publisher(message.publisher_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(publisher_listener::TriggerOnPublicationMatched {
+                                the_writer,
+                                status,
+                            });
+                        }
+                    } else if self
+                        .domain_participant
                         .status_kind()
                         .contains(&StatusKind::PublicationMatched)
                     {
@@ -591,7 +621,30 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                     data_reader
                         .add_matched_publication(message.publication_builtin_topic_data.clone());
 
-                    if self
+                    if data_reader
+                        .listener_mask()
+                        .contains(&StatusKind::SubscriptionMatched)
+                    {
+                        let status = data_reader.get_subscription_matched_status();
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(data_reader_listener::TriggerOnSubscriptionMatched {
+                                the_reader,
+                                status,
+                            });
+                        }
+                    } else if self
                         .domain_participant
                         .status_kind()
                         .contains(&StatusKind::SubscriptionMatched)
@@ -633,7 +686,32 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         incompatible_qos_policy_list,
                     );
 
-                    if self
+                    if data_reader
+                        .listener_mask()
+                        .contains(&StatusKind::RequestedIncompatibleQos)
+                    {
+                        let status = data_reader.get_requested_incompatible_qos_status();
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(
+                                data_reader_listener::TriggerOnRequestedIncompatibleQos {
+                                    the_reader,
+                                    status,
+                                },
+                            );
+                        }
+                    } else if self
                         .domain_participant
                         .status_kind()
                         .contains(&StatusKind::RequestedIncompatibleQos)

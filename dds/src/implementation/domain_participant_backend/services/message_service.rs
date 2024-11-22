@@ -156,7 +156,30 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                         sample_rejected_status_kind,
                     );
 
-                    if self
+                    if data_reader
+                        .listener_mask()
+                        .contains(&StatusKind::SampleRejected)
+                    {
+                        let status = data_reader.get_sample_rejected_status();
+                        let the_reader = self.get_data_reader_async(
+                            message.participant_address,
+                            message.subscriber_handle,
+                            message.data_reader_handle,
+                        )?;
+                        if let Some(l) = self
+                            .domain_participant
+                            .get_mut_subscriber(message.subscriber_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .get_mut_data_reader(message.data_reader_handle)
+                            .ok_or(DdsError::AlreadyDeleted)?
+                            .listener()
+                        {
+                            l.send_actor_mail(data_reader_listener::TriggerOnSampleRejected {
+                                the_reader,
+                                status,
+                            });
+                        }
+                    } else if self
                         .domain_participant
                         .status_kind()
                         .contains(&StatusKind::SampleRejected)
