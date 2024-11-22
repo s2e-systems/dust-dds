@@ -22,7 +22,7 @@ use crate::{
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsDeserialize,
     transport::{
-        reader::ReaderCacheChange,
+        cache_change::CacheChange,
         types::{ChangeKind, SequenceNumber},
     },
 };
@@ -31,7 +31,7 @@ use super::event_service;
 
 pub struct AddCacheChange {
     pub participant_address: ActorAddress<DomainParticipantActor>,
-    pub cache_change: ReaderCacheChange,
+    pub cache_change: CacheChange,
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
 }
@@ -251,7 +251,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
 }
 
 pub struct AddBuiltinParticipantsDetectorCacheChange {
-    pub cache_change: ReaderCacheChange,
+    pub cache_change: CacheChange,
 }
 impl Mail for AddBuiltinParticipantsDetectorCacheChange {
     type Result = ();
@@ -296,7 +296,7 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
 }
 
 pub struct AddBuiltinTopicsDetectorCacheChange {
-    pub cache_change: ReaderCacheChange,
+    pub cache_change: CacheChange,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddBuiltinTopicsDetectorCacheChange {
@@ -343,7 +343,7 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
 }
 
 pub struct AddBuiltinPublicationsDetectorCacheChange {
-    pub cache_change: ReaderCacheChange,
+    pub cache_change: CacheChange,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddBuiltinPublicationsDetectorCacheChange {
@@ -413,7 +413,7 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
 }
 
 pub struct AddBuiltinSubscriptionsDetectorCacheChange {
-    pub cache_change: ReaderCacheChange,
+    pub cache_change: CacheChange,
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 impl Mail for AddBuiltinSubscriptionsDetectorCacheChange {

@@ -27,8 +27,9 @@ use crate::{
     rtps::messages::submessage_elements::{Parameter, ParameterList},
     runtime::{actor::Actor, executor::TaskHandle},
     transport::{
+        cache_change::CacheChange,
         types::{ChangeKind, SequenceNumber},
-        writer::{RtpsCacheChange, WriterHistoryCache},
+        writer::WriterHistoryCache,
     },
     xtypes::{
         dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
@@ -202,8 +203,9 @@ impl DataWriterEntity {
         let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
         let parameter_list = ParameterList::new(vec![pid_key_hash]);
 
-        let change = RtpsCacheChange {
+        let change = CacheChange {
             kind: ChangeKind::Alive,
+            writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             data_value: serialized_data.into(),
@@ -311,8 +313,9 @@ impl DataWriterEntity {
         let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
         let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
-        let cache_change = RtpsCacheChange {
+        let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
+            writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             data_value: serialized_key.into(),
@@ -380,8 +383,9 @@ impl DataWriterEntity {
         let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
         let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
 
-        let cache_change = RtpsCacheChange {
+        let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
+            writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             data_value: serialized_key.into(),

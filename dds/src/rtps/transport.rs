@@ -26,10 +26,11 @@ use crate::{
     },
     topic_definition::type_support::DdsDeserialize,
     transport::{
-        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
+        cache_change::CacheChange,
         participant::TransportParticipant,
+        reader::{ReaderHistoryCache, TransportReader},
         types::{SequenceNumber, TopicKind},
-        writer::{RtpsCacheChange, WriterHistoryCache},
+        writer::WriterHistoryCache,
     },
 };
 
@@ -347,7 +348,7 @@ impl TransportParticipant for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddParticipantDiscoveryCacheChange {
                         cache_change,
@@ -405,7 +406,7 @@ impl TransportParticipant for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddTopicsDiscoveryCacheChange { cache_change })
                     .ok();
@@ -461,7 +462,7 @@ impl TransportParticipant for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddPublicationsDiscoveryCacheChange {
                         cache_change,
@@ -525,7 +526,7 @@ impl TransportParticipant for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddSubscriptionsDiscoveryCacheChange {
                         cache_change,
@@ -663,7 +664,7 @@ struct ParticipantDiscoveryReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for ParticipantDiscoveryReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         if let Ok(discovered_participant_data) =
             SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
         {
@@ -684,7 +685,7 @@ struct PublicationsDiscoveryReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for PublicationsDiscoveryReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         if let Ok(discovered_writer_data) =
             DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
         {
@@ -705,7 +706,7 @@ struct SubscriptionsDiscoveryReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for SubscriptionsDiscoveryReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         if let Ok(discovered_reader_data) =
             DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
         {

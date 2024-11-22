@@ -20,10 +20,7 @@ use crate::{
         status::StatusKind,
     },
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
-    transport::{
-        reader::{ReaderCacheChange, ReaderHistoryCache},
-        types::TopicKind,
-    },
+    transport::{cache_change::CacheChange, reader::ReaderHistoryCache, types::TopicKind},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -47,7 +44,7 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
         }
 
         impl ReaderHistoryCache for UserDefinedReaderHistoryCache {
-            fn add_change(&mut self, cache_change: ReaderCacheChange) {
+            fn add_change(&mut self, cache_change: CacheChange) {
                 self.domain_participant_address
                     .send_actor_mail(message_service::AddCacheChange {
                         participant_address: self.domain_participant_address.clone(),

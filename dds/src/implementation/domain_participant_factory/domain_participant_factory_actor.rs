@@ -45,8 +45,7 @@ use crate::{
     },
     topic_definition::type_support::TypeSupport,
     transport::{
-        reader::{ReaderCacheChange, ReaderHistoryCache},
-        participant::TransportParticipant,
+        cache_change::CacheChange, participant::TransportParticipant, reader::ReaderHistoryCache,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -628,7 +627,7 @@ struct DcpsParticipantReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for DcpsParticipantReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
                 cache_change,
@@ -642,7 +641,7 @@ struct DcpsTopicsReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for DcpsTopicsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange {
                 cache_change,
@@ -657,7 +656,7 @@ struct DcpsSubscriptionsReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for DcpsSubscriptionsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(
                 message_service::AddBuiltinSubscriptionsDetectorCacheChange {
@@ -674,7 +673,7 @@ struct DcpsPublicationsReaderHistoryCache {
 }
 
 impl ReaderHistoryCache for DcpsPublicationsReaderHistoryCache {
-    fn add_change(&mut self, cache_change: ReaderCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinPublicationsDetectorCacheChange {
                 cache_change,

@@ -34,10 +34,7 @@ use crate::{
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    transport::{
-        reader::{ReaderCacheChange, TransportReader},
-        types::ChangeKind,
-    },
+    transport::{cache_change::CacheChange, reader::TransportReader, types::ChangeKind},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -469,7 +466,7 @@ impl DataReaderEntity {
     }
     fn convert_cache_change_to_sample(
         &mut self,
-        cache_change: ReaderCacheChange,
+        cache_change: CacheChange,
         reception_timestamp: Time,
     ) -> DdsResult<ReaderSample> {
         let instance_handle = {
@@ -547,10 +544,7 @@ impl DataReaderEntity {
         })
     }
 
-    pub fn add_reader_change(
-        &mut self,
-        cache_change: ReaderCacheChange,
-    ) -> DdsResult<AddChangeResult> {
+    pub fn add_reader_change(&mut self, cache_change: CacheChange) -> DdsResult<AddChangeResult> {
         let sample = self.convert_cache_change_to_sample(cache_change, Time::now())?;
         let change_instance_handle = sample.instance_handle;
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return

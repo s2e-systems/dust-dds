@@ -25,13 +25,14 @@ use crate::{
         },
     },
     transport::{
-        reader::{ReaderCacheChange, ReaderHistoryCache},
+        cache_change::CacheChange,
+        reader::ReaderHistoryCache,
         types::{ChangeKind, ReliabilityKind},
     },
 };
 use tracing::error;
 
-impl ReaderCacheChange {
+impl CacheChange {
     pub fn try_from_data_submessage(
         data_submessage: &DataSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -69,7 +70,7 @@ impl ReaderCacheChange {
             None => Ok(ChangeKind::Alive),
         }?;
 
-        Ok(ReaderCacheChange {
+        Ok(CacheChange {
             kind,
             writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()).into(),
             source_timestamp: source_timestamp.map(Into::into),
@@ -134,7 +135,7 @@ impl RtpsStatelessReader {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
             || data_submessage.reader_id() == self.guid.entity_id()
         {
-            if let Ok(change) = ReaderCacheChange::try_from_data_submessage(
+            if let Ok(change) = CacheChange::try_from_data_submessage(
                 data_submessage,
                 source_guid_prefix,
                 source_timestamp,
@@ -259,7 +260,7 @@ impl RtpsStatefulReader {
                             writer_proxy.lost_changes_update(sequence_number);
                         }
 
-                        if let Ok(change) = ReaderCacheChange::try_from_data_submessage(
+                        if let Ok(change) = CacheChange::try_from_data_submessage(
                             data_submessage,
                             source_guid_prefix,
                             source_timestamp,
@@ -275,7 +276,7 @@ impl RtpsStatefulReader {
                     if sequence_number == expected_seq_num {
                         writer_proxy.received_change_set(sequence_number);
 
-                        if let Ok(change) = ReaderCacheChange::try_from_data_submessage(
+                        if let Ok(change) = CacheChange::try_from_data_submessage(
                             data_submessage,
                             source_guid_prefix,
                             source_timestamp,

@@ -1,4 +1,4 @@
-use crate::transport::{types::SequenceNumber, writer::RtpsCacheChange};
+use crate::transport::{cache_change::CacheChange, types::SequenceNumber};
 
 use super::types::Locator;
 
@@ -23,7 +23,7 @@ impl RtpsReaderLocator {
 
     pub fn next_unsent_change<'a>(
         &'a mut self,
-        writer_history_cache: impl Iterator<Item = &'a RtpsCacheChange>,
+        writer_history_cache: impl Iterator<Item = &'a CacheChange>,
     ) -> Option<SequenceNumber> {
         // unsent_changes := { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
         // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID

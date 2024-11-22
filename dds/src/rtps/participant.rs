@@ -24,9 +24,10 @@ use crate::{
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
+        cache_change::CacheChange,
         reader::ReaderHistoryCache,
         types::{ChangeKind, ReliabilityKind, SequenceNumber},
-        writer::{RtpsCacheChange, WriterHistoryCache},
+        writer::WriterHistoryCache,
     },
 };
 
@@ -760,7 +761,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(AddUserDefinedCacheChange {
                         guid: self.guid,
@@ -818,7 +819,7 @@ impl MailHandler<CreateReader> for RtpsParticipant {
 }
 
 pub struct AddParticipantDiscoveryCacheChange {
-    pub cache_change: RtpsCacheChange,
+    pub cache_change: CacheChange,
 }
 impl Mail for AddParticipantDiscoveryCacheChange {
     type Result = ();
@@ -885,7 +886,7 @@ impl MailHandler<RemoveParticipantDiscoveryCacheChange> for RtpsParticipant {
 }
 
 pub struct AddTopicsDiscoveryCacheChange {
-    pub cache_change: RtpsCacheChange,
+    pub cache_change: CacheChange,
 }
 impl Mail for AddTopicsDiscoveryCacheChange {
     type Result = ();
@@ -927,7 +928,7 @@ impl MailHandler<RemoveTopicsDiscoveryCacheChange> for RtpsParticipant {
 }
 
 pub struct AddPublicationsDiscoveryCacheChange {
-    pub cache_change: RtpsCacheChange,
+    pub cache_change: CacheChange,
 }
 impl Mail for AddPublicationsDiscoveryCacheChange {
     type Result = ();
@@ -995,7 +996,7 @@ impl MailHandler<RemovePublicationsDiscoveryCacheChange> for RtpsParticipant {
 }
 
 pub struct AddSubscriptionsDiscoveryCacheChange {
-    pub cache_change: RtpsCacheChange,
+    pub cache_change: CacheChange,
 }
 impl Mail for AddSubscriptionsDiscoveryCacheChange {
     type Result = ();
@@ -1066,7 +1067,7 @@ impl MailHandler<RemoveSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
 
 pub struct AddUserDefinedCacheChange {
     pub guid: Guid,
-    pub cache_change: RtpsCacheChange,
+    pub cache_change: CacheChange,
 }
 impl Mail for AddUserDefinedCacheChange {
     type Result = ();

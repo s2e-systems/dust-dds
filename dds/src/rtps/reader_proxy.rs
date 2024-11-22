@@ -1,6 +1,6 @@
 use crate::transport::{
+    cache_change::CacheChange,
     types::{ReliabilityKind, SequenceNumber},
-    writer::RtpsCacheChange,
 };
 
 use super::{
@@ -170,7 +170,7 @@ impl RtpsReaderProxy {
 
     pub fn next_unsent_change<'a>(
         &'a self,
-        writer_history_cache: impl Iterator<Item = &'a RtpsCacheChange>,
+        writer_history_cache: impl Iterator<Item = &'a CacheChange>,
     ) -> Option<SequenceNumber> {
         //         unsent_changes :=
         // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
@@ -185,7 +185,7 @@ impl RtpsReaderProxy {
 
     pub fn unsent_changes<'a>(
         &'a self,
-        writer_history_cache: impl Iterator<Item = &'a RtpsCacheChange>,
+        writer_history_cache: impl Iterator<Item = &'a CacheChange>,
     ) -> bool {
         // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
         self.next_unsent_change(writer_history_cache).is_some()

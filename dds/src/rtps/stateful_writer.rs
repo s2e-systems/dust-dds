@@ -3,8 +3,9 @@ use crate::{
         discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
     },
     transport::{
+        cache_change::CacheChange,
         types::{ChangeKind, ReliabilityKind, SequenceNumber},
-        writer::{RtpsCacheChange, WriterHistoryCache},
+        writer::WriterHistoryCache,
     },
 };
 
@@ -27,7 +28,7 @@ use super::{
 pub struct RtpsStatefulWriter {
     guid: Guid,
     topic_name: String,
-    changes: Vec<RtpsCacheChange>,
+    changes: Vec<CacheChange>,
     matched_readers: Vec<RtpsReaderProxy>,
     message_sender: MessageSender,
     heartbeat_period: Duration,
@@ -220,7 +221,7 @@ impl RtpsStatefulWriter {
 fn send_message_to_reader_proxy_best_effort(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    changes: &[RtpsCacheChange],
+    changes: &[CacheChange],
     data_max_size_serialized: usize,
     message_sender: &MessageSender,
 ) {
@@ -373,7 +374,7 @@ fn send_message_to_reader_proxy_best_effort(
 fn send_message_to_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    changes: &[RtpsCacheChange],
+    changes: &[CacheChange],
     seq_num_min: Option<SequenceNumber>,
     seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
@@ -471,7 +472,7 @@ fn send_message_to_reader_proxy_reliable(
 fn send_change_message_reader_proxy_reliable(
     reader_proxy: &mut RtpsReaderProxy,
     writer_id: EntityId,
-    changes: &[RtpsCacheChange],
+    changes: &[CacheChange],
     seq_num_min: Option<SequenceNumber>,
     seq_num_max: Option<SequenceNumber>,
     data_max_size_serialized: usize,
@@ -601,7 +602,7 @@ impl WriterHistoryCache for RtpsStatefulWriter {
         self.guid.into()
     }
 
-    fn add_change(&mut self, cache_change: RtpsCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         self.changes.push(cache_change);
         self.send_message();
     }

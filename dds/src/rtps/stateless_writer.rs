@@ -1,6 +1,5 @@
 use crate::transport::{
-    types::SequenceNumber,
-    writer::{RtpsCacheChange, WriterHistoryCache},
+    cache_change::CacheChange, types::SequenceNumber, writer::WriterHistoryCache,
 };
 
 use super::{
@@ -16,7 +15,7 @@ use super::{
 pub struct RtpsStatelessWriter {
     guid: Guid,
     topic_name: String,
-    changes: Vec<RtpsCacheChange>,
+    changes: Vec<CacheChange>,
     reader_locators: Vec<RtpsReaderLocator>,
     message_sender: MessageSender,
 }
@@ -94,7 +93,7 @@ impl WriterHistoryCache for RtpsStatelessWriter {
         self.guid.into()
     }
 
-    fn add_change(&mut self, cache_change: RtpsCacheChange) {
+    fn add_change(&mut self, cache_change: CacheChange) {
         self.changes.push(cache_change);
         self.send_message();
     }
