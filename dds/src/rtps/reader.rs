@@ -17,7 +17,7 @@ use crate::{
             discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
         },
         data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
+            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
                 StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
                 STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
@@ -70,13 +70,29 @@ impl CacheChange {
             None => Ok(ChangeKind::Alive),
         }?;
 
+        let instance_handle = match data_submessage
+            .inline_qos()
+            .parameter()
+            .iter()
+            .find(|&x| x.parameter_id() == PID_KEY_HASH)
+        {
+            Some(p) => {
+                if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
+                    Some(key)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+
         Ok(CacheChange {
             kind,
             writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()).into(),
             source_timestamp: source_timestamp.map(Into::into),
+            instance_handle,
             sequence_number: data_submessage.writer_sn(),
             data_value: data_submessage.serialized_payload().clone().into(),
-            inline_qos: data_submessage.inline_qos().clone(),
         })
     }
 }

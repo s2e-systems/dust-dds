@@ -1,12 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        data_representation_inline_qos::{
-            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
-            types::{
-                STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
-            },
-        },
         listeners::data_writer_listener::DataWriterListenerActor,
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
@@ -24,16 +18,13 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    rtps::messages::submessage_elements::{Parameter, ParameterList},
     runtime::{actor::Actor, executor::TaskHandle},
     transport::{
         cache_change::CacheChange,
         types::{ChangeKind, SequenceNumber},
         writer::WriterHistoryCache,
     },
-    xtypes::{
-        dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
-    },
+    xtypes::dynamic_type::DynamicType,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -200,16 +191,13 @@ impl DataWriterEntity {
             }
         }
 
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_key_hash]);
-
         let change = CacheChange {
             kind: ChangeKind::Alive,
             writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
+            instance_handle: Some(instance_handle.into()),
             data_value: serialized_data.into(),
-            inline_qos: parameter_list,
         };
         if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
             if let Some(s) = self.instance_samples.get_mut(&instance_handle) {
@@ -305,21 +293,13 @@ impl DataWriterEntity {
 
         self.last_change_sequence_number += 1;
 
-        let mut serialized_status_info = Vec::new();
-        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-        XTypesSerialize::serialize(&STATUS_INFO_DISPOSED, &mut serializer)?;
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
+            instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
-            inline_qos: parameter_list,
         };
         self.transport_writer.add_change(cache_change);
 
@@ -366,30 +346,13 @@ impl DataWriterEntity {
 
         self.last_change_sequence_number += 1;
 
-        let mut serialized_status_info = Vec::new();
-        let mut serializer = Xcdr1LeSerializer::new(&mut serialized_status_info);
-        match self
-            .qos
-            .writer_data_lifecycle
-            .autodispose_unregistered_instances
-        {
-            true => {
-                XTypesSerialize::serialize(&STATUS_INFO_DISPOSED_UNREGISTERED, &mut serializer)?
-            }
-            false => XTypesSerialize::serialize(&STATUS_INFO_UNREGISTERED, &mut serializer)?,
-        }
-        let pid_status_info = Parameter::new(PID_STATUS_INFO, Arc::from(serialized_status_info));
-
-        let pid_key_hash = Parameter::new(PID_KEY_HASH, Arc::from(*instance_handle.as_ref()));
-        let parameter_list = ParameterList::new(vec![pid_status_info, pid_key_hash]);
-
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer().guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
+            instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
-            inline_qos: parameter_list,
         };
         self.transport_writer.add_change(cache_change);
         Ok(())

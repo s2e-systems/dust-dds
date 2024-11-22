@@ -13,7 +13,7 @@ use super::{
     behavior_types::Duration,
     message_sender::MessageSender,
     messages::{
-        submessage_elements::{SequenceNumberSet, SerializedDataFragment},
+        submessage_elements::{ParameterList, SequenceNumberSet, SerializedDataFragment},
         submessages::{
             ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             info_destination::InfoDestinationSubmessage, info_timestamp::InfoTimestampSubmessage,
@@ -301,7 +301,6 @@ fn send_message_to_reader_proxy_best_effort(
                     let fragments_in_submessage = 1;
                     let fragment_size = data_max_size_serialized as u16;
                     let data_size = cache_change.data_value().len() as u32;
-                    let inline_qos = cache_change.inline_qos().clone();
 
                     let start = frag_index * data_max_size_serialized;
                     let end = std::cmp::min(
@@ -325,7 +324,7 @@ fn send_message_to_reader_proxy_best_effort(
                         fragments_in_submessage,
                         fragment_size,
                         data_size,
-                        inline_qos,
+                        ParameterList::new(vec![]),
                         serialized_payload,
                     ));
 
@@ -517,7 +516,6 @@ fn send_change_message_reader_proxy_reliable(
                     let fragments_in_submessage = 1;
                     let fragment_size = data_max_size_serialized as u16;
                     let data_size = cache_change.data_value().len() as u32;
-                    let inline_qos = cache_change.inline_qos().clone();
 
                     let start = frag_index * data_max_size_serialized;
                     let end = std::cmp::min(
@@ -541,7 +539,7 @@ fn send_change_message_reader_proxy_reliable(
                         fragments_in_submessage,
                         fragment_size,
                         data_size,
-                        inline_qos,
+                        ParameterList::new(vec![]),
                         serialized_payload,
                     ));
 

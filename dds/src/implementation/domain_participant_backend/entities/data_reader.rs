@@ -6,7 +6,6 @@ use std::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        data_representation_inline_qos::parameter_id_values::PID_KEY_HASH,
         listeners::data_reader_listener::DataReaderListenerActor,
         status_condition::status_condition_actor::{self, StatusConditionActor},
         xtypes_glue::key_and_instance_handle::{
@@ -27,10 +26,6 @@ use crate::{
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
-    },
-    rtps::{
-        messages::submessage_elements::{Data, ParameterList},
-        types::Guid,
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -106,11 +101,10 @@ impl InstanceState {
 #[derive(Debug)]
 pub struct ReaderSample {
     pub kind: ChangeKind,
-    pub writer_guid: Guid,
+    pub writer_guid: [u8; 16],
     pub instance_handle: InstanceHandle,
     pub source_timestamp: Option<Time>,
-    pub data_value: Data,
-    pub _inline_qos: ParameterList,
+    pub data_value: Arc<[u8]>,
     pub sample_state: SampleStateKind,
     pub disposed_generation_count: i32,
     pub no_writers_generation_count: i32,
@@ -119,7 +113,7 @@ pub struct ReaderSample {
 
 pub struct IndexedSample {
     pub index: usize,
-    pub sample: (Option<Data>, SampleInfo),
+    pub sample: (Option<Arc<[u8]>>, SampleInfo),
 }
 
 pub struct DataReaderEntity {
@@ -144,7 +138,7 @@ pub struct DataReaderEntity {
     listener_mask: Vec<StatusKind>,
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
-    instance_ownership: HashMap<InstanceHandle, Guid>,
+    instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
     transport_reader: Box<dyn TransportReader>,
 }
 
@@ -195,7 +189,7 @@ impl DataReaderEntity {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -235,7 +229,7 @@ impl DataReaderEntity {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -343,7 +337,7 @@ impl DataReaderEntity {
                 absolute_generation_rank,
                 source_timestamp: cache_change.source_timestamp.map(Into::into),
                 instance_handle: cache_change.instance_handle,
-                publication_handle: InstanceHandle::new(cache_change.writer_guid.into()),
+                publication_handle: InstanceHandle::new(cache_change.writer_guid),
                 valid_data,
             };
 
@@ -424,7 +418,7 @@ impl DataReaderEntity {
         sample_states: Vec<SampleStateKind>,
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -448,7 +442,7 @@ impl DataReaderEntity {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<Data>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -479,22 +473,8 @@ impl DataReaderEntity {
                 }
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => match &cache_change
-                    .inline_qos
-                    .parameter()
-                    .iter()
-                    .find(|&x| x.parameter_id() == PID_KEY_HASH)
-                {
-                    Some(p) => {
-                        if let Ok(key) = <[u8; 16]>::try_from(p.value()) {
-                            InstanceHandle::new(key)
-                        } else {
-                            get_instance_handle_from_serialized_key(
-                                cache_change.data_value.as_ref(),
-                                self.type_support.as_ref(),
-                            )?
-                        }
-                    }
+                | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
+                    Some(i) => InstanceHandle::new(i),
                     None => get_instance_handle_from_serialized_key(
                         cache_change.data_value.as_ref(),
                         self.type_support.as_ref(),
@@ -534,7 +514,6 @@ impl DataReaderEntity {
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
             data_value: cache_change.data_value.clone().into(),
-            _inline_qos: cache_change.inline_qos,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,

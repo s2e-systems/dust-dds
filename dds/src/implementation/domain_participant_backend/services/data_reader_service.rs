@@ -1,4 +1,5 @@
 use core::{future::Future, pin::Pin};
+use std::sync::Arc;
 
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -18,7 +19,6 @@ use crate::{
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Duration,
     },
-    rtps::messages::submessage_elements::Data,
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
 };
@@ -35,7 +35,7 @@ pub struct Read {
     pub specific_instance_handle: Option<InstanceHandle>,
 }
 impl Mail for Read {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+    type Result = DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>;
 }
 impl MailHandler<Read> for DomainParticipantActor {
     fn handle(&mut self, message: Read) -> <Read as Mail>::Result {
@@ -72,7 +72,7 @@ pub struct Take {
     pub specific_instance_handle: Option<InstanceHandle>,
 }
 impl Mail for Take {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+    type Result = DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>;
 }
 impl MailHandler<Take> for DomainParticipantActor {
     fn handle(&mut self, message: Take) -> <Take as Mail>::Result {
@@ -103,7 +103,7 @@ pub struct ReadNextInstance {
     pub instance_states: Vec<InstanceStateKind>,
 }
 impl Mail for ReadNextInstance {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+    type Result = DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>;
 }
 impl MailHandler<ReadNextInstance> for DomainParticipantActor {
     fn handle(&mut self, message: ReadNextInstance) -> <ReadNextInstance as Mail>::Result {
@@ -134,7 +134,7 @@ pub struct TakeNextInstance {
     pub instance_states: Vec<InstanceStateKind>,
 }
 impl Mail for TakeNextInstance {
-    type Result = DdsResult<Vec<(Option<Data>, SampleInfo)>>;
+    type Result = DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>>;
 }
 impl MailHandler<TakeNextInstance> for DomainParticipantActor {
     fn handle(&mut self, message: TakeNextInstance) -> <TakeNextInstance as Mail>::Result {
