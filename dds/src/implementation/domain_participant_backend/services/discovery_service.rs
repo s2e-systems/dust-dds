@@ -433,7 +433,7 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         }
                     } else if self
                         .domain_participant
-                        .status_kind()
+                        .listener_mask()
                         .contains(&StatusKind::PublicationMatched)
                     {
                         let the_writer = self.get_data_writer_async(
@@ -505,7 +505,7 @@ impl MailHandler<AddDiscoveredReader> for DomainParticipantActor {
                         }
                     } else if self
                         .domain_participant
-                        .status_kind()
+                        .listener_mask()
                         .contains(&StatusKind::OfferedIncompatibleQos)
                     {
                         let the_writer = self.get_data_writer_async(
@@ -709,7 +709,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         }
                     } else if self
                         .domain_participant
-                        .status_kind()
+                        .listener_mask()
                         .contains(&StatusKind::SubscriptionMatched)
                     {
                         let the_reader = self.get_data_reader_async(
@@ -808,7 +808,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         }
                     } else if self
                         .domain_participant
-                        .status_kind()
+                        .listener_mask()
                         .contains(&StatusKind::RequestedIncompatibleQos)
                     {
                         let the_reader = self.get_data_reader_async(

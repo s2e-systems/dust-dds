@@ -45,7 +45,7 @@ pub struct DomainParticipantEntity {
     ignored_subcriptions: HashSet<InstanceHandle>,
     _ignored_topic_list: HashSet<InstanceHandle>,
     listener: Option<Actor<DomainParticipantListenerActor>>,
-    status_kind: Vec<StatusKind>,
+    listener_mask: Vec<StatusKind>,
     status_condition: Actor<StatusConditionActor>,
 }
 
@@ -55,7 +55,7 @@ impl DomainParticipantEntity {
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener: Option<Actor<DomainParticipantListenerActor>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: Vec<StatusKind>,
         status_condition: Actor<StatusConditionActor>,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
@@ -84,7 +84,7 @@ impl DomainParticipantEntity {
             ignored_subcriptions: HashSet::new(),
             _ignored_topic_list: HashSet::new(),
             listener,
-            status_kind,
+            listener_mask,
             status_condition,
         }
     }
@@ -371,8 +371,8 @@ impl DomainParticipantEntity {
             && no_user_defined_topics
     }
 
-    pub fn status_kind(&self) -> &[StatusKind] {
-        &self.status_kind
+    pub fn listener_mask(&self) -> &[StatusKind] {
+        &self.listener_mask
     }
 
     pub fn listener(&self) -> Option<&Actor<DomainParticipantListenerActor>> {
@@ -385,7 +385,7 @@ impl DomainParticipantEntity {
         status_kind: Vec<StatusKind>,
     ) {
         self.listener = listener;
-        self.status_kind = status_kind;
+        self.listener_mask = status_kind;
     }
 
     pub fn domain_id(&self) -> i32 {

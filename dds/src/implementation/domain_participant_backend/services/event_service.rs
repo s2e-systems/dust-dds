@@ -92,7 +92,7 @@ impl MailHandler<RequestedDeadlineMissed> for DomainParticipantActor {
             }
         } else if self
             .domain_participant
-            .status_kind()
+            .listener_mask()
             .contains(&StatusKind::RequestedDeadlineMissed)
         {
             let the_reader = self.get_data_reader_async(

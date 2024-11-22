@@ -211,7 +211,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
                         }
                     } else if self
                         .domain_participant
-                        .status_kind()
+                        .listener_mask()
                         .contains(&StatusKind::SampleRejected)
                     {
                         let the_reader = self.get_data_reader_async(
