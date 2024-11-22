@@ -1,42 +1,6 @@
-use super::{
-    messages::{
-        self,
-        submessage_elements::{Data, ParameterList},
-        submessages::data::DataSubmessage,
-    },
-    types::{ChangeKind, EntityId, SequenceNumber},
-};
+use crate::transport::{types::ChangeKind, writer::RtpsCacheChange};
 
-#[derive(Debug)]
-pub struct RtpsCacheChange {
-    pub kind: ChangeKind,
-    pub sequence_number: SequenceNumber,
-    pub source_timestamp: Option<messages::types::Time>,
-    pub data_value: Data,
-    pub inline_qos: ParameterList,
-}
-
-impl RtpsCacheChange {
-    pub fn kind(&self) -> ChangeKind {
-        self.kind
-    }
-
-    pub fn sequence_number(&self) -> SequenceNumber {
-        self.sequence_number
-    }
-
-    pub fn source_timestamp(&self) -> Option<messages::types::Time> {
-        self.source_timestamp
-    }
-
-    pub fn data_value(&self) -> &Data {
-        &self.data_value
-    }
-
-    pub fn inline_qos(&self) -> &ParameterList {
-        &self.inline_qos
-    }
-}
+use super::{messages::submessages::data::DataSubmessage, types::EntityId};
 
 impl RtpsCacheChange {
     pub fn as_data_submessage(&self, reader_id: EntityId, writer_id: EntityId) -> DataSubmessage {

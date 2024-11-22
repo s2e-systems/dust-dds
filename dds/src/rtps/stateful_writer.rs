@@ -1,10 +1,15 @@
-use crate::implementation::data_representation_builtin_endpoints::{
-    discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+use crate::{
+    implementation::data_representation_builtin_endpoints::{
+        discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+    },
+    transport::{
+        types::{ChangeKind, ReliabilityKind, SequenceNumber},
+        writer::{RtpsCacheChange, WriterHistoryCache},
+    },
 };
 
 use super::{
     behavior_types::Duration,
-    cache_change::RtpsCacheChange,
     message_sender::MessageSender,
     messages::{
         submessage_elements::{SequenceNumberSet, SerializedDataFragment},
@@ -16,21 +21,8 @@ use super::{
         types::TIME_INVALID,
     },
     reader_proxy::RtpsReaderProxy,
-    types::{
-        ChangeKind, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-        SequenceNumber, ENTITYID_UNKNOWN,
-    },
+    types::{DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
 };
-
-pub trait WriterHistoryCache: Send + Sync {
-    fn guid(&self) -> [u8; 16];
-
-    fn add_change(&mut self, cache_change: RtpsCacheChange);
-
-    fn remove_change(&mut self, sequence_number: SequenceNumber);
-
-    fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool;
-}
 
 pub struct RtpsStatefulWriter {
     guid: Guid,
@@ -91,35 +83,29 @@ impl RtpsStatefulWriter {
             &reader_proxy.multicast_locator_list
         };
 
-        if !self
-            .matched_readers
-            .iter()
-            .any(|rp| rp.remote_reader_guid() == reader_proxy.remote_reader_guid)
-        {
-            let first_relevant_sample_seq_num = match durability_kind {
-                DurabilityKind::Volatile => self
-                    .changes
-                    .iter()
-                    .map(|cc| cc.sequence_number)
-                    .max()
-                    .unwrap_or(0),
-                DurabilityKind::TransientLocal
-                | DurabilityKind::Transient
-                | DurabilityKind::Persistent => 0,
-            };
-            let rtps_reader_proxy = RtpsReaderProxy::new(
-                reader_proxy.remote_reader_guid,
-                reader_proxy.remote_group_entity_id,
-                unicast_locator_list,
-                multicast_locator_list,
-                reader_proxy.expects_inline_qos,
-                true,
-                reliability_kind,
-                first_relevant_sample_seq_num,
-            );
-            self.matched_readers.push(rtps_reader_proxy);
-            self.send_message();
-        }
+        let first_relevant_sample_seq_num = match durability_kind {
+            DurabilityKind::Volatile => self
+                .changes
+                .iter()
+                .map(|cc| cc.sequence_number)
+                .max()
+                .unwrap_or(0),
+            DurabilityKind::TransientLocal
+            | DurabilityKind::Transient
+            | DurabilityKind::Persistent => 0,
+        };
+        let rtps_reader_proxy = RtpsReaderProxy::new(
+            reader_proxy.remote_reader_guid,
+            reader_proxy.remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            reader_proxy.expects_inline_qos,
+            true,
+            reliability_kind,
+            first_relevant_sample_seq_num,
+        );
+        self.matched_readers.push(rtps_reader_proxy);
+        self.send_message();
     }
 
     pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
@@ -174,11 +160,11 @@ impl RtpsStatefulWriter {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                if reader_proxy.reliability() == ReliabilityKind::Reliable && acknack_submessage.count() > reader_proxy.last_received_acknack_count() {
-                    reader_proxy
-                        .acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
-                    reader_proxy
-                        .requested_changes_set(acknack_submessage.reader_sn_state().set());
+                if reader_proxy.reliability() == ReliabilityKind::Reliable
+                    && acknack_submessage.count() > reader_proxy.last_received_acknack_count()
+                {
+                    reader_proxy.acked_changes_set(acknack_submessage.reader_sn_state().base() - 1);
+                    reader_proxy.requested_changes_set(acknack_submessage.reader_sn_state().set());
 
                     reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
 
@@ -209,7 +195,9 @@ impl RtpsStatefulWriter {
             .iter_mut()
             .find(|x| x.remote_reader_guid() == reader_guid)
         {
-            if reader_proxy.reliability() == ReliabilityKind::Reliable && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count() {
+            if reader_proxy.reliability() == ReliabilityKind::Reliable
+                && nackfrag_submessage.count() > reader_proxy.last_received_nack_frag_count()
+            {
                 reader_proxy
                     .requested_changes_set(std::iter::once(nackfrag_submessage.writer_sn()));
                 reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
@@ -294,7 +282,7 @@ fn send_message_to_reader_proxy_best_effort(
                     ));
 
                     let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                        Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                        Box::new(InfoTimestampSubmessage::new(false, timestamp.into()))
                     } else {
                         Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
                     };
@@ -349,7 +337,7 @@ fn send_message_to_reader_proxy_best_effort(
                 ));
 
                 let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                    Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                    Box::new(InfoTimestampSubmessage::new(false, timestamp.into()))
                 } else {
                     Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
                 };
@@ -412,8 +400,11 @@ fn send_message_to_reader_proxy_reliable(
                         .heartbeat_machine()
                         .generate_new_heartbeat(writer_id, first_sn, last_sn),
                 );
+                let info_dst = Box::new(InfoDestinationSubmessage::new(
+                    reader_proxy.remote_reader_guid().prefix(),
+                ));
                 message_sender.write_message(
-                    &[gap_submessage, heartbeat_submessage],
+                    &[info_dst, gap_submessage, heartbeat_submessage],
                     reader_proxy.unicast_locator_list().to_vec(),
                 );
             } else {
@@ -444,8 +435,12 @@ fn send_message_to_reader_proxy_reliable(
                 .generate_new_heartbeat(writer_id, first_sn, last_sn),
         );
 
+        let info_dst = Box::new(InfoDestinationSubmessage::new(
+            reader_proxy.remote_reader_guid().prefix(),
+        ));
+
         message_sender.write_message(
-            &[heartbeat_submessage],
+            &[info_dst, heartbeat_submessage],
             reader_proxy.unicast_locator_list().to_vec(),
         );
     }
@@ -501,7 +496,7 @@ fn send_change_message_reader_proxy_reliable(
                     ));
 
                     let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                        Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                        Box::new(InfoTimestampSubmessage::new(false, timestamp.into()))
                     } else {
                         Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
                     };
@@ -556,7 +551,7 @@ fn send_change_message_reader_proxy_reliable(
                 ));
 
                 let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp() {
-                    Box::new(InfoTimestampSubmessage::new(false, timestamp))
+                    Box::new(InfoTimestampSubmessage::new(false, timestamp.into()))
                 } else {
                     Box::new(InfoTimestampSubmessage::new(true, TIME_INVALID))
                 };

@@ -37,17 +37,17 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::{
-        reader::{ReaderCacheChange, ReaderHistoryCache},
-        transport::{RtpsTransport, Transport},
-        types::GuidPrefix,
-    },
+    rtps::{transport::RtpsTransport, types::GuidPrefix},
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
         timer::TimerDriver,
     },
     topic_definition::type_support::TypeSupport,
+    transport::{
+        reader::{ReaderCacheChange, ReaderHistoryCache},
+        transport::Transport,
+    },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use std::{

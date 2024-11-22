@@ -18,8 +18,8 @@ use crate::{
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
     },
-    rtps::types::TopicKind,
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
+    transport::types::TopicKind,
     xtypes::dynamic_type::DynamicType,
 };
 

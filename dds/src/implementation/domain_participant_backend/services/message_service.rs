@@ -19,12 +19,12 @@ use crate::{
         status::StatusKind,
         time::DurationKind,
     },
-    rtps::{
+    runtime::actor::{ActorAddress, Mail, MailHandler},
+    topic_definition::type_support::DdsDeserialize,
+    transport::{
         reader::ReaderCacheChange,
         types::{ChangeKind, SequenceNumber},
     },
-    runtime::actor::{ActorAddress, Mail, MailHandler},
-    topic_definition::type_support::DdsDeserialize,
 };
 
 use super::event_service;

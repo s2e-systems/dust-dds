@@ -7,6 +7,7 @@ use crate::{
         DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
         ReliabilityQosPolicyKind,
     },
+    transport::types::{ReliabilityKind, SequenceNumber},
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 use network_interface::Addr;
@@ -229,11 +230,6 @@ pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
 pub const BUILT_IN_TOPIC: Octet = 0xca;
 pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 
-/// SequenceNumber_t
-/// Type used to hold sequence numbers.
-/// Must be possible to represent using 64 bits.
-pub type SequenceNumber = i64;
-
 impl TryReadFromBytes for SequenceNumber {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
         let high = i32::try_read_from_bytes(data, endianness)?;
@@ -348,29 +344,6 @@ impl Locator {
     }
 }
 
-/// TopicKind_t
-/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TopicKind {
-    NoKey,
-    WithKey,
-}
-
-/// ChangeKind_t
-/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
-/// It can take the values:
-/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[allow(dead_code)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
-    NotAliveDisposedUnregistered,
-}
-
 /// ChangeCount_t
 /// Type used to hold a counter representing the number of HistoryCache changes that belong to a certain category.
 /// For example, the number of changes that have been filtered for an RTPS Reader endpoint.
@@ -378,15 +351,6 @@ pub enum ChangeKind {
 pub struct ChangeCount {
     high: Long,
     low: UnsignedLong,
-}
-
-/// ReliabilityKind_t
-/// Enumeration used to indicate the level of the reliability used for communications.
-/// It can take the values: BEST_EFFORT, RELIABLE.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
 }
 
 impl From<&ReliabilityQosPolicy> for ReliabilityKind {

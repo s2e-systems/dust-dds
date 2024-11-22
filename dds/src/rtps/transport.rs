@@ -25,6 +25,12 @@ use crate::{
         executor::{block_on, Executor},
     },
     topic_definition::type_support::DdsDeserialize,
+    transport::{
+        reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
+        transport::Transport,
+        types::{SequenceNumber, TopicKind},
+        writer::{RtpsCacheChange, WriterHistoryCache},
+    },
 };
 
 use super::{
@@ -32,47 +38,12 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     messages::overall_structure::RtpsMessageRead,
     participant::RtpsParticipant,
-    reader::{ReaderCacheChange, ReaderHistoryCache, TransportReader},
-    stateful_writer::WriterHistoryCache,
     types::{
-        EntityId, Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
+        EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
         USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY,
         USER_DEFINED_WRITER_WITH_KEY,
     },
 };
-
-pub trait Transport: Send + Sync {
-    fn guid(&self) -> [u8; 16];
-
-    fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_participant_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_topics_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_publications_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache>;
-
-    fn get_subscriptions_discovery_reader(&self) -> Box<dyn TransportReader>;
-
-    fn create_user_defined_reader(
-        &mut self,
-        topic_name: &str,
-        topic_kind: TopicKind,
-        reader_history_cache: Box<dyn ReaderHistoryCache>,
-    ) -> Box<dyn TransportReader>;
-
-    fn create_user_defined_writer(
-        &mut self,
-        topic_name: &str,
-        topic_kind: TopicKind,
-    ) -> Box<dyn WriterHistoryCache>;
-}
 
 const MAX_DATAGRAM_SIZE: usize = 65507;
 
@@ -376,7 +347,7 @@ impl Transport for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddParticipantDiscoveryCacheChange {
                         cache_change,
@@ -384,7 +355,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: SequenceNumber) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemoveParticipantDiscoveryCacheChange {
                         sequence_number,
@@ -392,7 +363,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
                 true
             }
         }
@@ -434,13 +405,13 @@ impl Transport for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddTopicsDiscoveryCacheChange { cache_change })
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: SequenceNumber) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemoveTopicsDiscoveryCacheChange {
                         sequence_number,
@@ -448,7 +419,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
                 true
             }
         }
@@ -490,7 +461,7 @@ impl Transport for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddPublicationsDiscoveryCacheChange {
                         cache_change,
@@ -498,7 +469,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: SequenceNumber) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemovePublicationsDiscoveryCacheChange {
                         sequence_number,
@@ -506,7 +477,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
                 true
             }
         }
@@ -554,7 +525,7 @@ impl Transport for RtpsTransport {
                 self.guid.into()
             }
 
-            fn add_change(&mut self, cache_change: crate::rtps::cache_change::RtpsCacheChange) {
+            fn add_change(&mut self, cache_change: RtpsCacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddSubscriptionsDiscoveryCacheChange {
                         cache_change,
@@ -562,7 +533,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn remove_change(&mut self, sequence_number: crate::rtps::types::SequenceNumber) {
+            fn remove_change(&mut self, sequence_number: SequenceNumber) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::RemoveSubscriptionsDiscoveryCacheChange {
                         sequence_number,
@@ -570,7 +541,7 @@ impl Transport for RtpsTransport {
                     .ok();
             }
 
-            fn is_change_acknowledged(&self, _: super::types::SequenceNumber) -> bool {
+            fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
                 true
             }
         }

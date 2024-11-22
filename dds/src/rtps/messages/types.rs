@@ -164,6 +164,29 @@ impl Time {
     }
 }
 
+impl From<crate::transport::types::Time> for Time {
+    fn from(value: crate::transport::types::Time) -> Self {
+        Self::new(value.sec() as u32, nanosec_to_fraction(value.nanosec()))
+    }
+}
+
+impl From<Time> for crate::transport::types::Time {
+    fn from(value: Time) -> Self {
+        crate::transport::types::Time::new(
+            value.seconds() as i32,
+            fraction_to_nanosec(value.fraction()),
+        )
+    }
+}
+
+fn fraction_to_nanosec(fraction: u32) -> u32 {
+    (fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u32
+}
+
+fn nanosec_to_fraction(nanosec: u32) -> u32 {
+    (nanosec as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32
+}
+
 #[allow(dead_code)]
 pub const TIME_ZERO: Time = Time::new(0, 0);
 pub const TIME_INVALID: Time = Time::new(0xffffffff, 0xffffffff);

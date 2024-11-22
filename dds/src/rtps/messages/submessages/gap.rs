@@ -1,3 +1,5 @@
+use crate::transport::types::SequenceNumber;
+
 use super::super::super::{
     error::RtpsResult,
     messages::{
@@ -8,7 +10,7 @@ use super::super::super::{
         submessage_elements::SequenceNumberSet,
         types::SubmessageKind,
     },
-    types::{EntityId, SequenceNumber},
+    types::EntityId,
 };
 use std::io::Write;
 

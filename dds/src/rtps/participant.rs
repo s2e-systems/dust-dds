@@ -10,20 +10,24 @@ use crate::{
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     rtps::{
-        cache_change::RtpsCacheChange,
         discovery_types::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         },
         message_receiver::MessageReceiver,
-        stateful_writer::{RtpsStatefulWriter, WriterHistoryCache},
-        types::{SequenceNumber, ENTITYID_UNKNOWN},
+        stateful_writer::RtpsStatefulWriter,
+        types::ENTITYID_UNKNOWN,
     },
     runtime::{
         actor::{ActorAddress, Mail, MailHandler},
         executor::block_on,
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
+    transport::{
+        reader::ReaderHistoryCache,
+        types::{ChangeKind, ReliabilityKind, SequenceNumber},
+        writer::{RtpsCacheChange, WriterHistoryCache},
+    },
 };
 
 use super::{
@@ -38,11 +42,11 @@ use super::{
     error::RtpsResult,
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
-    reader::{ReaderHistoryCache, RtpsStatefulReader, RtpsStatelessReader},
+    reader::{RtpsStatefulReader, RtpsStatelessReader},
     stateless_writer::RtpsStatelessWriter,
     types::{
-        ChangeKind, DurabilityKind, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-        PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
+        DurabilityKind, Guid, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION_2_4,
+        VENDOR_ID_S2E,
     },
 };
 

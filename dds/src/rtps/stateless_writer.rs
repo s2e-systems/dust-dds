@@ -1,13 +1,16 @@
+use crate::transport::{
+    types::SequenceNumber,
+    writer::{RtpsCacheChange, WriterHistoryCache},
+};
+
 use super::{
-    cache_change::RtpsCacheChange,
     message_sender::MessageSender,
     messages::{
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
     },
     reader_locator::RtpsReaderLocator,
-    stateful_writer::WriterHistoryCache,
-    types::{Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{Guid, Locator, ENTITYID_UNKNOWN},
 };
 
 pub struct RtpsStatelessWriter {
@@ -58,7 +61,7 @@ impl RtpsStatelessWriter {
                 {
                     if let Some(timestamp) = cache_change.source_timestamp() {
                         let info_ts_submessage =
-                            Box::new(InfoTimestampSubmessage::new(false, timestamp));
+                            Box::new(InfoTimestampSubmessage::new(false, timestamp.into()));
                         let data_submessage = Box::new(
                             cache_change
                                 .as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id()),

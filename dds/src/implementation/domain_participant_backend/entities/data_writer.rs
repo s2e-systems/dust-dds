@@ -24,13 +24,12 @@ use crate::{
         },
         time::{DurationKind, Time},
     },
-    rtps::{
-        cache_change::RtpsCacheChange,
-        messages::submessage_elements::{Parameter, ParameterList},
-        stateful_writer::WriterHistoryCache,
-        types::{ChangeKind, SequenceNumber},
-    },
+    rtps::messages::submessage_elements::{Parameter, ParameterList},
     runtime::{actor::Actor, executor::TaskHandle},
+    transport::{
+        types::{ChangeKind, SequenceNumber},
+        writer::{RtpsCacheChange, WriterHistoryCache},
+    },
     xtypes::{
         dynamic_type::DynamicType, serialize::XTypesSerialize, xcdr_serializer::Xcdr1LeSerializer,
     },

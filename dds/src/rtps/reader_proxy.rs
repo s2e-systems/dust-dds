@@ -1,10 +1,14 @@
+use crate::transport::{
+    types::{ReliabilityKind, SequenceNumber},
+    writer::RtpsCacheChange,
+};
+
 use super::{
-    cache_change::RtpsCacheChange,
     messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
-    types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    types::{EntityId, Guid, Locator},
 };
 
 #[derive(Debug, PartialEq, Eq)]

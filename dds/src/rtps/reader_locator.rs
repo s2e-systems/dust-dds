@@ -1,7 +1,6 @@
-use super::{
-    cache_change::RtpsCacheChange,
-    types::{Locator, SequenceNumber},
-};
+use crate::transport::{types::SequenceNumber, writer::RtpsCacheChange};
+
+use super::types::Locator;
 
 pub struct RtpsReaderLocator {
     locator: Locator,

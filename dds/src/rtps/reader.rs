@@ -3,41 +3,33 @@ use super::{
     message_sender::MessageSender,
     messages::{
         self,
-        submessage_elements::{Data, ParameterList},
         submessages::{
             data::DataSubmessage, data_frag::DataFragSubmessage, gap::GapSubmessage,
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
         },
     },
-    types::{
-        ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
-        ENTITYID_UNKNOWN,
-    },
+    types::{DurabilityKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
     writer_proxy::RtpsWriterProxy,
 };
-use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
-    },
-    data_representation_inline_qos::{
-        parameter_id_values::PID_STATUS_INFO,
-        types::{
-            StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
-            STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
+use crate::{
+    implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
         },
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{
+                StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
+                STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
+            },
+        },
+    },
+    transport::{
+        reader::{ReaderCacheChange, ReaderHistoryCache},
+        types::{ChangeKind, ReliabilityKind},
     },
 };
 use tracing::error;
-
-#[derive(Clone)]
-pub struct ReaderCacheChange {
-    pub kind: ChangeKind,
-    pub writer_guid: Guid,
-    pub sequence_number: SequenceNumber,
-    pub source_timestamp: Option<messages::types::Time>,
-    pub data_value: Data,
-    pub inline_qos: ParameterList,
-}
 
 impl ReaderCacheChange {
     pub fn try_from_data_submessage(
@@ -79,22 +71,13 @@ impl ReaderCacheChange {
 
         Ok(ReaderCacheChange {
             kind,
-            writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
-            source_timestamp,
+            writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()).into(),
+            source_timestamp: source_timestamp.map(Into::into),
             sequence_number: data_submessage.writer_sn(),
             data_value: data_submessage.serialized_payload().clone(),
             inline_qos: data_submessage.inline_qos().clone(),
         })
     }
-}
-
-pub trait TransportReader: Send + Sync {
-    fn guid(&self) -> [u8; 16];
-    fn is_historical_data_received(&self) -> bool;
-}
-
-pub trait ReaderHistoryCache: Send + Sync {
-    fn add_change(&mut self, cache_change: ReaderCacheChange);
 }
 
 pub struct RtpsReader {
@@ -226,21 +209,15 @@ impl RtpsStatefulReader {
             &writer_proxy.multicast_locator_list
         };
 
-        if !self
-            .matched_writers
-            .iter()
-            .any(|x| x.remote_writer_guid() == writer_proxy.remote_writer_guid)
-        {
-            let rtps_writer_proxy = RtpsWriterProxy::new(
-                writer_proxy.remote_writer_guid,
-                unicast_locator_list,
-                multicast_locator_list,
-                Some(writer_proxy.data_max_size_serialized),
-                writer_proxy.remote_group_entity_id,
-                reliability_kind,
-            );
-            self.matched_writers.push(rtps_writer_proxy);
-        }
+        let rtps_writer_proxy = RtpsWriterProxy::new(
+            writer_proxy.remote_writer_guid,
+            unicast_locator_list,
+            multicast_locator_list,
+            Some(writer_proxy.data_max_size_serialized),
+            writer_proxy.remote_group_entity_id,
+            reliability_kind,
+        );
+        self.matched_writers.push(rtps_writer_proxy);
     }
 
     pub fn delete_matched_writer(&mut self, writer_guid: Guid) {

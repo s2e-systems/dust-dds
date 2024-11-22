@@ -9,8 +9,8 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
     },
-    rtps::transport::Transport,
     runtime::{actor::ActorAddress, executor::Executor, timer::TimerDriver},
+    transport::transport::Transport,
 };
 
 pub struct DomainParticipantActor {

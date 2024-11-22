@@ -1,3 +1,5 @@
+use crate::transport::types::{ReliabilityKind, SequenceNumber};
+
 use super::{
     message_sender::MessageSender,
     messages::{
@@ -9,7 +11,7 @@ use super::{
         },
         types::Count,
     },
-    types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    types::{EntityId, Guid, Locator},
 };
 
 use std::{cmp::max, collections::HashMap, sync::Arc};

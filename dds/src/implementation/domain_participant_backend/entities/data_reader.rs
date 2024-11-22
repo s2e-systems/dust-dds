@@ -30,11 +30,14 @@ use crate::{
     },
     rtps::{
         messages::submessage_elements::{Data, ParameterList},
-        reader::{ReaderCacheChange, TransportReader},
-        types::{ChangeKind, Guid},
+        types::Guid,
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    transport::{
+        reader::{ReaderCacheChange, TransportReader},
+        types::ChangeKind,
+    },
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -530,7 +533,7 @@ impl DataReaderEntity {
 
         Ok(ReaderSample {
             kind: cache_change.kind,
-            writer_guid: cache_change.writer_guid,
+            writer_guid: cache_change.writer_guid.into(),
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
             data_value: cache_change.data_value,

@@ -19,11 +19,11 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos},
         status::StatusKind,
     },
-    rtps::{
+    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
+    transport::{
         reader::{ReaderCacheChange, ReaderHistoryCache},
         types::TopicKind,
     },
-    runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     xtypes::dynamic_type::DynamicType,
 };
 

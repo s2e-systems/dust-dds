@@ -1,6 +1,8 @@
+use crate::transport::types::TopicKind;
+
 use super::{
     entity::RtpsEntity,
-    types::{Guid, Locator, TopicKind},
+    types::{Guid, Locator},
 };
 
 pub struct RtpsEndpoint {
