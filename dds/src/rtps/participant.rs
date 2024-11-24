@@ -95,7 +95,6 @@ impl RtpsParticipant {
         let mut spdp_builtin_participant_writer = RtpsStatelessWriter::new(
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER),
             DCPS_PARTICIPANT.to_owned(),
-            message_sender.clone(),
         );
         for locator in &metatraffic_multicast_locator_list {
             spdp_builtin_participant_writer.reader_locator_add(*locator);
@@ -110,40 +109,34 @@ impl RtpsParticipant {
         let sedp_builtin_topics_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
             DCPS_TOPIC.to_owned(),
-            message_sender.clone(),
         );
 
         let sedp_builtin_topics_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
             DCPS_TOPIC.to_owned(),
             sedp_builtin_topics_reader_history_cache,
-            message_sender.clone(),
         );
 
         let sedp_builtin_publications_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
             DCPS_PUBLICATION.to_owned(),
-            message_sender.clone(),
         );
 
         let sedp_builtin_publications_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
             DCPS_PUBLICATION.to_owned(),
             sedp_builtin_publications_reader_history_cache,
-            message_sender.clone(),
         );
 
         let sedp_builtin_subscriptions_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
             DCPS_SUBSCRIPTION.to_owned(),
-            message_sender.clone(),
         );
 
         let sedp_builtin_subscriptions_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
             DCPS_SUBSCRIPTION.to_owned(),
             sedp_builtin_subscriptions_reader_history_cache,
-            message_sender.clone(),
         );
 
         let builtin_stateless_writer_list = vec![spdp_builtin_participant_writer];
@@ -306,6 +299,7 @@ impl RtpsParticipant {
                     &[],
                     &[],
                 );
+                w.send_message(&self.message_sender);
             }
         }
     }
@@ -395,6 +389,7 @@ impl RtpsParticipant {
                     &[],
                     &[],
                 );
+                w.send_message(&self.message_sender);
             }
         }
     }
@@ -484,6 +479,7 @@ impl RtpsParticipant {
                     &[],
                     &[],
                 );
+                w.send_message(&self.message_sender);
             }
         }
     }
@@ -584,6 +580,7 @@ impl RtpsParticipant {
                         &self.default_unicast_locator_list,
                         &self.default_multicast_locator_list,
                     );
+                    writer.send_message(&self.message_sender);
                 }
             }
             self.discovered_reader_list.push(discovered_reader_data);
@@ -609,8 +606,7 @@ impl RtpsParticipant {
     }
 
     pub fn create_writer(&mut self, writer_guid: Guid, topic_name: String) {
-        let mut writer =
-            RtpsStatefulWriter::new(writer_guid, topic_name, self.message_sender.clone());
+        let mut writer = RtpsStatefulWriter::new(writer_guid, topic_name);
         for discovered_reader_data in &self.discovered_reader_list {
             if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name() {
                 let reliability_kind = discovered_reader_data
@@ -628,6 +624,7 @@ impl RtpsParticipant {
                     &self.default_unicast_locator_list,
                     &self.default_multicast_locator_list,
                 );
+                writer.send_message(&self.message_sender);
             }
         }
         self.user_defined_writer_list.push(writer);
@@ -644,12 +641,7 @@ impl RtpsParticipant {
         topic_name: String,
         reader_history_cache: Box<dyn ReaderHistoryCache>,
     ) {
-        let mut reader = RtpsStatefulReader::new(
-            reader_guid,
-            topic_name,
-            reader_history_cache,
-            self.message_sender.clone(),
-        );
+        let mut reader = RtpsStatefulReader::new(reader_guid, topic_name, reader_history_cache);
         for discovered_writer_data in &self.discovered_writer_list {
             if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
                 let reliability_kind = discovered_writer_data
@@ -682,6 +674,7 @@ impl RtpsParticipant {
             &mut self.builtin_stateless_reader_list,
             &mut self.builtin_stateful_reader_list,
             &mut self.builtin_stateful_writer_list,
+            &self.message_sender,
         );
     }
 
@@ -690,6 +683,7 @@ impl RtpsParticipant {
             &mut [],
             &mut self.user_defined_reader_list,
             &mut self.user_defined_writer_list,
+            &self.message_sender,
         );
     }
 }
@@ -731,10 +725,10 @@ impl Mail for SendHeartbeat {
 impl MailHandler<SendHeartbeat> for RtpsParticipant {
     fn handle(&mut self, _: SendHeartbeat) -> <SendHeartbeat as Mail>::Result {
         for builtin_writer in self.builtin_stateful_writer_list.iter_mut() {
-            builtin_writer.send_message();
+            builtin_writer.send_message(&self.message_sender);
         }
         for user_defined_writer in self.user_defined_writer_list.iter_mut() {
-            user_defined_writer.send_message();
+            user_defined_writer.send_message(&self.message_sender);
         }
     }
 }
@@ -853,6 +847,7 @@ impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
                             .unwrap()
                             .into();
                         w.add_change(cache_change);
+                        w.send_message(&self.message_sender);
                     }
                 }
                 ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
@@ -901,7 +896,7 @@ impl MailHandler<AddTopicsDiscoveryCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
         {
-            w.add_change(message.cache_change);
+            w.add_change(message.cache_change, &self.message_sender);
         }
     }
 }
@@ -961,11 +956,13 @@ impl MailHandler<AddPublicationsDiscoveryCacheChange> for RtpsParticipant {
                             };
                             cache_change.data_value =
                                 discovered_writer_data.serialize_data().unwrap().into();
-                            w.add_change(cache_change);
+                            w.add_change(cache_change, &self.message_sender);
                         }
                     }
                 }
-                ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
+                ChangeKind::NotAliveDisposed => {
+                    w.add_change(message.cache_change, &self.message_sender)
+                }
                 ChangeKind::AliveFiltered
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered => unimplemented!(),
@@ -1031,11 +1028,13 @@ impl MailHandler<AddSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
                             };
                             cache_change.data_value =
                                 discovered_reader_data.serialize_data().unwrap().into();
-                            w.add_change(cache_change);
+                            w.add_change(cache_change, &self.message_sender);
                         }
                     }
                 }
-                ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
+                ChangeKind::NotAliveDisposed => {
+                    w.add_change(message.cache_change, &self.message_sender);
+                }
                 ChangeKind::AliveFiltered
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered => unimplemented!(),
@@ -1082,7 +1081,7 @@ impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {
-            w.add_change(message.cache_change);
+            w.add_change(message.cache_change, &self.message_sender);
         }
     }
 }

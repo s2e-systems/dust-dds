@@ -31,19 +31,17 @@ pub struct RtpsStatefulWriter {
     topic_name: String,
     changes: Vec<CacheChange>,
     matched_readers: Vec<RtpsReaderProxy>,
-    message_sender: MessageSender,
     heartbeat_period: Duration,
     data_max_size_serialized: usize,
 }
 
 impl RtpsStatefulWriter {
-    pub fn new(guid: Guid, topic_name: String, message_sender: MessageSender) -> Self {
+    pub fn new(guid: Guid, topic_name: String) -> Self {
         Self {
             guid,
             topic_name,
             changes: Vec::new(),
             matched_readers: Vec::new(),
-            message_sender,
             heartbeat_period: Duration::new(0, 200_000_000),
             data_max_size_serialized: 1344,
         }
@@ -57,9 +55,9 @@ impl RtpsStatefulWriter {
         &self.topic_name
     }
 
-    pub fn add_change(&mut self, cache_change: CacheChange) {
+    pub fn add_change(&mut self, cache_change: CacheChange, message_sender: &MessageSender) {
         self.changes.push(cache_change);
-        self.send_message();
+        self.send_message(message_sender);
     }
 
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
@@ -125,7 +123,6 @@ impl RtpsStatefulWriter {
             first_relevant_sample_seq_num,
         );
         self.matched_readers.push(rtps_reader_proxy);
-        self.send_message();
     }
 
     pub fn delete_matched_reader(&mut self, reader_guid: Guid) {
@@ -143,7 +140,7 @@ impl RtpsStatefulWriter {
         }
     }
 
-    pub fn send_message(&mut self) {
+    pub fn send_message(&mut self, message_sender: &MessageSender) {
         for reader_proxy in &mut self.matched_readers {
             match reader_proxy.reliability() {
                 ReliabilityKind::BestEffort => send_message_to_reader_proxy_best_effort(
@@ -151,7 +148,7 @@ impl RtpsStatefulWriter {
                     self.guid.entity_id(),
                     &self.changes,
                     self.data_max_size_serialized,
-                    &self.message_sender,
+                    message_sender,
                 ),
                 ReliabilityKind::Reliable => send_message_to_reader_proxy_reliable(
                     reader_proxy,
@@ -161,7 +158,7 @@ impl RtpsStatefulWriter {
                     self.changes.iter().map(|cc| cc.sequence_number()).max(),
                     self.data_max_size_serialized,
                     self.heartbeat_period,
-                    &self.message_sender,
+                    message_sender,
                 ),
             }
         }
@@ -171,6 +168,7 @@ impl RtpsStatefulWriter {
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
+        message_sender: &MessageSender,
     ) {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -196,7 +194,7 @@ impl RtpsStatefulWriter {
                         self.changes.iter().map(|cc| cc.sequence_number()).max(),
                         self.data_max_size_serialized,
                         self.heartbeat_period,
-                        &self.message_sender,
+                        message_sender,
                     );
                 }
             }
@@ -207,6 +205,7 @@ impl RtpsStatefulWriter {
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
+        message_sender: &MessageSender,
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 
@@ -230,7 +229,7 @@ impl RtpsStatefulWriter {
                     self.changes.iter().map(|cc| cc.sequence_number()).max(),
                     self.data_max_size_serialized,
                     self.heartbeat_period,
-                    &self.message_sender,
+                    message_sender,
                 );
             }
         }

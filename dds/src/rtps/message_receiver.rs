@@ -1,4 +1,5 @@
 use super::{
+    message_sender::MessageSender,
     messages::{
         self,
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -81,6 +82,7 @@ impl MessageReceiver {
         stateless_reader_list: &mut [RtpsStatelessReader],
         stateful_reader_list: &mut [RtpsStatefulReader],
         stateful_writer_list: &mut [RtpsStatefulWriter],
+        message_sender: &MessageSender,
     ) {
         for submessage in self.submessages {
             match &submessage {
@@ -89,6 +91,7 @@ impl MessageReceiver {
                         stateful_writer.on_acknack_submessage_received(
                             acknack_submessage,
                             self.source_guid_prefix,
+                            message_sender,
                         );
                     }
                 }
@@ -146,6 +149,7 @@ impl MessageReceiver {
                         stateful_reader.on_heartbeat_submessage_received(
                             heartbeat_submessage,
                             self.source_guid_prefix,
+                            message_sender,
                         );
                     }
                 }
@@ -154,6 +158,7 @@ impl MessageReceiver {
                         stateful_writer.on_nack_frag_submessage_received(
                             nackfrag_submessage,
                             self.source_guid_prefix,
+                            message_sender,
                         );
                     }
                 }

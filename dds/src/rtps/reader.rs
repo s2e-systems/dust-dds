@@ -171,22 +171,15 @@ pub struct RtpsStatefulReader {
     topic_name: String,
     matched_writers: Vec<RtpsWriterProxy>,
     history_cache: Box<dyn ReaderHistoryCache>,
-    message_sender: MessageSender,
 }
 
 impl RtpsStatefulReader {
-    pub fn new(
-        guid: Guid,
-        topic_name: String,
-        history_cache: Box<dyn ReaderHistoryCache>,
-        message_sender: MessageSender,
-    ) -> Self {
+    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
         Self {
             guid,
             topic_name,
             matched_writers: Vec::new(),
             history_cache,
-            message_sender,
         }
     }
 
@@ -353,6 +346,7 @@ impl RtpsStatefulReader {
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
+        message_sender: &MessageSender,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id());
         if let Some(writer_proxy) = self
@@ -374,7 +368,7 @@ impl RtpsStatefulReader {
                 }
                 writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                 writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
-                writer_proxy.send_message(&self.guid, &self.message_sender);
+                writer_proxy.send_message(&self.guid, message_sender);
             }
         }
     }
@@ -407,9 +401,9 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub fn send_message(&mut self) {
+    pub fn send_message(&mut self, message_sender: &MessageSender) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.guid, &self.message_sender)
+            writer_proxy.send_message(&self.guid, message_sender)
         }
     }
 }

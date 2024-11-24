@@ -1,4 +1,4 @@
-use crate::transport::{cache_change::CacheChange, writer::WriterHistoryCache};
+use crate::transport::cache_change::CacheChange;
 
 use super::{
     message_sender::MessageSender,
@@ -15,17 +15,15 @@ pub struct RtpsStatelessWriter {
     topic_name: String,
     changes: Vec<CacheChange>,
     reader_locators: Vec<RtpsReaderLocator>,
-    message_sender: MessageSender,
 }
 
 impl RtpsStatelessWriter {
-    pub fn new(guid: Guid, topic_name: String, message_sender: MessageSender) -> Self {
+    pub fn new(guid: Guid, topic_name: String) -> Self {
         Self {
             guid,
             topic_name,
             changes: Vec::new(),
             reader_locators: Vec::new(),
-            message_sender,
         }
     }
 
@@ -37,12 +35,21 @@ impl RtpsStatelessWriter {
         &self.topic_name
     }
 
+    pub fn add_change(&mut self, cache_change: CacheChange) {
+        self.changes.push(cache_change);
+    }
+
+    pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
+        self.changes
+            .retain(|cc| cc.sequence_number() != sequence_number);
+    }
+
     pub fn reader_locator_add(&mut self, locator: Locator) {
         self.reader_locators
             .push(RtpsReaderLocator::new(locator, false));
     }
 
-    pub fn send_message(&mut self) {
+    pub fn send_message(&mut self, message_sender: &MessageSender) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
@@ -64,7 +71,7 @@ impl RtpsStatelessWriter {
                                 .as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id()),
                         );
 
-                        self.message_sender.write_message(
+                        message_sender.write_message(
                             &[info_ts_submessage, data_submessage],
                             vec![reader_locator.locator()],
                         );
@@ -77,31 +84,10 @@ impl RtpsStatelessWriter {
                         SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                     ));
 
-                    self.message_sender
-                        .write_message(&[gap_submessage], vec![reader_locator.locator()]);
+                    message_sender.write_message(&[gap_submessage], vec![reader_locator.locator()]);
                 }
                 reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
             }
         }
-    }
-}
-
-impl WriterHistoryCache for RtpsStatelessWriter {
-    fn guid(&self) -> [u8; 16] {
-        self.guid.into()
-    }
-
-    fn add_change(&mut self, cache_change: CacheChange) {
-        self.changes.push(cache_change);
-        self.send_message();
-    }
-
-    fn remove_change(&mut self, sequence_number: SequenceNumber) {
-        self.changes
-            .retain(|cc| cc.sequence_number() != sequence_number);
-    }
-
-    fn is_change_acknowledged(&self, _: SequenceNumber) -> bool {
-        true
     }
 }
