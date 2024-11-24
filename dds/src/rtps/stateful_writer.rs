@@ -5,7 +5,6 @@ use crate::{
     transport::{
         cache_change::CacheChange,
         types::{ChangeKind, ReliabilityKind},
-        writer::WriterHistoryCache,
     },
 };
 
@@ -56,6 +55,24 @@ impl RtpsStatefulWriter {
 
     pub fn topic_name(&self) -> &str {
         &self.topic_name
+    }
+
+    pub fn add_change(&mut self, cache_change: CacheChange) {
+        self.changes.push(cache_change);
+        self.send_message();
+    }
+
+    pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
+        self.changes
+            .retain(|cc| cc.sequence_number() != sequence_number);
+    }
+
+    pub fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
+        !self
+            .matched_readers
+            .iter()
+            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
+            .any(|rp| rp.unacked_changes(Some(sequence_number)))
     }
 
     pub fn add_matched_reader(
@@ -598,29 +615,5 @@ fn send_change_message_reader_proxy_reliable(
                 reader_proxy.unicast_locator_list().to_vec(),
             );
         }
-    }
-}
-
-impl WriterHistoryCache for RtpsStatefulWriter {
-    fn guid(&self) -> [u8; 16] {
-        self.guid.into()
-    }
-
-    fn add_change(&mut self, cache_change: CacheChange) {
-        self.changes.push(cache_change);
-        self.send_message();
-    }
-
-    fn remove_change(&mut self, sequence_number: SequenceNumber) {
-        self.changes
-            .retain(|cc| cc.sequence_number() != sequence_number);
-    }
-
-    fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
-        !self
-            .matched_readers
-            .iter()
-            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
-            .any(|rp| rp.unacked_changes(Some(sequence_number)))
     }
 }
