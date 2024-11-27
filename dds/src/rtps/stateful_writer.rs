@@ -3,7 +3,7 @@ use crate::{
         discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
     },
     transport::{
-        cache_change::CacheChange,
+        history_cache::CacheChange,
         types::{ChangeKind, ReliabilityKind},
     },
 };

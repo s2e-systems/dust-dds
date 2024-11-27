@@ -14,7 +14,10 @@ use crate::{
     implementation::data_representation_builtin_endpoints::{
         discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
     },
-    transport::{cache_change::CacheChange, reader::ReaderHistoryCache, types::ReliabilityKind},
+    transport::{
+        history_cache::{CacheChange, HistoryCache},
+        types::ReliabilityKind,
+    },
 };
 use tracing::error;
 
@@ -22,11 +25,11 @@ pub struct RtpsStatefulReader {
     guid: Guid,
     topic_name: String,
     matched_writers: Vec<RtpsWriterProxy>,
-    history_cache: Box<dyn ReaderHistoryCache>,
+    history_cache: Box<dyn HistoryCache>,
 }
 
 impl RtpsStatefulReader {
-    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
+    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn HistoryCache>) -> Self {
         Self {
             guid,
             topic_name,

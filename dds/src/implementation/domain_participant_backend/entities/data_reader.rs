@@ -29,7 +29,7 @@ use crate::{
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    transport::{cache_change::CacheChange, reader::TransportReader, types::ChangeKind},
+    transport::{history_cache::CacheChange, reader::TransportReader, types::ChangeKind},
     xtypes::dynamic_type::DynamicType,
 };
 

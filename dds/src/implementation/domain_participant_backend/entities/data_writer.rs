@@ -19,7 +19,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     runtime::{actor::Actor, executor::TaskHandle},
-    transport::{cache_change::CacheChange, types::ChangeKind, writer::WriterHistoryCache},
+    transport::{history_cache::CacheChange, types::ChangeKind, writer::TransportWriter},
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
@@ -29,7 +29,7 @@ use std::{
 
 pub struct DataWriterEntity {
     instance_handle: InstanceHandle,
-    transport_writer: Box<dyn WriterHistoryCache>,
+    transport_writer: Box<dyn TransportWriter>,
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -54,7 +54,7 @@ impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
-        transport_writer: Box<dyn WriterHistoryCache>,
+        transport_writer: Box<dyn TransportWriter>,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -99,7 +99,7 @@ impl DataWriterEntity {
         self.instance_handle
     }
 
-    pub fn transport_writer(&self) -> &dyn WriterHistoryCache {
+    pub fn transport_writer(&self) -> &dyn TransportWriter {
         self.transport_writer.as_ref()
     }
 
@@ -221,6 +221,7 @@ impl DataWriterEntity {
                     }
                     if let Some(smallest_seq_num_instance) = s.pop_front() {
                         self.transport_writer
+                            .history_cache()
                             .remove_change(smallest_seq_num_instance);
                     }
                 }
@@ -245,7 +246,7 @@ impl DataWriterEntity {
             .entry(instance_handle)
             .or_default()
             .push_back(change.sequence_number);
-        self.transport_writer.add_change(change);
+        self.transport_writer.history_cache().add_change(change);
         Ok(self.last_change_sequence_number)
     }
 
@@ -297,7 +298,9 @@ impl DataWriterEntity {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer.add_change(cache_change);
+        self.transport_writer
+            .history_cache()
+            .add_change(cache_change);
 
         Ok(())
     }
@@ -350,12 +353,16 @@ impl DataWriterEntity {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer.add_change(cache_change);
+        self.transport_writer
+            .history_cache()
+            .add_change(cache_change);
         Ok(())
     }
 
     pub fn remove_change(&mut self, sequence_number: i64) {
-        self.transport_writer.remove_change(sequence_number);
+        self.transport_writer
+            .history_cache()
+            .remove_change(sequence_number);
     }
 
     pub fn add_matched_subscription(

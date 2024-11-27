@@ -2,17 +2,17 @@ use super::{
     messages::{self, submessages::data::DataSubmessage},
     types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
 };
-use crate::transport::{cache_change::CacheChange, reader::ReaderHistoryCache};
+use crate::transport::history_cache::{CacheChange, HistoryCache};
 use tracing::error;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
     topic_name: String,
-    history_cache: Box<dyn ReaderHistoryCache>,
+    history_cache: Box<dyn HistoryCache>,
 }
 
 impl RtpsStatelessReader {
-    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn ReaderHistoryCache>) -> Self {
+    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn HistoryCache>) -> Self {
         Self {
             guid,
             topic_name,

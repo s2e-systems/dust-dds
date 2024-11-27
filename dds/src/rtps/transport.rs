@@ -26,11 +26,11 @@ use crate::{
     },
     topic_definition::type_support::DdsDeserialize,
     transport::{
-        cache_change::CacheChange,
+        history_cache::{CacheChange, HistoryCache},
         participant::TransportParticipant,
-        reader::{ReaderHistoryCache, TransportReader},
+        reader::TransportReader,
         types::TopicKind,
-        writer::WriterHistoryCache,
+        writer::TransportWriter,
     },
 };
 
@@ -134,10 +134,10 @@ impl RtpsTransport {
         domain_tag: String,
         interface_name: Option<&String>,
         udp_receive_buffer_size: Option<usize>,
-        dcps_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        dcps_topics_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        dcps_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        dcps_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        dcps_participant_reader_history_cache: Box<dyn HistoryCache>,
+        dcps_topics_reader_history_cache: Box<dyn HistoryCache>,
+        dcps_publications_reader_history_cache: Box<dyn HistoryCache>,
+        dcps_subscriptions_reader_history_cache: Box<dyn HistoryCache>,
     ) -> RtpsResult<Self> {
         let executor = Executor::new();
 
@@ -338,16 +338,25 @@ impl TransportParticipant for RtpsTransport {
         self.guid.into()
     }
 
-    fn get_participant_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
+    fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter> {
         struct RtpsParticipantDiscoveryWriterHistoryCache {
             guid: Guid,
             rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
-        impl WriterHistoryCache for RtpsParticipantDiscoveryWriterHistoryCache {
+        impl TransportWriter for RtpsParticipantDiscoveryWriterHistoryCache {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
 
+            fn history_cache(&mut self) -> &mut dyn HistoryCache {
+                self
+            }
+
+            fn is_change_acknowledged(&self, _: i64) -> bool {
+                true
+            }
+        }
+        impl HistoryCache for RtpsParticipantDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddParticipantDiscoveryCacheChange {
@@ -362,10 +371,6 @@ impl TransportParticipant for RtpsTransport {
                         sequence_number,
                     })
                     .ok();
-            }
-
-            fn is_change_acknowledged(&self, _: i64) -> bool {
-                true
             }
         }
 
@@ -395,17 +400,26 @@ impl TransportParticipant for RtpsTransport {
         })
     }
 
-    fn get_topics_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
+    fn get_topics_discovery_writer(&self) -> Box<dyn TransportWriter> {
         struct RtpsTopicsDiscoveryWriterHistoryCache {
             guid: Guid,
             rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
-
-        impl WriterHistoryCache for RtpsTopicsDiscoveryWriterHistoryCache {
+        impl TransportWriter for RtpsTopicsDiscoveryWriterHistoryCache {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
 
+            fn history_cache(&mut self) -> &mut dyn HistoryCache {
+                self
+            }
+
+            fn is_change_acknowledged(&self, _: i64) -> bool {
+                true
+            }
+        }
+
+        impl HistoryCache for RtpsTopicsDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddTopicsDiscoveryCacheChange { cache_change })
@@ -418,10 +432,6 @@ impl TransportParticipant for RtpsTransport {
                         sequence_number,
                     })
                     .ok();
-            }
-
-            fn is_change_acknowledged(&self, _: i64) -> bool {
-                true
             }
         }
 
@@ -451,17 +461,26 @@ impl TransportParticipant for RtpsTransport {
         })
     }
 
-    fn get_publications_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
+    fn get_publications_discovery_writer(&self) -> Box<dyn TransportWriter> {
         struct RtpsPublicationsDiscoveryWriterHistoryCache {
             guid: Guid,
             rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
 
-        impl WriterHistoryCache for RtpsPublicationsDiscoveryWriterHistoryCache {
+        impl TransportWriter for RtpsPublicationsDiscoveryWriterHistoryCache {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
 
+            fn history_cache(&mut self) -> &mut dyn HistoryCache {
+                self
+            }
+
+            fn is_change_acknowledged(&self, _: i64) -> bool {
+                true
+            }
+        }
+        impl HistoryCache for RtpsPublicationsDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddPublicationsDiscoveryCacheChange {
@@ -476,10 +495,6 @@ impl TransportParticipant for RtpsTransport {
                         sequence_number,
                     })
                     .ok();
-            }
-
-            fn is_change_acknowledged(&self, _: i64) -> bool {
-                true
             }
         }
 
@@ -515,17 +530,26 @@ impl TransportParticipant for RtpsTransport {
         })
     }
 
-    fn get_subscriptions_discovery_writer(&self) -> Box<dyn WriterHistoryCache> {
+    fn get_subscriptions_discovery_writer(&self) -> Box<dyn TransportWriter> {
         struct RtpsSubscriptionsDiscoveryWriterHistoryCache {
             guid: Guid,
             rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
 
-        impl WriterHistoryCache for RtpsSubscriptionsDiscoveryWriterHistoryCache {
+        impl TransportWriter for RtpsSubscriptionsDiscoveryWriterHistoryCache {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
 
+            fn history_cache(&mut self) -> &mut dyn HistoryCache {
+                self
+            }
+
+            fn is_change_acknowledged(&self, _sequence_number: i64) -> bool {
+                true
+            }
+        }
+        impl HistoryCache for RtpsSubscriptionsDiscoveryWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(participant::AddSubscriptionsDiscoveryCacheChange {
@@ -540,10 +564,6 @@ impl TransportParticipant for RtpsTransport {
                         sequence_number,
                     })
                     .ok();
-            }
-
-            fn is_change_acknowledged(&self, _: i64) -> bool {
-                true
             }
         }
 
@@ -583,7 +603,7 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         topic_name: &str,
         topic_kind: TopicKind,
-        reader_history_cache: Box<dyn ReaderHistoryCache>,
+        reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportReader> {
         struct UserDefinedTransportReader {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
@@ -635,7 +655,7 @@ impl TransportParticipant for RtpsTransport {
         &mut self,
         topic_name: &str,
         topic_kind: TopicKind,
-    ) -> Box<dyn WriterHistoryCache> {
+    ) -> Box<dyn TransportWriter> {
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
             TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
@@ -660,10 +680,10 @@ impl TransportParticipant for RtpsTransport {
 
 struct ParticipantDiscoveryReaderHistoryCache {
     rtps_participant_address: ActorAddress<RtpsParticipant>,
-    dcps_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
+    dcps_participant_reader_history_cache: Box<dyn HistoryCache>,
 }
 
-impl ReaderHistoryCache for ParticipantDiscoveryReaderHistoryCache {
+impl HistoryCache for ParticipantDiscoveryReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         if let Ok(discovered_participant_data) =
             SpdpDiscoveredParticipantData::deserialize_data(cache_change.data_value.as_ref())
@@ -677,14 +697,18 @@ impl ReaderHistoryCache for ParticipantDiscoveryReaderHistoryCache {
         self.dcps_participant_reader_history_cache
             .add_change(cache_change);
     }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
+    }
 }
 
 struct PublicationsDiscoveryReaderHistoryCache {
     rtps_participant_address: ActorAddress<RtpsParticipant>,
-    dcps_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
+    dcps_publications_reader_history_cache: Box<dyn HistoryCache>,
 }
 
-impl ReaderHistoryCache for PublicationsDiscoveryReaderHistoryCache {
+impl HistoryCache for PublicationsDiscoveryReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         if let Ok(discovered_writer_data) =
             DiscoveredWriterData::deserialize_data(cache_change.data_value.as_ref())
@@ -698,14 +722,18 @@ impl ReaderHistoryCache for PublicationsDiscoveryReaderHistoryCache {
         self.dcps_publications_reader_history_cache
             .add_change(cache_change);
     }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
+    }
 }
 
 struct SubscriptionsDiscoveryReaderHistoryCache {
     rtps_participant_address: ActorAddress<RtpsParticipant>,
-    dcps_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
+    dcps_subscriptions_reader_history_cache: Box<dyn HistoryCache>,
 }
 
-impl ReaderHistoryCache for SubscriptionsDiscoveryReaderHistoryCache {
+impl HistoryCache for SubscriptionsDiscoveryReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         if let Ok(discovered_reader_data) =
             DiscoveredReaderData::deserialize_data(cache_change.data_value.as_ref())
@@ -718,5 +746,9 @@ impl ReaderHistoryCache for SubscriptionsDiscoveryReaderHistoryCache {
         }
         self.dcps_subscriptions_reader_history_cache
             .add_change(cache_change);
+    }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }

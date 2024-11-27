@@ -1,4 +1,4 @@
-use crate::transport::cache_change::CacheChange;
+use crate::transport::history_cache::CacheChange;
 
 use super::{
     message_sender::MessageSender,

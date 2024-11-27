@@ -45,7 +45,8 @@ use crate::{
     },
     topic_definition::type_support::TypeSupport,
     transport::{
-        cache_change::CacheChange, participant::TransportParticipant, reader::ReaderHistoryCache,
+        history_cache::{CacheChange, HistoryCache},
+        participant::TransportParticipant,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -626,7 +627,7 @@ struct DcpsParticipantReaderHistoryCache {
     participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for DcpsParticipantReaderHistoryCache {
+impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
@@ -634,13 +635,17 @@ impl ReaderHistoryCache for DcpsParticipantReaderHistoryCache {
             })
             .ok();
     }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
+    }
 }
 
 struct DcpsTopicsReaderHistoryCache {
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for DcpsTopicsReaderHistoryCache {
+impl HistoryCache for DcpsTopicsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinTopicsDetectorCacheChange {
@@ -649,13 +654,17 @@ impl ReaderHistoryCache for DcpsTopicsReaderHistoryCache {
             })
             .ok();
     }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
+    }
 }
 
 struct DcpsSubscriptionsReaderHistoryCache {
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for DcpsSubscriptionsReaderHistoryCache {
+impl HistoryCache for DcpsSubscriptionsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(
@@ -666,13 +675,17 @@ impl ReaderHistoryCache for DcpsSubscriptionsReaderHistoryCache {
             )
             .ok();
     }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
+    }
 }
 
 struct DcpsPublicationsReaderHistoryCache {
     pub participant_address: ActorAddress<DomainParticipantActor>,
 }
 
-impl ReaderHistoryCache for DcpsPublicationsReaderHistoryCache {
+impl HistoryCache for DcpsPublicationsReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinPublicationsDetectorCacheChange {
@@ -680,5 +693,9 @@ impl ReaderHistoryCache for DcpsPublicationsReaderHistoryCache {
                 participant_address: self.participant_address.clone(),
             })
             .ok();
+    }
+
+    fn remove_change(&mut self, _sequence_number: i64) {
+        todo!()
     }
 }

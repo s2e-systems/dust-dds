@@ -29,3 +29,9 @@ impl CacheChange {
         &self.data_value
     }
 }
+
+pub trait HistoryCache: Send + Sync {
+    fn add_change(&mut self, cache_change: CacheChange);
+
+    fn remove_change(&mut self, sequence_number: i64);
+}

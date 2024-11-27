@@ -24,10 +24,9 @@ use crate::{
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
-        cache_change::CacheChange,
-        reader::ReaderHistoryCache,
+        history_cache::{CacheChange, HistoryCache},
         types::{ChangeKind, ReliabilityKind},
-        writer::WriterHistoryCache,
+        writer::TransportWriter,
     },
 };
 
@@ -83,10 +82,10 @@ impl RtpsParticipant {
         default_multicast_locator_list: Vec<Locator>,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
-        spdp_builtin_participant_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        sedp_builtin_topics_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        sedp_builtin_publications_reader_history_cache: Box<dyn ReaderHistoryCache>,
-        sedp_builtin_subscriptions_reader_history_cache: Box<dyn ReaderHistoryCache>,
+        spdp_builtin_participant_reader_history_cache: Box<dyn HistoryCache>,
+        sedp_builtin_topics_reader_history_cache: Box<dyn HistoryCache>,
+        sedp_builtin_publications_reader_history_cache: Box<dyn HistoryCache>,
+        sedp_builtin_subscriptions_reader_history_cache: Box<dyn HistoryCache>,
     ) -> RtpsResult<Self> {
         let guid_prefix = guid.prefix();
         let message_sender =
@@ -661,7 +660,7 @@ impl RtpsParticipant {
         &mut self,
         reader_guid: Guid,
         topic_name: String,
-        reader_history_cache: Box<dyn ReaderHistoryCache>,
+        reader_history_cache: Box<dyn HistoryCache>,
     ) {
         let mut reader = RtpsStatefulReader::new(reader_guid, topic_name, reader_history_cache);
         for discovered_writer_data in &self.discovered_writer_list {
@@ -770,7 +769,7 @@ pub struct CreateWriter {
 }
 
 impl Mail for CreateWriter {
-    type Result = Box<dyn WriterHistoryCache>;
+    type Result = Box<dyn TransportWriter>;
 }
 impl MailHandler<CreateWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
@@ -780,11 +779,28 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
             guid: Guid,
         }
-        impl WriterHistoryCache for RtpsUserDefinedWriterHistoryCache {
+        impl TransportWriter for RtpsUserDefinedWriterHistoryCache {
             fn guid(&self) -> [u8; 16] {
                 self.guid.into()
             }
 
+            fn history_cache(&mut self) -> &mut dyn HistoryCache {
+                self
+            }
+
+            fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
+                block_on(
+                    self.rtps_participant_address
+                        .send_actor_mail(IsChangeAcknowledged {
+                            guid: self.guid,
+                            sequence_number,
+                        })
+                        .expect("Actor must exist")
+                        .receive_reply(),
+                )
+            }
+        }
+        impl HistoryCache for RtpsUserDefinedWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
                     .send_actor_mail(AddUserDefinedCacheChange {
@@ -802,18 +818,6 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
                     })
                     .ok();
             }
-
-            fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
-                block_on(
-                    self.rtps_participant_address
-                        .send_actor_mail(IsChangeAcknowledged {
-                            guid: self.guid,
-                            sequence_number,
-                        })
-                        .expect("Actor must exist")
-                        .receive_reply(),
-                )
-            }
         }
 
         Box::new(RtpsUserDefinedWriterHistoryCache {
@@ -826,7 +830,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
 pub struct CreateReader {
     pub reader_guid: Guid,
     pub topic_name: String,
-    pub reader_history_cache: Box<dyn ReaderHistoryCache>,
+    pub reader_history_cache: Box<dyn HistoryCache>,
 }
 
 impl Mail for CreateReader {

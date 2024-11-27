@@ -8,7 +8,7 @@ use crate::{
             STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
         },
     },
-    transport::{cache_change::CacheChange, types::ChangeKind},
+    transport::{history_cache::CacheChange, types::ChangeKind},
 };
 
 use super::{

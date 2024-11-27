@@ -24,7 +24,7 @@ use crate::{
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsDeserialize,
-    transport::{cache_change::CacheChange, types::ChangeKind},
+    transport::{history_cache::CacheChange, types::ChangeKind},
 };
 
 use super::event_service;
