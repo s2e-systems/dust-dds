@@ -244,7 +244,7 @@ impl RtpsParticipant {
 
         let is_participant_discovered = self
             .discovered_participant_list
-            .contains(&discovered_participant_data);
+            .contains(discovered_participant_data);
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
             self.add_matched_publications_detector(discovered_participant_data);
             self.add_matched_publications_announcer(discovered_participant_data);

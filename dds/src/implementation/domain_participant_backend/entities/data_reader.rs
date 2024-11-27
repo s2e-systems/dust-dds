@@ -33,6 +33,8 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 
+type SampleList = Vec<(Option<Arc<[u8]>>, SampleInfo)>;
+
 pub enum AddChangeResult {
     Added(InstanceHandle),
     NotAdded,
@@ -189,7 +191,7 @@ impl DataReaderEntity {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -229,7 +231,7 @@ impl DataReaderEntity {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -418,7 +420,7 @@ impl DataReaderEntity {
         sample_states: Vec<SampleStateKind>,
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -442,7 +444,7 @@ impl DataReaderEntity {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<Arc<[u8]>>, SampleInfo)>> {
+    ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
@@ -510,10 +512,10 @@ impl DataReaderEntity {
 
         Ok(ReaderSample {
             kind: cache_change.kind,
-            writer_guid: cache_change.writer_guid.into(),
+            writer_guid: cache_change.writer_guid,
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
-            data_value: cache_change.data_value.clone().into(),
+            data_value: cache_change.data_value.clone(),
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: self.instances[&instance_handle]
                 .most_recent_disposed_generation_count,
@@ -532,8 +534,8 @@ impl DataReaderEntity {
             if let Some(&instance_owner_handle) =
                 self.instance_ownership.get(&sample.instance_handle)
             {
-                let instance_owner = InstanceHandle::new(instance_owner_handle.into());
-                let instance_writer = InstanceHandle::new(sample.writer_guid.into());
+                let instance_owner = InstanceHandle::new(instance_owner_handle);
+                let instance_writer = InstanceHandle::new(sample.writer_guid);
                 if instance_owner_handle != sample.writer_guid
                     && self.matched_publication_list[&instance_writer]
                         .ownership_strength()
