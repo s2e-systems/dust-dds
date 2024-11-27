@@ -1,5 +1,5 @@
 use dust_dds::{
-    builtin_topics::{SubscriptionBuiltinTopicData, DCPS_PARTICIPANT, DCPS_SUBSCRIPTION},
+    builtin_topics::DCPS_PARTICIPANT,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
@@ -97,20 +97,6 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
-        .unwrap()
-        .unwrap();
-    let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
-    dcps_subscription_reader_statuscondition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut waitset_builtin_reader = WaitSet::new();
-    waitset_builtin_reader
-        .attach_condition(Condition::StatusCondition(
-            dcps_subscription_reader_statuscondition,
-        ))
-        .unwrap();
 
     let topic_name = "MyTopic";
     let type_name = "KeyedData";
@@ -133,7 +119,7 @@ fn writer_should_send_heartbeat_periodically() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -202,9 +188,13 @@ fn writer_should_send_heartbeat_periodically() {
         &[Box::new(discovered_reader_data_submessage)],
     );
 
-    waitset_builtin_reader
-        .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
-        .unwrap();
+    let start_time = std::time::Instant::now();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if participant.get_discovered_participants().unwrap().len() >= 1 {
+            break;
+        }
+    }
+    assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
         .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
@@ -282,20 +272,6 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
-        .unwrap()
-        .unwrap();
-    let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
-    dcps_subscription_reader_statuscondition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut waitset_builtin_reader = WaitSet::new();
-    waitset_builtin_reader
-        .attach_condition(Condition::StatusCondition(
-            dcps_subscription_reader_statuscondition,
-        ))
-        .unwrap();
 
     let topic_name = "MyTopic";
     let type_name = "KeyedData";
@@ -318,7 +294,7 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -388,9 +364,13 @@ fn writer_should_not_send_heartbeat_after_acknack() {
         &[Box::new(discovered_reader_data_submessage)],
     );
 
-    waitset_builtin_reader
-        .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
-        .unwrap();
+    let start_time = std::time::Instant::now();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if participant.get_discovered_participants().unwrap().len() >= 1 {
+            break;
+        }
+    }
+    assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
         .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
@@ -488,20 +468,6 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
-        .unwrap()
-        .unwrap();
-    let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
-    dcps_subscription_reader_statuscondition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut waitset_builtin_reader = WaitSet::new();
-    waitset_builtin_reader
-        .attach_condition(Condition::StatusCondition(
-            dcps_subscription_reader_statuscondition,
-        ))
-        .unwrap();
 
     let topic_name = "MyTopic";
     let type_name = "KeyedData";
@@ -524,7 +490,7 @@ fn writer_should_resend_data_after_acknack_request() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -594,9 +560,13 @@ fn writer_should_resend_data_after_acknack_request() {
         &[Box::new(discovered_reader_data_submessage)],
     );
 
-    waitset_builtin_reader
-        .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
-        .unwrap();
+    let start_time = std::time::Instant::now();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if participant.get_discovered_participants().unwrap().len() >= 1 {
+            break;
+        }
+    }
+    assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
         .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)
@@ -701,20 +671,6 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
-        .unwrap()
-        .unwrap();
-    let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
-    dcps_subscription_reader_statuscondition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut waitset_builtin_reader = WaitSet::new();
-    waitset_builtin_reader
-        .attach_condition(Condition::StatusCondition(
-            dcps_subscription_reader_statuscondition,
-        ))
-        .unwrap();
 
     let topic_name = "MyTopic";
     let type_name = "KeyedData";
@@ -737,7 +693,7 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -806,9 +762,13 @@ fn volatile_writer_should_send_gap_submessage_after_discovery() {
         &[Box::new(discovered_reader_data_submessage)],
     );
 
-    waitset_builtin_reader
-        .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
-        .unwrap();
+    let start_time = std::time::Instant::now();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if participant.get_discovered_participants().unwrap().len() >= 1 {
+            break;
+        }
+    }
+    assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     // Send data with the writer before discovery
     writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
@@ -883,20 +843,6 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
-        .unwrap()
-        .unwrap();
-    let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
-    dcps_subscription_reader_statuscondition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut waitset_builtin_reader = WaitSet::new();
-    waitset_builtin_reader
-        .attach_condition(Condition::StatusCondition(
-            dcps_subscription_reader_statuscondition,
-        ))
-        .unwrap();
 
     let topic_name = "MyTopic";
     let type_name = "KeyedData";
@@ -922,7 +868,7 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -993,9 +939,13 @@ fn transient_local_writer_should_send_data_submessage_after_discovery() {
         &[Box::new(discovered_reader_data_submessage)],
     );
 
-    waitset_builtin_reader
-        .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
-        .unwrap();
+    let start_time = std::time::Instant::now();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if participant.get_discovered_participants().unwrap().len() >= 1 {
+            break;
+        }
+    }
+    assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     // Send data with the writer before discovery
     writer.write(&KeyedData { id: 1, value: 2 }, None).unwrap();
@@ -1074,20 +1024,6 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         .unwrap();
 
     let builtin_subscriber = participant.get_builtin_subscriber();
-    let dcps_subscription_reader = builtin_subscriber
-        .lookup_datareader::<SubscriptionBuiltinTopicData>(DCPS_SUBSCRIPTION)
-        .unwrap()
-        .unwrap();
-    let dcps_subscription_reader_statuscondition = dcps_subscription_reader.get_statuscondition();
-    dcps_subscription_reader_statuscondition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut waitset_builtin_reader = WaitSet::new();
-    waitset_builtin_reader
-        .attach_condition(Condition::StatusCondition(
-            dcps_subscription_reader_statuscondition,
-        ))
-        .unwrap();
 
     let topic_name = "MyTopic";
     let type_name = "KeyedData";
@@ -1113,7 +1049,7 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         .unwrap();
 
     // Add discovered dummy reader
-    let instance_handle = participant.get_instance_handle().unwrap();
+    let instance_handle = participant.get_instance_handle();
     let participant_key = instance_handle.as_ref().as_slice();
     let guid_prefix = &participant_key[..12];
     let port = (reader_socket_port as u32).to_le_bytes();
@@ -1183,9 +1119,13 @@ fn reliable_writer_should_not_remove_unacked_sample_from_history() {
         &[Box::new(discovered_reader_data_submessage)],
     );
 
-    waitset_builtin_reader
-        .wait(dust_dds::infrastructure::time::Duration::new(10, 0))
-        .unwrap();
+    let start_time = std::time::Instant::now();
+    while start_time.elapsed() < std::time::Duration::from_secs(10) {
+        if participant.get_discovered_participants().unwrap().len() >= 1 {
+            break;
+        }
+    }
+    assert!(participant.get_discovered_participants().unwrap().len() == 1);
 
     let dcps_participant_reader = builtin_subscriber
         .lookup_datareader::<DynamicType>(DCPS_PARTICIPANT)

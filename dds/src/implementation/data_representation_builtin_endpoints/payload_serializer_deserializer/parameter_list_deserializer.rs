@@ -81,6 +81,12 @@ pub struct ParameterListCdrDeserializer<'de> {
 
 impl<'de> ParameterListCdrDeserializer<'de> {
     pub fn new(bytes: &'de [u8]) -> Result<Self, RtpsError> {
+        if bytes.len() < 4 {
+            return Err(RtpsError::new(
+                RtpsErrorKind::InvalidData,
+                "Missing representation identifier".to_string(),
+            ));
+        }
         let endianness = match [bytes[0], bytes[1]] {
             PL_CDR_BE => CdrEndianness::BigEndian,
             PL_CDR_LE => CdrEndianness::LittleEndian,

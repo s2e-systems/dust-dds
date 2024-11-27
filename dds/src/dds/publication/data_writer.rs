@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dds_async::{data_writer::DataWriterAsync, data_writer_listener::DataWriterListenerAsync},
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -14,6 +13,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
+    runtime::executor::block_on,
     topic_definition::{topic::Topic, type_support::DdsSerialize},
 };
 
@@ -405,7 +405,7 @@ impl<Foo> DataWriter<Foo> {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         block_on(self.writer_async.get_instance_handle())
     }
 }

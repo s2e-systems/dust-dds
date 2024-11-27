@@ -1,9 +1,6 @@
-use crate::{
-    implementation::runtime::timer::TimerHandle,
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        time::Duration,
-    },
+use crate::infrastructure::{
+    error::{DdsError, DdsResult},
+    time::Duration,
 };
 
 use super::condition::StatusConditionAsync;
@@ -13,14 +10,6 @@ use super::condition::StatusConditionAsync;
 pub enum ConditionAsync {
     /// Status condition variant
     StatusCondition(StatusConditionAsync),
-}
-
-impl ConditionAsync {
-    pub(crate) fn timer_handle(&self) -> &TimerHandle {
-        match self {
-            ConditionAsync::StatusCondition(s) => s.timer_handle(),
-        }
-    }
 }
 
 impl ConditionAsync {
@@ -55,7 +44,7 @@ impl WaitSetAsync {
             ));
         };
 
-        let timer_handle = self.conditions[0].timer_handle().clone();
+        // let timer_handle = self.conditions[0].timer_handle().clone();
         let start = std::time::Instant::now();
         while std::time::Instant::now().duration_since(start) < timeout.into() {
             let mut finished = false;
@@ -70,9 +59,9 @@ impl WaitSetAsync {
             if finished {
                 return Ok(trigger_conditions);
             }
-            timer_handle
-                .sleep(std::time::Duration::from_millis(20))
-                .await;
+            // timer_handle
+            //     .sleep(std::time::Duration::from_millis(20))
+            //     .await;
         }
 
         Err(DdsError::Timeout)

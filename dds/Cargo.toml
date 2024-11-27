@@ -23,7 +23,7 @@ md5 = "0.7.0" # Chose this crate over other possibilities since it doesn't have 
 socket2 = { version = "0.5", features = ["all"] }
 network-interface = "1.1.1"
 
-fnmatch-regex = "0.2.0"
+fnmatch-regex = "=0.2.0"
 tracing = "0.1"
 
 [dev-dependencies]

@@ -4,7 +4,10 @@ use crate::xtypes::{
     error::XTypesError,
     serialize::{XTypesSerialize, XTypesSerializer},
 };
-use std::ops::Sub;
+use std::{
+    ops::Sub,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -119,7 +122,7 @@ fn fraction_to_nanosec(fraction: u32) -> u32 {
     (fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u32
 }
 
-fn nonasec_to_fraction(nanosec: u32) -> u32 {
+fn nanosec_to_fraction(nanosec: u32) -> u32 {
     (nanosec as f64 / 1_000_000_000.0 * 2f64.powf(32.0)).round() as u32
 }
 
@@ -134,7 +137,7 @@ impl From<crate::rtps::behavior_types::Duration> for Duration {
 
 impl From<Duration> for crate::rtps::behavior_types::Duration {
     fn from(value: Duration) -> Self {
-        crate::rtps::behavior_types::Duration::new(value.sec, nonasec_to_fraction(value.nanosec))
+        crate::rtps::behavior_types::Duration::new(value.sec, nanosec_to_fraction(value.nanosec))
     }
 }
 
@@ -151,7 +154,7 @@ impl From<Duration> for crate::rtps::messages::types::Time {
     fn from(value: Duration) -> Self {
         crate::rtps::messages::types::Time::new(
             value.sec as u32,
-            nonasec_to_fraction(value.nanosec),
+            nanosec_to_fraction(value.nanosec),
         )
     }
 }
@@ -192,20 +195,28 @@ impl Time {
     pub const fn nanosec(&self) -> u32 {
         self.nanosec
     }
-}
 
-impl From<Time> for crate::rtps::messages::types::Time {
-    fn from(value: Time) -> Self {
-        Self::new(value.sec() as u32, nonasec_to_fraction(value.nanosec()))
+    pub(crate) fn now() -> Self {
+        let now_system_time = SystemTime::now();
+        let unix_time = now_system_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start");
+        Self {
+            sec: unix_time.as_secs() as i32,
+            nanosec: unix_time.subsec_nanos(),
+        }
     }
 }
 
-impl From<crate::rtps::messages::types::Time> for Time {
-    fn from(value: crate::rtps::messages::types::Time) -> Self {
-        Time {
-            sec: value.seconds() as i32,
-            nanosec: fraction_to_nanosec(value.fraction()),
-        }
+impl From<crate::transport::types::Time> for Time {
+    fn from(value: crate::transport::types::Time) -> Self {
+        Self::new(value.sec(), value.nanosec())
+    }
+}
+
+impl From<Time> for crate::transport::types::Time {
+    fn from(value: Time) -> Self {
+        Self::new(value.sec(), value.nanosec())
     }
 }
 

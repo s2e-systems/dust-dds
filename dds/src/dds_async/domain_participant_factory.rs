@@ -1,26 +1,24 @@
+use std::sync::OnceLock;
+
 use super::{
     domain_participant::DomainParticipantAsync,
     domain_participant_listener::DomainParticipantListenerAsync,
 };
 use crate::{
-    builtin_topics::DCPS_PARTICIPANT,
     configuration::DustDdsConfiguration,
     domain::domain_participant_factory::DomainId,
     implementation::{
-        actor::Actor,
-        actors::{
-            domain_participant_actor,
-            domain_participant_factory_actor::{self, DomainParticipantFactoryActor},
-            subscriber_actor,
+        domain_participant_backend::services::{discovery_service, domain_participant_service},
+        domain_participant_factory::domain_participant_factory_actor::{
+            self, DomainParticipantFactoryActor,
         },
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        runtime::executor::Executor,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::{actor::Actor, executor::Executor, timer::TimerDriver},
 };
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
@@ -29,29 +27,11 @@ use crate::{
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
     _executor: Executor,
+    timer_driver: TimerDriver,
     domain_participant_factory_actor: Actor<DomainParticipantFactoryActor>,
 }
 
-impl Default for DomainParticipantFactoryAsync {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DomainParticipantFactoryAsync {
-    /// Create a new [`DomainParticipantFactoryAsync`].
-    /// All the tasks of Dust DDS will be spawned on the runtime which is given as an argument.
-    pub fn new() -> Self {
-        let executor = Executor::new();
-        let domain_participant_factory_actor =
-            Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
-
-        Self {
-            _executor: executor,
-            domain_participant_factory_actor,
-        }
-    }
-
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -61,7 +41,12 @@ impl DomainParticipantFactoryAsync {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let status_kind = mask.to_vec();
-        let participant_address = self
+        let (
+            participant_address,
+            participant_handle,
+            participant_status_condition_address,
+            builtin_subscriber_status_condition_address,
+        ) = self
             .domain_participant_factory_actor
             .send_actor_mail(domain_participant_factory_actor::CreateParticipant {
                 domain_id,
@@ -71,44 +56,15 @@ impl DomainParticipantFactoryAsync {
             })
             .receive_reply()
             .await?;
-        let status_condition = participant_address
-            .send_actor_mail(domain_participant_actor::GetStatuscondition)?
-            .receive_reply()
-            .await;
-        let builtin_subscriber = participant_address
-            .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
-            .receive_reply()
-            .await;
-        let builtin_subscriber_status_condition_address = builtin_subscriber
-            .send_actor_mail(subscriber_actor::GetStatuscondition)?
-            .receive_reply()
-            .await;
-        let timer_handle = participant_address
-            .send_actor_mail(domain_participant_actor::GetTimerHandle)?
-            .receive_reply()
-            .await;
-        let executor_handle = participant_address
-            .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
-            .receive_reply()
-            .await;
+
         let domain_participant = DomainParticipantAsync::new(
             participant_address.clone(),
-            status_condition,
-            builtin_subscriber,
+            participant_status_condition_address,
             builtin_subscriber_status_condition_address,
             domain_id,
-            executor_handle,
-            timer_handle,
+            participant_handle,
+            self.timer_driver.handle(),
         );
-
-        if self
-            .get_qos()
-            .await?
-            .entity_factory
-            .autoenable_created_entities
-        {
-            domain_participant.enable().await?;
-        }
 
         Ok(domain_participant)
     }
@@ -117,28 +73,21 @@ impl DomainParticipantFactoryAsync {
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
         let is_participant_empty = participant
             .participant_address()
-            .send_actor_mail(domain_participant_actor::IsEmpty)?
+            .send_actor_mail(domain_participant_service::IsEmpty)?
             .receive_reply()
             .await;
         if is_participant_empty {
-            let handle = participant.get_instance_handle().await?;
+            let handle = participant.get_instance_handle().await;
 
             let deleted_participant = self
                 .domain_participant_factory_actor
                 .send_actor_mail(domain_participant_factory_actor::DeleteParticipant { handle })
                 .receive_reply()
                 .await?;
-            let builtin_publisher = participant.get_builtin_publisher().await?;
-            if let Some(spdp_participant_writer) = builtin_publisher
-                .lookup_datawriter::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-                .await?
-            {
-                let data = deleted_participant
-                    .send_actor_mail(domain_participant_actor::AsSpdpDiscoveredParticipantData)
-                    .receive_reply()
-                    .await;
-                spdp_participant_writer.dispose(&data, None).await?;
-            }
+            deleted_participant
+                .send_actor_mail(discovery_service::AnnounceDeletedParticipant)
+                .receive_reply()
+                .await?;
             deleted_participant.stop().await;
             Ok(())
         } else {
@@ -148,56 +97,30 @@ impl DomainParticipantFactoryAsync {
         }
     }
 
+    /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
+    #[tracing::instrument]
+    pub fn get_instance() -> &'static Self {
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
+        PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
+            let executor = Executor::new();
+            let timer_driver = TimerDriver::new();
+            let domain_participant_factory_actor =
+                Actor::spawn(DomainParticipantFactoryActor::new(), &executor.handle());
+            Self {
+                _executor: executor,
+                domain_participant_factory_actor,
+                timer_driver,
+            }
+        })
+    }
+
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
     pub async fn lookup_participant(
         &self,
-        domain_id: DomainId,
+        _domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        let domain_participant_list = self
-            .domain_participant_factory_actor
-            .send_actor_mail(domain_participant_factory_actor::GetParticipantList)
-            .receive_reply()
-            .await;
-        for dp in domain_participant_list {
-            if dp
-                .send_actor_mail(domain_participant_actor::GetDomainId)?
-                .receive_reply()
-                .await
-                == domain_id
-            {
-                let status_condition = dp
-                    .send_actor_mail(domain_participant_actor::GetStatuscondition)?
-                    .receive_reply()
-                    .await;
-                let builtin_subscriber = dp
-                    .send_actor_mail(domain_participant_actor::GetBuiltInSubscriber)?
-                    .receive_reply()
-                    .await;
-                let builtin_subscriber_status_condition_address = builtin_subscriber
-                    .send_actor_mail(subscriber_actor::GetStatuscondition)?
-                    .receive_reply()
-                    .await;
-                let timer_handle = dp
-                    .send_actor_mail(domain_participant_actor::GetTimerHandle)?
-                    .receive_reply()
-                    .await;
-                let executor_handle = dp
-                    .send_actor_mail(domain_participant_actor::GetExecutorHandle)?
-                    .receive_reply()
-                    .await;
-                return Ok(Some(DomainParticipantAsync::new(
-                    dp,
-                    status_condition,
-                    builtin_subscriber,
-                    builtin_subscriber_status_condition_address,
-                    domain_id,
-                    executor_handle,
-                    timer_handle,
-                )));
-            }
-        }
-
-        Ok(None)
+        todo!()
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

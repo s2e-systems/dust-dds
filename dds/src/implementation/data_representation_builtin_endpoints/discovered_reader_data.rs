@@ -4,8 +4,8 @@ use super::{
         PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA,
         PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR,
         PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-        PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME,
-        PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
+        PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
+        PID_USER_DATA,
     },
     payload_serializer_deserializer::{
         parameter_list_deserializer::ParameterListCdrDeserializer,
@@ -32,8 +32,8 @@ pub struct ReaderProxy {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredReaderData {
-    subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
-    reader_proxy: ReaderProxy,
+    pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
+    pub(crate) reader_proxy: ReaderProxy,
 }
 impl TypeSupport for DiscoveredReaderData {
     fn get_type_name() -> &'static str {
@@ -101,94 +101,83 @@ impl DdsSerialize for DiscoveredReaderData {
         serializer.write_header()?;
 
         // subscription_builtin_topic_data: SubscriptionBuiltinTopicData:
-        serializer.write(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
+        serializer.write(PID_ENDPOINT_GUID, &self.dds_subscription_data.key)?;
         // Default value is a deviation from the standard and is used for interoperability reasons:
         serializer.write_with_default(
             PID_PARTICIPANT_GUID,
-            &self.subscription_builtin_topic_data.participant_key,
+            &self.dds_subscription_data.participant_key,
             &Default::default(),
         )?;
-        serializer.write(
-            PID_TOPIC_NAME,
-            &self.subscription_builtin_topic_data.topic_name,
-        )?;
-        serializer.write(
-            PID_TYPE_NAME,
-            &self.subscription_builtin_topic_data.type_name,
-        )?;
+        serializer.write(PID_TOPIC_NAME, &self.dds_subscription_data.topic_name)?;
+        serializer.write(PID_TYPE_NAME, &self.dds_subscription_data.type_name)?;
         serializer.write_with_default(
             PID_DURABILITY,
-            &self.subscription_builtin_topic_data.durability,
+            &self.dds_subscription_data.durability,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_DEADLINE,
-            &self.subscription_builtin_topic_data.deadline,
+            &self.dds_subscription_data.deadline,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_LATENCY_BUDGET,
-            &self.subscription_builtin_topic_data.latency_budget,
+            &self.dds_subscription_data.latency_budget,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_LIVELINESS,
-            &self.subscription_builtin_topic_data.liveliness,
+            &self.dds_subscription_data.liveliness,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_RELIABILITY,
-            &self.subscription_builtin_topic_data.reliability,
+            &self.dds_subscription_data.reliability,
             &DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         )?;
         serializer.write_with_default(
             PID_OWNERSHIP,
-            &self.subscription_builtin_topic_data.ownership,
+            &self.dds_subscription_data.ownership,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_DESTINATION_ORDER,
-            &self.subscription_builtin_topic_data.destination_order,
+            &self.dds_subscription_data.destination_order,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_USER_DATA,
-            &self.subscription_builtin_topic_data.user_data,
+            &self.dds_subscription_data.user_data,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_TIME_BASED_FILTER,
-            &self.subscription_builtin_topic_data.time_based_filter,
+            &self.dds_subscription_data.time_based_filter,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_PRESENTATION,
-            &self.subscription_builtin_topic_data.presentation,
+            &self.dds_subscription_data.presentation,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_PARTITION,
-            &self.subscription_builtin_topic_data.partition,
+            &self.dds_subscription_data.partition,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_TOPIC_DATA,
-            &self.subscription_builtin_topic_data.topic_data,
+            &self.dds_subscription_data.topic_data,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_GROUP_DATA,
-            &self.subscription_builtin_topic_data.group_data,
-            &Default::default(),
-        )?;
-        serializer.write_with_default(
-            PID_TYPE_REPRESENTATION,
-            &self.subscription_builtin_topic_data.xml_type,
+            &self.dds_subscription_data.group_data,
             &Default::default(),
         )?;
         serializer.write_with_default(
             PID_DATA_REPRESENTATION,
-            &self.subscription_builtin_topic_data.representation,
+            &self.dds_subscription_data.representation,
             &Default::default(),
         )?;
 
@@ -249,8 +238,6 @@ impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
             partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
             topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
             group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-            xml_type: pl_deserializer
-                .read_with_default(PID_TYPE_REPRESENTATION, Default::default())?,
             representation: pl_deserializer
                 .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
         })
@@ -262,9 +249,7 @@ impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;
 
         Ok(Self {
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::deserialize_data(
-                serialized_data,
-            )?,
+            dds_subscription_data: SubscriptionBuiltinTopicData::deserialize_data(serialized_data)?,
             reader_proxy: ReaderProxy {
                 remote_reader_guid: pl_deserializer.read(PID_ENDPOINT_GUID)?,
                 remote_group_entity_id: pl_deserializer
@@ -279,22 +264,12 @@ impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
 }
 
 impl DiscoveredReaderData {
-    pub fn new(
-        reader_proxy: ReaderProxy,
-        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
-    ) -> Self {
-        Self {
-            reader_proxy,
-            subscription_builtin_topic_data,
-        }
-    }
-
     pub fn reader_proxy(&self) -> &ReaderProxy {
         &self.reader_proxy
     }
 
     pub fn subscription_builtin_topic_data(&self) -> &SubscriptionBuiltinTopicData {
-        &self.subscription_builtin_topic_data
+        &self.dds_subscription_data
     }
 }
 
@@ -311,7 +286,7 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredReaderData {
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -333,7 +308,6 @@ mod tests {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: Default::default(),
             },
             reader_proxy: ReaderProxy {
@@ -389,7 +363,7 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+            dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
@@ -411,7 +385,6 @@ mod tests {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: Default::default(),
             },
         };

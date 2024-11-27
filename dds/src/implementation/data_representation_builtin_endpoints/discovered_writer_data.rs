@@ -4,7 +4,7 @@ use super::{
         PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
         PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH,
         PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
-        PID_TOPIC_NAME, PID_TYPE_NAME, PID_TYPE_REPRESENTATION, PID_UNICAST_LOCATOR, PID_USER_DATA,
+        PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
     },
     payload_serializer_deserializer::{
         parameter_list_deserializer::ParameterListCdrDeserializer,
@@ -178,11 +178,7 @@ impl DdsSerialize for DiscoveredWriterData {
             &self.dds_publication_data.group_data,
             &Default::default(),
         )?;
-        serializer.write_with_default(
-            PID_TYPE_REPRESENTATION,
-            &self.dds_publication_data.xml_type,
-            &Default::default(),
-        )?;
+
         serializer.write_with_default(
             PID_DATA_REPRESENTATION,
             &self.dds_publication_data.representation,
@@ -245,8 +241,7 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
             partition: pl_deserializer.read_with_default(PID_PARTITION, Default::default())?,
             topic_data: pl_deserializer.read_with_default(PID_TOPIC_DATA, Default::default())?,
             group_data: pl_deserializer.read_with_default(PID_GROUP_DATA, Default::default())?,
-            xml_type: pl_deserializer
-                .read_with_default(PID_TYPE_REPRESENTATION, Default::default())?,
+
             representation: pl_deserializer
                 .read_with_default(PID_DATA_REPRESENTATION, Default::default())?,
         })
@@ -309,7 +304,6 @@ mod tests {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: Default::default(),
             },
             writer_proxy: WriterProxy {
@@ -377,7 +371,6 @@ mod tests {
                 partition: Default::default(),
                 topic_data: Default::default(),
                 group_data: Default::default(),
-                xml_type: Default::default(),
                 representation: Default::default(),
             },
             writer_proxy: WriterProxy {

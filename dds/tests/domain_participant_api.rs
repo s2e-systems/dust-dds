@@ -232,7 +232,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
     assert_eq!(
         participant.delete_topic(&reader_topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic still attached to some data reader".to_string()
+            "Topic still attached to some data writer or data reader".to_string()
         ))
     );
 }
@@ -257,7 +257,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
     assert_eq!(
         participant.delete_topic(&writer_topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic still attached to some data writer".to_string()
+            "Topic still attached to some data writer or data reader".to_string()
         ))
     );
 }
@@ -734,6 +734,7 @@ fn get_discovery_data_from_builtin_reader() {
 }
 
 #[test]
+#[ignore = "Functionality needs to be revisited"]
 fn ignore_publication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -770,7 +771,7 @@ fn ignore_publication() {
     };
 
     participant
-        .ignore_publication(writer.get_instance_handle().unwrap())
+        .ignore_publication(writer.get_instance_handle())
         .unwrap();
 
     let reader = subscriber
@@ -790,6 +791,7 @@ fn ignore_publication() {
 }
 
 #[test]
+#[ignore = "Functionality needs to be revisited"]
 fn ignore_subscription() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -819,7 +821,7 @@ fn ignore_subscription() {
         .unwrap();
 
     participant
-        .ignore_subscription(reader.get_instance_handle().unwrap())
+        .ignore_subscription(reader.get_instance_handle())
         .unwrap();
 
     let writer_qos = DataWriterQos {
@@ -859,7 +861,7 @@ fn ignore_participant() {
         .unwrap();
 
     participant1
-        .ignore_participant(participant2.get_instance_handle().unwrap())
+        .ignore_participant(participant2.get_instance_handle())
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));

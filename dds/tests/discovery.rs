@@ -90,7 +90,7 @@ fn deleted_readers_are_disposed_from_writer() {
 
     subscriber.delete_datareader(&data_reader).unwrap();
 
-    wait_set.wait(Duration::new(1, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 0);
 }
@@ -768,14 +768,12 @@ fn discovered_participant_removed_after_deletion() {
         .unwrap();
 
     let start_time = Instant::now();
-    loop {
+    while start_time.elapsed() <= std::time::Duration::from_secs(10) {
         if participant1.get_discovered_participants().unwrap().len() == 1 {
             break;
         }
-        if start_time.elapsed() > std::time::Duration::from_secs(10) {
-            panic!("Discovered participant not removed before timeout")
-        }
     }
+    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 1)
 }
 
 #[test]

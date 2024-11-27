@@ -830,7 +830,9 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     assert!(data_on_readers_receiver
         .recv_timeout(std::time::Duration::from_secs(10))
         .is_ok());
-    assert!(data_available_receiver.try_recv().is_err());
+    assert!(data_available_receiver
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .is_err());
 }
 
 #[test]
@@ -927,7 +929,7 @@ fn participant_requested_deadline_missed_listener() {
 }
 
 #[test]
-fn participant_sample_rejected_listener() {
+fn data_reader_sample_rejected_listener() {
     struct SampleRejectedListener {
         sender: std::sync::mpsc::SyncSender<SampleRejectedStatus>,
     }
@@ -1037,7 +1039,7 @@ fn participant_sample_rejected_listener() {
 }
 
 #[test]
-fn participant_subscription_matched_listener() {
+fn data_reader_subscription_matched_listener() {
     struct SubscriptionMatchedListener {
         sender: std::sync::mpsc::SyncSender<SubscriptionMatchedStatus>,
     }
@@ -1123,7 +1125,7 @@ fn participant_subscription_matched_listener() {
 }
 
 #[test]
-fn participant_requested_incompatible_qos_listener() {
+fn data_reader_requested_incompatible_qos_listener() {
     struct RequestedIncompatibleQosListener {
         sender: std::sync::mpsc::SyncSender<RequestedIncompatibleQosStatus>,
     }

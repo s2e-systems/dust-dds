@@ -410,6 +410,18 @@ impl From<Vec<u8>> for Data {
     }
 }
 
+impl From<Arc<[u8]>> for Data {
+    fn from(value: Arc<[u8]>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Data> for Arc<[u8]> {
+    fn from(value: Data) -> Self {
+        value.0.clone()
+    }
+}
+
 impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()

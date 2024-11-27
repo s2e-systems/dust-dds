@@ -159,8 +159,5 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
         .create_datareader::<UserType>(&topic, QosKind::Default, None, &[])
         .unwrap();
 
-    assert!(
-        reader.get_topicdescription().get_instance_handle().unwrap()
-            == topic.get_instance_handle().unwrap()
-    );
+    assert!(reader.get_topicdescription().get_instance_handle() == topic.get_instance_handle());
 }

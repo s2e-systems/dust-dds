@@ -1,6 +1,6 @@
 use crate::{
-    dds_async::condition::StatusConditionAsync, implementation::runtime::executor::block_on,
-    infrastructure::error::DdsResult,
+    dds_async::condition::StatusConditionAsync, infrastructure::error::DdsResult,
+    runtime::executor::block_on,
 };
 
 use super::status::StatusKind;

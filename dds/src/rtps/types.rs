@@ -2,7 +2,14 @@ use super::{
     error::RtpsResult,
     messages::overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
 };
-use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
+use crate::{
+    infrastructure::qos_policy::{
+        DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
+        ReliabilityQosPolicyKind,
+    },
+    transport::types::ReliabilityKind,
+    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
+};
 use network_interface::Addr;
 use std::{
     io::{Read, Write},
@@ -342,29 +349,6 @@ impl Locator {
     }
 }
 
-/// TopicKind_t
-/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TopicKind {
-    NoKey,
-    WithKey,
-}
-
-/// ChangeKind_t
-/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
-/// It can take the values:
-/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[allow(dead_code)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
-    NotAliveDisposedUnregistered,
-}
-
 /// ChangeCount_t
 /// Type used to hold a counter representing the number of HistoryCache changes that belong to a certain category.
 /// For example, the number of changes that have been filtered for an RTPS Reader endpoint.
@@ -374,13 +358,34 @@ pub struct ChangeCount {
     low: UnsignedLong,
 }
 
-/// ReliabilityKind_t
-/// Enumeration used to indicate the level of the reliability used for communications.
-/// It can take the values: BEST_EFFORT, RELIABLE.
+impl From<&ReliabilityQosPolicy> for ReliabilityKind {
+    fn from(value: &ReliabilityQosPolicy) -> Self {
+        match value.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        }
+    }
+}
+
+/// DurabilityKind_t
+/// Enumeration used to indicate the level of the durability used for communications.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
+pub enum DurabilityKind {
+    Volatile,
+    TransientLocal,
+    Transient,
+    Persistent,
+}
+
+impl From<&DurabilityQosPolicy> for DurabilityKind {
+    fn from(value: &DurabilityQosPolicy) -> Self {
+        match value.kind {
+            DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+            DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+            DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+            DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
+        }
+    }
 }
 
 /// InstanceHandle_t

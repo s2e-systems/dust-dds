@@ -159,7 +159,5 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
         .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    assert!(
-        writer.get_topic().get_instance_handle().unwrap() == topic.get_instance_handle().unwrap()
-    );
+    assert!(writer.get_topic().get_instance_handle() == topic.get_instance_handle());
 }

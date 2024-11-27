@@ -31,5 +31,13 @@ impl Duration {
     }
 }
 
+impl From<Duration> for std::time::Duration {
+    fn from(value: Duration) -> Self {
+        let secs = value.seconds as u64 * 1_000_000_000;
+        let nanosecs = (value.fraction as f64 / 2f64.powf(32.0) * 1_000_000_000.0).round() as u64;
+        std::time::Duration::from_nanos(secs + nanosecs)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InstanceHandle(pub [u8; 16]);

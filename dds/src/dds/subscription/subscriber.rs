@@ -4,7 +4,6 @@ use crate::{
         subscriber_listener::SubscriberListenerAsync,
     },
     domain::domain_participant::DomainParticipant,
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -12,6 +11,7 @@ use crate::{
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
+    runtime::executor::block_on,
     topic_definition::topic::Topic,
 };
 
@@ -257,7 +257,7 @@ impl Subscriber {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         block_on(self.subscriber_async.get_instance_handle())
     }
 }

@@ -61,7 +61,7 @@ pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;
 pub const PID_DATA_REPRESENTATION: ParameterId = 0x0073;
 
 #[allow(overflowing_literals)]
-pub const PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
+pub const _PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
 #[allow(overflowing_literals)]
 pub const PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
 

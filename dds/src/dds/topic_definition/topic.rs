@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::{
     dds_async::topic::TopicAsync,
     domain::domain_participant::DomainParticipant,
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -11,6 +10,7 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    runtime::executor::block_on,
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -133,7 +133,7 @@ impl Topic {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         block_on(self.topic_async.get_instance_handle())
     }
 
@@ -162,7 +162,7 @@ impl Topic {
 impl Topic {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType>> {
+    pub fn get_type_support(&self) -> DdsResult<Arc<dyn DynamicType + Send + Sync>> {
         block_on(self.topic_async.get_type_support())
     }
 }

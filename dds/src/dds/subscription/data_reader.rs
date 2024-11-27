@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dds_async::{data_reader::DataReaderAsync, data_reader_listener::DataReaderListenerAsync},
-    implementation::runtime::executor::block_on,
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -13,12 +12,12 @@ use crate::{
         },
         time::Duration,
     },
-    rtps::messages::submessage_elements::Data,
+    runtime::executor::block_on,
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::{topic::Topic, type_support::DdsDeserialize},
 };
 
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use super::{
     sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
@@ -29,14 +28,14 @@ use super::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sample<Foo> {
     /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
-    data: Option<Data>,
+    data: Option<Arc<[u8]>>,
     /// Information of the sample received by the [`DataReader`].
     sample_info: SampleInfo,
     phantom: PhantomData<Foo>,
 }
 
 impl<Foo> Sample<Foo> {
-    pub(crate) fn new(data: Option<Data>, sample_info: SampleInfo) -> Self {
+    pub(crate) fn new(data: Option<Arc<[u8]>>, sample_info: SampleInfo) -> Self {
         Self {
             data,
             sample_info,
@@ -492,7 +491,7 @@ impl<Foo> DataReader<Foo> {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     #[tracing::instrument(skip(self))]
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> InstanceHandle {
         block_on(self.reader_async.get_instance_handle())
     }
 }

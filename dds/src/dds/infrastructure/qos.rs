@@ -363,20 +363,6 @@ impl TopicQos {
         }
     }
 
-    pub(crate) fn check_immutability(&self, other: &Self) -> DdsResult<()> {
-        if self.durability != other.durability
-            || self.liveliness != other.liveliness
-            || self.reliability != other.reliability
-            || self.destination_order != other.destination_order
-            || self.history != other.history
-            || self.resource_limits != other.resource_limits
-            || self.ownership != other.ownership
-        {
-            Err(DdsError::ImmutablePolicy)
-        } else {
-            Ok(())
-        }
-    }
 }
 
 #[cfg(test)]

@@ -117,6 +117,19 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
     }
 }
 
+impl DdsSerialize for ParticipantBuiltinTopicData {
+    fn serialize_data(&self) -> DdsResult<Vec<u8>> {
+        let mut serializer = ParameterListCdrSerializer::default();
+        serializer.write_header()?;
+
+        // dds_participant_data: ParticipantBuiltinTopicData :
+        serializer.write(PID_PARTICIPANT_GUID, &self.key)?;
+        serializer.write_with_default(PID_USER_DATA, &self.user_data, &Default::default())?;
+        serializer.write_sentinel()?;
+        Ok(serializer.writer)
+    }
+}
+
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize_data(serialized_data: &'de [u8]) -> DdsResult<Self> {
         let pl_deserializer = ParameterListCdrDeserializer::new(serialized_data)?;

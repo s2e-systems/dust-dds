@@ -6,12 +6,12 @@ use crate::{
         domain_participant_listener::DomainParticipantListenerAsync,
     },
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::runtime::executor::block_on,
     infrastructure::{
         error::DdsResult,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    runtime::executor::block_on,
 };
 
 use std::sync::OnceLock;
@@ -24,7 +24,7 @@ pub type DomainId = i32;
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
-    participant_factory_async: DomainParticipantFactoryAsync,
+    participant_factory_async: &'static DomainParticipantFactoryAsync,
 }
 
 impl DomainParticipantFactory {
@@ -69,7 +69,7 @@ impl DomainParticipantFactory {
     pub fn get_instance() -> &'static Self {
         static PARTICIPANT_FACTORY: OnceLock<DomainParticipantFactory> = OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| Self {
-            participant_factory_async: DomainParticipantFactoryAsync::new(),
+            participant_factory_async: DomainParticipantFactoryAsync::get_instance(),
         })
     }
 
