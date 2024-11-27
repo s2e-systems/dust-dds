@@ -39,7 +39,6 @@ use super::{
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
-    entity::RtpsEntity,
     error::RtpsResult,
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
@@ -53,7 +52,7 @@ use super::{
 };
 
 pub struct RtpsParticipant {
-    entity: RtpsEntity,
+    guid: Guid,
     domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
@@ -156,7 +155,7 @@ impl RtpsParticipant {
         let user_defined_reader_list = Vec::new();
 
         Ok(Self {
-            entity: RtpsEntity::new(guid),
+            guid,
             domain_id,
             domain_tag,
             protocol_version: PROTOCOLVERSION_2_4,
@@ -179,7 +178,7 @@ impl RtpsParticipant {
     }
 
     pub fn guid(&self) -> Guid {
-        self.entity.guid()
+        self.guid
     }
 
     pub fn protocol_version(&self) -> ProtocolVersion {
@@ -593,7 +592,7 @@ impl RtpsParticipant {
             domain_id: Some(self.domain_id),
             domain_tag: self.domain_tag.clone(),
             protocol_version: PROTOCOLVERSION_2_4,
-            guid_prefix: self.entity.guid().prefix(),
+            guid_prefix: self.guid.prefix(),
             vendor_id: VENDOR_ID_S2E,
             expects_inline_qos: false,
             metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),

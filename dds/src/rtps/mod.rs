@@ -1,9 +1,7 @@
 pub mod behavior_types;
 pub mod cache_change;
 pub mod discovery_types;
-pub mod entity;
 pub mod error;
-pub mod group;
 pub mod message_receiver;
 pub mod message_sender;
 pub mod messages;
