@@ -864,7 +864,10 @@ impl MailHandler<AddParticipantDiscoveryCacheChange> for RtpsParticipant {
                         w.send_message(&self.message_sender);
                     }
                 }
-                ChangeKind::NotAliveDisposed => w.add_change(message.cache_change),
+                ChangeKind::NotAliveDisposed => {
+                    w.add_change(message.cache_change);
+                    w.send_message(&self.message_sender);
+                }
                 ChangeKind::AliveFiltered
                 | ChangeKind::NotAliveUnregistered
                 | ChangeKind::NotAliveDisposedUnregistered => unimplemented!(),
