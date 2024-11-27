@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
-        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
@@ -15,7 +15,10 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos_policy::DurabilityQosPolicyKind,
+        qos_policy::{
+            DurabilityQosPolicyKind, HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
+            TransportPriorityQosPolicy,
+        },
         status::StatusKind,
         time::DurationKind,
     },
@@ -358,6 +361,34 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                         message.cache_change.data_value.as_ref(),
                     )
                 {
+                    if self
+                        .domain_participant
+                        .find_topic(&publication_builtin_topic_data.topic_name)
+                        .is_none()
+                    {
+                        let writer_topic = TopicBuiltinTopicData {
+                            key: BuiltInTopicKey::default(),
+                            name: publication_builtin_topic_data.topic_name().to_owned(),
+                            type_name: publication_builtin_topic_data.get_type_name().to_owned(),
+                            durability: publication_builtin_topic_data.durability().clone(),
+                            deadline: publication_builtin_topic_data.deadline().clone(),
+                            latency_budget: publication_builtin_topic_data.latency_budget().clone(),
+                            liveliness: publication_builtin_topic_data.liveliness().clone(),
+                            reliability: publication_builtin_topic_data.reliability().clone(),
+                            transport_priority: TransportPriorityQosPolicy::default(),
+                            lifespan: publication_builtin_topic_data.lifespan().clone(),
+                            destination_order: publication_builtin_topic_data
+                                .destination_order()
+                                .clone(),
+                            history: HistoryQosPolicy::default(),
+                            resource_limits: ResourceLimitsQosPolicy::default(),
+                            ownership: publication_builtin_topic_data.ownership().clone(),
+                            topic_data: publication_builtin_topic_data.topic_data().clone(),
+                            representation: publication_builtin_topic_data.representation().clone(),
+                        };
+                        self.domain_participant.add_discovered_topic(writer_topic);
+                    }
+
                     self.domain_participant
                         .add_discovered_writer(publication_builtin_topic_data.clone());
                     for subscriber in self.domain_participant.subscriber_list() {
@@ -428,6 +459,39 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
                         message.cache_change.data_value.as_ref(),
                     )
                 {
+                    if self
+                        .domain_participant
+                        .find_topic(&subscription_builtin_topic_data.topic_name)
+                        .is_none()
+                    {
+                        let reader_topic = TopicBuiltinTopicData {
+                            key: BuiltInTopicKey::default(),
+                            name: subscription_builtin_topic_data.topic_name().to_string(),
+                            type_name: subscription_builtin_topic_data.get_type_name().to_string(),
+
+                            topic_data: subscription_builtin_topic_data.topic_data().clone(),
+                            durability: subscription_builtin_topic_data.durability().clone(),
+                            deadline: subscription_builtin_topic_data.deadline().clone(),
+                            latency_budget: subscription_builtin_topic_data
+                                .latency_budget()
+                                .clone(),
+                            liveliness: subscription_builtin_topic_data.liveliness().clone(),
+                            reliability: subscription_builtin_topic_data.reliability().clone(),
+                            destination_order: subscription_builtin_topic_data
+                                .destination_order()
+                                .clone(),
+                            history: HistoryQosPolicy::default(),
+                            resource_limits: ResourceLimitsQosPolicy::default(),
+                            transport_priority: TransportPriorityQosPolicy::default(),
+                            lifespan: LifespanQosPolicy::default(),
+                            ownership: subscription_builtin_topic_data.ownership().clone(),
+                            representation: subscription_builtin_topic_data
+                                .representation()
+                                .clone(),
+                        };
+                        self.domain_participant.add_discovered_topic(reader_topic);
+                    }
+
                     self.domain_participant
                         .add_discovered_reader(subscription_builtin_topic_data.clone());
                     for publisher in self.domain_participant.publisher_list() {
