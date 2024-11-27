@@ -914,6 +914,7 @@ impl MailHandler<AddTopicsDiscoveryCacheChange> for RtpsParticipant {
             .find(|dw| dw.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER)
         {
             w.add_change(message.cache_change, &self.message_sender);
+            w.send_message(&self.message_sender);
         }
     }
 }
@@ -974,11 +975,13 @@ impl MailHandler<AddPublicationsDiscoveryCacheChange> for RtpsParticipant {
                             cache_change.data_value =
                                 discovered_writer_data.serialize_data().unwrap().into();
                             w.add_change(cache_change, &self.message_sender);
+                            w.send_message(&self.message_sender);
                         }
                     }
                 }
                 ChangeKind::NotAliveDisposed => {
-                    w.add_change(message.cache_change, &self.message_sender)
+                    w.add_change(message.cache_change, &self.message_sender);
+                    w.send_message(&self.message_sender);
                 }
                 ChangeKind::AliveFiltered
                 | ChangeKind::NotAliveUnregistered
@@ -1046,11 +1049,13 @@ impl MailHandler<AddSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
                             cache_change.data_value =
                                 discovered_reader_data.serialize_data().unwrap().into();
                             w.add_change(cache_change, &self.message_sender);
+                            w.send_message(&self.message_sender);
                         }
                     }
                 }
                 ChangeKind::NotAliveDisposed => {
                     w.add_change(message.cache_change, &self.message_sender);
+                    w.send_message(&self.message_sender);
                 }
                 ChangeKind::AliveFiltered
                 | ChangeKind::NotAliveUnregistered
@@ -1099,6 +1104,7 @@ impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
             .find(|dw| dw.guid() == message.guid)
         {
             w.add_change(message.cache_change, &self.message_sender);
+            w.send_message(&self.message_sender);
         }
     }
 }
