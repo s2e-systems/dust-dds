@@ -32,7 +32,7 @@ use crate::{
 };
 
 use super::{
-    behavior_types::{Duration, InstanceHandle},
+    behavior_types::Duration,
     discovery_types::{
         BuiltinEndpointQos, BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -68,7 +68,7 @@ pub struct RtpsParticipant {
     user_defined_writer_list: Vec<RtpsStatefulWriter>,
     user_defined_reader_list: Vec<RtpsStatefulReader>,
     message_sender: MessageSender,
-    discovered_participant_list: Vec<InstanceHandle>,
+    discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
 }
@@ -241,12 +241,10 @@ impl RtpsParticipant {
             == self.domain_id;
         let is_domain_tag_matching =
             discovered_participant_data.participant_proxy.domain_tag == self.domain_tag;
-        let discovered_participant_handle =
-            InstanceHandle(discovered_participant_data.dds_participant_data.key().value);
 
         let is_participant_discovered = self
             .discovered_participant_list
-            .contains(&discovered_participant_handle);
+            .contains(&discovered_participant_data);
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_discovered {
             self.add_matched_publications_detector(discovered_participant_data);
             self.add_matched_publications_announcer(discovered_participant_data);
@@ -255,7 +253,7 @@ impl RtpsParticipant {
             self.add_matched_topics_detector(discovered_participant_data);
             self.add_matched_topics_announcer(discovered_participant_data);
             self.discovered_participant_list
-                .push(discovered_participant_handle);
+                .push(discovered_participant_data.clone());
         }
     }
 
@@ -536,21 +534,29 @@ impl RtpsParticipant {
         {
             for reader in &mut self.user_defined_reader_list {
                 if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
-                    let reliability_kind = discovered_writer_data
-                        .dds_publication_data
-                        .reliability()
-                        .into();
-                    let durability_kind = discovered_writer_data
-                        .dds_publication_data
-                        .durability()
-                        .into();
-                    reader.add_matched_writer(
-                        &discovered_writer_data.writer_proxy,
-                        reliability_kind,
-                        durability_kind,
-                        &self.default_unicast_locator_list,
-                        &self.default_multicast_locator_list,
-                    );
+                    if let Some(p) = self.discovered_participant_list.iter().find(|x| {
+                        x.participant_proxy.guid_prefix
+                            == discovered_writer_data
+                                .writer_proxy
+                                .remote_writer_guid
+                                .prefix()
+                    }) {
+                        let reliability_kind = discovered_writer_data
+                            .dds_publication_data
+                            .reliability()
+                            .into();
+                        let durability_kind = discovered_writer_data
+                            .dds_publication_data
+                            .durability()
+                            .into();
+                        reader.add_matched_writer(
+                            &discovered_writer_data.writer_proxy,
+                            reliability_kind,
+                            durability_kind,
+                            &p.participant_proxy.default_unicast_locator_list,
+                            &p.participant_proxy.default_multicast_locator_list,
+                        );
+                    }
                 }
             }
             self.discovered_writer_list.push(discovered_writer_data);
@@ -565,22 +571,30 @@ impl RtpsParticipant {
             for writer in &mut self.user_defined_writer_list {
                 if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name()
                 {
-                    let reliability_kind = discovered_reader_data
-                        .dds_subscription_data
-                        .reliability()
-                        .into();
-                    let durability_kind = discovered_reader_data
-                        .dds_subscription_data
-                        .durability()
-                        .into();
-                    writer.add_matched_reader(
-                        &discovered_reader_data.reader_proxy,
-                        reliability_kind,
-                        durability_kind,
-                        &self.default_unicast_locator_list,
-                        &self.default_multicast_locator_list,
-                    );
-                    writer.send_message(&self.message_sender);
+                    if let Some(p) = self.discovered_participant_list.iter().find(|x| {
+                        x.participant_proxy.guid_prefix
+                            == discovered_reader_data
+                                .reader_proxy
+                                .remote_reader_guid
+                                .prefix()
+                    }) {
+                        let reliability_kind = discovered_reader_data
+                            .dds_subscription_data
+                            .reliability()
+                            .into();
+                        let durability_kind = discovered_reader_data
+                            .dds_subscription_data
+                            .durability()
+                            .into();
+                        writer.add_matched_reader(
+                            &discovered_reader_data.reader_proxy,
+                            reliability_kind,
+                            durability_kind,
+                            &p.participant_proxy.default_unicast_locator_list,
+                            &p.participant_proxy.default_multicast_locator_list,
+                        );
+                        writer.send_message(&self.message_sender);
+                    }
                 }
             }
             self.discovered_reader_list.push(discovered_reader_data);
