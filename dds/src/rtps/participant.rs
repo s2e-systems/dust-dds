@@ -623,22 +623,30 @@ impl RtpsParticipant {
         let mut writer = RtpsStatefulWriter::new(writer_guid, topic_name);
         for discovered_reader_data in &self.discovered_reader_list {
             if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name() {
-                let reliability_kind = discovered_reader_data
-                    .dds_subscription_data
-                    .reliability()
-                    .into();
-                let durability_kind = discovered_reader_data
-                    .dds_subscription_data
-                    .durability()
-                    .into();
-                writer.add_matched_reader(
-                    &discovered_reader_data.reader_proxy,
-                    reliability_kind,
-                    durability_kind,
-                    &self.default_unicast_locator_list,
-                    &self.default_multicast_locator_list,
-                );
-                writer.send_message(&self.message_sender);
+                if let Some(p) = self.discovered_participant_list.iter().find(|x| {
+                    x.participant_proxy.guid_prefix
+                        == discovered_reader_data
+                            .reader_proxy
+                            .remote_reader_guid
+                            .prefix()
+                }) {
+                    let reliability_kind = discovered_reader_data
+                        .dds_subscription_data
+                        .reliability()
+                        .into();
+                    let durability_kind = discovered_reader_data
+                        .dds_subscription_data
+                        .durability()
+                        .into();
+                    writer.add_matched_reader(
+                        &discovered_reader_data.reader_proxy,
+                        reliability_kind,
+                        durability_kind,
+                        &p.participant_proxy.default_unicast_locator_list,
+                        &p.participant_proxy.default_multicast_locator_list,
+                    );
+                    writer.send_message(&self.message_sender);
+                }
             }
         }
         self.user_defined_writer_list.push(writer);
@@ -658,21 +666,29 @@ impl RtpsParticipant {
         let mut reader = RtpsStatefulReader::new(reader_guid, topic_name, reader_history_cache);
         for discovered_writer_data in &self.discovered_writer_list {
             if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
-                let reliability_kind = discovered_writer_data
-                    .dds_publication_data
-                    .reliability()
-                    .into();
-                let durability_kind = discovered_writer_data
-                    .dds_publication_data
-                    .durability()
-                    .into();
-                reader.add_matched_writer(
-                    &discovered_writer_data.writer_proxy,
-                    reliability_kind,
-                    durability_kind,
-                    &self.default_unicast_locator_list,
-                    &self.default_multicast_locator_list,
-                );
+                if let Some(p) = self.discovered_participant_list.iter().find(|x| {
+                    x.participant_proxy.guid_prefix
+                        == discovered_writer_data
+                            .writer_proxy
+                            .remote_writer_guid
+                            .prefix()
+                }) {
+                    let reliability_kind = discovered_writer_data
+                        .dds_publication_data
+                        .reliability()
+                        .into();
+                    let durability_kind = discovered_writer_data
+                        .dds_publication_data
+                        .durability()
+                        .into();
+                    reader.add_matched_writer(
+                        &discovered_writer_data.writer_proxy,
+                        reliability_kind,
+                        durability_kind,
+                        &p.participant_proxy.default_unicast_locator_list,
+                        &p.participant_proxy.default_multicast_locator_list,
+                    );
+                }
             }
         }
         self.user_defined_reader_list.push(reader);
