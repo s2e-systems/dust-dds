@@ -43,7 +43,8 @@ use super::{
     error::RtpsResult,
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
-    reader::{RtpsStatefulReader, RtpsStatelessReader},
+    stateful_reader::RtpsStatefulReader,
+    stateless_reader::RtpsStatelessReader,
     stateless_writer::RtpsStatelessWriter,
     types::{
         DurabilityKind, Guid, Locator, ProtocolVersion, SequenceNumber, VendorId,

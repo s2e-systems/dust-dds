@@ -5,8 +5,9 @@ use super::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         types::TIME_INVALID,
     },
-    reader::{RtpsStatefulReader, RtpsStatelessReader},
+    stateful_reader::RtpsStatefulReader,
     stateful_writer::RtpsStatefulWriter,
+    stateless_reader::RtpsStatelessReader,
     types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN},
 };
 
