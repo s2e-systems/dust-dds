@@ -24,10 +24,11 @@ use dust_dds::{
             submessage_elements::{Data, ParameterList, SequenceNumberSet},
             submessages::{ack_nack::AckNackSubmessage, data::DataSubmessage},
         },
-        types::{EntityId, PROTOCOLVERSION, USER_DEFINED_READER_WITH_KEY, VENDOR_ID_S2E},
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{DdsDeserialize, DdsType},
+    transport::types::{EntityId, USER_DEFINED_READER_WITH_KEY},
 };
 use std::io::{BufRead, Read};
 

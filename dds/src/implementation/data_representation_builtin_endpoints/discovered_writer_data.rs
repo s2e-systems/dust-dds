@@ -14,8 +14,8 @@ use super::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
-    rtps::types::{EntityId, Guid, Locator},
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+    transport::types::{EntityId, Guid, Locator},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -272,7 +272,7 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        rtps::types::{
+        transport::types::{
             BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },

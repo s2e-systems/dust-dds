@@ -16,7 +16,6 @@ use crate::{
         },
         message_receiver::MessageReceiver,
         stateful_writer::RtpsStatefulWriter,
-        types::ENTITYID_UNKNOWN,
     },
     runtime::{
         actor::{ActorAddress, Mail, MailHandler},
@@ -25,7 +24,10 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
         history_cache::{CacheChange, HistoryCache},
-        types::{ChangeKind, ReliabilityKind},
+        types::{
+            ChangeKind, DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber,
+            ENTITYID_UNKNOWN,
+        },
         writer::TransportWriter,
     },
 };
@@ -44,10 +46,7 @@ use super::{
     stateful_reader::RtpsStatefulReader,
     stateless_reader::RtpsStatelessReader,
     stateless_writer::RtpsStatelessWriter,
-    types::{
-        DurabilityKind, Guid, Locator, ProtocolVersion, SequenceNumber, VendorId,
-        PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
-    },
+    types::{ProtocolVersion, VendorId, PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
 };
 
 pub struct RtpsParticipant {

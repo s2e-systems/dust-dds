@@ -17,7 +17,8 @@ pub mod rtps;
 
 #[cfg(feature = "std")]
 mod implementation;
-mod transport;
+#[doc(hidden)]
+pub mod transport;
 
 #[cfg(feature = "std")]
 mod runtime;

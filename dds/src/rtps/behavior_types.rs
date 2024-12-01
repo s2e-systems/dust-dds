@@ -1,4 +1,4 @@
-use super::types::{Long, UnsignedLong};
+use crate::transport::types::{Long, UnsignedLong};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5

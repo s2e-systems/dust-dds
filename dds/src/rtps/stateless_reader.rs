@@ -1,8 +1,8 @@
-use super::{
-    messages::{self, submessages::data::DataSubmessage},
+use super::messages::{self, submessages::data::DataSubmessage};
+use crate::transport::{
+    history_cache::{CacheChange, HistoryCache},
     types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
 };
-use crate::transport::history_cache::{CacheChange, HistoryCache};
 use tracing::error;
 
 pub struct RtpsStatelessReader {

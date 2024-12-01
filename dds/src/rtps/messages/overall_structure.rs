@@ -1,3 +1,5 @@
+use crate::transport::types::GuidPrefix;
+
 use super::{
     super::{
         error::{RtpsError, RtpsErrorKind, RtpsResult},
@@ -15,7 +17,7 @@ use super::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+        types::{ProtocolVersion, VendorId},
     },
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
@@ -366,13 +368,13 @@ impl WriteIntoBytes for SubmessageHeaderWrite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::{
+    use crate::{
+        rtps::messages::{
             submessage_elements::{Data, Parameter, ParameterList},
             submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
             types::Time,
         },
-        types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        transport::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]

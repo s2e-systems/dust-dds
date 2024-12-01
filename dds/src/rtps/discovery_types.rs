@@ -3,7 +3,7 @@
 
 use crate::xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize};
 
-use super::types::{EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY};
+use crate::transport::types::{EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);

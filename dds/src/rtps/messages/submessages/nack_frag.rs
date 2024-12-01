@@ -1,3 +1,5 @@
+use crate::transport::types::{EntityId, SequenceNumber};
+
 use super::super::super::{
     error::RtpsResult,
     messages::{
@@ -8,7 +10,6 @@ use super::super::super::{
         submessage_elements::FragmentNumberSet,
         types::{Count, SubmessageKind},
     },
-    types::{EntityId, SequenceNumber},
 };
 use std::io::Write;
 
@@ -93,9 +94,9 @@ impl Submessage for NackFragSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::overall_structure::write_submessage_into_bytes_vec,
-        types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+    use crate::{
+        rtps::messages::overall_structure::write_submessage_into_bytes_vec,
+        transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]

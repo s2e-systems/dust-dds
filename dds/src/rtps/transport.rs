@@ -29,7 +29,11 @@ use crate::{
         history_cache::{CacheChange, HistoryCache},
         participant::TransportParticipant,
         reader::TransportReader,
-        types::TopicKind,
+        types::{
+            EntityId, Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT,
+            LOCATOR_KIND_UDP_V4, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
+            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+        },
         writer::TransportWriter,
     },
 };
@@ -39,11 +43,6 @@ use super::{
     error::{RtpsError, RtpsErrorKind, RtpsResult},
     messages::overall_structure::RtpsMessageRead,
     participant::RtpsParticipant,
-    types::{
-        EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
-        USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY,
-        USER_DEFINED_WRITER_WITH_KEY,
-    },
 };
 
 const MAX_DATAGRAM_SIZE: usize = 65507;

@@ -26,9 +26,10 @@ use crate::{
     rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
-        types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
+        types::{ProtocolVersion, VendorId},
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
+    transport::types::{GuidPrefix, Locator},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]

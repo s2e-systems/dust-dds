@@ -1,3 +1,5 @@
+use crate::transport::types::{GuidPrefix, Long};
+
 use super::super::super::{
     error::RtpsResult,
     messages::{
@@ -7,7 +9,7 @@ use super::super::super::{
         },
         types::SubmessageKind,
     },
-    types::{GuidPrefix, Long, ProtocolVersion, VendorId},
+    types::{ProtocolVersion, VendorId},
 };
 use std::io::Write;
 
@@ -76,9 +78,12 @@ impl Submessage for InfoSourceSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::overall_structure::write_submessage_into_bytes_vec,
-        types::{GUIDPREFIX_UNKNOWN, PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
+    use crate::{
+        rtps::{
+            messages::overall_structure::write_submessage_into_bytes_vec,
+            types::{PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN},
+        },
+        transport::types::GUIDPREFIX_UNKNOWN,
     };
 
     #[test]

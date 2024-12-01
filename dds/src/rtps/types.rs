@@ -7,23 +7,19 @@ use crate::{
         DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
         ReliabilityQosPolicyKind,
     },
-    transport::types::ReliabilityKind,
+    transport::types::{
+        DurabilityKind, EntityId, GuidPrefix, Locator, Long, Octet, ReliabilityKind,
+        SequenceNumber, UnsignedLong,
+    },
     xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
-use network_interface::Addr;
-use std::{
-    io::{Read, Write},
-    net::IpAddr,
-};
+
+use std::io::{Read, Write};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.5
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
-
-type Octet = u8;
-pub type Long = i32;
-pub type UnsignedLong = u32;
 
 impl WriteIntoBytes for Octet {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
@@ -71,110 +67,11 @@ impl WriteIntoBytes for &[u8] {
     }
 }
 
-/// GUID_t
-/// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
-/// Must be possible to represent using 16 octets.
-/// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
-pub struct Guid {
-    prefix: GuidPrefix,
-    entity_id: EntityId,
-}
-
-impl Guid {
-    pub const fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
-        Self { prefix, entity_id }
-    }
-
-    pub const fn prefix(&self) -> GuidPrefix {
-        self.prefix
-    }
-
-    pub const fn entity_id(&self) -> EntityId {
-        self.entity_id
-    }
-}
-
-pub const GUID_UNKNOWN: Guid = Guid::new(GUIDPREFIX_UNKNOWN, ENTITYID_UNKNOWN);
-
-impl From<[u8; 16]> for Guid {
-    fn from(value: [u8; 16]) -> Self {
-        let prefix = [
-            value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
-            value[8], value[9], value[10], value[11],
-        ];
-        let entity_id = EntityId::new([value[12], value[13], value[14]], value[15]);
-        Self { prefix, entity_id }
-    }
-}
-
-impl From<Guid> for [u8; 16] {
-    fn from(guid: Guid) -> Self {
-        [
-            guid.prefix[0],
-            guid.prefix[1],
-            guid.prefix[2],
-            guid.prefix[3],
-            guid.prefix[4],
-            guid.prefix[5],
-            guid.prefix[6],
-            guid.prefix[7],
-            guid.prefix[8],
-            guid.prefix[9],
-            guid.prefix[10],
-            guid.prefix[11],
-            guid.entity_id.entity_key[0],
-            guid.entity_id.entity_key[1],
-            guid.entity_id.entity_key[2],
-            guid.entity_id.entity_kind,
-        ]
-    }
-}
-
-/// GuidPrefix_t
-/// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
-/// Must be possible to represent using 12 octets.
-/// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-pub type GuidPrefix = [u8; 12];
-pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
-
 impl TryReadFromBytes for GuidPrefix {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
         let mut guid_prefix = [0; 12];
         data.read_exact(&mut guid_prefix)?;
         Ok(guid_prefix)
-    }
-}
-
-/// EntityId_t
-/// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
-/// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
-/// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-type OctetArray3 = [Octet; 3];
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
-pub struct EntityId {
-    entity_key: OctetArray3,
-    entity_kind: Octet,
-}
-
-impl EntityId {
-    pub const fn new(entity_key: OctetArray3, entity_kind: Octet) -> Self {
-        Self {
-            entity_key,
-            entity_kind,
-        }
-    }
-
-    pub const fn entity_key(&self) -> OctetArray3 {
-        self.entity_key
-    }
-
-    pub const fn entity_kind(&self) -> Octet {
-        self.entity_kind
-    }
-
-    pub fn from_bytes(data: &[u8]) -> Self {
-        Self::new([data[0], data[1], data[2]], data[3])
     }
 }
 
@@ -184,21 +81,9 @@ impl TryReadFromBytes for EntityId {
         let mut entity_kind = [0; 1];
         data.read_exact(&mut entity_key)?;
         data.read_exact(&mut entity_kind)?;
-        Ok(Self {
-            entity_key,
-            entity_kind: entity_kind[0],
-        })
+        Ok(EntityId::new(entity_key, entity_kind[0]))
     }
 }
-
-impl Default for EntityId {
-    fn default() -> Self {
-        ENTITYID_UNKNOWN
-    }
-}
-
-pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
-pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
 impl WriteIntoBytes for EntityId {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
@@ -206,34 +91,6 @@ impl WriteIntoBytes for EntityId {
         self.entity_kind().write_into_bytes(buf);
     }
 }
-
-// Table 9.1 - entityKind octet of an EntityId_t
-pub const USER_DEFINED_UNKNOWN: Octet = 0x00;
-#[allow(dead_code)]
-pub const BUILT_IN_UNKNOWN: Octet = 0xc0;
-pub const BUILT_IN_PARTICIPANT: Octet = 0xc1;
-pub const USER_DEFINED_WRITER_WITH_KEY: Octet = 0x02;
-pub const BUILT_IN_WRITER_WITH_KEY: Octet = 0xc2;
-pub const USER_DEFINED_WRITER_NO_KEY: Octet = 0x03;
-#[allow(dead_code)]
-pub const BUILT_IN_WRITER_NO_KEY: Octet = 0xc3;
-pub const USER_DEFINED_READER_WITH_KEY: Octet = 0x07;
-pub const BUILT_IN_READER_WITH_KEY: Octet = 0xc7;
-pub const USER_DEFINED_READER_NO_KEY: Octet = 0x04;
-#[allow(dead_code)]
-pub const BUILT_IN_READER_NO_KEY: Octet = 0xc4;
-pub const USER_DEFINED_WRITER_GROUP: Octet = 0x08;
-pub const BUILT_IN_WRITER_GROUP: Octet = 0xc8;
-pub const USER_DEFINED_READER_GROUP: Octet = 0x09;
-pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
-// Added in comparison to the RTPS standard
-pub const BUILT_IN_TOPIC: Octet = 0xca;
-pub const USER_DEFINED_TOPIC: Octet = 0x0a;
-
-/// SequenceNumber_t
-/// Type used to hold sequence numbers.
-/// Must be possible to represent using 64 bits.
-pub type SequenceNumber = i64;
 
 impl TryReadFromBytes for SequenceNumber {
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsResult<Self> {
@@ -253,22 +110,11 @@ impl WriteIntoBytes for SequenceNumber {
     }
 }
 
-/// Locator_t
-/// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
-/// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
-/// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
-pub struct Locator {
-    kind: Long,
-    port: UnsignedLong,
-    address: [Octet; 16],
-}
-
 impl WriteIntoBytes for Locator {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        self.kind.write_into_bytes(buf);
-        self.port.write_into_bytes(buf);
-        self.address.write_into_bytes(buf);
+        self.kind().write_into_bytes(buf);
+        self.port().write_into_bytes(buf);
+        self.address().write_into_bytes(buf);
     }
 }
 
@@ -282,82 +128,6 @@ impl TryReadFromBytes for Locator {
     }
 }
 
-#[allow(dead_code)]
-pub const LOCATOR_KIND_INVALID: Long = -1;
-#[allow(dead_code)]
-pub const LOCATOR_KIND_RESERVED: Long = 0;
-pub const LOCATOR_KIND_UDP_V4: Long = 1;
-pub const LOCATOR_KIND_UDP_V6: Long = 2;
-pub const LOCATOR_PORT_INVALID: UnsignedLong = 0;
-pub const LOCATOR_ADDRESS_INVALID: [Octet; 16] = [0; 16];
-
-#[allow(dead_code)]
-pub const LOCATOR_INVALID: Locator = Locator::new(
-    LOCATOR_KIND_INVALID,
-    LOCATOR_PORT_INVALID,
-    LOCATOR_ADDRESS_INVALID,
-);
-
-impl Locator {
-    pub const fn new(kind: Long, port: UnsignedLong, address: [Octet; 16]) -> Self {
-        Self {
-            kind,
-            port,
-            address,
-        }
-    }
-    pub const fn kind(&self) -> Long {
-        self.kind
-    }
-    pub const fn port(&self) -> UnsignedLong {
-        self.port
-    }
-    pub const fn address(&self) -> [Octet; 16] {
-        self.address
-    }
-
-    pub fn from_ip_and_port(ip_addr: &Addr, port: u32) -> Self {
-        match ip_addr.ip() {
-            IpAddr::V4(a) => Self {
-                kind: LOCATOR_KIND_UDP_V4,
-                port,
-                address: [
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    a.octets()[0],
-                    a.octets()[1],
-                    a.octets()[2],
-                    a.octets()[3],
-                ],
-            },
-            IpAddr::V6(a) => Self {
-                kind: LOCATOR_KIND_UDP_V6,
-                port,
-                address: a.octets(),
-            },
-        }
-    }
-}
-
-/// ChangeCount_t
-/// Type used to hold a counter representing the number of HistoryCache changes that belong to a certain category.
-/// For example, the number of changes that have been filtered for an RTPS Reader endpoint.
-#[allow(dead_code)]
-pub struct ChangeCount {
-    high: Long,
-    low: UnsignedLong,
-}
-
 impl From<&ReliabilityQosPolicy> for ReliabilityKind {
     fn from(value: &ReliabilityQosPolicy) -> Self {
         match value.kind {
@@ -365,16 +135,6 @@ impl From<&ReliabilityQosPolicy> for ReliabilityKind {
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         }
     }
-}
-
-/// DurabilityKind_t
-/// Enumeration used to indicate the level of the durability used for communications.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DurabilityKind {
-    Volatile,
-    TransientLocal,
-    Transient,
-    Persistent,
 }
 
 impl From<&DurabilityQosPolicy> for DurabilityKind {

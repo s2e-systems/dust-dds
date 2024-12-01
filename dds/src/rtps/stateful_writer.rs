@@ -21,9 +21,9 @@ use super::{
         types::TIME_INVALID,
     },
     reader_proxy::RtpsReaderProxy,
-    types::{
-        DurabilityKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
-    },
+};
+use crate::transport::types::{
+    DurabilityKind, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN,
 };
 
 pub struct RtpsStatefulWriter {

@@ -8,16 +8,16 @@ use crate::{
             STATUS_INFO_FILTERED, STATUS_INFO_UNREGISTERED,
         },
     },
-    transport::{history_cache::CacheChange, types::ChangeKind},
+    transport::{
+        history_cache::CacheChange,
+        types::{ChangeKind, EntityId, Guid, GuidPrefix},
+    },
 };
 
-use super::{
-    messages::{
-        self,
-        submessage_elements::{Parameter, ParameterList},
-        submessages::data::DataSubmessage,
-    },
-    types::{EntityId, Guid, GuidPrefix},
+use super::messages::{
+    self,
+    submessage_elements::{Parameter, ParameterList},
+    submessages::data::DataSubmessage,
 };
 
 impl CacheChange {

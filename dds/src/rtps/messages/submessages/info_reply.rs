@@ -82,8 +82,9 @@ impl InfoReplySubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::overall_structure::write_submessage_into_bytes_vec, types::Locator,
+    use crate::{
+        rtps::messages::overall_structure::write_submessage_into_bytes_vec,
+        transport::types::Locator,
     };
 
     #[test]

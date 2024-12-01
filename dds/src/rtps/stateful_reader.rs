@@ -7,7 +7,6 @@ use super::{
             heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
         },
     },
-    types::{DurabilityKind, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
     writer_proxy::RtpsWriterProxy,
 };
 use crate::{
@@ -16,7 +15,7 @@ use crate::{
     },
     transport::{
         history_cache::{CacheChange, HistoryCache},
-        types::ReliabilityKind,
+        types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, ENTITYID_UNKNOWN},
     },
 };
 use tracing::error;

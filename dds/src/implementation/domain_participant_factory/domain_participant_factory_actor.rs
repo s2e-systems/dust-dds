@@ -37,7 +37,7 @@ use crate::{
         status::StatusKind,
         time::{Duration, DurationKind},
     },
-    rtps::{transport::RtpsTransport, types::GuidPrefix},
+    rtps::transport::RtpsTransport,
     runtime::{
         actor::{Actor, ActorAddress, ActorBuilder, Mail, MailHandler},
         executor::Executor,
@@ -47,6 +47,7 @@ use crate::{
     transport::{
         history_cache::{CacheChange, HistoryCache},
         participant::TransportParticipant,
+        types::GuidPrefix,
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};

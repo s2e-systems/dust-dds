@@ -2,11 +2,11 @@ use super::{
     super::{
         error::{RtpsError, RtpsErrorKind, RtpsResult},
         messages::types::FragmentNumber,
-        types::{Locator, SequenceNumber},
     },
     overall_structure::{Endianness, TryReadFromBytes, WriteIntoBytes},
     types::ParameterId,
 };
+use crate::transport::types::{Locator, SequenceNumber};
 use std::{
     io::{BufRead, Write},
     ops::Range,
@@ -437,9 +437,12 @@ impl WriteIntoBytes for Data {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::{
-        messages::{overall_structure::write_into_bytes_vec, types::Count},
-        types::{GuidPrefix, ProtocolVersion, VendorId},
+    use crate::{
+        rtps::{
+            messages::{overall_structure::write_into_bytes_vec, types::Count},
+            types::{ProtocolVersion, VendorId},
+        },
+        transport::types::GuidPrefix,
     };
 
     #[test]
