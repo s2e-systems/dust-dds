@@ -424,7 +424,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         builtin_publisher.insert_data_writer(dcps_topics_writer);
         builtin_publisher.insert_data_writer(dcps_publications_writer);
         builtin_publisher.insert_data_writer(dcps_subscriptions_writer);
-        let instance_handle = InstanceHandle::new(transport.guid());
+        let instance_handle = InstanceHandle::new(transport.guid().into());
 
         let status_condition =
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle());

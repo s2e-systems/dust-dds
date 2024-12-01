@@ -347,7 +347,7 @@ impl DataWriterEntity {
 
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
-            writer_guid: self.transport_writer().guid(),
+            writer_guid: self.transport_writer().guid().into(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),

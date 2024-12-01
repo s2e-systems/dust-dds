@@ -16,6 +16,7 @@ use crate::{
 pub struct DomainParticipantActor {
     pub transport: Box<dyn TransportParticipant>,
     pub instance_handle_counter: InstanceHandleCounter,
+    pub entity_counter: u16,
     pub domain_participant: DomainParticipantEntity,
     pub backend_executor: Executor,
     pub listener_executor: Executor,
@@ -34,6 +35,7 @@ impl DomainParticipantActor {
         Self {
             transport,
             instance_handle_counter,
+            entity_counter: 0,
             domain_participant,
             backend_executor,
             listener_executor,

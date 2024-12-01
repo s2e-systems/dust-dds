@@ -779,8 +779,8 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
             guid: Guid,
         }
         impl TransportWriter for RtpsUserDefinedWriterHistoryCache {
-            fn guid(&self) -> [u8; 16] {
-                self.guid.into()
+            fn guid(&self) -> Guid {
+                self.guid
             }
 
             fn history_cache(&mut self) -> &mut dyn HistoryCache {

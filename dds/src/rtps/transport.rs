@@ -29,11 +29,7 @@ use crate::{
         history_cache::{CacheChange, HistoryCache},
         participant::TransportParticipant,
         reader::TransportReader,
-        types::{
-            EntityId, Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT,
-            LOCATOR_KIND_UDP_V4, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-        },
+        types::{Guid, GuidPrefix, Locator, TopicKind, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4},
         writer::TransportWriter,
     },
 };
@@ -122,7 +118,6 @@ pub struct RtpsTransport {
     guid: Guid,
     rtps_participant: Actor<RtpsParticipant>,
     _executor: Executor,
-    endpoint_counter: u8,
 }
 
 impl RtpsTransport {
@@ -327,14 +322,13 @@ impl RtpsTransport {
             guid,
             rtps_participant,
             _executor: executor,
-            endpoint_counter: 0,
         })
     }
 }
 
 impl TransportParticipant for RtpsTransport {
-    fn guid(&self) -> [u8; 16] {
-        self.guid.into()
+    fn guid(&self) -> Guid {
+        self.guid
     }
 
     fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter> {
@@ -343,8 +337,8 @@ impl TransportParticipant for RtpsTransport {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
         impl TransportWriter for RtpsParticipantDiscoveryWriterHistoryCache {
-            fn guid(&self) -> [u8; 16] {
-                self.guid.into()
+            fn guid(&self) -> Guid {
+                self.guid
             }
 
             fn history_cache(&mut self) -> &mut dyn HistoryCache {
@@ -405,8 +399,8 @@ impl TransportParticipant for RtpsTransport {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
         }
         impl TransportWriter for RtpsTopicsDiscoveryWriterHistoryCache {
-            fn guid(&self) -> [u8; 16] {
-                self.guid.into()
+            fn guid(&self) -> Guid {
+                self.guid
             }
 
             fn history_cache(&mut self) -> &mut dyn HistoryCache {
@@ -467,8 +461,8 @@ impl TransportParticipant for RtpsTransport {
         }
 
         impl TransportWriter for RtpsPublicationsDiscoveryWriterHistoryCache {
-            fn guid(&self) -> [u8; 16] {
-                self.guid.into()
+            fn guid(&self) -> Guid {
+                self.guid
             }
 
             fn history_cache(&mut self) -> &mut dyn HistoryCache {
@@ -536,8 +530,8 @@ impl TransportParticipant for RtpsTransport {
         }
 
         impl TransportWriter for RtpsSubscriptionsDiscoveryWriterHistoryCache {
-            fn guid(&self) -> [u8; 16] {
-                self.guid.into()
+            fn guid(&self) -> Guid {
+                self.guid
             }
 
             fn history_cache(&mut self) -> &mut dyn HistoryCache {
@@ -600,8 +594,9 @@ impl TransportParticipant for RtpsTransport {
 
     fn create_user_defined_reader(
         &mut self,
+        guid: Guid,
         topic_name: &str,
-        topic_kind: TopicKind,
+        _topic_kind: TopicKind,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportReader> {
         struct UserDefinedTransportReader {
@@ -626,49 +621,29 @@ impl TransportParticipant for RtpsTransport {
             }
         }
 
-        self.endpoint_counter += 1;
-        let entity_kind = match topic_kind {
-            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
-            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
-        };
-
-        let data_reader_counter = self.endpoint_counter;
-        let entity_key: [u8; 3] = [0, data_reader_counter, 0];
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let reader_guid = Guid::new(self.guid.prefix(), entity_id);
-
         self.rtps_participant
             .send_actor_mail(participant::CreateReader {
-                reader_guid,
+                reader_guid: guid,
                 topic_name: topic_name.to_owned(),
                 reader_history_cache,
             });
 
         Box::new(UserDefinedTransportReader {
             rtps_participant_address: self.rtps_participant.address(),
-            guid: reader_guid,
+            guid,
         })
     }
 
     fn create_user_defined_writer(
         &mut self,
+        guid: Guid,
         topic_name: &str,
-        topic_kind: TopicKind,
+        _topic_kind: TopicKind,
     ) -> Box<dyn TransportWriter> {
-        let entity_kind = match topic_kind {
-            TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
-            TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
-        };
-        self.endpoint_counter += 1;
-        let data_writer_counter = self.endpoint_counter;
-        let entity_key: [u8; 3] = [0, 0, data_writer_counter];
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let writer_guid = Guid::new(self.guid.prefix(), entity_id);
-
         block_on(
             self.rtps_participant
                 .send_actor_mail(participant::CreateWriter {
-                    writer_guid,
+                    writer_guid: guid,
                     topic_name: topic_name.to_owned(),
                     rtps_participant_address: self.rtps_participant.address(),
                 })

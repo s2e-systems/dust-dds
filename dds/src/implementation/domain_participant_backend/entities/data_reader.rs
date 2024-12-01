@@ -512,7 +512,7 @@ impl DataReaderEntity {
 
         Ok(ReaderSample {
             kind: cache_change.kind,
-            writer_guid: cache_change.writer_guid,
+            writer_guid: cache_change.writer_guid.into(),
             instance_handle,
             source_timestamp: cache_change.source_timestamp.map(Into::into),
             data_value: cache_change.data_value.clone(),

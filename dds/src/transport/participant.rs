@@ -1,9 +1,12 @@
 use super::{
-    history_cache::HistoryCache, reader::TransportReader, types::TopicKind, writer::TransportWriter,
+    history_cache::HistoryCache,
+    reader::TransportReader,
+    types::{Guid, TopicKind},
+    writer::TransportWriter,
 };
 
 pub trait TransportParticipant: Send + Sync {
-    fn guid(&self) -> [u8; 16];
+    fn guid(&self) -> Guid;
 
     fn get_participant_discovery_writer(&self) -> Box<dyn TransportWriter>;
 
@@ -23,6 +26,7 @@ pub trait TransportParticipant: Send + Sync {
 
     fn create_user_defined_reader(
         &mut self,
+        guid: Guid,
         topic_name: &str,
         topic_kind: TopicKind,
         reader_history_cache: Box<dyn HistoryCache>,
@@ -30,6 +34,7 @@ pub trait TransportParticipant: Send + Sync {
 
     fn create_user_defined_writer(
         &mut self,
+        guid: Guid,
         topic_name: &str,
         topic_kind: TopicKind,
     ) -> Box<dyn TransportWriter>;

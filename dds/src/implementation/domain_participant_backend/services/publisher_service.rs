@@ -19,7 +19,9 @@ use crate::{
         status::StatusKind,
     },
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
-    transport::types::TopicKind,
+    transport::types::{
+        EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+    },
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -46,10 +48,24 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         let topic_kind = get_topic_kind(topic.type_support().as_ref());
         let type_support = topic.type_support().clone();
         let type_name = topic.type_name().to_owned();
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
+            TopicKind::NoKey => USER_DEFINED_WRITER_NO_KEY,
+        };
 
-        let transport_writer = self
-            .transport
-            .create_user_defined_writer(&message.topic_name, topic_kind);
+        self.entity_counter += 1;
+        let entity_id = EntityId::new(
+            [
+                0,
+                self.entity_counter.to_le_bytes()[0],
+                self.entity_counter.to_le_bytes()[1],
+            ],
+            entity_kind,
+        );
+        let writer_guid = Guid::new(self.transport.guid().prefix(), entity_id);
+        let transport_writer =
+            self.transport
+                .create_user_defined_writer(writer_guid, &message.topic_name, topic_kind);
         let writer_handle = self.instance_handle_counter.generate_new_instance_handle();
         let publisher = self
             .domain_participant

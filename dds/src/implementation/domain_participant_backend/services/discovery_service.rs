@@ -42,7 +42,7 @@ impl MailHandler<AnnounceParticipant> for DomainParticipantActor {
         if self.domain_participant.enabled() {
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: self.transport.guid(),
+                    value: self.transport.guid().into(),
                 },
                 user_data: self.domain_participant.qos().user_data.clone(),
             };
@@ -77,7 +77,7 @@ impl MailHandler<AnnounceDeletedParticipant> for DomainParticipantActor {
                 .builtin_publisher_mut()
                 .lookup_datawriter_mut(DCPS_PARTICIPANT)
             {
-                let key = InstanceHandle::new(self.transport.guid());
+                let key = InstanceHandle::new(self.transport.guid().into());
                 dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
             }
         }
@@ -114,7 +114,7 @@ impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
 
         let publication_builtin_topic_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: data_writer.transport_writer().guid(),
+                value: data_writer.transport_writer().guid().into(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: data_writer.topic_name().to_owned(),
@@ -164,7 +164,7 @@ impl MailHandler<AnnounceDeletedDataWriter> for DomainParticipantActor {
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
-            let key = InstanceHandle::new(message.data_writer.transport_writer().guid());
+            let key = InstanceHandle::new(message.data_writer.transport_writer().guid().into());
             dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
         }
         Ok(())

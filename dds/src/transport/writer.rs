@@ -1,7 +1,7 @@
-use super::history_cache::HistoryCache;
+use super::{history_cache::HistoryCache, types::Guid};
 
 pub trait TransportWriter: Send + Sync {
-    fn guid(&self) -> [u8; 16];
+    fn guid(&self) -> Guid;
 
     fn history_cache(&mut self) -> &mut dyn HistoryCache;
 

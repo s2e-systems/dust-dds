@@ -22,7 +22,9 @@ use crate::{
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     transport::{
         history_cache::{CacheChange, HistoryCache},
-        types::TopicKind,
+        types::{
+            EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
+        },
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -85,7 +87,24 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
                 q
             }
         };
+        self.entity_counter += 1;
+        let prefix = self.transport.guid().prefix();
+
+        let entity_kind = match topic_kind {
+            TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
+            TopicKind::WithKey => USER_DEFINED_READER_WITH_KEY,
+        };
+        let entity_id = EntityId::new(
+            [
+                0,
+                self.entity_counter.to_le_bytes()[0],
+                self.entity_counter.to_le_bytes()[1],
+            ],
+            entity_kind,
+        );
+        let reader_guid = Guid::new(prefix, entity_id);
         let transport_reader = self.transport.create_user_defined_reader(
+            reader_guid,
             &message.topic_name,
             topic_kind,
             Box::new(UserDefinedReaderHistoryCache {

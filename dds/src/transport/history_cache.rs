@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use super::types::{ChangeKind, Time};
+use super::types::{ChangeKind, Guid, Time};
 
 #[derive(Debug)]
 pub struct CacheChange {
     pub kind: ChangeKind,
-    pub writer_guid: [u8; 16],
+    pub writer_guid: Guid,
     pub sequence_number: i64,
     pub source_timestamp: Option<Time>,
     pub instance_handle: Option<[u8; 16]>,
