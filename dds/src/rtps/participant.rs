@@ -63,8 +63,8 @@ pub struct RtpsParticipant {
     builtin_stateful_writer_list: Vec<RtpsStatefulWriter>,
     builtin_stateless_reader_list: Vec<RtpsStatelessReader>,
     builtin_stateful_reader_list: Vec<RtpsStatefulReader>,
-    user_defined_writer_list: Vec<RtpsStatefulWriter>,
-    user_defined_reader_list: Vec<RtpsStatefulReader>,
+    writer_list: Vec<RtpsStatefulWriter>,
+    reader_list: Vec<RtpsStatefulReader>,
     message_sender: MessageSender,
     discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
     discovered_reader_list: Vec<DiscoveredReaderData>,
@@ -166,8 +166,8 @@ impl RtpsParticipant {
             builtin_stateful_writer_list,
             builtin_stateless_reader_list,
             builtin_stateful_reader_list,
-            user_defined_writer_list,
-            user_defined_reader_list,
+            writer_list: user_defined_writer_list,
+            reader_list: user_defined_reader_list,
             message_sender,
             discovered_participant_list: Vec::new(),
             discovered_reader_list: Vec::new(),
@@ -530,7 +530,7 @@ impl RtpsParticipant {
             .discovered_writer_list
             .contains(&discovered_writer_data)
         {
-            for reader in &mut self.user_defined_reader_list {
+            for reader in &mut self.reader_list {
                 if reader.topic_name() == discovered_writer_data.dds_publication_data.topic_name {
                     if let Some(p) = self.discovered_participant_list.iter().find(|x| {
                         x.participant_proxy.guid_prefix
@@ -566,7 +566,7 @@ impl RtpsParticipant {
             .discovered_reader_list
             .contains(&discovered_reader_data)
         {
-            for writer in &mut self.user_defined_writer_list {
+            for writer in &mut self.writer_list {
                 if writer.topic_name() == discovered_reader_data.dds_subscription_data.topic_name()
                 {
                     if let Some(p) = self.discovered_participant_list.iter().find(|x| {
@@ -647,12 +647,11 @@ impl RtpsParticipant {
                 }
             }
         }
-        self.user_defined_writer_list.push(writer);
+        self.writer_list.push(writer);
     }
 
     pub fn delete_writer(&mut self, writer_guid: Guid) {
-        self.user_defined_writer_list
-            .retain(|x| x.guid() != writer_guid);
+        self.writer_list.retain(|x| x.guid() != writer_guid);
     }
 
     pub fn create_reader(
@@ -689,12 +688,11 @@ impl RtpsParticipant {
                 }
             }
         }
-        self.user_defined_reader_list.push(reader);
+        self.reader_list.push(reader);
     }
 
     pub fn delete_reader(&mut self, reader_guid: Guid) {
-        self.user_defined_reader_list
-            .retain(|x| x.guid() != reader_guid);
+        self.reader_list.retain(|x| x.guid() != reader_guid);
     }
 
     pub fn process_builtin_rtps_message(&mut self, message: RtpsMessageRead) {
@@ -709,8 +707,8 @@ impl RtpsParticipant {
     pub fn process_user_defined_rtps_message(&mut self, message: RtpsMessageRead) {
         MessageReceiver::new(message).process_message(
             &mut [],
-            &mut self.user_defined_reader_list,
-            &mut self.user_defined_writer_list,
+            &mut self.reader_list,
+            &mut self.writer_list,
             &self.message_sender,
         );
     }
@@ -755,7 +753,7 @@ impl MailHandler<SendHeartbeat> for RtpsParticipant {
         for builtin_writer in self.builtin_stateful_writer_list.iter_mut() {
             builtin_writer.send_message(&self.message_sender);
         }
-        for user_defined_writer in self.user_defined_writer_list.iter_mut() {
+        for user_defined_writer in self.writer_list.iter_mut() {
             user_defined_writer.send_message(&self.message_sender);
         }
     }
@@ -802,7 +800,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
         impl HistoryCache for RtpsUserDefinedWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
-                    .send_actor_mail(AddUserDefinedCacheChange {
+                    .send_actor_mail(AddCacheChange {
                         guid: self.guid,
                         cache_change,
                     })
@@ -811,7 +809,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
 
             fn remove_change(&mut self, sequence_number: SequenceNumber) {
                 self.rtps_participant_address
-                    .send_actor_mail(RemoveUserDefinedCacheChange {
+                    .send_actor_mail(RemoveCacheChange {
                         guid: self.guid,
                         sequence_number,
                     })
@@ -981,7 +979,7 @@ impl MailHandler<AddPublicationsDiscoveryCacheChange> for RtpsParticipant {
                         message.cache_change.data_value.as_ref(),
                     ) {
                         if let Some(writer_proxy) = self
-                            .user_defined_writer_list
+                            .writer_list
                             .iter()
                             .find(|w| w.guid() == dds_publication_data.key.value.into())
                             .map(|w| w.writer_proxy())
@@ -1055,7 +1053,7 @@ impl MailHandler<AddSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
                         )
                     {
                         if let Some(reader_proxy) = self
-                            .user_defined_reader_list
+                            .reader_list
                             .iter()
                             .find(|r| r.guid() == dds_subscription_data.key.value.into())
                             .map(|r| r.reader_proxy())
@@ -1105,20 +1103,17 @@ impl MailHandler<RemoveSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
     }
 }
 
-pub struct AddUserDefinedCacheChange {
+pub struct AddCacheChange {
     pub guid: Guid,
     pub cache_change: CacheChange,
 }
-impl Mail for AddUserDefinedCacheChange {
+impl Mail for AddCacheChange {
     type Result = ();
 }
-impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
-    fn handle(
-        &mut self,
-        message: AddUserDefinedCacheChange,
-    ) -> <AddUserDefinedCacheChange as Mail>::Result {
+impl MailHandler<AddCacheChange> for RtpsParticipant {
+    fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
         if let Some(w) = self
-            .user_defined_writer_list
+            .writer_list
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {
@@ -1128,20 +1123,17 @@ impl MailHandler<AddUserDefinedCacheChange> for RtpsParticipant {
     }
 }
 
-pub struct RemoveUserDefinedCacheChange {
+pub struct RemoveCacheChange {
     pub guid: Guid,
     pub sequence_number: SequenceNumber,
 }
-impl Mail for RemoveUserDefinedCacheChange {
+impl Mail for RemoveCacheChange {
     type Result = ();
 }
-impl MailHandler<RemoveUserDefinedCacheChange> for RtpsParticipant {
-    fn handle(
-        &mut self,
-        message: RemoveUserDefinedCacheChange,
-    ) -> <RemoveUserDefinedCacheChange as Mail>::Result {
+impl MailHandler<RemoveCacheChange> for RtpsParticipant {
+    fn handle(&mut self, message: RemoveCacheChange) -> <RemoveCacheChange as Mail>::Result {
         if let Some(w) = self
-            .user_defined_writer_list
+            .writer_list
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {
@@ -1199,7 +1191,7 @@ impl Mail for IsChangeAcknowledged {
 impl MailHandler<IsChangeAcknowledged> for RtpsParticipant {
     fn handle(&mut self, message: IsChangeAcknowledged) -> <IsChangeAcknowledged as Mail>::Result {
         if let Some(w) = self
-            .user_defined_writer_list
+            .writer_list
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {
@@ -1222,7 +1214,7 @@ impl MailHandler<IsHistoricalDataReceived> for RtpsParticipant {
         message: IsHistoricalDataReceived,
     ) -> <IsHistoricalDataReceived as Mail>::Result {
         if let Some(r) = self
-            .user_defined_reader_list
+            .reader_list
             .iter_mut()
             .find(|dw| dw.guid() == message.guid)
         {

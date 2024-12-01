@@ -103,7 +103,7 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             entity_kind,
         );
         let reader_guid = Guid::new(prefix, entity_id);
-        let transport_reader = self.transport.create_user_defined_reader(
+        let transport_reader = self.transport.create_reader(
             reader_guid,
             &message.topic_name,
             topic_kind,

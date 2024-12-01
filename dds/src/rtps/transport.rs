@@ -592,7 +592,7 @@ impl TransportParticipant for RtpsTransport {
         })
     }
 
-    fn create_user_defined_reader(
+    fn create_reader(
         &mut self,
         guid: Guid,
         topic_name: &str,
@@ -634,7 +634,7 @@ impl TransportParticipant for RtpsTransport {
         })
     }
 
-    fn create_user_defined_writer(
+    fn create_writer(
         &mut self,
         guid: Guid,
         topic_name: &str,

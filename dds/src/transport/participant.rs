@@ -24,7 +24,7 @@ pub trait TransportParticipant: Send + Sync {
 
     fn get_subscriptions_discovery_reader(&self) -> Box<dyn TransportReader>;
 
-    fn create_user_defined_reader(
+    fn create_reader(
         &mut self,
         guid: Guid,
         topic_name: &str,
@@ -32,7 +32,7 @@ pub trait TransportParticipant: Send + Sync {
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportReader>;
 
-    fn create_user_defined_writer(
+    fn create_writer(
         &mut self,
         guid: Guid,
         topic_name: &str,
