@@ -9,14 +9,11 @@ use super::{
     },
     writer_proxy::RtpsWriterProxy,
 };
-use crate::{
-    implementation::data_representation_builtin_endpoints::{
-        discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
-    },
-    transport::{
-        history_cache::{CacheChange, HistoryCache},
-        types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, ENTITYID_UNKNOWN},
-    },
+use crate::transport::{
+    history_cache::{CacheChange, HistoryCache},
+    reader::WriterProxy,
+    types::{DurabilityKind, Guid, GuidPrefix, Locator, ReliabilityKind, ENTITYID_UNKNOWN},
+    writer::ReaderProxy,
 };
 use tracing::error;
 

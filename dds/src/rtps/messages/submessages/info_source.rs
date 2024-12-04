@@ -1,4 +1,4 @@
-use crate::transport::types::{GuidPrefix, Long};
+use crate::transport::types::{GuidPrefix, Long, ProtocolVersion, VendorId};
 
 use super::super::super::{
     error::RtpsResult,
@@ -9,7 +9,6 @@ use super::super::super::{
         },
         types::SubmessageKind,
     },
-    types::{ProtocolVersion, VendorId},
 };
 use std::io::Write;
 

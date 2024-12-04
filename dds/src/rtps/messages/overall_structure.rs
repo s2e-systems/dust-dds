@@ -1,4 +1,4 @@
-use crate::transport::types::GuidPrefix;
+use crate::transport::types::{GuidPrefix, ProtocolVersion, VendorId};
 
 use super::{
     super::{
@@ -17,7 +17,6 @@ use super::{
                 INFO_SRC, INFO_TS, NACK_FRAG, PAD,
             },
         },
-        types::{ProtocolVersion, VendorId},
     },
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };

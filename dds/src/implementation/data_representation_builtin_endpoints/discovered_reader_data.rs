@@ -18,17 +18,8 @@ use crate::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    transport::types::{EntityId, Guid, Locator},
+    transport::writer::ReaderProxy,
 };
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ReaderProxy {
-    pub(crate) remote_reader_guid: Guid,
-    pub(crate) remote_group_entity_id: EntityId,
-    pub(crate) unicast_locator_list: Vec<Locator>,
-    pub(crate) multicast_locator_list: Vec<Locator>,
-    pub(crate) expects_inline_qos: bool,
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredReaderData {
@@ -279,7 +270,8 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         transport::types::{
-            BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+            EntityId, Guid, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
+            USER_DEFINED_UNKNOWN,
         },
     };
 

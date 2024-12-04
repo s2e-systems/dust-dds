@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    builtin_topics::{
-        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
-    },
+    builtin_topics::{SubscriptionBuiltinTopicData, TopicBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        data_representation_builtin_endpoints::{
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         domain_participant_backend::services::domain_participant_service::BUILT_IN_TOPIC_NAME_LIST,
         listeners::domain_participant_listener::DomainParticipantListenerActor,
         status_condition::status_condition_actor::StatusConditionActor,
@@ -38,7 +39,7 @@ pub struct DomainParticipantEntity {
     discovered_participant_list: HashMap<InstanceHandle, SpdpDiscoveredParticipantData>,
     discovered_topic_list: HashMap<InstanceHandle, TopicBuiltinTopicData>,
     discovered_reader_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
-    discovered_writer_list: HashMap<InstanceHandle, PublicationBuiltinTopicData>,
+    discovered_writer_list: HashMap<InstanceHandle, DiscoveredWriterData>,
     enabled: bool,
     ignored_participants: HashSet<InstanceHandle>,
     ignored_publications: HashSet<InstanceHandle>,
@@ -185,7 +186,9 @@ impl DomainParticipantEntity {
     }
 
     pub fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
-        self.discovered_topic_list.values().find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
+        self.discovered_topic_list
+            .values()
+            .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
     }
 
     pub fn add_discovered_participant(
@@ -226,19 +229,16 @@ impl DomainParticipantEntity {
         self.discovered_reader_list.values()
     }
 
-    pub fn add_discovered_writer(
-        &mut self,
-        publication_builtin_topic_data: PublicationBuiltinTopicData,
-    ) {
+    pub fn add_discovered_writer(&mut self, discovered_writer_data: DiscoveredWriterData) {
         self.discovered_writer_list.insert(
-            InstanceHandle::new(publication_builtin_topic_data.key().value),
-            publication_builtin_topic_data,
+            InstanceHandle::new(discovered_writer_data.dds_publication_data.key().value),
+            discovered_writer_data,
         );
     }
 
     pub fn publication_builtin_topic_data_list(
         &self,
-    ) -> impl Iterator<Item = &PublicationBuiltinTopicData> {
+    ) -> impl Iterator<Item = &DiscoveredWriterData> {
         self.discovered_writer_list.values()
     }
 

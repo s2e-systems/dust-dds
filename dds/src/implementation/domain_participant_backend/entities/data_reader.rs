@@ -29,7 +29,7 @@ use crate::{
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    transport::{history_cache::CacheChange, reader::TransportReader, types::ChangeKind},
+    transport::{history_cache::CacheChange, reader::TransportStatefulReader, types::ChangeKind},
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -141,7 +141,7 @@ pub struct DataReaderEntity {
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
-    transport_reader: Box<dyn TransportReader>,
+    transport_reader: Box<dyn TransportStatefulReader>,
 }
 
 impl DataReaderEntity {
@@ -155,7 +155,7 @@ impl DataReaderEntity {
         status_condition: Actor<StatusConditionActor>,
         listener: Option<Actor<DataReaderListenerActor>>,
         listener_mask: Vec<StatusKind>,
-        transport_reader: Box<dyn TransportReader>,
+        transport_reader: Box<dyn TransportStatefulReader>,
     ) -> Self {
         Self {
             instance_handle,
@@ -853,8 +853,12 @@ impl DataReaderEntity {
         status
     }
 
-    pub fn transport_reader(&self) -> &dyn TransportReader {
+    pub fn transport_reader(&self) -> &dyn TransportStatefulReader {
         self.transport_reader.as_ref()
+    }
+
+    pub fn transport_reader_mut(&mut self) -> &mut dyn TransportStatefulReader {
+        self.transport_reader.as_mut()
     }
 
     pub fn get_matched_publication_data(

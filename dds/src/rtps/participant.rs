@@ -5,9 +5,11 @@ use crate::{
     },
     domain::domain_participant_factory::DomainId,
     implementation::data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-        discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+        discovered_reader_data::DiscoveredReaderData,
+        discovered_writer_data::DiscoveredWriterData,
+        spdp_discovered_participant_data::{
+            BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy, SpdpDiscoveredParticipantData,
+        },
     },
     rtps::{
         discovery_types::{
@@ -24,21 +26,21 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsSerialize},
     transport::{
         history_cache::{CacheChange, HistoryCache},
+        reader::WriterProxy,
         types::{
-            ChangeKind, DurabilityKind, Guid, Locator, ReliabilityKind, SequenceNumber,
-            ENTITYID_UNKNOWN,
+            ChangeKind, DurabilityKind, Guid, Locator, ProtocolVersion, ReliabilityKind,
+            SequenceNumber, VendorId, ENTITYID_UNKNOWN,
         },
-        writer::TransportWriter,
+        writer::{ReaderProxy, TransportStatefulWriter},
     },
 };
 
 use super::{
     behavior_types::Duration,
     discovery_types::{
-        BuiltinEndpointQos, BuiltinEndpointSet, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-        ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     error::RtpsResult,
     message_sender::MessageSender,
@@ -46,7 +48,7 @@ use super::{
     stateful_reader::RtpsStatefulReader,
     stateless_reader::RtpsStatelessReader,
     stateless_writer::RtpsStatelessWriter,
-    types::{ProtocolVersion, VendorId, PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
+    types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
 };
 
 pub struct RtpsParticipant {
@@ -766,7 +768,7 @@ pub struct CreateWriter {
 }
 
 impl Mail for CreateWriter {
-    type Result = Box<dyn TransportWriter>;
+    type Result = Box<dyn TransportStatefulWriter>;
 }
 impl MailHandler<CreateWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
@@ -776,7 +778,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
             rtps_participant_address: ActorAddress<RtpsParticipant>,
             guid: Guid,
         }
-        impl TransportWriter for RtpsUserDefinedWriterHistoryCache {
+        impl TransportStatefulWriter for RtpsUserDefinedWriterHistoryCache {
             fn guid(&self) -> Guid {
                 self.guid
             }
@@ -795,6 +797,14 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
                         .expect("Actor must exist")
                         .receive_reply(),
                 )
+            }
+
+            fn add_matched_reader(&mut self, reader_proxy: crate::transport::writer::ReaderProxy) {
+                todo!()
+            }
+
+            fn remove_matched_reader(&mut self, remote_reader_guid: Guid) {
+                todo!()
             }
         }
         impl HistoryCache for RtpsUserDefinedWriterHistoryCache {

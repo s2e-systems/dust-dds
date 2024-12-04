@@ -103,10 +103,10 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             entity_kind,
         );
         let reader_guid = Guid::new(prefix, entity_id);
-        let transport_reader = self.transport.create_reader(
-            reader_guid,
-            &message.topic_name,
+        let transport_reader = self.transport.create_stateful_reader(
+            entity_id,
             topic_kind,
+            todo!(),
             Box::new(UserDefinedReaderHistoryCache {
                 domain_participant_address: message.domain_participant_address.clone(),
                 subscriber_handle: subscriber.instance_handle(),

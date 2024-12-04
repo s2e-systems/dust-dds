@@ -4,6 +4,7 @@ use dust_dds_derive::{XTypesDeserialize, XTypesSerialize};
 use network_interface::Addr;
 
 pub type Octet = u8;
+pub type Short = i16;
 pub type Long = i32;
 pub type UnsignedLong = u32;
 pub type OctetArray3 = [Octet; 3];
@@ -258,6 +259,35 @@ impl Locator {
         }
     }
 }
+
+/// ProtocolVersion_t
+/// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
+/// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
+/// PROTOCOLVERSION_2_4
+/// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
+#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
+pub struct ProtocolVersion {
+    bytes: [u8; 2],
+}
+
+impl ProtocolVersion {
+    pub const fn new(major: Octet, minor: Octet) -> Self {
+        Self {
+            bytes: [major, minor],
+        }
+    }
+    pub const fn _major(&self) -> Octet {
+        self.bytes[0]
+    }
+    pub const fn _minor(&self) -> Octet {
+        self.bytes[1]
+    }
+}
+
+/// VendorId_t
+/// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
+/// The following values are reserved by the protocol: VENDORID_UNKNOWN
+pub type VendorId = [Octet; 2];
 
 /// ChangeCount_t
 /// Type used to hold a counter representing the number of HistoryCache changes that belong to a certain category.

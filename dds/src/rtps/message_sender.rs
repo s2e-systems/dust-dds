@@ -5,10 +5,12 @@ use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 
 use super::{
     messages::overall_structure::{RtpsMessageHeader, RtpsMessageWrite, Submessage},
-    types::{ProtocolVersion, VendorId, PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
+    types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E},
 };
 
-use crate::transport::types::{GuidPrefix, Locator, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6};
+use crate::transport::types::{
+    GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6,
+};
 
 pub struct MessageSender {
     protocol_version: ProtocolVersion,

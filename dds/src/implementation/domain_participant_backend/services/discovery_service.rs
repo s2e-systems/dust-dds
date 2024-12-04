@@ -7,6 +7,7 @@ use crate::{
         DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
@@ -196,7 +197,7 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
 
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: data_reader.transport_reader().guid(),
+                value: data_reader.transport_reader().guid().into(),
             },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: data_reader.topic_name().to_owned(),
@@ -313,7 +314,7 @@ impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
-            let key = InstanceHandle::new(message.data_reader.transport_reader().guid());
+            let key = InstanceHandle::new(message.data_reader.transport_reader().guid().into());
             dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
         }
         Ok(())
@@ -630,7 +631,7 @@ impl MailHandler<RemoveDiscoveredReader> for DomainParticipantActor {
 }
 
 pub struct AddDiscoveredWriter {
-    pub publication_builtin_topic_data: PublicationBuiltinTopicData,
+    pub discovered_writer_data: DiscoveredWriterData,
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub participant_address: ActorAddress<DomainParticipantActor>,
@@ -645,14 +646,16 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
             .get_mut_subscriber(message.subscriber_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
         let is_any_name_matched = message
-            .publication_builtin_topic_data
+            .discovered_writer_data
+            .dds_publication_data
             .partition
             .name
             .iter()
             .any(|n| subscriber.qos().partition.name.contains(n));
 
         let is_any_received_regex_matched_with_partition_qos = message
-            .publication_builtin_topic_data
+            .discovered_writer_data
+            .dds_publication_data
             .partition
             .name
             .iter()
@@ -674,14 +677,18 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
             .filter_map(|n| glob_to_regex(n).ok())
             .any(|regex| {
                 message
-                    .publication_builtin_topic_data
+                    .discovered_writer_data
+                    .dds_publication_data
                     .partition
                     .name
                     .iter()
                     .any(|n| regex.is_match(n))
             });
 
-        let is_partition_matched = message.publication_builtin_topic_data.partition
+        let is_partition_matched = message
+            .discovered_writer_data
+            .dds_publication_data
+            .partition
             == subscriber.qos().partition
             || is_any_name_matched
             || is_any_received_regex_matched_with_partition_qos
@@ -691,21 +698,31 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
             let data_reader = subscriber
                 .get_mut_data_reader(message.data_reader_handle)
                 .ok_or(DdsError::AlreadyDeleted)?;
-            let is_matched_topic_name =
-                message.publication_builtin_topic_data.topic_name() == data_reader.topic_name();
-            let is_matched_type_name =
-                message.publication_builtin_topic_data.get_type_name() == data_reader.type_name();
+            let is_matched_topic_name = message
+                .discovered_writer_data
+                .dds_publication_data
+                .topic_name()
+                == data_reader.topic_name();
+            let is_matched_type_name = message
+                .discovered_writer_data
+                .dds_publication_data
+                .get_type_name()
+                == data_reader.type_name();
 
             if is_matched_topic_name && is_matched_type_name {
                 let incompatible_qos_policy_list =
                     get_discovered_writer_incompatible_qos_policy_list(
                         data_reader,
-                        &message.publication_builtin_topic_data,
+                        &message.discovered_writer_data.dds_publication_data,
                         &subscriber_qos,
                     );
                 if incompatible_qos_policy_list.is_empty() {
+                    data_reader.add_matched_publication(
+                        message.discovered_writer_data.dds_publication_data.clone(),
+                    );
                     data_reader
-                        .add_matched_publication(message.publication_builtin_topic_data.clone());
+                        .transport_reader_mut()
+                        .add_matched_writer(message.discovered_writer_data.writer_proxy);
 
                     if data_reader
                         .listener_mask()
@@ -798,7 +815,13 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         });
                 } else {
                     data_reader.add_requested_incompatible_qos(
-                        InstanceHandle::new(message.publication_builtin_topic_data.key().value),
+                        InstanceHandle::new(
+                            message
+                                .discovered_writer_data
+                                .dds_publication_data
+                                .key()
+                                .value,
+                        ),
                         incompatible_qos_policy_list,
                     );
 

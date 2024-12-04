@@ -8,10 +8,9 @@ use crate::{
         ReliabilityQosPolicyKind,
     },
     transport::types::{
-        DurabilityKind, EntityId, GuidPrefix, Locator, Long, Octet, ReliabilityKind,
-        SequenceNumber, UnsignedLong,
+        DurabilityKind, EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion,
+        ReliabilityKind, SequenceNumber, UnsignedLong, VendorId,
     },
-    xtypes::{deserialize::XTypesDeserialize, serialize::XTypesSerialize},
 };
 
 use std::io::{Read, Write};
@@ -152,27 +151,18 @@ impl From<&DurabilityQosPolicy> for DurabilityKind {
 /// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
 // Defined elsewhere in DDS
 
-/// ProtocolVersion_t
-/// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
-/// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
-/// PROTOCOLVERSION_2_4
-/// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Eq, Debug, XTypesSerialize, XTypesDeserialize)]
-pub struct ProtocolVersion {
-    bytes: [u8; 2],
-}
-
 impl TryReadFromBytes for ProtocolVersion {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {
         let mut bytes = [0; 2];
         data.read_exact(&mut bytes)?;
-        Ok(Self { bytes })
+        Ok(Self::new(bytes[0], bytes[1]))
     }
 }
 
 impl WriteIntoBytes for ProtocolVersion {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        self.bytes.write_into_bytes(buf);
+        self._major().write_into_bytes(buf);
+        self._minor().write_into_bytes(buf);
     }
 }
 
@@ -190,25 +180,6 @@ pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion::new(2, 2);
 #[allow(dead_code)]
 pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion::new(2, 3);
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
-
-impl ProtocolVersion {
-    pub const fn new(major: Octet, minor: Octet) -> Self {
-        Self {
-            bytes: [major, minor],
-        }
-    }
-    pub const fn _major(&self) -> Octet {
-        self.bytes[0]
-    }
-    pub const fn _minor(&self) -> Octet {
-        self.bytes[1]
-    }
-}
-
-/// VendorId_t
-/// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
-/// The following values are reserved by the protocol: VENDORID_UNKNOWN
-pub type VendorId = [Octet; 2];
 
 impl TryReadFromBytes for VendorId {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsResult<Self> {

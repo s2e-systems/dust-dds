@@ -309,7 +309,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            transport.get_participant_discovery_reader(),
+            todo!(),
         );
         dcps_participant_reader.enable();
         let mut dcps_topic_reader = DataReaderEntity::new(
@@ -321,7 +321,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            transport.get_topics_discovery_reader(),
+            todo!(),
         );
         dcps_topic_reader.enable();
         let mut dcps_publication_reader = DataReaderEntity::new(
@@ -333,7 +333,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            transport.get_publications_discovery_reader(),
+            todo!(),
         );
         dcps_publication_reader.enable();
         let mut dcps_subscription_reader = DataReaderEntity::new(
@@ -345,7 +345,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            transport.get_subscriptions_discovery_reader(),
+            todo!(),
         );
         dcps_subscription_reader.enable();
 
@@ -364,7 +364,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let mut dcps_participant_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            transport.get_participant_discovery_writer(),
+            todo!(),
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_support().clone(),
@@ -377,7 +377,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            transport.get_topics_discovery_writer(),
+            todo!(),
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
             topic_list[DCPS_TOPIC].type_name().to_owned(),
             topic_list[DCPS_TOPIC].type_support().clone(),
@@ -389,7 +389,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         dcps_topics_writer.enable();
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            transport.get_publications_discovery_writer(),
+            todo!(),
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_support().clone(),
@@ -402,7 +402,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
 
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            transport.get_subscriptions_discovery_writer(),
+            todo!(),
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_support().clone(),

@@ -1,10 +1,13 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, SubscriptionBuiltinTopicData, TopicBuiltinTopicData, DCPS_PARTICIPANT,
+        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        data_representation_builtin_endpoints::{
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::data_reader::AddChangeResult, services::discovery_service,
@@ -356,11 +359,11 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
     ) -> <AddBuiltinPublicationsDetectorCacheChange as Mail>::Result {
         match message.cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(publication_builtin_topic_data) =
-                    PublicationBuiltinTopicData::deserialize_data(
-                        message.cache_change.data_value.as_ref(),
-                    )
+                if let Ok(discovered_writer_data) =
+                    DiscoveredWriterData::deserialize_data(message.cache_change.data_value.as_ref())
                 {
+                    let publication_builtin_topic_data =
+                        &discovered_writer_data.dds_publication_data;
                     if self
                         .domain_participant
                         .find_topic(&publication_builtin_topic_data.topic_name)
@@ -390,14 +393,13 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
                     }
 
                     self.domain_participant
-                        .add_discovered_writer(publication_builtin_topic_data.clone());
+                        .add_discovered_writer(discovered_writer_data.clone());
                     for subscriber in self.domain_participant.subscriber_list() {
                         for data_reader in subscriber.data_reader_list() {
                             message
                                 .participant_address
                                 .send_actor_mail(discovery_service::AddDiscoveredWriter {
-                                    publication_builtin_topic_data: publication_builtin_topic_data
-                                        .clone(),
+                                    discovered_writer_data: discovered_writer_data.clone(),
                                     subscriber_handle: subscriber.instance_handle(),
                                     data_reader_handle: data_reader.instance_handle(),
                                     participant_address: message.participant_address.clone(),

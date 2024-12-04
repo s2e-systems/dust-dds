@@ -19,7 +19,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     runtime::{actor::Actor, executor::TaskHandle},
-    transport::{history_cache::CacheChange, types::ChangeKind, writer::TransportWriter},
+    transport::{history_cache::CacheChange, types::ChangeKind, writer::TransportStatefulWriter},
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
@@ -29,7 +29,7 @@ use std::{
 
 pub struct DataWriterEntity {
     instance_handle: InstanceHandle,
-    transport_writer: Box<dyn TransportWriter>,
+    transport_writer: Box<dyn TransportStatefulWriter>,
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -54,7 +54,7 @@ impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
-        transport_writer: Box<dyn TransportWriter>,
+        transport_writer: Box<dyn TransportStatefulWriter>,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -99,8 +99,12 @@ impl DataWriterEntity {
         self.instance_handle
     }
 
-    pub fn transport_writer(&self) -> &dyn TransportWriter {
+    pub fn transport_writer(&self) -> &dyn TransportStatefulWriter {
         self.transport_writer.as_ref()
+    }
+
+    pub fn transport_writer_mut(&mut self) -> &mut dyn TransportStatefulWriter {
+        self.transport_writer.as_mut()
     }
 
     pub fn enabled(&self) -> bool {

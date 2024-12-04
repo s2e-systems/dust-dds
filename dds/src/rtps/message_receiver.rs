@@ -8,9 +8,8 @@ use super::{
     stateful_reader::RtpsStatefulReader,
     stateful_writer::RtpsStatefulWriter,
     stateless_reader::RtpsStatelessReader,
-    types::{ProtocolVersion, VendorId},
 };
-use crate::transport::types::{GuidPrefix, Locator, GUIDPREFIX_UNKNOWN};
+use crate::transport::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,

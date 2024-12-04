@@ -65,7 +65,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         let writer_guid = Guid::new(self.transport.guid().prefix(), entity_id);
         let transport_writer =
             self.transport
-                .create_writer(writer_guid, &message.topic_name, topic_kind);
+                .create_stateful_writer(entity_id, topic_kind, todo!());
         let writer_handle = self.instance_handle_counter.generate_new_instance_handle();
         let publisher = self
             .domain_participant
