@@ -7,25 +7,19 @@ use tracing::error;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
-    topic_name: String,
     history_cache: Box<dyn HistoryCache>,
 }
 
 impl RtpsStatelessReader {
-    pub fn new(guid: Guid, topic_name: String, history_cache: Box<dyn HistoryCache>) -> Self {
+    pub fn new(guid: Guid, history_cache: Box<dyn HistoryCache>) -> Self {
         Self {
             guid,
-            topic_name,
             history_cache,
         }
     }
 
     pub fn guid(&self) -> Guid {
         self.guid
-    }
-
-    pub fn topic_name(&self) -> &str {
-        &self.topic_name
     }
 
     pub fn on_data_submessage_received(

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::types::{ChangeKind, Guid, Time};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,

@@ -8,7 +8,7 @@ use crate::{
         history_cache::{CacheChange, HistoryCache},
         reader::WriterProxy,
         types::{Guid, Locator, ProtocolVersion, SequenceNumber, VendorId},
-        writer::{ReaderProxy, TransportStatefulWriter},
+        writer::{ReaderProxy, TransportStatefulWriter, TransportStatelessWriter},
     },
 };
 
@@ -511,6 +511,11 @@ impl RtpsParticipant {
     //     }
     // }
 
+    pub fn create_stateless_writer(&mut self, writer_guid: Guid) {
+        let writer = RtpsStatelessWriter::new(writer_guid);
+        self.stateless_writer_list.push(writer);
+    }
+
     pub fn create_stateful_writer(&mut self, writer_guid: Guid) {
         let writer = RtpsStatefulWriter::new(writer_guid);
         self.stateful_writer_list.push(writer);
@@ -529,6 +534,16 @@ impl RtpsParticipant {
         let reader = RtpsStatefulReader::new(reader_guid, reader_history_cache);
 
         self.stateful_reader_list.push(reader);
+    }
+
+    pub fn create_stateless_reader(
+        &mut self,
+        reader_guid: Guid,
+        reader_history_cache: Box<dyn HistoryCache>,
+    ) {
+        let reader = RtpsStatelessReader::new(reader_guid, reader_history_cache);
+
+        self.stateless_reader_list.push(reader);
     }
 
     pub fn delete_reader(&mut self, reader_guid: Guid) {
@@ -597,16 +612,16 @@ impl MailHandler<SendHeartbeat> for RtpsParticipant {
     }
 }
 
-pub struct CreateWriter {
+pub struct CreateStatefulWriter {
     pub writer_guid: Guid,
     pub rtps_participant_address: ActorAddress<RtpsParticipant>,
 }
 
-impl Mail for CreateWriter {
+impl Mail for CreateStatefulWriter {
     type Result = Box<dyn TransportStatefulWriter>;
 }
-impl MailHandler<CreateWriter> for RtpsParticipant {
-    fn handle(&mut self, message: CreateWriter) -> <CreateWriter as Mail>::Result {
+impl MailHandler<CreateStatefulWriter> for RtpsParticipant {
+    fn handle(&mut self, message: CreateStatefulWriter) -> <CreateStatefulWriter as Mail>::Result {
         self.create_stateful_writer(message.writer_guid);
 
         struct RtpsUserDefinedWriterHistoryCache {
@@ -653,7 +668,7 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
         impl HistoryCache for RtpsUserDefinedWriterHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
                 self.rtps_participant_address
-                    .send_actor_mail(AddCacheChange {
+                    .send_actor_mail(AddStatefulWriterCacheChange {
                         writer: self.guid,
                         cache_change,
                     })
@@ -678,17 +693,122 @@ impl MailHandler<CreateWriter> for RtpsParticipant {
     }
 }
 
-pub struct CreateReader {
+pub struct CreateStatelessWriter {
+    pub writer_guid: Guid,
+    pub rtps_participant_address: ActorAddress<RtpsParticipant>,
+}
+
+impl Mail for CreateStatelessWriter {
+    type Result = Box<dyn TransportStatelessWriter>;
+}
+impl MailHandler<CreateStatelessWriter> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: CreateStatelessWriter,
+    ) -> <CreateStatelessWriter as Mail>::Result {
+        self.create_stateless_writer(message.writer_guid);
+
+        struct StatelessWriter {
+            rtps_participant_address: ActorAddress<RtpsParticipant>,
+            guid: Guid,
+        }
+        impl TransportStatelessWriter for StatelessWriter {
+            fn guid(&self) -> Guid {
+                self.guid
+            }
+
+            fn history_cache(&mut self) -> &mut dyn HistoryCache {
+                self
+            }
+
+            fn add_reader_locator(&mut self, locator: Locator) {
+                self.rtps_participant_address
+                    .send_actor_mail(AddReaderLocator {
+                        writer: self.guid,
+                        locator,
+                    })
+                    .ok();
+            }
+
+            fn remove_reader_locator(&mut self, locator: &Locator) {
+                todo!()
+            }
+        }
+        impl HistoryCache for StatelessWriter {
+            fn add_change(&mut self, cache_change: CacheChange) {
+                self.rtps_participant_address
+                    .send_actor_mail(AddStatelessWriterCacheChange {
+                        writer: self.guid,
+                        cache_change,
+                    })
+                    .ok();
+            }
+
+            fn remove_change(&mut self, sequence_number: SequenceNumber) {
+                todo!()
+                //     self.rtps_participant_address
+                //         .send_actor_mail(RemoveCacheChange {
+                //             guid: self.guid,
+                //             sequence_number,
+                //         })
+                //         .ok();
+            }
+        }
+
+        Box::new(StatelessWriter {
+            rtps_participant_address: message.rtps_participant_address,
+            guid: message.writer_guid,
+        })
+    }
+}
+
+pub struct CreateStatefulReader {
     pub reader_guid: Guid,
     pub reader_history_cache: Box<dyn HistoryCache>,
 }
 
-impl Mail for CreateReader {
+impl Mail for CreateStatefulReader {
     type Result = ();
 }
-impl MailHandler<CreateReader> for RtpsParticipant {
-    fn handle(&mut self, message: CreateReader) -> <CreateReader as Mail>::Result {
+impl MailHandler<CreateStatefulReader> for RtpsParticipant {
+    fn handle(&mut self, message: CreateStatefulReader) -> <CreateStatefulReader as Mail>::Result {
         self.create_stateful_reader(message.reader_guid, message.reader_history_cache)
+    }
+}
+
+pub struct CreateStatelessReader {
+    pub reader_guid: Guid,
+    pub reader_history_cache: Box<dyn HistoryCache>,
+}
+
+impl Mail for CreateStatelessReader {
+    type Result = ();
+}
+impl MailHandler<CreateStatelessReader> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: CreateStatelessReader,
+    ) -> <CreateStatelessReader as Mail>::Result {
+        self.create_stateless_reader(message.reader_guid, message.reader_history_cache)
+    }
+}
+
+pub struct AddReaderLocator {
+    pub writer: Guid,
+    pub locator: Locator,
+}
+impl Mail for AddReaderLocator {
+    type Result = ();
+}
+impl MailHandler<AddReaderLocator> for RtpsParticipant {
+    fn handle(&mut self, message: AddReaderLocator) -> <AddReaderLocator as Mail>::Result {
+        if let Some(w) = self
+            .stateless_writer_list
+            .iter_mut()
+            .find(|x| x.guid() == message.writer)
+        {
+            w.reader_locator_add(message.locator);
+        }
     }
 }
 
@@ -1008,15 +1128,41 @@ impl MailHandler<AddMatchedWriter> for RtpsParticipant {
 //     }
 // }
 
-pub struct AddCacheChange {
+pub struct AddStatelessWriterCacheChange {
     pub writer: Guid,
     pub cache_change: CacheChange,
 }
-impl Mail for AddCacheChange {
+impl Mail for AddStatelessWriterCacheChange {
     type Result = ();
 }
-impl MailHandler<AddCacheChange> for RtpsParticipant {
-    fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
+impl MailHandler<AddStatelessWriterCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddStatelessWriterCacheChange,
+    ) -> <AddStatelessWriterCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .stateless_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid() == message.writer)
+        {
+            w.add_change(message.cache_change);
+            w.send_message(&self.message_sender);
+        }
+    }
+}
+
+pub struct AddStatefulWriterCacheChange {
+    pub writer: Guid,
+    pub cache_change: CacheChange,
+}
+impl Mail for AddStatefulWriterCacheChange {
+    type Result = ();
+}
+impl MailHandler<AddStatefulWriterCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: AddStatefulWriterCacheChange,
+    ) -> <AddStatefulWriterCacheChange as Mail>::Result {
         if let Some(w) = self
             .stateful_writer_list
             .iter_mut()

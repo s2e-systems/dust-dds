@@ -2,7 +2,7 @@ use super::{
     history_cache::HistoryCache,
     reader::{TransportStatefulReader, TransportStatelessReader},
     types::{EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, TopicKind, VendorId},
-    writer::TransportStatefulWriter,
+    writer::{TransportStatefulWriter, TransportStatelessWriter},
 };
 
 pub trait TransportParticipant: Send + Sync {
@@ -25,7 +25,7 @@ pub trait TransportParticipant: Send + Sync {
         &mut self,
         entity_id: EntityId,
         topic_kind: TopicKind,
-    ) -> Box<dyn TransportStatefulWriter>;
+    ) -> Box<dyn TransportStatelessWriter>;
 
     fn create_stateful_reader(
         &mut self,
