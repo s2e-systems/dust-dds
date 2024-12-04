@@ -45,6 +45,7 @@ use super::{
     error::RtpsResult,
     message_sender::MessageSender,
     messages::overall_structure::RtpsMessageRead,
+    reader_proxy,
     stateful_reader::RtpsStatefulReader,
     stateless_reader::RtpsStatelessReader,
     stateless_writer::RtpsStatelessWriter,
@@ -549,8 +550,9 @@ impl RtpsParticipant {
                             .dds_publication_data
                             .durability()
                             .into();
+                        let writer_proxy = todo!();
                         reader.add_matched_writer(
-                            &discovered_writer_data.writer_proxy,
+                            writer_proxy,
                             reliability_kind,
                             durability_kind,
                             &p.participant_proxy.default_unicast_locator_list,
@@ -586,8 +588,9 @@ impl RtpsParticipant {
                             .dds_subscription_data
                             .durability()
                             .into();
+                        let reader_proxy = todo!();
                         writer.add_matched_reader(
-                            &discovered_reader_data.reader_proxy,
+                            reader_proxy,
                             reliability_kind,
                             durability_kind,
                             &p.participant_proxy.default_unicast_locator_list,
@@ -638,8 +641,9 @@ impl RtpsParticipant {
                         .dds_subscription_data
                         .durability()
                         .into();
+                    let reader_proxy = todo!();
                     writer.add_matched_reader(
-                        &discovered_reader_data.reader_proxy,
+                        reader_proxy,
                         reliability_kind,
                         durability_kind,
                         &p.participant_proxy.default_unicast_locator_list,
@@ -680,8 +684,15 @@ impl RtpsParticipant {
                         .dds_publication_data
                         .durability()
                         .into();
+                    let writer_proxy = WriterProxy {
+                        remote_writer_guid: todo!(),
+                        remote_group_entity_id: todo!(),
+                        unicast_locator_list: todo!(),
+                        multicast_locator_list: todo!(),
+                        data_max_size_serialized: todo!(),
+                    };
                     reader.add_matched_writer(
-                        &discovered_writer_data.writer_proxy,
+                        &writer_proxy,
                         reliability_kind,
                         durability_kind,
                         &p.participant_proxy.default_unicast_locator_list,
@@ -992,8 +1003,8 @@ impl MailHandler<AddPublicationsDiscoveryCacheChange> for RtpsParticipant {
                             .writer_list
                             .iter()
                             .find(|w| w.guid() == dds_publication_data.key.value.into())
-                            .map(|w| w.writer_proxy())
                         {
+                            let writer_proxy = todo!();
                             let mut cache_change = message.cache_change;
                             let discovered_writer_data = DiscoveredWriterData {
                                 dds_publication_data,
@@ -1066,8 +1077,8 @@ impl MailHandler<AddSubscriptionsDiscoveryCacheChange> for RtpsParticipant {
                             .reader_list
                             .iter()
                             .find(|r| r.guid() == dds_subscription_data.key.value.into())
-                            .map(|r| r.reader_proxy())
                         {
+                            let reader_proxy = todo!();
                             let mut cache_change = message.cache_change;
                             let discovered_reader_data = DiscoveredReaderData {
                                 dds_subscription_data,

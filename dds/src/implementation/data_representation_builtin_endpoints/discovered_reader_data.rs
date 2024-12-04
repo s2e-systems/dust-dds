@@ -18,8 +18,17 @@ use crate::{
         error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    transport::writer::ReaderProxy,
+    transport::types::{EntityId, Guid, Locator},
 };
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ReaderProxy {
+    pub remote_reader_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub expects_inline_qos: bool,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredReaderData {

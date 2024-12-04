@@ -32,6 +32,7 @@ use crate::{
     },
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsSerialize,
+    transport::reader::WriterProxy,
 };
 
 pub struct AnnounceParticipant;
@@ -720,9 +721,16 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                     data_reader.add_matched_publication(
                         message.discovered_writer_data.dds_publication_data.clone(),
                     );
+                    let writer_proxy = WriterProxy {
+                        remote_writer_guid: todo!(),
+                        remote_group_entity_id: todo!(),
+                        unicast_locator_list: todo!(),
+                        multicast_locator_list: todo!(),
+                        data_max_size_serialized: todo!(),
+                    };
                     data_reader
                         .transport_reader_mut()
-                        .add_matched_writer(message.discovered_writer_data.writer_proxy);
+                        .add_matched_writer(writer_proxy);
 
                     if data_reader
                         .listener_mask()

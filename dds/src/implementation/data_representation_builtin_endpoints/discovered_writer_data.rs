@@ -15,8 +15,17 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     infrastructure::{error::DdsResult, qos_policy::DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     topic_definition::type_support::{DdsDeserialize, DdsSerialize, TypeSupport},
-    transport::reader::WriterProxy,
+    transport::types::{EntityId, Guid, Locator},
 };
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WriterProxy {
+    pub remote_writer_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub data_max_size_serialized: i32,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredWriterData {
