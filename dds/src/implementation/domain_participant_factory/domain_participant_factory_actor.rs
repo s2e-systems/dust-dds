@@ -13,9 +13,12 @@ use crate::{
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
             entities::{
-                data_reader::DataReaderEntity, data_writer::DataWriterEntity,
-                domain_participant::DomainParticipantEntity, publisher::PublisherEntity,
-                subscriber::SubscriberEntity, topic::TopicEntity,
+                data_reader::{DataReaderEntity, TransportReaderKind},
+                data_writer::{DataWriterEntity, TransportWriterKind},
+                domain_participant::DomainParticipantEntity,
+                publisher::PublisherEntity,
+                subscriber::SubscriberEntity,
+                topic::TopicEntity,
             },
             handle::InstanceHandleCounter,
             services::{discovery_service, domain_participant_service, message_service},
@@ -47,7 +50,10 @@ use crate::{
     transport::{
         history_cache::{CacheChange, HistoryCache},
         participant::TransportParticipant,
-        types::GuidPrefix,
+        types::{
+            EntityId, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
+            BUILT_IN_WRITER_WITH_KEY,
+        },
     },
 };
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
@@ -60,6 +66,30 @@ use std::{
     },
 };
 use tracing::{error, warn};
+
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
+    EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
+    EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
+    EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
+    EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
+    EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
+    EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 #[derive(Default)]
 pub struct DomainParticipantFactoryActor {
@@ -159,7 +189,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let guid_prefix = self.create_new_guid_prefix();
         let participant_actor_builder = ActorBuilder::new();
 
-        let transport = Box::new(RtpsTransport::new(
+        let mut transport = Box::new(RtpsTransport::new(
             guid_prefix,
             message.domain_id,
             self.configuration.interface_name(),
@@ -287,6 +317,13 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             ..Default::default()
         };
 
+        let dcps_participant_transport_reader = transport.create_stateless_reader(
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+            TopicKind::WithKey,
+            Box::new(DcpsParticipantReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+        );
         let mut dcps_participant_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             spdp_reader_qos,
@@ -296,9 +333,17 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            todo!(),
+            TransportReaderKind::Stateless(dcps_participant_transport_reader),
         );
         dcps_participant_reader.enable();
+        let dcps_topic_transport_reader = transport.create_stateful_reader(
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            Box::new(DcpsTopicsReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+        );
         let mut dcps_topic_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -308,9 +353,17 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            todo!(),
+            TransportReaderKind::Stateful(dcps_topic_transport_reader),
         );
         dcps_topic_reader.enable();
+        let dcps_publication_transport_reader = transport.create_stateful_reader(
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            Box::new(DcpsPublicationsReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+        );
         let mut dcps_publication_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -320,9 +373,17 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            todo!(),
+            TransportReaderKind::Stateful(dcps_publication_transport_reader),
         );
         dcps_publication_reader.enable();
+        let dcps_subscription_transport_reader = transport.create_stateful_reader(
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            Box::new(DcpsSubscriptionsReaderHistoryCache {
+                participant_address: participant_actor_builder.address(),
+            }),
+        );
         let mut dcps_subscription_reader = DataReaderEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
             sedp_data_reader_qos(),
@@ -332,7 +393,7 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             Actor::spawn(StatusConditionActor::default(), &listener_executor.handle()),
             None,
             Vec::new(),
-            todo!(),
+            TransportReaderKind::Stateful(dcps_subscription_transport_reader),
         );
         dcps_subscription_reader.enable();
 
@@ -349,9 +410,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         builtin_subscriber.insert_data_reader(dcps_publication_reader);
         builtin_subscriber.insert_data_reader(dcps_subscription_reader);
 
+        let mut dcps_participant_transport_writer = transport
+            .create_stateless_writer(ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, TopicKind::WithKey);
+        for &discovery_locator in transport.metatraffic_multicast_locator_list() {
+            dcps_participant_transport_writer.add_reader_locator(discovery_locator);
+        }
         let mut dcps_participant_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            todo!(),
+            TransportWriterKind::Stateless(dcps_participant_transport_writer),
             topic_list[DCPS_PARTICIPANT].topic_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_name().to_owned(),
             topic_list[DCPS_PARTICIPANT].type_support().clone(),
@@ -362,9 +428,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         dcps_participant_writer.enable();
 
+        let dcps_topics_transport_writer = transport.create_stateful_writer(
+            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+        );
         let mut dcps_topics_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            todo!(),
+            TransportWriterKind::Stateful(dcps_topics_transport_writer),
             topic_list[DCPS_TOPIC].topic_name().to_owned(),
             topic_list[DCPS_TOPIC].type_name().to_owned(),
             topic_list[DCPS_TOPIC].type_support().clone(),
@@ -374,9 +445,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             sedp_data_writer_qos(),
         );
         dcps_topics_writer.enable();
+        let dcps_publications_transport_writer = transport.create_stateful_writer(
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+        );
         let mut dcps_publications_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            todo!(),
+            TransportWriterKind::Stateful(dcps_publications_transport_writer),
             topic_list[DCPS_PUBLICATION].topic_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_name().to_owned(),
             topic_list[DCPS_PUBLICATION].type_support().clone(),
@@ -387,9 +463,14 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         );
         dcps_publications_writer.enable();
 
+        let dcps_subscriptions_transport_writer = transport.create_stateful_writer(
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+        );
         let mut dcps_subscriptions_writer = DataWriterEntity::new(
             instance_handle_counter.generate_new_instance_handle(),
-            todo!(),
+            TransportWriterKind::Stateful(dcps_subscriptions_transport_writer),
             topic_list[DCPS_SUBSCRIPTION].topic_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_name().to_owned(),
             topic_list[DCPS_SUBSCRIPTION].type_support().clone(),
@@ -617,6 +698,8 @@ struct DcpsParticipantReaderHistoryCache {
 
 impl HistoryCache for DcpsParticipantReaderHistoryCache {
     fn add_change(&mut self, cache_change: CacheChange) {
+        todo!("Add matched participant");
+
         self.participant_address
             .send_actor_mail(message_service::AddBuiltinParticipantsDetectorCacheChange {
                 cache_change,

@@ -10,7 +10,8 @@ use crate::{
         },
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::AddChangeResult, services::discovery_service,
+            entities::data_reader::{AddChangeResult, TransportReaderKind},
+            services::discovery_service,
         },
         listeners::{data_reader_listener, domain_participant_listener, subscriber_listener},
         status_condition::status_condition_actor,
@@ -598,7 +599,11 @@ impl MailHandler<IsHistoricalDataReceived> for DomainParticipantActor {
             | DurabilityQosPolicyKind::Persistent => Ok(()),
         }?;
 
-        Ok(data_reader.transport_reader().is_historical_data_received())
+        if let TransportReaderKind::Stateful(r) = data_reader.transport_reader() {
+            Ok(r.is_historical_data_received())
+        } else {
+            Ok(true)
+        }
     }
 }
 

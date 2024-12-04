@@ -10,7 +10,10 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::{data_reader::DataReaderEntity, data_writer::DataWriterEntity},
+            entities::{
+                data_reader::{DataReaderEntity, TransportReaderKind},
+                data_writer::DataWriterEntity,
+            },
         },
         listeners::{
             data_reader_listener, data_writer_listener, domain_participant_listener,
@@ -196,10 +199,12 @@ impl MailHandler<AnnounceDataReader> for DomainParticipantActor {
                 "Internal error. Data reader exists without associated topic".to_owned(),
             ))?;
 
+        let guid = match data_reader.transport_reader() {
+            TransportReaderKind::Stateful(r) => r.guid(),
+            TransportReaderKind::Stateless(r) => r.guid(),
+        };
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: data_reader.transport_reader().guid().into(),
-            },
+            key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey { value: [0; 16] },
             topic_name: data_reader.topic_name().to_owned(),
             type_name: data_reader.type_name().to_owned(),
@@ -315,7 +320,11 @@ impl MailHandler<AnnounceDeletedDataReader> for DomainParticipantActor {
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_SUBSCRIPTION)
         {
-            let key = InstanceHandle::new(message.data_reader.transport_reader().guid().into());
+            let guid = match message.data_reader.transport_reader() {
+                TransportReaderKind::Stateful(r) => r.guid(),
+                TransportReaderKind::Stateless(r) => r.guid(),
+            };
+            let key = InstanceHandle::new(guid.into());
             dw.dispose_w_timestamp(key.serialize_data()?, timestamp)?;
         }
         Ok(())
@@ -730,9 +739,9 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         reliability_kind: todo!(),
                         durability_kind: todo!(),
                     };
-                    data_reader
-                        .transport_reader_mut()
-                        .add_matched_writer(writer_proxy);
+                    if let TransportReaderKind::Stateful(r) = data_reader.transport_reader_mut() {
+                        r.add_matched_writer(writer_proxy);
+                    }
 
                     if data_reader
                         .listener_mask()

@@ -4,7 +4,7 @@ use crate::{
         any_data_writer_listener::AnyDataWriterListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_writer::DataWriterEntity,
+            entities::data_writer::{DataWriterEntity, TransportWriterKind},
         },
         listeners::{
             data_writer_listener::DataWriterListenerActor,
@@ -16,11 +16,13 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        qos_policy::ReliabilityQosPolicyKind,
         status::StatusKind,
     },
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     transport::types::{
-        EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+        EntityId, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+        USER_DEFINED_WRITER_WITH_KEY,
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -62,10 +64,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
             ],
             entity_kind,
         );
-        let writer_guid = Guid::new(self.transport.guid().prefix(), entity_id);
-        let transport_writer =
-            self.transport
-                .create_stateful_writer(entity_id, topic_kind, todo!());
+
         let writer_handle = self.instance_handle_counter.generate_new_instance_handle();
         let publisher = self
             .domain_participant
@@ -78,6 +77,13 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
                 q
             }
         };
+        let reliablity_kind = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        };
+        let transport_writer =
+            self.transport
+                .create_stateful_writer(entity_id, topic_kind, reliablity_kind);
 
         let topic_name = message.topic_name;
 
@@ -94,7 +100,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         });
         let data_writer = DataWriterEntity::new(
             writer_handle,
-            transport_writer,
+            TransportWriterKind::Stateful(transport_writer),
             topic_name,
             type_name,
             type_support,

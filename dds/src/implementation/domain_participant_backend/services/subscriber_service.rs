@@ -4,7 +4,7 @@ use crate::{
         any_data_reader_listener::AnyDataReaderListener,
         domain_participant_backend::{
             domain_participant_actor::DomainParticipantActor,
-            entities::data_reader::DataReaderEntity,
+            entities::data_reader::{DataReaderEntity, TransportReaderKind},
             services::{data_reader_service, discovery_service, message_service},
         },
         listeners::{
@@ -17,13 +17,15 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
+        qos_policy::ReliabilityQosPolicyKind,
         status::StatusKind,
     },
     runtime::actor::{Actor, ActorAddress, Mail, MailHandler},
     transport::{
         history_cache::{CacheChange, HistoryCache},
         types::{
-            EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
+            EntityId, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
+            USER_DEFINED_READER_WITH_KEY,
         },
     },
     xtypes::dynamic_type::DynamicType,
@@ -88,7 +90,6 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             }
         };
         self.entity_counter += 1;
-        let prefix = self.transport.guid().prefix();
 
         let entity_kind = match topic_kind {
             TopicKind::NoKey => USER_DEFINED_READER_NO_KEY,
@@ -102,17 +103,21 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
             ],
             entity_kind,
         );
-        let reader_guid = Guid::new(prefix, entity_id);
-        let transport_reader = self.transport.create_stateful_reader(
-            entity_id,
-            topic_kind,
-            todo!(),
-            Box::new(UserDefinedReaderHistoryCache {
-                domain_participant_address: message.domain_participant_address.clone(),
-                subscriber_handle: subscriber.instance_handle(),
-                data_reader_handle: reader_handle,
-            }),
-        );
+        let reliablity_kind = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        };
+        let transport_reader =
+            TransportReaderKind::Stateful(self.transport.create_stateful_reader(
+                entity_id,
+                topic_kind,
+                reliablity_kind,
+                Box::new(UserDefinedReaderHistoryCache {
+                    domain_participant_address: message.domain_participant_address.clone(),
+                    subscriber_handle: subscriber.instance_handle(),
+                    data_reader_handle: reader_handle,
+                }),
+            ));
 
         let listener_mask = message.mask.to_vec();
         let status_condition = Actor::spawn(

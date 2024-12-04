@@ -745,13 +745,12 @@ impl MailHandler<CreateStatelessWriter> for RtpsParticipant {
             }
 
             fn remove_change(&mut self, sequence_number: SequenceNumber) {
-                todo!()
-                //     self.rtps_participant_address
-                //         .send_actor_mail(RemoveCacheChange {
-                //             guid: self.guid,
-                //             sequence_number,
-                //         })
-                //         .ok();
+                self.rtps_participant_address
+                    .send_actor_mail(RemoveStatelessWriterCacheChange {
+                        writer: self.guid,
+                        sequence_number,
+                    })
+                    .ok();
             }
         }
 
@@ -1151,6 +1150,28 @@ impl MailHandler<AddStatelessWriterCacheChange> for RtpsParticipant {
     }
 }
 
+pub struct RemoveStatelessWriterCacheChange {
+    pub writer: Guid,
+    pub sequence_number: SequenceNumber,
+}
+impl Mail for RemoveStatelessWriterCacheChange {
+    type Result = ();
+}
+impl MailHandler<RemoveStatelessWriterCacheChange> for RtpsParticipant {
+    fn handle(
+        &mut self,
+        message: RemoveStatelessWriterCacheChange,
+    ) -> <RemoveStatelessWriterCacheChange as Mail>::Result {
+        if let Some(w) = self
+            .stateless_writer_list
+            .iter_mut()
+            .find(|dw| dw.guid() == message.writer)
+        {
+            w.remove_change(message.sequence_number);
+        }
+    }
+}
+
 pub struct AddStatefulWriterCacheChange {
     pub writer: Guid,
     pub cache_change: CacheChange,
@@ -1173,64 +1194,6 @@ impl MailHandler<AddStatefulWriterCacheChange> for RtpsParticipant {
         }
     }
 }
-
-// pub struct RemoveCacheChange {
-//     pub guid: Guid,
-//     pub sequence_number: SequenceNumber,
-// }
-// impl Mail for RemoveCacheChange {
-//     type Result = ();
-// }
-// impl MailHandler<RemoveCacheChange> for RtpsParticipant {
-//     fn handle(&mut self, message: RemoveCacheChange) -> <RemoveCacheChange as Mail>::Result {
-//         if let Some(w) = self
-//             .writer_list
-//             .iter_mut()
-//             .find(|dw| dw.guid() == message.guid)
-//         {
-//             w.remove_change(message.sequence_number);
-//         }
-//     }
-// }
-
-// pub struct AddDiscoveredParticipant {
-//     pub discovered_participant_data: SpdpDiscoveredParticipantData,
-// }
-// impl Mail for AddDiscoveredParticipant {
-//     type Result = ();
-// }
-// impl MailHandler<AddDiscoveredParticipant> for RtpsParticipant {
-//     fn handle(
-//         &mut self,
-//         message: AddDiscoveredParticipant,
-//     ) -> <AddDiscoveredParticipant as Mail>::Result {
-//         self.add_discovered_participant(&message.discovered_participant_data);
-//     }
-// }
-
-// pub struct AddDiscoveredWriter {
-//     pub discovered_writer_data: DiscoveredWriterData,
-// }
-// impl Mail for AddDiscoveredWriter {
-//     type Result = ();
-// }
-// impl MailHandler<AddDiscoveredWriter> for RtpsParticipant {
-//     fn handle(&mut self, message: AddDiscoveredWriter) -> <AddDiscoveredWriter as Mail>::Result {
-//         self.add_discovered_writer(message.discovered_writer_data);
-//     }
-// }
-
-// pub struct AddDiscoveredReader {
-//     pub discovered_reader_data: DiscoveredReaderData,
-// }
-// impl Mail for AddDiscoveredReader {
-//     type Result = ();
-// }
-// impl MailHandler<AddDiscoveredReader> for RtpsParticipant {
-//     fn handle(&mut self, message: AddDiscoveredReader) -> <AddDiscoveredReader as Mail>::Result {
-//         self.add_discovered_reader(message.discovered_reader_data);
-//     }
-// }
 
 pub struct IsChangeAcknowledged {
     pub guid: Guid,

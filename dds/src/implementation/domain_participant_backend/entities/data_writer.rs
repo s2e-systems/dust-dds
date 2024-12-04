@@ -19,7 +19,11 @@ use crate::{
         time::{DurationKind, Time},
     },
     runtime::{actor::Actor, executor::TaskHandle},
-    transport::{history_cache::CacheChange, types::ChangeKind, writer::TransportStatefulWriter},
+    transport::{
+        history_cache::{CacheChange, HistoryCache},
+        types::{ChangeKind, Guid},
+        writer::{TransportStatefulWriter, TransportStatelessWriter},
+    },
     xtypes::dynamic_type::DynamicType,
 };
 use std::{
@@ -27,9 +31,29 @@ use std::{
     sync::Arc,
 };
 
+pub enum TransportWriterKind {
+    Stateful(Box<dyn TransportStatefulWriter>),
+    Stateless(Box<dyn TransportStatelessWriter>),
+}
+
+impl TransportWriterKind {
+    pub fn guid(&self) -> Guid {
+        match self {
+            TransportWriterKind::Stateful(w) => w.guid(),
+            TransportWriterKind::Stateless(w) => w.guid(),
+        }
+    }
+
+    pub fn history_cache(&mut self) -> &mut dyn HistoryCache {
+        match self {
+            TransportWriterKind::Stateful(w) => w.history_cache(),
+            TransportWriterKind::Stateless(w) => w.history_cache(),
+        }
+    }
+}
 pub struct DataWriterEntity {
     instance_handle: InstanceHandle,
-    transport_writer: Box<dyn TransportStatefulWriter>,
+    transport_writer: TransportWriterKind,
     topic_name: String,
     type_name: String,
     type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -54,7 +78,7 @@ impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         instance_handle: InstanceHandle,
-        transport_writer: Box<dyn TransportStatefulWriter>,
+        transport_writer: TransportWriterKind,
         topic_name: String,
         type_name: String,
         type_support: Arc<dyn DynamicType + Send + Sync>,
@@ -99,12 +123,12 @@ impl DataWriterEntity {
         self.instance_handle
     }
 
-    pub fn transport_writer(&self) -> &dyn TransportStatefulWriter {
-        self.transport_writer.as_ref()
+    pub fn transport_writer(&self) -> &TransportWriterKind {
+        &self.transport_writer
     }
 
-    pub fn transport_writer_mut(&mut self) -> &mut dyn TransportStatefulWriter {
-        self.transport_writer.as_mut()
+    pub fn transport_writer_mut(&mut self) -> &mut TransportWriterKind {
+        &mut self.transport_writer
     }
 
     pub fn enabled(&self) -> bool {
@@ -206,11 +230,13 @@ impl DataWriterEntity {
                         if self.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
                             let start_time = std::time::Instant::now();
                             loop {
-                                if self
-                                    .transport_writer
-                                    .is_change_acknowledged(smallest_seq_num_instance)
-                                {
-                                    break;
+                                match &self.transport_writer {
+                                    TransportWriterKind::Stateful(w) => {
+                                        if w.is_change_acknowledged(smallest_seq_num_instance) {
+                                            break;
+                                        }
+                                    }
+                                    TransportWriterKind::Stateless(_) => break,
                                 }
 
                                 if let DurationKind::Finite(t) =
@@ -495,7 +521,11 @@ impl DataWriterEntity {
     }
 
     pub fn are_all_changes_acknowledged(&self) -> bool {
-        self.transport_writer
-            .is_change_acknowledged(self.last_change_sequence_number)
+        match &self.transport_writer {
+            TransportWriterKind::Stateful(w) => {
+                w.is_change_acknowledged(self.last_change_sequence_number)
+            }
+            TransportWriterKind::Stateless(_) => true,
+        }
     }
 }

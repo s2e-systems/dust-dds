@@ -29,7 +29,11 @@ use crate::{
     },
     runtime::{actor::Actor, executor::TaskHandle},
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    transport::{history_cache::CacheChange, reader::TransportStatefulReader, types::ChangeKind},
+    transport::{
+        history_cache::CacheChange,
+        reader::{TransportStatefulReader, TransportStatelessReader},
+        types::ChangeKind,
+    },
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -118,6 +122,11 @@ pub struct IndexedSample {
     pub sample: (Option<Arc<[u8]>>, SampleInfo),
 }
 
+pub enum TransportReaderKind {
+    Stateful(Box<dyn TransportStatefulReader>),
+    Stateless(Box<dyn TransportStatelessReader>),
+}
+
 pub struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
@@ -141,7 +150,7 @@ pub struct DataReaderEntity {
     instances: HashMap<InstanceHandle, InstanceState>,
     instance_deadline_missed_task: HashMap<InstanceHandle, TaskHandle>,
     instance_ownership: HashMap<InstanceHandle, [u8; 16]>,
-    transport_reader: Box<dyn TransportStatefulReader>,
+    transport_reader: TransportReaderKind,
 }
 
 impl DataReaderEntity {
@@ -155,7 +164,7 @@ impl DataReaderEntity {
         status_condition: Actor<StatusConditionActor>,
         listener: Option<Actor<DataReaderListenerActor>>,
         listener_mask: Vec<StatusKind>,
-        transport_reader: Box<dyn TransportStatefulReader>,
+        transport_reader: TransportReaderKind,
     ) -> Self {
         Self {
             instance_handle,
@@ -853,12 +862,12 @@ impl DataReaderEntity {
         status
     }
 
-    pub fn transport_reader(&self) -> &dyn TransportStatefulReader {
-        self.transport_reader.as_ref()
+    pub fn transport_reader(&self) -> &TransportReaderKind {
+        &self.transport_reader
     }
 
-    pub fn transport_reader_mut(&mut self) -> &mut dyn TransportStatefulReader {
-        self.transport_reader.as_mut()
+    pub fn transport_reader_mut(&mut self) -> &mut TransportReaderKind {
+        &mut self.transport_reader
     }
 
     pub fn get_matched_publication_data(
