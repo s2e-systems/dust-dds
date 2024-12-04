@@ -1,12 +1,14 @@
 use super::{
     history_cache::HistoryCache,
-    types::{EntityId, Guid, Locator},
+    types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
     pub remote_reader_guid: Guid,
     pub remote_group_entity_id: EntityId,
+    pub reliability_kind: ReliabilityKind,
+    pub durability_kind: DurabilityKind,
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
     pub expects_inline_qos: bool,

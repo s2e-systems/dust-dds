@@ -722,11 +722,13 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         message.discovered_writer_data.dds_publication_data.clone(),
                     );
                     let writer_proxy = WriterProxy {
-                        remote_writer_guid: todo!(),
                         remote_group_entity_id: todo!(),
                         unicast_locator_list: todo!(),
                         multicast_locator_list: todo!(),
                         data_max_size_serialized: todo!(),
+                        remote_writer_guid: todo!(),
+                        reliability_kind: todo!(),
+                        durability_kind: todo!(),
                     };
                     data_reader
                         .transport_reader_mut()

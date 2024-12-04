@@ -165,18 +165,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
             self.configuration.domain_tag().to_string(),
             self.configuration.interface_name(),
             self.configuration.udp_receive_buffer_size(),
-            Box::new(DcpsParticipantReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
-            }),
-            Box::new(DcpsTopicsReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
-            }),
-            Box::new(DcpsPublicationsReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
-            }),
-            Box::new(DcpsSubscriptionsReaderHistoryCache {
-                participant_address: participant_actor_builder.address(),
-            }),
         )?);
 
         let mut instance_handle_counter = InstanceHandleCounter::default();

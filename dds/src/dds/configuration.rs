@@ -20,8 +20,8 @@ impl DustDdsConfiguration {
     }
 
     /// Network interface name to use for discovery
-    pub fn interface_name(&self) -> Option<&String> {
-        self.interface_name.as_ref()
+    pub fn interface_name(&self) -> Option<&str> {
+        self.interface_name.as_deref()
     }
 
     /// Maximum size for the data fragments. Types with serialized data above this size will be transmitted as fragments.
