@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant_factory::DomainId,
     rtps::{message_receiver::MessageReceiver, stateful_writer::RtpsStatefulWriter},
     runtime::{
         actor::{ActorAddress, Mail, MailHandler},
@@ -25,8 +24,6 @@ use super::{
 
 pub struct RtpsParticipant {
     guid: Guid,
-    domain_id: DomainId,
-    domain_tag: String,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     default_unicast_locator_list: Vec<Locator>,
@@ -44,8 +41,6 @@ impl RtpsParticipant {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         guid: Guid,
-        domain_id: DomainId,
-        domain_tag: String,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         metatraffic_unicast_locator_list: Vec<Locator>,
@@ -57,8 +52,6 @@ impl RtpsParticipant {
 
         Ok(Self {
             guid,
-            domain_id,
-            domain_tag,
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: VENDOR_ID_S2E,
             default_unicast_locator_list,

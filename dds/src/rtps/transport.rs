@@ -113,7 +113,6 @@ impl RtpsTransport {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
-        domain_tag: String,
         interface_name: Option<&str>,
         udp_receive_buffer_size: Option<usize>,
     ) -> RtpsResult<Self> {
@@ -185,8 +184,6 @@ impl RtpsTransport {
         let rtps_participant = rtps_participant_actor_builder.build(
             RtpsParticipant::new(
                 guid,
-                domain_id,
-                domain_tag,
                 default_unicast_locator_list,
                 default_multicast_locator_list,
                 metatraffic_unicast_locator_list,
@@ -794,13 +791,11 @@ mod tests {
     fn basic_transport_usage() {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let domain_id = 0;
-        let domain_tag = String::new();
         let interface_name = None;
         let udp_receive_buffer_size = None;
         let mut transport = RtpsTransport::new(
             guid_prefix,
             domain_id,
-            domain_tag,
             interface_name,
             udp_receive_buffer_size,
         )
@@ -810,7 +805,6 @@ mod tests {
 
         impl HistoryCache for MockHistoryCache {
             fn add_change(&mut self, cache_change: CacheChange) {
-                println!("Add change called");
                 self.0.send(()).unwrap();
             }
 

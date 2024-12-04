@@ -162,7 +162,6 @@ impl MailHandler<CreateParticipant> for DomainParticipantFactoryActor {
         let transport = Box::new(RtpsTransport::new(
             guid_prefix,
             message.domain_id,
-            self.configuration.domain_tag().to_string(),
             self.configuration.interface_name(),
             self.configuration.udp_receive_buffer_size(),
         )?);
