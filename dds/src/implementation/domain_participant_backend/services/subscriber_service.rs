@@ -110,7 +110,6 @@ impl MailHandler<CreateDataReader> for DomainParticipantActor {
         let transport_reader =
             TransportReaderKind::Stateful(self.transport.create_stateful_reader(
                 entity_id,
-                topic_kind,
                 reliablity_kind,
                 Box::new(UserDefinedReaderHistoryCache {
                     domain_participant_address: message.domain_participant_address.clone(),

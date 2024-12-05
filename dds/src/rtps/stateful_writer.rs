@@ -31,18 +31,22 @@ pub struct RtpsStatefulWriter {
 }
 
 impl RtpsStatefulWriter {
-    pub fn new(guid: Guid) -> Self {
+    pub fn new(guid: Guid, data_max_size_serialized: usize) -> Self {
         Self {
             guid,
             changes: Vec::new(),
             matched_readers: Vec::new(),
             heartbeat_period: Duration::new(0, 200_000_000),
-            data_max_size_serialized: 1344,
+            data_max_size_serialized,
         }
     }
 
     pub fn guid(&self) -> Guid {
         self.guid
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.data_max_size_serialized
     }
 
     pub fn add_change(&mut self, cache_change: CacheChange, message_sender: &MessageSender) {

@@ -83,7 +83,7 @@ impl MailHandler<CreateDataWriter> for DomainParticipantActor {
         };
         let transport_writer =
             self.transport
-                .create_stateful_writer(entity_id, topic_kind, reliablity_kind);
+                .create_stateful_writer(entity_id, reliablity_kind, self.fragment_size);
 
         let topic_name = message.topic_name;
 

@@ -47,6 +47,7 @@ impl Mail for AddCacheChange {
 }
 impl MailHandler<AddCacheChange> for DomainParticipantActor {
     fn handle(&mut self, message: AddCacheChange) -> <AddCacheChange as Mail>::Result {
+        let reception_timestamp = self.domain_participant.get_current_time();
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
@@ -61,7 +62,7 @@ impl MailHandler<AddCacheChange> for DomainParticipantActor {
             .get_matched_publication_data(&writer_instance_handle)
             .is_some()
         {
-            match data_reader.add_reader_change(message.cache_change)? {
+            match data_reader.add_reader_change(message.cache_change, reception_timestamp)? {
                 AddChangeResult::Added(change_instance_handle) => {
                     if let DurationKind::Finite(deadline_missed_period) =
                         data_reader.qos().deadline.period
@@ -300,13 +301,17 @@ impl MailHandler<AddBuiltinParticipantsDetectorCacheChange> for DomainParticipan
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => (), // Do nothing,
         }
+
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_PARTICIPANT)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
     }
 }
@@ -362,13 +367,16 @@ impl MailHandler<AddBuiltinTopicsDetectorCacheChange> for DomainParticipantActor
             | ChangeKind::NotAliveDisposedUnregistered => (),
         }
 
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_TOPIC)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
     }
 }
@@ -474,13 +482,17 @@ impl MailHandler<AddBuiltinPublicationsDetectorCacheChange> for DomainParticipan
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
+
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_PUBLICATION)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
     }
 }
@@ -593,13 +605,16 @@ impl MailHandler<AddBuiltinSubscriptionsDetectorCacheChange> for DomainParticipa
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
 
+        let reception_timestamp = self.domain_participant.get_current_time();
         if let Some(reader) = self
             .domain_participant
             .builtin_subscriber_mut()
             .data_reader_list_mut()
             .find(|dr| dr.topic_name() == DCPS_SUBSCRIPTION)
         {
-            reader.add_reader_change(message.cache_change).ok();
+            reader
+                .add_reader_change(message.cache_change, reception_timestamp)
+                .ok();
         }
     }
 }

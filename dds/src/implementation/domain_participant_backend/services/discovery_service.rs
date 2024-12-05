@@ -8,7 +8,7 @@ use crate::{
     },
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_writer_data::DiscoveredWriterData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -48,9 +48,8 @@ use crate::{
     runtime::actor::{ActorAddress, Mail, MailHandler},
     topic_definition::type_support::DdsSerialize,
     transport::{
-        reader::WriterProxy,
+        self,
         types::{DurabilityKind, Guid, ReliabilityKind, ENTITYID_UNKNOWN},
-        writer::ReaderProxy,
     },
 };
 
@@ -169,7 +168,7 @@ impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
             .topic_data
             .clone();
 
-        let publication_builtin_topic_data = PublicationBuiltinTopicData {
+        let dds_publication_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
                 value: data_writer.transport_writer().guid().into(),
             },
@@ -192,13 +191,24 @@ impl MailHandler<AnnounceDataWriter> for DomainParticipantActor {
             group_data: publisher.qos().group_data.clone(),
             representation: data_writer.qos().representation.clone(),
         };
+        let writer_proxy = WriterProxy {
+            remote_writer_guid: data_writer.transport_writer().guid(),
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            data_max_size_serialized: self.fragment_size as i32,
+        };
+        let discovered_writer_data = DiscoveredWriterData {
+            dds_publication_data,
+            writer_proxy,
+        };
         let timestamp = self.domain_participant.get_current_time();
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher_mut()
             .lookup_datawriter_mut(DCPS_PUBLICATION)
         {
-            dw.write_w_timestamp(publication_builtin_topic_data.serialize_data()?, timestamp)?;
+            dw.write_w_timestamp(discovered_writer_data.serialize_data()?, timestamp)?;
         }
         Ok(())
     }
@@ -782,6 +792,36 @@ impl Mail for AddDiscoveredWriter {
 }
 impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
     fn handle(&mut self, message: AddDiscoveredWriter) -> <AddDiscoveredWriter as Mail>::Result {
+        let default_unicast_locator_list = if let Some(p) = self
+            .domain_participant
+            .discovered_participant_list()
+            .find(|p| {
+                p.participant_proxy.guid_prefix
+                    == message
+                        .discovered_writer_data
+                        .writer_proxy
+                        .remote_writer_guid
+                        .prefix()
+            }) {
+            p.participant_proxy.default_unicast_locator_list.clone()
+        } else {
+            vec![]
+        };
+        let default_multicast_locator_list = if let Some(p) = self
+            .domain_participant
+            .discovered_participant_list()
+            .find(|p| {
+                p.participant_proxy.guid_prefix
+                    == message
+                        .discovered_writer_data
+                        .writer_proxy
+                        .remote_writer_guid
+                        .prefix()
+            }) {
+            p.participant_proxy.default_multicast_locator_list.clone()
+        } else {
+            vec![]
+        };
         let subscriber = self
             .domain_participant
             .get_mut_subscriber(message.subscriber_handle)
@@ -867,7 +907,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         .unicast_locator_list
                         .is_empty()
                     {
-                        todo!()
+                        default_unicast_locator_list
                     } else {
                         message
                             .discovered_writer_data
@@ -880,7 +920,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         .multicast_locator_list
                         .is_empty()
                     {
-                        todo!()
+                        default_multicast_locator_list
                     } else {
                         message
                             .discovered_writer_data
@@ -907,7 +947,7 @@ impl MailHandler<AddDiscoveredWriter> for DomainParticipantActor {
                         DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
                         DurabilityQosPolicyKind::Persistent => DurabilityKind::Persistent,
                     };
-                    let writer_proxy = WriterProxy {
+                    let writer_proxy = transport::reader::WriterProxy {
                         remote_writer_guid: message
                             .discovered_writer_data
                             .writer_proxy
@@ -1309,7 +1349,7 @@ fn add_matched_publications_detector(
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
         let expects_inline_qos = false;
-        let reader_proxy = ReaderProxy {
+        let reader_proxy = transport::writer::ReaderProxy {
             remote_reader_guid,
             remote_group_entity_id,
             reliability_kind: ReliabilityKind::Reliable,
@@ -1357,7 +1397,7 @@ fn add_matched_publications_announcer(
         let remote_group_entity_id = ENTITYID_UNKNOWN;
         let data_max_size_serialized = Default::default();
 
-        let writer_proxy = WriterProxy {
+        let writer_proxy = transport::reader::WriterProxy {
             remote_writer_guid,
             remote_group_entity_id,
             unicast_locator_list: discovered_participant_data

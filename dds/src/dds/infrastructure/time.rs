@@ -4,10 +4,7 @@ use crate::xtypes::{
     error::XTypesError,
     serialize::{XTypesSerialize, XTypesSerializer},
 };
-use std::{
-    ops::Sub,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::ops::Sub;
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -194,17 +191,6 @@ impl Time {
     /// Get the number of nanoseconds contained by this time
     pub const fn nanosec(&self) -> u32 {
         self.nanosec
-    }
-
-    pub(crate) fn now() -> Self {
-        let now_system_time = SystemTime::now();
-        let unix_time = now_system_time
-            .duration_since(UNIX_EPOCH)
-            .expect("Clock time is before Unix epoch start");
-        Self {
-            sec: unix_time.as_secs() as i32,
-            nanosec: unix_time.subsec_nanos(),
-        }
     }
 }
 

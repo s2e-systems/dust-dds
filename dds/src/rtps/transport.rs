@@ -16,8 +16,8 @@ use crate::{
         participant::TransportParticipant,
         reader::{TransportStatefulReader, TransportStatelessReader, WriterProxy},
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
-            VendorId, ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
+            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+            ENTITYID_PARTICIPANT, LOCATOR_KIND_UDP_V4,
         },
         writer::{TransportStatefulWriter, TransportStatelessWriter},
     },
@@ -327,7 +327,6 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateless_reader(
         &mut self,
         entity_id: EntityId,
-        topic_kind: TopicKind,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatelessReader> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
@@ -353,7 +352,7 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateless_writer(
         &mut self,
         entity_id: EntityId,
-        topic_kind: TopicKind,
+        data_max_size_serialized: usize,
     ) -> Box<dyn TransportStatelessWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
@@ -369,7 +368,6 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateful_reader(
         &mut self,
         entity_id: EntityId,
-        _topic_kind: TopicKind,
         _reliability_kind: ReliabilityKind,
         reader_history_cache: Box<dyn HistoryCache>,
     ) -> Box<dyn TransportStatefulReader> {
@@ -427,14 +425,15 @@ impl TransportParticipant for RtpsTransport {
     fn create_stateful_writer(
         &mut self,
         entity_id: EntityId,
-        _topic_kind: TopicKind,
         _reliability_kind: ReliabilityKind,
+        data_max_size_serialized: usize,
     ) -> Box<dyn TransportStatefulWriter> {
         let guid = Guid::new(self.guid.prefix(), entity_id);
         block_on(
             self.rtps_participant
                 .send_actor_mail(participant::CreateStatefulWriter {
                     writer_guid: guid,
+                    data_max_size_serialized,
                     rtps_participant_address: self.rtps_participant.address(),
                 })
                 .receive_reply(),
@@ -481,19 +480,16 @@ mod tests {
         }
 
         let entity_id = EntityId::new([1, 2, 3], 4);
-        let topic_kind = TopicKind::WithKey;
         let reliability_kind = ReliabilityKind::Reliable;
+        let data_max_size_serialized = 1000;
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let mut reader = transport.create_stateful_reader(
-            entity_id,
-            topic_kind,
-            reliability_kind,
-            reader_history_cache,
-        );
+        let mut reader =
+            transport.create_stateful_reader(entity_id, reliability_kind, reader_history_cache);
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = transport.create_stateful_writer(entity_id, topic_kind, reliability_kind);
+        let mut writer =
+            transport.create_stateful_writer(entity_id, reliability_kind, data_max_size_serialized);
 
         let reader_proxy = ReaderProxy {
             remote_reader_guid: reader.guid(),
@@ -560,14 +556,13 @@ mod tests {
         }
 
         let entity_id = EntityId::new([1, 2, 3], 4);
-        let topic_kind = TopicKind::WithKey;
         let (sender, receiver) = sync_channel(0);
         let reader_history_cache = Box::new(MockHistoryCache(sender));
-        let _reader =
-            transport.create_stateless_reader(entity_id, topic_kind, reader_history_cache);
+        let _reader = transport.create_stateless_reader(entity_id, reader_history_cache);
 
         let entity_id = EntityId::new([5, 6, 7], 8);
-        let mut writer = transport.create_stateless_writer(entity_id, topic_kind);
+        let data_max_size_serialized = 1000;
+        let mut writer = transport.create_stateless_writer(entity_id, data_max_size_serialized);
         for locator in transport.default_unicast_locator_list() {
             writer.add_reader_locator(locator.clone());
         }

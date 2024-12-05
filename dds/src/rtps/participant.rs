@@ -116,8 +116,8 @@ impl RtpsParticipant {
         self.stateless_writer_list.push(writer);
     }
 
-    pub fn create_stateful_writer(&mut self, writer_guid: Guid) {
-        let writer = RtpsStatefulWriter::new(writer_guid);
+    pub fn create_stateful_writer(&mut self, writer_guid: Guid, data_max_size_serialized: usize) {
+        let writer = RtpsStatefulWriter::new(writer_guid, data_max_size_serialized);
         self.stateful_writer_list.push(writer);
     }
 
@@ -214,6 +214,7 @@ impl MailHandler<SendHeartbeat> for RtpsParticipant {
 
 pub struct CreateStatefulWriter {
     pub writer_guid: Guid,
+    pub data_max_size_serialized: usize,
     pub rtps_participant_address: ActorAddress<RtpsParticipant>,
 }
 
@@ -222,7 +223,7 @@ impl Mail for CreateStatefulWriter {
 }
 impl MailHandler<CreateStatefulWriter> for RtpsParticipant {
     fn handle(&mut self, message: CreateStatefulWriter) -> <CreateStatefulWriter as Mail>::Result {
-        self.create_stateful_writer(message.writer_guid);
+        self.create_stateful_writer(message.writer_guid, message.data_max_size_serialized);
 
         struct RtpsUserDefinedWriterHistoryCache {
             rtps_participant_address: ActorAddress<RtpsParticipant>,

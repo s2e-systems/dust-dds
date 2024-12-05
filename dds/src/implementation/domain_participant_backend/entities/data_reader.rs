@@ -543,8 +543,12 @@ impl DataReaderEntity {
         })
     }
 
-    pub fn add_reader_change(&mut self, cache_change: CacheChange) -> DdsResult<AddChangeResult> {
-        let sample = self.convert_cache_change_to_sample(cache_change, Time::now())?;
+    pub fn add_reader_change(
+        &mut self,
+        cache_change: CacheChange,
+        reception_timestamp: Time,
+    ) -> DdsResult<AddChangeResult> {
+        let sample = self.convert_cache_change_to_sample(cache_change, reception_timestamp)?;
         let change_instance_handle = sample.instance_handle;
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
